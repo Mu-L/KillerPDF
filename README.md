@@ -15,6 +15,12 @@ Part of [killertools.net](https://killertools.net).
 - Print with annotations flattened into the output
 - No installer, no admin rights, no config files, no account
 
+## Screenshots
+
+![KillerPDF main view](screenshots/main-view.png)
+
+![Highlighting and annotation](screenshots/highlight.png)
+
 ## Requirements
 
 - Windows 10 or 11 (x64)
