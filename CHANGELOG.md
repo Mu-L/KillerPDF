@@ -6,6 +6,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-08
+
+### Added
+- Image signatures. Import a PNG, JPG, or BMP as a reusable signature instead of drawing one. Stored alongside drawn signatures and flattens into the PDF on save.
+- Close File (Ctrl+W). Close the current document without quitting the app. Prompts if there are unsaved changes.
+- Unsaved-changes protection. The title bar marks dirty files with `*` and prompts before closing or opening a new file with unsaved edits.
+- Full-document Find. Ctrl+F search now scans the entire PDF and cycles through all matches, not just the current page.
+- Zoom preset dropdown with quick presets (50%, 75%, 100%, 125%, 150%, 200%). Scroll-wheel zoom syncs the box, including non-preset levels.
+
+### Fixed
+- Scrolling past the bottom of a page now advances to the next page; scrolling past the top goes back.
+- Re-dropping a PDF onto the window after a file is already open now works correctly.
+- Owner-password-protected PDFs now open correctly (previously only user-password was handled).
+- Dragging the title bar while maximized now correctly restores and moves the window.
+- Delete confirmation now reads "Delete 1 page?" or "Delete 2 pages?" instead of "Delete N page(s)?".
+- Signature delete button showed a rectangle glyph instead of an X.
+
+### Changed
+- All dialog boxes are now fully dark-themed via a custom dialog window. No more native Windows popups.
+- Create Signature dialog now uses a dark custom chrome title bar with a red X close button.
+- Button hover states and page thumbnail hover in the sidebar are now green instead of the default Windows blue.
+- Toolbar icons overhauled: Open Folder, Close File, Move Up, Move Down, Extract Pages, and Merge PDFs all use cleaner glyphs.
+
+## [1.2.1] - 2026-05-04
+
+### Changed
+- Code signed with Certum certificate. Windows now shows a verified publisher instead of unknown.
+- Cleaned up footer.
+
 ## [1.2.0] - 2026-04-24
 
 ### Added
@@ -36,7 +65,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 _Historical entries to be backfilled._
 
-[Unreleased]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.2.1...v1.3.0
+[1.2.1]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/SteveTheKiller/KillerPDF/releases/tag/v1.1.1
 [1.1.0]: https://github.com/SteveTheKiller/KillerPDF/releases/tag/v1.1.0
