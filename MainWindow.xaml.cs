@@ -77,6 +77,17 @@ namespace KillerPDF
         private Button _toolHighlightBtn = null!;
         private Button _toolDrawBtn = null!;
         private Button _toolSignatureBtn = null!;
+        private Button _saveAsBtnRef = null!;
+        private Button _closeFileBtnRef = null!;
+        private ComboBox _zoomBox = null!;
+
+        // Dirty / unsaved-change tracking
+        private bool _isDirty = false;
+
+        // Whole-document search results (PDF-space rects per page)
+        private readonly Dictionary<int, List<(double left, double bottom, double right, double top)>> _allSearchRects = new();
+        private List<int> _searchResultPages = new();
+        private int _searchPageCursor = -1;
 
         public MainWindow()
         {
@@ -90,6 +101,9 @@ namespace KillerPDF
             _toolHighlightBtn = (Button)FindName("ToolHighlightBtn")!;
             _toolDrawBtn = (Button)FindName("ToolDrawBtn")!;
             _toolSignatureBtn = (Button)FindName("ToolSignatureBtn")!;
+            _saveAsBtnRef = (Button)FindName("SaveAsBtn")!;
+            _closeFileBtnRef = (Button)FindName("CloseFileBtn")!;
+            _zoomBox = (ComboBox)FindName("ZoomBox")!;
             LoadSignatures();
             BuildContextMenu();
             SetTool(EditTool.Select);
@@ -153,6 +167,12 @@ namespace KillerPDF
         [DllImport("user32.dll")]
         private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        private const int WM_NCLBUTTONDOWN = 0x00A1;
+        private const int HTCAPTION = 2;
+
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT { public int x; public int y; }
 
@@ -184,8 +204,18 @@ namespace KillerPDF
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ClickCount == 2) MaximizeBtn_Click(sender, e);
-            else DragMove();
+            if (e.ClickCount == 2)
+            {
+                MaximizeBtn_Click(sender, e);
+                return;
+            }
+            // Delegate drag to Windows via WM_NCLBUTTONDOWN(HTCAPTION).
+            // This gives native restore-from-maximized-and-drag behavior:
+            // if the window is maximized, Windows restores it and follows the cursor
+            // exactly as a native title bar would.
+            e.Handled = true;
+            var hwnd = new WindowInteropHelper(this).Handle;
+            SendMessage(hwnd, WM_NCLBUTTONDOWN, new IntPtr(HTCAPTION), IntPtr.Zero);
         }
 
         private void MinimizeBtn_Click(object sender, RoutedEventArgs e) =>
@@ -195,6 +225,22 @@ namespace KillerPDF
             WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
         private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (_isDirty)
+            {
+                var res = KillerDialog.Show(this,
+                    "You have unsaved changes. Close KillerPDF without saving?",
+                    "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (res != MessageBoxResult.Yes)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+            base.OnClosing(e);
+        }
 
         // ============================================================
         // Context menu
@@ -241,6 +287,23 @@ namespace KillerPDF
                 _currentFile = path;
                 FinishOpenFile(path, path);
             }
+            catch (Exception ex) when (IsOwnerPasswordException(ex))
+            {
+                // PDF has owner/permissions restrictions but no open password —
+                // open read-only so the user can still view and print it.
+                try
+                {
+                    if (_doc is not null) { _doc.Close(); _doc = null; }
+                    _doc = PdfReader.Open(path, PdfDocumentOpenMode.ReadOnly);
+                    _currentFile = path;
+                    FinishOpenFile(path, path);
+                    SetStatus($"Opened {System.IO.Path.GetFileName(path)} (read-only - owner restrictions) - {_doc.PageCount} page(s)");
+                }
+                catch (Exception ex2)
+                {
+                    KillerDialog.Show(this, $"Failed to open PDF:\n{ex2.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
             catch (Exception ex) when (IsPasswordException(ex))
             {
                 string? pw = PromptForPassword(path);
@@ -259,14 +322,18 @@ namespace KillerPDF
                 }
                 catch (Exception ex2)
                 {
-                    MessageBox.Show($"Failed to open PDF:\n{ex2.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                    KillerDialog.Show(this, $"Failed to open PDF:\n{ex2.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to open PDF:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, $"Failed to open PDF:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private static bool IsOwnerPasswordException(Exception ex) =>
+            ex.Message.IndexOf("owner", StringComparison.OrdinalIgnoreCase) >= 0 &&
+            ex.Message.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0;
 
         private void FinishOpenFile(string displayPath, string workingPath)
         {
@@ -274,10 +341,15 @@ namespace KillerPDF
             FileNameLabel.Text = System.IO.Path.GetFileName(displayPath);
             _annotations.Clear();
             _renderDims.Clear();
+            _allSearchRects.Clear();
+            _searchResultPages.Clear();
+            _searchPageCursor = -1;
             ClearSelection();
             RefreshPageList();
             DropZone.Visibility = Visibility.Collapsed;
             PagePreviewPanel.Visibility = Visibility.Visible;
+            if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = true;
+            MarkDirty(false);
             if (_doc!.PageCount > 0) PageList.SelectedIndex = 0;
             SetStatus($"Opened {System.IO.Path.GetFileName(displayPath)} - {_doc.PageCount} page(s)");
         }
@@ -758,14 +830,37 @@ namespace KillerPDF
                     };
 
                     // Render mini signature preview
-                    var canvas = new Canvas
+                    if (sigCopy.ImageData is not null)
                     {
-                        Width = 210, Height = 50,
-                        Background = Brushes.Transparent,
-                        IsHitTestVisible = false
-                    };
-                    RenderSignaturePreview(canvas, sigCopy, 210, 50);
-                    item.Child = canvas;
+                        try
+                        {
+                            var imgBytes = Convert.FromBase64String(sigCopy.ImageData);
+                            var bmpImg = new System.Windows.Media.Imaging.BitmapImage();
+                            bmpImg.BeginInit();
+                            bmpImg.StreamSource = new System.IO.MemoryStream(imgBytes);
+                            bmpImg.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            bmpImg.EndInit();
+                            item.Child = new System.Windows.Controls.Image
+                            {
+                                Source = bmpImg,
+                                Width = 210, Height = 50,
+                                Stretch = System.Windows.Media.Stretch.Uniform,
+                                IsHitTestVisible = false
+                            };
+                        }
+                        catch { item.Child = new TextBlock { Text = "(image)", IsHitTestVisible = false }; }
+                    }
+                    else
+                    {
+                        var canvas = new Canvas
+                        {
+                            Width = 210, Height = 50,
+                            Background = Brushes.Transparent,
+                            IsHitTestVisible = false
+                        };
+                        RenderSignaturePreview(canvas, sigCopy, 210, 50);
+                        item.Child = canvas;
+                    }
 
                     item.MouseLeftButtonDown += (s, e) =>
                     {
@@ -785,7 +880,7 @@ namespace KillerPDF
 
                     var delBtn = new Button
                     {
-                        Content = "\u2715",
+                        Content = "\ue711",
                         FontSize = 10,
                         Width = 18, Height = 18,
                         HorizontalAlignment = HorizontalAlignment.Right,
@@ -836,12 +931,13 @@ namespace KillerPDF
             var createBtn = new Button
             {
                 Content = "Create Signature",
+                Style = (Style)FindResource("DarkButton"),
                 Background = (SolidColorBrush)FindResource("AccentGreenDim"),
                 Foreground = (SolidColorBrush)FindResource("AccentGreen"),
-                BorderThickness = new Thickness(0),
-                FontFamily = new FontFamily("Segoe UI"),
+                BorderBrush = (SolidColorBrush)FindResource("AccentGreenDim"),
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Consolas"),
                 FontSize = 12,
-                Cursor = Cursors.Hand,
                 Padding = new Thickness(12, 6, 12, 6),
                 Margin = new Thickness(4),
                 HorizontalAlignment = HorizontalAlignment.Stretch
@@ -852,6 +948,28 @@ namespace KillerPDF
                 OpenSignatureCreator();
             };
             stack.Children.Add(createBtn);
+
+            // Import image button
+            var importBtn = new Button
+            {
+                Content = "Import Image",
+                Style = (Style)FindResource("DarkButton"),
+                Background = new SolidColorBrush(Color.FromRgb(0x1e, 0x3a, 0x2e)),
+                Foreground = (SolidColorBrush)FindResource("AccentGreen"),
+                BorderBrush = (SolidColorBrush)FindResource("AccentGreenDim"),
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                Padding = new Thickness(12, 6, 12, 6),
+                Margin = new Thickness(4, 2, 4, 4),
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            importBtn.Click += (s, e) =>
+            {
+                HideSignaturePopup();
+                ImportImageSignature();
+            };
+            stack.Children.Add(importBtn);
 
             _signaturePopup = new Border
             {
@@ -919,24 +1037,76 @@ namespace KillerPDF
             var win = new Window
             {
                 Title = "Create Signature",
-                Width = 460, Height = 260,
+                Width = 460, Height = 300,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize,
-                WindowStyle = WindowStyle.ToolWindow,
-                Background = new SolidColorBrush(Color.FromRgb(0x1a, 0x1a, 0x1a))
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent
             };
 
-            var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            // Outer chrome
+            var outerChrome = new Border
+            {
+                Background      = new SolidColorBrush(Color.FromRgb(0x1a, 0x1a, 0x1a)),
+                BorderBrush     = new SolidColorBrush(Color.FromRgb(0x22, 0x54, 0x3d)),
+                BorderThickness = new Thickness(1),
+                CornerRadius    = new CornerRadius(6)
+            };
+            var rootStack = new StackPanel();
+
+            // Title bar
+            var titleBar = new Border
+            {
+                Background   = new SolidColorBrush(Color.FromRgb(0x24, 0x24, 0x24)),
+                Padding      = new Thickness(14, 8, 8, 8),
+                CornerRadius = new CornerRadius(5, 5, 0, 0)
+            };
+            titleBar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
+            var titleGrid = new Grid();
+            titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var titleText = new TextBlock
+            {
+                Text       = "Create Signature",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x4a, 0xde, 0x80)),
+                FontWeight = FontWeights.SemiBold,
+                FontSize   = 13,
+                FontFamily = new FontFamily("Consolas"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(titleText, 0);
+            var closeWinBtn = new Button
+            {
+                Content         = "",
+                FontFamily      = new FontFamily("Segoe MDL2 Assets"),
+                FontSize        = 10,
+                Width           = 28, Height = 28,
+                Background      = System.Windows.Media.Brushes.Transparent,
+                Foreground      = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                BorderThickness = new Thickness(0),
+                Cursor          = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            closeWinBtn.MouseEnter += (_, _2) => closeWinBtn.Foreground = new SolidColorBrush(Color.FromRgb(0xef, 0x44, 0x44));
+            closeWinBtn.MouseLeave += (_, _2) => closeWinBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+            closeWinBtn.Click += (_, _2) => win.Close();
+            Grid.SetColumn(closeWinBtn, 1);
+            titleGrid.Children.Add(titleText);
+            titleGrid.Children.Add(closeWinBtn);
+            titleBar.Child = titleGrid;
+            rootStack.Children.Add(titleBar);
+
+            var contentArea = new StackPanel();
 
             // Drawing canvas
             var canvasBorder = new Border
             {
                 Background = Brushes.White,
                 Margin = new Thickness(12, 12, 12, 4),
-                CornerRadius = new CornerRadius(4)
+                CornerRadius = new CornerRadius(4),
+                Height = 170
             };
             var drawCanvas = new Canvas
             {
@@ -945,8 +1115,6 @@ namespace KillerPDF
                 Cursor = Cursors.Pen
             };
             canvasBorder.Child = drawCanvas;
-            Grid.SetRow(canvasBorder, 0);
-            grid.Children.Add(canvasBorder);
 
             // Placeholder text
             var placeholder = new TextBlock
@@ -1007,6 +1175,8 @@ namespace KillerPDF
                 drawCanvas.ReleaseMouseCapture();
             };
 
+            contentArea.Children.Add(canvasBorder);
+
             // Buttons
             var btnPanel = new StackPanel
             {
@@ -1018,13 +1188,14 @@ namespace KillerPDF
             var clearBtn = new Button
             {
                 Content = "Clear",
+                Style = (Style)FindResource("DarkButton"),
                 Padding = new Thickness(16, 6, 16, 6),
                 Margin = new Thickness(0, 0, 8, 0),
                 Background = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33)),
                 Foreground = new SolidColorBrush(Color.FromRgb(0xe0, 0xe0, 0xe0)),
-                BorderThickness = new Thickness(0),
-                FontFamily = new FontFamily("Segoe UI"),
-                Cursor = Cursors.Hand
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Consolas")
             };
             clearBtn.Click += (s, e) =>
             {
@@ -1037,19 +1208,20 @@ namespace KillerPDF
             var saveBtn = new Button
             {
                 Content = "Save Signature",
+                Style = (Style)FindResource("DarkButton"),
                 Padding = new Thickness(16, 6, 16, 6),
                 Background = new SolidColorBrush(Color.FromRgb(0x22, 0x54, 0x3d)),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x4a, 0xde, 0x80)),
-                BorderThickness = new Thickness(0),
-                FontFamily = new FontFamily("Segoe UI"),
-                FontWeight = FontWeights.SemiBold,
-                Cursor = Cursors.Hand
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x4a, 0xde, 0x80)),
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Consolas"),
+                FontWeight = FontWeights.SemiBold
             };
             saveBtn.Click += (s, e) =>
             {
                 if (strokes.Count == 0)
                 {
-                    MessageBox.Show("Draw a signature first.", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    KillerDialog.Show(this, "Draw a signature first.", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -1080,11 +1252,55 @@ namespace KillerPDF
 
             btnPanel.Children.Add(clearBtn);
             btnPanel.Children.Add(saveBtn);
-            Grid.SetRow(btnPanel, 1);
-            grid.Children.Add(btnPanel);
+            contentArea.Children.Add(btnPanel);
 
-            win.Content = grid;
+            rootStack.Children.Add(contentArea);
+            outerChrome.Child = rootStack;
+            win.Content = outerChrome;
             win.ShowDialog();
+        }
+
+        private void ImportImageSignature()
+        {
+            var dlg = new OpenFileDialog
+            {
+                Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*",
+                Title = "Import Signature Image"
+            };
+            if (dlg.ShowDialog() != true) return;
+
+            try
+            {
+                var bmp = new System.Windows.Media.Imaging.BitmapImage(new Uri(dlg.FileName));
+                byte[] pngBytes;
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                    encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+                    encoder.Save(ms);
+                    pngBytes = ms.ToArray();
+                }
+
+                var saved = new SavedSignature
+                {
+                    Name = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName),
+                    CanvasWidth = bmp.PixelWidth,
+                    CanvasHeight = bmp.PixelHeight,
+                    ImageData = Convert.ToBase64String(pngBytes)
+                };
+                _savedSignatures.Add(saved);
+                PersistSignatures();
+
+                _pendingSignature = saved;
+                _annotationCanvas.Cursor = Cursors.Cross;
+                SetStatus("Image loaded - click on the page to place it");
+                ShowSignaturePopup(); // refresh to show the new entry
+            }
+            catch (Exception ex)
+            {
+                KillerDialog.Show(this, $"Failed to import image:\n{ex.Message}", "KillerPDF",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void PlaceSignature(Point pos, int pageIdx)
@@ -1094,23 +1310,22 @@ namespace KillerPDF
             var sig = _pendingSignature;
             double scale = 0.5;
 
-            // Convert serializable points to WPF points
-            var wpfStrokes = new List<List<Point>>();
-            foreach (var stroke in sig.Strokes)
-            {
-                var pts = stroke.Select(p => new Point(p.X, p.Y)).ToList();
-                wpfStrokes.Add(pts);
-            }
-
             var annot = new SignatureAnnotation
             {
                 PageIndex = pageIdx,
                 Position = pos,
                 Scale = scale,
-                Strokes = wpfStrokes,
                 SourceWidth = sig.CanvasWidth,
-                SourceHeight = sig.CanvasHeight
+                SourceHeight = sig.CanvasHeight,
+                ImageData = sig.ImageData
             };
+
+            // Drawn signature — convert serializable points to WPF points
+            if (sig.ImageData is null)
+            {
+                foreach (var stroke in sig.Strokes)
+                    annot.Strokes.Add(stroke.Select(p => new Point(p.X, p.Y)).ToList());
+            }
 
             AddAnnotation(annot);
             RenderAllAnnotations(pageIdx);
@@ -1617,23 +1832,30 @@ namespace KillerPDF
 
                 var closeBtn = new Button
                 {
-                    Content = "\u2715",
-                    Background = Brushes.Transparent,
-                    Foreground = (SolidColorBrush)FindResource("TextSecondary"),
-                    BorderThickness = new Thickness(0),
-                    FontSize = 12,
-                    Cursor = Cursors.Hand,
-                    Padding = new Thickness(6, 2, 6, 2),
+                    Content = "\ue711",  // MDL2 Cancel glyph \u2014 matches ToolbarButton font
                     Margin = new Thickness(4, 0, 0, 0),
-                    Style = (Style)FindResource("ToolbarButton")
+                    Style = (Style)FindResource("ToolbarButton"),
+                    ToolTip = "Close search (Esc)"
                 };
                 closeBtn.Click += (s, e) => CloseSearchBar();
+
+                var searchIcon = new TextBlock
+                {
+                    Text = "",  // Segoe MDL2 Search / magnifying glass
+                    FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                    FontSize = 12,
+                    Foreground = (SolidColorBrush)FindResource("TextSecondary"),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 6, 0),
+                    IsHitTestVisible = false
+                };
 
                 var panel = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
                     Margin = new Thickness(8)
                 };
+                panel.Children.Add(searchIcon);
                 panel.Children.Add(_searchBox);
                 panel.Children.Add(_searchStatus);
                 panel.Children.Add(closeBtn);
@@ -1662,6 +1884,7 @@ namespace KillerPDF
 
             _searchBar.Visibility = Visibility.Visible;
             _searchBox!.Text = "";
+            if (_searchStatus != null) _searchStatus.Text = "Enter = next  Shift+Enter = prev";
             _searchBox.Focus();
             Keyboard.Focus(_searchBox);
         }
@@ -1682,7 +1905,10 @@ namespace KillerPDF
             }
             else if (e.Key == Key.Enter)
             {
-                RunSearch(_searchBox?.Text ?? "");
+                if (Keyboard.Modifiers == ModifierKeys.Shift)
+                    SearchPrevResult();
+                else
+                    SearchNextResult();
                 e.Handled = true;
             }
         }
@@ -1693,103 +1919,166 @@ namespace KillerPDF
             if (text.Length >= 2)
                 RunSearch(text);
             else
+            {
                 ClearSearchHighlights();
+                _allSearchRects.Clear();
+                _searchResultPages.Clear();
+                _searchPageCursor = -1;
+            }
         }
 
         private void RunSearch(string query)
         {
             ClearSearchHighlights();
-            if (string.IsNullOrWhiteSpace(query) || _currentFile is null) return;
-            int pageIdx = PageList.SelectedIndex;
-            if (pageIdx < 0) return;
-            if (!_renderDims.ContainsKey(pageIdx)) return;
+            _allSearchRects.Clear();
+            _searchResultPages.Clear();
+            _searchPageCursor = -1;
+
+            if (string.IsNullOrWhiteSpace(query) || _currentFile is null)
+            {
+                if (_searchStatus != null) _searchStatus.Text = "";
+                return;
+            }
 
             try
             {
-                var (renderW, renderH) = _renderDims[pageIdx];
+                string lowerQuery = query.ToLowerInvariant();
+                int totalHits = 0;
 
                 using var pigDoc = PdfPigDoc.Open(_currentFile);
-                if (pageIdx >= pigDoc.NumberOfPages) return;
-                var page = pigDoc.GetPage(pageIdx + 1);
+                for (int pi = 0; pi < pigDoc.NumberOfPages; pi++)
+                {
+                    var page = pigDoc.GetPage(pi + 1);
+                    var hits = FindMatchesOnPage(page, lowerQuery);
+                    if (hits.Count > 0)
+                    {
+                        _allSearchRects[pi] = hits;
+                        _searchResultPages.Add(pi);
+                        totalHits += hits.Count;
+                    }
+                }
 
+                if (_searchResultPages.Count == 0)
+                {
+                    if (_searchStatus != null) _searchStatus.Text = "No matches";
+                    return;
+                }
+
+                // Start from current page or the first page with results
+                int startPage = PageList.SelectedIndex;
+                _searchPageCursor = _searchResultPages.FindIndex(p => p >= startPage);
+                if (_searchPageCursor < 0) _searchPageCursor = 0;
+
+                if (_searchStatus != null)
+                    _searchStatus.Text = totalHits == 1
+                        ? $"1 match ({_searchResultPages.Count} page)"
+                        : $"{totalHits} matches ({_searchResultPages.Count} page{(_searchResultPages.Count != 1 ? "s" : "")})";
+
+                int targetPage = _searchResultPages[_searchPageCursor];
+                if (PageList.SelectedIndex != targetPage)
+                    PageList.SelectedIndex = targetPage;  // triggers SelectionChanged -> HighlightSearchResultsOnCurrentPage
+                else
+                    HighlightSearchResultsOnCurrentPage();
+            }
+            catch
+            {
+                if (_searchStatus != null) _searchStatus.Text = "Search error";
+            }
+        }
+
+        private static List<(double left, double bottom, double right, double top)> FindMatchesOnPage(
+            UglyToad.PdfPig.Content.Page page, string lowerQuery)
+        {
+            var result = new List<(double left, double bottom, double right, double top)>();
+            var words = page.GetWords().ToList();
+
+            for (int i = 0; i < words.Count; i++)
+            {
+                if (words[i].Text.ToLowerInvariant().Contains(lowerQuery))
+                {
+                    var bb = words[i].BoundingBox;
+                    result.Add((bb.Left, bb.Bottom, bb.Right, bb.Top));
+                    continue;
+                }
+
+                // Multi-word match
+                string combined = words[i].Text;
+                for (int j = i + 1; j < words.Count && combined.Length < lowerQuery.Length + 20; j++)
+                {
+                    combined += " " + words[j].Text;
+                    if (combined.ToLowerInvariant().Contains(lowerQuery))
+                    {
+                        double minX = double.MaxValue, minY = double.MaxValue;
+                        double maxX = double.MinValue, maxY = double.MinValue;
+                        for (int k = i; k <= j; k++)
+                        {
+                            var wbb = words[k].BoundingBox;
+                            minX = Math.Min(minX, wbb.Left);
+                            minY = Math.Min(minY, wbb.Bottom);
+                            maxX = Math.Max(maxX, wbb.Right);
+                            maxY = Math.Max(maxY, wbb.Top);
+                        }
+                        result.Add((minX, minY, maxX, maxY));
+                        break;
+                    }
+                }
+            }
+            return result;
+        }
+
+        private void HighlightSearchResultsOnCurrentPage()
+        {
+            ClearSearchHighlights();
+            int curPage = PageList.SelectedIndex;
+            if (!_allSearchRects.ContainsKey(curPage)) return;
+            if (!_renderDims.ContainsKey(curPage)) return;
+
+            var (renderW, renderH) = _renderDims[curPage];
+
+            try
+            {
+                using var pigDoc = PdfPigDoc.Open(_currentFile!);
+                var page = pigDoc.GetPage(curPage + 1);
                 double pdfW = page.Width;
                 double pdfH = page.Height;
                 double sx = renderW / pdfW;
                 double sy = renderH / pdfH;
 
-                var words = page.GetWords().ToList();
-                var lowerQuery = query.ToLowerInvariant();
-                int hitCount = 0;
-
-                // Search each word and multi-word sequences
-                for (int i = 0; i < words.Count; i++)
-                {
-                    // Check single word contains
-                    if (words[i].Text.ToLowerInvariant().Contains(lowerQuery))
-                    {
-                        var bb = words[i].BoundingBox;
-                        AddSearchHighlight(bb, sx, sy, renderH, pdfH);
-                        hitCount++;
-                        continue;
-                    }
-
-                    // Check multi-word match (e.g. searching "Steve Riley")
-                    string combined = words[i].Text;
-                    for (int j = i + 1; j < words.Count && combined.Length < lowerQuery.Length + 20; j++)
-                    {
-                        combined += " " + words[j].Text;
-                        if (combined.ToLowerInvariant().Contains(lowerQuery))
-                        {
-                            // Highlight from word[i] to word[j]
-                            double minX = double.MaxValue, minY = double.MaxValue;
-                            double maxX = double.MinValue, maxY = double.MinValue;
-                            for (int k = i; k <= j; k++)
-                            {
-                                var wbb = words[k].BoundingBox;
-                                minX = Math.Min(minX, wbb.Left);
-                                minY = Math.Min(minY, wbb.Bottom);
-                                maxX = Math.Max(maxX, wbb.Right);
-                                maxY = Math.Max(maxY, wbb.Top);
-                            }
-                            double cx = minX * sx;
-                            double cy = renderH - (maxY * sy);
-                            double cw = (maxX - minX) * sx;
-                            double ch = (maxY - minY) * sy;
-                            var highlightRect = new Rectangle
-                            {
-                                Fill = new SolidColorBrush(Color.FromArgb(80, 255, 165, 0)),
-                                Stroke = new SolidColorBrush(Color.FromArgb(160, 255, 165, 0)),
-                                StrokeThickness = 1,
-                                Width = Math.Max(cw, 4),
-                                Height = Math.Max(ch, 4),
-                                IsHitTestVisible = false,
-                                Tag = "SearchHighlight"
-                            };
-                            Canvas.SetLeft(highlightRect, cx);
-                            Canvas.SetTop(highlightRect, cy);
-                            _annotationCanvas.Children.Add(highlightRect);
-                            hitCount++;
-                            break;
-                        }
-                    }
-                }
-
-                if (_searchStatus is not null)
-                    _searchStatus.Text = hitCount > 0 ? $"{hitCount} found" : "No matches";
+                foreach (var (left, bottom, right, top) in _allSearchRects[curPage])
+                    AddSearchHighlight(left, bottom, right, top, sx, sy, renderH);
             }
-            catch
-            {
-                if (_searchStatus is not null)
-                    _searchStatus.Text = "Search error";
-            }
+            catch { }
         }
 
-        private void AddSearchHighlight(UglyToad.PdfPig.Core.PdfRectangle bb, double sx, double sy, double renderH, double pdfH)
+        private void SearchNextResult()
         {
-            double cx = bb.Left * sx;
-            double cy = renderH - (bb.Top * sy);
-            double cw = (bb.Right - bb.Left) * sx;
-            double ch = (bb.Top - bb.Bottom) * sy;
+            if (_searchResultPages.Count == 0) return;
+            _searchPageCursor = (_searchPageCursor + 1) % _searchResultPages.Count;
+            int targetPage = _searchResultPages[_searchPageCursor];
+            if (PageList.SelectedIndex != targetPage)
+                PageList.SelectedIndex = targetPage;
+            else
+                HighlightSearchResultsOnCurrentPage();
+        }
+
+        private void SearchPrevResult()
+        {
+            if (_searchResultPages.Count == 0) return;
+            _searchPageCursor = (_searchPageCursor - 1 + _searchResultPages.Count) % _searchResultPages.Count;
+            int targetPage = _searchResultPages[_searchPageCursor];
+            if (PageList.SelectedIndex != targetPage)
+                PageList.SelectedIndex = targetPage;
+            else
+                HighlightSearchResultsOnCurrentPage();
+        }
+
+        private void AddSearchHighlight(double left, double bottom, double right, double top,
+            double sx, double sy, double renderH)
+        {
+            double cx = left  * sx;
+            double cy = renderH - (top * sy);
+            double cw = (right - left) * sx;
+            double ch = (top - bottom) * sy;
             var rect = new Rectangle
             {
                 Fill = new SolidColorBrush(Color.FromArgb(80, 255, 165, 0)),
@@ -2214,6 +2503,16 @@ namespace KillerPDF
                 Undo_Click(this, e);
                 e.Handled = true;
             }
+            else if (e.Key == Key.W && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                CloseFile();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                Open_Click(this, e);
+                e.Handled = true;
+            }
         }
 
         // ============================================================
@@ -2225,6 +2524,7 @@ namespace KillerPDF
             if (!_annotations.ContainsKey(annotation.PageIndex))
                 _annotations[annotation.PageIndex] = new List<PageAnnotation>();
             _annotations[annotation.PageIndex].Add(annotation);
+            MarkDirty();
         }
 
         private void RenderTextAnnotation(TextAnnotation ta)
@@ -2305,22 +2605,50 @@ namespace KillerPDF
                         break;
 
                     case SignatureAnnotation sa:
-                        foreach (var stroke in sa.Strokes)
+                        if (sa.ImageData is not null)
                         {
-                            if (stroke.Count < 2) continue;
-                            var sigPoly = new Polyline
+                            // Image-based signature
+                            try
                             {
-                                Stroke = Brushes.Black,
-                                StrokeThickness = 2 * sa.Scale,
-                                StrokeLineJoin = PenLineJoin.Round,
-                                StrokeStartLineCap = PenLineCap.Round,
-                                StrokeEndLineCap = PenLineCap.Round
-                            };
-                            foreach (var pt in stroke)
-                                sigPoly.Points.Add(new Point(
-                                    sa.Position.X + pt.X * sa.Scale,
-                                    sa.Position.Y + pt.Y * sa.Scale));
-                            _annotationCanvas.Children.Add(sigPoly);
+                                var imgBytes = Convert.FromBase64String(sa.ImageData);
+                                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                                bmp.BeginInit();
+                                bmp.StreamSource = new System.IO.MemoryStream(imgBytes);
+                                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                                bmp.EndInit();
+                                var imgCtrl = new System.Windows.Controls.Image
+                                {
+                                    Source = bmp,
+                                    Width = sa.SourceWidth * sa.Scale,
+                                    Height = sa.SourceHeight * sa.Scale,
+                                    Stretch = System.Windows.Media.Stretch.Uniform,
+                                    IsHitTestVisible = false
+                                };
+                                Canvas.SetLeft(imgCtrl, sa.Position.X);
+                                Canvas.SetTop(imgCtrl, sa.Position.Y);
+                                _annotationCanvas.Children.Add(imgCtrl);
+                            }
+                            catch { /* skip broken image */ }
+                        }
+                        else
+                        {
+                            foreach (var stroke in sa.Strokes)
+                            {
+                                if (stroke.Count < 2) continue;
+                                var sigPoly = new Polyline
+                                {
+                                    Stroke = Brushes.Black,
+                                    StrokeThickness = 2 * sa.Scale,
+                                    StrokeLineJoin = PenLineJoin.Round,
+                                    StrokeStartLineCap = PenLineCap.Round,
+                                    StrokeEndLineCap = PenLineCap.Round
+                                };
+                                foreach (var pt in stroke)
+                                    sigPoly.Points.Add(new Point(
+                                        sa.Position.X + pt.X * sa.Scale,
+                                        sa.Position.Y + pt.Y * sa.Scale));
+                                _annotationCanvas.Children.Add(sigPoly);
+                            }
                         }
                         break;
                 }
@@ -2346,11 +2674,69 @@ namespace KillerPDF
         {
             int pageIdx = PageList.SelectedIndex;
             if (pageIdx < 0) return;
-            if (_annotations.ContainsKey(pageIdx)) _annotations[pageIdx].Clear();
+            if (_annotations.ContainsKey(pageIdx) && _annotations[pageIdx].Count > 0)
+            {
+                _annotations[pageIdx].Clear();
+                MarkDirty();
+            }
             ClearSelection();
             _annotationCanvas.Children.Clear();
             SetStatus("Cleared annotations on this page");
         }
+
+        // ============================================================
+        // Dirty / unsaved-change tracking
+        // ============================================================
+
+        private void MarkDirty(bool dirty = true)
+        {
+            _isDirty = dirty;
+            if (_saveAsBtnRef != null)
+            {
+                _saveAsBtnRef.Foreground = dirty
+                    ? new SolidColorBrush(Color.FromRgb(0xff, 0xa5, 0x00)) // orange = unsaved
+                    : (SolidColorBrush)FindResource("AccentGreen");
+            }
+        }
+
+        // ============================================================
+        // Close file (Ctrl+W) — returns to drop-zone state
+        // ============================================================
+
+        private void CloseFile()
+        {
+            if (_doc is null) return;
+            if (_isDirty)
+            {
+                var res = KillerDialog.Show(this,
+                    "You have unsaved changes. Close this file without saving?",
+                    "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (res != MessageBoxResult.Yes) return;
+            }
+            _doc.Close();
+            _doc = null;
+            _currentFile = null;
+            _annotations.Clear();
+            _renderDims.Clear();
+            _allSearchRects.Clear();
+            _searchResultPages.Clear();
+            _searchPageCursor = -1;
+            PageList.Items.Clear();
+            if (FindName("PageImage") is System.Windows.Controls.Image img) img.Source = null;
+            _annotationCanvas.Children.Clear();
+            FileNameLabel.Text = "";
+            DropZone.Visibility = Visibility.Visible;
+            PagePreviewPanel.Visibility = Visibility.Collapsed;
+            CloseSearchBar();
+            HideDrawSettings();
+            HideSignaturePopup();
+            SetTool(EditTool.Select);
+            if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = false;
+            MarkDirty(false);
+            SetStatus("Ready");
+        }
+
+        private void CloseFile_Click(object sender, RoutedEventArgs e) => CloseFile();
 
         // ============================================================
         // File toolbar handlers
@@ -2364,7 +2750,7 @@ namespace KillerPDF
 
         private void Merge_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null) { MessageBox.Show("Open a PDF first.", "KillerPDF"); return; }
+            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
             var doc = _doc;
             var dlg = new OpenFileDialog { Filter = "PDF files|*.pdf", Title = "Select PDF to merge", Multiselect = true };
             if (dlg.ShowDialog() != true) return;
@@ -2381,16 +2767,16 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Merge failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, $"Merge failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void Split_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { MessageBox.Show("Open a PDF first.", "KillerPDF"); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
             var currentFile = _currentFile;
             var selected = PageList.SelectedItems;
-            if (selected.Count == 0) { MessageBox.Show("Select pages to extract.", "KillerPDF"); return; }
+            if (selected.Count == 0) { KillerDialog.Show(this, "Select pages to extract."); return; }
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save extracted pages as" };
             if (dlg.ShowDialog() != true) return;
             try
@@ -2406,17 +2792,17 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Split failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, $"Split failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null) { MessageBox.Show("Open a PDF first.", "KillerPDF"); return; }
+            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
             var doc = _doc;
             var selected = PageList.SelectedItems;
-            if (selected.Count == 0) { MessageBox.Show("Select pages to delete.", "KillerPDF"); return; }
-            var result = MessageBox.Show($"Delete {selected.Count} page(s)?", "KillerPDF",
+            if (selected.Count == 0) { KillerDialog.Show(this, "Select pages to delete."); return; }
+            var result = KillerDialog.Show(this, $"Delete {selected.Count} {(selected.Count == 1 ? "page" : "pages")}?", "KillerPDF",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result != MessageBoxResult.Yes) return;
             try
@@ -2430,7 +2816,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Delete failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, $"Delete failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -2460,7 +2846,7 @@ namespace KillerPDF
 
         private void SaveAs_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { MessageBox.Show("Open a PDF first.", "KillerPDF"); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
             CommitActiveTextBox();
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save PDF as" };
             if (dlg.ShowDialog() != true) return;
@@ -2478,23 +2864,25 @@ namespace KillerPDF
                     _doc.Close();
                     _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
                     _currentFile = tempClean;
+                    MarkDirty(false);
                     SetStatus($"Saved with annotations to {System.IO.Path.GetFileName(dlg.FileName)}");
                 }
                 else
                 {
                     _doc.Save(dlg.FileName);
+                    MarkDirty(false);
                     SetStatus($"Saved to {System.IO.Path.GetFileName(dlg.FileName)}");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Save failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, $"Save failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void SaveFlattened_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { MessageBox.Show("Open a PDF first.", "KillerPDF"); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
             CommitActiveTextBox();
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save Flattened PDF" };
             if (dlg.ShowDialog() != true) return;
@@ -2570,17 +2958,18 @@ namespace KillerPDF
                 }
 
                 outDoc.Save(dlg.FileName);
+                MarkDirty(false);
                 SetStatus($"Flattened PDF saved to {System.IO.Path.GetFileName(dlg.FileName)}");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Flatten failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, $"Flatten failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void Print_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { MessageBox.Show("Open a PDF first.", "KillerPDF"); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
             CommitActiveTextBox();
             try
             {
@@ -2614,7 +3003,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Print failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, $"Print failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -2692,18 +3081,35 @@ namespace KillerPDF
                             break;
 
                         case SignatureAnnotation sa:
-                            var sigPen = new XPen(XColors.Black, 2 * sa.Scale * sx);
-                            sigPen.LineJoin = XLineJoin.Round;
-                            sigPen.LineCap = XLineCap.Round;
-                            foreach (var stroke in sa.Strokes)
+                            if (sa.ImageData is not null)
                             {
-                                for (int i = 0; i < stroke.Count - 1; i++)
+                                try
                                 {
-                                    double x1 = (sa.Position.X + stroke[i].X * sa.Scale) * sx;
-                                    double y1 = (sa.Position.Y + stroke[i].Y * sa.Scale) * sy;
-                                    double x2 = (sa.Position.X + stroke[i + 1].X * sa.Scale) * sx;
-                                    double y2 = (sa.Position.Y + stroke[i + 1].Y * sa.Scale) * sy;
-                                    gfx.DrawLine(sigPen, x1, y1, x2, y2);
+                                    var imgBytes = Convert.FromBase64String(sa.ImageData);
+                                    var xImg = XImage.FromStream(() => new System.IO.MemoryStream(imgBytes));
+                                    double imgX = sa.Position.X * sx;
+                                    double imgY = sa.Position.Y * sy;
+                                    double imgW = sa.SourceWidth * sa.Scale * sx;
+                                    double imgH = sa.SourceHeight * sa.Scale * sy;
+                                    gfx.DrawImage(xImg, imgX, imgY, imgW, imgH);
+                                }
+                                catch { /* skip broken image */ }
+                            }
+                            else
+                            {
+                                var sigPen = new XPen(XColors.Black, 2 * sa.Scale * sx);
+                                sigPen.LineJoin = XLineJoin.Round;
+                                sigPen.LineCap = XLineCap.Round;
+                                foreach (var stroke in sa.Strokes)
+                                {
+                                    for (int i = 0; i < stroke.Count - 1; i++)
+                                    {
+                                        double x1 = (sa.Position.X + stroke[i].X * sa.Scale) * sx;
+                                        double y1 = (sa.Position.Y + stroke[i].Y * sa.Scale) * sy;
+                                        double x2 = (sa.Position.X + stroke[i + 1].X * sa.Scale) * sx;
+                                        double y2 = (sa.Position.Y + stroke[i + 1].Y * sa.Scale) * sy;
+                                        gfx.DrawLine(sigPen, x1, y1, x2, y2);
+                                    }
                                 }
                             }
                             break;
@@ -2722,6 +3128,7 @@ namespace KillerPDF
             _annotations.Clear();
             _renderDims.Clear();
             ClearSelection();
+            MarkDirty();
             var doc = _doc;
             int selectedIdx = PageList.SelectedIndex;
             var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
@@ -2743,13 +3150,40 @@ namespace KillerPDF
 
         private void PagePreview_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (Keyboard.Modifiers != ModifierKeys.Control) return;
-            e.Handled = true;
-            _zoomLevel = e.Delta > 0
-                ? Math.Min(ZoomMax, _zoomLevel + ZoomStep)
-                : Math.Max(ZoomMin, _zoomLevel - ZoomStep);
-            ApplyZoom();
-            SetStatus($"Page {PageList.SelectedIndex + 1} of {_doc?.PageCount} - {_zoomLevel * 100:F0}%");
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                _zoomLevel = e.Delta > 0
+                    ? Math.Min(ZoomMax, _zoomLevel + ZoomStep)
+                    : Math.Max(ZoomMin, _zoomLevel - ZoomStep);
+                ApplyZoom();
+                SyncZoomBox();
+                SetStatus($"Page {PageList.SelectedIndex + 1} of {_doc?.PageCount} - {_zoomLevel * 100:F0}%");
+                return;
+            }
+
+            // Scroll past bottom -> next page; scroll past top -> previous page
+            var sv = PagePreviewPanel;
+            if (e.Delta < 0 && sv.VerticalOffset >= sv.ScrollableHeight - 1)
+            {
+                int next = PageList.SelectedIndex + 1;
+                if (_doc != null && next < _doc.PageCount)
+                {
+                    e.Handled = true;
+                    PageList.SelectedIndex = next;
+                    sv.ScrollToTop();
+                }
+            }
+            else if (e.Delta > 0 && sv.VerticalOffset <= 1)
+            {
+                int prev = PageList.SelectedIndex - 1;
+                if (prev >= 0)
+                {
+                    e.Handled = true;
+                    PageList.SelectedIndex = prev;
+                    sv.ScrollToBottom();
+                }
+            }
         }
 
         private void ApplyZoom()
@@ -2765,6 +3199,69 @@ namespace KillerPDF
         {
             _zoomLevel = 1.0;
             ApplyZoom();
+        }
+
+        private void SyncZoomBox()
+        {
+            if (_zoomBox is null) return;
+            string target = $"{_zoomLevel * 100:F0}%";
+            _zoomBox.SelectionChanged -= ZoomBox_SelectionChanged;
+            foreach (ComboBoxItem item in _zoomBox.Items)
+            {
+                if (item.Content?.ToString() == target)
+                {
+                    _zoomBox.SelectedItem = item;
+                    _zoomBox.SelectionChanged += ZoomBox_SelectionChanged;
+                    return;
+                }
+            }
+            // No preset match — clear dropdown selection and show free-form percentage
+            _zoomBox.SelectedItem = null;
+            _zoomBox.Text = target;
+            _zoomBox.SelectionChanged += ZoomBox_SelectionChanged;
+        }
+
+        private void ZoomBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_zoomBox?.SelectedItem is not ComboBoxItem item) return;
+            string? tag = item.Tag?.ToString();
+            if (tag is null) return;
+
+            if (tag == "fitwidth") { FitToWidth(); return; }
+            if (tag == "fitpage")  { FitToPage();  return; }
+
+            if (double.TryParse(tag, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double z))
+            {
+                _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, z));
+                ApplyZoom();
+                if (PageList.SelectedIndex >= 0 && _doc != null)
+                    SetStatus($"Page {PageList.SelectedIndex + 1} of {_doc.PageCount} - {_zoomLevel * 100:F0}%");
+            }
+        }
+
+        private void FitToWidth()
+        {
+            if (PageImage.Source is null || PageImage.ActualWidth <= 0) return;
+            double viewW = PagePreviewPanel.ActualWidth - 40;
+            if (viewW <= 0) return;
+            _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, viewW / PageImage.ActualWidth));
+            ApplyZoom();
+            if (PageList.SelectedIndex >= 0 && _doc != null)
+                SetStatus($"Page {PageList.SelectedIndex + 1} of {_doc.PageCount} - Fit Width ({_zoomLevel * 100:F0}%)");
+        }
+
+        private void FitToPage()
+        {
+            if (PageImage.Source is null || PageImage.ActualWidth <= 0 || PageImage.ActualHeight <= 0) return;
+            double viewW = PagePreviewPanel.ActualWidth  - 40;
+            double viewH = PagePreviewPanel.ActualHeight - 40;
+            if (viewW <= 0 || viewH <= 0) return;
+            _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax,
+                Math.Min(viewW / PageImage.ActualWidth, viewH / PageImage.ActualHeight)));
+            ApplyZoom();
+            if (PageList.SelectedIndex >= 0 && _doc != null)
+                SetStatus($"Page {PageList.SelectedIndex + 1} of {_doc.PageCount} - Fit Page ({_zoomLevel * 100:F0}%)");
         }
 
         // ============================================================
@@ -2851,10 +3348,10 @@ namespace KillerPDF
                 ClearTextSelection();
                 RenderPage(PageList.SelectedIndex);
                 ApplyZoom();
-                // Re-run search on new page if search bar is open
+                // Re-highlight search results on this page if a search is active
                 if (_searchBar is not null && _searchBar.Visibility == Visibility.Visible
-                    && _searchBox is not null && _searchBox.Text.Length >= 2)
-                    RunSearch(_searchBox.Text);
+                    && _allSearchRects.Count > 0)
+                    HighlightSearchResultsOnCurrentPage();
             }
         }
 
@@ -2862,6 +3359,171 @@ namespace KillerPDF
         {
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
             e.Handled = true;
+        }
+    }
+
+    // ============================================================
+    // Themed dialog — replaces MessageBox for dark-UI consistency
+    // ============================================================
+    internal static class KillerDialog
+    {
+        private static readonly System.Windows.Media.Color _green     = System.Windows.Media.Color.FromRgb(0x4a, 0xde, 0x80);
+        private static readonly System.Windows.Media.Color _dark      = System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a);
+        private static readonly System.Windows.Media.Color _panel     = System.Windows.Media.Color.FromRgb(0x24, 0x24, 0x24);
+        private static readonly System.Windows.Media.Color _text      = System.Windows.Media.Color.FromRgb(0xe0, 0xe0, 0xe0);
+        private static readonly System.Windows.Media.Color _border    = System.Windows.Media.Color.FromRgb(0x33, 0x33, 0x33);
+        private static readonly System.Windows.Media.Color _greenDim  = System.Windows.Media.Color.FromRgb(0x22, 0x54, 0x3d);
+        private static readonly System.Windows.Media.Color _greenHov  = System.Windows.Media.Color.FromRgb(0x2d, 0x6a, 0x4f);
+        private static readonly System.Windows.Media.Color _hover     = System.Windows.Media.Color.FromRgb(0x2e, 0x2e, 0x2e);
+
+        public static MessageBoxResult Show(
+            Window? owner,
+            string message,
+            string title = "KillerPDF",
+            MessageBoxButton buttons = MessageBoxButton.OK,
+            MessageBoxImage image = MessageBoxImage.None)
+        {
+            var result = MessageBoxResult.OK;
+
+            var win = new Window
+            {
+                Title = title,
+                Width = 380,
+                SizeToContent = SizeToContent.Height,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent,
+                WindowStartupLocation = owner != null
+                    ? WindowStartupLocation.CenterOwner
+                    : WindowStartupLocation.CenterScreen,
+                Owner = owner,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var outerBorder = new Border
+            {
+                Background      = new SolidColorBrush(_dark),
+                BorderBrush     = new SolidColorBrush(_greenDim),
+                BorderThickness = new Thickness(1),
+                CornerRadius    = new CornerRadius(6)
+            };
+
+            var root = new StackPanel();
+
+            // Title bar
+            var titleBar = new Border
+            {
+                Background   = new SolidColorBrush(_panel),
+                Padding      = new Thickness(16, 10, 16, 10),
+                CornerRadius = new CornerRadius(5, 5, 0, 0)
+            };
+            titleBar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
+            titleBar.Child = new TextBlock
+            {
+                Text       = title,
+                Foreground = new SolidColorBrush(_green),
+                FontWeight = FontWeights.SemiBold,
+                FontSize   = 13,
+                FontFamily = new System.Windows.Media.FontFamily("Consolas")
+            };
+            root.Children.Add(titleBar);
+
+            // Message
+            var msgBorder = new Border { Padding = new Thickness(20, 16, 20, 8) };
+            msgBorder.Child = new TextBlock
+            {
+                Text        = message,
+                Foreground  = new SolidColorBrush(_text),
+                FontSize    = 13,
+                TextWrapping = TextWrapping.Wrap
+            };
+            root.Children.Add(msgBorder);
+
+            // Buttons
+            var btnPanel = new StackPanel
+            {
+                Orientation         = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            // Build a minimal ControlTemplate so Background binds correctly and
+            // WPF's default blue hover chrome can't override our colors.
+            static ControlTemplate MakeBtnTemplate()
+            {
+                var bf = new FrameworkElementFactory(typeof(Border));
+                bf.SetBinding(Border.BackgroundProperty,
+                    new System.Windows.Data.Binding("Background")
+                    { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+                bf.SetBinding(Border.BorderBrushProperty,
+                    new System.Windows.Data.Binding("BorderBrush")
+                    { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+                bf.SetBinding(Border.BorderThicknessProperty,
+                    new System.Windows.Data.Binding("BorderThickness")
+                    { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+                bf.SetBinding(Border.PaddingProperty,
+                    new System.Windows.Data.Binding("Padding")
+                    { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+                bf.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+                var cp = new FrameworkElementFactory(typeof(ContentPresenter));
+                cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+                bf.AppendChild(cp);
+                return new ControlTemplate(typeof(Button)) { VisualTree = bf };
+            }
+
+            Button MakeBtn(string label, MessageBoxResult res, bool accent = false)
+            {
+                var bgNorm = accent ? new SolidColorBrush(_greenDim) : new SolidColorBrush(_panel);
+                var bgHov  = accent ? new SolidColorBrush(_greenHov) : new SolidColorBrush(_hover);
+                var btn = new Button
+                {
+                    Content         = label,
+                    Padding         = new Thickness(18, 6, 18, 6),
+                    Margin          = new Thickness(8, 0, 0, 0),
+                    Background      = bgNorm,
+                    Foreground      = accent ? new SolidColorBrush(_green) : new SolidColorBrush(_text),
+                    BorderBrush     = accent ? new SolidColorBrush(_green) : new SolidColorBrush(_border),
+                    BorderThickness = new Thickness(1),
+                    Cursor          = Cursors.Hand,
+                    FontSize        = 12,
+                    Template        = MakeBtnTemplate()
+                };
+                btn.Click      += (_, _2) => { result = res; win.Close(); };
+                btn.MouseEnter += (_, _2) => btn.Background = bgHov;
+                btn.MouseLeave += (_, _2) => btn.Background = bgNorm;
+                return btn;
+            }
+
+            switch (buttons)
+            {
+                case MessageBoxButton.OK:
+                    btnPanel.Children.Add(MakeBtn("OK", MessageBoxResult.OK, accent: true));
+                    break;
+                case MessageBoxButton.OKCancel:
+                    btnPanel.Children.Add(MakeBtn("OK",     MessageBoxResult.OK,     accent: true));
+                    btnPanel.Children.Add(MakeBtn("Cancel", MessageBoxResult.Cancel));
+                    break;
+                case MessageBoxButton.YesNo:
+                    btnPanel.Children.Add(MakeBtn("Yes", MessageBoxResult.Yes, accent: true));
+                    btnPanel.Children.Add(MakeBtn("No",  MessageBoxResult.No));
+                    break;
+                case MessageBoxButton.YesNoCancel:
+                    btnPanel.Children.Add(MakeBtn("Yes",    MessageBoxResult.Yes,    accent: true));
+                    btnPanel.Children.Add(MakeBtn("No",     MessageBoxResult.No));
+                    btnPanel.Children.Add(MakeBtn("Cancel", MessageBoxResult.Cancel));
+                    break;
+            }
+
+            root.Children.Add(new Border
+            {
+                Padding = new Thickness(16, 8, 16, 16),
+                Child   = btnPanel
+            });
+
+            outerBorder.Child = root;
+            win.Content = outerBorder;
+            win.ShowDialog();
+            return result;
         }
     }
 }

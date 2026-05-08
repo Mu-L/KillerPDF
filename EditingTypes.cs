@@ -56,7 +56,7 @@ namespace KillerPDF
     }
 
     /// <summary>
-    /// A signature placed on a PDF page, rendered as ink strokes.
+    /// A signature placed on a PDF page: either ink strokes or an imported image.
     /// </summary>
     public class SignatureAnnotation : PageAnnotation
     {
@@ -65,6 +65,8 @@ namespace KillerPDF
         public List<List<Point>> Strokes { get; set; } = new();
         public double SourceWidth { get; set; } = 400;
         public double SourceHeight { get; set; } = 150;
+        /// <summary>Base-64 encoded PNG. Non-null = image sig; null = drawn strokes.</summary>
+        public string? ImageData { get; set; }
     }
 
     /// <summary>
@@ -86,5 +88,7 @@ namespace KillerPDF
         public List<List<SerializablePoint>> Strokes { get; set; } = new();
         public double CanvasWidth { get; set; } = 400;
         public double CanvasHeight { get; set; } = 150;
+        /// <summary>Base-64 encoded PNG for imported image signatures. Null = drawn strokes.</summary>
+        public string? ImageData { get; set; }
     }
 }
