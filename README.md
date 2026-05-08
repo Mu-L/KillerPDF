@@ -13,8 +13,11 @@ Part of [killertools.net](https://killertools.net).
 - Merge multiple PDFs and split out selected pages, drag-and-drop page reordering
 - Inline text editing with font matching against the original document
 - Text boxes, freehand drawing, and highlight overlays with adjustable color, size, and opacity
-- Draw and save reusable signatures, click to place anywhere on a page
-- Full-text search with result highlighting, drag-select to copy text
+- Draw and save reusable signatures or import a PNG/JPG/BMP image as a signature, click to place anywhere on a page
+- Zoom preset dropdown with scroll-wheel sync
+- Full-text search across the entire document with result highlighting, drag-select to copy text
+- Unsaved-changes protection with dirty tracking and title bar indicator
+- Close file without quitting (Ctrl+W)
 - Print with annotations flattened into the output
 - Save Flattened PDF: rasterizes every page at 150 DPI via PDFium into a fully uneditable document
 - Password-protected PDF support: prompts for password instead of erroring, decrypted copy held in temp for the session
@@ -22,11 +25,11 @@ Part of [killertools.net](https://killertools.net).
 
 ## Screenshots
 
-![KillerPDF installer](screenshots/installer.png)
+![KillerPDF install dialog](screenshots/install_dialog.png)
 
-![KillerPDF main view](screenshots/main-view.png)
+![KillerPDF main view](screenshots/main_window.png)
 
-![Highlighting and annotation](screenshots/highlight.png)
+![KillerPDF signature drawing](screenshots/signatures.png)
 
 ## Requirements
 
@@ -36,7 +39,7 @@ Part of [killertools.net](https://killertools.net).
 ## Download
 
 - Prebuilt binary: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.zip>
-- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.2.0/KillerPDF-1.2.0-src.zip>
+- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.3.0/KillerPDF-1.3.0-src.zip>
 
 ## Build from source
 
