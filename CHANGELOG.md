@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-05-11
+
+### Fixed
+- Print no longer fails with "No application is associated with the specified file for this action" on systems where Edge is the default PDF handler. Printing now uses WPF-native rendering and PrintDialog instead of the shell print verb.
+- Zoom dropdown selected value no longer shows in blue - selection highlight now uses the accent green.
+
 ## [1.3.0] - 2026-05-08
 
 ### Added
@@ -65,7 +71,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 _Historical entries to be backfilled._
 
-[Unreleased]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SteveTheKiller/KillerPDF/compare/v1.1.1...v1.2.0

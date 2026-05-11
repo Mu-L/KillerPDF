@@ -2973,12 +2973,15 @@ namespace KillerPDF
             CommitActiveTextBox();
             try
             {
+                var dlg = new PrintDialog();
+                if (dlg.ShowDialog() != true) return;
+
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
                 string printPath;
+                string? tempFlattened = null;
 
                 if (hasAnnotations)
                 {
-                    // Save a temp copy with annotations flattened for printing
                     var tempClean = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
                         $"killerpdf_clean_{Guid.NewGuid():N}.pdf");
                     _doc.Save(tempClean);
@@ -2986,6 +2989,7 @@ namespace KillerPDF
                     printPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
                         $"killerpdf_print_{Guid.NewGuid():N}.pdf");
                     _doc.Save(printPath);
+                    tempFlattened = printPath;
                     // Restore clean state
                     _doc.Close();
                     _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
@@ -2993,12 +2997,53 @@ namespace KillerPDF
                 }
                 else
                 {
-                    printPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-                        $"killerpdf_print_{Guid.NewGuid():N}.pdf");
-                    _doc.Save(printPath);
+                    printPath = _currentFile;
                 }
 
-                Process.Start(new ProcessStartInfo(printPath) { Verb = "print", UseShellExecute = true });
+                var fixedDoc = new System.Windows.Documents.FixedDocument();
+                int pageCount = _doc.PageCount;
+
+                using (var docReader = DocLib.Instance.GetDocReader(printPath, new PageDimensions(1536, 1536)))
+                {
+                    for (int i = 0; i < pageCount; i++)
+                    {
+                        using var pr = docReader.GetPageReader(i);
+                        int w = pr.GetPageWidth();
+                        int h = pr.GetPageHeight();
+                        var raw = pr.GetImage();
+
+                        var bmp = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
+                        bmp.WritePixels(new Int32Rect(0, 0, w, h), raw, w * 4, 0);
+                        bmp.Freeze();
+
+                        double scaleX = dlg.PrintableAreaWidth / w;
+                        double scaleY = dlg.PrintableAreaHeight / h;
+                        double scale = Math.Min(scaleX, scaleY);
+                        double pw = w * scale;
+                        double ph = h * scale;
+
+                        var fp = new System.Windows.Documents.FixedPage
+                        {
+                            Width = dlg.PrintableAreaWidth,
+                            Height = dlg.PrintableAreaHeight
+                        };
+                        var img = new System.Windows.Controls.Image { Source = bmp, Width = pw, Height = ph };
+                        System.Windows.Documents.FixedPage.SetLeft(img, (dlg.PrintableAreaWidth - pw) / 2);
+                        System.Windows.Documents.FixedPage.SetTop(img, (dlg.PrintableAreaHeight - ph) / 2);
+                        fp.Children.Add(img);
+                        fp.Measure(new Size(dlg.PrintableAreaWidth, dlg.PrintableAreaHeight));
+                        fp.Arrange(new Rect(new Point(), new Size(dlg.PrintableAreaWidth, dlg.PrintableAreaHeight)));
+
+                        var pc = new System.Windows.Documents.PageContent();
+                        ((System.Windows.Markup.IAddChild)pc).AddChild(fp);
+                        fixedDoc.Pages.Add(pc);
+                    }
+                }
+
+                if (tempFlattened != null)
+                    try { System.IO.File.Delete(tempFlattened); } catch { }
+
+                dlg.PrintDocument(fixedDoc.DocumentPaginator, "KillerPDF");
                 SetStatus("Sent to printer");
             }
             catch (Exception ex)
