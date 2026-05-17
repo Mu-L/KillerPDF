@@ -9,16 +9,16 @@
         WindowStyle="None"
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
-        Background="#1a1a1a">
+        Background="#333333">
 
     <Window.Resources>
         <!-- Killer Tools dark/green theme -->
-        <SolidColorBrush x:Key="BgDark" Color="#1a1a1a"/>
-        <SolidColorBrush x:Key="BgPanel" Color="#242424"/>
-        <SolidColorBrush x:Key="BgHover" Color="#2e2e2e"/>
-        <SolidColorBrush x:Key="BorderDim" Color="#333333"/>
-        <SolidColorBrush x:Key="AccentGreen" Color="#4ade80"/>
-        <SolidColorBrush x:Key="AccentGreenDim" Color="#22543d"/>
+        <SolidColorBrush x:Key="BgDark" Color="#333333"/>
+        <SolidColorBrush x:Key="BgPanel" Color="#3a3a3a"/>
+        <SolidColorBrush x:Key="BgHover" Color="#404040"/>
+        <SolidColorBrush x:Key="BorderDim" Color="#2e2e2e"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#1ea54c"/>
+        <SolidColorBrush x:Key="AccentGreenDim" Color="#0d2a18"/>
         <SolidColorBrush x:Key="TextPrimary" Color="#e0e0e0"/>
         <SolidColorBrush x:Key="TextSecondary" Color="#888888"/>
         <SolidColorBrush x:Key="DangerRed" Color="#ef4444"/>
@@ -124,7 +124,7 @@
                                                     <Setter.Value>
                                                         <ControlTemplate TargetType="Thumb">
                                                             <Border x:Name="thumbBorder"
-                                                                    Background="#554ade80"
+                                                                    Background="#551ea54c"
                                                                     CornerRadius="3"
                                                                     Margin="1,0"/>
                                                             <ControlTemplate.Triggers>
@@ -376,7 +376,7 @@
 
         <!-- Page list styles -->
         <Style x:Key="PageListBox" TargetType="ListBox">
-            <Setter Property="Background" Value="{StaticResource BgPanel}"/>
+            <Setter Property="Background" Value="#222222"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderDim}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
             <Setter Property="FontFamily" Value="Consolas"/>
@@ -453,7 +453,7 @@
         </Grid.RowDefinitions>
 
         <!-- Title bar -->
-        <Border Grid.Row="0" Background="#111111" BorderBrush="{StaticResource BorderDim}" BorderThickness="0,0,0,1"
+        <Border Grid.Row="0" Background="#222222" BorderBrush="{StaticResource BorderDim}" BorderThickness="0,0,0,1"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
@@ -471,24 +471,26 @@
         </Border>
 
         <!-- Toolbar -->
-        <Border Grid.Row="1" Background="#111111" BorderBrush="{StaticResource BorderDim}" BorderThickness="0,0,0,1" Padding="4,2">
+        <Border Grid.Row="1" Background="#222222" BorderBrush="{StaticResource BorderDim}" BorderThickness="0,0,0,1" Padding="4,2">
             <Grid>
                 <!-- File operations -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <!-- File: New / Open / Close / Save / Print -->
+                    <Button Content="&#xE7C3;" Style="{StaticResource ToolbarButton}" Click="New_Click" ToolTip="New Blank Document (Ctrl+N)"/>
                     <Button Content="&#xE8DA;" Style="{StaticResource ToolbarButton}" Click="Open_Click" ToolTip="Open (Ctrl+O)"/>
                     <Button x:Name="CloseFileBtn" Content="&#xE711;" Style="{StaticResource ToolbarButton}" Click="CloseFile_Click" ToolTip="Close File (Ctrl+W)" IsEnabled="False"/>
-                    <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
-                    <Button Content="&#xE710;" Style="{StaticResource ToolbarButton}" Click="Merge_Click" ToolTip="Merge PDFs (combine additional PDFs into this one)"/>
-                    <Button Content="&#xE8B1;" Style="{StaticResource ToolbarButton}" Click="Split_Click" ToolTip="Extract Pages (save selected pages to a new PDF)"/>
-                    <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
-                    <Button Content="&#xE8C6;" Style="{StaticResource ToolbarButton}" Click="Delete_Click" ToolTip="Delete Selected Pages"/>
-                    <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
-                    <Button Content="&#xE74A;" Style="{StaticResource ToolbarButton}" Click="MoveUp_Click" ToolTip="Move Page Up (reorder)"/>
-                    <Button Content="&#xE74B;" Style="{StaticResource ToolbarButton}" Click="MoveDown_Click" ToolTip="Move Page Down (reorder)"/>
-                    <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
                     <Button x:Name="SaveAsBtn" Content="&#xE74E;" Style="{StaticResource ToolbarButtonAccent}" Click="SaveAs_Click" ToolTip="Save As"/>
                     <Button Content="&#xE8B9;" Style="{StaticResource ToolbarButton}" Click="SaveFlattened_Click" ToolTip="Save Flattened PDF (rasterize all pages — fully uneditable)"/>
                     <Button Content="&#xE749;" Style="{StaticResource ToolbarButton}" Click="Print_Click" ToolTip="Print (Ctrl+P)"/>
+                    <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
+                    <!-- Page ops: Merge / Extract -->
+                    <Button Content="&#xE710;" Style="{StaticResource ToolbarButton}" Click="Merge_Click" ToolTip="Merge PDFs (combine additional PDFs into this one)"/>
+                    <Button Content="&#xE8B1;" Style="{StaticResource ToolbarButton}" Click="Split_Click" ToolTip="Extract Pages (save selected pages to a new PDF)"/>
+                    <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
+                    <!-- Page ops: Delete / Move -->
+                    <Button Content="&#xE8C6;" Style="{StaticResource ToolbarButton}" Click="Delete_Click" ToolTip="Delete Selected Pages"/>
+                    <Button Content="&#xE74A;" Style="{StaticResource ToolbarButton}" Click="MoveUp_Click" ToolTip="Move Page Up (reorder)"/>
+                    <Button Content="&#xE74B;" Style="{StaticResource ToolbarButton}" Click="MoveDown_Click" ToolTip="Move Page Down (reorder)"/>
                 </StackPanel>
                 <!-- Edit tools + zoom -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -496,6 +498,8 @@
                     <Button x:Name="ToolTextBtn" Content="&#xE8D2;" Style="{StaticResource ToolbarButton}" Click="ToolText_Click" ToolTip="Text Tool - click to add text"/>
                     <Button x:Name="ToolHighlightBtn" Content="&#xED56;" Style="{StaticResource ToolbarButton}" Click="ToolHighlight_Click" ToolTip="Highlight Tool - drag to highlight"/>
                     <Button x:Name="ToolDrawBtn" Content="&#xED63;" Style="{StaticResource ToolbarButton}" Click="ToolDraw_Click" ToolTip="Draw Tool - freehand ink"/>
+                    <Button x:Name="ToolCropBtn" Content="&#xE7A8;" Style="{StaticResource ToolbarButton}" Click="ToolCrop_Click" ToolTip="Crop Tool - drag to set crop area, then apply to page(s)"/>
+                    <Button x:Name="ToolImageBtn" Content="&#xEB9F;" Style="{StaticResource ToolbarButton}" Click="ToolImage_Click" ToolTip="Image Tool - click to insert an image onto the page"/>
                     <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
                     <Button x:Name="ToolSignatureBtn" Content="&#xEE56;" Style="{StaticResource ToolbarButton}" Click="ToolSignature_Click" ToolTip="Signature - create and place signatures"/>
                     <Rectangle Width="1" Fill="{StaticResource BorderDim}" Margin="4,6"/>
@@ -521,25 +525,59 @@
         </Border>
 
         <!-- Main content -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="2" x:Name="MainContentGrid">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="180" MinWidth="140" MaxWidth="260"/>
+                <!-- SidebarCol never collapses to 0 — it shrinks to 24px (the toggle strip width). -->
+                <ColumnDefinition x:Name="SidebarCol" Width="180" MinWidth="24" MaxWidth="260"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Sidebar -->
-            <Border Grid.Column="0" Background="#1e1e1e" BorderBrush="{StaticResource BorderDim}" BorderThickness="0,0,1,0">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="PAGES" Foreground="{StaticResource TextSecondary}"
-                               FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Padding="12,10"/>
-                    <ListBox x:Name="PageList" Style="{StaticResource PageListBox}"
-                             BorderThickness="0" SelectionMode="Extended"
-                             SelectionChanged="PageList_SelectionChanged"
-                             AllowDrop="True" Drop="PageList_Drop" DragOver="PageList_DragOver"
-                             PreviewMouseLeftButtonDown="PageList_PreviewMouseLeftButtonDown"
-                             PreviewMouseMove="PageList_PreviewMouseMove"/>
-                </DockPanel>
-            </Border>
+            <!-- Sidebar column: inner grid splits content from permanent toggle strip -->
+            <Grid Grid.Column="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>        <!-- page list content -->
+                    <ColumnDefinition Width="24"/>       <!-- toggle strip — always visible -->
+                </Grid.ColumnDefinitions>
+
+                <!-- Page list content (hidden when collapsed) -->
+                <Border x:Name="SidebarBorder" Grid.Column="0"
+                        Background="#222222"
+                        BorderBrush="{StaticResource BorderDim}" BorderThickness="0,0,0,0">
+                    <ScrollViewer x:Name="SidebarScrollViewer"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <DockPanel VerticalAlignment="Top">
+                            <TextBlock DockPanel.Dock="Top" Text="PAGES"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold"
+                                       Padding="12,10"/>
+                            <ListBox x:Name="PageList" Style="{StaticResource PageListBox}"
+                                     BorderThickness="0" SelectionMode="Extended"
+                                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     PreviewMouseWheel="PageList_PreviewMouseWheel"
+                                     SelectionChanged="PageList_SelectionChanged"
+                                     AllowDrop="True" Drop="PageList_Drop" DragOver="PageList_DragOver"
+                                     PreviewMouseLeftButtonDown="PageList_PreviewMouseLeftButtonDown"
+                                     PreviewMouseMove="PageList_PreviewMouseMove"
+                                     MouseRightButtonUp="PageList_MouseRightButtonUp"/>
+                        </DockPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Toggle strip — always 24px wide, right edge of sidebar column -->
+                <Border Grid.Column="1"
+                        Background="#333333"
+                        BorderBrush="{StaticResource BorderDim}"
+                        BorderThickness="1,0,0,0">
+                    <Button x:Name="SidebarToggleBtn"
+                            Content="&#xE76B;" ToolTip="Collapse sidebar"
+                            Style="{StaticResource ToolbarButton}"
+                            Width="24" Padding="0" FontSize="10"
+                            VerticalAlignment="Top" Margin="0,6,0,0"
+                            Click="SidebarToggle_Click"/>
+                </Border>
+            </Grid>
 
             <!-- Preview area -->
             <Border Grid.Column="1" Background="{StaticResource BgDark}">
@@ -556,7 +594,7 @@
                                 <TextBlock Text="Drop PDF here" FontFamily="Segoe UI" FontSize="20"
                                            Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center"/>
                                 <TextBlock Text="or click to browse" FontFamily="Segoe UI" FontSize="13"
-                                           Foreground="{StaticResource BorderDim}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                           Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
                             </StackPanel>
                         </Border>
                     </Border>
@@ -568,20 +606,24 @@
                                   Background="Transparent"
                                   PreviewMouseWheel="PagePreview_PreviewMouseWheel"
                                   AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver">
-                        <Border HorizontalAlignment="Center" VerticalAlignment="Top" Padding="16">
+                        <Border VerticalAlignment="Top" HorizontalAlignment="Center" Padding="12">
                             <Grid x:Name="PageContentGrid">
                                 <Grid.LayoutTransform>
                                     <ScaleTransform ScaleX="1" ScaleY="1"/>
                                 </Grid.LayoutTransform>
-                                <Border Background="White">
-                                    <Grid>
-                                        <Image x:Name="PageImage" RenderOptions.BitmapScalingMode="HighQuality" Stretch="None"/>
-                                        <Canvas x:Name="AnnotationCanvas" Background="Transparent" ClipToBounds="True"
-                                                PreviewMouseLeftButtonDown="Canvas_MouseLeftButtonDown"
-                                                MouseMove="Canvas_MouseMove"
-                                                PreviewMouseLeftButtonUp="Canvas_MouseLeftButtonUp"/>
-                                    </Grid>
-                                </Border>
+                                <WrapPanel x:Name="PageContentPanel" Orientation="Horizontal">
+                                    <!-- Primary page (always present) -->
+                                    <Border Background="White" Margin="0,0,12,12">
+                                        <Grid>
+                                            <Image x:Name="PageImage" RenderOptions.BitmapScalingMode="HighQuality" Stretch="None"/>
+                                            <Canvas x:Name="AnnotationCanvas" Background="Transparent" ClipToBounds="True"
+                                                    PreviewMouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+                                                    MouseMove="Canvas_MouseMove"
+                                                    PreviewMouseLeftButtonUp="Canvas_MouseLeftButtonUp"/>
+                                        </Grid>
+                                    </Border>
+                                    <!-- Additional pages rendered dynamically in code-behind -->
+                                </WrapPanel>
                             </Grid>
                         </Border>
                     </ScrollViewer>
@@ -590,26 +632,73 @@
         </Grid>
 
         <!-- Status bar -->
-        <Border Grid.Row="3" Background="#111111" BorderBrush="{StaticResource BorderDim}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="#222222" BorderBrush="{StaticResource BorderDim}" BorderThickness="0,1,0,0">
             <Grid Margin="16,0">
                 <TextBlock x:Name="StatusText" Text="Ready"
                            Foreground="{StaticResource TextSecondary}"
                            FontFamily="Segoe UI" FontSize="11" VerticalAlignment="Center"/>
+                <!-- Portable mode indicator (hidden when installed) -->
+                <StackPanel x:Name="PortableBadge" Orientation="Horizontal"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Visibility="Collapsed">
+                    <TextBlock Text="PORTABLE" Foreground="#555555"
+                               FontFamily="Consolas" FontSize="9"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Button x:Name="InstallBtn" Content="Install KillerPDF..."
+                            Click="Install_Click"
+                            FontFamily="Segoe UI" FontSize="10"
+                            Foreground="{StaticResource AccentGreen}"
+                            Background="Transparent"
+                            BorderThickness="1" BorderBrush="#2a5a3a"
+                            Padding="8,1" Cursor="Hand"
+                            VerticalAlignment="Center">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#1a3a28"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock x:Name="VersionLabel" Text="v1.2.1"
-                               Foreground="#444444" FontFamily="Consolas"
+                    <TextBlock x:Name="VersionLabel" Text="v1.4.0"
+                               Foreground="#6a6a6a" FontFamily="Consolas"
                                FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0"/>
                     <TextBlock FontSize="10" VerticalAlignment="Center"
                                FontFamily="Consolas">
-                        <Run Text="&#x00A9; 2026 " Foreground="#444444"/>
+                        <Run Text="&#x00A9; 2026 " Foreground="#6a6a6a"/>
                         <Hyperlink NavigateUri="https://thekiller.net"
                                    RequestNavigate="Hyperlink_RequestNavigate"
-                                   Foreground="#444444" TextDecorations="None">
+                                   Foreground="#6a6a6a" TextDecorations="None">
                             <Run Text="Steve the Killer"/>
                         </Hyperlink>
                     </TextBlock>
                 </StackPanel>
             </Grid>
+        </Border>
+
+        <!-- Film grain overlay — main content area only -->
+        <Border x:Name="GrainOverlay"
+                Grid.Row="2"
+                IsHitTestVisible="False"
+                Opacity="0.15"
+                Panel.ZIndex="9999">
+            <Border.Background>
+                <ImageBrush x:Name="GrainBrush"
+                            TileMode="Tile"
+                            ViewportUnits="Absolute"
+                            Viewport="0,0,256,256"
+                            Stretch="None"/>
+            </Border.Background>
         </Border>
     </Grid>
 </Window>

@@ -33,8 +33,13 @@ namespace KillerPDF
 
         // Editing
         private EditTool _currentTool = EditTool.Select;
-        private readonly Dictionary<int, List<PageAnnotation>> _annotations = new();
-        private readonly Dictionary<int, (int w, int h)> _renderDims = new();
+        private readonly Dictionary<int, List<PageAnnotation>> _annotations = [];
+        private readonly Dictionary<int, (int w, int h)> _renderDims = [];
+
+        // Undo stack — each entry is either an annotation removal or a full document snapshot.
+        private enum UndoKind { Annotation, Document }
+        private readonly record struct UndoEntry(UndoKind Kind, int PageIdx = -1, byte[]? DocBytes = null);
+        private readonly Stack<UndoEntry> _undoStack = new();
         private bool _isDrawing;
         private Point _drawStart;
         private UIElement? _activePreview;
@@ -50,6 +55,40 @@ namespace KillerPDF
         private Color _highlightColor = Color.FromArgb(80, 255, 255, 0);
         private Border? _drawSettingsBar;
 
+        // Text (typewriter) tool settings
+        private double _textFontSize = 14;
+        private Color _textColor = Colors.Black;
+        private Border? _textSettingsBar;
+
+        // Signature / image resize
+        private bool _isResizingSig;
+        private Point _resizeSigStart;
+        private double _resizeSigStartScale;
+        private PlacedAnnotation? _resizeSigAnnot;
+        private Rectangle? _resizeHandle;
+
+        // Placed annotation drag-to-move
+        private bool _isDraggingAnnot;
+        private Point _dragAnnotStart;
+        private Point _dragAnnotOrigPos;
+        private PlacedAnnotation? _dragAnnot;
+
+        // Crop tool
+        private Rect _cropCanvasRect;
+        private Rectangle? _cropPreviewRect;
+        private Border? _cropConfirmBar;
+        private readonly Button _toolCropBtn = null!;
+
+        // PDF link overlays (rendered on top of the annotation canvas)
+        private readonly List<Canvas> _linkOverlays = [];
+
+        // Sidebar + multi-page view
+        private bool _sidebarCollapsed;
+        private readonly Button _sidebarToggleBtn = null!;
+        private readonly Border _sidebarBorder = null!;
+        private readonly ColumnDefinition _sidebarCol = null!;
+        private readonly WrapPanel _pageContentPanel = null!;
+
         // Text selection
         private bool _isSelecting;
         private Point _selectStart;
@@ -60,33 +99,35 @@ namespace KillerPDF
         private Border? _searchBar;
         private TextBox? _searchBox;
         private TextBlock? _searchStatus;
-        private readonly List<Rect> _searchHighlights = new();
+        private readonly List<Rect> _searchHighlights = [];
 
         // Signatures
-        private List<SavedSignature> _savedSignatures = new();
+        private List<SavedSignature> _savedSignatures = [];
         private SavedSignature? _pendingSignature;
         private Border? _signaturePopup;
         private static readonly string SignatureDir = AppDomain.CurrentDomain.BaseDirectory;
         private static readonly string SignatureFile = System.IO.Path.Combine(SignatureDir, "signatures.json");
 
         // Manual element refs (XAML codegen doesn't resolve these)
-        private Canvas _annotationCanvas = null!;
-        private Grid _pageContentGrid = null!;
-        private Button _toolSelectBtn = null!;
-        private Button _toolTextBtn = null!;
-        private Button _toolHighlightBtn = null!;
-        private Button _toolDrawBtn = null!;
-        private Button _toolSignatureBtn = null!;
-        private Button _saveAsBtnRef = null!;
-        private Button _closeFileBtnRef = null!;
-        private ComboBox _zoomBox = null!;
+        private readonly Canvas _annotationCanvas = null!;
+        private readonly Grid _pageContentGrid = null!;
+        private readonly Button _toolSelectBtn = null!;
+        private readonly Button _toolTextBtn = null!;
+        private readonly Button _toolHighlightBtn = null!;
+        private readonly Button _toolDrawBtn = null!;
+        private readonly Button _toolSignatureBtn = null!;
+        private readonly Button _toolImageBtn = null!;
+        private readonly Button _saveAsBtnRef = null!;
+        private readonly Button _closeFileBtnRef = null!;
+        private readonly ComboBox _zoomBox = null!;
+        private readonly StackPanel _portableBadge = null!;
 
         // Dirty / unsaved-change tracking
         private bool _isDirty = false;
 
         // Whole-document search results (PDF-space rects per page)
-        private readonly Dictionary<int, List<(double left, double bottom, double right, double top)>> _allSearchRects = new();
-        private List<int> _searchResultPages = new();
+        private readonly Dictionary<int, List<(double left, double bottom, double right, double top)>> _allSearchRects = [];
+        private readonly List<int> _searchResultPages = [];
         private int _searchPageCursor = -1;
 
         public MainWindow()
@@ -101,20 +142,32 @@ namespace KillerPDF
             _toolHighlightBtn = (Button)FindName("ToolHighlightBtn")!;
             _toolDrawBtn = (Button)FindName("ToolDrawBtn")!;
             _toolSignatureBtn = (Button)FindName("ToolSignatureBtn")!;
+            _toolImageBtn = (Button)FindName("ToolImageBtn")!;
+            _toolCropBtn = (Button)FindName("ToolCropBtn")!;
+            _sidebarToggleBtn = (Button)FindName("SidebarToggleBtn")!;
+            _sidebarBorder = (Border)FindName("SidebarBorder")!;
+            _sidebarCol = (ColumnDefinition)FindName("SidebarCol")!;
+            _pageContentPanel = (WrapPanel)FindName("PageContentPanel")!;
             _saveAsBtnRef = (Button)FindName("SaveAsBtn")!;
             _closeFileBtnRef = (Button)FindName("CloseFileBtn")!;
             _zoomBox = (ComboBox)FindName("ZoomBox")!;
+            _portableBadge = (StackPanel)FindName("PortableBadge")!;
             LoadSignatures();
             BuildContextMenu();
             SetTool(EditTool.Select);
+            ApplyGrainTexture();
             SourceInitialized += MainWindow_SourceInitialized;
 
             // Open a file passed via command-line / file association (e.g. double-clicking a .pdf)
+            // Also show the portable badge when running outside the install location.
             Loaded += (_, _) =>
             {
                 var args = Environment.GetCommandLineArgs();
                 if (args.Length > 1 && System.IO.File.Exists(args[1]))
                     OpenFile(args[1]);
+
+                if (App.IsPortable())
+                    _portableBadge.Visibility = Visibility.Visible;
             };
         }
 
@@ -218,6 +271,22 @@ namespace KillerPDF
             SendMessage(hwnd, WM_NCLBUTTONDOWN, new IntPtr(HTCAPTION), IntPtr.Zero);
         }
 
+        private void Install_Click(object sender, RoutedEventArgs e)
+        {
+            var res = KillerDialog.Show(this,
+                "Install KillerPDF to your user profile?\n\n" +
+                "• Start Menu shortcut\n" +
+                "• Added to \"Open with\" for .pdf files\n" +
+                "• Appears in Add/Remove Programs",
+                "Install KillerPDF", MessageBoxButton.OKCancel);
+            if (res != MessageBoxResult.OK) return;
+
+            // Hide the badge immediately so it doesn't flash if relaunch is slow
+            _portableBadge.Visibility = Visibility.Collapsed;
+
+            App.InstallAndRelaunch(_currentFile, wantDesktop: true);
+        }
+
         private void MinimizeBtn_Click(object sender, RoutedEventArgs e) =>
             WindowState = WindowState.Minimized;
 
@@ -246,6 +315,28 @@ namespace KillerPDF
         // Context menu
         // ============================================================
 
+        private void ApplyGrainTexture()
+        {
+            // Sparse bright-speck film grain — same style as the first pass,
+            // tuned so the texture is visible without being chunky.
+            const int size = 256;
+            var bmp = new WriteableBitmap(size, size, 96, 96, PixelFormats.Bgra32, null);
+            var pixels = new byte[size * size * 4]; // start fully transparent
+            var rng = new Random(1337);
+            for (int i = 0; i < pixels.Length; i += 4)
+            {
+                if (rng.Next(4) != 0) continue;       // ~25% pixel density
+                byte v = (byte)rng.Next(160, 255);     // bright specks
+                byte a = (byte)rng.Next(30, 80);       // low-ish alpha for subtlety
+                pixels[i]     = v;
+                pixels[i + 1] = v;
+                pixels[i + 2] = v;
+                pixels[i + 3] = a;
+            }
+            bmp.WritePixels(new System.Windows.Int32Rect(0, 0, size, size), pixels, size * 4, 0);
+            GrainBrush.ImageSource = bmp;
+        }
+
         private void BuildContextMenu()
         {
             var menu = new ContextMenu();
@@ -263,6 +354,47 @@ namespace KillerPDF
             menu.Items.Add(MakeMenuItem("Clear Page Annotations", (s, e) => ClearAnnotations_Click(s!, e)));
 
             _annotationCanvas.ContextMenu = menu;
+        }
+
+        private void PageList_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_doc is null) return;
+            var menu = new ContextMenu();
+            menu.Items.Add(MakeMenuItem("Insert Blank Page After", (s, ev) => InsertBlankPage_Click(s!, ev)));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(MakeMenuItem("Rotate CW",  (s, ev) => RotatePages_Click(90)));
+            menu.Items.Add(MakeMenuItem("Rotate CCW", (s, ev) => RotatePages_Click(-90)));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(MakeMenuItem("Move Page Up",   (s, ev) => MoveUp_Click(s!, ev)));
+            menu.Items.Add(MakeMenuItem("Move Page Down", (s, ev) => MoveDown_Click(s!, ev)));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(MakeMenuItem("Extract Page(s)", (s, ev) => Split_Click(s!, ev)));
+            menu.Items.Add(MakeMenuItem("Delete Page(s)", (s, ev) => Delete_Click(s!, ev)));
+            menu.PlacementTarget = PageList;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        private void RotatePages_Click(int delta)
+        {
+            if (_doc is null) return;
+            var selected = PageList.SelectedItems;
+            if (selected.Count == 0) return;
+            try
+            {
+                var indices = new List<int>();
+                foreach (var item in selected) indices.Add(PageList.Items.IndexOf(item));
+                foreach (var idx in indices)
+                    _doc.Pages[idx].Rotate = ((_doc.Pages[idx].Rotate + delta) % 360 + 360) % 360;
+                int restoreIdx = PageList.SelectedIndex;
+                SaveTempAndReload();
+                PageList.SelectedIndex = Math.Min(restoreIdx, PageList.Items.Count - 1);
+                SetStatus($"Rotated {indices.Count} page(s)");
+            }
+            catch (Exception ex)
+            {
+                KillerDialog.Show(this, $"Rotate failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private static MenuItem MakeMenuItem(string header, RoutedEventHandler click, string? gesture = null)
@@ -340,17 +472,27 @@ namespace KillerPDF
             _currentFile = workingPath;
             FileNameLabel.Text = System.IO.Path.GetFileName(displayPath);
             _annotations.Clear();
+            _undoStack.Clear();
             _renderDims.Clear();
             _allSearchRects.Clear();
             _searchResultPages.Clear();
             _searchPageCursor = -1;
+            ClearSecondaryPages();
             ClearSelection();
             RefreshPageList();
             DropZone.Visibility = Visibility.Collapsed;
             PagePreviewPanel.Visibility = Visibility.Visible;
             if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = true;
             MarkDirty(false);
-            if (_doc!.PageCount > 0) PageList.SelectedIndex = 0;
+            if (_doc!.PageCount > 0)
+            {
+                PageList.SelectedIndex = 0;
+                // Auto-fit to width once the first page has rendered and layout has settled.
+                // DispatcherPriority.Background is lower than Loaded, so this fires after
+                // all pending RenderPage / RefreshPageView callbacks have completed.
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
+                    (Action)FitToWidth);
+            }
             SetStatus($"Opened {System.IO.Path.GetFileName(displayPath)} - {_doc.PageCount} page(s)");
         }
 
@@ -481,7 +623,14 @@ namespace KillerPDF
             if (_currentFile is null || _doc is null) return;
             try
             {
-                using var docReader = DocLib.Instance.GetDocReader(_currentFile, new PageDimensions(1536, 1536));
+                // Scale render resolution to match display DPI so the bitmap maps 1:1 to
+                // physical pixels — prevents blurriness on high-DPI / scaled displays.
+                var dpiInfo = VisualTreeHelper.GetDpi(this);
+                double dpiScaleX = dpiInfo.DpiScaleX;
+                double dpiScaleY = dpiInfo.DpiScaleY;
+                int scaledMax = (int)(1536 * Math.Max(dpiScaleX, dpiScaleY));
+
+                using var docReader = DocLib.Instance.GetDocReader(_currentFile, new PageDimensions(scaledMax, scaledMax));
                 using var pageReader = docReader.GetPageReader(pageIndex);
 
                 int width = pageReader.GetPageWidth();
@@ -497,15 +646,26 @@ namespace KillerPDF
 
                 _renderDims[pageIndex] = (width, height);
 
-                var bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+                double bitmapDpiX = 96.0 * dpiScaleX;
+                double bitmapDpiY = 96.0 * dpiScaleY;
+                var bitmap = new WriteableBitmap(width, height, bitmapDpiX, bitmapDpiY, PixelFormats.Bgra32, null);
                 bitmap.WritePixels(new Int32Rect(0, 0, width, height), rawBytes, width * 4, 0);
 
                 PageImage.Source = bitmap;
                 _annotationCanvas.Width = width;
                 _annotationCanvas.Height = height;
                 ClearSelection();
+                ClearSecondaryPages();
                 RenderAllAnnotations(pageIndex);
                 SetStatus($"Page {pageIndex + 1} of {_doc.PageCount}");
+                // Defer additional pages until layout has settled so ActualWidth is valid.
+                // RenderPageLinks runs AFTER RenderAdditionalPages so ClearSecondaryPages
+                // inside RenderAdditionalPages doesn't wipe the overlays we just added.
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+                {
+                    RenderAdditionalPages(pageIndex);
+                    RenderPageLinks(pageIndex, width, height);
+                });
             }
             catch (Exception ex)
             {
@@ -514,7 +674,437 @@ namespace KillerPDF
             }
         }
 
+        /// <summary>
+        /// Clears all dynamically-added secondary page borders from the panel,
+        /// leaving only the first child (the primary page border).
+        /// </summary>
+        private void ClearSecondaryPages()
+        {
+            if (_pageContentPanel is null) return;
+            while (_pageContentPanel.Children.Count > 1)
+                _pageContentPanel.Children.RemoveAt(_pageContentPanel.Children.Count - 1);
+            // NOTE: do NOT reset _pageContentPanel.Width here.  Width is managed exclusively
+            // by RenderAdditionalPages (which runs only via Dispatcher) so that no synchronous
+            // call to ClearSecondaryPages triggers an intermediate layout pass that would cause
+            // the primary page to flash centered and then jerk back to left-aligned.
+            // Clear any link overlays from the annotation canvas.
+            foreach (var lo in _linkOverlays)
+                _annotationCanvas.Children.Remove(lo);
+            _linkOverlays.Clear();
+        }
+
+        /// <summary>
+        /// Renders all remaining pages as a grid that wraps based on available viewport width.
+        /// The WrapPanel's Width is set to viewport/zoom so WPF handles row-breaking automatically.
+        /// Each secondary page is click-to-navigate; annotation tools only work on the primary page.
+        /// </summary>
+        private void RenderAdditionalPages(int primaryPageIdx)
+        {
+            if (_currentFile is null || _doc is null) return;
+            ClearSecondaryPages();
+
+            double viewportW = PagePreviewPanel.ActualWidth;
+            if (viewportW <= 0 || _doc.PageCount <= 1)
+            {
+                // Single-page document or viewport not yet measured: free the explicit width
+                // so the WrapPanel sizes to content and the page stays centred.
+                _pageContentPanel.Width = double.NaN;
+                return;
+            }
+
+            // Snap the WrapPanel width to a whole number of page-width slots.
+            // This guarantees panelW * zoomLevel + 24 <= viewportW, so the surrounding
+            // Border always has room to be centered by HorizontalAlignment="Center".
+            // (Using viewportW / zoom - pad fills the viewport exactly and leaves no room.)
+            double primaryPageW = _annotationCanvas.Width > 0 ? _annotationCanvas.Width : 595;
+            double pageSlotW = primaryPageW + 12; // page width + right-gutter margin
+            double availablePreZoom = (viewportW - 24) / _zoomLevel; // inner space in pre-zoom coords
+            int pagesPerRow = Math.Max(1, (int)(availablePreZoom / pageSlotW));
+            double panelW = pagesPerRow * pageSlotW;
+            if (panelW > 0) _pageContentPanel.Width = panelW;
+
+            var dpiInfo = VisualTreeHelper.GetDpi(this);
+            double dpiScaleX = dpiInfo.DpiScaleX;
+            double dpiScaleY = dpiInfo.DpiScaleY;
+            int scaledMax = (int)(1536 * Math.Max(dpiScaleX, dpiScaleY));
+
+            try
+            {
+                using var docReader = DocLib.Instance.GetDocReader(_currentFile, new PageDimensions(scaledMax, scaledMax));
+
+                for (int i = primaryPageIdx + 1; i < _doc.PageCount; i++)
+                {
+                    int pi = i; // capture for lambda
+                    using var pageReader = docReader.GetPageReader(pi);
+                    int w = pageReader.GetPageWidth();
+                    int h = pageReader.GetPageHeight();
+                    var rawBytes = pageReader.GetImage();
+                    if (w <= 0 || h <= 0 || rawBytes is null) continue;
+
+                    _renderDims[pi] = (w, h);
+                    var bitmap = new WriteableBitmap(w, h, 96.0 * dpiScaleX, 96.0 * dpiScaleY, PixelFormats.Bgra32, null);
+                    bitmap.WritePixels(new Int32Rect(0, 0, w, h), rawBytes, w * 4, 0);
+
+                    var img = new Image { Source = bitmap, Stretch = Stretch.None };
+                    RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+
+                    var overlay = new Canvas
+                    {
+                        Width = w, Height = h,
+                        Background = Brushes.Transparent,
+                        Cursor = Cursors.Hand,
+                        ToolTip = $"Page {pi + 1} — click to navigate"
+                    };
+                    overlay.PreviewMouseLeftButtonDown += (_, _) => PageList.SelectedIndex = pi;
+
+                    var pageGrid = new Grid();
+                    pageGrid.Children.Add(img);
+                    pageGrid.Children.Add(overlay);
+                    // Add link overlays on top of the full-page nav overlay so PDF links
+                    // in secondary pages are clickable and navigate to their targets directly.
+                    AddSecondaryPageLinks(pi, pageGrid, w, h);
+
+                    // Uniform right+bottom margin gives consistent gutters in both dimensions.
+                    _pageContentPanel.Children.Add(new Border
+                    {
+                        Background = Brushes.White,
+                        Margin = new Thickness(0, 0, 12, 12),
+                        Child = pageGrid
+                    });
+                }
+            }
+            catch { /* non-critical; primary page already visible */ }
+        }
+
         private void SetStatus(string text) => StatusText.Text = text;
+
+        /// <summary>
+        /// Re-renders secondary pages and then link overlays for the current page.
+        /// Must be called via Dispatcher so layout is settled before RenderAdditionalPages
+        /// reads ActualWidth. All zoom-change and sidebar-toggle dispatch sites use this
+        /// instead of a bare RenderAdditionalPages call so link overlays are never left
+        /// cleared without being re-added.
+        /// </summary>
+        private void RefreshPageView(int pageIndex)
+        {
+            RenderAdditionalPages(pageIndex);
+            if (_renderDims.TryGetValue(pageIndex, out var dims))
+                RenderPageLinks(pageIndex, dims.w, dims.h);
+        }
+
+        // ============================================================
+        // PDF Link Annotation Overlays
+        // ============================================================
+
+        private readonly record struct LinkInfo(double Cx, double Cy, double Cw, double Ch, object Tag, string Tip);
+
+        /// <summary>
+        /// Parses all link annotations from a PDF page and converts them to canvas-space
+        /// rectangles. Works for both primary and secondary page renders.
+        /// </summary>
+        private List<LinkInfo> GetPageLinks(int pageIndex, int bitmapW, int bitmapH)
+        {
+            var links = new List<LinkInfo>();
+            if (_doc is null) return links;
+            try
+            {
+                var pdfPage = _doc.Pages[pageIndex];
+                var annotsArr = pdfPage.Elements.GetArray("/Annots");
+                if (annotsArr is null || annotsArr.Elements.Count == 0) return links;
+
+                double pageWidthPt  = pdfPage.Width.Point;
+                double pageHeightPt = pdfPage.Height.Point;
+                if (pageWidthPt  <= 0) pageWidthPt  = 595.28;
+                if (pageHeightPt <= 0) pageHeightPt = 841.89;
+
+                for (int i = 0; i < annotsArr.Elements.Count; i++)
+                {
+                    PdfItem? elem = annotsArr.Elements[i];
+                    PdfDictionary? ann = elem as PdfDictionary ?? DerefItem(elem) as PdfDictionary;
+                    if (ann is null) continue;
+
+                    var subtype = ann.Elements["/Subtype"]?.ToString() ?? "";
+                    if (!subtype.Contains("Link")) continue;
+
+                    var rectArr = ann.Elements.GetArray("/Rect");
+                    if (rectArr is null || rectArr.Elements.Count < 4) continue;
+                    double rx1 = rectArr.Elements.GetReal(0);
+                    double ry1 = rectArr.Elements.GetReal(1);
+                    double rx2 = rectArr.Elements.GetReal(2);
+                    double ry2 = rectArr.Elements.GetReal(3);
+                    if (rx1 > rx2) (rx1, rx2) = (rx2, rx1);
+                    if (ry1 > ry2) (ry1, ry2) = (ry2, ry1);
+
+                    double cx = rx1 / pageWidthPt  * bitmapW;
+                    double cy = (pageHeightPt - ry2) / pageHeightPt * bitmapH;
+                    double cw = (rx2 - rx1) / pageWidthPt  * bitmapW;
+                    double ch = (ry2 - ry1) / pageHeightPt * bitmapH;
+                    if (cw < 1 || ch < 1) continue;
+
+                    int? targetPage = null;
+                    string? uri = null;
+
+                    var actionDict = ann.Elements.GetDictionary("/A");
+                    if (actionDict != null)
+                    {
+                        var s = actionDict.Elements["/S"]?.ToString() ?? "";
+                        if (s.Contains("GoTo"))
+                            targetPage = ResolveDest(actionDict.Elements["/D"]);
+                        else if (s.Contains("URI"))
+                            uri = actionDict.Elements.GetString("/URI");
+                    }
+                    else
+                    {
+                        targetPage = ResolveDest(ann.Elements["/Dest"]);
+                    }
+
+                    if (targetPage is null && uri is null) continue;
+
+                    object tag = targetPage.HasValue ? (object)targetPage.Value : uri!;
+                    string tip = targetPage.HasValue ? $"Go to page {targetPage.Value + 1}" : uri!;
+                    links.Add(new LinkInfo(cx, cy, cw, ch, tag, tip));
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPageLinks: {ex}"); }
+            return links;
+        }
+
+        /// <summary>
+        /// Renders link overlays for the primary page onto the annotation canvas.
+        /// Uses a manual bounds-check in Canvas_MouseLeftButtonDown for hit detection
+        /// (transparent Canvas children are unreliable for WPF hit-testing alone).
+        /// </summary>
+        private void RenderPageLinks(int pageIndex, int bitmapW, int bitmapH)
+        {
+            if (_doc is null || _currentFile is null) return;
+
+            var links = GetPageLinks(pageIndex, bitmapW, bitmapH);
+            foreach (var lnk in links)
+            {
+                var overlay = new Canvas
+                {
+                    Width            = lnk.Cw,
+                    Height           = lnk.Ch,
+                    Background       = Brushes.Transparent,
+                    Cursor           = Cursors.Hand,
+                    ToolTip          = lnk.Tip,
+                    Tag              = lnk.Tag,
+                    IsHitTestVisible = true,
+                };
+                Canvas.SetLeft(overlay, lnk.Cx);
+                Canvas.SetTop(overlay, lnk.Cy);
+
+                _annotationCanvas.Children.Add(overlay);
+                _linkOverlays.Add(overlay);
+            }
+
+            if (links.Count > 0)
+                SetStatus($"Page {pageIndex + 1} of {_doc.PageCount}  ({links.Count} link{(links.Count == 1 ? "" : "s")})");
+        }
+
+        /// <summary>
+        /// Adds link overlays to a secondary-page Grid so PDF links within that page are
+        /// clickable even when the page is visible only in the multi-page grid view.
+        ///
+        /// Canvas.SetLeft/Top attached properties ONLY take effect when the element's
+        /// direct parent is a Canvas.  Adding link elements straight into the Grid (as
+        /// siblings of the page-nav overlay) would leave them all at (0,0), causing every
+        /// click to hit the wrong element.  Instead we create a transparent Canvas
+        /// container the same size as the page and use it as the coordinate space.
+        ///
+        /// The container uses Background=null so non-link areas are hit-test-transparent
+        /// and clicks fall through to the full-page nav overlay beneath it.  Link
+        /// overlays inside the container use Background=Transparent so they ARE hit-
+        /// testable and receive clicks.  The container is added last → topmost z-order.
+        /// </summary>
+        private void AddSecondaryPageLinks(int pageIndex, Grid pageGrid, int bitmapW, int bitmapH)
+        {
+            var links = GetPageLinks(pageIndex, bitmapW, bitmapH);
+            if (links.Count == 0) return;
+
+            // Container: not hit-testable itself (Background=null), but its children are.
+            var linkCanvas = new Canvas { Width = bitmapW, Height = bitmapH, Background = null };
+
+            foreach (var lnk in links)
+            {
+                var lo = new Canvas
+                {
+                    Width            = lnk.Cw,
+                    Height           = lnk.Ch,
+                    Background       = Brushes.Transparent,   // must be non-null to be hittable
+                    Cursor           = Cursors.Hand,
+                    ToolTip          = lnk.Tip,
+                    IsHitTestVisible = true,
+                };
+                Canvas.SetLeft(lo, lnk.Cx);   // works because parent IS a Canvas
+                Canvas.SetTop(lo, lnk.Cy);
+
+                var capturedTag = lnk.Tag;
+                lo.PreviewMouseLeftButtonDown += (_, args) =>
+                {
+                    if (capturedTag is int tp)
+                        PageList.SelectedIndex = tp;
+                    else if (capturedTag is string u)
+                        try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
+                    args.Handled = true;
+                };
+
+                linkCanvas.Children.Add(lo);
+            }
+
+            // Add container last so it is topmost in z-order; non-link areas fall through.
+            pageGrid.Children.Add(linkCanvas);
+        }
+
+        /// <summary>
+        /// Resolves a /Dest value (PdfArray, PdfString, or PdfName) to a 0-based page index.
+        /// Returns null if the destination cannot be resolved.
+        /// Note: PdfReference is internal to PdfSharpCore so we use reflection for ObjectNumber
+        /// and var-inferred types instead of the type name.
+        /// </summary>
+        private int? ResolveDest(PdfItem? destItem)
+        {
+            if (destItem is null || _doc is null) return null;
+
+            // Dereference indirect object if needed (PdfReference is internal, use duck-typing).
+            destItem = DerefItem(destItem);
+
+            PdfArray? arr = null;
+
+            if (destItem is PdfArray a)
+            {
+                arr = a;
+            }
+            else if (destItem is PdfString || destItem is PdfName)
+            {
+                // Named destination — look up in the document catalog
+                arr = ResolveNamedDest(destItem);
+            }
+
+            if (arr is null || arr.Elements.Count == 0) return null;
+
+            // First element of the destination array is an indirect page reference.
+            // PdfReference.ObjectNumber is public but its type is internal; use reflection.
+            var pageRefItem = arr.Elements[0];
+            int elemObjNum = GetObjectNumber(pageRefItem);
+            if (elemObjNum > 0)
+            {
+                for (int i = 0; i < _doc.PageCount; i++)
+                {
+                    // PdfPage.Reference (public) gives us access to ObjectNumber
+                    var pgRef = _doc.Pages[i].Reference;
+                    if (pgRef != null && pgRef.ObjectNumber == elemObjNum)
+                        return i;
+                }
+            }
+            else if (pageRefItem is PdfInteger pageInt)
+            {
+                int pn = pageInt.Value;
+                if (pn >= 0 && pn < _doc.PageCount) return pn;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Dereferences a PdfItem if it is an indirect reference (PdfReference is internal;
+        /// we detect it by looking for a public "Value" property returning PdfObject).
+        /// </summary>
+        private static PdfItem DerefItem(PdfItem item)
+        {
+            var valueProp = item.GetType().GetProperty("Value",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (valueProp?.GetValue(item) is PdfObject resolved)
+                return resolved;
+            return item;
+        }
+
+        /// <summary>
+        /// Returns the PDF object number of a PdfItem that is an indirect reference, or -1.
+        /// Handles the internal PdfReference type via reflection.
+        /// </summary>
+        private static int GetObjectNumber(PdfItem? item)
+        {
+            if (item is null) return -1;
+            var prop = item.GetType().GetProperty("ObjectNumber",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            return prop?.GetValue(item) is int n ? n : -1;
+        }
+
+        /// <summary>
+        /// Resolves a named destination (string or name) to a destination array using the
+        /// catalog's /Dests dictionary or /Names /Dests name tree.
+        /// </summary>
+        private PdfArray? ResolveNamedDest(PdfItem nameItem)
+        {
+            if (_doc is null) return null;
+            string name = nameItem switch
+            {
+                PdfString s => s.Value,
+                PdfName   n => n.Value.TrimStart('/'),
+                _           => ""
+            };
+            if (string.IsNullOrEmpty(name)) return null;
+
+            var catalog = _doc.Internals.Catalog;
+
+            // Legacy /Dests dictionary (direct mapping)
+            var dests = catalog.Elements.GetDictionary("/Dests");
+            if (dests != null)
+            {
+                PdfItem? val = DerefItem(dests.Elements[name] ?? dests.Elements["/" + name] ?? new PdfInteger(-1));
+                if (val is PdfArray da) return da;
+                if (val is PdfDictionary dd) return dd.Elements.GetArray("/D");
+            }
+
+            // Modern /Names /Dests name tree
+            var names = catalog.Elements.GetDictionary("/Names");
+            var destTree = names?.Elements.GetDictionary("/Dests");
+            if (destTree != null)
+                return ResolveNameTree(destTree, name);
+
+            return null;
+        }
+
+        /// <summary>
+        /// Walks a PDF name tree to find the destination array for the given name.
+        /// </summary>
+        private static PdfArray? ResolveNameTree(PdfDictionary node, string name)
+        {
+            // Leaf node: flat /Names array [key val key val ...]
+            var namesArr = node.Elements.GetArray("/Names");
+            if (namesArr != null)
+            {
+                for (int i = 0; i + 1 < namesArr.Elements.Count; i += 2)
+                {
+                    var key = namesArr.Elements[i];
+                    string keyStr = key is PdfString ks ? ks.Value : key?.ToString() ?? "";
+                    if (keyStr == name)
+                    {
+                        PdfItem? val = DerefItem(namesArr.Elements[i + 1]);
+                        if (val is PdfArray va) return va;
+                        if (val is PdfDictionary vd) return vd.Elements.GetArray("/D");
+                    }
+                }
+            }
+
+            // Intermediate node: recurse into /Kids
+            var kids = node.Elements.GetArray("/Kids");
+            if (kids != null)
+            {
+                for (int i = 0; i < kids.Elements.Count; i++)
+                {
+                    PdfItem? kid = DerefItem(kids.Elements[i]);
+                    if (kid is PdfDictionary kd)
+                    {
+                        var result = ResolveNameTree(kd, name);
+                        if (result != null) return result;
+                    }
+                }
+            }
+
+            return null;
+        }
 
         // ============================================================
         // Tool selection
@@ -532,7 +1122,9 @@ namespace KillerPDF
                 (_toolTextBtn, EditTool.Text),
                 (_toolHighlightBtn, EditTool.Highlight),
                 (_toolDrawBtn, EditTool.Draw),
-                (_toolSignatureBtn, EditTool.Signature)
+                (_toolSignatureBtn, EditTool.Signature),
+                (_toolImageBtn, EditTool.Image),
+                (_toolCropBtn, EditTool.Crop)
             };
             var green = (SolidColorBrush)FindResource("AccentGreen");
             var greenDim = (SolidColorBrush)FindResource("AccentGreenDim");
@@ -550,6 +1142,8 @@ namespace KillerPDF
                 EditTool.Highlight => Cursors.Cross,
                 EditTool.Draw => Cursors.Pen,
                 EditTool.Signature => Cursors.Hand,
+                EditTool.Image => Cursors.Hand,
+                EditTool.Crop => Cursors.Cross,
                 _ => Cursors.Arrow
             };
 
@@ -559,18 +1153,54 @@ namespace KillerPDF
             else
                 HideDrawSettings();
 
+            // Show/hide text tool settings bar
+            if (tool == EditTool.Text)
+                ShowTextSettings();
+            else
+                HideTextSettings();
+
             // Hide signature popup when switching away
             if (tool != EditTool.Signature)
             {
                 HideSignaturePopup();
                 _pendingSignature = null;
             }
+
+            // Dismiss crop confirm bar when switching away from Crop
+            if (tool != EditTool.Crop)
+                HideCropConfirmBar();
+        }
+
+        private void SidebarToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _sidebarCollapsed = !_sidebarCollapsed;
+            if (_sidebarCollapsed)
+            {
+                _sidebarBorder.Visibility = Visibility.Collapsed;
+                _sidebarCol.Width = new GridLength(24);
+                _sidebarCol.MinWidth = 24;
+                _sidebarToggleBtn.Content = "\uE76C"; // ChevronRight (Segoe MDL2)
+                _sidebarToggleBtn.ToolTip = "Expand sidebar";
+            }
+            else
+            {
+                _sidebarBorder.Visibility = Visibility.Visible;
+                _sidebarCol.Width = new GridLength(180);
+                _sidebarCol.MinWidth = 24;
+                _sidebarToggleBtn.Content = "\uE76B"; // ChevronLeft (Segoe MDL2)
+                _sidebarToggleBtn.ToolTip = "Collapse sidebar";
+            }
+            if (PageList.SelectedIndex >= 0)
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                    () => RefreshPageView(PageList.SelectedIndex));
         }
 
         private void ToolSelect_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Select);
         private void ToolText_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Text);
         private void ToolHighlight_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Highlight);
         private void ToolDraw_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Draw);
+        private void ToolImage_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Image);
+        private void ToolCrop_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Crop);
         private void ToolSignature_Click(object sender, RoutedEventArgs e)
         {
             if (_signaturePopup is not null)
@@ -585,15 +1215,164 @@ namespace KillerPDF
         }
 
         // ============================================================
+        // Crop tool
+        // ============================================================
+
+        private void ShowCropConfirmBar()
+        {
+            HideCropConfirmBar();
+            if (_doc is null) return;
+
+            int currentPage = PageList.SelectedIndex;
+            bool multiPage = _doc.PageCount > 1;
+
+            var bar = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(230, 30, 30, 30)),
+                BorderBrush = (SolidColorBrush)FindResource("AccentGreen"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 6, 8, 6)
+            };
+
+            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var label = new TextBlock
+            {
+                Text = "Apply crop to:",
+                Foreground = (SolidColorBrush)FindResource("TextSecondary"),
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            panel.Children.Add(label);
+
+            var btnStyle = new Style(typeof(Button));
+            btnStyle.Setters.Add(new Setter(Button.BackgroundProperty, new SolidColorBrush(Color.FromArgb(40, 74, 222, 128))));
+            btnStyle.Setters.Add(new Setter(Button.ForegroundProperty, (SolidColorBrush)FindResource("AccentGreen")));
+            btnStyle.Setters.Add(new Setter(Button.BorderThicknessProperty, new Thickness(1)));
+            btnStyle.Setters.Add(new Setter(Button.BorderBrushProperty, (SolidColorBrush)FindResource("AccentGreen")));
+            btnStyle.Setters.Add(new Setter(Button.PaddingProperty, new Thickness(10, 4, 10, 4)));
+            btnStyle.Setters.Add(new Setter(Button.MarginProperty, new Thickness(0, 0, 6, 0)));
+            btnStyle.Setters.Add(new Setter(Button.CursorProperty, Cursors.Hand));
+            btnStyle.Setters.Add(new Setter(Button.FontFamilyProperty, new FontFamily("Segoe UI")));
+            btnStyle.Setters.Add(new Setter(Button.FontSizeProperty, 12.0));
+
+            var thisPageBtn = new Button { Content = "This Page", Style = btnStyle };
+            thisPageBtn.Click += (_, _) => ApplyCrop([currentPage]);
+            panel.Children.Add(thisPageBtn);
+
+            if (multiPage)
+            {
+                var allPagesBtn = new Button { Content = "All Pages", Style = btnStyle };
+                allPagesBtn.Click += (_, _) => ApplyCrop([..Enumerable.Range(0, _doc.PageCount)]);
+                panel.Children.Add(allPagesBtn);
+            }
+
+            var cancelBtn = new Button
+            {
+                Content = "Cancel",
+                Style = btnStyle,
+                Foreground = (SolidColorBrush)FindResource("TextSecondary"),
+                BorderBrush = (SolidColorBrush)FindResource("TextSecondary"),
+                Background = Brushes.Transparent
+            };
+            cancelBtn.Click += (_, _) => HideCropConfirmBar();
+            panel.Children.Add(cancelBtn);
+
+            bar.Child = panel;
+            _cropConfirmBar = bar;
+
+            // Position below the crop rect; if near the bottom, flip above it instead.
+            const double barHeight = 38; // approximate height of the confirm bar
+            double barLeft = Math.Max(4, _cropCanvasRect.X);
+            double barTopBelow = _cropCanvasRect.Y + _cropCanvasRect.Height + 8;
+            double barTopAbove = _cropCanvasRect.Y - barHeight - 8;
+            double barTop = barTopBelow + barHeight < _annotationCanvas.ActualHeight
+                ? barTopBelow
+                : Math.Max(4, barTopAbove);
+            Canvas.SetLeft(bar, barLeft);
+            Canvas.SetTop(bar, barTop);
+            _annotationCanvas.Children.Add(bar);
+        }
+
+        private void HideCropConfirmBar()
+        {
+            if (_cropConfirmBar is not null)
+            {
+                _annotationCanvas.Children.Remove(_cropConfirmBar);
+                _cropConfirmBar = null;
+            }
+            if (_cropPreviewRect is not null)
+            {
+                _annotationCanvas.Children.Remove(_cropPreviewRect);
+                _cropPreviewRect = null;
+            }
+        }
+
+        private void ApplyCrop(int[] pageIndices)
+        {
+            if (_doc is null || _currentFile is null) { SetStatus("Crop: no document open"); return; }
+            int currentPage = PageList.SelectedIndex;
+            if (currentPage < 0) { SetStatus("Crop: no page selected"); return; }
+            if (!_renderDims.ContainsKey(currentPage)) { SetStatus("Crop: page dimensions unavailable"); return; }
+
+            try
+            {
+                PushDocUndo();
+
+                var (renderW, renderH) = _renderDims[currentPage];
+                var cr = _cropCanvasRect;
+
+                foreach (int pi in pageIndices)
+                {
+                    if (pi < 0 || pi >= _doc.PageCount) continue;
+                    var page = _doc.Pages[pi];
+                    double pdfW = page.Width.Point;
+                    double pdfH = page.Height.Point;
+
+                    // Convert canvas rect (top-left origin) to PDF rect (bottom-left origin, points)
+                    double x1 = cr.X * pdfW / renderW;
+                    double y1 = pdfH - (cr.Y + cr.Height) * pdfH / renderH;
+                    double x2 = (cr.X + cr.Width) * pdfW / renderW;
+                    double y2 = pdfH - cr.Y * pdfH / renderH;
+
+                    // Clamp to media box
+                    x1 = Math.Max(0, x1); y1 = Math.Max(0, y1);
+                    x2 = Math.Min(pdfW, x2); y2 = Math.Min(pdfH, y2);
+
+                    // Write CropBox directly into the page dictionary — more reliable than the
+                    // CropBox property setter across PdfSharpCore versions.
+                    var arr = new PdfSharpCore.Pdf.PdfArray();
+                    arr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x1));
+                    arr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y1));
+                    arr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x2));
+                    arr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y2));
+                    page.Elements["/CropBox"] = arr;
+                }
+
+                HideCropConfirmBar();
+                SetTool(EditTool.Select);
+                SaveTempAndReload();
+                SetStatus($"Cropped {pageIndices.Length} page{(pageIndices.Length == 1 ? "" : "s")}");
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Crop failed: {ex.Message}");
+            }
+        }
+
+        // ============================================================
         // Draw/Highlight settings bar
         // ============================================================
 
-        private static readonly Color[] SwatchColors = new[]
-        {
+        private static readonly Color[] SwatchColors =
+        [
             Colors.Red, Colors.SaddleBrown, Colors.Orange, Colors.Gold,
             Colors.LimeGreen, Colors.DodgerBlue, Colors.MediumPurple,
             Colors.DeepPink, Colors.White, Colors.Black
-        };
+        ];
 
         private void ShowDrawSettings(EditTool tool)
         {
@@ -758,6 +1537,117 @@ namespace KillerPDF
         }
 
         // ============================================================
+        // Text tool settings bar
+        // ============================================================
+
+        private static readonly double[] TextFontSizes = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72];
+
+        private void ShowTextSettings()
+        {
+            HideTextSettings();
+
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 4, 8, 4) };
+
+            // Font size label
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Size:",
+                Foreground = (SolidColorBrush)FindResource("TextSecondary"),
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
+            });
+
+            // Font size dropdown
+            var sizeBox = new ComboBox
+            {
+                Width = 64, Height = 24,
+                Style = (Style)FindResource("DarkComboBox"),
+                IsEditable = true,
+                VerticalContentAlignment = VerticalAlignment.Center,
+            };
+            foreach (var size in TextFontSizes)
+                sizeBox.Items.Add(size.ToString("0"));
+            sizeBox.Text = _textFontSize.ToString("0");
+            sizeBox.SelectionChanged += (_, _) =>
+            {
+                if (sizeBox.SelectedItem is string s && double.TryParse(s, out double v) && v > 0)
+                    _textFontSize = v;
+            };
+            sizeBox.LostFocus += (_, _) =>
+            {
+                if (double.TryParse(sizeBox.Text, out double v) && v > 0)
+                    _textFontSize = v;
+            };
+            panel.Children.Add(sizeBox);
+
+            // Separator
+            panel.Children.Add(new Rectangle
+            {
+                Width = 1, Fill = (SolidColorBrush)FindResource("BorderDim"),
+                Margin = new Thickness(8, 2, 8, 2)
+            });
+
+            // Color label
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Color:",
+                Foreground = (SolidColorBrush)FindResource("TextSecondary"),
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
+            });
+
+            // Color swatches (reuse same palette as draw tool)
+            foreach (var color in SwatchColors)
+            {
+                var c = color;
+                var swatch = new Border
+                {
+                    Width = 18, Height = 18,
+                    Background = new SolidColorBrush(c),
+                    BorderBrush = (c.R == _textColor.R && c.G == _textColor.G && c.B == _textColor.B)
+                        ? (SolidColorBrush)FindResource("AccentGreen")
+                        : new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+                    BorderThickness = new Thickness(
+                        (c.R == _textColor.R && c.G == _textColor.G && c.B == _textColor.B) ? 2 : 1),
+                    CornerRadius = new CornerRadius(3),
+                    Margin = new Thickness(1),
+                    Cursor = Cursors.Hand
+                };
+                swatch.MouseLeftButtonDown += (_, _) => { _textColor = c; ShowTextSettings(); };
+                panel.Children.Add(swatch);
+            }
+
+            _textSettingsBar = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x1a, 0x1a, 0x1a)),
+                BorderBrush = (SolidColorBrush)FindResource("BorderDim"),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                CornerRadius = new CornerRadius(0, 0, 4, 4),
+                Padding = new Thickness(4),
+                Child = panel,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+
+            var previewArea = PagePreviewPanel.Parent as Grid;
+            if (previewArea is not null)
+            {
+                Panel.SetZIndex(_textSettingsBar, 100);
+                previewArea.Children.Add(_textSettingsBar);
+            }
+        }
+
+        private void HideTextSettings()
+        {
+            if (_textSettingsBar is not null)
+            {
+                (PagePreviewPanel.Parent as Grid)?.Children.Remove(_textSettingsBar);
+                _textSettingsBar = null;
+            }
+        }
+
+        // ============================================================
         // Signatures
         // ============================================================
 
@@ -768,10 +1658,10 @@ namespace KillerPDF
                 if (File.Exists(SignatureFile))
                 {
                     var json = File.ReadAllText(SignatureFile);
-                    _savedSignatures = JsonSerializer.Deserialize<List<SavedSignature>>(json) ?? new();
+                    _savedSignatures = JsonSerializer.Deserialize<List<SavedSignature>>(json) ?? [];
                 }
             }
-            catch { _savedSignatures = new(); }
+            catch { _savedSignatures = []; }
         }
 
         private void PersistSignatures()
@@ -1138,7 +2028,7 @@ namespace KillerPDF
             {
                 if (placeholder.Visibility == Visibility.Visible)
                     placeholder.Visibility = Visibility.Collapsed;
-                currentStroke = new List<Point>();
+                currentStroke = [];
                 var pos = e.GetPosition(drawCanvas);
                 currentStroke.Add(pos);
                 currentPoly = new Polyline
@@ -1324,12 +2214,60 @@ namespace KillerPDF
             if (sig.ImageData is null)
             {
                 foreach (var stroke in sig.Strokes)
-                    annot.Strokes.Add(stroke.Select(p => new Point(p.X, p.Y)).ToList());
+                    annot.Strokes.Add([..stroke.Select(p => new Point(p.X, p.Y))]);
             }
 
             AddAnnotation(annot);
             RenderAllAnnotations(pageIdx);
             SetStatus("Signature placed - click again to place another, or switch tools");
+        }
+
+        private void PlaceImageFromDialog(Point pos, int pageIdx)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Insert Image",
+                Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tiff;*.tif|All files|*.*"
+            };
+            if (dlg.ShowDialog() != true) return;
+
+            try
+            {
+                var imgBytes = File.ReadAllBytes(dlg.FileName);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.StreamSource = new MemoryStream(imgBytes);
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.EndInit();
+
+                double srcW = bmp.PixelWidth > 0 ? bmp.PixelWidth : 400;
+                double srcH = bmp.PixelHeight > 0 ? bmp.PixelHeight : 300;
+
+                // Default scale: fit within 250 canvas pixels on the longest axis
+                const double MaxCanvasDim = 250;
+                double scale = Math.Min(1.0, Math.Min(MaxCanvasDim / srcW, MaxCanvasDim / srcH));
+
+                var imgAnnot = new ImageAnnotation
+                {
+                    PageIndex = pageIdx,
+                    Position = pos,
+                    Scale = scale,
+                    SourceWidth = srcW,
+                    SourceHeight = srcH,
+                    ImageData = Convert.ToBase64String(imgBytes)
+                };
+
+                AddAnnotation(imgAnnot);
+                RenderAllAnnotations(pageIdx);
+                double w = srcW * scale;
+                double h = srcH * scale;
+                SelectAnnotation(imgAnnot, new Rect(pos.X, pos.Y, w, h));
+                SetStatus("Image placed - drag the corner handle to resize, switch to Select to move/delete");
+            }
+            catch (Exception ex)
+            {
+                KillerDialog.Show(this, $"Could not load image:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // ============================================================
@@ -1343,39 +2281,110 @@ namespace KillerPDF
             if (_activeTextBox is not null && e.OriginalSource is DependencyObject src &&
                 IsDescendantOf(src, _activeTextBox))
                 return;
+            // Don't intercept clicks on the crop confirm bar (canvas uses Preview events which
+            // tunnel before child Button clicks fire — we must not swallow them here).
+            if (_cropConfirmBar is not null && e.OriginalSource is DependencyObject cropSrc &&
+                IsDescendantOf(cropSrc, _cropConfirmBar))
+                return;
+            // Check if click lands inside a PDF link overlay.
+            // We do an explicit bounds check rather than relying on WPF hit-testing through
+            // nested transparent canvases, which is unreliable.
+            if (_linkOverlays.Count > 0)
+            {
+                var clickPos = e.GetPosition(_annotationCanvas);
+                foreach (var lo in _linkOverlays)
+                {
+                    double lx = Canvas.GetLeft(lo);
+                    double ly = Canvas.GetTop(lo);
+                    if (clickPos.X >= lx && clickPos.X <= lx + lo.Width &&
+                        clickPos.Y >= ly && clickPos.Y <= ly + lo.Height)
+                    {
+                        if (lo.Tag is int tp)
+                            PageList.SelectedIndex = tp;
+                        else if (lo.Tag is string u)
+                            try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
             var pos = e.GetPosition(_annotationCanvas);
             int pageIdx = PageList.SelectedIndex;
             if (pageIdx < 0) return;
 
+            // Check if click is on the resize handle (signature or image annotation)
+            if (_resizeHandle is not null && _selectedAnnotation is PlacedAnnotation rsa)
+            {
+                double hx = Canvas.GetLeft(_resizeHandle);
+                double hy = Canvas.GetTop(_resizeHandle);
+                if (pos.X >= hx && pos.X <= hx + _resizeHandle.Width &&
+                    pos.Y >= hy && pos.Y <= hy + _resizeHandle.Height)
+                {
+                    _isResizingSig = true;
+                    _resizeSigStart = pos;
+                    _resizeSigStartScale = rsa.Scale;
+                    _resizeSigAnnot = rsa;
+                    _annotationCanvas.CaptureMouse();
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             switch (_currentTool)
             {
                 case EditTool.Select:
-                    ClearSelection();
-                    ClearTextSelection();
                     if (e.ClickCount == 2)
                     {
-                        // Double-click: edit existing PDF text at this position
+                        ClearSelection();
+                        ClearTextSelection();
                         EditTextAtPosition(pos, pageIdx);
                         e.Handled = true;
                     }
                     else
                     {
-                        // Single click: start a drag selection for text
-                        _isSelecting = true;
-                        _selectStart = pos;
-                        _selectRect = new Rectangle
+                        // Single click: check if hitting a PlacedAnnotation first — select and drag
+                        bool hitPlaced = false;
+                        if (_annotations.TryGetValue(pageIdx, out var pageAnnotsList))
                         {
-                            Fill = new SolidColorBrush(Color.FromArgb(40, 74, 130, 255)),
-                            Stroke = new SolidColorBrush(Color.FromArgb(120, 74, 130, 255)),
-                            StrokeThickness = 1,
-                            Width = 0, Height = 0,
-                            IsHitTestVisible = false
-                        };
-                        Canvas.SetLeft(_selectRect, pos.X);
-                        Canvas.SetTop(_selectRect, pos.Y);
-                        _annotationCanvas.Children.Add(_selectRect);
-                        _annotationCanvas.CaptureMouse();
-                        e.Handled = true;
+                            for (int i = pageAnnotsList.Count - 1; i >= 0; i--)
+                            {
+                                if (pageAnnotsList[i] is PlacedAnnotation pa &&
+                                    HitTestAnnotation(pa, pos, out Rect paBounds))
+                                {
+                                    ClearSelection();
+                                    RenderAllAnnotations(pageIdx);
+                                    SelectAnnotation(pa, paBounds);
+                                    _isDraggingAnnot = true;
+                                    _dragAnnotStart = pos;
+                                    _dragAnnotOrigPos = pa.Position;
+                                    _dragAnnot = pa;
+                                    _annotationCanvas.CaptureMouse();
+                                    e.Handled = true;
+                                    hitPlaced = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!hitPlaced)
+                        {
+                            ClearSelection();
+                            ClearTextSelection();
+                            _isSelecting = true;
+                            _selectStart = pos;
+                            _selectRect = new Rectangle
+                            {
+                                Fill = new SolidColorBrush(Color.FromArgb(40, 74, 130, 255)),
+                                Stroke = new SolidColorBrush(Color.FromArgb(120, 74, 130, 255)),
+                                StrokeThickness = 1,
+                                Width = 0, Height = 0,
+                                IsHitTestVisible = false
+                            };
+                            Canvas.SetLeft(_selectRect, pos.X);
+                            Canvas.SetTop(_selectRect, pos.Y);
+                            _annotationCanvas.Children.Add(_selectRect);
+                            _annotationCanvas.CaptureMouse();
+                            e.Handled = true;
+                        }
                     }
                     break;
 
@@ -1432,6 +2441,32 @@ namespace KillerPDF
                         ShowSignaturePopup();
                     }
                     break;
+
+                case EditTool.Image:
+                    PlaceImageFromDialog(pos, pageIdx);
+                    e.Handled = true;
+                    break;
+
+                case EditTool.Crop:
+                    ClearSelection();
+                    HideCropConfirmBar();
+                    _isDrawing = true;
+                    _drawStart = pos;
+                    _cropPreviewRect = new Rectangle
+                    {
+                        Stroke = (SolidColorBrush)FindResource("AccentGreen"),
+                        StrokeThickness = 2,
+                        StrokeDashArray = [5, 3],
+                        Fill = new SolidColorBrush(Color.FromArgb(20, 74, 222, 128)),
+                        Width = 0, Height = 0,
+                        IsHitTestVisible = false
+                    };
+                    Canvas.SetLeft(_cropPreviewRect, pos.X);
+                    Canvas.SetTop(_cropPreviewRect, pos.Y);
+                    _annotationCanvas.Children.Add(_cropPreviewRect);
+                    _activePreview = _cropPreviewRect;
+                    _annotationCanvas.CaptureMouse();
+                    break;
             }
         }
 
@@ -1440,6 +2475,63 @@ namespace KillerPDF
             var pos = e.GetPosition(_annotationCanvas);
             pos.X = Math.Max(0, Math.Min(_annotationCanvas.ActualWidth, pos.X));
             pos.Y = Math.Max(0, Math.Min(_annotationCanvas.ActualHeight, pos.Y));
+
+            // Signature resize drag
+            if (_isResizingSig && _resizeSigAnnot is not null)
+            {
+                double dx = pos.X - _resizeSigStart.X;
+                double dy = pos.Y - _resizeSigStart.Y;
+                double delta = (Math.Abs(dx) > Math.Abs(dy) ? dx : dy);
+                double newScale = Math.Max(0.05, _resizeSigStartScale + delta / _resizeSigAnnot.SourceWidth);
+                _resizeSigAnnot.Scale = newScale;
+
+                // Update selection border and handle position live
+                double newW = _resizeSigAnnot.SourceWidth * newScale;
+                double newH = _resizeSigAnnot.SourceHeight * newScale;
+                if (_selectionBorder is not null)
+                {
+                    _selectionBorder.Width  = newW + 8;
+                    _selectionBorder.Height = newH + 8;
+                }
+                if (_resizeHandle is not null)
+                {
+                    double hx = _resizeSigAnnot.Position.X + newW - 4 - _resizeHandle.Width / 2;
+                    double hy = _resizeSigAnnot.Position.Y + newH - 4 - _resizeHandle.Height / 2;
+                    Canvas.SetLeft(_resizeHandle, hx);
+                    Canvas.SetTop(_resizeHandle, hy);
+                }
+
+                // Re-render annotations to show updated size
+                RenderAllAnnotations(_resizeSigAnnot.PageIndex);
+                // Restore selection visuals (RenderAllAnnotations clears canvas children including our overlays)
+                _annotationCanvas.Children.Add(_selectionBorder!);
+                _annotationCanvas.Children.Add(_resizeHandle!);
+                return;
+            }
+
+            // Annotation drag-to-move
+            if (_isDraggingAnnot && _dragAnnot is not null)
+            {
+                double dx = pos.X - _dragAnnotStart.X;
+                double dy = pos.Y - _dragAnnotStart.Y;
+                _dragAnnot.Position = new Point(_dragAnnotOrigPos.X + dx, _dragAnnotOrigPos.Y + dy);
+                double w = _dragAnnot.SourceWidth * _dragAnnot.Scale;
+                double h = _dragAnnot.SourceHeight * _dragAnnot.Scale;
+                if (_selectionBorder is not null)
+                {
+                    Canvas.SetLeft(_selectionBorder, _dragAnnot.Position.X - 4);
+                    Canvas.SetTop(_selectionBorder, _dragAnnot.Position.Y - 4);
+                }
+                if (_resizeHandle is not null)
+                {
+                    Canvas.SetLeft(_resizeHandle, _dragAnnot.Position.X + w - 4 - _resizeHandle.Width / 2);
+                    Canvas.SetTop(_resizeHandle, _dragAnnot.Position.Y + h - 4 - _resizeHandle.Height / 2);
+                }
+                RenderAllAnnotations(_dragAnnot.PageIndex);
+                _annotationCanvas.Children.Add(_selectionBorder!);
+                _annotationCanvas.Children.Add(_resizeHandle!);
+                return;
+            }
 
             // Text selection drag
             if (_isSelecting && _selectRect is not null)
@@ -1466,12 +2558,61 @@ namespace KillerPDF
                     _activeInk.Points.Add(pos);
                     poly.Points.Add(pos);
                     break;
+
+                case EditTool.Crop when _activePreview is Rectangle crect:
+                    Canvas.SetLeft(crect, Math.Min(pos.X, _drawStart.X));
+                    Canvas.SetTop(crect, Math.Min(pos.Y, _drawStart.Y));
+                    crect.Width = Math.Abs(pos.X - _drawStart.X);
+                    crect.Height = Math.Abs(pos.Y - _drawStart.Y);
+                    break;
             }
         }
 
         private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // Don't process release events that originate inside the crop confirm bar.
+            if (_cropConfirmBar is not null && e.OriginalSource is DependencyObject cropSrc &&
+                IsDescendantOf(cropSrc, _cropConfirmBar))
+                return;
+
             int pageIdx = PageList.SelectedIndex;
+
+            // Finish annotation drag-to-move
+            if (_isDraggingAnnot)
+            {
+                _isDraggingAnnot = false;
+                _annotationCanvas.ReleaseMouseCapture();
+                if (_dragAnnot is not null)
+                {
+                    var da = _dragAnnot;
+                    _dragAnnot = null;
+                    RenderAllAnnotations(da.PageIndex);
+                    double w = da.SourceWidth * da.Scale;
+                    double h = da.SourceHeight * da.Scale;
+                    SelectAnnotation(da, new Rect(da.Position.X, da.Position.Y, w, h));
+                    MarkDirty();
+                }
+                return;
+            }
+
+            // Finish signature resize
+            if (_isResizingSig)
+            {
+                _isResizingSig = false;
+                _annotationCanvas.ReleaseMouseCapture();
+                if (_resizeSigAnnot is not null)
+                {
+                    // Final re-render and re-select to reposition handle cleanly
+                    var sa = _resizeSigAnnot;
+                    _resizeSigAnnot = null;
+                    RenderAllAnnotations(sa.PageIndex);
+                    double newW = sa.SourceWidth * sa.Scale;
+                    double newH = sa.SourceHeight * sa.Scale;
+                    SelectAnnotation(sa, new Rect(sa.Position.X, sa.Position.Y, newW, newH));
+                    MarkDirty();
+                }
+                return;
+            }
 
             // Handle text selection release
             if (_isSelecting)
@@ -1543,6 +2684,21 @@ namespace KillerPDF
                     }
                     _activeInk = null;
                     break;
+
+                case EditTool.Crop when _activePreview is Rectangle cr:
+                    if (cr.Width > 10 && cr.Height > 10)
+                    {
+                        _cropCanvasRect = new Rect(Canvas.GetLeft(cr), Canvas.GetTop(cr), cr.Width, cr.Height);
+                        _activePreview = null; // keep the preview rect visible; don't null it
+                        ShowCropConfirmBar();
+                        return;
+                    }
+                    else
+                    {
+                        _annotationCanvas.Children.Remove(cr);
+                        _cropPreviewRect = null;
+                    }
+                    break;
             }
             _activePreview = null;
         }
@@ -1593,6 +2749,12 @@ namespace KillerPDF
                     bounds = new Rect(sa.Position.X, sa.Position.Y, sigW, sigH);
                     return bounds.Contains(pos);
 
+                case ImageAnnotation ia:
+                    double iaW = ia.SourceWidth * ia.Scale;
+                    double iaH = ia.SourceHeight * ia.Scale;
+                    bounds = new Rect(ia.Position.X, ia.Position.Y, iaW, iaH);
+                    return bounds.Contains(pos);
+
                 default:
                     bounds = Rect.Empty;
                     return false;
@@ -1614,7 +2776,29 @@ namespace KillerPDF
             Canvas.SetLeft(_selectionBorder, bounds.X - 4);
             Canvas.SetTop(_selectionBorder, bounds.Y - 4);
             _annotationCanvas.Children.Add(_selectionBorder);
-            SetStatus($"Selected {annot.GetType().Name.Replace("Annotation", "").ToLower()} annotation - press Delete to remove");
+
+            // Add resize handle for placed annotations (signature, image) — bottom-right corner
+            if (annot is PlacedAnnotation)
+            {
+                const double hSize = 10;
+                _resizeHandle = new Rectangle
+                {
+                    Width = hSize, Height = hSize,
+                    Fill = (SolidColorBrush)FindResource("AccentGreen"),
+                    Stroke = Brushes.White, StrokeThickness = 1,
+                    Cursor = Cursors.SizeNWSE,
+                    IsHitTestVisible = true
+                };
+                Canvas.SetLeft(_resizeHandle, bounds.X + bounds.Width - 4 - hSize / 2);
+                Canvas.SetTop(_resizeHandle, bounds.Y + bounds.Height - 4 - hSize / 2);
+                _annotationCanvas.Children.Add(_resizeHandle);
+                string label = annot is SignatureAnnotation ? "Signature" : "Image";
+                SetStatus($"{label} selected — drag corner handle to resize, Delete to remove");
+            }
+            else
+            {
+                SetStatus($"Selected {annot.GetType().Name.Replace("Annotation", "").ToLower()} annotation - press Delete to remove");
+            }
         }
 
         private static bool IsDescendantOf(DependencyObject child, DependencyObject parent)
@@ -1635,6 +2819,15 @@ namespace KillerPDF
                 _annotationCanvas.Children.Remove(_selectionBorder);
                 _selectionBorder = null;
             }
+            if (_resizeHandle is not null)
+            {
+                _annotationCanvas.Children.Remove(_resizeHandle);
+                _resizeHandle = null;
+            }
+            _isResizingSig = false;
+            _resizeSigAnnot = null;
+            _isDraggingAnnot = false;
+            _dragAnnot = null;
             _selectedAnnotation = null;
         }
 
@@ -1766,7 +2959,7 @@ namespace KillerPDF
                     double wy = w.BoundingBox.Top;
                     if (Math.Abs(wy - lastY) > 3)
                     {
-                        lines.Add(new List<UglyToad.PdfPig.Content.Word>());
+                        lines.Add([]);
                         lastY = wy;
                     }
                     lines[^1].Add(w);
@@ -2119,6 +3312,63 @@ namespace KillerPDF
                 return;
             }
 
+            // Re-edit an already-committed TextEditAnnotation without re-reading the PDF.
+            // Without this check, a second double-click would read the original file, produce
+            // a duplicate whiteout+text layer, and cause the "overlapping quasi-duplicates" bug.
+            if (_annotations.TryGetValue(pageIdx, out var existingPage))
+            {
+                var existingEdit = existingPage.OfType<TextEditAnnotation>()
+                    .FirstOrDefault(a => a.OriginalBounds.Contains(canvasPos));
+                if (existingEdit is not null)
+                {
+                    var reb = existingEdit.OriginalBounds;
+                    var retb = new TextBox
+                    {
+                        Text = existingEdit.NewContent,
+                        Background = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255)),
+                        Foreground = Brushes.Black,
+                        BorderBrush = (SolidColorBrush)FindResource("AccentGreen"),
+                        BorderThickness = new Thickness(2),
+                        FontFamily = new FontFamily(existingEdit.FontName),
+                        FontSize = Math.Max(existingEdit.FontSize, 10),
+                        MinWidth = Math.Max(reb.Width + 20, 100),
+                        Height = Math.Max(reb.Height + 12, 24),
+                        Padding = new Thickness(2, 0, 2, 0),
+                        VerticalContentAlignment = VerticalAlignment.Center,
+                        AcceptsReturn = false,
+                        Tag = new TextEditContext
+                        {
+                            PageIndex = pageIdx,
+                            OriginalText = existingEdit.OriginalContent,
+                            CanvasBounds = reb,
+                            Position = existingEdit.Position,
+                            FontSize = existingEdit.FontSize,
+                            FontName = existingEdit.FontName,
+                            ExistingAnnotation = existingEdit
+                        }
+                    };
+                    Canvas.SetLeft(retb, reb.X);
+                    Canvas.SetTop(retb, reb.Y);
+                    _annotationCanvas.Children.Add(retb);
+                    _activeTextBox = retb;
+                    var rewo = new Rectangle
+                    {
+                        Fill = Brushes.White,
+                        Width = reb.Width + 4,
+                        Height = reb.Height + 4,
+                        IsHitTestVisible = false,
+                        Tag = "EditWhiteout"
+                    };
+                    Canvas.SetLeft(rewo, reb.X - 2);
+                    Canvas.SetTop(rewo, reb.Y - 2);
+                    _annotationCanvas.Children.Insert(_annotationCanvas.Children.IndexOf(retb), rewo);
+                    retb.KeyDown += EditTextBox_KeyDown;
+                    retb.Loaded += (s, ev) => { retb.Focus(); Keyboard.Focus(retb); retb.SelectAll(); retb.LostFocus += EditTextBox_LostFocus; };
+                    SetStatus("Re-editing text — Enter to save, Escape to cancel");
+                    return;
+                }
+            }
+
             try
             {
                 var (renderW, renderH) = _renderDims[pageIdx];
@@ -2142,7 +3392,7 @@ namespace KillerPDF
                     return new { Word = w, Rect = new Rect(cx, cy, cw, ch) };
                 }).ToList();
 
-                if (canvasWords.Count == 0) { SetStatus("No text found at this position"); return; }
+                if (canvasWords.Count == 0) { SetStatus("No selectable text — this page may be a scanned image"); return; }
 
                 // Find words on the same line as the click (Y overlap with tolerance)
                 var clickY = canvasPos.Y;
@@ -2158,10 +3408,9 @@ namespace KillerPDF
                         .OrderBy(cw => Math.Abs((cw.Rect.Top + cw.Rect.Bottom) / 2 - clickY))
                         .First();
                     double nearMidY = (nearest.Rect.Top + nearest.Rect.Bottom) / 2;
-                    lineWords = canvasWords
+                    lineWords = [..canvasWords
                         .Where(cw => Math.Abs((cw.Rect.Top + cw.Rect.Bottom) / 2 - nearMidY) < 5)
-                        .OrderBy(cw => cw.Rect.Left)
-                        .ToList();
+                        .OrderBy(cw => cw.Rect.Left)];
                 }
 
                 if (lineWords.Count == 0)
@@ -2205,7 +3454,7 @@ namespace KillerPDF
                             string fontStr = rawFont!;
                             // Strip PDF subset prefix (e.g. "ABCDEF+FontName" -> "FontName")
                             if (fontStr.Contains('+'))
-                                fontStr = fontStr.Substring(fontStr.IndexOf('+') + 1);
+                                fontStr = fontStr[(fontStr.IndexOf('+') + 1)..];
                             // Clean common suffixes
                             fontStr = fontStr.Replace(",Bold", "").Replace(",Italic", "")
                                              .Replace("-Bold", "").Replace("-Italic", "")
@@ -2287,6 +3536,8 @@ namespace KillerPDF
             public Point Position { get; set; }
             public double FontSize { get; set; }
             public string FontName { get; set; } = "Segoe UI";
+            /// <summary>Non-null when re-editing an already-committed annotation; update in place instead of adding a new one.</summary>
+            public TextEditAnnotation? ExistingAnnotation { get; set; }
         }
 
         private void EditTextBox_KeyDown(object sender, KeyEventArgs e)
@@ -2346,18 +3597,25 @@ namespace KillerPDF
                 return;
             }
 
-            // Create a TextEditAnnotation
-            var edit = new TextEditAnnotation
+            if (ctx.ExistingAnnotation is not null)
             {
-                PageIndex = ctx.PageIndex,
-                OriginalBounds = ctx.CanvasBounds,
-                Position = ctx.Position,
-                NewContent = newText,
-                OriginalContent = ctx.OriginalText,
-                FontSize = ctx.FontSize,
-                FontName = ctx.FontName
-            };
-            AddAnnotation(edit);
+                // Update the existing annotation in place — avoids duplicate whiteout layers
+                ctx.ExistingAnnotation.NewContent = newText;
+            }
+            else
+            {
+                var edit = new TextEditAnnotation
+                {
+                    PageIndex = ctx.PageIndex,
+                    OriginalBounds = ctx.CanvasBounds,
+                    Position = ctx.Position,
+                    NewContent = newText,
+                    OriginalContent = ctx.OriginalText,
+                    FontSize = ctx.FontSize,
+                    FontName = ctx.FontName
+                };
+                AddAnnotation(edit);
+            }
             RenderAllAnnotations(ctx.PageIndex);
             SetStatus($"Text edited: \"{ctx.OriginalText}\" -> \"{newText}\"");
         }
@@ -2371,11 +3629,11 @@ namespace KillerPDF
             var tb = new TextBox
             {
                 Background = new SolidColorBrush(Color.FromArgb(230, 255, 255, 255)),
-                Foreground = Brushes.Black,
+                Foreground = new SolidColorBrush(_textColor),
                 BorderBrush = (SolidColorBrush)FindResource("AccentGreen"),
                 BorderThickness = new Thickness(1),
                 FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 14,
+                FontSize = _textFontSize,
                 MinWidth = 120,
                 MinHeight = 24,
                 Padding = new Thickness(2),
@@ -2452,6 +3710,7 @@ namespace KillerPDF
                     Content = content,
                     FontSize = tb.FontSize
                 };
+                ta.SetColor(tb.Foreground is SolidColorBrush scb ? scb.Color : Colors.Black);
                 AddAnnotation(ta);
                 RenderTextAnnotation(ta);
             }
@@ -2513,6 +3772,11 @@ namespace KillerPDF
                 Open_Click(this, e);
                 e.Handled = true;
             }
+            else if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                NewDocument();
+                e.Handled = true;
+            }
         }
 
         // ============================================================
@@ -2522,9 +3786,23 @@ namespace KillerPDF
         private void AddAnnotation(PageAnnotation annotation)
         {
             if (!_annotations.ContainsKey(annotation.PageIndex))
-                _annotations[annotation.PageIndex] = new List<PageAnnotation>();
+                _annotations[annotation.PageIndex] = [];
             _annotations[annotation.PageIndex].Add(annotation);
+            _undoStack.Push(new UndoEntry(UndoKind.Annotation, annotation.PageIndex));
             MarkDirty();
+        }
+
+        /// <summary>
+        /// Saves the current in-memory document bytes onto the undo stack so that
+        /// document-level operations (crop, delete page, merge, reorder) can be undone.
+        /// Must be called BEFORE modifying _doc.
+        /// </summary>
+        private void PushDocUndo()
+        {
+            if (_doc is null) return;
+            using var ms = new System.IO.MemoryStream();
+            _doc.Save(ms);
+            _undoStack.Push(new UndoEntry(UndoKind.Document, DocBytes: ms.ToArray()));
         }
 
         private void RenderTextAnnotation(TextAnnotation ta)
@@ -2532,7 +3810,7 @@ namespace KillerPDF
             var tb = new TextBlock
             {
                 Text = ta.Content,
-                Foreground = Brushes.Black,
+                Foreground = new SolidColorBrush(ta.GetColor()),
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = ta.FontSize,
                 Padding = new Thickness(2)
@@ -2651,23 +3929,74 @@ namespace KillerPDF
                             }
                         }
                         break;
+
+                    case ImageAnnotation ia:
+                        try
+                        {
+                            var iaBytes = Convert.FromBase64String(ia.ImageData);
+                            var iaBmp = new System.Windows.Media.Imaging.BitmapImage();
+                            iaBmp.BeginInit();
+                            iaBmp.StreamSource = new System.IO.MemoryStream(iaBytes);
+                            iaBmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            iaBmp.EndInit();
+                            var iaCtrl = new System.Windows.Controls.Image
+                            {
+                                Source = iaBmp,
+                                Width = ia.SourceWidth * ia.Scale,
+                                Height = ia.SourceHeight * ia.Scale,
+                                Stretch = System.Windows.Media.Stretch.Uniform,
+                                IsHitTestVisible = false
+                            };
+                            Canvas.SetLeft(iaCtrl, ia.Position.X);
+                            Canvas.SetTop(iaCtrl, ia.Position.Y);
+                            _annotationCanvas.Children.Add(iaCtrl);
+                        }
+                        catch { /* skip broken image */ }
+                        break;
                 }
             }
         }
 
         private void Undo_Click(object sender, RoutedEventArgs e)
         {
-            int pageIdx = PageList.SelectedIndex;
-            if (pageIdx < 0) return;
-            if (!_annotations.ContainsKey(pageIdx) || _annotations[pageIdx].Count == 0)
+            if (_undoStack.Count == 0)
             {
                 SetStatus("Nothing to undo");
                 return;
             }
-            _annotations[pageIdx].RemoveAt(_annotations[pageIdx].Count - 1);
-            ClearSelection();
-            RenderAllAnnotations(pageIdx);
-            SetStatus("Undid last annotation");
+
+            var entry = _undoStack.Pop();
+
+            if (entry.Kind == UndoKind.Annotation)
+            {
+                int pageIdx = entry.PageIdx;
+                if (_annotations.ContainsKey(pageIdx) && _annotations[pageIdx].Count > 0)
+                    _annotations[pageIdx].RemoveAt(_annotations[pageIdx].Count - 1);
+                ClearSelection();
+                RenderAllAnnotations(pageIdx);
+                SetStatus("Undid last annotation");
+            }
+            else // Document snapshot
+            {
+                if (entry.DocBytes is null) return;
+                int selectedIdx = PageList.SelectedIndex;
+                var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    $"killerpdf_undo_{Guid.NewGuid():N}.pdf");
+                System.IO.File.WriteAllBytes(tempPath, entry.DocBytes);
+                _doc?.Close();
+                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _currentFile = tempPath;
+                _annotations.Clear();
+                _renderDims.Clear();
+                ClearSelection();
+                MarkDirty();
+                RefreshPageList();
+                if (selectedIdx >= 0 && selectedIdx < PageList.Items.Count)
+                    PageList.SelectedIndex = selectedIdx;
+                else if (PageList.Items.Count > 0)
+                    PageList.SelectedIndex = 0;
+                SetStatus("Undid document change");
+            }
         }
 
         private void ClearAnnotations_Click(object sender, RoutedEventArgs e)
@@ -2717,6 +4046,7 @@ namespace KillerPDF
             _doc = null;
             _currentFile = null;
             _annotations.Clear();
+            _undoStack.Clear();
             _renderDims.Clear();
             _allSearchRects.Clear();
             _searchResultPages.Clear();
@@ -2729,6 +4059,7 @@ namespace KillerPDF
             PagePreviewPanel.Visibility = Visibility.Collapsed;
             CloseSearchBar();
             HideDrawSettings();
+            HideTextSettings();
             HideSignaturePopup();
             SetTool(EditTool.Select);
             if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = false;
@@ -2741,6 +4072,41 @@ namespace KillerPDF
         // ============================================================
         // File toolbar handlers
         // ============================================================
+
+        private void New_Click(object sender, RoutedEventArgs e) => NewDocument();
+
+        private void NewDocument()
+        {
+            if (_isDirty)
+            {
+                var res = KillerDialog.Show(this,
+                    "You have unsaved changes. Discard them and create a new document?",
+                    "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (res != MessageBoxResult.Yes) return;
+            }
+
+            try
+            {
+                var newDoc = new PdfDocument();
+                newDoc.AddPage(); // one blank A4 page
+
+                var tempPath = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(),
+                    $"KillerPDF_new_{Guid.NewGuid():N}.pdf");
+                newDoc.Save(tempPath);
+                newDoc.Close();
+
+                _doc?.Close();
+                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                FinishOpenFile("Untitled.pdf", tempPath);
+                SetStatus("New blank document");
+            }
+            catch (Exception ex)
+            {
+                KillerDialog.Show(this, $"Could not create new document:\n{ex.Message}",
+                    "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         private void Open_Click(object sender, RoutedEventArgs e)
         {
@@ -2758,9 +4124,20 @@ namespace KillerPDF
             {
                 foreach (var file in dlg.FileNames)
                 {
+                    int pageOffset = doc.PageCount;
+
+                    // Open twice: Import mode for AddPage, ReadOnly for catalog access.
+                    using var srcRead = PdfReader.Open(file, PdfDocumentOpenMode.ReadOnly);
+                    var namedDestMap = BuildNamedDestMap(srcRead);
+
                     using var src = PdfReader.Open(file, PdfDocumentOpenMode.Import);
                     for (int i = 0; i < src.PageCount; i++)
                         doc.AddPage(src.Pages[i]);
+
+                    // Rewrite named-destination links in the newly added pages so they
+                    // resolve correctly after the catalog is not imported.
+                    if (namedDestMap.Count > 0)
+                        RewriteNamedDestLinks(doc, pageOffset, namedDestMap);
                 }
                 SaveTempAndReload();
                 SetStatus($"Merged {dlg.FileNames.Length} file(s) - {_doc?.PageCount} total pages");
@@ -2769,6 +4146,181 @@ namespace KillerPDF
             {
                 KillerDialog.Show(this, $"Merge failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Builds a map of named destination string → 0-based page index from a source document's
+        /// /Dests dictionary and /Names /Dests name tree.
+        /// </summary>
+        private Dictionary<string, int> BuildNamedDestMap(PdfDocument src)
+        {
+            var map = new Dictionary<string, int>(StringComparer.Ordinal);
+            try
+            {
+                var catalog = src.Internals.Catalog;
+
+                // Legacy flat /Dests dictionary
+                var destsDict = catalog.Elements.GetDictionary("/Dests");
+                if (destsDict != null)
+                {
+                    foreach (var key in destsDict.Elements.Keys)
+                    {
+                        PdfItem? val = DerefItem(destsDict.Elements[key] ?? new PdfInteger(-1));
+                        int? idx = ResolveDestPageIndexInDoc(src, val);
+                        if (idx.HasValue) map[key.TrimStart('/')] = idx.Value;
+                    }
+                }
+
+                // Modern /Names /Dests name tree
+                var namesDict = catalog.Elements.GetDictionary("/Names");
+                var destTree  = namesDict?.Elements.GetDictionary("/Dests");
+                if (destTree != null)
+                    WalkNameTree(src, destTree, map);
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"BuildNamedDestMap: {ex}"); }
+            return map;
+        }
+
+        private void WalkNameTree(PdfDocument src, PdfDictionary node, Dictionary<string, int> map)
+        {
+            var namesArr = node.Elements.GetArray("/Names");
+            if (namesArr != null)
+            {
+                for (int i = 0; i + 1 < namesArr.Elements.Count; i += 2)
+                {
+                    var keyItem = namesArr.Elements[i];
+                    string key  = keyItem is PdfString ks ? ks.Value : keyItem?.ToString()?.TrimStart('/') ?? "";
+                    if (string.IsNullOrEmpty(key)) continue;
+                    PdfItem? val = DerefItem(namesArr.Elements[i + 1]);
+                    int? idx = ResolveDestPageIndexInDoc(src, val);
+                    if (idx.HasValue) map[key] = idx.Value;
+                }
+            }
+
+            var kids = node.Elements.GetArray("/Kids");
+            if (kids != null)
+            {
+                for (int i = 0; i < kids.Elements.Count; i++)
+                {
+                    if (DerefItem(kids.Elements[i]) is PdfDictionary kid)
+                        WalkNameTree(src, kid, map);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolves a destination value (PdfArray or PdfDictionary with /D) to a page index
+        /// within the given source document by matching the page object number.
+        /// </summary>
+        private static int? ResolveDestPageIndexInDoc(PdfDocument src, PdfItem? val)
+        {
+            PdfArray? arr = val as PdfArray;
+            if (arr is null && val is PdfDictionary vd)
+                arr = vd.Elements.GetArray("/D");
+            if (arr is null || arr.Elements.Count == 0) return null;
+
+            var first = arr.Elements[0];
+            int objNum = GetObjectNumber(first);
+            if (objNum > 0)
+            {
+                for (int i = 0; i < src.PageCount; i++)
+                {
+                    var pgRef = src.Pages[i].Reference;
+                    if (pgRef != null && pgRef.ObjectNumber == objNum) return i;
+                }
+            }
+            else if (first is PdfInteger pi && pi.Value >= 0 && pi.Value < src.PageCount)
+            {
+                return pi.Value;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Walks all link annotations in pages [pageOffset, doc.PageCount) and rewrites any
+        /// named-destination /D values to explicit [pageRef /Fit] arrays using the merged
+        /// document's page references. This is needed because PdfSharpCore's import does not
+        /// copy the source document's /Names /Dests catalog entries.
+        /// </summary>
+        private static void RewriteNamedDestLinks(PdfDocument doc, int pageOffset,
+            Dictionary<string, int> namedDestMap)
+        {
+            for (int pi = pageOffset; pi < doc.PageCount; pi++)
+            {
+                try
+                {
+                    var page    = doc.Pages[pi];
+                    var annotsArr = page.Elements.GetArray("/Annots");
+                    if (annotsArr is null) continue;
+
+                    for (int ai = 0; ai < annotsArr.Elements.Count; ai++)
+                    {
+                        PdfItem? elem = annotsArr.Elements[ai];
+                        PdfDictionary? ann = elem as PdfDictionary
+                            ?? (DerefItemStatic(elem) as PdfDictionary);
+                        if (ann is null) continue;
+
+                        var subtype = ann.Elements["/Subtype"]?.ToString() ?? "";
+                        if (!subtype.Contains("Link")) continue;
+
+                        // Check /A /D (GoTo action)
+                        var actionDict = ann.Elements.GetDictionary("/A");
+                        if (actionDict != null)
+                        {
+                            var s = actionDict.Elements["/S"]?.ToString() ?? "";
+                            if (s.Contains("GoTo"))
+                            {
+                                var destItem = actionDict.Elements["/D"];
+                                string? name = ExtractDestName(destItem);
+                                if (name != null && namedDestMap.TryGetValue(name, out int srcIdx))
+                                {
+                                    int targetIdx = pageOffset + srcIdx;
+                                    if (targetIdx < doc.PageCount)
+                                        actionDict.Elements["/D"] = MakeExplicitDest(doc, targetIdx);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Bare /Dest on annotation
+                            var destItem = ann.Elements["/Dest"];
+                            string? name = ExtractDestName(destItem);
+                            if (name != null && namedDestMap.TryGetValue(name, out int srcIdx))
+                            {
+                                int targetIdx = pageOffset + srcIdx;
+                                if (targetIdx < doc.PageCount)
+                                    ann.Elements["/Dest"] = MakeExplicitDest(doc, targetIdx);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"RewriteNamedDestLinks p{pi}: {ex}"); }
+            }
+        }
+
+        private static string? ExtractDestName(PdfItem? item)
+        {
+            if (item is null) return null;
+            if (item is PdfString ps) return ps.Value;
+            if (item is PdfName   pn) return pn.Value.TrimStart('/');
+            return null;
+        }
+
+        private static PdfArray MakeExplicitDest(PdfDocument doc, int pageIndex)
+        {
+            var arr = new PdfArray(doc);
+            arr.Elements.Add(doc.Pages[pageIndex].Reference);
+            arr.Elements.Add(new PdfName("/Fit"));
+            return arr;
+        }
+
+        // Static version of DerefItem for use in static helpers.
+        private static PdfItem DerefItemStatic(PdfItem item)
+        {
+            var valueProp = item.GetType().GetProperty("Value",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (valueProp?.GetValue(item) is PdfObject resolved) return resolved;
+            return item;
         }
 
         private void Split_Click(object sender, RoutedEventArgs e)
@@ -2817,6 +4369,25 @@ namespace KillerPDF
             catch (Exception ex)
             {
                 KillerDialog.Show(this, $"Delete failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void InsertBlankPage_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            var doc = _doc;
+            int insertAfter = PageList.SelectedIndex >= 0 ? PageList.SelectedIndex : doc.PageCount - 1;
+            try
+            {
+                var blank = new PdfPage { Width = XUnit.FromPoint(595), Height = XUnit.FromPoint(842) };
+                doc.Pages.Insert(insertAfter + 1, blank);
+                SaveTempAndReload();
+                PageList.SelectedIndex = insertAfter + 1;
+                SetStatus($"Inserted blank page at position {insertAfter + 2}");
+            }
+            catch (Exception ex)
+            {
+                KillerDialog.Show(this, $"Insert failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -3083,10 +4654,12 @@ namespace KillerPDF
                             var lines = ta.Content.Split('\n');
                             double lineH = ta.FontSize * sy * 1.2;
                             double ty = ta.Position.Y * sy + ta.FontSize * sy;
+                            var taColor = ta.GetColor();
+                            var taBrush = new XSolidBrush(XColor.FromArgb(taColor.A, taColor.R, taColor.G, taColor.B));
                             foreach (var line in lines)
                             {
                                 if (!string.IsNullOrEmpty(line))
-                                    gfx.DrawString(line, font, XBrushes.Black, ta.Position.X * sx, ty);
+                                    gfx.DrawString(line, font, taBrush, ta.Position.X * sx, ty);
                                 ty += lineH;
                             }
                             break;
@@ -3102,9 +4675,11 @@ namespace KillerPDF
                         case InkAnnotation ia:
                             if (ia.Points.Count < 2) break;
                             var ic = ia.GetColor();
-                            var pen = new XPen(XColor.FromArgb(ic.A, ic.R, ic.G, ic.B), ia.StrokeWidth * sx);
-                            pen.LineJoin = XLineJoin.Round;
-                            pen.LineCap = XLineCap.Round;
+                            var pen = new XPen(XColor.FromArgb(ic.A, ic.R, ic.G, ic.B), ia.StrokeWidth * sx)
+                            {
+                                LineJoin = XLineJoin.Round,
+                                LineCap = XLineCap.Round
+                            };
                             for (int i = 0; i < ia.Points.Count - 1; i++)
                             {
                                 gfx.DrawLine(pen,
@@ -3142,9 +4717,11 @@ namespace KillerPDF
                             }
                             else
                             {
-                                var sigPen = new XPen(XColors.Black, 2 * sa.Scale * sx);
-                                sigPen.LineJoin = XLineJoin.Round;
-                                sigPen.LineCap = XLineCap.Round;
+                                var sigPen = new XPen(XColors.Black, 2 * sa.Scale * sx)
+                                {
+                                    LineJoin = XLineJoin.Round,
+                                    LineCap = XLineCap.Round
+                                };
                                 foreach (var stroke in sa.Strokes)
                                 {
                                     for (int i = 0; i < stroke.Count - 1; i++)
@@ -3157,6 +4734,20 @@ namespace KillerPDF
                                     }
                                 }
                             }
+                            break;
+
+                        case ImageAnnotation ia:
+                            try
+                            {
+                                var iaBytes = Convert.FromBase64String(ia.ImageData);
+                                var xia = XImage.FromStream(() => new System.IO.MemoryStream(iaBytes));
+                                double iaX = ia.Position.X * sx;
+                                double iaY = ia.Position.Y * sy;
+                                double iaW = ia.SourceWidth * ia.Scale * sx;
+                                double iaH = ia.SourceHeight * ia.Scale * sy;
+                                gfx.DrawImage(xia, iaX, iaY, iaW, iaH);
+                            }
+                            catch { /* skip broken image */ }
                             break;
                     }
                 }
@@ -3207,28 +4798,17 @@ namespace KillerPDF
                 return;
             }
 
-            // Scroll past bottom -> next page; scroll past top -> previous page
-            var sv = PagePreviewPanel;
-            if (e.Delta < 0 && sv.VerticalOffset >= sv.ScrollableHeight - 1)
+            // Regular scroll: let the ScrollViewer handle it first.
+            // If the ScrollViewer is already at its limit in the scroll direction
+            // (or content fits entirely and there's nothing to scroll), fall through
+            // to page navigation so the user can reach adjacent pages.
+            // Content fits entirely — wheel does nothing.
+            if (PagePreviewPanel.ScrollableHeight <= 0)
             {
-                int next = PageList.SelectedIndex + 1;
-                if (_doc != null && next < _doc.PageCount)
-                {
-                    e.Handled = true;
-                    PageList.SelectedIndex = next;
-                    sv.ScrollToTop();
-                }
+                e.Handled = true;
+                return;
             }
-            else if (e.Delta > 0 && sv.VerticalOffset <= 1)
-            {
-                int prev = PageList.SelectedIndex - 1;
-                if (prev >= 0)
-                {
-                    e.Handled = true;
-                    PageList.SelectedIndex = prev;
-                    sv.ScrollToBottom();
-                }
-            }
+            // Otherwise let the ScrollViewer scroll naturally.
         }
 
         private void ApplyZoom()
@@ -3238,6 +4818,13 @@ namespace KillerPDF
                 st.ScaleX = _zoomLevel;
                 st.ScaleY = _zoomLevel;
             }
+            // Recalculate how many pages fit after zoom changes.
+            // Use RefreshPageView so link overlays are re-added after RenderAdditionalPages
+            // calls ClearSecondaryPages (which wipes them).
+            int applyIdx = PageList.SelectedIndex;
+            if (applyIdx >= 0)
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                    () => RefreshPageView(applyIdx));
         }
 
         private void ResetZoom()
@@ -3384,6 +4971,15 @@ namespace KillerPDF
         // Page selection handler
         // ============================================================
 
+        private void PageList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // The ListBox's internal ScrollViewer is disabled, so wheel events don't
+            // scroll anything. Forward them to the outer SidebarScrollViewer manually.
+            SidebarScrollViewer.ScrollToVerticalOffset(
+                SidebarScrollViewer.VerticalOffset - e.Delta / 3.0);
+            e.Handled = true;
+        }
+
         private void PageList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (PageList.SelectedIndex >= 0)
@@ -3391,6 +4987,7 @@ namespace KillerPDF
                 CommitActiveTextBox();
                 ClearSelection();
                 ClearTextSelection();
+                PagePreviewPanel.ScrollToTop();
                 RenderPage(PageList.SelectedIndex);
                 ApplyZoom();
                 // Re-highlight search results on this page if a search is active
@@ -3421,12 +5018,14 @@ namespace KillerPDF
         private static readonly System.Windows.Media.Color _greenHov  = System.Windows.Media.Color.FromRgb(0x2d, 0x6a, 0x4f);
         private static readonly System.Windows.Media.Color _hover     = System.Windows.Media.Color.FromRgb(0x2e, 0x2e, 0x2e);
 
+#pragma warning disable IDE0060 // image intentionally kept for API parity with MessageBox; not yet rendered
         public static MessageBoxResult Show(
             Window? owner,
             string message,
             string title = "KillerPDF",
             MessageBoxButton buttons = MessageBoxButton.OK,
             MessageBoxImage image = MessageBoxImage.None)
+#pragma warning restore IDE0060
         {
             var result = MessageBoxResult.OK;
 
@@ -3474,13 +5073,16 @@ namespace KillerPDF
             root.Children.Add(titleBar);
 
             // Message
-            var msgBorder = new Border { Padding = new Thickness(20, 16, 20, 8) };
-            msgBorder.Child = new TextBlock
+            var msgBorder = new Border
             {
-                Text        = message,
-                Foreground  = new SolidColorBrush(_text),
-                FontSize    = 13,
-                TextWrapping = TextWrapping.Wrap
+                Padding = new Thickness(20, 16, 20, 8),
+                Child = new TextBlock
+                {
+                    Text         = message,
+                    Foreground   = new SolidColorBrush(_text),
+                    FontSize     = 13,
+                    TextWrapping = TextWrapping.Wrap
+                }
             };
             root.Children.Add(msgBorder);
 

@@ -66,7 +66,7 @@ if (-not $SkipSign) {
     $signtool = $null
     $kitBase  = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
     if (Test-Path $kitBase) {
-        $signtool = Get-ChildItem "$kitBase\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+        $signtool = Get-ChildItem "$kitBase\*\x64\signtool.exe" -Recurse -ErrorAction SilentlyContinue |
                     Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
     }
     if (-not $signtool) { throw "signtool.exe not found. Install Windows SDK." }
@@ -102,7 +102,7 @@ if ($srcZip) {
 
 # ── 5. Summary ───────────────────────────────────────────────────────────────
 Write-Host "`n╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host   "  KillerPDF v1.3.0 release artifacts" -ForegroundColor White
+Write-Host   "  KillerPDF v1.4.0 release artifacts" -ForegroundColor White
 Write-Host   "  EXE  : $exe"
 if ($srcZip) { Write-Host "  SRC  : $($srcZip.FullName)" }
 Write-Host   "  SHA256: $hash" -ForegroundColor Green
