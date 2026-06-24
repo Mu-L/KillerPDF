@@ -10,6 +10,8 @@
     <sys:String x:Key="Str_TT_Open">Aç (Ctrl+O)</sys:String>
     <sys:String x:Key="Str_TT_NewBlank">Yeni Boş Belge (Ctrl+N)</sys:String>
     <sys:String x:Key="Str_TT_CloseFile">Dosyayı Kapat (Ctrl+W)</sys:String>
+    <sys:String x:Key="Str_TT_Save">Kaydet (Ctrl+S)</sys:String>
+    <sys:Double x:Key="ZoomBoxWidth">132</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">Farklı Kaydet (Ctrl+Shift+S)</sys:String>
     <sys:String x:Key="Str_TT_SaveFlattened">Düzenlenemez PDF Olarak Kaydet (tüm sayfalar görsele dönüştürülür - tamamen düzenlenemez hale gelir)</sys:String>
     <sys:String x:Key="Str_TT_Print">Yazdır (Ctrl+P)</sys:String>
@@ -21,6 +23,8 @@
     <sys:String x:Key="Str_TT_SelectTool">Seçim Aracı - açıklamalara tıkla, metin seçmek için sürükle, düzenlemek için çift tıkla</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Metin Aracı - metin eklemek için tıkla</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Vurgulama Aracı - vurgulamak için sürükle</sys:String>
+    <sys:String x:Key="Str_TT_StrikeTool">Üstü çizili - metin boyunca sürükle</sys:String>
+    <sys:String x:Key="Str_TT_UnderlineTool">Altı çizili - metin boyunca sürükle</sys:String>
     <sys:String x:Key="Str_TT_DrawTool">Çizim Aracı - serbest çizim</sys:String>
     <sys:String x:Key="Str_TT_SignatureTool">İmza - imza oluştur ve yerleştir</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Görsel Aracı - sayfaya görsel eklemek için tıkla</sys:String>
@@ -44,6 +48,7 @@
     <sys:String x:Key="Str_About_Thumbprint">PARMAK İZİ</sys:String>
     <sys:String x:Key="Str_About_ExeSha">EXE SHA256</sys:String>
     <sys:String x:Key="Str_About_Computing">Hesaplanıyor...</sys:String>
+    <sys:String x:Key="Str_Tagline">Windows için hızlı, ücretsiz bir PDF araç takımı. {0}'ın bir parçası.</sys:String>
 
     <!-- ── Kenar çubuğu sekmeleri ───────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">SAYFALAR</sys:String>
@@ -53,10 +58,15 @@
     <sys:String x:Key="Str_Settings">Ayarlar</sys:String>
     <sys:String x:Key="Str_Theme">TEMA</sys:String>
     <sys:String x:Key="Str_Language">DİL</sys:String>
+    <sys:String x:Key="Str_Toolbar">ARAÇ ÇUBUĞU</sys:String>
+    <sys:String x:Key="Str_Toolbar_SmallIcons">Küçük simgeler</sys:String>
+    <sys:String x:Key="Str_Toolbar_LargeIcons">Büyük simgeler</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextBeside">Simge yanında metin</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextUnder">Simge altında metin</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextOnly">Yalnızca metin</sys:String>
     <sys:String x:Key="Str_Lang_English">İngilizce</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">İspanyolca</sys:String>
-    <sys:String x:Key="Str_Lang_Traditional_Chinese">Çince (Geleneksel)</sys:String>
-    <sys:String x:Key="Str_Lang_Simple_Chinese">Çince (Basitleştirilmiş)</sys:String>
+    <sys:String x:Key="Str_Lang_Chinese">Çince (Geleneksel)</sys:String>
 
     <!-- ── Klavye kısayolları katmanı ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Klavye Kısayolları</sys:String>
@@ -83,6 +93,10 @@
     <sys:String x:Key="Str_KS_CopyText">Seçili metni kopyala</sys:String>
     <sys:String x:Key="Str_KS_Help">YARDIM</sys:String>
     <sys:String x:Key="Str_KS_ThisList">Bu kısayol listesi</sys:String>
+    <sys:String x:Key="Str_KS_About">Hakkında penceresi</sys:String>
+    <sys:String x:Key="Str_KS_Tools">ARAÇLAR</sys:String>
+    <sys:String x:Key="Str_KS_Paste">Görsel / metin yapıştır</sys:String>
+    <sys:String x:Key="Str_KS_MultiSelect">Seçime ekle</sys:String>
 
     <!-- ── Durum çubuğu ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Ready">Hazır</sys:String>
@@ -131,7 +145,7 @@ Bu işlem uygulamayı %LocalAppData%\KillerPDF konumuna kopyalar ve bir Başlat 
     <!-- ── Tema adları ───────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme_Dark">Koyu</sys:String>
     <sys:String x:Key="Str_Theme_Light">Açık</sys:String>
-    <sys:String x:Key="Str_Theme_HighContrast">Yüksek Karşıtlık</sys:String>
+    <sys:String x:Key="Str_Theme_Black">Siyah</sys:String>
     <sys:String x:Key="Str_Theme_Blood">Kanlı</sys:String>
     <sys:String x:Key="Str_Theme_Greed">Açgözlü</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">Siyanotik</sys:String>
@@ -154,4 +168,190 @@ Bu işlem uygulamayı %LocalAppData%\KillerPDF konumuna kopyalar ve bir Başlat 
     <sys:String x:Key="Str_View_Grid">Izgara</sys:String>
     <sys:String x:Key="Str_Continuous_EditMsg">Düzenleme araçlarını kullanmak için Tek Sayfa görünümüne geçin</sys:String>
 
+    <!-- ── Overflow menu + menu item labels ───────────────────────────── -->
+    <sys:String x:Key="Str_Lbl_Merge">PDF'leri Birleştir</sys:String>
+    <sys:String x:Key="Str_Lbl_Extract">Sayfaları Çıkart</sys:String>
+    <sys:String x:Key="Str_Lbl_Delete">Sayfaları Sil</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveUp">Sayfayı Yukarı Taşı</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveDown">Sayfayı Aşağı Taşı</sys:String>
+    <sys:String x:Key="Str_Lbl_Text">Metin</sys:String>
+    <sys:String x:Key="Str_Lbl_Highlight">Vurgula</sys:String>
+    <sys:String x:Key="Str_Lbl_Strike">Üstü çizili</sys:String>
+    <sys:String x:Key="Str_Lbl_Underline">Altı çizili</sys:String>
+    <sys:String x:Key="Str_Lbl_Bold">Kalın</sys:String>
+    <sys:String x:Key="Str_Lbl_Italic">İtalik</sys:String>
+    <sys:String x:Key="Str_Lbl_Draw">Çiz</sys:String>
+    <sys:String x:Key="Str_Lbl_Crop">Kırp</sys:String>
+    <sys:String x:Key="Str_Lbl_Image">Resim Ekle</sys:String>
+    <sys:String x:Key="Str_Lbl_Signature">İmza</sys:String>
+    <sys:String x:Key="Str_Lbl_Undo">Geri Al</sys:String>
+    <sys:String x:Key="Str_Lbl_Clear">Açıklamaları Temizle</sys:String>
+    <sys:String x:Key="Str_Lbl_New">Yeni</sys:String>
+    <sys:String x:Key="Str_Lbl_Open">Aç</sys:String>
+    <sys:String x:Key="Str_Lbl_Close">Kapat</sys:String>
+    <sys:String x:Key="Str_Lbl_Save">Kaydet</sys:String>
+    <sys:String x:Key="Str_Lbl_Flatten">Düzleştir</sys:String>
+    <sys:String x:Key="Str_Lbl_Print">Yazdır</sys:String>
+    <sys:String x:Key="Str_Lbl_Select">Seç</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomOut">Uzaklaştır</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomIn">Yakınlaştır</sys:String>
+
+    <!-- ── Right-click menu labels ────────────────────────────────────── -->
+    <sys:String x:Key="Str_Ctx_CopyText">Metni Kopyala</sys:String>
+    <sys:String x:Key="Str_Ctx_Print">Yazdır</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectTool">Seçim Aracı</sys:String>
+    <sys:String x:Key="Str_Ctx_TextTool">Metin Aracı</sys:String>
+    <sys:String x:Key="Str_Ctx_HighlightTool">Vurgulama Aracı</sys:String>
+    <sys:String x:Key="Str_Ctx_DrawTool">Çizim Aracı</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCW">Sayfayı Saat Yönünde Döndür</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCW">Sayfayı Saatin Tersine Döndür</sys:String>
+    <sys:String x:Key="Str_Ctx_StampNumbers">Sayfa Numarası Bas...</sys:String>
+    <sys:String x:Key="Str_Ctx_DeleteSel">Seçileni Sil</sys:String>
+    <sys:String x:Key="Str_Ctx_UndoLast">Son İşlemi Geri Al</sys:String>
+    <sys:String x:Key="Str_Ctx_ClearPage">Sayfa Açıklamalarını Temizle</sys:String>
+    <sys:String x:Key="Str_Ctx_InsertBlank">Sonrasına Boş Sayfa Ekle</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCWShort">Saat Yönünde Döndür</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCWShort">Saatin Tersine Döndür</sys:String>
+    <sys:String x:Key="Str_Ctx_ExtractPages">Sayfa(ları) Çıkart</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePages">Sayfa(ları) Sil</sys:String>
+
+    <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Stamp_Title">Sayfa Numarası Bas</sys:String>
+    <sys:String x:Key="Str_Stamp_StartAt">Başlangıç</sys:String>
+    <sys:String x:Key="Str_Stamp_Format">Biçim</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">{}{n} = sayfa numarası, {N} = toplam. örn. "Sayfa {n} / {N}"</sys:String>
+    <sys:String x:Key="Str_Stamp_Position">Konum</sys:String>
+    <sys:String x:Key="Str_Stamp_FontSize">Yazı boyutu (pt)</sys:String>
+    <sys:String x:Key="Str_Stamp_Cancel">İptal</sys:String>
+    <sys:String x:Key="Str_Stamp_Stamp">Bas</sys:String>
+    <sys:String x:Key="Str_Pos_BottomCenter">Alt Orta</sys:String>
+    <sys:String x:Key="Str_Pos_BottomRight">Alt Sağ</sys:String>
+    <sys:String x:Key="Str_Pos_BottomLeft">Alt Sol</sys:String>
+    <sys:String x:Key="Str_Pos_TopCenter">Üst Orta</sys:String>
+    <sys:String x:Key="Str_Pos_TopRight">Üst Sağ</sys:String>
+    <sys:String x:Key="Str_Pos_TopLeft">Üst Sol</sys:String>
+
+    <!-- ── Print dialog ───────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Print_Title">KillerPDF - Yazdır</sys:String>
+    <sys:String x:Key="Str_Print_Printer">Yazıcı</sys:String>
+    <sys:String x:Key="Str_Print_Orientation">Yönlendirme</sys:String>
+    <sys:String x:Key="Str_Print_Portrait">Dikey</sys:String>
+    <sys:String x:Key="Str_Print_Landscape">Yatay</sys:String>
+    <sys:String x:Key="Str_Print_Scale">Ölçek</sys:String>
+    <sys:String x:Key="Str_Print_Fit">Sayfaya Sığdır</sys:String>
+    <sys:String x:Key="Str_Print_Actual">Gerçek boyut (100%)</sys:String>
+    <sys:String x:Key="Str_Print_Custom">Özel %</sys:String>
+    <sys:String x:Key="Str_Print_ScaleHint">Ölçek yüzdesi (örn. 50 veya 50.23)</sys:String>
+    <sys:String x:Key="Str_Print_Copies">Kopya</sys:String>
+    <sys:String x:Key="Str_Print_Pages">Sayfalar</sys:String>
+    <sys:String x:Key="Str_Print_PagesHint">örn. 1-3,5  (boş = tümü)</sys:String>
+    <sys:String x:Key="Str_Print_NoPages">Sayfa yok</sys:String>
+    <sys:String x:Key="Str_Print_Margins">Kenar boşlukları</sys:String>
+    <sys:String x:Key="Str_Margin_None">Yok</sys:String>
+    <sys:String x:Key="Str_Margin_Narrow">Dar</sys:String>
+    <sys:String x:Key="Str_Margin_Normal">Normal</sys:String>
+    <sys:String x:Key="Str_Margin_Wide">Geniş</sys:String>
+    <sys:String x:Key="Str_Print_PagesPerSheet">Yaprak başına sayfa</sys:String>
+    <sys:String x:Key="Str_Print_TwoSided">Her iki yüze yazdır</sys:String>
+    <sys:String x:Key="Str_Print_Color">Renkli</sys:String>
+    <sys:String x:Key="Str_Print_BW">Siyah beyaz</sys:String>
+    <sys:String x:Key="Str_Pos_Center">Orta</sys:String>
+    <sys:String x:Key="Str_Pos_Top">Üst</sys:String>
+    <sys:String x:Key="Str_Pos_Bottom">Alt</sys:String>
+    <sys:String x:Key="Str_Pos_Left">Sol</sys:String>
+    <sys:String x:Key="Str_Pos_Right">Sağ</sys:String>
+
+    <!-- ── Save / recent menus + signature dialog ──────────────────── -->
+    <sys:String x:Key="Str_Menu_Save">Kaydet</sys:String>
+    <sys:String x:Key="Str_Menu_SaveAs">Farklı Kaydet...</sys:String>
+    <sys:String x:Key="Str_Menu_SaveNothing">Kaydedilecek bir şey yok</sys:String>
+    <sys:String x:Key="Str_Menu_RecentNone">Son dosya yok</sys:String>
+    <sys:String x:Key="Str_Menu_ClearList">Listeyi temizle</sys:String>
+    <sys:String x:Key="Str_Menu_RemoveFromRecents">Son kullanılanlardan kaldır</sys:String>
+
+    <!-- Görüntüleri PDF olarak içe aktar / ZIP olarak sıkıştır -->
+    <sys:String x:Key="Str_Menu_Import">Görüntüleri PDF olarak içe aktar</sys:String>
+    <sys:String x:Key="Str_Menu_CompressZip">ZIP olarak sıkıştır</sys:String>
+    <sys:String x:Key="Str_Filter_Images">Görüntüler</sys:String>
+    <sys:String x:Key="Str_Filter_AllFiles">Tüm dosyalar</sys:String>
+    <sys:String x:Key="Str_Filter_Zip">ZIP arşivi</sys:String>
+    <sys:String x:Key="Str_Status_Imported">{0} görüntü içe aktarıldı - henüz kaydedilmedi</sys:String>
+    <sys:String x:Key="Str_Err_ImportFailed">İçe aktarma başarısız:</sys:String>
+    <sys:String x:Key="Str_Err_NoImages">Hiçbir görüntü okunamadı.</sys:String>
+    <sys:String x:Key="Str_Msg_OpenFirst">Önce bir PDF açın.</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveBeforeZip">ZIP olarak sıkıştırmadan önce değişiklikler kaydedilsin mi?</sys:String>
+    <sys:String x:Key="Str_Status_Zipped">{0} olarak sıkıştırıldı - {1} (önceki {2})</sys:String>
+    <sys:String x:Key="Str_Err_ZipFailed">ZIP olarak sıkıştırma başarısız:</sys:String>
+    <sys:String x:Key="Str_Sig_Title">İmzalar</sys:String>
+    <sys:String x:Key="Str_Sig_None">Kayıtlı imza yok</sys:String>
+    <sys:String x:Key="Str_Sig_Create">İmza Oluştur</sys:String>
+    <sys:String x:Key="Str_Sig_Import">Görüntü İçe Aktar</sys:String>
+    <sys:String x:Key="Str_Sig_DrawHere">İmzanızı buraya çizin</sys:String>
+    <sys:String x:Key="Str_Sig_Clear">Temizle</sys:String>
+    <sys:String x:Key="Str_Sig_SaveSig">İmzayı Kaydet</sys:String>
+
+    <!-- Crop confirm bar tooltips -->
+    <sys:String x:Key="Str_TT_CropThisPage">Bu sayfayı kırp (Enter)</sys:String>
+    <sys:String x:Key="Str_TT_CropRange">Belirtilen aralıktaki sayfaları kırp</sys:String>
+    <sys:String x:Key="Str_TT_CropRemove">Bu sayfadan CropBox (ve TrimBox) kaldır</sys:String>
+    <sys:String x:Key="Str_TT_CropRemoveAll">Tüm sayfalardan CropBox kaldır</sys:String>
+    <sys:String x:Key="Str_TT_CropCancel">İptal (Escape)</sys:String>
+
+    <!-- ── Çizgi aracı, katman / grup menüsü (v1.5.x eklendi) ─────────── -->
+    <sys:String x:Key="Str_Lbl_Line">Çizgi</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Çizgi - düz bir çizgi çizmek için sürükleyin</sys:String>
+    <sys:String x:Key="Str_Ctx_Edit">Düzenle</sys:String>
+    <sys:String x:Key="Str_Ctx_Raise">Yükselt</sys:String>
+    <sys:String x:Key="Str_Ctx_Lower">Alçalt</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectCover">Örtüyü seç</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectText">Metni seç</sys:String>
+    <sys:String x:Key="Str_Ctx_Unpair">Metin ve örtüyü ayır</sys:String>
+    <sys:String x:Key="Str_Ctx_Group">Seçilenleri grupla</sys:String>
+    <sys:String x:Key="Str_Ctx_Ungroup">Grubu çöz</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveFromGroup">Gruptan çıkar</sys:String>
+    <sys:String x:Key="Str_Ctx_Copy">Kopyala</sys:String>
+    <sys:String x:Key="Str_Ctx_Paste">Yapıştır</sys:String>
+    <!-- ── Açıklama çubuğu etiketleri ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Bar_Color">Renk:</sys:String>
+    <sys:String x:Key="Str_Bar_Fill">Dolgu:</sys:String>
+    <sys:String x:Key="Str_Bar_Size">Boyut:</sys:String>
+    <sys:String x:Key="Str_Bar_Opacity">Opaklık:</sys:String>
+    <sys:String x:Key="Str_Bar_FillOpacity">Dolgu Opaklığı:</sys:String>
+    <sys:String x:Key="Str_Bar_Font">Yazı tipi:</sys:String>
+    <sys:String x:Key="Str_Bar_Level">Düz</sys:String>
+    <sys:String x:Key="Str_Bar_Eraser">Silgi</sys:String>
+    <sys:String x:Key="Str_Bar_MoreColors">Daha fazla renk...</sys:String>
+    <sys:String x:Key="Str_Sig_Signatures">İmzalar</sys:String>
+    <sys:String x:Key="Str_Sig_Initials">Paraflar</sys:String>
+    <sys:String x:Key="Str_Sig_Pen">Kalem</sys:String>
+    <sys:String x:Key="Str_Sig_Thin">İnce</sys:String>
+    <sys:String x:Key="Str_Sig_Medium">Orta</sys:String>
+    <sys:String x:Key="Str_Sig_Thick">Kalın</sys:String>
+    <!-- ── Dijital İmza iletişim kutusu ───────────────────────────────── -->
+    <sys:String x:Key="Str_Sign_Desc">{0} dosyasını bir sertifikayla mühürler ve imzalı bir kopya kaydeder.</sys:String>
+    <sys:String x:Key="Str_Sign_Certificate">Sertifika</sys:String>
+    <sys:String x:Key="Str_Sign_FromFile">Bir dosyadan (.pfx / .p12)</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Windows sertifika deposundan</sys:String>
+    <sys:String x:Key="Str_Sign_Browse">Gözat...</sys:String>
+    <sys:String x:Key="Str_Sign_Password">Parola</sys:String>
+    <sys:String x:Key="Str_Sign_Reason">Neden (isteğe bağlı)</sys:String>
+    <sys:String x:Key="Str_Sign_Location">Konum (isteğe bağlı)</sys:String>
+    <sys:String x:Key="Str_Sign_Contact">İletişim (isteğe bağlı)</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">İmzalı kopyayı farklı kaydet</sys:String>
+    <sys:String x:Key="Str_Sign_Sign">İmzala</sys:String>
+    <sys:String x:Key="Str_Sign_Cancel">İptal</sys:String>
+    <sys:String x:Key="Str_Sign_TitleSuffix">Dijital İmza</sys:String>
+    <sys:String x:Key="Str_Lbl_DigitalSig">Dijital İmza...</sys:String>
+    <sys:String x:Key="Str_Sidebar">KENAR ÇUBUĞU</sys:String>
+    <sys:String x:Key="Str_Sidebar_Left">Sol</sys:String>
+    <sys:String x:Key="Str_Sidebar_Right">Sağ</sys:String>
+    <sys:String x:Key="Str_KS_ToggleSidebar">Kenar çubuğunu aç/kapat</sys:String>
+    <sys:String x:Key="Str_KS_NextTab">Sonraki sekme (Shift: önceki)</sys:String>
+    <sys:String x:Key="Str_Lbl_Search">Ara</sys:String>
+    <sys:String x:Key="Str_TT_Search">Ara (Ctrl+F)</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePage">Sayfayı sil</sys:String>
+    <sys:String x:Key="Str_Ctx_DuplicatePage">Sayfayı çoğalt</sys:String>
+    <sys:String x:Key="Str_Ctx_AddBlankPage">Boş sayfa ekle</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseTab">Sekmeyi kapat</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseOthers">Diğer sekmeleri kapat</sys:String>
 </ResourceDictionary>
