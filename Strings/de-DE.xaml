@@ -13,13 +13,13 @@
     <sys:String x:Key="Str_TT_Save">Speichern (Strg+S)</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">Speichern unter (Strg+Umschalt+S)</sys:String>
-    <sys:String x:Key="Str_TT_SaveFlattened">Abgeflachte PDF speichern (alle Seiten rastern - nicht mehr bearbeitbar)</sys:String>
+    <sys:String x:Key="Str_TT_SaveFlattened">Als reduzierte PDF speichern (alle Seiten rastern - nicht mehr bearbeitbar)</sys:String>
     <sys:String x:Key="Str_TT_Print">Drucken (Strg+P)</sys:String>
     <sys:String x:Key="Str_TT_MergePDFs">PDFs zusammenführen (weitere PDFs hinzufügen)</sys:String>
-    <sys:String x:Key="Str_TT_ExtractPages">Seiten extrahieren (ausgewählte Seiten als neue PDF speichern)</sys:String>
+    <sys:String x:Key="Str_TT_ExtractPages">Seiten extrahieren (ausgewählte Seiten in neue PDF speichern)</sys:String>
     <sys:String x:Key="Str_TT_DeletePages">Ausgewählte Seiten löschen</sys:String>
-    <sys:String x:Key="Str_TT_MovePageUp">Seite nach oben verschieben (neu anordnen)</sys:String>
-    <sys:String x:Key="Str_TT_MovePageDown">Seite nach unten verschieben (neu anordnen)</sys:String>
+    <sys:String x:Key="Str_TT_MovePageUp">Seite nach oben verschieben (Reihenfolge ändern)</sys:String>
+    <sys:String x:Key="Str_TT_MovePageDown">Seite nach unten verschieben (Reihenfolge ändern)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Auswahlwerkzeug - Anmerkungen anklicken, Text markieren, doppelklicken zum Bearbeiten</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Textwerkzeug - klicken, um Text hinzuzufügen</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Markierungswerkzeug - ziehen zum Hervorheben</sys:String>
@@ -30,7 +30,7 @@
     <sys:String x:Key="Str_TT_ImageTool">Bildwerkzeug - klicken, um ein Bild einzufügen</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Zuschneidewerkzeug - Bereich wählen und auf Seiten anwenden</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Alle Anmerkungen entfernen</sys:String>
-    <sys:String x:Key="Str_TT_UndoLast">Letzte Aktion rückgängig (Strg+Z)</sys:String>
+    <sys:String x:Key="Str_TT_UndoLast">Letzte Aktion rückgängig machen (Strg+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Mehrseiten-Rasteransicht</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Verkleinern (Strg+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">Zoomstufe (Strg+Mausrad · Strg+=/- · Strg+0=Zurücksetzen)</sys:String>
@@ -112,8 +112,8 @@
     <sys:String x:Key="Str_PageOf">Seite {0} von {1}</sys:String>
     <sys:String x:Key="Str_PageOfLinks">Seite {0} von {1}  ({2} Link(s))</sys:String>
     <sys:String x:Key="Str_PageFormFields">Seite {0} von {1} - diese Seite enthält ausfüllbare Formularfelder</sys:String>
-    <sys:String x:Key="Str_PageRenderError">Seite {0} konnte nicht gerendert werden</sys:String>
-    <sys:String x:Key="Str_RenderError">Renderfehler: {0}</sys:String>
+    <sys:String x:Key="Str_PageRenderError">Seite {0} konnte nicht dargestellt werden</sys:String>
+    <sys:String x:Key="Str_RenderError">Darstellungsfehler: {0}</sys:String>
     <sys:String x:Key="Str_Rotated">{0} Seite(n) gedreht</sys:String>
     <sys:String x:Key="Str_Cropped">{0} Seite(n) zugeschnitten</sys:String>
     <sys:String x:Key="Str_CropFailed">Zuschneiden fehlgeschlagen: {0}</sys:String>
