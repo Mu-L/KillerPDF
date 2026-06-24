@@ -10,6 +10,8 @@
     <sys:String x:Key="Str_TT_Open">খুলুন (Ctrl+O)</sys:String>
     <sys:String x:Key="Str_TT_NewBlank">নতুন ফাঁকা নথি (Ctrl+N)</sys:String>
     <sys:String x:Key="Str_TT_CloseFile">ফাইল বন্ধ করুন (Ctrl+W)</sys:String>
+    <sys:String x:Key="Str_TT_Save">সংরক্ষণ করুন (Ctrl+S)</sys:String>
+    <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">এভাবে সংরক্ষণ করুন (Ctrl+Shift+S)</sys:String>
     <sys:String x:Key="Str_TT_SaveFlattened">ফ্ল্যাটেন করা PDF সংরক্ষণ করুন (সব পৃষ্ঠা রাস্টারাইজ করুন — সম্পূর্ণ অসম্পাদনযোগ্য)</sys:String>
     <sys:String x:Key="Str_TT_Print">মুদ্রণ (Ctrl+P)</sys:String>
@@ -21,6 +23,8 @@
     <sys:String x:Key="Str_TT_SelectTool">নির্বাচন টুল - অ্যানোটেশনে ক্লিক করুন, টেক্সট নির্বাচনে টেনে আনুন, সম্পাদনার জন্য ডাবল-ক্লিক করুন</sys:String>
     <sys:String x:Key="Str_TT_TextTool">টেক্সট টুল - টেক্সট যোগ করতে ক্লিক করুন</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">হাইলাইট টুল - হাইলাইট করতে টেনে আনুন</sys:String>
+    <sys:String x:Key="Str_TT_StrikeTool">স্ট্রাইকথ্রু - লেখার উপর দিয়ে টেনে আনুন</sys:String>
+    <sys:String x:Key="Str_TT_UnderlineTool">আন্ডারলাইন - লেখার উপর দিয়ে টেনে আনুন</sys:String>
     <sys:String x:Key="Str_TT_DrawTool">আঁকার টুল - ফ্রিহ্যান্ড কালি</sys:String>
     <sys:String x:Key="Str_TT_SignatureTool">স্বাক্ষর - স্বাক্ষর তৈরি ও স্থাপন করুন</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">ছবি টুল - পৃষ্ঠায় ছবি সন্নিবেশ করতে ক্লিক করুন</sys:String>
@@ -44,6 +48,7 @@
     <sys:String x:Key="Str_About_Thumbprint">থাম্বপ্রিন্ট</sys:String>
     <sys:String x:Key="Str_About_ExeSha">EXE SHA256</sys:String>
     <sys:String x:Key="Str_About_Computing">গণনা করা হচ্ছে...</sys:String>
+    <sys:String x:Key="Str_Tagline">উইন্ডোজের জন্য একটি দ্রুত, বিনামূল্যের PDF টুলকিট। {0}-এর একটি অংশ।</sys:String>
 
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">পৃষ্ঠাসমূহ</sys:String>
@@ -53,10 +58,15 @@
     <sys:String x:Key="Str_Settings">সেটিংস</sys:String>
     <sys:String x:Key="Str_Theme">থিম</sys:String>
     <sys:String x:Key="Str_Language">ভাষা</sys:String>
+    <sys:String x:Key="Str_Toolbar">টুলবার</sys:String>
+    <sys:String x:Key="Str_Toolbar_SmallIcons">ছোট আইকন</sys:String>
+    <sys:String x:Key="Str_Toolbar_LargeIcons">বড় আইকন</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextBeside">আইকনের পাশে লেখা</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextUnder">আইকনের নিচে লেখা</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextOnly">শুধু লেখা</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
-    <sys:String x:Key="Str_Lang_Traditional_Chinese">中文 (繁體)</sys:String>
-    <sys:String x:Key="Str_Lang_Simple_Chinese">中文 (简体)</sys:String>
+    <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">কীবোর্ড শর্টকাট</sys:String>
@@ -83,6 +93,10 @@
     <sys:String x:Key="Str_KS_CopyText">নির্বাচিত টেক্সট কপি করুন</sys:String>
     <sys:String x:Key="Str_KS_Help">সহায়তা</sys:String>
     <sys:String x:Key="Str_KS_ThisList">এই শর্টকাট তালিকা</sys:String>
+    <sys:String x:Key="Str_KS_About">সম্পর্কে ডায়ালগ</sys:String>
+    <sys:String x:Key="Str_KS_Tools">টুল</sys:String>
+    <sys:String x:Key="Str_KS_Paste">ছবি / টেক্সট পেস্ট করুন</sys:String>
+    <sys:String x:Key="Str_KS_MultiSelect">নির্বাচনে যোগ করুন</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Ready">প্রস্তুত</sys:String>
@@ -131,7 +145,7 @@
     <!-- ── Theme names ────────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme_Dark">অন্ধকার</sys:String>
     <sys:String x:Key="Str_Theme_Light">হালকা</sys:String>
-    <sys:String x:Key="Str_Theme_HighContrast">উচ্চ কন্ট্রাস্ট</sys:String>
+    <sys:String x:Key="Str_Theme_Black">কালো</sys:String>
     <sys:String x:Key="Str_Theme_Blood">রক্ত</sys:String>
     <sys:String x:Key="Str_Theme_Greed">লোভ</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">সায়ানোটিক</sys:String>
@@ -154,4 +168,190 @@
     <sys:String x:Key="Str_View_Grid">গ্রিড</sys:String>
     <sys:String x:Key="Str_Continuous_EditMsg">সম্পাদনা টুল ব্যবহার করতে একক পৃষ্ঠায় স্যুইচ করুন</sys:String>
 
+    <!-- ── Overflow menu + menu item labels ───────────────────────────── -->
+    <sys:String x:Key="Str_Lbl_Merge">PDF একত্রিত করুন</sys:String>
+    <sys:String x:Key="Str_Lbl_Extract">পৃষ্ঠা বের করুন</sys:String>
+    <sys:String x:Key="Str_Lbl_Delete">পৃষ্ঠা মুছুন</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveUp">পৃষ্ঠা উপরে সরান</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveDown">পৃষ্ঠা নিচে সরান</sys:String>
+    <sys:String x:Key="Str_Lbl_Text">টেক্সট</sys:String>
+    <sys:String x:Key="Str_Lbl_Highlight">হাইলাইট</sys:String>
+    <sys:String x:Key="Str_Lbl_Strike">স্ট্রাইকথ্রু</sys:String>
+    <sys:String x:Key="Str_Lbl_Underline">আন্ডারলাইন</sys:String>
+    <sys:String x:Key="Str_Lbl_Bold">বোল্ড</sys:String>
+    <sys:String x:Key="Str_Lbl_Italic">ইটালিক</sys:String>
+    <sys:String x:Key="Str_Lbl_Draw">আঁকুন</sys:String>
+    <sys:String x:Key="Str_Lbl_Crop">ক্রপ</sys:String>
+    <sys:String x:Key="Str_Lbl_Image">ছবি যোগ করুন</sys:String>
+    <sys:String x:Key="Str_Lbl_Signature">স্বাক্ষর</sys:String>
+    <sys:String x:Key="Str_Lbl_Undo">পূর্বাবস্থায় ফেরান</sys:String>
+    <sys:String x:Key="Str_Lbl_Clear">টীকা মুছুন</sys:String>
+    <sys:String x:Key="Str_Lbl_New">নতুন</sys:String>
+    <sys:String x:Key="Str_Lbl_Open">খুলুন</sys:String>
+    <sys:String x:Key="Str_Lbl_Close">বন্ধ</sys:String>
+    <sys:String x:Key="Str_Lbl_Save">সংরক্ষণ</sys:String>
+    <sys:String x:Key="Str_Lbl_Flatten">সমতল</sys:String>
+    <sys:String x:Key="Str_Lbl_Print">প্রিন্ট</sys:String>
+    <sys:String x:Key="Str_Lbl_Select">নির্বাচন</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomOut">ছোট করুন</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomIn">বড় করুন</sys:String>
+
+    <!-- ── Right-click menu labels ────────────────────────────────────── -->
+    <sys:String x:Key="Str_Ctx_CopyText">টেক্সট কপি করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Print">মুদ্রণ</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectTool">নির্বাচন টুল</sys:String>
+    <sys:String x:Key="Str_Ctx_TextTool">টেক্সট টুল</sys:String>
+    <sys:String x:Key="Str_Ctx_HighlightTool">হাইলাইট টুল</sys:String>
+    <sys:String x:Key="Str_Ctx_DrawTool">আঁকার টুল</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCW">পৃষ্ঠা ঘড়ির কাঁটার দিকে ঘোরান</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCW">পৃষ্ঠা ঘড়ির কাঁটার বিপরীতে ঘোরান</sys:String>
+    <sys:String x:Key="Str_Ctx_StampNumbers">পৃষ্ঠা নম্বর বসান...</sys:String>
+    <sys:String x:Key="Str_Ctx_DeleteSel">নির্বাচিত মুছুন</sys:String>
+    <sys:String x:Key="Str_Ctx_UndoLast">শেষ ক্রিয়া পূর্বাবস্থায় ফেরান</sys:String>
+    <sys:String x:Key="Str_Ctx_ClearPage">পৃষ্ঠার টীকা মুছুন</sys:String>
+    <sys:String x:Key="Str_Ctx_InsertBlank">পরে খালি পৃষ্ঠা যোগ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCWShort">ঘড়ির কাঁটার দিকে ঘোরান</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCWShort">ঘড়ির কাঁটার বিপরীতে ঘোরান</sys:String>
+    <sys:String x:Key="Str_Ctx_ExtractPages">পৃষ্ঠা বের করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePages">পৃষ্ঠা মুছুন</sys:String>
+
+    <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Stamp_Title">পৃষ্ঠা নম্বর বসান</sys:String>
+    <sys:String x:Key="Str_Stamp_StartAt">শুরু হবে</sys:String>
+    <sys:String x:Key="Str_Stamp_Format">ফরম্যাট</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">{}{n} = পৃষ্ঠা নম্বর, {N} = মোট। যেমন "Page {n} of {N}"</sys:String>
+    <sys:String x:Key="Str_Stamp_Position">অবস্থান</sys:String>
+    <sys:String x:Key="Str_Stamp_FontSize">ফন্ট আকার (pt)</sys:String>
+    <sys:String x:Key="Str_Stamp_Cancel">বাতিল</sys:String>
+    <sys:String x:Key="Str_Stamp_Stamp">বসান</sys:String>
+    <sys:String x:Key="Str_Pos_BottomCenter">নিচে মাঝখানে</sys:String>
+    <sys:String x:Key="Str_Pos_BottomRight">নিচে ডানে</sys:String>
+    <sys:String x:Key="Str_Pos_BottomLeft">নিচে বামে</sys:String>
+    <sys:String x:Key="Str_Pos_TopCenter">উপরে মাঝখানে</sys:String>
+    <sys:String x:Key="Str_Pos_TopRight">উপরে ডানে</sys:String>
+    <sys:String x:Key="Str_Pos_TopLeft">উপরে বামে</sys:String>
+
+    <!-- ── Print dialog ───────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Print_Title">KillerPDF - মুদ্রণ</sys:String>
+    <sys:String x:Key="Str_Print_Printer">প্রিন্টার</sys:String>
+    <sys:String x:Key="Str_Print_Orientation">অভিমুখ</sys:String>
+    <sys:String x:Key="Str_Print_Portrait">পোর্ট্রেট</sys:String>
+    <sys:String x:Key="Str_Print_Landscape">ল্যান্ডস্কেপ</sys:String>
+    <sys:String x:Key="Str_Print_Scale">স্কেল</sys:String>
+    <sys:String x:Key="Str_Print_Fit">পৃষ্ঠায় ফিট</sys:String>
+    <sys:String x:Key="Str_Print_Actual">প্রকৃত আকার (100%)</sys:String>
+    <sys:String x:Key="Str_Print_Custom">কাস্টম %</sys:String>
+    <sys:String x:Key="Str_Print_ScaleHint">স্কেল শতাংশ (যেমন 50 বা 50.23)</sys:String>
+    <sys:String x:Key="Str_Print_Copies">কপি</sys:String>
+    <sys:String x:Key="Str_Print_Pages">পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Print_PagesHint">যেমন 1-3,5  (খালি = সব)</sys:String>
+    <sys:String x:Key="Str_Print_NoPages">কোনো পৃষ্ঠা নেই</sys:String>
+    <sys:String x:Key="Str_Print_Margins">মার্জিন</sys:String>
+    <sys:String x:Key="Str_Margin_None">কোনোটি নয়</sys:String>
+    <sys:String x:Key="Str_Margin_Narrow">সরু</sys:String>
+    <sys:String x:Key="Str_Margin_Normal">স্বাভাবিক</sys:String>
+    <sys:String x:Key="Str_Margin_Wide">চওড়া</sys:String>
+    <sys:String x:Key="Str_Print_PagesPerSheet">প্রতি শীটে পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Print_TwoSided">উভয় পাশে প্রিন্ট করুন</sys:String>
+    <sys:String x:Key="Str_Print_Color">রঙিন</sys:String>
+    <sys:String x:Key="Str_Print_BW">সাদা-কালো</sys:String>
+    <sys:String x:Key="Str_Pos_Center">মাঝখানে</sys:String>
+    <sys:String x:Key="Str_Pos_Top">উপরে</sys:String>
+    <sys:String x:Key="Str_Pos_Bottom">নিচে</sys:String>
+    <sys:String x:Key="Str_Pos_Left">বামে</sys:String>
+    <sys:String x:Key="Str_Pos_Right">ডানে</sys:String>
+
+    <!-- ── Save / recent menus + signature dialog ──────────────────── -->
+    <sys:String x:Key="Str_Menu_Save">সংরক্ষণ</sys:String>
+    <sys:String x:Key="Str_Menu_SaveAs">এভাবে সংরক্ষণ করুন...</sys:String>
+    <sys:String x:Key="Str_Menu_SaveNothing">সংরক্ষণ করার কিছু নেই</sys:String>
+    <sys:String x:Key="Str_Menu_RecentNone">সাম্প্রতিক কোনো ফাইল নেই</sys:String>
+    <sys:String x:Key="Str_Menu_ClearList">তালিকা সাফ করুন</sys:String>
+    <sys:String x:Key="Str_Menu_RemoveFromRecents">সাম্প্রতিক থেকে সরান</sys:String>
+
+    <!-- ছবিগুলি PDF হিসেবে আমদানি করুন / ZIP-এ সংকুচিত করুন -->
+    <sys:String x:Key="Str_Menu_Import">ছবিগুলি PDF হিসেবে আমদানি করুন</sys:String>
+    <sys:String x:Key="Str_Menu_CompressZip">ZIP-এ সংকুচিত করুন</sys:String>
+    <sys:String x:Key="Str_Filter_Images">ছবি</sys:String>
+    <sys:String x:Key="Str_Filter_AllFiles">সমস্ত ফাইল</sys:String>
+    <sys:String x:Key="Str_Filter_Zip">ZIP আর্কাইভ</sys:String>
+    <sys:String x:Key="Str_Status_Imported">{0}টি ছবি আমদানি করা হয়েছে - এখনও সংরক্ষণ করা হয়নি</sys:String>
+    <sys:String x:Key="Str_Err_ImportFailed">আমদানি ব্যর্থ হয়েছে:</sys:String>
+    <sys:String x:Key="Str_Err_NoImages">কোনো ছবি পড়া যায়নি।</sys:String>
+    <sys:String x:Key="Str_Msg_OpenFirst">প্রথমে একটি PDF খুলুন।</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveBeforeZip">ZIP-এ সংকুচিত করার আগে পরিবর্তনগুলি সংরক্ষণ করবেন?</sys:String>
+    <sys:String x:Key="Str_Status_Zipped">{0}-এ সংকুচিত - {1} (পূর্বে {2})</sys:String>
+    <sys:String x:Key="Str_Err_ZipFailed">ZIP-এ সংকুচিত করা ব্যর্থ হয়েছে:</sys:String>
+    <sys:String x:Key="Str_Sig_Title">স্বাক্ষর</sys:String>
+    <sys:String x:Key="Str_Sig_None">কোনো সংরক্ষিত স্বাক্ষর নেই</sys:String>
+    <sys:String x:Key="Str_Sig_Create">স্বাক্ষর তৈরি করুন</sys:String>
+    <sys:String x:Key="Str_Sig_Import">ছবি আমদানি করুন</sys:String>
+    <sys:String x:Key="Str_Sig_DrawHere">এখানে আপনার স্বাক্ষর আঁকুন</sys:String>
+    <sys:String x:Key="Str_Sig_Clear">সাফ করুন</sys:String>
+    <sys:String x:Key="Str_Sig_SaveSig">স্বাক্ষর সংরক্ষণ করুন</sys:String>
+
+    <!-- Crop confirm bar tooltips -->
+    <sys:String x:Key="Str_TT_CropThisPage">এই পৃষ্ঠা ক্রপ করুন (Enter)</sys:String>
+    <sys:String x:Key="Str_TT_CropRange">নির্দিষ্ট পরিসরের পৃষ্ঠাগুলি ক্রপ করুন</sys:String>
+    <sys:String x:Key="Str_TT_CropRemove">এই পৃষ্ঠা থেকে CropBox (এবং TrimBox) সরান</sys:String>
+    <sys:String x:Key="Str_TT_CropRemoveAll">সব পৃষ্ঠা থেকে CropBox সরান</sys:String>
+    <sys:String x:Key="Str_TT_CropCancel">বাতিল করুন (Escape)</sys:String>
+
+    <!-- ── রেখা টুল, লেয়ার / গ্রুপ মেনু (v1.5.x এ যোগ করা হয়েছে) ──────────── -->
+    <sys:String x:Key="Str_Lbl_Line">রেখা</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">রেখা - সরল রেখা আঁকতে টানুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Edit">সম্পাদনা করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Raise">উপরে তুলুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Lower">নিচে নামান</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectCover">কভার নির্বাচন করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectText">টেক্সট নির্বাচন করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Unpair">টেক্সট ও কভার আলাদা করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Group">নির্বাচিত গ্রুপ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Ungroup">গ্রুপ বাতিল করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveFromGroup">গ্রুপ থেকে সরান</sys:String>
+    <sys:String x:Key="Str_Ctx_Copy">কপি করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_Paste">পেস্ট করুন</sys:String>
+    <!-- ── টীকা বার লেবেল ──────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Bar_Color">রং:</sys:String>
+    <sys:String x:Key="Str_Bar_Fill">ফিল:</sys:String>
+    <sys:String x:Key="Str_Bar_Size">আকার:</sys:String>
+    <sys:String x:Key="Str_Bar_Opacity">অস্বচ্ছতা:</sys:String>
+    <sys:String x:Key="Str_Bar_FillOpacity">ফিল অস্বচ্ছতা:</sys:String>
+    <sys:String x:Key="Str_Bar_Font">ফন্ট:</sys:String>
+    <sys:String x:Key="Str_Bar_Level">সমতল</sys:String>
+    <sys:String x:Key="Str_Bar_Eraser">ইরেজার</sys:String>
+    <sys:String x:Key="Str_Bar_MoreColors">আরও রং...</sys:String>
+    <sys:String x:Key="Str_Sig_Signatures">স্বাক্ষর</sys:String>
+    <sys:String x:Key="Str_Sig_Initials">আদ্যক্ষর</sys:String>
+    <sys:String x:Key="Str_Sig_Pen">কলম</sys:String>
+    <sys:String x:Key="Str_Sig_Thin">পাতলা</sys:String>
+    <sys:String x:Key="Str_Sig_Medium">মাঝারি</sys:String>
+    <sys:String x:Key="Str_Sig_Thick">মোটা</sys:String>
+    <!-- ── ডিজিটাল স্বাক্ষর ডায়ালগ ─────────────────────────────────────── -->
+    <sys:String x:Key="Str_Sign_Desc">একটি সার্টিফিকেট দিয়ে {0} সিল করে এবং একটি স্বাক্ষরিত কপি সংরক্ষণ করে।</sys:String>
+    <sys:String x:Key="Str_Sign_Certificate">সার্টিফিকেট</sys:String>
+    <sys:String x:Key="Str_Sign_FromFile">একটি ফাইল থেকে (.pfx / .p12)</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Windows সার্টিফিকেট স্টোর থেকে</sys:String>
+    <sys:String x:Key="Str_Sign_Browse">ব্রাউজ...</sys:String>
+    <sys:String x:Key="Str_Sign_Password">পাসওয়ার্ড</sys:String>
+    <sys:String x:Key="Str_Sign_Reason">কারণ (ঐচ্ছিক)</sys:String>
+    <sys:String x:Key="Str_Sign_Location">অবস্থান (ঐচ্ছিক)</sys:String>
+    <sys:String x:Key="Str_Sign_Contact">যোগাযোগ (ঐচ্ছিক)</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">স্বাক্ষরিত কপি যেভাবে সংরক্ষণ করুন</sys:String>
+    <sys:String x:Key="Str_Sign_Sign">স্বাক্ষর করুন</sys:String>
+    <sys:String x:Key="Str_Sign_Cancel">বাতিল করুন</sys:String>
+    <sys:String x:Key="Str_Sign_TitleSuffix">ডিজিটাল স্বাক্ষর</sys:String>
+    <sys:String x:Key="Str_Lbl_DigitalSig">ডিজিটাল স্বাক্ষর...</sys:String>
+    <sys:String x:Key="Str_Sidebar">সাইডবার</sys:String>
+    <sys:String x:Key="Str_Sidebar_Left">বাঁ দিকে</sys:String>
+    <sys:String x:Key="Str_Sidebar_Right">ডান দিকে</sys:String>
+    <sys:String x:Key="Str_KS_ToggleSidebar">সাইডবার টগল করুন</sys:String>
+    <sys:String x:Key="Str_KS_NextTab">পরবর্তী ট্যাব (Shift: পূর্ববর্তী)</sys:String>
+    <sys:String x:Key="Str_Lbl_Search">অনুসন্ধান</sys:String>
+    <sys:String x:Key="Str_TT_Search">অনুসন্ধান (Ctrl+F)</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePage">পৃষ্ঠা মুছুন</sys:String>
+    <sys:String x:Key="Str_Ctx_DuplicatePage">পৃষ্ঠা সদৃশ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_AddBlankPage">ফাঁকা পৃষ্ঠা যোগ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseTab">ট্যাব বন্ধ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseOthers">অন্যান্য ট্যাব বন্ধ করুন</sys:String>
 </ResourceDictionary>
