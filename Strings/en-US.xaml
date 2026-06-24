@@ -10,6 +10,8 @@
     <sys:String x:Key="Str_TT_Open">Open (Ctrl+O)</sys:String>
     <sys:String x:Key="Str_TT_NewBlank">New Blank Document (Ctrl+N)</sys:String>
     <sys:String x:Key="Str_TT_CloseFile">Close File (Ctrl+W)</sys:String>
+    <sys:String x:Key="Str_TT_Save">Save (Ctrl+S)</sys:String>
+    <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">Save As (Ctrl+Shift+S)</sys:String>
     <sys:String x:Key="Str_TT_SaveFlattened">Save Flattened PDF (rasterize all pages — fully uneditable)</sys:String>
     <sys:String x:Key="Str_TT_Print">Print (Ctrl+P)</sys:String>
@@ -21,11 +23,14 @@
     <sys:String x:Key="Str_TT_SelectTool">Select Tool - click annotations, drag to select text, double-click to edit</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Text Tool - click to add text</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Highlight Tool - drag to highlight</sys:String>
+    <sys:String x:Key="Str_TT_StrikeTool">Strikethrough - drag across text</sys:String>
+    <sys:String x:Key="Str_TT_UnderlineTool">Underline - drag across text</sys:String>
     <sys:String x:Key="Str_TT_DrawTool">Draw Tool - freehand ink</sys:String>
     <sys:String x:Key="Str_TT_SignatureTool">Signature - create and place signatures</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Image Tool - click to insert an image onto the page</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Crop Tool - drag to set crop area, then apply to page(s)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Clear All Annotations</sys:String>
+    <sys:String x:Key="Str_TT_Search">Search (Ctrl+F)</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Undo Last (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Multi-page grid view</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Zoom out (Ctrl+-)</sys:String>
@@ -44,6 +49,7 @@
     <sys:String x:Key="Str_About_Thumbprint">THUMBPRINT</sys:String>
     <sys:String x:Key="Str_About_ExeSha">EXE SHA256</sys:String>
     <sys:String x:Key="Str_About_Computing">Computing...</sys:String>
+    <sys:String x:Key="Str_Tagline">A fast, free PDF toolkit for Windows. Part of {0}.</sys:String>
 
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">PAGES</sys:String>
@@ -53,10 +59,15 @@
     <sys:String x:Key="Str_Settings">Settings</sys:String>
     <sys:String x:Key="Str_Theme">THEME</sys:String>
     <sys:String x:Key="Str_Language">LANGUAGE</sys:String>
+    <sys:String x:Key="Str_Toolbar">TOOLBAR</sys:String>
+    <sys:String x:Key="Str_Toolbar_SmallIcons">Small icons</sys:String>
+    <sys:String x:Key="Str_Toolbar_LargeIcons">Large icons</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextBeside">Text beside icons</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextUnder">Text under icons</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextOnly">Text only</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
-    <sys:String x:Key="Str_Lang_Traditional_Chinese">中文 (繁體)</sys:String>
-    <sys:String x:Key="Str_Lang_Simple_Chinese">中文 (简体)</sys:String>
+    <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Keyboard Shortcuts</sys:String>
@@ -83,6 +94,10 @@
     <sys:String x:Key="Str_KS_CopyText">Copy selected text</sys:String>
     <sys:String x:Key="Str_KS_Help">HELP</sys:String>
     <sys:String x:Key="Str_KS_ThisList">This shortcut list</sys:String>
+    <sys:String x:Key="Str_KS_About">About dialog</sys:String>
+    <sys:String x:Key="Str_KS_Tools">TOOLS</sys:String>
+    <sys:String x:Key="Str_KS_Paste">Paste image / text</sys:String>
+    <sys:String x:Key="Str_KS_MultiSelect">Add to selection</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Ready">Ready</sys:String>
@@ -131,7 +146,7 @@ You can uninstall via Add/Remove Programs at any time.</sys:String>
     <!-- ── Theme names ────────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme_Dark">Dark</sys:String>
     <sys:String x:Key="Str_Theme_Light">Light</sys:String>
-    <sys:String x:Key="Str_Theme_HighContrast">High Contrast</sys:String>
+    <sys:String x:Key="Str_Theme_Black">Black</sys:String>
     <sys:String x:Key="Str_Theme_Blood">Blood</sys:String>
     <sys:String x:Key="Str_Theme_Greed">Greed</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">Cyanotic</sys:String>
@@ -154,4 +169,189 @@ You can uninstall via Add/Remove Programs at any time.</sys:String>
     <sys:String x:Key="Str_View_Grid">Grid</sys:String>
     <sys:String x:Key="Str_Continuous_EditMsg">Switch to Single Page to use editing tools</sys:String>
 
+    <!-- ── Overflow menu + menu item labels ───────────────────────────── -->
+    <sys:String x:Key="Str_Lbl_Merge">Merge PDFs</sys:String>
+    <sys:String x:Key="Str_Lbl_Extract">Extract Pages</sys:String>
+    <sys:String x:Key="Str_Lbl_Delete">Delete Pages</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveUp">Move Page Up</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveDown">Move Page Down</sys:String>
+    <sys:String x:Key="Str_Lbl_Text">Text</sys:String>
+    <sys:String x:Key="Str_Lbl_Highlight">Highlight</sys:String>
+    <sys:String x:Key="Str_Lbl_Strike">Strikethrough</sys:String>
+    <sys:String x:Key="Str_Lbl_Underline">Underline</sys:String>
+    <sys:String x:Key="Str_Lbl_Bold">Bold</sys:String>
+    <sys:String x:Key="Str_Lbl_Italic">Italic</sys:String>
+    <sys:String x:Key="Str_Lbl_Draw">Draw</sys:String>
+    <sys:String x:Key="Str_Lbl_Crop">Crop</sys:String>
+    <sys:String x:Key="Str_Lbl_Image">Add Image</sys:String>
+    <sys:String x:Key="Str_Lbl_Signature">Signature</sys:String>
+    <sys:String x:Key="Str_Lbl_Undo">Undo</sys:String>
+    <sys:String x:Key="Str_Lbl_Clear">Clear All</sys:String>
+    <sys:String x:Key="Str_Lbl_New">New</sys:String>
+    <sys:String x:Key="Str_Lbl_Open">Open</sys:String>
+    <sys:String x:Key="Str_Lbl_Close">Close</sys:String>
+    <sys:String x:Key="Str_Lbl_Save">Save</sys:String>
+    <sys:String x:Key="Str_Lbl_Flatten">Flatten</sys:String>
+    <sys:String x:Key="Str_Lbl_Print">Print</sys:String>
+    <sys:String x:Key="Str_Lbl_Select">Select</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomOut">Zoom Out</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomIn">Zoom In</sys:String>
+    <sys:String x:Key="Str_Lbl_Search">Search</sys:String>
+
+    <!-- ── Right-click menu labels ────────────────────────────────────── -->
+    <sys:String x:Key="Str_Ctx_CopyText">Copy Text</sys:String>
+    <sys:String x:Key="Str_Ctx_Print">Print</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectTool">Select Tool</sys:String>
+    <sys:String x:Key="Str_Ctx_TextTool">Text Tool</sys:String>
+    <sys:String x:Key="Str_Ctx_HighlightTool">Highlight Tool</sys:String>
+    <sys:String x:Key="Str_Ctx_DrawTool">Draw Tool</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCW">Rotate Page CW</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCW">Rotate Page CCW</sys:String>
+    <sys:String x:Key="Str_Ctx_StampNumbers">Stamp Page Numbers...</sys:String>
+    <sys:String x:Key="Str_Ctx_DeleteSel">Delete Selected</sys:String>
+    <sys:String x:Key="Str_Ctx_UndoLast">Undo Last</sys:String>
+    <sys:String x:Key="Str_Ctx_ClearPage">Clear Page Annotations</sys:String>
+    <sys:String x:Key="Str_Ctx_InsertBlank">Insert Blank Page After</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCWShort">Rotate CW</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCWShort">Rotate CCW</sys:String>
+    <sys:String x:Key="Str_Ctx_ExtractPages">Extract Page(s)</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePages">Delete Page(s)</sys:String>
+
+    <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Stamp_Title">Stamp Page Numbers</sys:String>
+    <sys:String x:Key="Str_Stamp_StartAt">Start at</sys:String>
+    <sys:String x:Key="Str_Stamp_Format">Format</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">{}{n} = page number, {N} = total. e.g. "Page {n} of {N}"</sys:String>
+    <sys:String x:Key="Str_Stamp_Position">Position</sys:String>
+    <sys:String x:Key="Str_Stamp_FontSize">Font size (pt)</sys:String>
+    <sys:String x:Key="Str_Stamp_Cancel">Cancel</sys:String>
+    <sys:String x:Key="Str_Stamp_Stamp">Stamp</sys:String>
+    <sys:String x:Key="Str_Pos_BottomCenter">Bottom Center</sys:String>
+    <sys:String x:Key="Str_Pos_BottomRight">Bottom Right</sys:String>
+    <sys:String x:Key="Str_Pos_BottomLeft">Bottom Left</sys:String>
+    <sys:String x:Key="Str_Pos_TopCenter">Top Center</sys:String>
+    <sys:String x:Key="Str_Pos_TopRight">Top Right</sys:String>
+    <sys:String x:Key="Str_Pos_TopLeft">Top Left</sys:String>
+
+    <!-- ── Print dialog ───────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Print_Title">KillerPDF - Print</sys:String>
+    <sys:String x:Key="Str_Print_Printer">Printer</sys:String>
+    <sys:String x:Key="Str_Print_Orientation">Orientation</sys:String>
+    <sys:String x:Key="Str_Print_Portrait">Portrait</sys:String>
+    <sys:String x:Key="Str_Print_Landscape">Landscape</sys:String>
+    <sys:String x:Key="Str_Print_Scale">Scale</sys:String>
+    <sys:String x:Key="Str_Print_Fit">Fit to page</sys:String>
+    <sys:String x:Key="Str_Print_Actual">Actual size (100%)</sys:String>
+    <sys:String x:Key="Str_Print_Custom">Custom %</sys:String>
+    <sys:String x:Key="Str_Print_ScaleHint">Scale percentage (e.g. 50 or 50.23)</sys:String>
+    <sys:String x:Key="Str_Print_Copies">Copies</sys:String>
+    <sys:String x:Key="Str_Print_Pages">Pages</sys:String>
+    <sys:String x:Key="Str_Print_PagesHint">e.g. 1-3,5  (blank = all)</sys:String>
+    <sys:String x:Key="Str_Print_NoPages">No pages</sys:String>
+    <sys:String x:Key="Str_Print_Margins">Margins</sys:String>
+    <sys:String x:Key="Str_Margin_None">None</sys:String>
+    <sys:String x:Key="Str_Margin_Narrow">Narrow</sys:String>
+    <sys:String x:Key="Str_Margin_Normal">Normal</sys:String>
+    <sys:String x:Key="Str_Margin_Wide">Wide</sys:String>
+    <sys:String x:Key="Str_Print_PagesPerSheet">Pages per sheet</sys:String>
+    <sys:String x:Key="Str_Print_TwoSided">Print on both sides</sys:String>
+    <sys:String x:Key="Str_Print_Color">Color</sys:String>
+    <sys:String x:Key="Str_Print_BW">Black &amp; white</sys:String>
+    <sys:String x:Key="Str_Pos_Center">Center</sys:String>
+    <sys:String x:Key="Str_Pos_Top">Top</sys:String>
+    <sys:String x:Key="Str_Pos_Bottom">Bottom</sys:String>
+    <sys:String x:Key="Str_Pos_Left">Left</sys:String>
+    <sys:String x:Key="Str_Pos_Right">Right</sys:String>
+
+    <!-- ── Save / recent menus + signature dialog ──────────────────── -->
+    <sys:String x:Key="Str_Menu_Save">Save</sys:String>
+    <sys:String x:Key="Str_Menu_SaveAs">Save As...</sys:String>
+    <sys:String x:Key="Str_Menu_SaveNothing">Nothing to save</sys:String>
+    <sys:String x:Key="Str_Menu_RecentNone">No recent files</sys:String>
+    <sys:String x:Key="Str_Menu_ClearList">Clear list</sys:String>
+    <sys:String x:Key="Str_Menu_RemoveFromRecents">Remove from recents</sys:String>
+
+    <!-- Import images as PDF / Compress to ZIP -->
+    <sys:String x:Key="Str_Menu_Import">Import images as PDF</sys:String>
+    <sys:String x:Key="Str_Menu_CompressZip">Compress to ZIP</sys:String>
+    <sys:String x:Key="Str_Filter_Images">Images</sys:String>
+    <sys:String x:Key="Str_Filter_AllFiles">All files</sys:String>
+    <sys:String x:Key="Str_Filter_Zip">ZIP archive</sys:String>
+    <sys:String x:Key="Str_Status_Imported">Imported {0} image(s) - not yet saved</sys:String>
+    <sys:String x:Key="Str_Err_ImportFailed">Import failed:</sys:String>
+    <sys:String x:Key="Str_Err_NoImages">No images could be read.</sys:String>
+    <sys:String x:Key="Str_Msg_OpenFirst">Open a PDF first.</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveBeforeZip">Save changes before compressing to ZIP?</sys:String>
+    <sys:String x:Key="Str_Status_Zipped">Zipped to {0} - {1} (was {2})</sys:String>
+    <sys:String x:Key="Str_Err_ZipFailed">Compress to ZIP failed:</sys:String>
+    <sys:String x:Key="Str_Sig_Title">Signatures</sys:String>
+    <sys:String x:Key="Str_Sig_None">No saved signatures</sys:String>
+    <sys:String x:Key="Str_Sig_Create">Create Signature</sys:String>
+    <sys:String x:Key="Str_Sig_Import">Import Image</sys:String>
+    <sys:String x:Key="Str_Sig_DrawHere">Draw your signature here</sys:String>
+    <sys:String x:Key="Str_Sig_Clear">Clear</sys:String>
+    <sys:String x:Key="Str_Sig_SaveSig">Save Signature</sys:String>
+
+    <!-- Crop confirm bar tooltips -->
+    <sys:String x:Key="Str_TT_CropThisPage">Crop this page (Enter)</sys:String>
+    <sys:String x:Key="Str_TT_CropRange">Crop pages in the specified range</sys:String>
+    <sys:String x:Key="Str_TT_CropRemove">Remove CropBox (and TrimBox) from this page</sys:String>
+    <sys:String x:Key="Str_TT_CropRemoveAll">Remove CropBox from all pages</sys:String>
+    <sys:String x:Key="Str_TT_CropCancel">Cancel (Escape)</sys:String>
+
+    <!-- ── Line tool, layer / group menu (added v1.5.x) ───────────────── -->
+    <sys:String x:Key="Str_Lbl_Line">Line</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Line - drag to draw a straight line</sys:String>
+    <sys:String x:Key="Str_Ctx_Edit">Edit</sys:String>
+    <sys:String x:Key="Str_Ctx_Raise">Raise</sys:String>
+    <sys:String x:Key="Str_Ctx_Lower">Lower</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectCover">Select cover</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectText">Select text</sys:String>
+    <sys:String x:Key="Str_Ctx_Unpair">Unpair text + cover</sys:String>
+    <sys:String x:Key="Str_Ctx_Group">Group selected</sys:String>
+    <sys:String x:Key="Str_Ctx_Ungroup">Ungroup</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveFromGroup">Remove from group</sys:String>
+    <sys:String x:Key="Str_Ctx_Copy">Copy</sys:String>
+    <sys:String x:Key="Str_Ctx_Paste">Paste</sys:String>
+    <!-- ── Annotate-bar labels ────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Bar_Color">Color:</sys:String>
+    <sys:String x:Key="Str_Bar_Fill">Fill:</sys:String>
+    <sys:String x:Key="Str_Bar_Size">Size:</sys:String>
+    <sys:String x:Key="Str_Bar_Opacity">Opacity:</sys:String>
+    <sys:String x:Key="Str_Bar_FillOpacity">Fill Opacity:</sys:String>
+    <sys:String x:Key="Str_Bar_Font">Font:</sys:String>
+    <sys:String x:Key="Str_Bar_Level">Level</sys:String>
+    <sys:String x:Key="Str_Bar_Eraser">Eraser</sys:String>
+    <sys:String x:Key="Str_Bar_MoreColors">More colors...</sys:String>
+    <sys:String x:Key="Str_Sig_Signatures">Signatures</sys:String>
+    <sys:String x:Key="Str_Sig_Initials">Initials</sys:String>
+    <sys:String x:Key="Str_Sig_Pen">Pen</sys:String>
+    <sys:String x:Key="Str_Sig_Thin">Thin</sys:String>
+    <sys:String x:Key="Str_Sig_Medium">Medium</sys:String>
+    <sys:String x:Key="Str_Sig_Thick">Thick</sys:String>
+    <!-- ── Digital Signature dialog ───────────────────────────────────── -->
+    <sys:String x:Key="Str_Sign_Desc">Seals {0} with a certificate and saves a signed copy.</sys:String>
+    <sys:String x:Key="Str_Sign_Certificate">Certificate</sys:String>
+    <sys:String x:Key="Str_Sign_FromFile">From a file (.pfx / .p12)</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">From the Windows certificate store</sys:String>
+    <sys:String x:Key="Str_Sign_Browse">Browse...</sys:String>
+    <sys:String x:Key="Str_Sign_Password">Password</sys:String>
+    <sys:String x:Key="Str_Sign_Reason">Reason (optional)</sys:String>
+    <sys:String x:Key="Str_Sign_Location">Location (optional)</sys:String>
+    <sys:String x:Key="Str_Sign_Contact">Contact (optional)</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Save signed copy as</sys:String>
+    <sys:String x:Key="Str_Sign_Sign">Sign</sys:String>
+    <sys:String x:Key="Str_Sign_Cancel">Cancel</sys:String>
+    <sys:String x:Key="Str_Sign_TitleSuffix">Digital Signature</sys:String>
+    <sys:String x:Key="Str_Lbl_DigitalSig">Digital Signature...</sys:String>
+    <sys:String x:Key="Str_Sidebar">SIDEBAR</sys:String>
+    <sys:String x:Key="Str_Sidebar_Left">Left</sys:String>
+    <sys:String x:Key="Str_Sidebar_Right">Right</sys:String>
+    <sys:String x:Key="Str_KS_ToggleSidebar">Toggle sidebar</sys:String>
+    <sys:String x:Key="Str_KS_NextTab">Next tab (Shift: previous)</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePage">Delete Page</sys:String>
+    <sys:String x:Key="Str_Ctx_DuplicatePage">Duplicate Page</sys:String>
+    <sys:String x:Key="Str_Ctx_AddBlankPage">Add Blank Page</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseTab">Close Tab</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseOthers">Close Other Tabs</sys:String>
 </ResourceDictionary>
