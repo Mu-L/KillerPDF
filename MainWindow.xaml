@@ -416,13 +416,13 @@
                                     Background="{DynamicResource SliderTrack}"/>
                             <Track x:Name="PART_Track">
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource DarkSliderRepeat}" Command="{x:Static Slider.DecreaseLarge}"/>
+                                    <RepeatButton Style="{DynamicResource DarkSliderRepeat}" Command="{x:Static Slider.DecreaseLarge}"/>
                                 </Track.DecreaseRepeatButton>
                                 <Track.Thumb>
-                                    <Thumb Style="{StaticResource DarkSliderThumb}"/>
+                                    <Thumb Style="{DynamicResource DarkSliderThumb}"/>
                                 </Track.Thumb>
                                 <Track.IncreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource DarkSliderRepeat}" Command="{x:Static Slider.IncreaseLarge}"/>
+                                    <RepeatButton Style="{DynamicResource DarkSliderRepeat}" Command="{x:Static Slider.IncreaseLarge}"/>
                                 </Track.IncreaseRepeatButton>
                             </Track>
                         </Grid>
@@ -469,7 +469,7 @@
                                 <Grid>
                                     <!-- Film grain on the menu surface, matching the settings panel. -->
                                     <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
-                                            CornerRadius="4" Margin="-4" Background="{StaticResource GrainBrushShared}"/>
+                                            CornerRadius="4" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
                                     <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
                                 </Grid>
                             </Border>
@@ -527,7 +527,7 @@
                                                 BorderThickness="1" CornerRadius="4" Padding="4">
                                             <Grid>
                                                 <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
-                                                        CornerRadius="4" Margin="-4" Background="{StaticResource GrainBrushShared}"/>
+                                                        CornerRadius="4" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
                                                 <ItemsPresenter/>
                                             </Grid>
                                         </Border>
@@ -680,7 +680,7 @@
                                                IsHitTestVisible="False"/>
                                     <!-- Invisible toggle over the whole control -->
                                     <ToggleButton Grid.Column="0" Grid.ColumnSpan="2"
-                                                  Style="{StaticResource DarkComboToggle}"
+                                                  Style="{DynamicResource DarkComboToggle}"
                                                   IsChecked="{Binding IsDropDownOpen, Mode=TwoWay,
                                                               RelativeSource={RelativeSource TemplatedParent}}"/>
                                 </Grid>
@@ -873,7 +873,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <ToggleButton x:Name="Expander" Grid.Column="0"
-                                                  Style="{StaticResource OutlineExpander}"
+                                                  Style="{DynamicResource OutlineExpander}"
                                                   IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
                                                   ClickMode="Press"/>
                                     <ContentPresenter x:Name="PART_Header" Grid.Column="1"

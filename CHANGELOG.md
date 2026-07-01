@@ -6,8 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.6.1] - unreleased
 
+### Added
+- On quit with documents open, KillerPDF asks whether to reopen them next launch, with a "remember my choice" option (#105).
+- Enter and Esc now confirm and cancel dialogs (#111).
+
 ### Fixed
 - Open menu: the remove (X) button on each recent-files entry was clipped off the right edge of the dropdown; it now stays inside the frame.
+- Crash when saving a freshly merged or imported PDF (#112).
+- Save failing with "Cannot retrieve stream length"; the file is now recovered automatically (#106).
+- Startup crash on older Windows 10 / .NET Framework builds (#101).
+- Toolbar dropdown carets (Recent files, Save, OCR) missing on Windows 10 (#104, #108, thanks Ryokoxx).
+- Extra copy when printing multiple copies on some printers (#83, #107).
 
 ## [1.6.0] - 2026-06-27
 
