@@ -876,7 +876,7 @@ namespace KillerPDF
                         var lTarget = lo.Tag is LinkAnnotInfo lai ? lai.Target : lo.Tag;
                         if (lTarget is int tp)
                             PageList.SelectedIndex = tp;
-                        else if (lTarget is string u)
+                        else if (lTarget is string u && ConfirmOpenLink(u))
                             try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
                         e.Handled = true;
                         return;
@@ -903,7 +903,7 @@ namespace KillerPDF
                         {
                             if (lnk.Tag is int ctp)
                                 PageList.SelectedIndex = ctp;
-                            else if (lnk.Tag is string cu)
+                            else if (lnk.Tag is string cu && ConfirmOpenLink(cu))
                                 try { Process.Start(new ProcessStartInfo(cu) { UseShellExecute = true }); } catch { }
                             e.Handled = true;
                             return;
@@ -1275,7 +1275,11 @@ namespace KillerPDF
 
         // The pointer left a page surface: drop the brush cursor so it doesn't hang frozen at the page
         // edge (MouseMove stops firing off-canvas, so it can't clear itself there).
-        private void Canvas_MouseLeave(object sender, MouseEventArgs e) => HideBrushPreview();
+        private void Canvas_MouseLeave(object sender, MouseEventArgs e)
+        {
+            HideBrushPreview();
+            ShowLinkHoverStatus(null);   // restore the status bar when the pointer leaves the page
+        }
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
@@ -1283,17 +1287,21 @@ namespace KillerPDF
             if (e.OriginalSource is DependencyObject moveSrc && IsFormFieldElement(moveSrc))
                 return;
 
-            // Tiled views: show the hand cursor over a link. Links have no clickable overlay here (see
-            // Canvas_MouseLeftButtonDown), so the hover affordance is provided by hit-testing the stored
-            // link rects (same 20px pad as the click).
+            // Tiled views: hand cursor + the link's target in the status bar while hovering (links have no
+            // clickable overlay here - see Canvas_MouseLeftButtonDown - so hover is resolved by hit-testing
+            // the stored rects, same 20px pad as the click).
             if (_currentTool == EditTool.Select && _viewMode != ViewMode.Single && sender is Canvas linkHoverCv)
             {
                 int hpage = linkHoverCv.Tag is int htp ? htp : -1;
                 var hpos = e.GetPosition(linkHoverCv);
-                bool overLink = hpage >= 0 && _continuousLinks.TryGetValue(hpage, out var hlinks)
-                    && hlinks.Any(l => hpos.X >= l.Cx - 20 && hpos.X <= l.Cx + l.Cw + 20 &&
-                                       hpos.Y >= l.Cy - 20 && hpos.Y <= l.Cy + l.Ch + 20);
-                linkHoverCv.Cursor = overLink ? System.Windows.Input.Cursors.Hand : null;
+                string? hoverTarget = null;
+                if (hpage >= 0 && _continuousLinks.TryGetValue(hpage, out var hlinks))
+                    foreach (var l in hlinks)
+                        if (hpos.X >= l.Cx - 20 && hpos.X <= l.Cx + l.Cw + 20 &&
+                            hpos.Y >= l.Cy - 20 && hpos.Y <= l.Cy + l.Ch + 20)
+                        { hoverTarget = l.Tip; break; }
+                linkHoverCv.Cursor = hoverTarget != null ? System.Windows.Input.Cursors.Hand : null;
+                ShowLinkHoverStatus(hoverTarget);
             }
 
             // Brush cursor: with the Draw tool active and no button down, show a circle the size of the

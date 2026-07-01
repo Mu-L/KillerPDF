@@ -35,6 +35,41 @@ namespace KillerPDF
         // handler never fires, so no visual overlay is created - these rects are the source of truth.
         private readonly Dictionary<int, List<LinkInfo>> _continuousLinks = [];
 
+        // Persisted opt-out key for the click-safety confirmation prompt.
+        private const string SkipLinkConfirmSetting = "SkipLinkConfirm";
+
+        // Confirms before opening an external link in the browser, unless the user opted out. Returns true
+        // to proceed. Internal go-to-page links never call this.
+        private bool ConfirmOpenLink(string url)
+        {
+            if (App.GetSetting(SkipLinkConfirmSetting) == "1") return true;
+            var (result, dontAsk) = KillerDialog.ShowWithCheckbox(
+                this,
+                $"Open this link in your browser?\n\n{url}",
+                "Don't ask again",
+                "Open link?",
+                MessageBoxButton.OKCancel);
+            if (result != MessageBoxResult.OK) return false;
+            if (dontAsk) App.SetSetting(SkipLinkConfirmSetting, "1");
+            return true;
+        }
+
+        // Status-bar hover feedback: shows the hovered link's target, restoring the prior status on exit.
+        private string? _preHoverStatus;
+        private void ShowLinkHoverStatus(string? target)
+        {
+            if (target != null)
+            {
+                _preHoverStatus ??= StatusText.Text;
+                StatusText.Text = target;
+            }
+            else if (_preHoverStatus != null)
+            {
+                StatusText.Text = _preHoverStatus;
+                _preHoverStatus = null;
+            }
+        }
+
         /// <summary>
         /// Carries the link target (page index or URI string) plus the annotation's location in
         /// the PDF so the overlay can be used to remove the native annotation on demand.
