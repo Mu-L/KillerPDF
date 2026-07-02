@@ -153,6 +153,63 @@ namespace KillerPDF
             tb.Template            = MakeTextBoxTemplate();
         }
 
+        // Wires a TextBox as a positive-integer field: digits only, clamped to [min,max], steppable with
+        // the Up/Down arrow keys and the mouse wheel. Returns get/set so a spinner can drive the same value.
+        private static (Func<int> Get, Action<int> Set) NumericField(TextBox box, int min, int max)
+        {
+            int Get() => int.TryParse(box.Text?.Trim(), out int n) ? Math.Min(Math.Max(n, min), max) : min;
+            void Set(int n)
+            {
+                n = Math.Min(Math.Max(n, min), max);
+                box.Text = n.ToString();
+                box.CaretIndex = box.Text.Length;
+            }
+            box.PreviewTextInput += (_, ev) => ev.Handled = !ev.Text.All(char.IsDigit);
+            DataObject.AddPastingHandler(box, (_, ev) =>
+            {
+                if (ev.DataObject.GetData(typeof(string)) is string s && !s.All(char.IsDigit))
+                    ev.CancelCommand();
+            });
+            box.PreviewKeyDown += (_, ev) =>
+            {
+                if (ev.Key == Key.Up)   { Set(Get() + 1); ev.Handled = true; }
+                if (ev.Key == Key.Down) { Set(Get() - 1); ev.Handled = true; }
+            };
+            box.PreviewMouseWheel += (_, ev) => { Set(Get() + (ev.Delta > 0 ? 1 : -1)); ev.Handled = true; };
+            box.LostFocus += (_, _) => Set(Get());
+            return (Get, Set);
+        }
+
+        // Two stacked up/down stepper buttons (each half the field height) bound to the given get/set, sized to
+        // sit flush against the right edge of a field inside a DockPanel/StackPanel row.
+        private static Grid BuildStepper(Func<int> get, Action<int> set)
+        {
+            var g = new Grid { Width = 18, Margin = new Thickness(-1, 0, 0, 0) };
+            g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            System.Windows.Controls.Primitives.RepeatButton Step(string glyph, int delta, int row)
+            {
+                var b = new System.Windows.Controls.Primitives.RepeatButton
+                {
+                    Content         = glyph,
+                    Padding         = new Thickness(0),
+                    FontSize        = 7,
+                    Foreground      = R("TextPrimary"),
+                    Background      = R("BgCanvas"),
+                    BorderBrush     = R("BorderDim"),
+                    BorderThickness = new Thickness(1),
+                    Cursor          = Cursors.Hand,
+                    Focusable       = false
+                };
+                b.Click += (_, _) => set(get() + delta);
+                Grid.SetRow(b, row);
+                return b;
+            }
+            g.Children.Add(Step("▲", +1, 0));
+            g.Children.Add(Step("▼", -1, 1));
+            return g;
+        }
+
 
         private static ControlTemplate MakeTextBoxTemplate()
         {
@@ -387,7 +444,8 @@ namespace KillerPDF
             ApplyComboStyle(orient);
             orient.Items.Add(S("Str_Print_Portrait"));
             orient.Items.Add(S("Str_Print_Landscape"));
-            orient.SelectedIndex = 0;
+            _landscape = App.GetSetting("PrintLandscape") == "1";   // restore last orientation
+            orient.SelectedIndex = _landscape ? 1 : 0;
             orient.SelectionChanged += (s, _) =>
             {
                 _landscape = ((ComboBox)s).SelectedIndex == 1;
@@ -403,7 +461,8 @@ namespace KillerPDF
             ApplyComboStyle(colorMode);
             colorMode.Items.Add(S("Str_Print_Color"));
             colorMode.Items.Add(S("Str_Print_BW"));
-            colorMode.SelectedIndex = 0;
+            _grayscale = App.GetSetting("PrintGrayscale") == "1";   // restore last color choice
+            colorMode.SelectedIndex = _grayscale ? 1 : 0;
             colorMode.SelectionChanged += (s, _) => _grayscale = ((ComboBox)s).SelectedIndex == 1;
             panel.Children.Add(colorMode);
 
@@ -480,36 +539,44 @@ namespace KillerPDF
             _scaleBox = new TextBox
             {
                 Text         = "100",
-                Width        = 56,
                 Background    = R("BgCanvas"),
                 Foreground    = R("TextPrimary"),
                 BorderBrush   = R("BorderDim"),
                 Padding       = new Thickness(6, 4, 6, 4),
+                VerticalContentAlignment = VerticalAlignment.Center,
                 ToolTip       = S("Str_Print_ScaleHint")
             };
+            StyleTextBox(_scaleBox);
+            // Same numeric treatment as Copies: digits only, 1-1000 %, arrow-key / wheel / spinner stepping.
+            var (getScale, setScale) = NumericField(_scaleBox, 1, 1000);
             _scaleBox.TextChanged += (s, _) =>
             {
-                var t = ((TextBox)s).Text?.Trim().TrimEnd('%', ' ');
-                if (double.TryParse(t, out double p) && p > 0)
+                if (int.TryParse(((TextBox)s).Text?.Trim(), out int p) && p > 0)
                 {
                     _customPct = p;
                     if (_scaleMode == 2) UpdatePreview();
                 }
             };
-            StyleTextBox(_scaleBox);
 
-            var scaleRow = new StackPanel
+            // Full-width row matching the Copies field: the box fills the column, with the stepper and the
+            // "%" suffix docked at the right edge.
+            var scaleRow = new DockPanel
             {
-                Orientation = Orientation.Horizontal,
-                Margin      = new Thickness(0, 0, 0, 12),
-                Visibility  = Visibility.Collapsed
+                Margin        = new Thickness(0, 0, 0, 12),
+                LastChildFill = true,
+                Visibility    = Visibility.Collapsed
             };
-            scaleRow.Children.Add(_scaleBox);
-            scaleRow.Children.Add(new TextBlock
+            var scalePct = new TextBlock
             {
                 Text = "%", Foreground = R("TextSecondary"),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0)
-            });
+            };
+            DockPanel.SetDock(scalePct, Dock.Right);
+            var scaleSpin = BuildStepper(getScale, setScale);
+            DockPanel.SetDock(scaleSpin, Dock.Right);
+            scaleRow.Children.Add(scalePct);    // rightmost
+            scaleRow.Children.Add(scaleSpin);   // left of %
+            scaleRow.Children.Add(_scaleBox);   // fills the rest of the column width
             var scaleSlide = new TranslateTransform();
             scaleRow.RenderTransform = scaleSlide;
 
@@ -542,14 +609,24 @@ namespace KillerPDF
             _copiesBox = new TextBox
             {
                 Text        = "1",
-                Margin      = new Thickness(0, 4, 0, 12),
                 Background   = R("BgCanvas"),
                 Foreground   = R("TextPrimary"),
                 BorderBrush  = R("BorderDim"),
-                Padding      = new Thickness(6, 4, 6, 4)
+                Padding      = new Thickness(6, 4, 6, 4),
+                VerticalContentAlignment = VerticalAlignment.Center
             };
             StyleTextBox(_copiesBox);
-            panel.Children.Add(_copiesBox);
+            // Copies is replicated `copies` times in DoPrint, so 1 means exactly one printout; min 1.
+            var (getCopies, setCopies) = NumericField(_copiesBox, 1, 9999);
+
+            // Stepper flush against the right edge of the full-width field, so the row lines up with the
+            // Printer / Pages fields above and below it.
+            var copiesSpin = BuildStepper(getCopies, setCopies);
+            var copiesRow = new DockPanel { Margin = new Thickness(0, 4, 0, 12), LastChildFill = true };
+            DockPanel.SetDock(copiesSpin, Dock.Right);
+            copiesRow.Children.Add(copiesSpin);   // docked right, full field height
+            copiesRow.Children.Add(_copiesBox);   // fills the rest of the column width
+            panel.Children.Add(copiesRow);
 
             panel.Children.Add(Label(S("Str_Print_Pages")));
             _pagesBox = new TextBox
@@ -577,6 +654,7 @@ namespace KillerPDF
             _duplexCheck.Margin = new Thickness(0, 2, 0, 14);
             _duplexCheck.Checked   += (_, _) => _duplex = true;
             _duplexCheck.Unchecked += (_, _) => _duplex = false;
+            _duplexCheck.IsChecked = App.GetSetting("PrintDuplex") == "1";   // restore; cleared below if unsupported
             panel.Children.Add(_duplexCheck);
             UpdateDuplexAvailability();
 
@@ -712,7 +790,9 @@ namespace KillerPDF
 
             foreach (var q in _queues) _printerCombo.Items.Add(q.FullName);
 
-            int sel = def != null ? _queues.FindIndex(q => q.FullName == def.FullName) : 0;
+            string? savedPrinter = App.GetSetting("PrintPrinter");
+            int sel = !string.IsNullOrEmpty(savedPrinter) ? _queues.FindIndex(q => q.FullName == savedPrinter) : -1;
+            if (sel < 0) sel = def != null ? _queues.FindIndex(q => q.FullName == def.FullName) : 0;
             if (_queues.Count > 0)
             {
                 _printerCombo.SelectedIndex = sel >= 0 ? sel : 0;
@@ -864,6 +944,19 @@ namespace KillerPDF
             return sp;
         }
 
+        // Persists the device-level print choices so the dialog reopens with the user's last setup.
+        private void SavePrintPrefs()
+        {
+            try
+            {
+                if (_queue != null) App.SetSetting("PrintPrinter", _queue.FullName);
+                App.SetSetting("PrintLandscape", _landscape ? "1" : "0");
+                App.SetSetting("PrintGrayscale", _grayscale ? "1" : "0");
+                App.SetSetting("PrintDuplex",    _duplex     ? "1" : "0");
+            }
+            catch { /* settings are best-effort */ }
+        }
+
         private void DoPrint()
         {
             if (_queue == null)
@@ -883,6 +976,8 @@ namespace KillerPDF
 
             int.TryParse(_copiesBox.Text?.Trim(), out int copies);
             if (copies < 1) copies = 1;
+
+            SavePrintPrefs();   // remember printer / orientation / color / two-sided for next time
 
             try
             {

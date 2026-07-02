@@ -563,6 +563,7 @@ namespace KillerPDF
         // the remaining entries are stubs until their commands land (Region, Searchable PDF, Extract Text).
         private void OcrMenu_Click(object sender, RoutedEventArgs e)
         {
+            e.Handled = true;   // also fired by right-click on the OCR button; don't let it bubble
             var menu = MakeThemedMenu();
             if (_doc is null)
             {

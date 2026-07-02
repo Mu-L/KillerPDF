@@ -802,6 +802,7 @@ namespace KillerPDF
         // Dropdown next to the Open button: the recent-files list.
         private void OpenRecent_Click(object sender, RoutedEventArgs e)
         {
+            e.Handled = true;   // also fired by right-click on the Open button; don't let it bubble
             var menu = new ContextMenu();
             TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
             TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
@@ -1082,6 +1083,7 @@ namespace KillerPDF
         // Dropdown next to the Save button: explicit Save / Save As.
         private void SaveMenu_Click(object sender, RoutedEventArgs e)
         {
+            e.Handled = true;   // also fired by right-click on the Save button; don't let it bubble
             var menu = new ContextMenu();
             TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
             TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
