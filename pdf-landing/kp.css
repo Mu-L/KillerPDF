@@ -192,11 +192,12 @@ html[data-theme="light"] .tb-nav a { text-shadow: none; }
 .about-card b { color: var(--text); }
 .about-card a { color: var(--accent); font-weight: 600; }
 .about-quote { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; margin: 4px 0 14px; color: var(--text2); font-style: italic; font-size: 15px; }
-.contact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 4px; }
+.contact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 10px; margin-top: 4px; }
 .contact-grid a { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-size: 13.5px; font-weight: 600; transition: border-color 0.15s, transform 0.1s; }
 .contact-grid a:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); transform: translateY(-2px); filter: none; }
 .contact-grid svg { width: 18px; height: 18px; fill: var(--accent); flex-shrink: 0; }
-.contact-grid .sub { display: block; font-size: 11px; font-weight: 400; color: var(--muted); font-family: Consolas, monospace; }
+.contact-grid a > span { min-width: 0; }
+.contact-grid .sub { display: block; font-size: 11px; font-weight: 400; color: var(--muted); font-family: Consolas, monospace; overflow-wrap: break-word; }
 
 /* ============ Technical page ============ */
 .tech-sec { margin-bottom: 30px; scroll-margin-top: 74px; }
