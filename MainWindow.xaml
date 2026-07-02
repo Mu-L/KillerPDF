@@ -2371,8 +2371,8 @@
                     <!-- Links: behaviour toggles for PDF hyperlinks. Plain checkboxes (not the picker
                          accordion the other sections use) since these are independent on/off switches;
                          more toggles drop straight in under this subheader. -->
-                    <TextBlock Text="Links" Style="{StaticResource SettingsSubheader}" Margin="0,12,0,8"/>
-                    <CheckBox x:Name="LinkConfirmCheck" Content="Confirm before opening links"
+                    <TextBlock Text="{DynamicResource Str_LinksSection}" Style="{StaticResource SettingsSubheader}" Margin="0,12,0,8"/>
+                    <CheckBox x:Name="LinkConfirmCheck" Content="{DynamicResource Str_LinkConfirmSetting}"
                               Style="{StaticResource ThemeCheck}"
                               Checked="LinkConfirmCheck_Toggled" Unchecked="LinkConfirmCheck_Toggled"/>
                 </StackPanel>

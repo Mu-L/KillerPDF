@@ -51,9 +51,9 @@ namespace KillerPDF
             if (App.GetSetting(SkipLinkConfirmSetting) == "1") return true;
             var (result, dontAsk) = KillerDialog.ShowWithCheckbox(
                 this,
-                $"Open this link in your browser?\n\n{url}",
-                "Don't ask again",
-                "Open link?",
+                $"{Loc("Str_LinkConfirmBody")}\n\n{url}",
+                Loc("Str_LinkDontAsk"),
+                Loc("Str_LinkConfirmTitle"),
                 MessageBoxButton.OKCancel);
             if (result != MessageBoxResult.OK) return false;
             if (dontAsk) App.SetSetting(SkipLinkConfirmSetting, "1");
@@ -123,7 +123,7 @@ namespace KillerPDF
             string url = NormalizeLinkUri(raw);
             if (!IsAllowedLinkUri(url))
             {
-                SetStatus($"Blocked link (unsupported type): {raw}");
+                SetStatus($"{Loc("Str_LinkBlocked")} {raw}");
                 return;
             }
 
@@ -136,7 +136,7 @@ namespace KillerPDF
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Open link failed: {ex}");
-                SetStatus("Couldn't open link");
+                SetStatus(Loc("Str_LinkOpenFailed"));
             }
         }
 
@@ -146,16 +146,16 @@ namespace KillerPDF
         // view canvas menu so both views offer the same actions.
         private void AddLinkMenuItems(ContextMenu menu, object target, int annotIndex, int pageIndex)
         {
-            menu.Items.Add(MakeMenuItem("Open Link", (_, _) => FollowLinkTarget(target)));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OpenLink"), (_, _) => FollowLinkTarget(target)));
             if (target is string uri)
             {
                 if (uri.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
-                    menu.Items.Add(MakeMenuItem("Copy Email Address", (_, _) => TrySetClipboard(uri["mailto:".Length..])));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyEmail"), (_, _) => TrySetClipboard(uri["mailto:".Length..])));
                 else
-                    menu.Items.Add(MakeMenuItem("Copy Link Address", (_, _) => TrySetClipboard(uri)));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyLink"), (_, _) => TrySetClipboard(uri)));
             }
             if (annotIndex >= 0)
-                menu.Items.Add(MakeMenuItem("Remove Link from PDF", (_, _) => RemoveLinkAnnotation(pageIndex, annotIndex)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RemoveLink"), (_, _) => RemoveLinkAnnotation(pageIndex, annotIndex)));
         }
 
         // Clipboard COM calls throw when another app is holding the clipboard open; swallow so a copy
@@ -522,7 +522,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Remove link failed:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(this, $"{Loc("Str_LinkRemoveFailed")}\n{ex.Message}", "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
