@@ -9,13 +9,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Added
 - On quit with documents open, KillerPDF asks whether to reopen them next launch, with a "remember my choice" option (#105).
 - Enter and Esc now confirm and cancel dialogs (#111).
+- Right-clicking the Open, Save, and OCR toolbar buttons opens their dropdown menu (#109, thanks Ryokoxx).
+- Copies and custom Scale in the print dialog are numeric fields with an up/down spinner, arrow-key and wheel stepping (#109, thanks Ryokoxx).
+- The print dialog remembers the last printer, orientation, color, and two-sided choice (#109, thanks Ryokoxx).
+- Improved German translation (#114, thanks Mr-Update).
+
+### Changed
+- Mouse wheel scrolling is faster in all view modes and the page sidebar.
 
 ### Fixed
+- Continuous view stays sharp when zooming in and on high-DPI displays; visible pages re-render at a higher resolution (#85).
 - Open menu: the remove (X) button on each recent-files entry was clipped off the right edge of the dropdown; it now stays inside the frame.
 - Crash when saving a freshly merged or imported PDF (#112).
 - Save failing with "Cannot retrieve stream length"; the file is now recovered automatically (#106).
 - Startup crash on older Windows 10 / .NET Framework builds (#101).
-- Toolbar dropdown carets (Recent files, Save, OCR) missing on Windows 10 (#104, #108, thanks Ryokoxx).
+- Toolbar dropdown carets (Recent files, Save, OCR) missing on Windows 10 (#104, #108, thanks again Ryokoxx).
 - Extra copy when printing multiple copies on some printers (#83, #107).
 
 ## [1.6.0] - 2026-06-27
