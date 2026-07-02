@@ -408,7 +408,7 @@ namespace KillerPDF
             {
                 // One page of margin either side so a small scroll stays sharp.
                 if (visible[0] > 0) visible.Insert(0, visible[0] - 1);
-                if (visible[visible.Count - 1] < _continuousTops.Count - 1) visible.Add(visible[visible.Count - 1] + 1);
+                if (visible[^1] < _continuousTops.Count - 1) visible.Add(visible[^1] + 1);
             }
 
             // Below ~1.25x the base budget the re-raster isn't visibly sharper; restore-only pass.
