@@ -43,6 +43,9 @@ namespace KillerPDF
         private ViewMode _viewMode = ViewMode.Continuous;
         private readonly StackPanel _continuousPanel = null!;
         private System.Threading.CancellationTokenSource? _continuousRenderCts;
+        private System.Threading.CancellationTokenSource? _continuousSharpenCts;   // #85 visible-page re-sharpen
+        private readonly HashSet<int> _continuousSharpPages = [];   // slots currently holding a hi-res bitmap
+        private int _continuousSharpW;                              // budget those slots were sharpened at
         private readonly List<double> _continuousTops = [];
         private int _gridScrollToPage = -1;   // page to scroll to once its grid tile streams in (-1 = none)
         private int _continuousScrollTarget = -1;  // re-scroll here once its true height is known

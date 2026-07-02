@@ -47,8 +47,9 @@ namespace KillerPDF
 
         private void PageList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // Same speed knob as the document viewport (WheelScrollFactor in Zoom.cs).
             SidebarScrollViewer?.ScrollToVerticalOffset(
-                SidebarScrollViewer.VerticalOffset - e.Delta / 3.0);
+                SidebarScrollViewer.VerticalOffset - e.Delta * (48.0 / 120.0) * WheelScrollFactor);
             e.Handled = true;
         }
 

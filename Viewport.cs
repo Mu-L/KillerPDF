@@ -67,6 +67,11 @@ namespace KillerPDF
                 PageList.SelectedIndex = nearest;
                 PageList.SelectionChanged += PageList_SelectionChanged;
             }
+
+            // Once the scroll settles, sharpen the pages now in view (and release the ones that left).
+            // Cheap when there's nothing to do: below the hi-res threshold it's a restore-only pass over
+            // an (almost always empty) set (#85).
+            StartRerenderTimer();
         }
 
         // Common overlay wiring shared by the continuous and secondary-tile builders: the move/up
@@ -113,9 +118,8 @@ namespace KillerPDF
             return overlay;
         }
 
-        // Build tile-0 (the primary page) in code and insert it at the head of the page panel, replacing the
-        // former hardcoded XAML PageImage + AnnotationCanvas singleton. Wiring mirrors the old XAML attributes
-        // exactly: left-down/move/leave/left-up, plus the attached ContextMenu set later in BuildContextMenu.
+        // Build tile-0 (the primary page) and insert it at the head of the page panel. Wiring:
+        // left-down/move/leave/left-up, plus the attached ContextMenu set later in BuildContextMenu.
         // It deliberately does NOT use WirePageOverlay - the primary must stay OUT of _continuousCanvases, and
         // RenderPage remains the sole registrar of _pages[primary], preserving ClearSecondaryPages' "keep the
         // index-0 tile" contract. Runs once from the constructor after _pageContentPanel is resolved.
@@ -246,6 +250,11 @@ namespace KillerPDF
             _continuousRenderCts = new System.Threading.CancellationTokenSource();
             var cts = _continuousRenderCts;
 
+            // A full base pass repaints every slot, so any hi-res re-sharpen state is stale (#85).
+            _continuousSharpenCts?.Cancel();
+            _continuousSharpPages.Clear();
+            _continuousSharpW = 0;
+
             string currentFile = _currentFile;
             int pageCount      = _doc.PageCount;
             double targetW     = _continuousPageW;
@@ -363,6 +372,105 @@ namespace KillerPDF
             }
 
             RenderAllAnnotations(fi);
+        }
+
+        // ── Continuous zoom re-sharpen (#85) ─────────────────────────────────────────────────────────
+        // The continuous base pass renders every page at a fixed fit-width budget, so on high-DPI
+        // displays or deep zoom the upscaled bitmap goes soft (and, unlike Single mode, nothing ever
+        // re-rendered it - RenderPage is guarded off in Continuous). This re-renders ONLY the pages
+        // near the viewport at a DPI- and zoom-aware budget and swaps them into their slots. Slots that
+        // scroll away are restored to the cached base render, so hi-res bitmaps never accumulate beyond
+        // the visible window; the hi-res bitmaps are deliberately NOT put in the render cache for the
+        // same reason. Debounced via _rerenderTimer (zoom settle + scroll settle).
+        private void ResharpenContinuousVisible()
+        {
+            if (_viewMode != ViewMode.Continuous || _doc is null || _currentFile is null) return;
+            if (_continuousTops.Count == 0 || _continuousPanel.Children.Count == 0) return;
+
+            double targetW = _continuousPageW;
+            int baseW = Math.Max(800, Math.Min(2048, (int)(targetW * 2)));
+            var dpiInfo = VisualTreeHelper.GetDpi(this);
+            double dpiScale = Math.Max(dpiInfo.DpiScaleX, dpiInfo.DpiScaleY);
+            int hiW = (int)Math.Min(4096, targetW * 2 * dpiScale * Math.Max(1.0, _zoomLevel));
+
+            // Visible slot range. Slot space is zoom-independent (the LayoutTransform supplies the
+            // zoom), so divide the scroll offsets back down - same mapping ScrollChanged uses.
+            double viewTop = PagePreviewPanel.VerticalOffset / Math.Max(0.01, _zoomLevel);
+            double viewBot = (PagePreviewPanel.VerticalOffset + PagePreviewPanel.ViewportHeight) / Math.Max(0.01, _zoomLevel);
+            var visible = new List<int>();
+            for (int i = 0; i < _continuousTops.Count && i < _continuousPanel.Children.Count; i++)
+            {
+                double top = _continuousTops[i];
+                double bot = top + ((FrameworkElement)_continuousPanel.Children[i]).Height;
+                if (bot >= viewTop && top <= viewBot) visible.Add(i);
+            }
+            if (visible.Count > 0)
+            {
+                // One page of margin either side so a small scroll stays sharp.
+                if (visible[0] > 0) visible.Insert(0, visible[0] - 1);
+                if (visible[visible.Count - 1] < _continuousTops.Count - 1) visible.Add(visible[visible.Count - 1] + 1);
+            }
+
+            // Below ~1.25x the base budget the re-raster isn't visibly sharper; restore-only pass.
+            bool wantHi = hiW >= (int)(baseW * 1.25);
+
+            _continuousSharpenCts?.Cancel();
+            _continuousSharpenCts = new System.Threading.CancellationTokenSource();
+            var cts = _continuousSharpenCts;
+
+            // Pages sharpened earlier that scrolled away (or aren't wanted at this zoom): swap the
+            // cached base render back in so their hi-res bitmaps get collected. Cache miss = leave it.
+            var session = _active;
+            foreach (int p in _continuousSharpPages.ToList())
+            {
+                if (wantHi && visible.Contains(p)) continue;
+                int rot = _pageRotations.TryGetValue(p, out int rr) ? rr : 0;
+                var baseBmp = TryGetCachedRender(session, p, baseW, rot);
+                if (baseBmp != null) SetContinuousSlot(p, baseBmp);
+                _continuousSharpPages.Remove(p);
+            }
+            if (!wantHi) return;
+
+            // Zoom changed since the last pass: every sharpened slot is at the wrong budget, redo them.
+            bool budgetChanged = hiW != _continuousSharpW;
+            _continuousSharpW = hiW;
+            var work = visible.Where(p => budgetChanged || !_continuousSharpPages.Contains(p)).ToList();
+            if (work.Count == 0) return;
+
+            string currentFile = _currentFile;
+            var rotations = new Dictionary<int, int>(_pageRotations);
+            _ = System.Threading.Tasks.Task.Run(() =>
+            {
+                Docnet.Core.Readers.IDocReader? docReader = null;
+                try
+                {
+                    foreach (int p in work)
+                    {
+                        if (cts.IsCancellationRequested) return;
+                        docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(hiW, hiW * 2));
+                        using var pr = docReader.GetPageReader(p);
+                        int w = pr.GetPageWidth(), h = pr.GetPageHeight();
+                        var raw = pr.GetImage();
+                        if (w <= 0 || h <= 0 || raw is null) continue;
+                        int rot = rotations.TryGetValue(p, out int rr) ? rr : 0;
+                        if (rot != 0) (raw, w, h) = RotateBitmap(raw, w, h, rot);
+
+                        int fp = p, fw = w, fh = h;
+                        byte[] bytes = raw;
+                        if (cts.IsCancellationRequested) return;
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (cts.IsCancellationRequested || _viewMode != ViewMode.Continuous) return;
+                            int ddw = Math.Max(1, (int)Math.Round(targetW));
+                            int ddh = Math.Max(1, (int)Math.Round(targetW * fh / (double)fw));
+                            SetContinuousSlot(fp, BuildScaledBitmap(fw, fh, bytes, ddw, ddh));
+                            _continuousSharpPages.Add(fp);
+                        });
+                    }
+                }
+                catch { /* cancelled or doc closed */ }
+                finally { docReader?.Dispose(); }
+            }, cts.Token);
         }
 
         private void RenderPage(int pageIndex)
@@ -895,25 +1003,37 @@ namespace KillerPDF
             // hits its pixel cap when zoomed in, shifts page 0's render width - which is the basis for
             // the grid's column math. That desync locks Ctrl+scroll to a 1<->2 column toggle. The grid
             // is an overview and doesn't need the re-sharpen.
-            if (applyIdx >= 0 && _zoomLevel > _lastRenderZoom * 1.10 && _doc is not null
-                && _viewMode != ViewMode.Grid)
+            // Continuous re-sharpens on ANY zoom change (zoom-in sharpens the visible pages, zoom-out
+            // restores base bitmaps so hi-res memory is released); the other modes only on a >10% zoom-in.
+            if (applyIdx >= 0 && _doc is not null && _viewMode != ViewMode.Grid
+                && (_viewMode == ViewMode.Continuous || _zoomLevel > _lastRenderZoom * 1.10))
             {
-                if (_rerenderTimer is null)
-                {
-                    _rerenderTimer = new System.Windows.Threading.DispatcherTimer
-                        { Interval = TimeSpan.FromMilliseconds(250) };
-                    _rerenderTimer.Tick += (_, _) =>
-                    {
-                        _rerenderTimer!.Stop();
-                        // Never re-render the primary in Grid (it would shift page 0's width basis and
-                        // desync the column math); guards a timer started just before a switch into grid.
-                        if (_doc is not null && _viewMode != ViewMode.Grid && PageList.SelectedIndex >= 0)
-                            RenderPage(PageList.SelectedIndex);
-                    };
-                }
-                _rerenderTimer.Stop();
-                _rerenderTimer.Start();
+                StartRerenderTimer();
             }
+        }
+
+        // Debounced high-resolution re-render, shared by zoom settle (all modes) and continuous scroll
+        // settle. Continuous gets the targeted visible-page re-sharpen (#85); Single/Two-Page re-render
+        // the primary via RenderPage (which is guarded off in Continuous).
+        private void StartRerenderTimer()
+        {
+            if (_rerenderTimer is null)
+            {
+                _rerenderTimer = new System.Windows.Threading.DispatcherTimer
+                    { Interval = TimeSpan.FromMilliseconds(250) };
+                _rerenderTimer.Tick += (_, _) =>
+                {
+                    _rerenderTimer!.Stop();
+                    if (_doc is null) return;
+                    if (_viewMode == ViewMode.Continuous) { ResharpenContinuousVisible(); return; }
+                    // Never re-render the primary in Grid (it would shift page 0's width basis and
+                    // desync the column math); guards a timer started just before a switch into grid.
+                    if (_viewMode != ViewMode.Grid && PageList.SelectedIndex >= 0)
+                        RenderPage(PageList.SelectedIndex);
+                };
+            }
+            _rerenderTimer.Stop();
+            _rerenderTimer.Start();
         }
 
         private void ResetZoom() => SetZoom(1.0);

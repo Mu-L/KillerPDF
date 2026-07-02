@@ -57,12 +57,14 @@ namespace KillerPDF
             }
 
             // Regular scroll. Grid and Continuous are a single scroll over the WHOLE document, so the
-            // wheel must never be hijacked for page navigation there - just let the ScrollViewer
-            // scroll. This is the fix for grid refusing to scroll: right after a zoom/column change
-            // the extent can momentarily measure as zero, and the old page-nav fallback below would
-            // fire instead of scrolling (and stick until a theme/view-mode switch forced a re-measure).
+            // wheel must never be hijacked for page navigation there - it always scrolls. (Page-nav
+            // hijacking here was the old grid-refuses-to-scroll bug: right after a zoom/column change
+            // the extent can momentarily measure as zero and the nav fallback fired instead.)
             if (_viewMode == ViewMode.Grid || _viewMode == ViewMode.Continuous)
+            {
+                ScrollWheel(e);
                 return;
+            }
 
             // Single / Two-Page: a page often fits the viewport, so at the scroll boundary fall
             // through to page navigation so the user can reach adjacent pages without the sidebar.
@@ -79,8 +81,22 @@ namespace KillerPDF
             {
                 e.Handled = true;
                 NavigatePageByWheel(e.Delta);
+                return;
             }
-            // Otherwise let the ScrollViewer scroll naturally.
+            ScrollWheel(e);
+        }
+
+        // The ScrollViewer default (3 lines = 48 DIP per wheel notch) feels slow on tall documents,
+        // so scroll WheelScrollFactor times that instead. e.Delta is +-120 per notch on a standard
+        // wheel (precision touchpads send smaller, more frequent deltas, which scale the same way).
+        // ScrollToVerticalOffset clamps to the valid range itself.
+        private const double WheelScrollFactor = 3.0;
+
+        private void ScrollWheel(MouseWheelEventArgs e)
+        {
+            e.Handled = true;
+            PagePreviewPanel.ScrollToVerticalOffset(
+                PagePreviewPanel.VerticalOffset - e.Delta * (48.0 / 120.0) * WheelScrollFactor);
         }
 
         // Walks up the visual tree from the press's hit element to see if it landed on the scrollbar
