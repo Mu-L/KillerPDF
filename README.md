@@ -69,7 +69,7 @@ KillerPDF is what I wanted: local-only, portable, no account, no telemetry. The 
 
 ### App & files
 
-- Single portable Windows EXE, ~6 MB zipped, no runtime install
+- Single portable Windows EXE, ~14.62 MB, no runtime install
 - Self-installs per-user to %LOCALAPPDATA% (no UAC), registers as a PDF handler with a branded file icon, and uninstalls cleanly via Add/Remove Programs
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
 - Local-only: no account, no telemetry, no phone-home
