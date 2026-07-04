@@ -86,7 +86,7 @@ namespace KillerPDF
                 var wm = new StackPanel { Orientation = Orientation.Horizontal };
                 var wmTb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextPrimary") });
-                wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 18, Foreground = R("AccentLogo") });
+                wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 19.5, Foreground = R("AccentLogo") });
                 wm.Children.Add(wmTb);
                 // No DropShadowEffect on the text - it rasterizes and blurs the wordmark. Kept crisp.
                 titleBar.Child = wm;
@@ -244,7 +244,7 @@ namespace KillerPDF
             {
                 var wmTb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextPrimary") });
-                wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 18, Foreground = R("AccentLogo") });
+                wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 19.5, Foreground = R("AccentLogo") });
                 titleBar.Child = wmTb;
             }
             else
@@ -315,6 +315,140 @@ namespace KillerPDF
         {
             var result = Show(owner, message, title, buttons, checkboxText: checkboxText, defaultResult: defaultResult);
             return (result, _lastCheckboxChecked);
+        }
+
+        /// <summary>
+        /// KillerFind-style quit prompt (family standard): a short question with TWO opt-out
+        /// checkboxes stacked between the message and the buttons - "Close my open tabs"
+        /// (unchecked = session reopens next launch) and "Remember my choice" - plus
+        /// Cancel / Quit buttons where Quit is the accent + Enter default and Esc cancels.
+        /// Returns (confirmed, closeTabsChecked, rememberChecked).
+        /// </summary>
+        public static (bool confirmed, bool closeTabs, bool remember) ShowQuitPrompt(
+            Window? owner,
+            string message,
+            string closeTabsText,
+            bool closeTabsInitial,
+            string rememberText,
+            string quitLabel,
+            string cancelLabel)
+        {
+            bool confirmed = false;
+            bool closeTabs = closeTabsInitial;
+            bool remember  = false;
+
+            var win = new Window { Title = "KillerPDF", Width = 380, SizeToContent = SizeToContent.Height };
+            // fade:false - the app's own fade-out follows immediately on confirm; two fades
+            // back-to-back read as lag (same reasoning as the unsaved-changes prompt).
+            DialogChrome.Configure(win, owner, fade: false);
+
+            var outerBorder = new Border
+            {
+                Background = R("BgModal"),
+                BorderBrush = R("AccentBorder"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(10),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 18,
+                    ShadowDepth = 3,
+                    Direction = 270,
+                    Opacity = 0.6
+                }
+            };
+
+            var root = new StackPanel();
+
+            // Title bar: the wordmark, exactly like Show()'s "KillerPDF" branch.
+            var titleBar = new Border
+            {
+                Background = Brushes.Transparent,
+                Padding = new Thickness(16, 10, 16, 10),
+                CornerRadius = new CornerRadius(5, 5, 0, 0)
+            };
+            titleBar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
+            var wm = new StackPanel { Orientation = Orientation.Horizontal };
+            var wmTb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextPrimary") });
+            wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 18, Foreground = R("AccentLogo") });
+            wm.Children.Add(wmTb);
+            titleBar.Child = wm;
+            root.Children.Add(titleBar);
+
+            root.Children.Add(new Border
+            {
+                Padding = new Thickness(20, 16, 20, 8),
+                Child = new TextBlock
+                {
+                    Text = message,
+                    Foreground = R("TextPrimary"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap
+                }
+            });
+
+            var chk1 = UiKit.CheckBox(closeTabsText);
+            chk1.Margin = new Thickness(20, 10, 20, 0);
+            chk1.IsChecked = closeTabsInitial;
+            chk1.Checked   += (_, _2) => closeTabs = true;
+            chk1.Unchecked += (_, _2) => closeTabs = false;
+            root.Children.Add(chk1);
+
+            var chk2 = UiKit.CheckBox(rememberText);
+            chk2.Margin = new Thickness(20, 8, 20, 4);
+            chk2.Checked   += (_, _2) => remember = true;
+            chk2.Unchecked += (_, _2) => remember = false;
+            root.Children.Add(chk2);
+
+            var btnPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            var cancelBtn = UiKit.Make(cancelLabel, false);
+            cancelBtn.Margin   = new Thickness(8, 0, 0, 0);
+            cancelBtn.IsCancel = true;
+            cancelBtn.Click   += (_, _2) => win.Close();
+            var quitBtn = UiKit.Make(quitLabel, true);
+            quitBtn.Margin    = new Thickness(8, 0, 0, 0);
+            quitBtn.IsDefault = true;
+            quitBtn.Click    += (_, _2) => { confirmed = true; win.Close(); };
+            btnPanel.Children.Add(cancelBtn);
+            btnPanel.Children.Add(quitBtn);
+            root.Children.Add(new Border
+            {
+                Padding = new Thickness(16, 12, 16, 16),
+                Child = btnPanel
+            });
+
+            // Film grain across the whole card, same as Show().
+            var contentGrid = new Grid();
+            var grain = (owner as MainWindow)?.GrainTexture;
+            if (grain is not null)
+            {
+                double grainOpacity = Application.Current.Resources["GrainOpacity"] is double go ? go : 0.05;
+                contentGrid.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    IsHitTestVisible = false,
+                    Opacity = grainOpacity,
+                    Background = new System.Windows.Media.ImageBrush(grain)
+                    {
+                        TileMode = System.Windows.Media.TileMode.Tile,
+                        ViewportUnits = System.Windows.Media.BrushMappingMode.Absolute,
+                        Viewport = new Rect(0, 0, 256, 256),
+                        Stretch = System.Windows.Media.Stretch.None
+                    }
+                });
+            }
+            contentGrid.Children.Add(root);
+            outerBorder.Child = contentGrid;
+
+            win.Content = outerBorder;
+            win.ShowDialog();
+            return (confirmed, closeTabs, remember);
         }
 
     }

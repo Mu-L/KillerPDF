@@ -455,4 +455,10 @@ You can uninstall via Add/Remove Programs at any time.</sys:String>
     <sys:String x:Key="Str_KS_View">View</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Full screen</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Press F11 or Esc to exit full screen</sys:String>
+    <!-- KillerFind-style quit prompt (family standard) -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">Quit KillerPDF?</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">Close my open tabs</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">Quit</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">Cancel</sys:String>
+
 </ResourceDictionary>

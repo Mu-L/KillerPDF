@@ -37,7 +37,7 @@
     <SolidColorBrush x:Key="TextFooter"     Color="#3a8a5a" po:Freeze="True"/>
     <SolidColorBrush x:Key="DangerRed"      Color="#ff6666" po:Freeze="True"/>
     <SolidColorBrush x:Key="BgDragHandle"   Color="#4a8a64" po:Freeze="True"/>
-    <SolidColorBrush x:Key="DragLine"       Color="#0b3b23" po:Freeze="True"/>
+    <SolidColorBrush x:Key="DragLine"       Color="#0f3f27" po:Freeze="True"/>
     <SolidColorBrush x:Key="BgScrollThumb"  Color="#aae0d49a" po:Freeze="True"/>
     <SolidColorBrush x:Key="ScrollThumbHover" Color="#f2ead0" po:Freeze="True"/>
     <SolidColorBrush x:Key="SliderTrack"    Color="#00120b" po:Freeze="True"/>

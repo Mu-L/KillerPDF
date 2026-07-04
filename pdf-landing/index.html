@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script>/* Apply saved theme + accent before first paint to avoid a reload flash */(function(){try{var d=document.documentElement,t=localStorage.getItem('kpdf-theme');if(t){d.setAttribute('data-theme',t);if({dark:1,light:1,hc:1}[t]){var v=localStorage.getItem('kpdf-av');if(v){var s=v.split('|');d.style.setProperty('--accent',s[0]);d.style.setProperty('--btn',s[1]);}}}}catch(e){}})();</script>
+<link rel="preload" href="killerfont.woff2" as="font" type="font/woff2" crossorigin>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="darkreader-lock">
 <title>KillerPDF - Free, open-source PDF editor for Windows</title>
@@ -73,8 +74,8 @@
 .features { padding: 40px 0 24px; }
 .features h2 { font-family: 'TypewriterHead', 'Courier New', monospace; font-size: 24px; font-weight: normal; letter-spacing: .5px; color: var(--text); text-align: center; margin-bottom: 26px; }
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
-.feature-card { background: var(--modal) url('grain.png') repeat; background-size: 256px 256px; border: 1px solid var(--border); border-top: 2px solid var(--tab-edge); border-radius: 6px; padding: 18px 20px; transition: transform 0.12s, box-shadow 0.12s; }
-.feature-card:hover { transform: translateY(-3px); box-shadow: 0 14px 28px rgba(0,0,0,0.4); }
+.feature-card { background: var(--modal) url('grain.png') repeat; background-size: 256px 256px; border: 1px solid var(--pane-border); border-top: 2px solid var(--tab-edge); border-radius: 6px; padding: 18px 20px; transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s; }
+.feature-card:hover { transform: translateY(-3px); box-shadow: 0 14px 28px rgba(0,0,0,0.4); border-right-color: var(--dragline); border-bottom-color: var(--dragline); border-left-color: var(--dragline); }
 .feature-card h3 { font-family: 'TypewriterHead', 'Courier New', monospace; font-size: 15px; font-weight: normal; letter-spacing: .5px; margin-bottom: 8px; color: var(--accent); text-shadow: 0 2px 5px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.5); }
 html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { text-shadow: none; }
 .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.55; }
@@ -123,9 +124,9 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <a class="tb-dl" href="https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe"><svg viewBox="0 0 24 24"><path d="M11 4h2v7h3l-4 5-4-5h3V4zM5 18h14v2H5z"/></svg><span data-i18n="nav_dl">Download</span></a>
 <span class="tb-spacer"></span>
 <nav class="tb-nav">
-<a href="about.html" data-i18n="nav_about">About</a>
 <a href="help.html" data-i18n="nav_help">Help</a>
 <a href="technical.html" data-i18n="nav_tech">Technical</a>
+<a href="about.html" data-i18n="nav_about">About</a>
 </nav>
 <div class="tgrp" role="group" aria-label="Theme">
 <button class="swatch sw-dark"     data-theme="dark"     title="Dark"></button>
@@ -151,13 +152,13 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <button class="lang-toggle" id="langToggle" aria-haspopup="true" aria-expanded="false" title="Language" aria-label="Language">&#127760;</button>
 <div class="lang-menu" id="langMenu" hidden>
 <button class="lang-item" data-lang="en">English</button>
-<button class="lang-item" data-lang="es">Espanol</button>
+<button class="lang-item" data-lang="bn">&#2476;&#2494;&#2434;&#2482;&#2494;</button>
 <button class="lang-item" data-lang="de">Deutsch</button>
+<button class="lang-item" data-lang="es">Espanol</button>
 <button class="lang-item" data-lang="fr">Francais</button>
 <button class="lang-item" data-lang="tr">Turkce</button>
-<button class="lang-item" data-lang="zh">&#20013;&#25991; (&#32321;&#39636;)</button>
 <button class="lang-item" data-lang="zh-cn">&#20013;&#25991; (&#31616;&#20307;)</button>
-<button class="lang-item" data-lang="bn">&#2476;&#2494;&#2434;&#2482;&#2494;</button>
+<button class="lang-item" data-lang="zh">&#20013;&#25991; (&#32321;&#39636;)</button>
 </div>
 </div>
 </div>
@@ -233,9 +234,10 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <span class="right"><span id="verEgg" title="click me">v1.6.1</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
 </footer>
 
-<div class="lightbox" id="lightbox" hidden><img id="lightboxImg" src="" alt="KillerPDF screenshot"></div>
+<div class="lightbox" id="lightbox"><img id="lightboxImg" src="" alt="KillerPDF screenshot"></div>
 <div class="egg-toast" id="eggToast"></div>
 
+<script src="kp-i18n.js?v=1"></script>
 <script src="kp.js?v=3"></script>
 <script>
 (function () {
@@ -254,9 +256,9 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
     sbThumbs.appendChild(b);
   });
 
-  function openLightbox(src) { lightboxImg.src = src; lightbox.hidden = false; }
-  lightbox.addEventListener('click', function () { lightbox.hidden = true; });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') lightbox.hidden = true; });
+  function openLightbox(src) { lightboxImg.src = src; lightbox.classList.add('show'); }
+  lightbox.addEventListener('click', function () { lightbox.classList.remove('show'); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') lightbox.classList.remove('show'); });
 })();
 </script>
 </body>

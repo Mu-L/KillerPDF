@@ -532,33 +532,24 @@ namespace KillerPDF
                     return;
                 }
             }
-            // #105: on close with documents open, ask whether to forget them (privacy) or reopen them
-            // next launch. Yes = close and forget; No = close but reopen. "Remember my choice" locks the
-            // answer so we stop asking. The choice is honored by SaveWindowSettings via RememberOpenFiles.
-            // If dismissed without answering, nothing changes (default stays reopen, non-destructive).
+            // #105, KillerFind-style (family standard): ONE quit prompt with two opt-out
+            // checkboxes replaces the old Yes=forget / No=reopen question. Unchecked
+            // "Close my open tabs" = the session reopens next launch; "Remember my choice"
+            // locks the answer so we stop asking. Cancel keeps the app open.
             if (App.GetSetting("RememberChoiceLocked") != "1")
             {
-                int openDocs = _sessions
-                    .Select(ss => ss.OriginalFile)
-                    .Where(f => !string.IsNullOrEmpty(f) && System.IO.File.Exists(f))
-                    .Distinct()
-                    .Count();
-                if (openDocs > 0)
+                var (confirmed, closeTabs, remember) = KillerDialog.ShowQuitPrompt(this,
+                    Loc("Str_Dlg_QuitMsg"),
+                    Loc("Str_Chk_CloseTabs"), App.GetSetting("RememberOpenFiles") == "0",
+                    Loc("Str_Dlg_RememberChoice"),
+                    Loc("Str_Btn_Quit"), Loc("Str_Btn_CancelDlg"));
+                if (!confirmed)
                 {
-                    string closeMsg = openDocs == 1
-                        ? Loc("Str_Dlg_CloseAllDocsOne")
-                        : string.Format(Loc("Str_Dlg_CloseAllDocs"), openDocs);
-                    var (remRes, remember) = KillerDialog.ShowWithCheckbox(this,
-                        closeMsg,
-                        Loc("Str_Dlg_RememberChoice"),
-                        Loc("Str_Dlg_AppTitle"), MessageBoxButton.YesNo,
-                        defaultResult: MessageBoxResult.No);   // Enter = No (close but reopen next launch), the non-destructive choice
-                    if (remRes == MessageBoxResult.Yes || remRes == MessageBoxResult.No)
-                    {
-                        App.SetSetting("RememberOpenFiles", remRes == MessageBoxResult.Yes ? "0" : "1");
-                        if (remember) App.SetSetting("RememberChoiceLocked", "1");
-                    }
+                    e.Cancel = true;
+                    return;
                 }
+                App.SetSetting("RememberOpenFiles", closeTabs ? "0" : "1");
+                if (remember) App.SetSetting("RememberChoiceLocked", "1");
             }
             SaveWindowSettings();
             // Fade the whole app out before it really closes (matches the dialog fade-out).

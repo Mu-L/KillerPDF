@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script>/* Apply saved theme + accent before first paint to avoid a reload flash */(function(){try{var d=document.documentElement,t=localStorage.getItem('kpdf-theme');if(t){d.setAttribute('data-theme',t);if({dark:1,light:1,hc:1}[t]){var v=localStorage.getItem('kpdf-av');if(v){var s=v.split('|');d.style.setProperty('--accent',s[0]);d.style.setProperty('--btn',s[1]);}}}}catch(e){}})();</script>
+<link rel="preload" href="killerfont.woff2" as="font" type="font/woff2" crossorigin>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="darkreader-lock">
 <title>KillerPDF - Technical</title>
@@ -17,7 +18,7 @@
 .page-hero p { color: var(--muted); font-size: 15px; margin-top: 4px; }
 .content-inner { max-width: 860px; margin: 0 auto; padding: 0 28px 56px; }
 .tech-sec { scroll-margin-top: 84px; }
-.diagram { margin: 20px 0 6px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--modal); }
+.diagram { margin: 20px 0 6px; padding: 14px 16px; border: 1px solid var(--pane-border); border-radius: 10px; background: var(--modal); }
 .diagram svg { width: 100%; height: auto; display: block; }
 .diagram figcaption { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin-top: 10px; }
 @media (min-width: 901px){ .shell { grid-template-columns: 268px 1fr; } .frame-shadow { left: 268px; right: 0; border-left: 1px solid var(--dragline); border-right: 0; } }
@@ -43,9 +44,9 @@
 <a class="tb-dl" href="https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe"><svg viewBox="0 0 24 24"><path d="M11 4h2v7h3l-4 5-4-5h3V4zM5 18h14v2H5z"/></svg><span data-i18n="nav_dl">Download</span></a>
 <span class="tb-spacer"></span>
 <nav class="tb-nav">
-<a href="about.html" data-i18n="nav_about">About</a>
 <a href="help.html" data-i18n="nav_help">Help</a>
 <a href="technical.html" class="on" data-i18n="nav_tech">Technical</a>
+<a href="about.html" data-i18n="nav_about">About</a>
 </nav>
 <div class="tgrp" role="group" aria-label="Theme">
 <button class="swatch sw-dark"     data-theme="dark"     title="Dark"></button>
@@ -71,13 +72,13 @@
 <button class="lang-toggle" id="langToggle" aria-haspopup="true" aria-expanded="false" title="Language" aria-label="Language">&#127760;</button>
 <div class="lang-menu" id="langMenu" hidden>
 <button class="lang-item" data-lang="en">English</button>
-<button class="lang-item" data-lang="es">Espanol</button>
+<button class="lang-item" data-lang="bn">&#2476;&#2494;&#2434;&#2482;&#2494;</button>
 <button class="lang-item" data-lang="de">Deutsch</button>
+<button class="lang-item" data-lang="es">Espanol</button>
 <button class="lang-item" data-lang="fr">Francais</button>
 <button class="lang-item" data-lang="tr">Turkce</button>
-<button class="lang-item" data-lang="zh">&#20013;&#25991; (&#32321;&#39636;)</button>
 <button class="lang-item" data-lang="zh-cn">&#20013;&#25991; (&#31616;&#20307;)</button>
-<button class="lang-item" data-lang="bn">&#2476;&#2494;&#2434;&#2482;&#2494;</button>
+<button class="lang-item" data-lang="zh">&#20013;&#25991; (&#32321;&#39636;)</button>
 </div>
 </div>
 </div>
@@ -85,83 +86,87 @@
 <div class="frame-shadow" aria-hidden="true"></div>
 <div class="shell">
 <aside class="sidebar">
-<div class="sb-tabs"><span class="on">Technical</span></div>
+<div class="sb-tabs"><span class="on" data-i18n="pt_3">Technical</span></div>
 <nav class="outline">
-<a href="#stack" class="on">Tech stack</a>
-<a href="#install">Install &amp; data</a>
-<a href="#arch">Architecture</a>
-<a href="#coords">Coordinate space</a>
-<a href="#annots">Annotation model</a>
-<a href="#coverpair">Editing text</a>
-<a href="#zoom">Zoom &amp; interaction</a>
-<a href="#saving">Saving &amp; reload</a>
-<a href="#robust">Robustness</a>
-<a href="#i18n">Localization</a>
-<a href="#specs">Constants</a>
+<a href="#stack" class="on" data-i18n="pt_4">Tech stack</a>
+<a href="#install" data-i18n="pt_5">Install &amp; data</a>
+<a href="#arch" data-i18n="pt_6">Architecture</a>
+<a href="#coords" data-i18n="pt_7">Coordinate space</a>
+<a href="#annots" data-i18n="pt_8">Annotation model</a>
+<a href="#coverpair" data-i18n="pt_9">Editing text</a>
+<a href="#zoom" data-i18n="pt_10">Zoom &amp; interaction</a>
+<a href="#saving" data-i18n="pt_11">Saving &amp; reload</a>
+<a href="#robust" data-i18n="pt_12">Robustness</a>
+<a href="#i18n" data-i18n="pt_13">Localization</a>
+<a href="#specs" data-i18n="pt_14">Constants</a>
+<a href="#glossary" data-i18n="pt_15">Glossary</a>
 </nav>
 </aside>
 <div class="content">
 <div class="content-inner">
 
 <section class="page-hero">
-<span class="page-title">The Tech of</span>
+<span class="page-title" data-i18n="pt_1">The Tech of</span>
 <img class="wm-logo" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF">
-<p>A plain-English look at how KillerPDF works under the hood, with the deeper detail kept for the nerds who want it.</p>
+<p data-i18n="pt_2">A plain-English look at how KillerPDF works under the hood, with the deeper detail kept for the nerds who want it.</p>
 </section>
 
 <div class="tech-sec" id="stack">
-<h2>Tech stack</h2>
-<p>KillerPDF is a native Windows app. There is no Electron, no browser engine, and no runtime to install. It relies on a small set of focused libraries, each handling one job:</p>
-<table class="spec-table"><tr><th>Component</th><th>Library</th></tr>
-<tr><td>UI</td><td>WPF on .NET Framework 4.8 (net48), x64, custom window chrome</td></tr>
-<tr><td>Rendering</td><td>PDFium via Docnet.Core 2.6 - every page bitmap and thumbnail</td></tr>
-<tr><td>Text</td><td>PdfPig 0.1.14 - search, selection, font sniffing</td></tr>
-<tr><td>Write engine</td><td>PdfSharpCore 1.3 - save, page ops, annotation / stamp flattening</td></tr>
-<tr><td>Signing</td><td>PDFsharp 6.2 (separate namespace) - CMS / SHA-256 signatures</td></tr>
-<tr><td>OCR</td><td>Tesseract 5.2 - native libs embedded, language packs on demand</td></tr>
-<tr><td>Packaging</td><td>Costura.Fody - one self-contained .exe</td></tr>
+<h2 data-i18n="pt_16">Tech stack</h2>
+<p data-i18n="pt_17">KillerPDF is a native Windows app. There is no Electron, no browser engine, and no runtime to install. It relies on a small set of focused libraries, each handling one job:</p>
+<table class="spec-table"><tr><th data-i18n="pt_18">Component</th><th data-i18n="pt_19">Library</th></tr>
+<tr><td data-i18n="pt_20">UI</td><td data-i18n="pt_21">WPF on .NET Framework 4.8 (net48), x64, custom window chrome</td></tr>
+<tr><td data-i18n="pt_22">Rendering</td><td data-i18n="pt_23">PDFium via Docnet.Core 2.6 - every page bitmap and thumbnail</td></tr>
+<tr><td data-i18n="pt_24">Text</td><td data-i18n="pt_25">PdfPig 0.1.14 - search, selection, font sniffing</td></tr>
+<tr><td data-i18n="pt_26">Write engine</td><td data-i18n="pt_27">PdfSharpCore 1.3 - save, page ops, annotation / stamp flattening</td></tr>
+<tr><td data-i18n="pt_28">Signing</td><td data-i18n="pt_29">PDFsharp 6.2 (separate namespace) - CMS / SHA-256 signatures</td></tr>
+<tr><td data-i18n="pt_30">OCR</td><td data-i18n="pt_31">Tesseract 5.2 - native libs embedded, language packs on demand</td></tr>
+<tr><td data-i18n="pt_32">Packaging</td><td data-i18n="pt_33">Costura.Fody - one self-contained .exe</td></tr>
 </table>
 </div>
 
 <div class="tech-sec" id="install">
-<h2>Install, folders &amp; data</h2>
-<p>KillerPDF is portable first - the single exe runs from anywhere with nothing to install. Installing is opt-in, per-user, and needs no administrator rights: it never writes to Program Files or HKLM.</p>
-<h3 id="what-the-installer-does">What the installer does</h3>
-<p>It copies the running exe to <code>%LOCALAPPDATA%\Programs\KillerPDF\</code>, drops a Start Menu shortcut (and an optional desktop one), registers itself as a per-user PDF handler, and writes an Add/Remove Programs entry so Windows can uninstall it cleanly. Uninstalling (<code>KillerPDF.exe /uninstall</code>) removes the folder, shortcuts, and registry keys.</p>
-<h3 id="where-things-live">Where things live</h3>
-<table class="spec-table"><tr><th>Location</th><th>Holds</th></tr>
-<tr><td><code>%LOCALAPPDATA%\Programs\KillerPDF\</code></td><td>the installed exe and its PDF-file icon</td></tr>
-<tr><td><code>%LOCALAPPDATA%\KillerPDF\Temp\</code></td><td>session working files - decrypted copies, repaired files, rotation snapshots</td></tr>
-<tr><td><code>%LOCALAPPDATA%\KillerPDF\tessdata\</code></td><td>OCR language data (see below)</td></tr>
-<tr><td><code>%LOCALAPPDATA%\KillerPDF\ocr\&lt;version&gt;\x64\</code></td><td>OCR native engine libraries</td></tr>
-<tr><td><code>%LOCALAPPDATA%\KillerPDF\Logs\</code></td><td>crash logs</td></tr>
-<tr><td><code>HKCU\Software\KillerPDF\Settings</code></td><td>your settings - in the registry, not a file</td></tr>
+<h2 data-i18n="pt_34">Install, folders &amp; data</h2>
+<p data-i18n="pt_35">KillerPDF is portable first - the single exe runs from anywhere with nothing to install. Installing is opt-in, per-user, and needs no administrator rights: it never writes to Program Files or HKLM.</p>
+<h3 id="what-the-installer-does" data-i18n="pt_36">What the installer does</h3>
+<p data-i18n="pt_37">It copies the running exe to <code>%LOCALAPPDATA%\Programs\KillerPDF\</code>, drops a Start Menu shortcut (and an optional desktop one), registers itself as a per-user PDF handler, and writes an Add/Remove Programs entry so Windows can uninstall it cleanly. Uninstalling (<code>KillerPDF.exe /uninstall</code>) removes the folder, shortcuts, and registry keys.</p>
+<h3 id="where-things-live" data-i18n="pt_38">Where things live</h3>
+<table class="spec-table"><tr><th data-i18n="pt_39">Location</th><th data-i18n="pt_40">Holds</th></tr>
+<tr><td><code>%LOCALAPPDATA%\Programs\KillerPDF\</code></td><td data-i18n="pt_41">the installed exe and its PDF-file icon</td></tr>
+<tr><td><code>%LOCALAPPDATA%\KillerPDF\Temp\</code></td><td data-i18n="pt_42">session working files - decrypted copies, repaired files, rotation snapshots</td></tr>
+<tr><td><code>%LOCALAPPDATA%\KillerPDF\tessdata\</code></td><td data-i18n="pt_43">OCR language data (see below)</td></tr>
+<tr><td><code>%LOCALAPPDATA%\KillerPDF\ocr\&lt;version&gt;\x64\</code></td><td data-i18n="pt_44">OCR native engine libraries</td></tr>
+<tr><td><code>%LOCALAPPDATA%\KillerPDF\Logs\</code></td><td data-i18n="pt_45">crash logs</td></tr>
+<tr><td><code>HKCU\Software\KillerPDF\Settings</code></td><td data-i18n="pt_46">your settings - in the registry, not a file</td></tr>
 </table>
-<p>Everything sits under <code>%LOCALAPPDATA%</code> on purpose: it is per-user (no admin), user-private, and not indexed by Windows Search - so temporary copies of your documents never surface in search or another account.</p>
-<h3 id="where-ocr-files-go">Where OCR files go</h3>
-<p>OCR is bundled in the exe but unpacks on first use. The Tesseract <b>native libraries</b> extract to a per-version cache at <code>%LOCALAPPDATA%\KillerPDF\ocr\&lt;version&gt;\x64\</code> (version-stamped, so an update gets fresh binaries). The <b>language data</b> lives in <code>%LOCALAPPDATA%\KillerPDF\tessdata\</code>: English ships inside the exe and is written there the first time you OCR, and any extra languages you pick are downloaded into that same folder. It is version-independent, so downloaded languages survive app updates. Both are read from these locations on every OCR run.</p>
-<h3 id="temp-files">Temp files</h3>
-<p>Working files are written as <code>killerpdf_&lt;tag&gt;_&lt;guid&gt;.pdf</code> and tracked for the session. They are deleted when you close the app; anything a crash leaves behind is swept on the next launch (both the current Temp folder and the legacy <code>%TEMP%</code> location). Files still open in another instance are skipped and cleared later.</p>
-<h3 id="clear-all-data">Clear all data</h3>
-<p>The <b>Clear all Data</b> link in the About window wipes everything KillerPDF has stored: the registry settings, the downloaded OCR languages and native cache, and the temp folder. It is best-effort - anything locked by the running session (a loaded native DLL, say) is skipped and clears on the next restart. Your actual PDFs are never touched.</p>
+<p data-i18n="pt_47">Everything sits under <code>%LOCALAPPDATA%</code> on purpose: it is per-user (no admin), user-private, and not indexed by Windows Search - so temporary copies of your documents never surface in search or another account.</p>
+<h3 id="where-ocr-files-go" data-i18n="pt_48">Where OCR files go</h3>
+<p data-i18n="pt_49">OCR is bundled in the exe but unpacks on first use. The Tesseract <b>native libraries</b> extract to a per-version cache at <code>%LOCALAPPDATA%\KillerPDF\ocr\&lt;version&gt;\x64\</code> (version-stamped, so an update gets fresh binaries). The <b>language data</b> lives in <code>%LOCALAPPDATA%\KillerPDF\tessdata\</code>: English ships inside the exe and is written there the first time you OCR, and any extra languages you pick are downloaded into that same folder. It is version-independent, so downloaded languages survive app updates. Both are read from these locations on every OCR run.</p>
+<h3 id="temp-files" data-i18n="pt_50">Temp files</h3>
+<p data-i18n="pt_51">Working files are written as <code>killerpdf_&lt;tag&gt;_&lt;guid&gt;.pdf</code> and tracked for the session. They are deleted when you close the app; anything a crash leaves behind is swept on the next launch (both the current Temp folder and the legacy <code>%TEMP%</code> location). Files still open in another instance are skipped and cleared later.</p>
+<h3 id="clear-all-data" data-i18n="pt_52">Clear all data</h3>
+<p data-i18n="pt_53">The <b>Clear all Data</b> link in the About window wipes everything KillerPDF has stored: the registry settings, the downloaded OCR languages and native cache, and the temp folder. It is best-effort - anything locked by the running session (a loaded native DLL, say) is skipped and clears on the next restart. Your actual PDFs are never touched.</p>
 </div>
 
 <div class="tech-sec" id="arch">
-<h2>Architecture</h2>
-<p>The whole interface is built as one large class (<b>MainWindow</b>) split across roughly forty source files, about 27,000 lines of C# on WPF and .NET Framework 4.8. Each pop-up dialog is its own class, and shared background work lives under <code>Services/</code>.</p>
-<h3 id="two-render-pipelines">Two render pipelines</h3>
-<p>KillerPDF draws pages in two different ways depending on the view you are in. Single, Two-Page and Grid views draw into one main tile (<b>RenderPage</b>). Continuous scrolling uses a separate path (<b>RenderContinuousPages</b>) that streams page images in the background as you scroll. RenderPage is deliberately switched off during Continuous so the two systems never fight over the same tile.</p>
-<h3 id="per-tab-sessions-an-lru-cache">Per-tab sessions &amp; an LRU cache</h3>
-<p>Each open document is a <b>DocumentSession</b> that remembers its own zoom, fit and view mode, grid columns, current tool, page, and scroll position, along with its per-document data (annotations, page sizes, rotations, form values, and undo history). Switching tabs simply points the app back at that session. Each session also keeps a cache of already-drawn page images, so flipping back to a recent tab is instant and skips the renderer entirely. To keep memory in check, only the three most recently used tabs hold on to that cache.</p>
-<h3 id="canvas-overlay-maps">Canvas &amp; overlay maps</h3>
-<p>Annotations are not drawn onto one fixed layer. They are drawn onto whichever page layer is currently active, which a map called <code>_pages</code> keeps track of. Two maps and one strict rule keep that pointing at the right place.</p>
+<h2 data-i18n="pt_54">Architecture</h2>
+<p data-i18n="pt_55">The whole interface is built as one large class (<b>MainWindow</b>) split across roughly forty source files, about 27,000 lines of C# on WPF and .NET Framework 4.8. Each pop-up dialog is its own class, and shared background work lives under <code>Services/</code>.</p>
+<h3 id="two-render-pipelines" data-i18n="pt_56">Two render pipelines</h3>
+<p data-i18n="pt_57">KillerPDF draws pages in two different ways depending on the view you are in. Single, Two-Page and Grid views draw into one main tile (<b>RenderPage</b>). Continuous scrolling uses a separate path (<b>RenderContinuousPages</b>) that streams page images in the background as you scroll. RenderPage is deliberately switched off during Continuous so the two systems never fight over the same tile.</p>
+<h3 id="per-tab-sessions-an-lru-cache" data-i18n="pt_58">Per-tab sessions &amp; an LRU cache</h3>
+<p data-i18n="pt_59">Each open document is a <b>DocumentSession</b> that remembers its own zoom, fit and view mode, grid columns, current tool, page, and scroll position, along with its per-document data (annotations, page sizes, rotations, form values, and undo history). Switching tabs simply points the app back at that session. Each session also keeps a cache of already-drawn page images, so flipping back to a recent tab is instant and skips the renderer entirely. To keep memory in check, only the three most recently used tabs hold on to that cache.</p>
+<h3 id="canvas-overlay-maps" data-i18n="pt_60">Canvas &amp; overlay maps</h3>
+<p data-i18n="pt_61">When KillerPDF displays a page, it stacks two things on top of each other: the page itself, drawn as a flat image, and a clear sheet sitting directly over it. That clear sheet is called an <b>overlay</b>, and it is where everything you add to a page (highlights, text boxes, drawn ink, signatures) is painted. The image underneath is never altered; your marks live on the overlay above it. A page's image-and-overlay pair is referred to as a <b>tile</b>.</p>
+<p data-i18n="pt_62">The wrinkle is that KillerPDF has four ways of showing pages: one at a time, a continuous scroll through the whole document, a grid of pages, and two pages side by side. Each of those lays pages out differently, so each page you can see needs its own overlay in its own place. There is no single fixed sheet to draw on. Instead KillerPDF keeps a <b>lookup table</b> that takes a page number and hands back that page's current overlay. In the code this table is named <code>_pages</code>, and it is the one place the app trusts: every time it repaints a page's annotations, it asks this table which overlay to use and draws there.</p>
+<p data-i18n="pt_63">A second table, <code>_continuousCanvases</code>, tracks the overlays for whichever multi-page layout happens to be on screen (the continuous scroll, the grid, or the two-page view). When KillerPDF builds a new overlay it registers it in <i>both</i> tables at once, through a helper named <code>WirePageOverlay</code>, so the two can never disagree about where a page lives.</p>
+<p data-i18n="pt_64">One rule keeps the whole thing from breaking. The single-page style of layout is rebuilt by a routine that begins by throwing away the multi-page overlays. If that routine were allowed to run while the continuous scroll was showing, it would empty the lookup table, and every page would fall back to pointing at the hidden single-page tile. Your annotations would then be painted off-screen, out of sight, until you switched view modes. To prevent that, the routine is blocked from doing anything at all while the continuous scroll is active.</p>
 <figure class="diagram">
 <svg viewBox="0 0 740 412" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="dgbAcc" markerWidth="9" markerHeight="9" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="var(--accent)"/></marker>
 <marker id="dgbMut" markerWidth="8" markerHeight="8" refX="5" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="var(--muted)"/></marker>
 </defs>
-<rect x="40" y="24" width="300" height="54" rx="8" fill="var(--panel)" stroke="var(--border)"/>
+<rect x="40" y="24" width="300" height="54" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
 <text x="190" y="48" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="700" font-family="monospace">RenderAllAnnotations(page)</text>
 <text x="190" y="66" text-anchor="middle" fill="var(--muted)" font-size="11">paints onto CanvasForPage(page)</text>
 <line x1="340" y1="52" x2="396" y2="52" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#dgbAcc)"/>
@@ -170,11 +175,11 @@
 <text x="550" y="44" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700" font-family="monospace">_pages &lt;int, Canvas&gt;</text>
 <text x="550" y="61" text-anchor="middle" fill="var(--muted)" font-size="10.5">authoritative page &#8594; overlay map</text>
 <text x="550" y="75" text-anchor="middle" fill="var(--muted)" font-size="10.5">(the primary tile is one of its entries)</text>
-<rect x="60" y="168" width="290" height="80" rx="8" fill="var(--panel)" stroke="var(--border)"/>
+<rect x="60" y="168" width="290" height="80" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
 <text x="205" y="196" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700">Primary XAML tile</text>
 <text x="205" y="215" text-anchor="middle" fill="var(--muted)" font-size="11" font-family="monospace">PageImage + _annotationCanvas</text>
 <text x="205" y="233" text-anchor="middle" fill="var(--muted)" font-size="11">Single &middot; Grid &middot; Two-Page</text>
-<rect x="400" y="168" width="290" height="80" rx="8" fill="var(--panel)" stroke="var(--border)"/>
+<rect x="400" y="168" width="290" height="80" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
 <text x="545" y="196" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700">Secondary overlays</text>
 <text x="545" y="215" text-anchor="middle" fill="var(--muted)" font-size="11">code-built per-page Canvas tiles</text>
 <text x="545" y="233" text-anchor="middle" fill="var(--muted)" font-size="11">continuous, or grid / two-page</text>
@@ -187,26 +192,26 @@
 <text x="545" y="342" text-anchor="middle" fill="var(--muted)" font-size="10.5">the live multi-page tile system</text>
 <line x1="545" y1="248" x2="545" y2="298" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#dgbAcc)"/>
 <text x="556" y="277" fill="var(--muted)" font-size="10" font-family="monospace">same overlays</text>
-<rect x="40" y="300" width="300" height="56" rx="8" fill="var(--panel)" stroke="var(--border)"/>
+<rect x="40" y="300" width="300" height="56" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
 <text x="190" y="324" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="700" font-family="monospace">WirePageOverlay()</text>
 <text x="190" y="342" text-anchor="middle" fill="var(--muted)" font-size="10.5">registers an overlay in BOTH maps</text>
 <text x="40" y="392" fill="var(--muted)" font-size="11"><tspan fill="var(--accent)" font-family="monospace">ClearSecondaryPages()</tspan> clears _continuousCanvases and prunes those pages from _pages.</text>
 </svg>
-<figcaption><code>RenderPage</code> calls <code>ClearSecondaryPages()</code> - which wipes <code>_pages</code> - so it is guarded to no-op in Continuous. Were it to run there, every overlay would repoint at the hidden primary tile and annotations would paint off-screen until a mode switch.</figcaption>
+<figcaption data-i18n="pt_65">The single-page repaint routine (<code>RenderPage</code>) begins by clearing the multi-page overlays, which empties the page-to-overlay table. It is therefore switched off while the continuous scroll is on screen. If it ran there, every overlay would point back at the hidden single-page tile and your annotations would paint off-screen until you changed view modes.</figcaption>
 </figure>
 </div>
 
 <div class="tech-sec" id="coords">
-<h2>The coordinate space</h2>
-<p>Two numbers describe every page: where things <b>are</b> (zoom-independent) and how many pixels we <b>draw</b> (zoom-dependent). Keeping them separate is what makes annotations stay put while text stays crisp.</p>
-<h3 id="render-dim-space">1. Render-dim space</h3>
-<p>Every page is scaled to a standard internal size whose longest side is exactly 2048 units (counted independently of screen pixels). Annotation positions are stored in this fixed space, so they stay identical at every zoom level and in every view mode.</p>
+<h2 data-i18n="pt_66">The coordinate space</h2>
+<p data-i18n="pt_67">KillerPDF keeps <i>where</i> a mark sits separate from <i>how large</i> it is drawn. The position is stored in a fixed internal measurement that never changes as you zoom, while the number of pixels actually drawn grows as you zoom in. Holding those two ideas apart is what lets an annotation stay locked to the same spot on the page while the page is always drawn sharply at whatever magnification you are using.</p>
+<h3 id="render-dim-space" data-i18n="pt_68">1. A fixed internal size ("render-dim")</h3>
+<p data-i18n="pt_69">Every page is first scaled to a standard internal size: the longer of its two sides is set to exactly 2048 units, and the shorter side is scaled to keep the page's proportions. These units are counted on their own and have nothing to do with screen pixels, so they do not change when you zoom or switch view modes. Annotation positions are recorded in this fixed measurement, which is why a mark stays in exactly the same place on the page no matter how far you zoom or which layout you view. The code calls this <b>render-dim</b> space, and the two resulting numbers, the page's width and height in these units, are written <code>rdW</code> and <code>rdH</code> below. One <b>point</b>, the unit the PDF itself uses, is 1/72 of an inch.</p>
 <div class="codeblock">maxDim = max(pageWidthPt, pageHeightPt)<br>rdW = round(2048 &times; pageWidthPt  / maxDim)<br>rdH = round(2048 &times; pageHeightPt / maxDim)   <span class="cm">// longest side -&gt; 2048</span></div>
-<h3 id="decoupled-bitmap-resolution">2. Decoupled bitmap resolution</h3>
-<p>The bitmap rasterises at a resolution that follows display DPI and zoom, so a page magnified 3&times; is drawn from 3&times; the pixels rather than upscaled. The 6144&nbsp;px ceiling bounds memory.</p>
-<div class="codeblock">scaledMax = min( 6144,  int( 2048 &times; max(dpiScaleX, dpiScaleY) &times; max(1.0, zoom) ) )</div>
-<h3 id="the-coordinate-y-flip">3. The coordinate Y-flip</h3>
-<p>PDF measures positions from the bottom-left corner of the page, while the screen measures from the top-left. So every mark has to be flipped top-to-bottom when it is drawn:</p>
+<h3 id="decoupled-bitmap-resolution" data-i18n="pt_70">2. Drawing sharpness follows zoom, not position</h3>
+<p data-i18n="pt_71">The page image (the <b>bitmap</b>, meaning the grid of pixels the page is rendered into) is drawn at a resolution that follows two things: your display's pixel density and your current zoom. Magnify a page three times and it is redrawn from three times as many pixels rather than stretched, so text and lines stay sharp instead of turning blocky. A ceiling of 6144 pixels on the longest side limits how much memory a single page can take. This affects only sharpness; the stored positions from step 1 are untouched, which is the entire reason the two are kept apart.</p>
+<div class="codeblock">scaledMax = min( 6144,  int( 2048 &times; max(dpiScaleX, dpiScaleY) &times; max(1.0, zoom) ) )<br><span class="cm">// dpiScale = display pixel density (1.0 at 96 DPI, 1.5 at 150%); zoom = current magnification</span></div>
+<h3 id="the-coordinate-y-flip" data-i18n="pt_72">3. The coordinate Y-flip</h3>
+<p data-i18n="pt_73">The final step is that the PDF format and the screen disagree about where a page begins. A PDF measures positions from the <b>bottom-left</b> corner and counts upward, while the screen, and KillerPDF's drawing surface, measures from the <b>top-left</b> corner and counts downward. So every mark has to be turned top-to-bottom as it is drawn, and scaled from the PDF's own points into render-dim units at the same time. In the formula below, <code>pdfW</code> and <code>pdfH</code> are the page's width and height in PDF points; <code>renderW</code> and <code>renderH</code> are the same page in render-dim units (the <code>rdW</code> and <code>rdH</code> from step 1); <code>sx</code> and <code>sy</code> are the scale factors between the two; <code>left</code> and <code>top</code> are the mark's position read from the PDF; and the result, <code>canvasX</code> and <code>canvasY</code>, is where the mark is placed on the drawing surface.</p>
 <div class="codeblock">sx = renderW / pdfW      sy = renderH / pdfH<br>canvasX = left &times; sx<br>canvasY = renderH - top &times; sy   <span class="cm">// flip the vertical axis</span></div>
 <figure class="diagram">
 <svg viewBox="0 0 740 300" xmlns="http://www.w3.org/2000/svg">
@@ -216,7 +221,7 @@
 </defs>
 <text x="170" y="26" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="700">PDF point space</text>
 <text x="170" y="43" text-anchor="middle" fill="var(--muted)" font-size="11">origin bottom-left &middot; y up</text>
-<rect x="70" y="60" width="200" height="190" rx="4" fill="var(--panel)" stroke="var(--border)"/>
+<rect x="70" y="60" width="200" height="190" rx="4" fill="var(--panel)" stroke="var(--pane-border)"/>
 <line x1="70" y1="250" x2="70" y2="52" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
 <line x1="70" y1="250" x2="286" y2="250" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
 <text x="58" y="52" fill="var(--muted)" font-size="11" font-family="monospace">y</text>
@@ -233,7 +238,7 @@
 <text x="353" y="171" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="monospace">sx, sy</text>
 <text x="570" y="26" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="700">WPF canvas (DIP)</text>
 <text x="570" y="43" text-anchor="middle" fill="var(--muted)" font-size="11">origin top-left &middot; y down</text>
-<rect x="470" y="60" width="200" height="190" rx="4" fill="var(--panel)" stroke="var(--border)"/>
+<rect x="470" y="60" width="200" height="190" rx="4" fill="var(--panel)" stroke="var(--pane-border)"/>
 <line x1="470" y1="60" x2="470" y2="258" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
 <line x1="470" y1="60" x2="686" y2="60" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
 <text x="456" y="256" fill="var(--muted)" font-size="11" font-family="monospace">y</text>
@@ -246,122 +251,159 @@
 <text x="550" y="52" text-anchor="middle" fill="var(--accent)" font-size="10" font-family="monospace">left&middot;sx</text>
 <text x="478" y="138" fill="var(--accent)" font-size="10" font-family="monospace">renderH - top&middot;sy</text>
 </svg>
-<figcaption>A mark is stored once in <b>render-dim points</b> (bottom-left origin) and flipped into <b>canvas DIP</b> (top-left) on every paint, via <code>canvasY = renderH - top &times; sy</code>. Because the same stored point feeds all four pipelines, it lands on the same pixel in each.</figcaption>
+<figcaption data-i18n="pt_74">A mark is stored once in render-dim units (measured from the bottom-left) and flipped onto the drawing surface (measured from the top-left) every time it is painted, using <code>canvasY = renderH - top &times; sy</code>. The drawing surface is measured in <b>device-independent pixels</b> (DIP), a unit that stays constant no matter the screen's density. Because the same stored point feeds all four view modes, it lands on the same spot in each.</figcaption>
 </figure>
-<p>Because rdW/rdH are rounded once and reused, the same integers drive the primary, continuous and grid tiles - a mark in one mode lands on the same pixel in every other.</p>
+<p data-i18n="pt_75">Because <code>rdW</code> and <code>rdH</code> are worked out once and then reused everywhere, the same measurements feed all four view modes, so a mark placed in one mode lands on the exact same spot in every other.</p>
 </div>
 
 <div class="tech-sec" id="annots">
-<h2>The annotation model</h2>
-<p>Every annotation lives in <code>_annotations</code>, a <code>Dictionary&lt;int, List&lt;PageAnnotation&gt;&gt;</code> keyed by page. Six types cover everything the toolbar can draw:</p>
-<table class="spec-table"><tr><th>Type</th><th>What it is</th></tr>
-<tr><td>Text</td><td>Editable text box with its own font, size and colour</td></tr>
-<tr><td>Cover</td><td>Opaque box, always paired with a replacement Text (see below)</td></tr>
-<tr><td>Highlight</td><td>One annotation, three modes - Fill, Strikethrough, Underline</td></tr>
-<tr><td>Ink</td><td>Freehand strokes; also backs the straight Line tool</td></tr>
-<tr><td>Signature</td><td>Drawn or imported vector signature</td></tr>
-<tr><td>Image</td><td>Pasted or imported raster, freely resized</td></tr>
+<h2 data-i18n="pt_76">The annotation model</h2>
+<p data-i18n="pt_77">Every annotation lives in <code>_annotations</code>, a <code>Dictionary&lt;int, List&lt;PageAnnotation&gt;&gt;</code> keyed by page. Six types cover everything the toolbar can draw:</p>
+<table class="spec-table"><tr><th data-i18n="pt_78">Type</th><th data-i18n="pt_79">What it is</th></tr>
+<tr><td data-i18n="pt_80">Text</td><td data-i18n="pt_81">Editable text box with its own font, size and color</td></tr>
+<tr><td data-i18n="pt_82">Cover</td><td data-i18n="pt_83">Opaque box, always paired with a replacement Text (see below)</td></tr>
+<tr><td data-i18n="pt_84">Highlight</td><td data-i18n="pt_85">One annotation, three modes - Fill, Strikethrough, Underline</td></tr>
+<tr><td data-i18n="pt_86">Ink</td><td data-i18n="pt_87">Freehand strokes; also backs the straight Line tool</td></tr>
+<tr><td data-i18n="pt_88">Signature</td><td data-i18n="pt_89">Drawn or imported vector signature</td></tr>
+<tr><td data-i18n="pt_90">Image</td><td data-i18n="pt_91">Pasted or imported raster, freely resized</td></tr>
 </table>
-<h3 id="one-funnel-every-repaint">One funnel, every repaint</h3>
-<p>No commit path paints annotations directly - they all call <b>RenderAllAnnotations(page)</b>, which clears that page's overlay, repaints every annotation in <code>_annotations[page]</code>, re-adds the live form fields, then re-applies the search highlights <b>last</b>. That tail ordering is why a highlight survives every re-render, scroll and zoom instead of being painted over.</p>
-<h3 id="undo">Undo</h3>
-<p>Edits push onto a single <code>_undoStack</code>. A linked pair (Cover + Text) goes on as one entry, so a single Ctrl+Z removes both halves together rather than leaving an orphaned cover behind.</p>
+<h3 id="one-funnel-every-repaint" data-i18n="pt_92">One funnel, every repaint</h3>
+<p data-i18n="pt_93">No commit path paints annotations directly - they all call <b>RenderAllAnnotations(page)</b>, which clears that page's overlay, repaints every annotation in <code>_annotations[page]</code>, re-adds the live form fields, then re-applies the search highlights <b>last</b>. That tail ordering is why a highlight survives every re-render, scroll and zoom instead of being painted over.</p>
+<h3 id="undo" data-i18n="pt_94">Undo</h3>
+<p data-i18n="pt_95">Edits push onto a single <code>_undoStack</code>. A linked pair (Cover + Text) goes on as one entry, so a single Ctrl+Z removes both halves together rather than leaving an orphaned cover behind.</p>
 </div>
 
 <div class="tech-sec" id="coverpair">
-<h2>Editing existing text</h2>
-<p>Double-click a line of real PDF text and KillerPDF reads the words underneath, then drops <b>two linked annotations</b> as a single undo: an opaque <b>Cover</b> that blocks the original, and an editable <b>Text</b> box on top. A shared <code>PairId</code> locks them together.</p>
+<h2 data-i18n="pt_96">Editing existing text</h2>
+<p data-i18n="pt_97">Double-click a line of real PDF text and KillerPDF reads the words underneath, then drops <b>two linked annotations</b> as a single undo: an opaque <b>Cover</b> that blocks the original, and an editable <b>Text</b> box on top. A shared <code>PairId</code> locks them together.</p>
 <figure class="diagram">
-<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 860 300" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="dgcMut" markerWidth="8" markerHeight="8" refX="5" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="var(--muted)"/></marker>
 </defs>
 <line x1="86" y1="232" x2="86" y2="100" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#dgcMut)"/>
 <text x="60" y="178" fill="var(--muted)" font-size="10" font-family="monospace" transform="rotate(-90 60 178)">z-order: bottom &#8594; top</text>
-<rect x="120" y="196" width="280" height="44" rx="4" fill="var(--panel)" stroke="var(--border)"/>
+<rect x="120" y="196" width="280" height="44" rx="4" fill="var(--panel)" stroke="var(--pane-border)"/>
 <text x="260" y="223" text-anchor="middle" fill="var(--muted)" font-size="13">Original words</text>
-<text x="555" y="221" fill="var(--muted)" font-size="11">Page text &mdash; untouched underneath</text>
+<text x="555" y="221" fill="var(--muted)" font-size="11">Page text: untouched underneath</text>
 <rect x="150" y="152" width="280" height="44" rx="4" fill="var(--modal)" stroke="var(--accent)" stroke-dasharray="5 3"/>
 <text x="290" y="179" text-anchor="middle" fill="var(--text)" font-size="12">cover (opaque)</text>
-<text x="555" y="177" fill="var(--text)" font-size="11">Cover &mdash; blocks original, 100% opaque</text>
+<text x="555" y="177" fill="var(--text)" font-size="11">Cover: blocks original, 100% opaque</text>
 <rect x="180" y="108" width="280" height="44" rx="4" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
 <text x="320" y="135" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">New words</text>
-<text x="555" y="124" fill="var(--text)" font-size="11">Text &mdash; editable, resizable</text>
+<text x="555" y="124" fill="var(--text)" font-size="11">Text: editable, resizable</text>
 <path d="M495 122 h-12 V182 h12" fill="none" stroke="var(--accent)" stroke-width="1.4"/>
 <text x="505" y="148" fill="var(--accent)" font-size="11" font-family="monospace" font-weight="700">PairId</text>
 <text x="505" y="163" fill="var(--muted)" font-size="10">shared GUID</text>
 </svg>
-<figcaption>The cover samples the page colour so it blends in, and can never be made translucent. Right-click either half to <b>Select Cover</b> / <b>Select Text</b>, or to <b>Unpair</b> them into two independent annotations. On save the pair flattens to a clean filled box with the new text on top.</figcaption>
+<figcaption data-i18n="pt_98">The cover samples the page color so it blends in, and can never be made translucent. Right-click either half to <b>Select Cover</b> / <b>Select Text</b>, or to <b>Unpair</b> them into two independent annotations. On save the pair flattens to a clean filled box with the new text on top.</figcaption>
 </figure>
 </div>
 
 <div class="tech-sec" id="zoom">
-<h2>Zoom &amp; interaction</h2>
-<h3 id="cursor-anchored-zoom">Cursor-anchored zoom</h3>
-<p>Ctrl+wheel zooms around the cursor. The cursor position and scroll offsets are captured <b>before</b> the zoom changes, then the offsets that keep that point fixed are applied once layout settles:</p>
+<h2 data-i18n="pt_99">Zoom &amp; interaction</h2>
+<h3 id="cursor-anchored-zoom" data-i18n="pt_100">Cursor-anchored zoom</h3>
+<p data-i18n="pt_101">Ctrl+wheel zooms around the cursor. The cursor position and scroll offsets are captured <b>before</b> the zoom changes, then the offsets that keep that point fixed are applied once layout settles:</p>
 <div class="codeblock">ratio   = newZoom / oldZoom<br>newHOff = (oldHOff + cursorX) &times; ratio - cursorX<br>newVOff = (oldVOff + cursorY) &times; ratio - cursorY   <span class="cm">// clamped at &gt;= 0</span></div>
-<h3 id="grid-zoom-by-column-count">Grid zoom by column count</h3>
-<p>Grid snaps to a whole number of columns: the count is authoritative and the zoom is derived from it, so the grid lays out exactly N pages with no leftover gap.</p>
+<h3 id="grid-zoom-by-column-count" data-i18n="pt_102">Grid zoom by column count</h3>
+<p data-i18n="pt_103">Grid snaps to a whole number of columns: the count is authoritative and the zoom is derived from it, so the grid lays out exactly N pages with no leftover gap.</p>
 <div class="codeblock">GridZoomForN(n) = (viewportW - 24) / ( n &times; (rdW + 12) )</div>
 </div>
 
 <div class="tech-sec" id="saving">
-<h2>Saving &amp; the temp-reload dance</h2>
-<p>Saving never changes the document you are looking at. KillerPDF writes a clean copy with no annotations, then permanently bakes in <b>stamps first, then annotations</b>, and reopens that fresh copy. Starting from a clean base every time means it can never accidentally bake the same thing in twice.</p>
-<h3 id="why-structural-edits-reload">Why structural edits reload</h3>
-<p>Rotation, page operations and decryption route through <b>SaveTempAndReload</b>. It zeroes every page's <code>/Rotate</code> entry before writing, because Docnet (PDFium) sizes the page bitmap from the <i>unrotated</i> MediaBox - leave the rotation in and the rendered content clips. The file is written flat, reopened in Modify mode, and the rotations are re-applied in memory so the page still reads right.</p>
+<h2 data-i18n="pt_104">Saving &amp; the temp-reload dance</h2>
+<p data-i18n="pt_105">Saving never changes the document you are looking at. KillerPDF writes a clean copy with no annotations, then permanently bakes in <b>stamps first, then annotations</b>, and reopens that fresh copy. Starting from a clean base every time means it can never accidentally bake the same thing in twice.</p>
+<h3 id="why-structural-edits-reload" data-i18n="pt_106">Why structural edits reload</h3>
+<p data-i18n="pt_107">Rotation, page operations and decryption route through <b>SaveTempAndReload</b>. It zeroes every page's <code>/Rotate</code> entry before writing, because Docnet (PDFium) sizes the page bitmap from the <i>unrotated</i> MediaBox - leave the rotation in and the rendered content clips. The file is written flat, reopened in Modify mode, and the rotations are re-applied in memory so the page still reads right.</p>
 </div>
 
 <div class="tech-sec" id="robust">
-<h2>Robustness</h2>
-<p>KillerPDF is built to open the PDFs other viewers choke on. It tries a normal open first, then catches each kind of failure and routes it to a specific recovery. Two rules hold throughout: heavy recovery work runs off the UI thread behind the busy overlay, and a repair never edits your file - it always produces a copy.</p>
-<h3 id="the-open-fallback-ladder">The open fallback ladder</h3>
-<p>The open path is a chain of typed exception handlers, each rung catching one class of failure:</p>
-<table class="spec-table"><tr><th>Failure</th><th>Recovery</th></tr>
-<tr><td>Owner / permission lock, no open password</td><td>Reopen read-only so it can still be viewed and printed</td></tr>
-<tr><td>Open password</td><td>Prompt for it, then save a decrypted temp copy so PDFium can render</td></tr>
-<tr><td>Malformed xref</td><td>Drop to read-only with a warning; if that also fails, offer a repair</td></tr>
-<tr><td>"Unexpected EOF" on a valid file</td><td>Re-save losslessly through PDFium; opens clean, no save nag</td></tr>
-<tr><td>Anything unclassified</td><td>Offer a PDFium repair, which recovers most damaged files</td></tr>
+<h2 data-i18n="pt_108">Robustness</h2>
+<p data-i18n="pt_109">KillerPDF is built to open the PDFs other viewers choke on. It tries a normal open first, then catches each kind of failure and routes it to a specific recovery. Two rules hold throughout: heavy recovery work runs off the UI thread behind the busy overlay, and a repair never edits your file - it always produces a copy.</p>
+<h3 id="the-open-fallback-ladder" data-i18n="pt_110">The open fallback ladder</h3>
+<p data-i18n="pt_111">The open path is a chain of typed exception handlers, each rung catching one class of failure:</p>
+<table class="spec-table"><tr><th data-i18n="pt_112">Failure</th><th data-i18n="pt_113">Recovery</th></tr>
+<tr><td data-i18n="pt_114">Owner / permission lock, no open password</td><td data-i18n="pt_115">Reopen read-only so it can still be viewed and printed</td></tr>
+<tr><td data-i18n="pt_116">Open password</td><td data-i18n="pt_117">Prompt for it, then save a decrypted temp copy so PDFium can render</td></tr>
+<tr><td data-i18n="pt_118">Malformed xref</td><td data-i18n="pt_119">Drop to read-only with a warning; if that also fails, offer a repair</td></tr>
+<tr><td data-i18n="pt_120">"Unexpected EOF" on a valid file</td><td data-i18n="pt_121">Re-save losslessly through PDFium; opens clean, no save nag</td></tr>
+<tr><td data-i18n="pt_122">Anything unclassified</td><td data-i18n="pt_123">Offer a PDFium repair, which recovers most damaged files</td></tr>
 </table>
-<h3 id="encryption-is-stripped-at-open">Encryption is stripped at open</h3>
-<p>PdfSharpCore can read an encrypted PDF but cannot re-serialize a modified one - it would write back stale encrypted bytes and fail. So when a file is encrypted, the encryption is removed at open time (PDFium, lossless, with a PdfSharpCore Import fallback). That pass is CPU-heavy, so it runs on a background thread behind the busy overlay; every later edit and save then behaves like a normal document.</p>
-<h3 id="network-and-partial-reads">Network and partial reads</h3>
-<p>UNC shares and the WSL <code>\\wsl$</code> 9P filesystem sometimes hand back partial reads, which the parser sees as a truncated file. Before opening anything on a network path, KillerPDF copies it to a local temp with a single read-to-EOF, then opens the complete copy - while keeping your original path for display and Save.</p>
-<h3 id="repair-works-on-a-copy">Repair works on a copy</h3>
-<p>When recovery falls through to a repair, the file is piped through PDFium, which has aggressive error recovery and rewrites a correct cross-reference table into a brand-new file. The original on disk is never touched. Repaired copies can lose bookmarks, forms and other interactive features, and the dialog says so before proceeding.</p>
+<h3 id="encryption-is-stripped-at-open" data-i18n="pt_124">Encryption is stripped at open</h3>
+<p data-i18n="pt_125">PdfSharpCore can read an encrypted PDF but cannot re-serialize a modified one - it would write back stale encrypted bytes and fail. So when a file is encrypted, the encryption is removed at open time (PDFium, lossless, with a PdfSharpCore Import fallback). That pass is CPU-heavy, so it runs on a background thread behind the busy overlay; every later edit and save then behaves like a normal document.</p>
+<h3 id="network-and-partial-reads" data-i18n="pt_126">Network and partial reads</h3>
+<p data-i18n="pt_127">UNC shares and the WSL <code>\\wsl$</code> 9P filesystem sometimes hand back partial reads, which the parser sees as a truncated file. Before opening anything on a network path, KillerPDF copies it to a local temp with a single read-to-EOF, then opens the complete copy - while keeping your original path for display and Save.</p>
+<h3 id="repair-works-on-a-copy" data-i18n="pt_128">Repair works on a copy</h3>
+<p data-i18n="pt_129">When recovery falls through to a repair, the file is piped through PDFium, which has aggressive error recovery and rewrites a correct cross-reference table into a brand-new file. The original on disk is never touched. Repaired copies can lose bookmarks, forms and other interactive features, and the dialog says so before proceeding.</p>
 </div>
 
 <div class="tech-sec" id="i18n">
-<h2>Localization</h2>
-<p>Every visible string lives in a per-locale <code>ResourceDictionary</code> under <code>Strings/</code> - eight locales, one XAML file each. Nothing hard-codes text; code and XAML resolve a key through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the whole UI live, no restart.</p>
-<h3 id="captions-and-tooltips-are-separate-strings">Captions and tooltips are separate strings</h3>
-<p>A toolbar button carries two independent strings: the hover <b>tooltip</b> (<code>Str_TT_*</code>) and the text <b>caption</b> under or beside the icon (<code>Str_Lbl_*</code>, mapped per glyph). Because they are localized separately, the toolbar can shed captions to save width while every tooltip stays intact.</p>
+<h2 data-i18n="pt_130">Localization</h2>
+<p data-i18n="pt_131">Every visible string lives in a per-locale <code>ResourceDictionary</code> under <code>Strings/</code> - eight locales, one XAML file each. Nothing hard-codes text; code and XAML resolve a key through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the whole UI live, no restart.</p>
+<h3 id="captions-and-tooltips-are-separate-strings" data-i18n="pt_132">Captions and tooltips are separate strings</h3>
+<p data-i18n="pt_133">A toolbar button carries two independent strings: the hover <b>tooltip</b> (<code>Str_TT_*</code>) and the text <b>caption</b> under or beside the icon (<code>Str_Lbl_*</code>, mapped per glyph). Because they are localized separately, the toolbar can shed captions to save width while every tooltip stays intact.</p>
 </div>
 
 <div class="tech-sec" id="specs">
-<h2>Constants &amp; limits</h2>
-<table class="spec-table"><tr><th>Specification</th><th>Value</th></tr>
-<tr><td>Render-dim longest side</td><td>2048 DIP (zoom-stable)</td></tr>
-<tr><td>Bitmap resolution cap</td><td>6144 px</td></tr>
-<tr><td>Print / OCR render</td><td>300 DPI / 2600 px (~300 DPI on Letter)</td></tr>
-<tr><td>Zoom range / step</td><td>5% to 500%, 15% steps</td></tr>
-<tr><td>Render-cache tabs (LRU)</td><td>3 most-recently-used</td></tr>
-<tr><td>Folder / zip import cap</td><td>50 files</td></tr>
-<tr><td>Signature reservation</td><td>16,384 bytes, SHA-256, whole chain</td></tr>
-<tr><td>Languages / themes</td><td>8 locales / 6 themes + accent variants</td></tr>
+<h2 data-i18n="pt_134">Constants &amp; limits</h2>
+<table class="spec-table"><tr><th data-i18n="pt_135">Specification</th><th data-i18n="pt_136">Value</th></tr>
+<tr><td data-i18n="pt_137">Render-dim longest side</td><td data-i18n="pt_138">2048 DIP (zoom-stable)</td></tr>
+<tr><td data-i18n="pt_139">Bitmap resolution cap</td><td data-i18n="pt_140">6144 px</td></tr>
+<tr><td data-i18n="pt_141">Print / OCR render</td><td data-i18n="pt_142">300 DPI / 2600 px (~300 DPI on Letter)</td></tr>
+<tr><td data-i18n="pt_143">Zoom range / step</td><td data-i18n="pt_144">5% to 500%, 15% steps</td></tr>
+<tr><td data-i18n="pt_145">Render-cache tabs (LRU)</td><td data-i18n="pt_146">3 most-recently-used</td></tr>
+<tr><td data-i18n="pt_147">Folder / zip import cap</td><td data-i18n="pt_148">50 files</td></tr>
+<tr><td data-i18n="pt_149">Signature reservation</td><td data-i18n="pt_150">16,384 bytes, SHA-256, whole chain</td></tr>
+<tr><td data-i18n="pt_151">Languages / themes</td><td data-i18n="pt_152">8 locales / 6 themes + accent variants</td></tr>
 </table>
-<p style="margin-top:14px">A full 41-page technical brochure (the same facts, with the interactive forms and theme gallery) ships in the repo as <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/KillerPDF.pdf" target="_blank" rel="noopener"><code style="color:inherit">KillerPDF.pdf</code></a> - open it in KillerPDF itself.</p>
+<p style="margin-top:14px" data-i18n="pt_153">A full 41-page technical brochure (the same facts, with the interactive forms and theme gallery) ships in the repo as <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/KillerPDF.pdf" target="_blank" rel="noopener"><code style="color:inherit">KillerPDF.pdf</code></a> - open it in KillerPDF itself.</p>
+</div>
+
+<div class="tech-sec" id="glossary">
+<h2 data-i18n="pt_154">Glossary</h2>
+<p data-i18n="pt_155">Plain-language definitions of the terms and libraries used on this page, in alphabetical order.</p>
+<table class="spec-table"><tr><th data-i18n="pt_156">Term</th><th data-i18n="pt_157">What it means</th></tr>
+<tr><td data-i18n="pt_158">Annotation</td><td data-i18n="pt_159">Anything you add on top of a PDF: a highlight, text box, drawn line, signature, or image. It sits on the overlay, separate from the original page, and only becomes part of the file when you save (see Flatten).</td></tr>
+<tr><td data-i18n="pt_160">Bitmap</td><td data-i18n="pt_161">A grid of colored pixels. To display a page, KillerPDF draws (rasterizes) it into a bitmap at a resolution chosen from your zoom and screen density.</td></tr>
+<tr><td data-i18n="pt_162">CMS signature</td><td data-i18n="pt_163">Cryptographic Message Syntax, the standard format for a digital signature embedded in a PDF. KillerPDF signs using SHA-256 over the whole file.</td></tr>
+<tr><td data-i18n="pt_164">Costura (Costura.Fody)</td><td data-i18n="pt_165">A build-time tool that packs every library the app needs inside the single .exe, so there is nothing extra to install.</td></tr>
+<tr><td data-i18n="pt_166">Cover / cover-pair</td><td data-i18n="pt_167">A Cover is an opaque box that hides the original words on a page. To edit existing PDF text, KillerPDF lays a Cover over the old text and a Text box on top holding your replacement; the two are locked together as a cover-pair.</td></tr>
+<tr><td data-i18n="pt_168">Cross-reference table (xref)</td><td data-i18n="pt_169">The index near the end of a PDF that records where every internal object is stored. If it is damaged, many readers fail to open the file, so KillerPDF has recovery paths that rebuild it.</td></tr>
+<tr><td data-i18n="pt_170">Device-independent pixel (DIP)</td><td data-i18n="pt_171">The unit KillerPDF's drawing surface uses. One DIP is a fixed physical size regardless of how dense the screen is, so layouts look the same across monitors.</td></tr>
+<tr><td data-i18n="pt_172">Docnet (Docnet.Core)</td><td data-i18n="pt_173">The library that lets KillerPDF call PDFium from .NET to turn pages into bitmaps.</td></tr>
+<tr><td data-i18n="pt_174">DPI (dots per inch)</td><td data-i18n="pt_175">How many pixels a screen packs into an inch, i.e. its density. Windows reports it as a scale: 1.0 at 96 DPI (100%), 1.5 at 150%. Higher DPI means more pixels are drawn for the same physical size.</td></tr>
+<tr><td data-i18n="pt_176">Flatten (flattening)</td><td data-i18n="pt_177">Burning annotations permanently into the page when you save, so they become part of the PDF's own content instead of separate, editable marks.</td></tr>
+<tr><td data-i18n="pt_178">Form field</td><td data-i18n="pt_179">An interactive field built into a PDF, such as a text box, checkbox, or dropdown, that a person fills in.</td></tr>
+<tr><td data-i18n="pt_180">Ink</td><td data-i18n="pt_181">A freehand drawn stroke. The Line tool is stored as ink as well.</td></tr>
+<tr><td data-i18n="pt_182">Linearized PDF</td><td data-i18n="pt_183">A PDF arranged so a viewer can start showing the first page before the whole file has loaded (sometimes called "fast web view"). These files often keep their structure in object streams.</td></tr>
+<tr><td data-i18n="pt_184">LRU cache (least recently used)</td><td data-i18n="pt_185">A memory-saving rule that keeps the most recently used items and drops the oldest. KillerPDF keeps the drawn-page cache for only the three most recent tabs.</td></tr>
+<tr><td data-i18n="pt_186">.NET Framework 4.8 (net48)</td><td data-i18n="pt_187">The version of Microsoft's .NET platform KillerPDF is built for. It ships with every supported version of Windows, so users install no separate runtime.</td></tr>
+<tr><td data-i18n="pt_188">Object stream</td><td data-i18n="pt_189">A compressed container inside modern PDFs (version 1.5 and later) that bundles many of the file's internal objects together. Some libraries cannot read them, which is why KillerPDF falls back to PDFium for certain jobs.</td></tr>
+<tr><td data-i18n="pt_190">OCR (optical character recognition)</td><td data-i18n="pt_191">Reading the actual text out of a scanned image so it can be searched, selected, or copied. KillerPDF uses Tesseract.</td></tr>
+<tr><td data-i18n="pt_192">Overlay</td><td data-i18n="pt_193">The transparent sheet drawn directly on top of a page image, where your annotations are painted. The page image underneath is never changed.</td></tr>
+<tr><td data-i18n="pt_194">PDFium</td><td data-i18n="pt_195">Google's PDF engine (the same one inside Chrome). KillerPDF uses it to render pages to images and to read structures other libraries cannot.</td></tr>
+<tr><td data-i18n="pt_196">PdfPig</td><td data-i18n="pt_197">A .NET library KillerPDF uses to read text from a PDF: search, selection, and detecting each letter's font and size.</td></tr>
+<tr><td data-i18n="pt_198">PdfSharpCore / PDFsharp</td><td data-i18n="pt_199">The .NET libraries KillerPDF uses to write changes back into a PDF: saving, page operations, and flattening (PdfSharpCore), and digital signatures (PDFsharp 6.2, in a separate namespace).</td></tr>
+<tr><td data-i18n="pt_200">Point</td><td data-i18n="pt_201">The PDF's own unit of length. One point is 1/72 of an inch.</td></tr>
+<tr><td data-i18n="pt_202">Rasterize</td><td data-i18n="pt_203">To convert a page's text and shapes into a grid of pixels (a bitmap) for display.</td></tr>
+<tr><td data-i18n="pt_204">Render-dim space</td><td data-i18n="pt_205">KillerPDF's fixed internal coordinate system for a page, sized so the longer side is 2048 units and unrelated to zoom or screen pixels. Annotation positions are stored here so they never drift as you zoom or change view mode.</td></tr>
+<tr><td data-i18n="pt_206">Temp-reload</td><td data-i18n="pt_207">Saving the current state to a temporary copy and reopening it, used for operations like rotation and repair, so your original file is never edited in place.</td></tr>
+<tr><td data-i18n="pt_208">Tesseract</td><td data-i18n="pt_209">The open-source OCR engine embedded in KillerPDF.</td></tr>
+<tr><td data-i18n="pt_210">Tile</td><td data-i18n="pt_211">A single page's image-and-overlay pair as it is laid out on screen.</td></tr>
+<tr><td data-i18n="pt_212">WPF (Windows Presentation Foundation)</td><td data-i18n="pt_213">The native Windows framework KillerPDF's interface is built with. No browser engine is involved.</td></tr>
+<tr><td data-i18n="pt_214">Y-flip</td><td data-i18n="pt_215">Turning a mark upside-down when drawing it, because a PDF measures upward from the bottom-left corner while the screen measures downward from the top-left.</td></tr>
+</table>
 </div>
 
 </div>
 </div>
 </div>
 <footer class="statusbar">
-<span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span>
+<span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener" data-i18n="pt_216">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span>
 <span class="right"><span id="verEgg" title="click me">v1.6.1</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
 </footer>
 <div class="egg-toast" id="eggToast"></div>
+<script src="kp-i18n.js?v=1"></script>
 <script src="kp.js"></script>
 <script>
 (function(){

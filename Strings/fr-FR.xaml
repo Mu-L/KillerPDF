@@ -457,4 +457,10 @@ Vous pourrez désinstaller le programme à tout moment via « Ajouter ou supprim
     <sys:String x:Key="Str_KS_FullScreen">Plein écran</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Appuyez sur F11 ou Échap pour quitter le plein écran</sys:String>
 
+    <!-- Quit prompt -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">Quitter KillerPDF ?</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">Fermer mes onglets ouverts</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">Quitter</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">Annuler</sys:String>
+
 </ResourceDictionary>

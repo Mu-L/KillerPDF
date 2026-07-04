@@ -117,7 +117,7 @@
   document.addEventListener('click', function (e) { if (accentBar && accentBar.classList.contains('show') && !e.target.closest('.accent-bar') && !e.target.closest('#accentToggle')) hideAccentBar(); });
 
   // ---- i18n (English complete; other languages fall back to English until translated) ----
-  var I18N = {};
+  var I18N = (typeof window !== 'undefined' && window.I18N) ? window.I18N : {};
   var EN = {};
   document.querySelectorAll('[data-i18n]').forEach(function (n) { EN[n.getAttribute('data-i18n')] = n.innerHTML; });
   var LANGS = ['en','es','de','fr','tr','zh','zh-cn','bn'];

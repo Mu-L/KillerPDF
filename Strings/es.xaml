@@ -439,4 +439,10 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_KS_View">Vista</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Pantalla completa</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Pulsa F11 o Esc para salir de pantalla completa</sys:String>
+    <!-- Quit prompt -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">Salir de KillerPDF?</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">Cerrar mis pestanas abiertas</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">Salir</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">Cancelar</sys:String>
+
 </ResourceDictionary>

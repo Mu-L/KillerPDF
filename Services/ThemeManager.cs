@@ -23,6 +23,7 @@ namespace KillerPDF.Services
             IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        private const int DWMWA_BORDER_COLOR = 34;
 
         // ── State ─────────────────────────────────────────────────────────
 
@@ -222,6 +223,17 @@ namespace KillerPDF.Services
             {
                 int value = dark ? 1 : 0;
                 DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
+
+                // Tint the Win11 1px frame border to the theme's pane border so the
+                // window outline follows the palette instead of staying system gray.
+                // AppBorderBrush lets a theme override the tone (family standard).
+                if ((Application.Current?.TryFindResource("AppBorderBrush")
+                     ?? Application.Current?.TryFindResource("PaneBorder")) is SolidColorBrush b)
+                {
+                    // COLORREF is 0x00BBGGRR
+                    int colorref = b.Color.R | (b.Color.G << 8) | (b.Color.B << 16);
+                    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref colorref, sizeof(int));
+                }
             }
             catch { /* DWMWA not supported on older Windows builds */ }
         }

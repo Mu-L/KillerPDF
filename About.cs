@@ -57,7 +57,7 @@ namespace KillerPDF
             logoHl.Inlines.Add(new System.Windows.Documents.Run("PDF")
             {
                 FontFamily = UiKit.WordmarkFontPdf,
-                FontSize = 26,
+                FontSize = 27.3,
                 Foreground = (System.Windows.Media.Brush)FindResource("AccentLogo")
             });
             logoHl.Click += (_, _) =>

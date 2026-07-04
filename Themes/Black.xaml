@@ -24,7 +24,7 @@
     <SolidColorBrush x:Key="InstallBtnBg"   Color="#1a8f48" po:Freeze="True"/>
     <SolidColorBrush x:Key="AccentBorder"   Color="#808080" po:Freeze="True"/>
     <SolidColorBrush x:Key="DropBorder"     Color="#808080" po:Freeze="True"/>
-    <SolidColorBrush x:Key="PaneBorder"     Color="#2e2e2e" po:Freeze="True"/>
+    <SolidColorBrush x:Key="PaneBorder"     Color="#292929" po:Freeze="True"/>
     <SolidColorBrush x:Key="AccentDim"      Color="#003322" po:Freeze="True"/>
     <SolidColorBrush x:Key="SelectionBg" Color="#003314" po:Freeze="True"/>
     <SolidColorBrush x:Key="SelectionFg" Color="#ffffff" po:Freeze="True"/>
@@ -36,7 +36,7 @@
     <SolidColorBrush x:Key="TextFooter"     Color="#aaaaaa" po:Freeze="True"/>
     <SolidColorBrush x:Key="DangerRed"      Color="#ff4444" po:Freeze="True"/>
     <SolidColorBrush x:Key="BgDragHandle"   Color="#888888" po:Freeze="True"/>
-    <SolidColorBrush x:Key="DragLine"       Color="#333333" po:Freeze="True"/>
+    <SolidColorBrush x:Key="DragLine"       Color="#313131" po:Freeze="True"/>
     <SolidColorBrush x:Key="BgScrollThumb"  Color="#8800ff66" po:Freeze="True"/>
     <SolidColorBrush x:Key="ScrollThumbHover" Color="#00ff66" po:Freeze="True"/>
     <SolidColorBrush x:Key="SliderTrack"    Color="#6e6e6e" po:Freeze="True"/>

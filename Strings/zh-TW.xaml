@@ -441,4 +441,10 @@
     <sys:String x:Key="Str_KS_View">檢視</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">全螢幕</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">按 F11 或 Esc 離開全螢幕</sys:String>
+    <!-- Quit prompt -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">結束 KillerPDF？</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">關閉我開啟的分頁</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">結束</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">取消</sys:String>
+
 </ResourceDictionary>

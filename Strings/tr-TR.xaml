@@ -439,4 +439,10 @@ Bu işlem uygulamayı %LocalAppData%\KillerPDF konumuna kopyalar ve bir Başlat 
     <sys:String x:Key="Str_KS_View">Görünüm</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Tam ekran</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Tam ekrandan çıkmak için F11 veya Esc'e basın</sys:String>
+    <!-- Quit prompt -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">KillerPDF'den cikilsin mi?</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">Acik sekmelerimi kapat</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">Cik</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">Iptal</sys:String>
+
 </ResourceDictionary>
