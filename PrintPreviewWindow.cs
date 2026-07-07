@@ -957,7 +957,7 @@ namespace KillerPDF
             catch { /* settings are best-effort */ }
         }
 
-        private void DoPrint()
+        private async void DoPrint()
         {
             if (_queue == null)
             {
@@ -977,10 +977,24 @@ namespace KillerPDF
             int.TryParse(_copiesBox.Text?.Trim(), out int copies);
             if (copies < 1) copies = 1;
 
-            SavePrintPrefs();   // remember printer / orientation / color / two-sided for next time
+            // The 300 DPI re-rasterize below (plus the compose + spool) runs long enough on real
+            // documents that the window froze with no feedback - it read as a crash. Cover the card
+            // with a progress scrim, push the heavy rasterization onto a background thread, and only
+            // return to the PDF once the job is handed to the spooler.
+            var overlay = ShowPrintOverlay(out TextBlock statusText);
+            _printBtn.IsEnabled = false;
 
             try
             {
+                // Give the dispatcher one pass to actually paint the scrim BEFORE any work below.
+                // Building the PrintDialog and reading PrintableAreaWidth queries the printer driver and
+                // can stall for a beat; without this yield that stall happens while the old frame is still
+                // on screen, so the click-to-scrim change looks laggy. Resuming at Background priority
+                // (below Render) guarantees the scrim's render pass has run first.
+                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+
+                SavePrintPrefs();   // remember printer / orientation / color / two-sided for next time
+
                 var pd = new PrintDialog { PrintQueue = _queue };
                 var ticket = pd.PrintTicket;
                 // Copies are produced by replicating the page sequence in the FixedDocument below
@@ -999,21 +1013,34 @@ namespace KillerPDF
 
                 // Re-rasterize ONLY the selected pages at a true 300 DPI from the source, so the spooled
                 // output is crisp regardless of the lighter preview rasters. Held only for this print call.
+                // Frozen bitmaps cross threads freely, so the whole loop runs off the UI thread and reports
+                // "Preparing page X of N" back to the scrim, keeping the window painting throughout.
                 var hiPages = new BitmapSource?[_pages.Length];
                 var hiW = new int[_pages.Length];
                 var hiH = new int[_pages.Length];
-                using (var dr = DocLib.Instance.GetDocReader(_renderPath, new PageDimensions(300.0 / 72.0)))
+                int total = indices.Count;
+                await Task.Run(() =>
                 {
+                    using var dr = DocLib.Instance.GetDocReader(_renderPath, new PageDimensions(300.0 / 72.0));
+                    int done = 0;
                     foreach (int idx in indices)
                     {
+                        done++;
                         if (idx < 0 || idx >= _pages.Length) continue;
                         using var pr = dr.GetPageReader(idx);
                         int w = pr.GetPageWidth(), h = pr.GetPageHeight();
                         var bs = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, pr.GetImage(), w * 4);
                         bs.Freeze();
                         hiPages[idx] = bs; hiW[idx] = w; hiH[idx] = h;
+                        int shown = done;
+                        try { statusText.Dispatcher.Invoke(() => statusText.Text = $"Preparing page {shown} of {total}…"); }
+                        catch { /* window closing */ }
                     }
-                }
+                });
+
+                statusText.Text = "Sending to printer…";
+                // Let the scrim repaint the new message before the UI-thread compose + spool below runs.
+                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
 
                 var fixedDoc = new FixedDocument();
                 // Group the selected pages into sheets of _nUp and compose each sheet (margins +
@@ -1062,10 +1089,60 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
+                RemoveOverlay(overlay);   // drop the scrim so the error dialog isn't stuck behind it
+                _printBtn.IsEnabled = true;
                 KillerDialog.Show(this, $"Print failed:\n{ex.GetType().Name}: {ex.Message}",
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        // Full-card scrim with a spinner + live status line, shown while a print job rasterizes and
+        // spools so the window shows progress instead of freezing silently. Added over _rootGrid (which
+        // is already clipped to the card's rounded corners) and painted last, so it sits on top and its
+        // Background swallows clicks - the buttons underneath can't be re-triggered mid-print. Returns
+        // the scrim; `status` is its message line, updated as the job progresses.
+        private Border ShowPrintOverlay(out TextBlock status)
+        {
+            var ring = new System.Windows.Shapes.Ellipse
+            {
+                Width = 40, Height = 40, StrokeThickness = 3,
+                Stroke = R("TextSecondary"),
+                StrokeDashArray = [24, 200],
+                StrokeDashCap = PenLineCap.Round,
+                RenderTransformOrigin = new Point(0.5, 0.5)
+            };
+            var rot = new RotateTransform();
+            ring.RenderTransform = rot;
+            rot.BeginAnimation(RotateTransform.AngleProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(0, 360, new Duration(TimeSpan.FromSeconds(0.9)))
+                { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+
+            status = new TextBlock
+            {
+                Text                = "Preparing to print…",
+                Foreground          = R("TextPrimary"),
+                FontSize            = 13,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin              = new Thickness(0, 14, 0, 0)
+            };
+
+            var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(ring);
+            stack.Children.Add(status);
+
+            // Veil in the card's own colour at high opacity, so the scrim reads on either theme.
+            var veil = R("BgSidebar").Color;
+            var overlay = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(232, veil.R, veil.G, veil.B)),
+                Child      = stack
+            };
+            Panel.SetZIndex(overlay, 99);
+            _rootGrid.Children.Add(overlay);
+            return overlay;
+        }
+
+        private void RemoveOverlay(Border overlay) => _rootGrid.Children.Remove(overlay);
 
         // Parses "1-3,5" style ranges into sorted 0-based indices. Blank/invalid = all pages.
         private static List<int> ParseRange(string? text, int count)
