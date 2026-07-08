@@ -874,12 +874,34 @@ namespace KillerPDF
                         clickPos.Y >= ly && clickPos.Y <= ly + lo.Height)
                     {
                         var lTarget = lo.Tag is LinkAnnotInfo lai ? lai.Target : lo.Tag;
-                        if (lTarget is int tp)
-                            PageList.SelectedIndex = tp;
-                        else if (lTarget is string u)
-                            try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
+                        FollowLinkTarget(lTarget);
                         e.Handled = true;
                         return;
+                    }
+                }
+            }
+            // Tiled views (continuous / grid / two-page): resolve link clicks by a position bounds-check
+            // against the page's stored rects. A per-link overlay can't be used here - it swallows the click
+            // but its own handler never fires - so no overlay exists; _continuousLinks is the source of truth.
+            // (Single-page view is handled by the _linkOverlays check above.)
+            if (_currentTool == EditTool.Select && _viewMode != ViewMode.Single)
+            {
+                var cpos = e.GetPosition(_activeCanvas);
+                int cpage = _activeCanvas.Tag is int cltp ? cltp : PageList.SelectedIndex;
+                bool cOnAnnot = _annotations.TryGetValue(cpage, out var clal)
+                                && clal.Any(a => HitTestAnnotation(a, cpos, out _));
+                if (!cOnAnnot && _continuousLinks.TryGetValue(cpage, out var clinks))
+                {
+                    const double pad = LinkHitPad;   // shared with hover + the single-page overlay so all views match
+                    foreach (var lnk in clinks)
+                    {
+                        if (cpos.X >= lnk.Cx - pad && cpos.X <= lnk.Cx + lnk.Cw + pad &&
+                            cpos.Y >= lnk.Cy - pad && cpos.Y <= lnk.Cy + lnk.Ch + pad)
+                        {
+                            FollowLinkTarget(lnk.Tag);
+                            e.Handled = true;
+                            return;
+                        }
                     }
                 }
             }
@@ -1247,13 +1269,34 @@ namespace KillerPDF
 
         // The pointer left a page surface: drop the brush cursor so it doesn't hang frozen at the page
         // edge (MouseMove stops firing off-canvas, so it can't clear itself there).
-        private void Canvas_MouseLeave(object sender, MouseEventArgs e) => HideBrushPreview();
+        private void Canvas_MouseLeave(object sender, MouseEventArgs e)
+        {
+            HideBrushPreview();
+            ShowLinkHoverStatus(null);   // restore the status bar when the pointer leaves the page
+        }
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
             // Don't interfere with mouse interaction inside form field overlays.
             if (e.OriginalSource is DependencyObject moveSrc && IsFormFieldElement(moveSrc))
                 return;
+
+            // Tiled views: hand cursor + the link's target in the status bar while hovering (links have no
+            // clickable overlay here - see Canvas_MouseLeftButtonDown - so hover is resolved by hit-testing
+            // the stored rects, same 20px pad as the click).
+            if (_currentTool == EditTool.Select && _viewMode != ViewMode.Single && sender is Canvas linkHoverCv)
+            {
+                int hpage = linkHoverCv.Tag is int htp ? htp : -1;
+                var hpos = e.GetPosition(linkHoverCv);
+                string? hoverTarget = null;
+                if (hpage >= 0 && _continuousLinks.TryGetValue(hpage, out var hlinks))
+                    foreach (var l in hlinks)
+                        if (hpos.X >= l.Cx - LinkHitPad && hpos.X <= l.Cx + l.Cw + LinkHitPad &&
+                            hpos.Y >= l.Cy - LinkHitPad && hpos.Y <= l.Cy + l.Ch + LinkHitPad)
+                        { hoverTarget = l.Tip; break; }
+                linkHoverCv.Cursor = hoverTarget != null ? System.Windows.Input.Cursors.Hand : null;
+                ShowLinkHoverStatus(hoverTarget);
+            }
 
             // Brush cursor: with the Draw tool active and no button down, show a circle the size of the
             // brush (ink or eraser) at the pointer so it's obvious where the next stroke will land.
