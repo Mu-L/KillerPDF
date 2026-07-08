@@ -61,7 +61,7 @@ namespace KillerPDF
         {
             if (_doc is null || string.IsNullOrEmpty(_currentFile))
             {
-                KillerDialog.Show(this, "Open a PDF first.");
+                KillerDialog.Show(this, Loc("Str_Msg_OpenFirst"));
                 return;
             }
             // Sign the user's real document, not the temp working copy. Operations like print/crop/repair

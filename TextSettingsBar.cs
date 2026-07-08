@@ -692,7 +692,7 @@ namespace KillerPDF
                 double w = srcW * scale;
                 double h = srcH * scale;
                 SelectAnnotation(imgAnnot, new Rect(pos.X, pos.Y, w, h));
-                SetStatus("Image placed - drag to reposition, use the corner handle to resize");
+                SetStatus(Loc("Str_St_ImagePlaced"));
             }
             catch (Exception ex)
             {
@@ -718,7 +718,7 @@ namespace KillerPDF
                 if (Clipboard.ContainsImage())
                 {
                     var src = Clipboard.GetImage();
-                    if (src is null) { SetStatus("Clipboard image could not be read"); return; }
+                    if (src is null) { SetStatus(Loc("Str_St_ClipImageUnreadable")); return; }
 
                     // Encode to PNG so ImageAnnotation stores standard bytes (same as file import).
                     byte[] imgBytes;
@@ -747,12 +747,12 @@ namespace KillerPDF
                     AddAnnotation(imgAnnot);
                     RenderAllAnnotations(pageIdx);
                     SelectAnnotation(imgAnnot, new Rect(pos.X, pos.Y, w, h));
-                    SetStatus("Pasted image - drag to reposition, use the corner handle to resize");
+                    SetStatus(Loc("Str_St_PastedImage"));
                 }
                 else if (Clipboard.ContainsText())
                 {
                     string content = Clipboard.GetText().Trim();
-                    if (string.IsNullOrEmpty(content)) { SetStatus("Clipboard has no text to paste"); return; }
+                    if (string.IsNullOrEmpty(content)) { SetStatus(Loc("Str_St_ClipNoText")); return; }
 
                     // Convert the point size to the page's canvas units (see PlaceTextBox).
                     double fontCanvas = _textFontSize;
@@ -771,11 +771,11 @@ namespace KillerPDF
                     AddAnnotation(ta);
                     RenderAllAnnotations(pageIdx);
                     SelectAnnotation(ta, AnnotBounds(ta));
-                    SetStatus("Pasted text - drag to reposition, Delete to remove");
+                    SetStatus(Loc("Str_St_PastedText"));
                 }
                 else
                 {
-                    SetStatus("Clipboard has nothing to paste");
+                    SetStatus(Loc("Str_St_ClipEmpty"));
                 }
             }
             catch (Exception ex)

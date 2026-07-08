@@ -51,10 +51,10 @@ namespace KillerPDF
 
         private void Split_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var currentFile = _currentFile;
             var selected = PageList.SelectedItems;
-            if (selected.Count == 0) { KillerDialog.Show(this, "Select pages to extract."); return; }
+            if (selected.Count == 0) { KillerDialog.Show(this, Loc("Str_Dlg_SelectExtract")); return; }
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save extracted pages as",
                                            CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
@@ -77,10 +77,10 @@ namespace KillerPDF
 
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var doc = _doc;
             var selected = PageList.SelectedItems;
-            if (selected.Count == 0) { KillerDialog.Show(this, "Select pages to delete."); return; }
+            if (selected.Count == 0) { KillerDialog.Show(this, Loc("Str_Dlg_SelectDelete")); return; }
             var result = KillerDialog.Show(this, $"Delete {selected.Count} {(selected.Count == 1 ? "page" : "pages")}?", "KillerPDF",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result != MessageBoxResult.Yes) return;
@@ -101,7 +101,7 @@ namespace KillerPDF
 
         private void InsertBlankPage_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var doc = _doc;
             int insertAfter = PageList.SelectedIndex >= 0 ? PageList.SelectedIndex : doc.PageCount - 1;
             try
@@ -122,7 +122,7 @@ namespace KillerPDF
         // (sidebar empty area / outside the page), where there's no specific page to insert relative to.
         private void AddBlankPageAtEnd()
         {
-            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var doc = _doc;
             try
             {

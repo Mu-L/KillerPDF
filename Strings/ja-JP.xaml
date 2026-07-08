@@ -3,7 +3,7 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ================================================================
-         KillerPDF  —  Japanese (ja-JP) strings
+         KillerPDF  -  Japanese (ja-JP) strings
          ================================================================ -->
 
     <!-- ── ツールバーのツールチップ ───────────────────────────────────── -->
@@ -17,7 +17,7 @@
     <sys:String x:Key="Str_Drop_Sub">またはクリックして参照</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">名前を付けて保存 (Ctrl+Shift+S)</sys:String>
-    <sys:String x:Key="Str_TT_SaveFlattened">フラット化して保存 (全ページをラスタライズ — 完全に編集不可)</sys:String>
+    <sys:String x:Key="Str_TT_SaveFlattened">フラット化して保存 (全ページをラスタライズ - 完全に編集不可)</sys:String>
     <sys:String x:Key="Str_TT_Print">印刷 (Ctrl+P)</sys:String>
     <sys:String x:Key="Str_TT_MergePDFs">PDF を結合 (この PDF に他の PDF を追加)</sys:String>
     <sys:String x:Key="Str_TT_ExtractPages">ページを抽出 (選択ページを新しい PDF に保存)</sys:String>
@@ -124,7 +124,7 @@
     <sys:String x:Key="Str_Portable">ポータブル</sys:String>
     <sys:String x:Key="Str_InstallBtn">KillerPDF をインストール...</sys:String>
 
-    <!-- ── ステータスメッセージ (書式指定文字列 — string.Formatを使用) ─────── -->
+    <!-- ── ステータスメッセージ (書式指定文字列 - string.Formatを使用) ─────── -->
     <sys:String x:Key="Str_Opened">{0} を開きました - {1} ページ</sys:String>
     <sys:String x:Key="Str_OpenedReadOnly">{0} を開きました (読み取り専用 - 所有者制限) - {1} ページ</sys:String>
     <sys:String x:Key="Str_OpenedReadOnlyXRef">{0} を開きました (読み取り専用 - 非標準 XRef テーブル) - {1} ページ</sys:String>
@@ -132,7 +132,7 @@
     <sys:String x:Key="Str_OpenedRasterRepair">{0} を開きました (ラスタライズ修復 - 変更を保存するには保存が必要) - {1} ページ</sys:String>
     <sys:String x:Key="Str_PageOf">{0} / {1} ページ</sys:String>
     <sys:String x:Key="Str_PageOfLinks">{0} / {1} ページ  ({2} リンク)</sys:String>
-    <sys:String x:Key="Str_PageFormFields">{0} / {1} ページ — このページには入力可能なフォームフィールドが含まれています</sys:String>
+    <sys:String x:Key="Str_PageFormFields">{0} / {1} ページ - このページには入力可能なフォームフィールドが含まれています</sys:String>
     <sys:String x:Key="Str_PageRenderError">ページ {0} - レンダリングできませんでした</sys:String>
     <sys:String x:Key="Str_RenderError">レンダリングエラー : {0}</sys:String>
     <sys:String x:Key="Str_Rotated">{0} ページを回転しました</sys:String>
@@ -144,7 +144,7 @@
     <sys:String x:Key="Str_Deleted">{0} ページを削除しました - {1} ページ残っています</sys:String>
     <sys:String x:Key="Str_Printed">{0} ページをプリンターに送信しました</sys:String>
     <sys:String x:Key="Str_LinkRemoved">リンクを削除しました。</sys:String>
-    <sys:String x:Key="Str_InvalidRange">無効な範囲です — 例 : 1-3,5,7</sys:String>
+    <sys:String x:Key="Str_InvalidRange">無効な範囲です - 例 : 1-3,5,7</sys:String>
     <sys:String x:Key="Str_CropNoDoc">トリミング : 開かれているドキュメントがありません</sys:String>
     <sys:String x:Key="Str_CropNoPage">トリミング : ページが選択されていません</sys:String>
     <sys:String x:Key="Str_CropNoDims">トリミング : ページ寸法が利用できません</sys:String>
@@ -456,4 +456,79 @@
     <sys:String x:Key="Str_KS_View">表示</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">全画面</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">F11 または Esc で全画面を終了します</sys:String>
+
+    <!-- リンク (右クリックメニュー / 確認) -->
+    <sys:String x:Key="Str_LinksSection">リンク</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">リンクを開く</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">リンクアドレスをコピー</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">メールアドレスをコピー</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">PDF からリンクを削除</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">リンクを開きますか？</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">このリンクをブラウザーで開きますか？</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">リンクを開く前に確認する</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">今後確認しない</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">リンクを開けませんでした</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">ブロックされたリンク (未対応の種類)：</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">リンクの削除に失敗しました：</sys:String>
+
+    <!-- 終了ダイアログ -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">KillerPDF を終了しますか？</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">開いているタブを閉じる</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">終了</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">キャンセル</sys:String>
+
+    <!-- Status-bar + dialog strings (extracted from code) -->
+    <sys:String x:Key="Str_St_DataCleared">すべてのKillerPDFデータを消去しました</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCancelled">OCR領域の選択をキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_Erased">消去しました</sys:String>
+    <sys:String x:Key="Str_St_Ungrouped">グループを解除しました</sys:String>
+    <sys:String x:Key="Str_St_RemovedFromGroup">グループから削除しました</sys:String>
+    <sys:String x:Key="Str_St_NothingToUndo">元に戻す操作はありません</sys:String>
+    <sys:String x:Key="Str_St_UndidAnnotation">直前の注釈を元に戻しました</sys:String>
+    <sys:String x:Key="Str_St_UndidTextEdit">テキスト編集を元に戻しました</sys:String>
+    <sys:String x:Key="Str_St_RemovedStamps">押印したページ番号を削除しました</sys:String>
+    <sys:String x:Key="Str_St_RestoredAnnotations">消去した注釈を復元しました</sys:String>
+    <sys:String x:Key="Str_St_Undone">元に戻しました</sys:String>
+    <sys:String x:Key="Str_St_UndidDocChange">ドキュメントの変更を元に戻しました</sys:String>
+    <sys:String x:Key="Str_St_ClearedPageAnnotations">このページの注釈を消去しました</sys:String>
+    <sys:String x:Key="Str_St_NoAnnotationsToClear">消去する注釈がありません</sys:String>
+    <sys:String x:Key="Str_St_RepairCancelled">修復をキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_Cancelled">キャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_DocInfoUpdated">ドキュメント情報を更新しました。変更を保持するにはファイルを保存してください</sys:String>
+    <sys:String x:Key="Str_St_FlattenCancelled">フラット化をキャンセルしました（ファイルは書き込まれていません）</sys:String>
+    <sys:String x:Key="Str_St_FlattenPrintFailed">印刷用に注釈をフラット化できませんでした。注釈なしで印刷します。</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCancelled">高品質ダウンロードをキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCancelled">言語のダウンロードをキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_OcrCancelled">OCRをキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_OcrDragBox">認識する領域をドラッグして囲んでください</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR領域が小さすぎます</sys:String>
+    <sys:String x:Key="Str_St_OcrNoText">OCR：選択した領域にテキストが見つかりませんでした</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCancelled">検索可能なPDFの作成をキャンセルしました（ファイルは書き込まれていません）</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCancelled">テキスト抽出をキャンセルしました（ファイルは書き込まれていません）</sys:String>
+    <sys:String x:Key="Str_St_NoTextOnPage">このページにテキストが見つかりませんでした</sys:String>
+    <sys:String x:Key="Str_St_NoTextSelected">テキストが選択されていません。ドラッグしてテキストを選択してください</sys:String>
+    <sys:String x:Key="Str_St_NoTextInSelection">選択範囲にテキストが見つかりませんでした</sys:String>
+    <sys:String x:Key="Str_St_SignaturePlaced">署名を配置しました。ドラッグで位置を変更し、角のハンドルでサイズを変更できます</sys:String>
+    <sys:String x:Key="Str_St_FieldCleared">フィールドを消去しました</sys:String>
+    <sys:String x:Key="Str_St_FieldSigned">フィールドに署名しました</sys:String>
+    <sys:String x:Key="Str_St_SignatureSaved">署名を保存しました。ページをクリックして配置してください</sys:String>
+    <sys:String x:Key="Str_St_ImageLoaded">画像を読み込みました。ページをクリックして配置してください</sys:String>
+    <sys:String x:Key="Str_St_EditingText">テキストを編集中です。上部でサイズや色を変更し、Enterで保存します</sys:String>
+    <sys:String x:Key="Str_St_AlreadyEditHere">ここには既に編集があります。テキストをクリックして再編集するか、カバーをドラッグしてください</sys:String>
+    <sys:String x:Key="Str_St_NoTextLine">この位置にテキスト行が見つかりませんでした</sys:String>
+    <sys:String x:Key="Str_St_LineAlreadyEdited">この行は既に編集済みです。テキストをクリックして変更してください</sys:String>
+    <sys:String x:Key="Str_St_ImagePlaced">画像を配置しました。ドラッグで位置を変更し、角のハンドルでサイズを変更できます</sys:String>
+    <sys:String x:Key="Str_St_ClipImageUnreadable">クリップボードの画像を読み取れませんでした</sys:String>
+    <sys:String x:Key="Str_St_PastedImage">画像を貼り付けました。ドラッグで位置を変更し、角のハンドルでサイズを変更できます</sys:String>
+    <sys:String x:Key="Str_St_ClipNoText">クリップボードに貼り付けるテキストがありません</sys:String>
+    <sys:String x:Key="Str_St_PastedText">テキストを貼り付けました。ドラッグで位置を変更し、Deleteで削除します</sys:String>
+    <sys:String x:Key="Str_St_ClipEmpty">クリップボードに貼り付けるものがありません</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveBeforeUpdate">更新する前に変更を保存してください。</sys:String>
+    <sys:String x:Key="Str_Dlg_Uninstalled">KillerPDFをアンインストールしました。</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectExtract">抽出するページを選択してください。</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectDelete">削除するページを選択してください。</sys:String>
+    <sys:String x:Key="Str_Dlg_NoPrinter">利用可能なプリンターがありません。</sys:String>
+    <sys:String x:Key="Str_Dlg_NoValidPages">その範囲に有効なページがありません。</sys:String>
+    <sys:String x:Key="Str_Dlg_SignedSavedTo">署名済みのコピーの保存先：</sys:String>
+    <sys:String x:Key="Str_Dlg_DrawSignatureFirst">最初に署名を描いてください。</sys:String>
 </ResourceDictionary>

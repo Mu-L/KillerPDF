@@ -29,9 +29,12 @@
 .content-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px 50px; }
 
 /* Hero */
-.hero { padding: 48px 0 30px; text-align: center; }
+.hero { padding: 12px 0 30px; text-align: center; }
 .hero .wm-logo { height: clamp(54px, 10vw, 104px); margin: 0 auto; filter: drop-shadow(0 4px 7px rgba(0,0,0,0.5)); }
-.hero .tagline { margin: 20px auto 0; max-width: 600px; font-size: 16px; color: var(--text2); }
+.hero .hero-lockup { display: flex; align-items: center; justify-content: center; gap: clamp(10px, 2vw, 22px); flex-wrap: wrap; }
+.hero .hero-lockup .wm-logo { margin: 0; }
+.hero .hero-icon { height: clamp(120px, 24vw, 230px); width: auto; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
+.hero .tagline { margin: 10px auto 0; max-width: 600px; font-size: 16px; color: var(--text2); }
 .hero-grid { display: flex; flex-wrap: wrap; gap: 30px 40px; align-items: center; justify-content: center; margin: 38px auto 0; max-width: 980px; text-align: left; }
 
 /* Terminal (flat, no glow) */
@@ -75,7 +78,7 @@
 .features h2 { font-family: 'TypewriterHead', 'Courier New', monospace; font-size: 24px; font-weight: normal; letter-spacing: .5px; color: var(--text); text-align: center; margin-bottom: 26px; }
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
 .feature-card { background: var(--modal) url('grain.png') repeat; background-size: 256px 256px; border: 1px solid var(--pane-border); border-top: 2px solid var(--tab-edge); border-radius: 6px; padding: 18px 20px; transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s; }
-.feature-card:hover { transform: translateY(-3px); box-shadow: 0 14px 28px rgba(0,0,0,0.4); border-right-color: var(--dragline); border-bottom-color: var(--dragline); border-left-color: var(--dragline); }
+.feature-card:hover { transform: translateY(-3px); box-shadow: 0 14px 28px rgba(0,0,0,0.4); border-right-color: var(--dragline); border-bottom-color: var(--dragline); border-left-color: var(--dragline); border-top-color: var(--accent); }
 .feature-card h3 { font-family: 'TypewriterHead', 'Courier New', monospace; font-size: 15px; font-weight: normal; letter-spacing: .5px; margin-bottom: 8px; color: var(--accent); text-shadow: 0 2px 5px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.5); }
 html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { text-shadow: none; }
 .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.55; }
@@ -169,7 +172,10 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <div class="content-inner">
 
 <section class="hero">
+<div class="hero-lockup">
+<img class="hero-icon" src="kp-icon.png" alt="" aria-hidden="true" width="230" height="230">
 <img class="wm-logo" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF">
+</div>
 <p class="tagline" data-i18n="tagline">A full PDF editor that views, edits, OCRs, fills, and signs...<br>all from one ~14 MB native .exe, with no account and nothing sent anywhere.</p>
 <div class="hero-blurbs">
 <div class="blurb"><h3 data-i18n="b1_t">Fully featured</h3><ul class="blurb-list" data-i18n="b1_d">

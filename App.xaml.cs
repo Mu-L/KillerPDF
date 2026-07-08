@@ -1524,7 +1524,7 @@ namespace KillerPDF
                 UseShellExecute = true
             });
 
-            MessageBox.Show("KillerPDF has been uninstalled.", AppName,
+            MessageBox.Show(Application.Current.TryFindResource("Str_Dlg_Uninstalled") as string ?? "KillerPDF has been uninstalled.", AppName,
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }

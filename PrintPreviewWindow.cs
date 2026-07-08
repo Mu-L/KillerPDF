@@ -970,7 +970,7 @@ namespace KillerPDF
         {
             if (_queue == null)
             {
-                KillerDialog.Show(this, "No printer is available.", "KillerPDF",
+                KillerDialog.Show(this, S("Str_Dlg_NoPrinter"), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -978,7 +978,7 @@ namespace KillerPDF
             var indices = ParseRange(_pagesBox.Text, _pages.Length);
             if (indices.Count == 0)
             {
-                KillerDialog.Show(this, "No valid pages in that range.", "KillerPDF",
+                KillerDialog.Show(this, S("Str_Dlg_NoValidPages"), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }

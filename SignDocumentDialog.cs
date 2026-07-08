@@ -221,7 +221,7 @@ namespace KillerPDF
                 return;
             }
 
-            KillerDialog.Show(this, "Signed copy saved to:\n" + output, "Digital Signature", MessageBoxButton.OK, MessageBoxImage.Information);
+            KillerDialog.Show(this, L("Str_Dlg_SignedSavedTo") + "\n" + output, "Digital Signature", MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
         }

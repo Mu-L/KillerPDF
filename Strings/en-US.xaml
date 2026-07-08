@@ -473,4 +473,61 @@ You can uninstall via Add/Remove Programs at any time.</sys:String>
     <sys:String x:Key="Str_Btn_Quit">Quit</sys:String>
     <sys:String x:Key="Str_Btn_CancelDlg">Cancel</sys:String>
 
+
+    <!-- Status-bar messages (extracted from code) -->
+    <sys:String x:Key="Str_St_DataCleared">All KillerPDF data cleared</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCancelled">OCR region cancelled</sys:String>
+    <sys:String x:Key="Str_St_Erased">Erased</sys:String>
+    <sys:String x:Key="Str_St_Ungrouped">Ungrouped</sys:String>
+    <sys:String x:Key="Str_St_RemovedFromGroup">Removed from group</sys:String>
+    <sys:String x:Key="Str_St_NothingToUndo">Nothing to undo</sys:String>
+    <sys:String x:Key="Str_St_UndidAnnotation">Undid last annotation</sys:String>
+    <sys:String x:Key="Str_St_UndidTextEdit">Undid text edit</sys:String>
+    <sys:String x:Key="Str_St_RemovedStamps">Removed stamped page numbers</sys:String>
+    <sys:String x:Key="Str_St_RestoredAnnotations">Restored cleared annotations</sys:String>
+    <sys:String x:Key="Str_St_Undone">Undone</sys:String>
+    <sys:String x:Key="Str_St_UndidDocChange">Undid document change</sys:String>
+    <sys:String x:Key="Str_St_ClearedPageAnnotations">Cleared annotations on this page</sys:String>
+    <sys:String x:Key="Str_St_NoAnnotationsToClear">No annotations to clear</sys:String>
+    <sys:String x:Key="Str_St_RepairCancelled">Repair cancelled</sys:String>
+    <sys:String x:Key="Str_St_Cancelled">Cancelled</sys:String>
+    <sys:String x:Key="Str_St_DocInfoUpdated">Document info updated - save the file to keep the changes</sys:String>
+    <sys:String x:Key="Str_St_FlattenCancelled">Flatten cancelled (no file written)</sys:String>
+    <sys:String x:Key="Str_St_FlattenPrintFailed">Could not flatten annotations for printing; printing without them.</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCancelled">High quality download cancelled</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCancelled">Language download cancelled</sys:String>
+    <sys:String x:Key="Str_St_OcrCancelled">OCR cancelled</sys:String>
+    <sys:String x:Key="Str_St_OcrDragBox">Drag a box over the area to recognize</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR region too small</sys:String>
+    <sys:String x:Key="Str_St_OcrNoText">OCR: no text found in the selected region</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCancelled">Searchable PDF cancelled (no file written)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCancelled">Text extraction cancelled (no file written)</sys:String>
+    <sys:String x:Key="Str_St_NoTextOnPage">No text found on this page</sys:String>
+    <sys:String x:Key="Str_St_NoTextSelected">No text selected - drag to select text</sys:String>
+    <sys:String x:Key="Str_St_NoTextInSelection">No text found in selection</sys:String>
+    <sys:String x:Key="Str_St_SignaturePlaced">Signature placed - drag to reposition, use the corner handle to resize</sys:String>
+    <sys:String x:Key="Str_St_FieldCleared">Field cleared</sys:String>
+    <sys:String x:Key="Str_St_FieldSigned">Field signed</sys:String>
+    <sys:String x:Key="Str_St_SignatureSaved">Signature saved - click on the page to place it</sys:String>
+    <sys:String x:Key="Str_St_ImageLoaded">Image loaded - click on the page to place it</sys:String>
+    <sys:String x:Key="Str_St_EditingText">Editing text - change size/color above, Enter to save</sys:String>
+    <sys:String x:Key="Str_St_AlreadyEditHere">Already an edit here - click its text to re-edit, or drag the cover</sys:String>
+    <sys:String x:Key="Str_St_NoTextLine">No text line found at this position</sys:String>
+    <sys:String x:Key="Str_St_LineAlreadyEdited">This line is already edited - click its text to change it</sys:String>
+    <sys:String x:Key="Str_St_ImagePlaced">Image placed - drag to reposition, use the corner handle to resize</sys:String>
+    <sys:String x:Key="Str_St_ClipImageUnreadable">Clipboard image could not be read</sys:String>
+    <sys:String x:Key="Str_St_PastedImage">Pasted image - drag to reposition, use the corner handle to resize</sys:String>
+    <sys:String x:Key="Str_St_ClipNoText">Clipboard has no text to paste</sys:String>
+    <sys:String x:Key="Str_St_PastedText">Pasted text - drag to reposition, Delete to remove</sys:String>
+    <sys:String x:Key="Str_St_ClipEmpty">Clipboard has nothing to paste</sys:String>
+
+    <!-- Dialog / message-box strings (extracted from code) -->
+    <sys:String x:Key="Str_Dlg_SaveBeforeUpdate">Please save your changes before updating.</sys:String>
+    <sys:String x:Key="Str_Dlg_Uninstalled">KillerPDF has been uninstalled.</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectExtract">Select pages to extract.</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectDelete">Select pages to delete.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoPrinter">No printer is available.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoValidPages">No valid pages in that range.</sys:String>
+    <sys:String x:Key="Str_Dlg_SignedSavedTo">Signed copy saved to:</sys:String>
+    <sys:String x:Key="Str_Dlg_DrawSignatureFirst">Draw a signature first.</sys:String>
 </ResourceDictionary>

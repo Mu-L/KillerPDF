@@ -68,7 +68,7 @@ namespace KillerPDF
             double sigW = sig.CanvasWidth * scale;
             double sigH = sig.CanvasHeight * scale;
             SelectAnnotation(annot, new Rect(pos.X, pos.Y, sigW, sigH));
-            SetStatus("Signature placed - drag to reposition, use the corner handle to resize");
+            SetStatus(Loc("Str_St_SignaturePlaced"));
         }
 
         // Already signed -> change/remove menu. Otherwise drop the reusable choice, or open the
@@ -116,7 +116,7 @@ namespace KillerPDF
             _signedFields.Remove(objNum);
             RenderAllAnnotations(pageIndex);
             MarkDirty(true);
-            SetStatus("Field cleared");
+            SetStatus(Loc("Str_St_FieldCleared"));
         }
 
         // Places a SignatureAnnotation centred in and scaled to fit the field rectangle.
@@ -148,7 +148,7 @@ namespace KillerPDF
             AddAnnotation(annot);
             RenderAllAnnotations(pageIndex);
             MarkDirty(true);
-            SetStatus("Field signed");
+            SetStatus(Loc("Str_St_FieldSigned"));
         }
 
         private void HideSignaturePopup()
@@ -719,7 +719,7 @@ namespace KillerPDF
             {
                 if (strokes.Count == 0)
                 {
-                    KillerDialog.Show(this, "Draw a signature first.", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    KillerDialog.Show(this, Loc("Str_Dlg_DrawSignatureFirst"), "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -745,7 +745,7 @@ namespace KillerPDF
                 // Auto-select the new signature for placement
                 _pendingSignature = saved;
                 _annotationCanvas.Cursor = Cursors.Cross;
-                SetStatus("Signature saved - click on the page to place it");
+                SetStatus(Loc("Str_St_SignatureSaved"));
 
                 win.Close();
             };
@@ -797,7 +797,7 @@ namespace KillerPDF
 
                 _pendingSignature = saved;
                 _annotationCanvas.Cursor = Cursors.Cross;
-                SetStatus("Image loaded - click on the page to place it");
+                SetStatus(Loc("Str_St_ImageLoaded"));
             }
             catch (Exception ex)
             {

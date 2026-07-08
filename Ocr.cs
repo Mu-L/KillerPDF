@@ -295,7 +295,7 @@ namespace KillerPDF
                     catch { failed.Add(name); TryDeleteFile(dest + ".part"); }
                 }
                 HideBusyOverlay(busy);
-                if (ct.IsCancellationRequested) SetStatus("High quality download cancelled");
+                if (ct.IsCancellationRequested) SetStatus(Loc("Str_St_HqDownloadCancelled"));
                 else if (failed.Count > 0) SetStatus($"High quality models installed; failed: {string.Join(", ", failed)}");
                 else SetStatus($"High quality models installed for: {string.Join("+", toDownload)}");
             }
@@ -399,7 +399,7 @@ namespace KillerPDF
             }
             catch (OperationCanceledException)
             {
-                SetStatus("Language download cancelled");
+                SetStatus(Loc("Str_St_LangDownloadCancelled"));
                 return false;
             }
             catch (Exception ex)
@@ -420,7 +420,7 @@ namespace KillerPDF
         // busy overlay; everything touching the clipboard/UI happens back on the UI thread.
         private async void OcrPageToClipboard(int pageIdx)
         {
-            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             if (pageIdx < 0 || pageIdx >= _doc.PageCount) return;
             if (!await EnsureOcrModelsReadyAsync()) return;
 
@@ -452,7 +452,7 @@ namespace KillerPDF
                 HideBusyOverlay(busy);
                 // Cooperative cancel: a single page can't be interrupted mid-recognition, so we just discard
                 // the result if the user cancelled. No exceptions are thrown for cancellation anywhere.
-                if (ct.IsCancellationRequested) { SetStatus("OCR cancelled"); return; }
+                if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_OcrCancelled")); return; }
 
                 string text = result.Text.Trim();
                 if (text.Length == 0)
@@ -482,10 +482,10 @@ namespace KillerPDF
 
         private void BeginOcrRegion()
         {
-            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             SetTool(EditTool.Select);
             _ocrRegionMode = true;
-            SetStatus("Drag a box over the area to recognize");
+            SetStatus(Loc("Str_St_OcrDragBox"));
         }
 
         private async void OcrRegion(int pageIdx, Rect canvasBounds)
@@ -493,7 +493,7 @@ namespace KillerPDF
             if (_doc is null || _currentFile is null) return;
             if (pageIdx < 0 || pageIdx >= _doc.PageCount) return;
             if (!_renderDims.TryGetValue(pageIdx, out var rd) || rd.w <= 0 || rd.h <= 0) return;
-            if (canvasBounds.Width < 4 || canvasBounds.Height < 4) { SetStatus("OCR region too small"); return; }
+            if (canvasBounds.Width < 4 || canvasBounds.Height < 4) { SetStatus(Loc("Str_St_OcrRegionTooSmall")); return; }
             if (!await EnsureOcrModelsReadyAsync()) return;
 
             string file = _currentFile;
@@ -526,10 +526,10 @@ namespace KillerPDF
                 });
 
                 HideBusyOverlay(busy);
-                if (ct.IsCancellationRequested) { SetStatus("OCR cancelled"); return; }
+                if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_OcrCancelled")); return; }
 
                 string text = result.Text.Trim();
-                if (text.Length == 0) { SetStatus("OCR: no text found in the selected region"); return; }
+                if (text.Length == 0) { SetStatus(Loc("Str_St_OcrNoText")); return; }
                 Clipboard.SetText(text);
                 SetStatus($"OCR: copied {text.Length} chars from the region ({result.MeanConfidence:P0} confidence)");
             }
@@ -632,7 +632,7 @@ namespace KillerPDF
             {
                 var (pages, words) = await Task.Run(() => BuildSearchablePdf(src, outPath, report, ct, lang));
                 HideBusyOverlay(busy);
-                if (ct.IsCancellationRequested) { SetStatus("Searchable PDF cancelled (no file written)"); return; }
+                if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_SearchablePdfCancelled")); return; }
                 SetStatus($"Searchable PDF saved: {pages} pages, {words} words recognized");
                 KillerDialog.Show(this,
                     $"Saved searchable PDF:\n{outPath}\n\n{pages} pages processed, {words} words recognized.",
@@ -763,7 +763,7 @@ namespace KillerPDF
             {
                 int pages = await Task.Run(() => ExtractText(src, pageCount, outPath, markdown, report, ct, lang));
                 HideBusyOverlay(busy);
-                if (ct.IsCancellationRequested) { SetStatus("Text extraction cancelled (no file written)"); return; }
+                if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_TextExtractCancelled")); return; }
                 SetStatus($"Text extracted from {pages} pages -> {Path.GetFileName(outPath)}");
             }
             catch (Exception ex)

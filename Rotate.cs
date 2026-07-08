@@ -23,7 +23,7 @@ namespace KillerPDF
 
         private void ToolRotate_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null) { SetStatus("Open a PDF first."); return; }
+            if (_doc is null) { SetStatus(Loc("Str_Msg_OpenFirst")); return; }
             OpenTransformWindow();
         }
 
@@ -90,7 +90,7 @@ namespace KillerPDF
                     pageAnns.Clear();   // now part of the page image
 
                 var src = RenderPageBitmap(pageIdx, 2200, burned);
-                if (src is null) { SetStatus("Could not render the page."); return; }
+                if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
 
                 var composed = ComposeTransform(src, angleDeg, scale, fixedPage, flipH, flipV);
                 byte[] png = EncodePng(composed);

@@ -138,7 +138,7 @@ namespace KillerPDF
             if (res != MessageBoxResult.Yes) return;
 
             App.ClearAllData();
-            SetStatus("All KillerPDF data cleared");
+            SetStatus(Loc("Str_St_DataCleared"));
             KillerDialog.Show(this,
                 "Settings, language packs, and temp files were cleared.\n\n" +
                 "Restart KillerPDF to finish clearing any files still in use this session.",
@@ -195,7 +195,7 @@ namespace KillerPDF
 
             if (_isDirty)
             {
-                KillerDialog.Show(this, "Please save your changes before updating.",
+                KillerDialog.Show(this, Loc("Str_Dlg_SaveBeforeUpdate"),
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }

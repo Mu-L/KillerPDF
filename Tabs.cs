@@ -301,7 +301,7 @@ namespace KillerPDF
             SidebarOutlinesTab.IsEnabled = false;
             if (_sidebarShowingOutlines) SwitchSidebarToPagesTab();
             MarkDirty(false);
-            SetStatus("Ready");
+            SetStatus(Loc("Str_Ready"));
         }
 
         // ============================================================

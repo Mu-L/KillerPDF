@@ -1757,7 +1757,7 @@ namespace KillerPDF
                     _ocrRegionMode = false;
                     if (dragW >= 4 && dragH >= 4)
                         OcrRegion(pageIdx, new Rect(Math.Min(pos.X, _selectStart.X), Math.Min(pos.Y, _selectStart.Y), dragW, dragH));
-                    else SetStatus("OCR region cancelled");
+                    else SetStatus(Loc("Str_St_OcrRegionCancelled"));
                     return;
                 }
 
@@ -2062,7 +2062,7 @@ namespace KillerPDF
             ClearSelection();
             RenderAllAnnotations(pageIdx);
             MarkDirty();
-            SetStatus("Erased");
+            SetStatus(Loc("Str_St_Erased"));
         }
 
         // Ctrl+A: multi-select every annotation on the pages currently on screen (single selected page,
@@ -2155,7 +2155,7 @@ namespace KillerPDF
             if (_annotations.TryGetValue(a.PageIndex, out var list))
                 foreach (var m in list) if (m.GroupId == gid) m.GroupId = "";
             MarkDirty();
-            SetStatus("Ungrouped");
+            SetStatus(Loc("Str_St_Ungrouped"));
         }
 
         // Drop a single annotation out of its group, leaving the rest grouped. If that leaves only one
@@ -2176,7 +2176,7 @@ namespace KillerPDF
             RenderAllAnnotations(a.PageIndex);
             _activeCanvas = CanvasForPage(a.PageIndex);
             SelectAnnotation(a, AnnotBounds(a));
-            SetStatus("Removed from group");
+            SetStatus(Loc("Str_St_RemovedFromGroup"));
         }
 
         // The selected annotation (primary or multi-select) that belongs to a text/cover pair, if any.
@@ -2345,7 +2345,7 @@ namespace KillerPDF
 
             if (_undoStack.Count == 0)
             {
-                SetStatus("Nothing to undo");
+                SetStatus(Loc("Str_St_NothingToUndo"));
                 return;
             }
 
@@ -2366,7 +2366,7 @@ namespace KillerPDF
                 ClearSelection();
                 RenderAllAnnotations(pageIdx);
                 MarkDirty(entry.WasDirty);
-                SetStatus("Undid last annotation");
+                SetStatus(Loc("Str_St_UndidAnnotation"));
             }
             else if (entry.Kind == UndoKind.AnnotationGroup && entry.AnnotGroup is not null)
             {
@@ -2378,7 +2378,7 @@ namespace KillerPDF
                 ClearSelection();
                 RenderAllAnnotations(pageIdx);
                 MarkDirty(entry.WasDirty);
-                SetStatus("Undid text edit");
+                SetStatus(Loc("Str_St_UndidTextEdit"));
             }
             else if (entry.Kind == UndoKind.StampBatch && entry.Pages is not null)
             {
@@ -2392,7 +2392,7 @@ namespace KillerPDF
                     if (_pages.ContainsKey(p))   // authoritative map: covers the primary tile in Grid/Two-Page too
                         RenderAllAnnotations(p);
                 MarkDirty(entry.WasDirty);
-                SetStatus("Removed stamped page numbers");
+                SetStatus(Loc("Str_St_RemovedStamps"));
             }
             else if (entry.Kind == UndoKind.ClearAnnotations && entry.AnnotSnapshot is not null)
             {
@@ -2402,7 +2402,7 @@ namespace KillerPDF
                 ClearSelection();
                 RenderAnnotationsOnAllVisiblePages();
                 MarkDirty(entry.WasDirty);
-                SetStatus("Restored cleared annotations");
+                SetStatus(Loc("Str_St_RestoredAnnotations"));
             }
             else if (entry.Kind == UndoKind.PageSnapshot && entry.AnnotSnapshot is not null)
             {
@@ -2413,7 +2413,7 @@ namespace KillerPDF
                 ClearSelection();
                 RenderAnnotationsOnAllVisiblePages();
                 MarkDirty(entry.WasDirty);
-                SetStatus("Undone");
+                SetStatus(Loc("Str_St_Undone"));
             }
             else // Document snapshot
             {
@@ -2461,7 +2461,7 @@ namespace KillerPDF
                         RenderPage(_viewMode == ViewMode.Grid ? 0 : reIdx);
                         ReapplyGridOrFit();
                     }));
-                SetStatus("Undid document change");
+                SetStatus(Loc("Str_St_UndidDocChange"));
             }
         }
 
@@ -2495,7 +2495,7 @@ namespace KillerPDF
             // Redraw the page on whichever surface it lives on (overlay in multi-page views, the
             // single canvas otherwise) so the cleared page actually updates in continuous/grid mode.
             RenderAllAnnotations(pageIdx);
-            SetStatus("Cleared annotations on this page");
+            SetStatus(Loc("Str_St_ClearedPageAnnotations"));
         }
 
         // Toolbar "Clear All Annotations": removes annotations across the whole document in one undo.
@@ -2505,7 +2505,7 @@ namespace KillerPDF
             if (_activeTextBox is not null) CommitActiveTextBox();
 
             int total = _annotations.Values.Sum(l => l.Count);
-            if (total == 0) { SetStatus("No annotations to clear"); return; }
+            if (total == 0) { SetStatus(Loc("Str_St_NoAnnotationsToClear")); return; }
 
             // Snapshot every page so a single Ctrl+Z restores the whole document's annotations.
             var snapshot = new Dictionary<int, List<PageAnnotation>>();

@@ -512,7 +512,7 @@ namespace KillerPDF
                 // Works when the XRef is partially corrupt but the object data is intact. (Returns
                 // null on failure rather than throwing.)
                 repairedPath = await System.Threading.Tasks.Task.Run(() => RepairViaImportToFile(path));
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus("Repair cancelled"); return; }   // cancelled during strategy 1
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 1
 
                 // Strategy 2: PDFium rasterize. PDFium's internal XRef recovery handles damage
                 // PdfSharpCore cannot; each page is rendered to a bitmap and rebuilt into a clean PDF.
@@ -522,7 +522,7 @@ namespace KillerPDF
                     repairedPath = await System.Threading.Tasks.Task.Run(() => RepairViaDocnetRasterizeToFile(path));
                     raster = repairedPath is not null;
                 }
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus("Repair cancelled"); return; }   // cancelled during strategy 2
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 2
 
                 if (repairedPath is null)
                 {
@@ -575,7 +575,7 @@ namespace KillerPDF
                 var repairedPath = App.MakeTempFile("repaired");
                 bool ok = await System.Threading.Tasks.Task.Run(() =>
                     TryPdfiumStripEncryption(srcPath, repairedPath) || TryImportRepairToPath(srcPath, repairedPath));
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus("Cancelled"); EndCancellableOp(); return; }
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_Cancelled")); EndCancellableOp(); return; }
                 if (!ok)
                 {
                     HideBusyOverlay(busy);
@@ -756,7 +756,7 @@ namespace KillerPDF
             SidebarOutlinesTab.IsEnabled = false;
             if (_sidebarShowingOutlines) SwitchSidebarToPagesTab();
             MarkDirty(false);
-            SetStatus("Ready");
+            SetStatus(Loc("Str_Ready"));
         }
 
         private void CloseFile_Click(object sender, RoutedEventArgs e) => CloseTab(_active);
@@ -783,7 +783,7 @@ namespace KillerPDF
 
                 _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
                 FinishOpenFile("Untitled.pdf", tempPath);
-                SetStatus("New blank document");
+                SetStatus(Loc("Str_KS_NewBlank"));
                 CaptureSessionState(_active!);
                 SetTool(_currentTool);   // sync the tool UI to this (new) tab's tool
                 RebuildTabStrip();
@@ -1114,20 +1114,20 @@ namespace KillerPDF
         // Opens the Document Info dialog; edits are applied to the live doc and persist on the next save.
         private void OpenDocumentInfo()
         {
-            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
             var dlg = new DocumentInfoDialog(this, _doc, _originalFile ?? _currentFile);
             dlg.ShowDialog();   // fade-close dialogs don't reliably return true; rely on the Saved flag
             if (dlg.Saved)
             {
                 MarkDirty();
-                SetStatus("Document info updated - save the file to keep the changes");
+                SetStatus(Loc("Str_St_DocInfoUpdated"));
             }
         }
 
         private void Merge_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var doc = _doc;
             var dlg = new OpenFileDialog { Filter = "PDF files|*.pdf", Title = "Select PDF to merge", Multiselect = true };
             if (dlg.ShowDialog(this) != true) return;
@@ -1336,7 +1336,7 @@ namespace KillerPDF
 
         private void SaveInPlace()
         {
-            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             // Save back to the user's real file. After a page edit (crop/rotate) _currentFile is a
             // temp working copy, so the real path is kept in _originalFile. If there is no real path
             // (e.g. a repaired temp-backed open), fall back to Save As.
@@ -1393,7 +1393,7 @@ namespace KillerPDF
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             // No real path yet (repaired temp-backed open) -> go straight to Save As.
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(sender, e); return; }
             var name = System.IO.Path.GetFileName(_originalFile);
@@ -1406,7 +1406,7 @@ namespace KillerPDF
 
         private void SaveAs_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save PDF as",
                                            CheckFileExists = false, CheckPathExists = true };
@@ -1478,7 +1478,7 @@ namespace KillerPDF
 
         private async void SaveFlattened_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save Flattened PDF",
                                            CheckFileExists = false, CheckPathExists = true };
@@ -1595,7 +1595,7 @@ namespace KillerPDF
                     }
                 });
 
-                if (ct.IsCancellationRequested) { SetStatus("Flatten cancelled (no file written)"); return; }
+                if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_FlattenCancelled")); return; }
                 MarkDirty(false);
                 SetStatus($"Flattened PDF saved to {System.IO.Path.GetFileName(outputPath)}");
             }
@@ -1663,7 +1663,7 @@ namespace KillerPDF
 
         private void Print_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, "Open a PDF first."); return; }
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
 
             // The print prep (annotation burn + doc reopen) runs synchronously on the UI thread and freezes
@@ -1730,7 +1730,7 @@ namespace KillerPDF
                     catch { return false; }
                 });
 
-                if (!burned) SetStatus("Could not flatten annotations for printing; printing without them.");
+                if (!burned) SetStatus(Loc("Str_St_FlattenPrintFailed"));
                 printPath     = burned ? burnPath : srcFile;
                 tempFlattened = burned ? burnPath : null;
             }

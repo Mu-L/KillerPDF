@@ -52,6 +52,7 @@ namespace KillerPDF
             LangBnRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.Bn;
             LangTrRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.TrTR;
             LangDeRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.De;
+            LangJaRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.JaJP;
             LangCurrentLabel.Text   = LangDisplayName(curLoc);
             // Sync view mode radios
             ViewSingleRadio.IsChecked     = _viewMode == ViewMode.Single;
@@ -458,6 +459,7 @@ namespace KillerPDF
         private void LangBnRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.Bn);
         private void LangTrRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.TrTR);
         private void LangDeRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.De);
+        private void LangJaRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.JaJP);
 
         private void SelectLocale(KillerPDF.Services.Locale loc)
         {
@@ -546,6 +548,7 @@ namespace KillerPDF
             KillerPDF.Services.Locale.Bn   => "বাংলা",
             KillerPDF.Services.Locale.TrTR => "Türkçe",
             KillerPDF.Services.Locale.De   => "Deutsch",
+            KillerPDF.Services.Locale.JaJP => "日本語",
             _                              => "English",
         };
 

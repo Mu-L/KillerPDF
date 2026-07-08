@@ -59,7 +59,7 @@ namespace KillerPDF
                 _selectedText = WordsToText(page.GetWords());
                 if (string.IsNullOrWhiteSpace(_selectedText))
                 {
-                    SetStatus("No text found on this page");
+                    SetStatus(Loc("Str_St_NoTextOnPage"));
                     return;
                 }
                 Clipboard.SetText(_selectedText);
@@ -94,7 +94,7 @@ namespace KillerPDF
             }
             else
             {
-                SetStatus("No text selected - drag to select text");
+                SetStatus(Loc("Str_St_NoTextSelected"));
             }
         }
 
@@ -147,7 +147,7 @@ namespace KillerPDF
 
                 if (words.Count == 0)
                 {
-                    SetStatus("No text found in selection");
+                    SetStatus(Loc("Str_St_NoTextInSelection"));
                     ClearTextSelection();
                     return;
                 }

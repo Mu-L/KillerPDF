@@ -147,7 +147,7 @@ namespace KillerPDF
                     ptb.PreviewKeyDown += TextBox_PreviewKeyDown;
                     ptb.Loaded += (s, ev) => { ptb.Focus(); Keyboard.Focus(ptb); ptb.SelectAll(); ptb.LostFocus += TextBox_LostFocus; AttachTextEditResizeHandles(ptb); };
                     ShowTextSettings();
-                    SetStatus("Editing text - change size/color above, Enter to save");
+                    SetStatus(Loc("Str_St_EditingText"));
                     return;
                 }
             }
@@ -158,7 +158,7 @@ namespace KillerPDF
             if (_annotations.TryGetValue(pageIdx, out var coverPage)
                 && coverPage.OfType<CoverAnnotation>().Any(c => { var b = c.Bounds; b.Inflate(6, 6); return b.Contains(canvasPos); }))
             {
-                SetStatus("Already an edit here - click its text to re-edit, or drag the cover");
+                SetStatus(Loc("Str_St_AlreadyEditHere"));
                 return;
             }
 
@@ -216,7 +216,7 @@ namespace KillerPDF
 
                 if (lineWords.Count == 0)
                 {
-                    SetStatus("No text line found at this position");
+                    SetStatus(Loc("Str_St_NoTextLine"));
                     return;
                 }
 
@@ -257,7 +257,7 @@ namespace KillerPDF
                 if (_annotations.TryGetValue(pageIdx, out var coveredPage)
                     && coveredPage.OfType<CoverAnnotation>().Any(c => c.Bounds.IntersectsWith(lineRect)))
                 {
-                    SetStatus("This line is already edited - click its text to change it");
+                    SetStatus(Loc("Str_St_LineAlreadyEdited"));
                     return;
                 }
 
