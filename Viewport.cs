@@ -1379,7 +1379,55 @@ namespace KillerPDF
             _                => Loc("Str_View_Continuous"),
         };
 
+        // Fade timings for a view-mode switch: quick dip to black-out the relayout, calmer reveal.
+        private const int ViewFadeOutMs = 90;
+        private const int ViewFadeInMs  = 140;
+
+        // Target mode while a fade-out is in flight. Non-null means a switch is mid-fade; a new
+        // SetViewMode during that window just retargets it (rapid F5-F8 presses land on the last).
+        private ViewMode? _pendingViewMode;
+
+        // Fade wrapper around the actual mode switch (ApplyViewMode). The switch itself swaps panel
+        // visibility instantly and defers its layout/scroll setup through the dispatcher, so doing
+        // it live flashed intermediate frames - most visibly page 1 at the top of the continuous
+        // strip before the deferred ScrollContinuousToPage ran. Fading the viewport out, switching
+        // while it's invisible, and fading back in AFTER the setup queue drains hides all of that
+        // and gives every mode switch the same soft transition.
         private void SetViewMode(ViewMode mode)
+        {
+            if (_pendingViewMode is not null)   // mid-fade: retarget the switch already underway
+            {
+                _pendingViewMode = mode;
+                return;
+            }
+            if (_viewMode == mode) return;
+            if (_doc is null) { ApplyViewMode(mode); return; }   // start screen: nothing visible to fade
+
+            _pendingViewMode = mode;
+            var fadeOut = new DoubleAnimation(PagePreviewPanel.Opacity, 0,
+                new Duration(TimeSpan.FromMilliseconds(ViewFadeOutMs)))
+                { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } };
+            fadeOut.Completed += (_, _) =>
+            {
+                var target = _pendingViewMode ?? mode;
+                _pendingViewMode = null;
+                ApplyViewMode(target);
+                // The mode's setup work is queued at Loaded priority (continuous nests one more
+                // Loaded dispatch for its scroll-to-page; grid one Background dispatch for its
+                // re-fit). ContextIdle is below all of those, so the fade-in only starts once the
+                // new mode is laid out and scrolled to the right page - no intermediate frames.
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, (Action)(() =>
+                {
+                    var fadeIn = new DoubleAnimation(0, 1,
+                        new Duration(TimeSpan.FromMilliseconds(ViewFadeInMs)))
+                        { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } };
+                    PagePreviewPanel.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                }));
+            };
+            PagePreviewPanel.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        }
+
+        private void ApplyViewMode(ViewMode mode)
         {
             if (_viewMode == mode) return;
             _viewMode = mode;

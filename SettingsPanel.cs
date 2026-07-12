@@ -167,7 +167,7 @@ namespace KillerPDF
             // ScrollViewer start scrolling. Growing the window reverses the order. Setting MaxHeight to
             // (avail - bottomGap) guarantees the top never climbs above the tab bar even if the content
             // estimate is a hair off - worst case the scrollbar shows a pixel early, never a broken layout.
-            const double footer  = 28;   // footer band; the panel bottom can descend to the footer top
+            const double footer  = 24;   // footer band; the panel bottom can descend to the footer top
             const double gapPref = 8;    // preferred gap between the panel bottom and the footer
             const double chrome  = 37;   // card vertical chrome: 16 top pad + 20 bottom pad + 1 bottom border
             const double safety  = 8;    // px of slack added to MaxHeight WHILE a gap exists, so a sub-pixel

@@ -439,8 +439,10 @@ namespace KillerPDF
             // (caught) on Windows 10 and earlier, which simply keep square corners.
             ApplyWindowCorners(rounded: !squared);
 
-            // The custom grip still forwards a native HTBOTTOMRIGHT resize; only show it while floating.
-            if (ResizeGripDots != null) ResizeGripDots.Visibility = squared ? Visibility.Collapsed : Visibility.Visible;
+            // The grip dots stay visible in every window state, matching the site statusbar (family
+            // standard). ResizeGrip_MouseDown still no-ops unless the window is floating, so when
+            // maximized/snapped they're purely decorative.
+            if (ResizeGripDots != null) ResizeGripDots.Visibility = Visibility.Visible;
             UpdateRootClip(squared);
         }
 

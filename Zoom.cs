@@ -41,7 +41,20 @@ namespace KillerPDF
                 double oldHOff = PagePreviewPanel.HorizontalOffset;
                 double oldVOff = PagePreviewPanel.VerticalOffset;
 
-                SetZoom(e.Delta > 0 ? _zoomLevel + ZoomStep : _zoomLevel - ZoomStep);
+                // Smooth wheel zoom. Two parts:
+                // 1) A multiplicative step - every notch changes the zoom by the same RATIO. The
+                //    old additive ZoomStep was a ~50% jump when zoomed out and barely visible when
+                //    zoomed in. The exponent scales with e.Delta, so a precision touchpad's small
+                //    frequent deltas produce proportionally small ratios (a continuous glide).
+                // 2) A lite apply - only the ScaleTransform moves during the gesture (instant,
+                //    flicker-free, same path as live window-resize); the expensive tile/link
+                //    refresh and hi-res re-sharpen run ONCE when the wheel rests (settle timer)
+                //    instead of on every notch, which is what made zooming feel steppy.
+                _fitMode   = FitMode.None;
+                _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax,
+                    _zoomLevel * Math.Pow(WheelZoomFactor, e.Delta / 120.0)));
+                ApplyZoom(lite: true);
+                StartZoomSettleTimer();
 
                 // After layout settles, reposition the scroll so the cursor point stays fixed.
                 // Formula: newOffset = (oldOffset + cursorPos) * (newZoom / oldZoom) - cursorPos
@@ -84,6 +97,35 @@ namespace KillerPDF
                 return;
             }
             ScrollWheel(e);
+        }
+
+        // Zoom ratio per full wheel notch (e.Delta = 120) for Ctrl+scroll. 1.1 lands close to the
+        // old additive step at 100% zoom but stays a constant 10% everywhere on the range.
+        private const double WheelZoomFactor = 1.1;
+
+        // Debounced full zoom apply, shared by every Ctrl+scroll notch: while the wheel is moving
+        // only the lite ScaleTransform runs; once it rests for a beat, do the one full ApplyZoom
+        // (tile/link refresh, and the hi-res re-sharpen it queues) plus the status-bar update that
+        // SetZoom would have shown per notch.
+        private System.Windows.Threading.DispatcherTimer? _zoomSettleTimer;
+
+        private void StartZoomSettleTimer()
+        {
+            if (_zoomSettleTimer is null)
+            {
+                _zoomSettleTimer = new System.Windows.Threading.DispatcherTimer
+                    { Interval = TimeSpan.FromMilliseconds(200) };
+                _zoomSettleTimer.Tick += (_, _) =>
+                {
+                    _zoomSettleTimer!.Stop();
+                    if (_doc is null) return;
+                    ApplyZoom();
+                    if (PageList.SelectedIndex >= 0)
+                        SetStatus(string.Format(Loc("Str_PageOf"), PageList.SelectedIndex + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
+                };
+            }
+            _zoomSettleTimer.Stop();
+            _zoomSettleTimer.Start();
         }
 
         // The ScrollViewer default (3 lines = 48 DIP per wheel notch) feels slow on tall documents,

@@ -1083,7 +1083,7 @@
             <RowDefinition Height="Auto"/>   <!-- 1: toolbar -->
             <RowDefinition Height="Auto"/>   <!-- 2: document tab strip (collapses when no PDF is open) -->
             <RowDefinition Height="*"/>      <!-- 3: document content -->
-            <RowDefinition Height="28"/>     <!-- 4: footer / status bar -->
+            <RowDefinition Height="24"/>     <!-- 4: footer / status bar (24px + 11.5 type, matches the site statusbar) -->
         </Grid.RowDefinitions>
 
         <!-- Title bar -->
@@ -1818,7 +1818,7 @@
             <Grid Margin="16,0">
                 <TextBlock x:Name="StatusText" Text="{DynamicResource Str_Ready}"
                            Foreground="{DynamicResource FilenameBrush}"
-                           FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" VerticalAlignment="Center"/>
+                           FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11.5" VerticalAlignment="Center"/>
                 <!-- Portable mode indicator (hidden when installed) -->
                 <StackPanel x:Name="PortableBadge" Orientation="Horizontal"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -1860,11 +1860,11 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock x:Name="VersionLabel" Text="v1.6.2"
                                Foreground="{DynamicResource TextFooter}" FontFamily="Consolas"
-                               FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0"
+                               FontSize="10.5" VerticalAlignment="Center" Margin="0,0,12,0"
                                Cursor="Hand" ToolTip="{DynamicResource Str_TT_About}"
                                MouseLeftButtonDown="VersionLabel_MouseLeftButtonDown"/>
                     <!-- 14px trailing margin keeps the copyright clear of the corner grip (family standard) -->
-                    <TextBlock FontSize="10" VerticalAlignment="Center"
+                    <TextBlock FontSize="10.5" VerticalAlignment="Center"
                                FontFamily="Consolas" Margin="0,0,14,0">
                         <Run Text="&#x00A9; 2026 " Foreground="{DynamicResource TextFooter}"/>
                         <Hyperlink NavigateUri="https://thekiller.net"
@@ -1900,7 +1900,7 @@
               Grid.RowSpan="5"
               Panel.ZIndex="9999"
               Visibility="Collapsed">
-            <Grid x:Name="SettingsPanel" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="186,0,0,28" Width="228"
+            <Grid x:Name="SettingsPanel" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="186,0,0,24" Width="228"
                   MaxHeight="{Binding ActualHeight, ElementName=DocPaneBorder}">
                 <!-- Left edge stays flush against the sidebar's right edge; the panel expands rightward
                      out of the sidebar (its Width animates) and shrinks back into it on close. The inner

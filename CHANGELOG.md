@@ -4,17 +4,20 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.2] - unreleased
+## [1.6.2] - 2026-07-11
 
 ### Added
 - Page Up / Page Down navigate to the previous / next page, consistently regardless of what has focus (a focused sidebar thumbnail no longer pages its own selection instead). Page reordering stays on the toolbar Move Up / Move Down buttons (#117).
 - Japanese (ja-JP) interface translation, selectable from the language picker (#118, thanks coolvitto).
 
 ### Changed
+- Footer/status bar tightened to match the killerpdf.net statusbar: 4px shorter with larger (11.5) text, and the corner grip dots now stay visible when the window is maximized or snapped (decorative there; corner-drag still only resizes a floating window).
+- Ctrl+scroll zooming is smooth: each wheel notch now zooms by a constant 10% ratio (instead of a fixed step that jumped ~50% when zoomed out), the view scales instantly without flicker while the wheel is moving, and the crisp high-resolution re-render happens once when the wheel rests instead of on every notch. Precision touchpads glide proportionally. Grid view keeps its clean column-snap zoom.
 - Up / Down arrows now scroll the view like the mouse wheel, flipping to the previous / next page at the top or bottom edge - so at fit-to-page zoom they still flip pages exactly as before, and when zoomed in or in Continuous view they scroll instead of jumping a whole page. Left / Right and PgUp / PgDn remain hard page jumps.
 - Status-bar and dialog messages that were still shown in English now follow the selected language; the remaining hardcoded strings were extracted to resource keys and translated across all nine locales.
 
 ### Fixed
+- Switching view modes now cross-fades instead of cutting instantly, and no longer flashes intermediate frames - most visibly a brief glimpse of page 1 when entering Continuous view before it scrolled to the current page.
 - The in-app self-updater now reads `SHA256SUMS.txt` from the release assets instead of from the repo at the release tag. The checksum file and the exe are uploaded to the release together, so the hash can no longer drift from the binary when tag/commit order varies, which was causing the update to fail its checksum and quietly fall back to the releases page.
 - Importing images with broken DPI metadata (common in WhatsApp photos and some scans) produced pages Adobe Reader refuses to display ("The dimensions of this page are out-of-range", shown as blank); imported image pages are now kept within Adobe's supported 3-14,400 point range. KillerPDF itself rendered these files fine, so the problem only showed up in other viewers - typically after a merge or page edit (thanks Richard Lam for the report).
 - Saving a document that already contains out-of-range pages (created by earlier KillerPDF versions or other tools) now offers to scale them to a supported size; the pages keep their look and proportions.
