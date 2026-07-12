@@ -74,7 +74,18 @@ namespace KillerPDF
             int taglineBrand = taglineText.IndexOf("{0}", StringComparison.Ordinal);
             string taglinePre = taglineBrand >= 0 ? taglineText[..taglineBrand] : taglineText;
             string taglineSuf = taglineBrand >= 0 ? taglineText[(taglineBrand + 3)..] : "";
-            AboutTaglineBlock.Inlines.Add(new System.Windows.Documents.Run(taglinePre) { Foreground = taglineDim });
+            // Two-line tagline: "\n" in the localized string marks the line break (the second
+            // line carries the license + brand).
+            void AddTaglineText(string text)
+            {
+                var lines = text.Split('\n');
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (i > 0) AboutTaglineBlock.Inlines.Add(new System.Windows.Documents.LineBreak());
+                    AboutTaglineBlock.Inlines.Add(new System.Windows.Documents.Run(lines[i]) { Foreground = taglineDim });
+                }
+            }
+            AddTaglineText(taglinePre);
             var ktHl = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Killer Tools"))
             {
                 Foreground      = (System.Windows.Media.Brush)FindResource("Accent"),
@@ -83,7 +94,7 @@ namespace KillerPDF
             ktHl.Click += (_, _) =>
                 Process.Start(new ProcessStartInfo("https://killertools.net") { UseShellExecute = true });
             AboutTaglineBlock.Inlines.Add(ktHl);
-            AboutTaglineBlock.Inlines.Add(new System.Windows.Documents.Run(taglineSuf) { Foreground = taglineDim });
+            AddTaglineText(taglineSuf);
 
             // Version block (clickable - opens GitHub release)
             AboutVersionBlock.Inlines.Clear();

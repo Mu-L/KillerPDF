@@ -161,6 +161,10 @@ namespace KillerPDF
             // clipped with dead side margins and no horizontal scrollbar to reach the rest.
             PagePreviewPanel.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             PagePreviewPanel.VerticalScrollBarVisibility   = ScrollBarVisibility.Auto;
+            // Grid zeroes the document-surface padding and Two-Page centers it vertically;
+            // restore both here for the same reason as the scrollbar overrides above.
+            DocSurfacePad.Padding = new Thickness(12);
+            DocSurfacePad.VerticalAlignment = VerticalAlignment.Top;
             _continuousRenderCts?.Cancel();
             _continuousPanel.Children.Clear();
             _continuousTops.Clear();
@@ -760,8 +764,11 @@ namespace KillerPDF
             }
 
             // Snap the WrapPanel width to a whole number of page-width slots.
+            // Grid slots carry a constant GridGapPx on-screen gap (divided by zoom because tile
+            // margins scale with the view transform); other tiled modes keep the 12px gap.
             double primaryPageW = _annotationCanvas.Width > 0 ? _annotationCanvas.Width : 595;
-            double pageSlotW = primaryPageW + 12;
+            double pageSlotW = primaryPageW + (_viewMode == ViewMode.Grid
+                ? GridGapPx / Math.Max(0.01, _zoomLevel) : 12);
             double availablePreZoom = (viewportW - 24) / _zoomLevel;
             // +1e-6: same floating-point underflow guard as GridZoomStep, so a zoom set for n columns
             // actually lays out n (not n-1) when the division lands a hair under the integer.
@@ -907,6 +914,13 @@ namespace KillerPDF
                 && exOverlay.Parent is Grid exGrid && exGrid.Children.Count > 0 && exGrid.Children[0] is Image exImg)
             {
                 exImg.Source = bitmap;
+                // Keep the grid's constant on-screen gap exact across zoom/column changes: the
+                // reused tile's margin was computed at the old zoom, so refresh it here.
+                if (_viewMode == ViewMode.Grid && exGrid.Parent is Border exTile)
+                {
+                    double exGap = GridGapPx / Math.Max(0.01, _zoomLevel);
+                    exTile.Margin = new Thickness(0, 0, exGap, exGap);
+                }
                 return;
             }
 
@@ -931,7 +945,14 @@ namespace KillerPDF
             {
                 Background = Brushes.White,
                 VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 0, 12, 12),
+                // Grid: constant GridGapPx on-screen gap between tiles (the document pane
+                // background shows through). Two-Page: no margin on the right page - the spread
+                // gap is the primary's right margin, and a bottom/trailing margin would make the
+                // fit-page margins uneven.
+                Margin = _viewMode == ViewMode.Grid
+                    ? new Thickness(0, 0, GridGapPx / Math.Max(0.01, _zoomLevel),
+                                          GridGapPx / Math.Max(0.01, _zoomLevel))
+                    : new Thickness(0),
                 Child = pageGrid
             };
             _pageContentPanel.Children.Add(tile);
@@ -1048,12 +1069,26 @@ namespace KillerPDF
             // used to guard against). A stable width lets the column-holding resize stay stable too.
             PagePreviewPanel.VerticalScrollBarVisibility =
                 _viewMode == ViewMode.Grid ? ScrollBarVisibility.Visible : ScrollBarVisibility.Auto;
-            // Single page is centered; drop the right/bottom tile-gap margin that grid/two-page
-            // need for spacing (it would otherwise push the lone page a few px left of center).
+            // Grid is edge-to-edge: zero the document-surface padding so tiles reach the pane
+            // edges (other modes keep the 12px surround; Continuous restores it in
+            // SetupContinuousView, which never passes through here).
+            DocSurfacePad.Padding = new Thickness(_viewMode == ViewMode.Grid ? 0 : 12);
+            // Two-Page centers the document surface vertically so Fit Page leaves EVEN top and
+            // bottom margins (top-anchored, all the leftover height landed at the bottom). The
+            // other modes stay top-anchored; Continuous restores this in SetupContinuousView.
+            DocSurfacePad.VerticalAlignment = _viewMode == ViewMode.TwoPage
+                ? VerticalAlignment.Center : VerticalAlignment.Top;
+            // Primary-tile margin per mode: Single is centered with no gap; Grid gets the constant
+            // GridGapPx on-screen tile gap; Two-Page keeps only the 12px spread gap on the right
+            // (a bottom margin would make the fit-page margins vertically uneven).
             if (_pageContentPanel is not null && _pageContentPanel.Children.Count > 0
                 && _pageContentPanel.Children[0] is Border primaryBorder)
-                primaryBorder.Margin = _viewMode == ViewMode.Single
-                    ? new Thickness(0) : new Thickness(0, 0, 12, 12);
+            {
+                double gapDip = GridGapPx / Math.Max(0.01, _zoomLevel);
+                primaryBorder.Margin = _viewMode == ViewMode.Grid    ? new Thickness(0, 0, gapDip, gapDip)
+                                     : _viewMode == ViewMode.TwoPage ? new Thickness(0, 0, 12, 0)
+                                     : new Thickness(0);
+            }
             if (_viewMode == ViewMode.Grid || _viewMode == ViewMode.TwoPage)
                 RenderAdditionalPages(pageIndex);
             else
@@ -1134,6 +1169,13 @@ namespace KillerPDF
 
         private void ResetZoom() => SetZoom(1.0);
 
+        // On-screen pixel gap between grid tiles, so adjacent pages don't visually merge - the
+        // document pane background shows through it. Tile margins live inside the zoom transform,
+        // so every use divides by _zoomLevel to keep the gap a constant GridGapPx on screen.
+        // 2px, not 1: tile edges land on fractional device pixels (page width x fractional zoom),
+        // and a 1px gap straddling a pixel boundary anti-aliases away on some seams.
+        private const double GridGapPx = 2.0;
+
         // Grid zoom snaps to "fit N pages across the viewport", so zooming steps through clean
         // columns (1, 2, 3, ... per row) instead of arbitrary percentages. N rises as you zoom out
         // and keeps going for larger documents until the page size hits the zoom floor.
@@ -1141,11 +1183,15 @@ namespace KillerPDF
         {
             if (n < 1) n = 1;
             double rdW = _annotationCanvas.Width > 0 ? _annotationCanvas.Width : 1583;
-            double vw  = PagePreviewPanel.ActualWidth;   // SAME width + slot the layout uses
+            // Grid is edge-to-edge except a GridGapPx on-screen gap per column: fit n rdW slots
+            // plus n gaps (matching RenderAdditionalPages) to the CONTENT viewport, which excludes
+            // the reserved vertical scrollbar - the surround padding is 0 in grid. ViewportWidth
+            // can be 0 before the first layout pass; fall back to ActualWidth, and the Background
+            // re-fit that follows every grid entry corrects it.
+            double vw  = PagePreviewPanel.ViewportWidth > 0
+                ? PagePreviewPanel.ViewportWidth : PagePreviewPanel.ActualWidth;
             if (vw <= 0 || rdW <= 0) return _zoomLevel;
-            // RenderAdditionalPages lays out pages in slots of (rdW + 12) within (ActualWidth - 24);
-            // invert that so "fit n" produces exactly n columns with no gap.
-            return (vw - 24.0) / (n * (rdW + 12.0));
+            return (vw - n * GridGapPx) / (n * rdW);
         }
 
         private void GridZoomStep(bool zoomOut)

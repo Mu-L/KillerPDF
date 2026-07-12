@@ -4,39 +4,39 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.3] - unreleased
+## [1.6.3] - 2026-07-12
 
 ### Changed
-- Links open directly again: the confirm-before-opening prompt and its Settings row are off for now (the machinery stays dormant and may return when the settings menu grows).
-- When both document scrollbars are visible, the vertical bar now runs the full pane height and owns the corner; the horizontal bar ends against it.
+- Links open directly again: the confirm-before-opening prompt and its Settings row are off for now.
+- When both document scrollbars are visible, the vertical bar now runs the full pane height and owns the corner.
 
 ### Fixed
-- Switching from Grid to Continuous view kept the grid's scrollbar overrides, so zooming in showed the page clipped with dead side margins and no horizontal scrollbar to reach the rest. Continuous now restores its own scrollbar setup.
-- Closing with unsaved changes stacked two prompts (unsaved-changes, then the quit prompt). Confirming "close without saving" now counts as the quit confirmation, so at most one dialog appears per close - and that prompt defaults to No, so a stray Enter can't discard new work.
-- Saving any PDF whose pages had no crop box silently planted a zero-size /CropBox [0 0 0 0] on every page. Adobe rejects a zero-size page box with a "page dimensions out-of-range" error - the same message as the oversized-image bug fixed in 1.6.2, but a separate cause, and the real reason merged Google Docs exports kept failing in Acrobat while opening fine in Chrome (which falls back to the MediaBox). The box was created as a side effect of merely READING PdfSharpCore's CropBox property during form-field layout - the same lazy-getter trap as the phantom /Outlines below. Page boxes are now read without touching the document, and every save strips degenerate crop boxes, so re-saving a file damaged by 1.6.x heals it (thanks Richard Lam).
+- Switching from Grid to Continuous view kept the grid's scrollbar overrides, clipping zoomed pages with no horizontal scrollbar. Continuous now restores its own scrollbar setup.
+- Closing with unsaved changes stacked two prompts. Confirming "close without saving" now counts as the quit confirmation, and the prompt defaults to No so a stray Enter can't discard new work.
+- Saving any PDF whose pages had no crop box silently planted a zero-size /CropBox on every page, which Adobe rejects with a "page dimensions out-of-range" error - the real reason merged Google Docs exports failed in Acrobat but opened in Chrome. Page boxes are now read without touching the document, and every save strips degenerate crop boxes, so re-saving a file damaged by 1.6.x heals it (thanks Richard Lam).
 - The quit prompt no longer appears when no documents are open - an empty window just closes.
-- Saving any PDF that has no bookmarks silently corrupted the file's structure (a dangling /Outlines reference PdfSharpCore emitted after the sidebar probed for an outline tree). Strict viewers - including KillerPDF itself on reopen - refused the file with a repair prompt, and accepting the repair stripped fillable forms. Saves are now clean, and the repair path first tries a lossless PDFium re-save that preserves forms and bookmarks, so files damaged by older builds recover intact (#103, thanks Peter5164).
-- Two-Page mode: arrow keys, PgUp/PgDn, and the wheel's edge page-flip now move one SPREAD at a time instead of one page, so every press changes what's on screen (#120, thanks eddardburger).
-- Selection boxes drawn with the Select tool could get stranded on screen - surviving clicks, view-mode switches, and even closing the file - until the app was restarted. They are now removed from the layer they actually live on, and closing a file sweeps any stragglers (#121, thanks TaBnLd).
-- High memory use on large documents (#122, thanks RoyYang567). Three parts: the per-tab page-bitmap cache grew without bound and is now capped to a moving window of pages around the viewport; freed memory was never returned to the OS after closing a tab, so tab close now triggers a one-shot heap compaction and RAM visibly drops; and Continuous view no longer rasterizes the whole document at open - only pages near the viewport hold bitmaps, pages scrolled far away release theirs (keeping exact layout, they re-render on approach), so a 243-page image-heavy PDF now costs a bounded few hundred MB instead of climbing past 7 GB.
+- Saving any PDF that has no bookmarks silently corrupted the file's structure (a dangling /Outlines reference). Strict viewers refused the file with a repair prompt, and the repair stripped fillable forms. Saves are now clean, and the repair path first tries a lossless PDFium re-save that preserves forms and bookmarks, so files damaged by older builds recover intact (#103, thanks Peter5164).
+- Two-Page mode: arrow keys, PgUp/PgDn, and the wheel's edge page-flip now move one spread at a time instead of one page (#120, thanks eddardburger).
+- Selection boxes drawn with the Select tool could get stranded on screen until the app was restarted. They are now removed from the layer they actually live on, and closing a file sweeps any stragglers (#121, thanks TaBnLd).
+- High memory use on large documents (#122, thanks RoyYang567): the per-tab page-bitmap cache is now capped to a window of pages around the viewport, closing a tab compacts the heap so RAM visibly drops, and Continuous view only holds bitmaps for pages near the viewport - a 243-page image-heavy PDF now costs a few hundred MB instead of climbing past 7 GB.
 
 ## [1.6.2] - 2026-07-11
 
 ### Added
-- Page Up / Page Down navigate to the previous / next page, consistently regardless of what has focus (a focused sidebar thumbnail no longer pages its own selection instead). Page reordering stays on the toolbar Move Up / Move Down buttons (#117).
+- Page Up / Page Down navigate to the previous / next page regardless of what has focus. Page reordering stays on the toolbar Move Up / Move Down buttons (#117).
 - Japanese (ja-JP) interface translation, selectable from the language picker (#118, thanks coolvitto).
 
 ### Changed
-- Footer/status bar tightened to match the killerpdf.net statusbar: 4px shorter with larger (11.5) text, and the corner grip dots now stay visible when the window is maximized or snapped (decorative there; corner-drag still only resizes a floating window).
-- Ctrl+scroll zooming is smooth: each wheel notch now zooms by a constant 10% ratio (instead of a fixed step that jumped ~50% when zoomed out), the view scales instantly without flicker while the wheel is moving, and the crisp high-resolution re-render happens once when the wheel rests instead of on every notch. Precision touchpads glide proportionally. Grid view keeps its clean column-snap zoom.
-- Up / Down arrows now scroll the view like the mouse wheel, flipping to the previous / next page at the top or bottom edge - so at fit-to-page zoom they still flip pages exactly as before, and when zoomed in or in Continuous view they scroll instead of jumping a whole page. Left / Right and PgUp / PgDn remain hard page jumps.
-- Status-bar and dialog messages that were still shown in English now follow the selected language; the remaining hardcoded strings were extracted to resource keys and translated across all nine locales.
+- Footer/status bar tightened to match the killerpdf.net statusbar: 4px shorter with larger text, and the corner grip dots now stay visible when the window is maximized or snapped.
+- Ctrl+scroll zooming is smooth: each wheel notch zooms by a constant 10% ratio, the view scales instantly while the wheel is moving, and the crisp high-resolution re-render happens once when the wheel rests. Precision touchpads glide proportionally.
+- Up / Down arrows now scroll the view like the mouse wheel, flipping pages at the top or bottom edge. Left / Right and PgUp / PgDn remain hard page jumps.
+- Status-bar and dialog messages that were still shown in English now follow the selected language across all nine locales.
 
 ### Fixed
-- Switching view modes now cross-fades instead of cutting instantly, and no longer flashes intermediate frames - most visibly a brief glimpse of page 1 when entering Continuous view before it scrolled to the current page.
-- The in-app self-updater now reads `SHA256SUMS.txt` from the release assets instead of from the repo at the release tag. The checksum file and the exe are uploaded to the release together, so the hash can no longer drift from the binary when tag/commit order varies, which was causing the update to fail its checksum and quietly fall back to the releases page.
-- Importing images with broken DPI metadata (common in WhatsApp photos and some scans) produced pages Adobe Reader refuses to display ("The dimensions of this page are out-of-range", shown as blank); imported image pages are now kept within Adobe's supported 3-14,400 point range. KillerPDF itself rendered these files fine, so the problem only showed up in other viewers - typically after a merge or page edit (thanks Richard Lam for the report).
-- Saving a document that already contains out-of-range pages (created by earlier KillerPDF versions or other tools) now offers to scale them to a supported size; the pages keep their look and proportions.
+- Switching view modes now cross-fades instead of cutting instantly, with no intermediate-frame flashes.
+- The in-app self-updater now reads `SHA256SUMS.txt` from the release assets instead of the repo at the release tag, so the hash can no longer drift from the binary and fail the update's checksum.
+- Importing images with broken DPI metadata (common in WhatsApp photos and some scans) produced pages Adobe Reader refuses to display; imported image pages are now kept within Adobe's supported 3-14,400 point range (thanks Richard Lam).
+- Saving a document that already contains out-of-range pages now offers to scale them to a supported size; the pages keep their look and proportions.
 
 ## [1.6.1] - 2026-07-01
 

@@ -1762,7 +1762,7 @@
                                 </Grid>
                             </ControlTemplate>
                         </ScrollViewer.Template>
-                        <Border VerticalAlignment="Top" HorizontalAlignment="Center" Padding="12">
+                        <Border x:Name="DocSurfacePad" VerticalAlignment="Top" HorizontalAlignment="Center" Padding="12">
                             <!-- Override the window's Display/ClearType text mode for the zoomed
                                  document surface. Display + ClearType pixel-snaps and color-fringes
                                  when scaled, giving hard-edged text on annotations and form fields;
@@ -2526,10 +2526,18 @@
                     </Border.Background>
                 </Border>
                 <Grid Margin="28,20,28,22">
-                    <StackPanel Margin="0,0,20,0">
-                    <!-- Header: bloody KillerPDF icon to the left of the title + tagline -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                        <Image Source="pack://application:,,,/Resources/kp-icon.png"
+                    <StackPanel Margin="0">
+                    <!-- Header: bloody KillerPDF icon to the left of the title + tagline.
+                         A Grid (not a horizontal StackPanel) so the text column is bounded and the
+                         tagline wraps to fill two lines (same pattern as KillerScan's About).
+                         Width is pinned to the info panel below, so the card's width is still
+                         determined by the SHA256 line - never by the tagline text. -->
+                    <Grid Margin="0,0,0,16" Width="{Binding ActualWidth, ElementName=AboutInfoGrid}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Image Grid.Column="0" Source="pack://application:,,,/Resources/kp-icon.png"
                                Width="64" Height="64" Margin="0,0,16,0"
                                VerticalAlignment="Center"
                                RenderOptions.BitmapScalingMode="HighQuality">
@@ -2537,7 +2545,7 @@
                                 <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="3" Direction="270" Opacity="0.6"/>
                             </Image.Effect>
                         </Image>
-                        <StackPanel VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <!-- Logo (populated in code-behind), with a soft layered shadow -->
                             <Grid Margin="0,0,0,4">
                                 <TextBlock Text="KillerPDF" FontFamily="{DynamicResource WordmarkFont}" FontSize="22" FontWeight="Bold"
@@ -2550,12 +2558,14 @@
                             </Grid>
                             <!-- Tagline (populated in code-behind with hyperlinks) -->
                             <TextBlock x:Name="AboutTaglineBlock"
-                                       FontSize="11"/>
+                                       FontSize="11" TextWrapping="Wrap"/>
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                     <!-- Info card - matte panel lifted above the grainy card with a drop shadow.
-                         Shadow is a separate element so the card's text stays crisp. -->
-                    <Grid>
+                         Shadow is a separate element so the card's text stays crisp.
+                         Named: the header binds its Width to this panel so the tagline wraps
+                         instead of widening the card - the SHA256 line stays the width driver. -->
+                    <Grid x:Name="AboutInfoGrid">
                     <Border Background="{DynamicResource BgPanel}" CornerRadius="4" IsHitTestVisible="False">
                         <Border.Effect>
                             <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.5"/>
