@@ -8,13 +8,13 @@
 
     <!-- ── Toolbar tooltips ─────────────────────────────────────────── -->
     <sys:String x:Key="Str_TT_Open">Öffnen (Strg+O)</sys:String>
+    <sys:String x:Key="Str_TT_NewBlank">Neues leeres Dokument (Strg+N)</sys:String>
+    <sys:String x:Key="Str_TT_CloseFile">Datei schließen (Strg+W)</sys:String>
+    <sys:String x:Key="Str_TT_Save">Speichern (Strg+S)</sys:String>
 
     <!-- ── Drop zone / empty state ──────────────────────────────────── -->
     <sys:String x:Key="Str_Drop_Title">PDF hierher ziehen</sys:String>
     <sys:String x:Key="Str_Drop_Sub">oder zum Auswählen klicken</sys:String>
-    <sys:String x:Key="Str_TT_NewBlank">Neues leeres Dokument (Strg+N)</sys:String>
-    <sys:String x:Key="Str_TT_CloseFile">Datei schließen (Strg+W)</sys:String>
-    <sys:String x:Key="Str_TT_Save">Speichern (Strg+S)</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">Speichern unter (Strg+Umschalt+S)</sys:String>
     <sys:String x:Key="Str_TT_SaveFlattened">Als reduzierte PDF speichern (alle Seiten rastern – nicht mehr bearbeitbar)</sys:String>
@@ -33,7 +33,9 @@
     <sys:String x:Key="Str_TT_SignatureTool">Signatur – Signaturen erstellen und platzieren</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Bildwerkzeug – klicken, um ein Bild einzufügen</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Zuschneidewerkzeug – Bereich wählen und auf Seiten anwenden</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Seite transformieren – drehen / entzerren (Skalieren demnächst verfügbar)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Alle Anmerkungen entfernen</sys:String>
+    <sys:String x:Key="Str_TT_Search">Suchen (Strg+F)</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Letzte Aktion rückgängig machen (Strg+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Mehrseitige Rasteransicht</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Verkleinern (Strg+-)</sys:String>
@@ -93,6 +95,18 @@
     <sys:String x:Key="Str_KS_DeleteAnnot">Ausgewählte Anmerkung löschen</sys:String>
     <sys:String x:Key="Str_KS_ConfirmCancel">Text oder Zuschnitt bestätigen / abbrechen</sys:String>
     <sys:String x:Key="Str_KS_SearchSelect">SUCHEN &amp; AUSWÄHLEN</sys:String>
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <!-- Document Info dialog -->
+    <sys:String x:Key="Str_TT_DocInfo">Dokumentinformationen (F12)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">Dokumentinformationen</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">Titel</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">Autor</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">Betreff</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">Schlüsselwörter</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">Ersteller</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">Speichern</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">Abbrechen</sys:String>
     <sys:String x:Key="Str_KS_Find">Suchen</sys:String>
     <sys:String x:Key="Str_KS_NextPrevResult">Nächstes / vorheriges Ergebnis</sys:String>
     <sys:String x:Key="Str_KS_SelectAll">Gesamten Text auf der Seite auswählen</sys:String>
@@ -130,6 +144,18 @@
     <sys:String x:Key="Str_Deleted">{0} Seite(n) gelöscht – {1} verbleibend</sys:String>
     <sys:String x:Key="Str_Printed">{0} Seite(n) an den Drucker gesendet</sys:String>
     <sys:String x:Key="Str_LinkRemoved">Link entfernt.</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">Entfernen des Links fehlgeschlagen:</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">Blockierter Link (nicht unterstützter Typ):</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">Link konnte nicht geöffnet werden</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">Diesen Link in Ihrem Browser öffnen?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">Link öffnen?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">Nicht noch einmal fragen</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">Link öffnen</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">Link-Adresse kopieren</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">E-Mail-Adresse kopieren</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">Link aus PDF entfernen</sys:String>
+    <sys:String x:Key="Str_LinksSection">LINKS</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">Vor dem Öffnen von Links bestätigen</sys:String>
     <sys:String x:Key="Str_InvalidRange">Ungültiger Bereich – z. B. 1-3,5,7 verwenden</sys:String>
     <sys:String x:Key="Str_CropNoDoc">Zuschneiden: Kein Dokument geöffnet</sys:String>
     <sys:String x:Key="Str_CropNoPage">Zuschneiden: Keine Seite ausgewählt</sys:String>
@@ -166,7 +192,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Zoom_FitWidth">An Seitenbreite anpassen</sys:String>
     <sys:String x:Key="Str_Zoom_FitPage">Ganze Seite anpassen</sys:String>
-    <sys:String x:Key="Str_FitWidth">Seite {0} von {1} – An Breite anpassen ({2} %)</sys:String>
+    <sys:String x:Key="Str_FitWidth">Seite {0} von {1} – an Breite anpassen ({2} %)</sys:String>
     <sys:String x:Key="Str_FitPage">Seite {0} von {1} – Seite anpassen ({2} %)</sys:String>
 
     <!-- ── KS overlay font size (sys:Double) ──────────────────────────── -->
@@ -195,6 +221,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Lbl_Italic">Kursiv</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">Zeichnen</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Zuschneiden</sys:String>
+    <sys:String x:Key="Str_Lbl_Rotate">Transformieren</sys:String>
+    <sys:String x:Key="Str_Lbl_Stamp">Stempel</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Bild hinzufügen</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">Signatur</sys:String>
     <sys:String x:Key="Str_Lbl_Undo">Rückgängig</sys:String>
@@ -208,10 +236,20 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Lbl_Select">Auswählen</sys:String>
     <sys:String x:Key="Str_Lbl_ZoomOut">Verkleinern</sys:String>
     <sys:String x:Key="Str_Lbl_ZoomIn">Vergrößern</sys:String>
+    <sys:String x:Key="Str_Lbl_Search">Suchen</sys:String>
 
     <!-- ── Right-click menu labels ────────────────────────────────────── -->
     <sys:String x:Key="Str_Ctx_CopyText">Text kopieren</sys:String>
     <sys:String x:Key="Str_Ctx_Print">Drucken</sys:String>
+    <sys:String x:Key="Str_Ctx_OcrPage">OCR-Seite (Text kopieren)</sys:String>
+    <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">OCR-Seite (Text kopieren)</sys:String>
+    <sys:String x:Key="Str_Ocr_Region">OCR-Bereich...</sys:String>
+    <sys:String x:Key="Str_Ocr_SearchablePdf">Durchsuchbare PDF erstellen...</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractText">Gesamten Text extrahieren...</sys:String>
+    <sys:String x:Key="Str_Ocr_Language">Sprache</sys:String>
+    <sys:String x:Key="Str_Ocr_NoDoc">Öffnen Sie zuerst eine PDF</sys:String>
+    <sys:String x:Key="Str_Ocr_ComingSoon">{0} – demnächst verfügbar</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Auswahlwerkzeug</sys:String>
     <sys:String x:Key="Str_Ctx_TextTool">Textwerkzeug</sys:String>
     <sys:String x:Key="Str_Ctx_HighlightTool">Markierungswerkzeug</sys:String>
@@ -232,10 +270,12 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Stamp_Title">Seitenzahlen einfügen</sys:String>
     <sys:String x:Key="Str_Stamp_StartAt">Beginnen bei</sys:String>
     <sys:String x:Key="Str_Stamp_Format">Format</sys:String>
-    <sys:String x:Key="Str_Stamp_Hint">{}{n} = Seitenzahl, {N} = Gesamt, z. B. „Seite {n} von {N}“</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">{n} = Seitenzahl, {N} = Gesamt</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint2">Beispiel: &quot;Seite {n} von {N}&quot;</sys:String>
     <sys:String x:Key="Str_Stamp_Position">Position</sys:String>
     <sys:String x:Key="Str_Stamp_FontSize">Schriftgröße (pt)</sys:String>
-    <sys:String x:Key="Str_Stamp_Hint2">Beispiel: &quot;Seite {n} von {N}&quot;</sys:String>
+    <sys:String x:Key="Str_Stamp_Cancel">Abbrechen</sys:String>
+    <sys:String x:Key="Str_Stamp_Stamp">Stempel</sys:String>
     <sys:String x:Key="Str_Stamp_Suffix">Seiten stempeln</sys:String>
     <sys:String x:Key="Str_Stamp_SecNumbers">Seitenzahlen</sys:String>
     <sys:String x:Key="Str_Stamp_SecWatermark">Wasserzeichen</sys:String>
@@ -250,11 +290,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Stamp_Opacity">Deckkraft</sys:String>
     <sys:String x:Key="Str_Stamp_Mirror">Auf gegenüberliegenden Seiten spiegeln (Außenrand)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">{0} Seite(n) gestempelt</sys:String>
-    <sys:String x:Key="Str_Pos_Custom">Benutzerdefiniert (in der Vorschau ziehen)</sys:String>
     <sys:String x:Key="Str_TT_StampTool">Seiten stempeln</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">Seiten stempeln</sys:String>
-    <sys:String x:Key="Str_Stamp_Cancel">Abbrechen</sys:String>
-    <sys:String x:Key="Str_Stamp_Stamp">Einfügen</sys:String>
     <sys:String x:Key="Str_Pos_BottomCenter">Unten Mitte</sys:String>
     <sys:String x:Key="Str_Pos_BottomRight">Unten rechts</sys:String>
     <sys:String x:Key="Str_Pos_BottomLeft">Unten links</sys:String>
@@ -271,7 +308,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Print_Scale">Skalierung</sys:String>
     <sys:String x:Key="Str_Print_Fit">An Seite anpassen</sys:String>
     <sys:String x:Key="Str_Print_Actual">Tatsächliche Größe (100 %)</sys:String>
-    <sys:String x:Key="Str_Print_Custom">Benutzerdefiniert %</sys:String>
+    <sys:String x:Key="Str_Print_Custom">Benutzerdefiniert in %</sys:String>
     <sys:String x:Key="Str_Print_ScaleHint">Skalierungsprozentsatz (z. B. 50 oder 50,23)</sys:String>
     <sys:String x:Key="Str_Print_Copies">Kopien</sys:String>
     <sys:String x:Key="Str_Print_Pages">Seiten</sys:String>
@@ -287,6 +324,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Print_Color">Farbe</sys:String>
     <sys:String x:Key="Str_Print_BW">Schwarz-weiß</sys:String>
     <sys:String x:Key="Str_Pos_Center">Mitte</sys:String>
+    <sys:String x:Key="Str_Pos_Custom">Benutzerdefiniert (in der Vorschau ziehen)</sys:String>
     <sys:String x:Key="Str_Pos_Top">Oben</sys:String>
     <sys:String x:Key="Str_Pos_Bottom">Unten</sys:String>
     <sys:String x:Key="Str_Pos_Left">Links</sys:String>
@@ -388,29 +426,13 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Sidebar_Right">Rechts</sys:String>
     <sys:String x:Key="Str_KS_ToggleSidebar">Seitenleiste umschalten</sys:String>
     <sys:String x:Key="Str_KS_NextTab">Nächster Tab (Umschalt: vorheriger)</sys:String>
-    <sys:String x:Key="Str_Lbl_Search">Suchen</sys:String>
-    <sys:String x:Key="Str_TT_Search">Suchen (Strg+F)</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePage">Seite löschen</sys:String>
     <sys:String x:Key="Str_Ctx_DuplicatePage">Seite duplizieren</sys:String>
     <sys:String x:Key="Str_Ctx_AddBlankPage">Leere Seite hinzufügen</sys:String>
     <sys:String x:Key="Str_Ctx_CloseTab">Tab schließen</sys:String>
     <sys:String x:Key="Str_Ctx_CloseOthers">Andere Tabs schließen</sys:String>
 
-    <!-- ── OCR ─────────────────────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Ocr_Region">OCR-Bereich...</sys:String>
-    <sys:String x:Key="Str_Ocr_SearchablePdf">Durchsuchbare PDF erstellen...</sys:String>
-    <sys:String x:Key="Str_Ocr_ExtractText">Gesamten Text extrahieren...</sys:String>
-    <sys:String x:Key="Str_Ocr_Language">Sprache</sys:String>
-    <sys:String x:Key="Str_Ocr_NoDoc">Öffnen Sie zuerst eine PDF</sys:String>
-    <sys:String x:Key="Str_Ocr_ComingSoon">{0} – demnächst verfügbar</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">OCR-Seite (Text kopieren)</sys:String>
-    <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
-    <sys:String x:Key="Str_Ctx_OcrPage">OCR-Seite (Text kopieren)</sys:String>
-
-    <!-- ── Transform tool ──────────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Lbl_Rotate">Transformieren</sys:String>
-    <sys:String x:Key="Str_Lbl_Stamp">Stempel</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">Seite transformieren – drehen / entzerren (Skalieren demnächst verfügbar)</sys:String>
+    <!-- Transform tool -->
     <sys:String x:Key="Str_Tf_Suffix">Transformieren</sys:String>
     <sys:String x:Key="Str_Tf_Rotate">DREHEN</sys:String>
     <sys:String x:Key="Str_Tf_Scale">SKALIEREN</sys:String>
@@ -436,7 +458,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Tf_NoRender">Die Seite konnte nicht dargestellt werden – versuchen Sie es gleich erneut.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Transformieren fehlgeschlagen: {0}</sys:String>
 
-    <!-- ── Crop bar ────────────────────────────────────────────────────── -->
+    <!-- Crop bar -->
     <sys:String x:Key="Str_Crop_Position">Position</sys:String>
     <sys:String x:Key="Str_Crop_Size">Größe</sys:String>
     <sys:String x:Key="Str_Crop_Pages">Seiten</sys:String>
@@ -444,10 +466,12 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Crop_Apply">Zuschneiden</sys:String>
     <sys:String x:Key="Str_Crop_RangeTip">Seitenbereich, z. B. 1-3,5 (leer = aktuelle Seite)</sys:String>
     <sys:String x:Key="Str_Crop_AllTip">Jede Seite zuschneiden</sys:String>
-    <sys:String x:Key="Str_KS_View">Ansicht</sys:String>
+
+    <!-- View-mode + full-screen shortcuts -->
+    <sys:String x:Key="Str_KS_View">ANSICHT</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Vollbild</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">F11 oder Esc drücken, um den Vollbildmodus zu beenden</sys:String>
-    <!-- Quit prompt -->
+    <!-- KillerFind-style quit prompt (family standard) -->
     <sys:String x:Key="Str_Dlg_QuitMsg">KillerPDF beenden?</sys:String>
     <sys:String x:Key="Str_Chk_CloseTabs">Meine offenen Tabs schließen</sys:String>
     <sys:String x:Key="Str_Btn_Quit">Beenden</sys:String>
