@@ -102,7 +102,11 @@ namespace KillerPDF
         {
             if (_selectRect is not null)
             {
-                _activeCanvas.Children.Remove(_selectRect);
+                // Remove from the rect's ACTUAL parent. Since the cross-page marquee rework the
+                // selection box lives on the window-level MarqueeLayer, not the page canvas, so
+                // removing from _activeCanvas was a silent no-op that orphaned the box on the
+                // layer until app restart (#121).
+                (_selectRect.Parent as Canvas)?.Children.Remove(_selectRect);
                 _selectRect = null;
             }
             _selectedText = null;

@@ -62,6 +62,7 @@ namespace KillerPDF
             var tempPath = App.MakeTempFile("temp");
             try
             {
+                ScrubEmptyOutlines(doc);   // #103: never write a dangling /Outlines reference
                 doc.Save(tempPath);
                 doc.Close();
             }

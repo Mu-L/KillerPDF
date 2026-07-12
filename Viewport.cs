@@ -161,6 +161,12 @@ namespace KillerPDF
             _continuousLinks.Clear();
             _pages.Clear();
 
+            // Fresh slot set: any hi-res re-sharpen bookkeeping from the previous layout is stale.
+            // (This reset used to live in the render pass, back when it repainted every slot.)
+            _continuousSharpenCts?.Cancel();
+            _continuousSharpPages.Clear();
+            _continuousSharpW = 0;
+
             // Use the PDF's natural page width in WPF DIPs (96 DIP/inch, 72 pt/inch).
             // This is zoom-independent, which is critical: FitToWidth computes
             //   zoom = viewportW / _continuousPageW
@@ -244,25 +250,45 @@ namespace KillerPDF
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                 () => ScrollContinuousToPage(initialPage));
 
-            _ = RenderContinuousPages();
+            _ = RenderContinuousPages(initialPage);
         }
 
-        private async System.Threading.Tasks.Task RenderContinuousPages()
+        // ── Continuous view virtualization (#122) ──────────────────────────────────────────────
+        // Continuous used to rasterize EVERY page at open and keep every slot's bitmap alive for
+        // the life of the document - a 243-page image PDF pinned gigabytes. Now only a window of
+        // pages around the viewport holds real bitmaps: the render pass below fills the window,
+        // and VirtualizeContinuousSlots (scroll settle) releases bitmaps that scrolled far away
+        // and requests the ones approaching. Released slots keep their exact height, so scroll
+        // geometry never changes; they show the white scaffold until re-rendered (render cache
+        // hits re-attach instantly).
+        private const int ContinuousKeepPages    = 10;   // pages each side of the viewport that get bitmaps
+        private const int ContinuousReleasePages = 15;   // release only beyond this (hysteresis, no edge churn)
+
+        private async System.Threading.Tasks.Task RenderContinuousPages(int centerPage)
         {
             if (_doc is null || _currentFile is null) return;
             _continuousRenderCts?.Cancel();
             _continuousRenderCts = new System.Threading.CancellationTokenSource();
             var cts = _continuousRenderCts;
 
-            // A full base pass repaints every slot, so any hi-res re-sharpen state is stale (#85).
-            _continuousSharpenCts?.Cancel();
-            _continuousSharpPages.Clear();
-            _continuousSharpW = 0;
-
             string currentFile = _currentFile;
             int pageCount      = _doc.PageCount;
             double targetW     = _continuousPageW;
             int renderW        = Math.Max(800, Math.Min(2048, (int)(targetW * 2)));
+
+            // Window of pages to materialize. Slots that already hold a base bitmap are skipped;
+            // slots holding a hi-res re-sharpened bitmap belong to the resharpen pass, skip too.
+            int lo = Math.Max(0, centerPage - ContinuousKeepPages);
+            int hi = Math.Min(pageCount - 1, centerPage + ContinuousKeepPages);
+            var todo = new List<int>();
+            for (int i = lo; i <= hi; i++)
+            {
+                if (i >= _continuousPanel.Children.Count) break;
+                if (_continuousPanel.Children[i] is Border b && b.Child is Grid g
+                    && g.Children.Count > 0 && g.Children[0] is Image img && img.Source == null)
+                    todo.Add(i);
+            }
+            if (todo.Count == 0) return;
 
             // Capture per-page rotations on the UI thread before going async
             var rotations = new Dictionary<int, int>(_pageRotations);
@@ -273,7 +299,7 @@ namespace KillerPDF
                 Docnet.Core.Readers.IDocReader? docReader = null;
                 try
                 {
-                    for (int i = 0; i < pageCount; i++)
+                    foreach (int i in todo)
                     {
                         if (cts.IsCancellationRequested) return;
                         int rot = rotations.TryGetValue(i, out int rr) ? rr : 0;
@@ -340,9 +366,13 @@ namespace KillerPDF
             pageImg.Width   = dipW;
             pageImg.Height  = dipH;
             slot.Background = Brushes.White;
+            // A base attach over a re-sharpened slot supersedes the hi-res bitmap; the resharpen
+            // pass re-adds the page right after ITS SetContinuousSlot call, so this stays correct.
+            _continuousSharpPages.Remove(fi);
 
             // Size the slot and overlay from the ACTUAL rendered page so a cropped page (which renders
             // shorter than its MediaBox estimate) fills its slot with no white bars.
+            double oldH = double.IsNaN(slot.Height) ? 0 : slot.Height;
             slot.Height = dipH;
             double maxF = Math.Max(fw, fh);
             int rdW = Math.Max(1, (int)Math.Round(2048.0 * fw / maxF));
@@ -374,8 +404,58 @@ namespace KillerPDF
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                     (Action)(() => ScrollContinuousToPage(tgt)));
             }
+            // Virtualized slots render on approach, so a page ABOVE the viewport can refine its
+            // estimated height mid-scroll (e.g. scrolling upward into a cropped page). Compensate
+            // the scroll offset by the height delta so the content on screen doesn't jump.
+            else if (Math.Abs(dipH - oldH) > 0.5 && fi < _continuousTops.Count)
+            {
+                double viewTopSlots = PagePreviewPanel.VerticalOffset / Math.Max(0.01, _zoomLevel);
+                if (_continuousTops[fi] + dipH <= viewTopSlots + 1)
+                    PagePreviewPanel.ScrollToVerticalOffset(
+                        PagePreviewPanel.VerticalOffset + (dipH - oldH) * _zoomLevel);
+            }
 
             RenderAllAnnotations(fi);
+        }
+
+        // Scroll-settle window maintenance for virtualized Continuous view (#122): releases the
+        // bitmaps of slots far outside the viewport (heights are kept, so nothing moves) and
+        // kicks a render pass when unrendered slots have come near. Runs on the UI thread from
+        // the same debounced timer as the re-sharpen pass.
+        private void VirtualizeContinuousSlots()
+        {
+            if (_viewMode != ViewMode.Continuous || _doc is null) return;
+            if (_continuousTops.Count == 0 || _continuousPanel.Children.Count == 0) return;
+
+            // Visible slot range - same zoom-independent mapping the re-sharpen pass uses.
+            double viewTop = PagePreviewPanel.VerticalOffset / Math.Max(0.01, _zoomLevel);
+            double viewBot = (PagePreviewPanel.VerticalOffset + PagePreviewPanel.ViewportHeight) / Math.Max(0.01, _zoomLevel);
+            int first = int.MaxValue, last = int.MinValue;
+            for (int i = 0; i < _continuousTops.Count && i < _continuousPanel.Children.Count; i++)
+            {
+                double top = _continuousTops[i];
+                double bot = top + ((FrameworkElement)_continuousPanel.Children[i]).Height;
+                if (bot >= viewTop && top <= viewBot) { first = Math.Min(first, i); last = Math.Max(last, i); }
+            }
+            if (first > last) return;
+
+            bool missing = false;
+            for (int i = 0; i < _continuousPanel.Children.Count; i++)
+            {
+                if (_continuousPanel.Children[i] is not Border b || b.Child is not Grid g
+                    || g.Children.Count == 0 || g.Children[0] is not Image img) continue;
+                bool keep = i >= first - ContinuousReleasePages && i <= last + ContinuousReleasePages;
+                if (!keep && img.Source != null)
+                {
+                    img.Source = null;   // slot keeps its height; white scaffold shows until re-rendered
+                    _continuousSharpPages.Remove(i);
+                }
+                else if (i >= first - ContinuousKeepPages && i <= last + ContinuousKeepPages && img.Source == null)
+                {
+                    missing = true;
+                }
+            }
+            if (missing) _ = RenderContinuousPages((first + last) / 2);
         }
 
         // ── Continuous zoom re-sharpen (#85) ─────────────────────────────────────────────────────────
@@ -1029,7 +1109,12 @@ namespace KillerPDF
                 {
                     _rerenderTimer!.Stop();
                     if (_doc is null) return;
-                    if (_viewMode == ViewMode.Continuous) { ResharpenContinuousVisible(); return; }
+                    if (_viewMode == ViewMode.Continuous)
+                    {
+                        VirtualizeContinuousSlots();   // #122: release far bitmaps / render approaching ones
+                        ResharpenContinuousVisible();
+                        return;
+                    }
                     // Never re-render the primary in Grid (it would shift page 0's width basis and
                     // desync the column math); guards a timer started just before a switch into grid.
                     if (_viewMode != ViewMode.Grid && PageList.SelectedIndex >= 0)
@@ -1280,13 +1365,28 @@ namespace KillerPDF
         }
 
         private void NavigatePageByWheel(int delta)
+            => NavigatePageStep(delta > 0 ? -1 : 1);
+
+        // Moves the selection one page - or one two-page SPREAD in Two-Page mode (#120), landing on
+        // the spread's left page so a press always shows the NEXT spread instead of re-showing the
+        // current one from its right page. direction: -1 = back, +1 = forward. Returns true when
+        // the selection moved. Shared by the wheel, the Up/Down edge-flip, and the Left/Right keys.
+        private bool NavigatePageStep(int direction)
         {
-            if (_doc is null) return;
+            if (_doc is null) return false;
             int cur = PageList.SelectedIndex;
-            if (delta > 0 && cur > 0)
-                PageList.SelectedIndex = cur - 1;
-            else if (delta < 0 && cur < _doc.PageCount - 1)
-                PageList.SelectedIndex = cur + 1;
+            if (_viewMode == ViewMode.TwoPage)
+            {
+                int baseIdx = Math.Max(0, cur - cur % 2);   // left page of the current spread
+                int target = baseIdx + direction * 2;
+                if (target < 0 || target >= _doc.PageCount) return false;
+                PageList.SelectedIndex = target;
+                return true;
+            }
+            int t = cur + direction;
+            if (t < 0 || t >= _doc.PageCount) return false;
+            PageList.SelectedIndex = t;
+            return true;
         }
 
         private System.Windows.Threading.DispatcherTimer? _resizeRefitTimer;

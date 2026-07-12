@@ -4,6 +4,18 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - unreleased
+
+### Changed
+- Links open directly again: the confirm-before-opening prompt and its Settings row are off for now (the machinery stays dormant and may return when the settings menu grows).
+
+### Fixed
+- The quit prompt no longer appears when no documents are open - an empty window just closes.
+- Saving any PDF that has no bookmarks silently corrupted the file's structure (a dangling /Outlines reference PdfSharpCore emitted after the sidebar probed for an outline tree). Strict viewers - including KillerPDF itself on reopen - refused the file with a repair prompt, and accepting the repair stripped fillable forms. Saves are now clean, and the repair path first tries a lossless PDFium re-save that preserves forms and bookmarks, so files damaged by older builds recover intact (#103, thanks Peter5164).
+- Two-Page mode: arrow keys, PgUp/PgDn, and the wheel's edge page-flip now move one SPREAD at a time instead of one page, so every press changes what's on screen (#120, thanks eddardburger).
+- Selection boxes drawn with the Select tool could get stranded on screen - surviving clicks, view-mode switches, and even closing the file - until the app was restarted. They are now removed from the layer they actually live on, and closing a file sweeps any stragglers (#121, thanks TaBnLd).
+- High memory use on large documents (#122, thanks RoyYang567). Three parts: the per-tab page-bitmap cache grew without bound and is now capped to a moving window of pages around the viewport; freed memory was never returned to the OS after closing a tab, so tab close now triggers a one-shot heap compaction and RAM visibly drops; and Continuous view no longer rasterizes the whole document at open - only pages near the viewport hold bitmaps, pages scrolled far away release theirs (keeping exact layout, they re-render on approach), so a 243-page image-heavy PDF now costs a bounded few hundred MB instead of climbing past 7 GB.
+
 ## [1.6.2] - 2026-07-11
 
 ### Added

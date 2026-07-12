@@ -130,7 +130,7 @@
     <sys:String x:Key="Str_Deleted">Eliminadas {0} página(s) - {1} restante(s)</sys:String>
     <sys:String x:Key="Str_Printed">Enviadas {0} página(s) a la impresora</sys:String>
     <sys:String x:Key="Str_LinkRemoved">Enlace eliminado.</sys:String>
-    <sys:String x:Key="Str_InvalidRange">Rango no válido — use ej. 1-3,5,7</sys:String>
+    <sys:String x:Key="Str_InvalidRange">Rango no válido - use ej. 1-3,5,7</sys:String>
     <sys:String x:Key="Str_CropNoDoc">Recorte: no hay documento abierto</sys:String>
     <sys:String x:Key="Str_CropNoPage">Recorte: no hay página seleccionada</sys:String>
     <sys:String x:Key="Str_CropNoDims">Recorte: dimensiones de página no disponibles</sys:String>

@@ -132,7 +132,7 @@
     <sys:String x:Key="Str_Deleted">已刪除 {0} 頁 - 剩餘 {1} 頁</sys:String>
     <sys:String x:Key="Str_Printed">已將 {0} 頁傳送至印表機</sys:String>
     <sys:String x:Key="Str_LinkRemoved">連結已移除。</sys:String>
-    <sys:String x:Key="Str_InvalidRange">範圍無效 — 請使用例如 1-3,5,7</sys:String>
+    <sys:String x:Key="Str_InvalidRange">範圍無效 - 請使用例如 1-3,5,7</sys:String>
     <sys:String x:Key="Str_CropNoDoc">裁切：未開啟文件</sys:String>
     <sys:String x:Key="Str_CropNoPage">裁切：未選取頁面</sys:String>
     <sys:String x:Key="Str_CropNoDims">裁切：頁面尺寸無法取得</sys:String>

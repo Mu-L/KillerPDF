@@ -1858,7 +1858,7 @@
                     </Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock x:Name="VersionLabel" Text="v1.6.2"
+                    <TextBlock x:Name="VersionLabel" Text="v1.6.3"
                                Foreground="{DynamicResource TextFooter}" FontFamily="Consolas"
                                FontSize="10.5" VerticalAlignment="Center" Margin="0,0,12,0"
                                Cursor="Hand" ToolTip="{DynamicResource Str_TT_About}"
@@ -2416,12 +2416,13 @@
                                                  Checked="ViewGridRadio_Checked"/>
                         </StackPanel>
 
-                    <!-- Links: behaviour toggles for PDF hyperlinks. Plain checkboxes (not the picker
-                         accordion the other sections use) since these are independent on/off switches;
-                         more toggles drop straight in under this subheader. -->
-                    <TextBlock Text="{DynamicResource Str_LinksSection}" Style="{StaticResource SettingsSubheader}" Margin="0,12,0,8"/>
+                    <!-- Links: behaviour toggles for PDF hyperlinks. HIDDEN for now - links open
+                         directly (the confirm prompt is off, see LinkConfirmEnabled in Links.cs);
+                         the section can come back when the settings menu grows. Plain checkboxes
+                         (not the picker accordion) since these are independent on/off switches. -->
+                    <TextBlock Text="{DynamicResource Str_LinksSection}" Style="{StaticResource SettingsSubheader}" Margin="0,12,0,8" Visibility="Collapsed"/>
                     <CheckBox x:Name="LinkConfirmCheck" Content="{DynamicResource Str_LinkConfirmSetting}"
-                              Style="{StaticResource ThemeCheck}"
+                              Style="{StaticResource ThemeCheck}" Visibility="Collapsed"
                               Checked="LinkConfirmCheck_Toggled" Unchecked="LinkConfirmCheck_Toggled"/>
                 </StackPanel>
                 </ScrollViewer>

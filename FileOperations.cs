@@ -508,10 +508,22 @@ namespace KillerPDF
                 string? repairedPath = null;
                 bool raster = false;
 
+                // Strategy 0 (#103): lossless PDFium re-save. PDFium's tolerant parser recovers
+                // broken xref tables (including the dangling /Outlines entry older KillerPDF
+                // builds wrote) and rewrites a clean file preserving EVERYTHING - forms,
+                // bookmarks, text. The import-copy below drops the document-level AcroForm,
+                // which is what used to turn a repaired fillable form into a flat one.
+                repairedPath = await System.Threading.Tasks.Task.Run(() =>
+                {
+                    var p = App.MakeTempFile("repaired");
+                    return TryPdfiumStripEncryption(path, p) ? p : null;
+                });
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 0
+
                 // Strategy 1: PdfSharpCore Import mode - page-copy, more lenient than Modify/ReadOnly.
                 // Works when the XRef is partially corrupt but the object data is intact. (Returns
                 // null on failure rather than throwing.)
-                repairedPath = await System.Threading.Tasks.Task.Run(() => RepairViaImportToFile(path));
+                repairedPath ??= await System.Threading.Tasks.Task.Run(() => RepairViaImportToFile(path));
                 if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 1
 
                 // Strategy 2: PDFium rasterize. PDFium's internal XRef recovery handles damage
@@ -736,6 +748,7 @@ namespace KillerPDF
             PageList.ItemsSource = null;
             PageImage.Source = null;
             _annotationCanvas.Children.Clear();
+            MarqueeLayer.Children.Clear();   // the layer is window-level; drop any orphaned marquee boxes (#121)
             FileNameLabel.Text = "";
             DropZone.Visibility = Visibility.Visible;
             PopulateRecentFilesList();   // refresh the empty-state recent list
@@ -1429,6 +1442,26 @@ namespace KillerPDF
         private static double RectNum(PdfItem item) =>
             item is PdfReal r ? r.Value : item is PdfInteger n ? n.Value : 0;
 
+        // #103: PdfSharpCore's writer can emit the catalog's /Outlines reference without ever
+        // writing the (empty, lazily created) outlines object itself - a dangling xref entry
+        // that strict parsers, including PdfSharpCore on reopen, refuse. An outlines dictionary
+        // with no /First contains no bookmarks, so dropping the entry is a semantic no-op that
+        // keeps the file consistent. Real bookmark trees (/First present) are left untouched.
+        // Called before every save of the working document.
+        private static void ScrubEmptyOutlines(PdfDocument doc)
+        {
+            try
+            {
+                var cat = doc.Internals.Catalog;
+                var item = cat.Elements["/Outlines"];
+                if (item == null) return;
+                var resolved = DerefItemStatic(item);
+                if (resolved is not PdfDictionary o || o.Elements["/First"] == null)
+                    cat.Elements.Remove("/Outlines");
+            }
+            catch { /* malformed catalog - leave the save as-is */ }
+        }
+
         private void SaveInPlace()
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
@@ -1438,6 +1471,7 @@ namespace KillerPDF
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(this, new RoutedEventArgs()); return; }
             CommitActiveTextBox();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
+            ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             string saveTarget = _originalFile!;
             try
             {
@@ -1524,6 +1558,7 @@ namespace KillerPDF
             catch { /* malformed seed path - just open the dialog with its defaults */ }
             if (dlg.ShowDialog(this) != true) return;
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
+            ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1581,6 +1616,7 @@ namespace KillerPDF
                                            CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
+            ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)

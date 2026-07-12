@@ -150,7 +150,13 @@ namespace KillerPDF
             OutlineTree.Items.Clear();
             try
             {
-                var outlines = _doc?.Outlines;
+                // #103: _doc.Outlines lazily CREATES an empty outlines object on documents that
+                // have none, and PdfSharpCore's writer then emits the catalog's /Outlines
+                // reference without ever writing the object - a dangling xref entry that strict
+                // parsers (PdfSharpCore itself included) refuse to reopen. Peek at the catalog
+                // read-only and only touch .Outlines when the document really has one.
+                bool hasOutlines = _doc?.Internals.Catalog.Elements.ContainsKey("/Outlines") == true;
+                var outlines = hasOutlines ? _doc!.Outlines : null;
                 if (outlines is null || outlines.Count == 0)
                 {
                     SidebarOutlinesTab.IsEnabled = false;

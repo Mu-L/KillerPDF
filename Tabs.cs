@@ -195,11 +195,31 @@ namespace KillerPDF
         private static System.Windows.Media.Imaging.BitmapSource? TryGetCachedRender(DocumentSession? s, int page, int bucket, int rot)
             => (s != null && s.RenderCache.TryGetValue((page, bucket, rot), out var b)) ? b : null;
 
+        // #122: cap the number of cached page bitmaps per tab. The cache used to grow without
+        // bound (one bitmap per page ever rendered, several MB each), so scrolling a large
+        // image-heavy document in Continuous view pinned gigabytes in one tab.
+        private const int RenderCachePageCap = 48;
+
         private static void CacheRender(DocumentSession? s, int page, int bucket, int rot, System.Windows.Media.Imaging.BitmapSource bmp)
         {
             if (s == null) return;
             if (bmp.CanFreeze && !bmp.IsFrozen) bmp.Freeze();
             s.RenderCache[(page, bucket, rot)] = bmp;
+            // Evict the entries farthest from the page just cached: renders arrive around the
+            // viewport, so this keeps a moving window of nearby pages hot and stays safe to run
+            // from any thread (no UI state needed).
+            while (s.RenderCache.Count > RenderCachePageCap)
+            {
+                var farthest = default((int page, int bucket, int rot));
+                int bestDist = -1;
+                foreach (var key in s.RenderCache.Keys)
+                {
+                    int d = Math.Abs(key.page - page);
+                    if (d > bestDist) { bestDist = d; farthest = key; }
+                }
+                if (bestDist <= 0) break;   // only current-page entries left; nothing sane to evict
+                s.RenderCache.TryRemove(farthest, out _);
+            }
         }
 
         // Mark a tab most-recently-used; drop the bitmap caches of tabs that fall outside the LRU window.
@@ -208,12 +228,29 @@ namespace KillerPDF
             if (s == null) return;
             _renderLru.Remove(s);
             _renderLru.Add(s);
+            bool dropped = false;
             while (_renderLru.Count > RenderCacheTabCap)
             {
                 var old = _renderLru[0];
                 _renderLru.RemoveAt(0);
                 old.RenderCache.Clear();
+                dropped = true;
             }
+            if (dropped) CompactLohSoon();
+        }
+
+        // #122: .NET Framework never compacts the Large Object Heap on its own, so even after the
+        // page-bitmap caches are dropped the process keeps its peak RAM (the classic "closed the
+        // tab, Task Manager still shows gigabytes"). Request a one-shot LOH compaction at idle,
+        // deferred so it never janks the close/switch animation itself.
+        private void CompactLohSoon()
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, (Action)(() =>
+            {
+                System.Runtime.GCSettings.LargeObjectHeapCompactionMode =
+                    System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect();
+            }));
         }
 
         // Drop a tab's cached bitmaps after an edit that changes page pixels or page order.
@@ -519,6 +556,7 @@ namespace KillerPDF
             _sessions.Remove(s);
             _renderLru.Remove(s);    // don't pin a closed tab's render cache in the LRU list
             s.RenderCache.Clear();
+            CompactLohSoon();        // #122: give the freed bitmap memory back to the OS
 
             if (_sessions.Count == 0)
             {

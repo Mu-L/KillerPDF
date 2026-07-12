@@ -140,14 +140,12 @@ namespace KillerPDF
             // handler already exempts typing in a form field / typewriter box.
             else if (e.Key == Key.PageDown && Keyboard.Modifiers == ModifierKeys.None)
             {
-                if (PageList.Items.Count > 0)
-                    PageList.SelectedIndex = Math.Min(PageList.SelectedIndex + 1, PageList.Items.Count - 1);
+                NavigatePageStep(1);   // one page; one SPREAD in Two-Page mode (#120)
                 e.Handled = true;
             }
             else if (e.Key == Key.PageUp && Keyboard.Modifiers == ModifierKeys.None)
             {
-                if (PageList.Items.Count > 0)
-                    PageList.SelectedIndex = Math.Max(PageList.SelectedIndex - 1, 0);
+                NavigatePageStep(-1);
                 e.Handled = true;
             }
             else if (e.Key == Key.P && Keyboard.Modifiers == ModifierKeys.Control)
@@ -230,21 +228,15 @@ namespace KillerPDF
             {
                 e.Handled = true;
             }
+            // Left/Right move one page - one two-page SPREAD in Two-Page mode (#120), so a press
+            // always changes what's on screen instead of stepping through both pages of a spread.
             else if (e.Key == Key.Left && Keyboard.Modifiers == ModifierKeys.None)
             {
-                if (_doc is not null && PageList.SelectedIndex > 0)
-                {
-                    PageList.SelectedIndex--;
-                    e.Handled = true;
-                }
+                if (NavigatePageStep(-1)) e.Handled = true;
             }
             else if (e.Key == Key.Right && Keyboard.Modifiers == ModifierKeys.None)
             {
-                if (_doc is not null && PageList.SelectedIndex < _doc.PageCount - 1)
-                {
-                    PageList.SelectedIndex++;
-                    e.Handled = true;
-                }
+                if (NavigatePageStep(1)) e.Handled = true;
             }
             // Up/Down scroll the view like the mouse wheel instead of jumping a page; at the top/
             // bottom edge (or when the page fits the viewport, where there's nothing to scroll)

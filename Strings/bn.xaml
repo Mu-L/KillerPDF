@@ -130,7 +130,7 @@
     <sys:String x:Key="Str_Deleted">{0}টি পৃষ্ঠা মুছে ফেলা হয়েছে - {1}টি অবশিষ্ট</sys:String>
     <sys:String x:Key="Str_Printed">{0}টি পৃষ্ঠা প্রিন্টারে পাঠানো হয়েছে</sys:String>
     <sys:String x:Key="Str_LinkRemoved">লিংক সরানো হয়েছে।</sys:String>
-    <sys:String x:Key="Str_InvalidRange">অবৈধ পরিসীমা — যেমন ব্যবহার করুন: 1-3,5,7</sys:String>
+    <sys:String x:Key="Str_InvalidRange">অবৈধ পরিসীমা - যেমন ব্যবহার করুন: 1-3,5,7</sys:String>
     <sys:String x:Key="Str_CropNoDoc">ক্রপ: কোনো নথি খোলা নেই</sys:String>
     <sys:String x:Key="Str_CropNoPage">ক্রপ: কোনো পৃষ্ঠা নির্বাচিত নেই</sys:String>
     <sys:String x:Key="Str_CropNoDims">ক্রপ: পৃষ্ঠার মাত্রা পাওয়া যাচ্ছে না</sys:String>

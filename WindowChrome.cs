@@ -538,7 +538,12 @@ namespace KillerPDF
             // checkboxes replaces the old Yes=forget / No=reopen question. Unchecked
             // "Close my open tabs" = the session reopens next launch; "Remember my choice"
             // locks the answer so we stop asking. Cancel keeps the app open.
-            if (App.GetSetting("RememberChoiceLocked") != "1")
+            // Only asked when a document is actually open (loaded, or a lazy not-yet-loaded
+            // restored tab) - with nothing open there are no tabs to close or reopen, so the
+            // empty window just quits.
+            bool anyOpenDoc = _sessions.Any(s =>
+                s.Doc != null || !string.IsNullOrEmpty(s.CurrentFile) || !string.IsNullOrEmpty(s.DeferredPath));
+            if (anyOpenDoc && App.GetSetting("RememberChoiceLocked") != "1")
             {
                 var (confirmed, closeTabs, remember) = KillerDialog.ShowQuitPrompt(this,
                     Loc("Str_Dlg_QuitMsg"),

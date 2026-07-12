@@ -44,10 +44,16 @@ namespace KillerPDF
         // Persisted opt-out key for the click-safety confirmation prompt.
         private const string SkipLinkConfirmSetting = "SkipLinkConfirm";
 
+        // Master switch for the confirm-before-opening-links prompt: OFF for now - links open
+        // directly. The prompt machinery (and its hidden Settings row, see MainWindow.xaml) is
+        // kept rather than deleted so it can return if the settings menu grows.
+        private static readonly bool LinkConfirmEnabled = false;
+
         // Confirms before opening an external link in the browser, unless the user opted out. Returns true
         // to proceed. Internal go-to-page links never call this.
         private bool ConfirmOpenLink(string url)
         {
+            if (!LinkConfirmEnabled) return true;
             if (App.GetSetting(SkipLinkConfirmSetting) == "1") return true;
             var (result, dontAsk) = KillerDialog.ShowWithCheckbox(
                 this,
