@@ -1462,6 +1462,51 @@ namespace KillerPDF
             catch { /* malformed catalog - leave the save as-is */ }
         }
 
+        // PdfSharpCore's PdfPage.MediaBox/CropBox property GETTERS have create-on-read semantics:
+        // touching page.CropBox on a page that has none plants an empty /CropBox [0 0 0 0] into
+        // the page dictionary (the same lazy-getter trap as the phantom /Outlines above). A
+        // zero-size page box saves to disk and Adobe then rejects the page as "dimensions
+        // out-of-range" even though the MediaBox is fine (Chrome falls back to the MediaBox,
+        // which is why such files still open there). Dropping a degenerate CropBox is a semantic
+        // no-op - the page falls back to its MediaBox - and it also HEALS files written by
+        // affected versions (1.6.x up to 1.6.2) when they are re-saved. Real crops are untouched.
+        // Called before every save of the working document.
+        private static void ScrubDegenerateCropBoxes(PdfDocument doc)
+        {
+            try
+            {
+                for (int i = 0; i < doc.PageCount; i++)
+                {
+                    var elements = doc.Pages[i].Elements;
+                    var item = elements["/CropBox"];
+                    if (item is null) continue;
+                    var resolved = DerefItemStatic(item);
+
+                    // The box can be a parsed PdfArray (loaded from disk) or a PdfRectangle
+                    // (planted in memory by the lazy getter) - handle both, like ScaleRectValue.
+                    double w = -1, h = -1;
+                    if (resolved is PdfRectangle rect)
+                    {
+                        w = Math.Abs(rect.X2 - rect.X1);
+                        h = Math.Abs(rect.Y2 - rect.Y1);
+                    }
+                    else if (resolved is PdfArray arr && arr.Elements.Count == 4 &&
+                             arr.Elements[0] is PdfReal or PdfInteger && arr.Elements[1] is PdfReal or PdfInteger &&
+                             arr.Elements[2] is PdfReal or PdfInteger && arr.Elements[3] is PdfReal or PdfInteger)
+                    {
+                        w = Math.Abs(RectNum(arr.Elements[2]) - RectNum(arr.Elements[0]));
+                        h = Math.Abs(RectNum(arr.Elements[3]) - RectNum(arr.Elements[1]));
+                    }
+
+                    // Remove only when we could read the box AND it is degenerate; anything we
+                    // cannot interpret is left alone rather than destroyed.
+                    if (w >= 0 && (w < 1 || h < 1))
+                        elements.Remove("/CropBox");
+                }
+            }
+            catch { /* malformed page tree - leave the save as-is */ }
+        }
+
         private void SaveInPlace()
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
@@ -1472,6 +1517,7 @@ namespace KillerPDF
             CommitActiveTextBox();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
             ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
+            ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
             string saveTarget = _originalFile!;
             try
             {
@@ -1559,6 +1605,7 @@ namespace KillerPDF
             if (dlg.ShowDialog(this) != true) return;
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
             ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
+            ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1617,6 +1664,7 @@ namespace KillerPDF
             if (dlg.ShowDialog(this) != true) return;
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
             ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
+            ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)

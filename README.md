@@ -1,6 +1,6 @@
 # KillerPDF
 
-Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. Single Windows EXE, ~14.6 MB (ZIPs to 10.2MB), no runtime install required.
+Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. Single Windows EXE, ~14.7 MB (ZIPs to 10.2MB), no runtime install required.
 
 Landing page is hosted at [KillerPDF.net](https://killerpdf.net)
 
@@ -64,12 +64,12 @@ KillerPDF is what I wanted: local-only, portable, no account, no telemetry. The 
 
 - Six themes - Dark, Light, Black, Blood, Greed, Cyanotic - with per-theme accent colors, switchable live
 - Toolbar style (icon size, text placement) and a resizable sidebar that docks left or right
-- Localized UI in 8 languages (English, Spanish, Traditional and Simplified Chinese, German, French, Turkish, Bengali); contribute via `Strings/TRANSLATING.md`
+- Localized UI in 9 languages (English, Spanish, Traditional and Simplified Chinese, German, French, Turkish, Bengali, Japanese); contribute via `Strings/TRANSLATING.md`
 - Full keyboard shortcut overlay (Ctrl+?) with a link to the online guide
 
 ### App & files
 
-- Single portable Windows EXE, ~14.62 MB, no runtime install
+- Single portable Windows EXE, ~14.7 MB, no runtime install
 - Self-installs per-user to %LOCALAPPDATA% (no UAC), registers as a PDF handler with a branded file icon, and uninstalls cleanly via Add/Remove Programs
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
 - Local-only: no account, no telemetry, no phone-home
@@ -105,7 +105,7 @@ choco install killerpdf
 ```
 
 - Prebuilt binary: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe>
-- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.6.1/KillerPDF-1.6.1-src.zip>
+- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.6.2/KillerPDF-1.6.2-src.zip>
 
 ## Build from source
 

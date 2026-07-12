@@ -16,24 +16,26 @@
     <bugTrackerUrl>https://github.com/SteveTheKiller/KillerPDF/issues</bugTrackerUrl>
     <tags>pdf viewer editor annotate merge split sign portable</tags>
     <summary>PDF editor for Windows. No Adobe, no subscription, no telemetry.</summary>
-    <description>PDF editor for Windows. View, annotate, merge, split, edit text, draw, sign, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home.
+    <description>PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home.
 
 **Features:**
 
 - High-quality rendering via PDFium
-- Merge multiple PDFs and split out selected pages, drag-and-drop page reordering
+- Four view modes (Single, Continuous, Two-Page, Grid) and tabbed documents, each restoring its page, zoom, and view mode
 - Inline text editing with font matching against the original document
-- Text boxes, freehand drawing, and highlight overlays
+- Text boxes, freehand drawing, straight lines, and highlights, with a full RGB color picker and screen eyedropper
+- Built-in OCR, no cloud: OCR a page or dragged region to the clipboard, make a searchable PDF, or extract all text
 - PDF form filling: text inputs, checkboxes, and radio buttons render as live controls
-- PDF outline (bookmark) navigation: OUTLINES tab displays the bookmark tree
-- Draw and save reusable signatures or import a PNG/JPG/BMP image
-- Insert images as resizable annotations
-- Crop tool with corner drag handles
-- Right-click sidebar: insert blank page, rotate, move, extract, or delete
-- Clickable PDF links and internal cross-references
+- Digital signatures with a cloud certificate (Certum SimplySign); draw and reuse signatures or import a PNG/JPG/BMP image
+- Merge multiple PDFs and split out selected pages, drag-and-drop page reordering; drop a folder or ZIP to merge its contents
+- Rotate, scale, flip, straighten a crooked scan, and crop with corner handles
+- Page-number and watermark stamping across a page range
+- PDF outline (bookmark) navigation, clickable links and internal cross-references
 - Full-text search across the entire document with result highlighting
+- Print with a real in-app preview (scale, position, margins, pages-per-sheet, two-sided); Save Flattened to make a page uneditable
+- Six themes with per-theme accent colors; localized in nine languages
 - Keyboard shortcut overlay (Ctrl+?)
-- Single Windows EXE, ~6 MB, no runtime install required
+- Single Windows EXE, ~15 MB, no runtime install; self-installs per-user or runs portable
 - GPLv3, local-only, no account, no telemetry
     </description>
     <releaseNotes>https://github.com/SteveTheKiller/KillerPDF/releases/tag/vREPLACE_VERSION</releaseNotes>

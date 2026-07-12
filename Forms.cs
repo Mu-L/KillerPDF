@@ -299,13 +299,31 @@ namespace KillerPDF
             // assumed to start at (0,0) with MediaBox dimensions. Pages whose box origin is offset,
             // or whose CropBox is inset from the MediaBox, otherwise shift every field a little;
             // mapping to the rendered box's own origin lines them up the way Acrobat/Chrome do.
-            var mediaBox = page.MediaBox;
-            var cropBox  = page.CropBox;
-            var box      = (cropBox.Width > 1 && cropBox.Height > 1) ? cropBox : mediaBox;
-            double boxX  = box.X1;   // box lower-left origin in PDF user space
-            double boxY  = box.Y1;
-            double pageW = box.Width  > 0 ? box.Width  : 595.28;
-            double pageH = box.Height > 0 ? box.Height : 841.89;
+            //
+            // CRITICAL: read the boxes via GetArray, NEVER via page.MediaBox/page.CropBox. Those
+            // property getters have create-on-read semantics in PdfSharpCore: touching page.CropBox
+            // on a page without one PLANTS an empty /CropBox [0 0 0 0] into the page dictionary
+            // (the same lazy-getter trap as the phantom /Outlines, #103), which then saves to disk
+            // and makes Adobe reject every page as "dimensions out-of-range".
+            (double x, double y, double w, double h)? ReadBox(string key)
+            {
+                if (page.Elements.GetArray(key) is { Elements.Count: 4 } a)
+                {
+                    double x1 = a.Elements.GetReal(0), y1 = a.Elements.GetReal(1);
+                    double x2 = a.Elements.GetReal(2), y2 = a.Elements.GetReal(3);
+                    return (Math.Min(x1, x2), Math.Min(y1, y2), Math.Abs(x2 - x1), Math.Abs(y2 - y1));
+                }
+                return null;
+            }
+            var media = ReadBox("/MediaBox");
+            var crop  = ReadBox("/CropBox");
+            var box   = (crop.HasValue && crop.Value.w > 1 && crop.Value.h > 1)
+                        ? crop.Value
+                        : media ?? (x: 0.0, y: 0.0, w: 595.28, h: 841.89);
+            double boxX  = box.x;   // box lower-left origin in PDF user space
+            double boxY  = box.y;
+            double pageW = box.w > 0 ? box.w : 595.28;
+            double pageH = box.h > 0 ? box.h : 841.89;
             int rotation = ((page.Rotate % 360) + 360) % 360;
 
             try

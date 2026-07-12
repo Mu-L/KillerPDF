@@ -8,8 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Changed
 - Links open directly again: the confirm-before-opening prompt and its Settings row are off for now (the machinery stays dormant and may return when the settings menu grows).
+- When both document scrollbars are visible, the vertical bar now runs the full pane height and owns the corner; the horizontal bar ends against it.
 
 ### Fixed
+- Switching from Grid to Continuous view kept the grid's scrollbar overrides, so zooming in showed the page clipped with dead side margins and no horizontal scrollbar to reach the rest. Continuous now restores its own scrollbar setup.
+- Closing with unsaved changes stacked two prompts (unsaved-changes, then the quit prompt). Confirming "close without saving" now counts as the quit confirmation, so at most one dialog appears per close - and that prompt defaults to No, so a stray Enter can't discard new work.
+- Saving any PDF whose pages had no crop box silently planted a zero-size /CropBox [0 0 0 0] on every page. Adobe rejects a zero-size page box with a "page dimensions out-of-range" error - the same message as the oversized-image bug fixed in 1.6.2, but a separate cause, and the real reason merged Google Docs exports kept failing in Acrobat while opening fine in Chrome (which falls back to the MediaBox). The box was created as a side effect of merely READING PdfSharpCore's CropBox property during form-field layout - the same lazy-getter trap as the phantom /Outlines below. Page boxes are now read without touching the document, and every save strips degenerate crop boxes, so re-saving a file damaged by 1.6.x heals it (thanks Richard Lam).
 - The quit prompt no longer appears when no documents are open - an empty window just closes.
 - Saving any PDF that has no bookmarks silently corrupted the file's structure (a dangling /Outlines reference PdfSharpCore emitted after the sidebar probed for an outline tree). Strict viewers - including KillerPDF itself on reopen - refused the file with a repair prompt, and accepting the repair stripped fillable forms. Saves are now clean, and the repair path first tries a lossless PDFium re-save that preserves forms and bookmarks, so files damaged by older builds recover intact (#103, thanks Peter5164).
 - Two-Page mode: arrow keys, PgUp/PgDn, and the wheel's edge page-flip now move one SPREAD at a time instead of one page, so every press changes what's on screen (#120, thanks eddardburger).

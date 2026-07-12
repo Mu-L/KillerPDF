@@ -154,6 +154,13 @@ namespace KillerPDF
         private void SetupContinuousView(int initialPage, bool fitDefault = true)
         {
             if (_doc is null) return;
+            // Coming from Grid, the shared ScrollViewer still carries the grid's overrides
+            // (horizontal bar Disabled, vertical Visible). Continuous never passes through
+            // RefreshPageView, where the other modes restore them - so restore here, or a
+            // zoomed-in continuous view gets clamped to the viewport width: the page renders
+            // clipped with dead side margins and no horizontal scrollbar to reach the rest.
+            PagePreviewPanel.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+            PagePreviewPanel.VerticalScrollBarVisibility   = ScrollBarVisibility.Auto;
             _continuousRenderCts?.Cancel();
             _continuousPanel.Children.Clear();
             _continuousTops.Clear();

@@ -525,9 +525,11 @@ namespace KillerPDF
             {
                 // fadeClose:false so the prompt closes instantly instead of adding its own 150ms fade
                 // before the app's fade-out starts - otherwise the two run back-to-back (300ms of waiting).
+                // Default to No so a stray Enter can't silently discard unsaved work.
                 var res = KillerDialog.Show(this,
                     Loc("Str_Dlg_UnsavedExit"),
-                    Loc("Str_Dlg_AppTitle"), MessageBoxButton.YesNo, MessageBoxImage.Warning, fadeClose: false);
+                    Loc("Str_Dlg_AppTitle"), MessageBoxButton.YesNo, MessageBoxImage.Warning, fadeClose: false,
+                    defaultResult: MessageBoxResult.No);
                 if (res != MessageBoxResult.Yes)
                 {
                     e.Cancel = true;
@@ -543,7 +545,10 @@ namespace KillerPDF
             // empty window just quits.
             bool anyOpenDoc = _sessions.Any(s =>
                 s.Doc != null || !string.IsNullOrEmpty(s.CurrentFile) || !string.IsNullOrEmpty(s.DeferredPath));
-            if (anyOpenDoc && App.GetSetting("RememberChoiceLocked") != "1")
+            // A confirmed "close without saving" already IS the quit confirmation - never stack
+            // the quit prompt on top of it (one dialog max per close). The open-tabs / remember
+            // preference just keeps its saved value for that close.
+            if (!anyDirty && anyOpenDoc && App.GetSetting("RememberChoiceLocked") != "1")
             {
                 var (confirmed, closeTabs, remember) = KillerDialog.ShowQuitPrompt(this,
                     Loc("Str_Dlg_QuitMsg"),
