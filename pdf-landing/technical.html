@@ -150,7 +150,7 @@
 
 <div class="tech-sec" id="arch">
 <h2 data-i18n="pt_54">Architecture</h2>
-<p data-i18n="pt_55">The whole interface is built as one large class (<b>MainWindow</b>) split across roughly forty source files, about 27,000 lines of C# on WPF and .NET Framework 4.8. Each pop-up dialog is its own class, and shared background work lives under <code>Services/</code>.</p>
+<p data-i18n="pt_55">The whole interface is built as one large class (<b>MainWindow</b>) split across about 35 source files, roughly 21,500 lines of C# on WPF and .NET Framework 4.8. Each pop-up dialog is its own class, and shared background work lives under <code>Services/</code>.</p>
 <h3 id="two-render-pipelines" data-i18n="pt_56">Two render pipelines</h3>
 <p data-i18n="pt_57">KillerPDF draws pages in two different ways depending on the view you are in. Single, Two-Page and Grid views draw into one main tile (<b>RenderPage</b>). Continuous scrolling uses a separate path (<b>RenderContinuousPages</b>) that streams page images in the background as you scroll. RenderPage is deliberately switched off during Continuous so the two systems never fight over the same tile.</p>
 <h3 id="per-tab-sessions-an-lru-cache" data-i18n="pt_58">Per-tab sessions &amp; an LRU cache</h3>
@@ -400,7 +400,7 @@
 </div>
 <footer class="statusbar">
 <span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener" data-i18n="pt_216">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span>
-<span class="right"><span id="verEgg" title="click me">v1.6.2</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
+<span class="right"><span id="verEgg" title="click me">v1.6.3</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
 </footer>
 <div class="egg-toast" id="eggToast"></div>
 <script src="kp-i18n.js?v=1"></script>
