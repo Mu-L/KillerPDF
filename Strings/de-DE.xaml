@@ -155,7 +155,7 @@
     <sys:String x:Key="Str_Ctx_RemoveLink">Link aus PDF entfernen</sys:String>
     <sys:String x:Key="Str_LinksSection">LINKS</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Vor dem Öffnen von Links bestätigen</sys:String>
-    <sys:String x:Key="Str_InvalidRange">Ungültiger Bereich – z. B. 1–3,5,7 verwenden</sys:String>
+    <sys:String x:Key="Str_InvalidRange">Ungültiger Bereich – z. B. 1-3,5,7 verwenden</sys:String>
     <sys:String x:Key="Str_CropNoDoc">Zuschneiden: Kein Dokument geöffnet</sys:String>
     <sys:String x:Key="Str_CropNoPage">Zuschneiden: Keine Seite ausgewählt</sys:String>
     <sys:String x:Key="Str_CropNoDims">Zuschneiden: Seitenabmessungen nicht verfügbar</sys:String>
@@ -308,7 +308,7 @@ Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen
     <sys:String x:Key="Str_Print_ScaleHint">Skalierungsprozentsatz (z. B. 50 oder 50,23)</sys:String>
     <sys:String x:Key="Str_Print_Copies">Kopien</sys:String>
     <sys:String x:Key="Str_Print_Pages">Seiten</sys:String>
-    <sys:String x:Key="Str_Print_PagesHint">z. B. 1–3,5  (leer = alle)</sys:String>
+    <sys:String x:Key="Str_Print_PagesHint">z. B. 1-3,5  (leer = alle)</sys:String>
     <sys:String x:Key="Str_Print_NoPages">Keine Seiten</sys:String>
     <sys:String x:Key="Str_Print_Margins">Ränder</sys:String>
     <sys:String x:Key="Str_Margin_None">Keine</sys:String>
@@ -460,7 +460,7 @@ Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen
     <sys:String x:Key="Str_Crop_Pages">Seiten</sys:String>
     <sys:String x:Key="Str_Crop_All">Alle</sys:String>
     <sys:String x:Key="Str_Crop_Apply">Zuschneiden</sys:String>
-    <sys:String x:Key="Str_Crop_RangeTip">Seitenbereich, z. B. 1–3,5 (leer = aktuelle Seite)</sys:String>
+    <sys:String x:Key="Str_Crop_RangeTip">Seitenbereich, z. B. 1-3,5 (leer = aktuelle Seite)</sys:String>
     <sys:String x:Key="Str_Crop_AllTip">Jede Seite zuschneiden</sys:String>
 
     <!-- View-mode + full-screen shortcuts -->
