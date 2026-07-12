@@ -84,10 +84,23 @@ namespace KillerPDF
                 img.SelectActiveFrame(dim, f);
 
                 int wpx = img.Width, hpx = img.Height;
-                double dpiX = img.HorizontalResolution > 0 ? img.HorizontalResolution : 96.0;
-                double dpiY = img.VerticalResolution   > 0 ? img.VerticalResolution   : 96.0;
+                // Broken resolution metadata is common (WhatsApp and some scanners tag ~1 DPI,
+                // screenshots 0); trusting it makes pages Adobe Reader refuses to display
+                // ("dimensions out-of-range", limit 3-14400 pt per side). PDFium renders any
+                // size, so the file looks fine here and only fails in other viewers. Outside a
+                // plausible DPI range, fall back to 96.
+                double dpiX = img.HorizontalResolution;
+                double dpiY = img.VerticalResolution;
+                if (!(dpiX >= 24 && dpiX <= 4800)) dpiX = 96.0;
+                if (!(dpiY >= 24 && dpiY <= 4800)) dpiY = 96.0;
                 double wPt = wpx * 72.0 / dpiX;
                 double hPt = hpx * 72.0 / dpiY;
+
+                // Even with a sane DPI, clamp into Adobe's supported range, preserving aspect.
+                double shrink = Math.Min(1.0, MaxAdobePageDim / Math.Max(wPt, hPt));
+                wPt *= shrink; hPt *= shrink;
+                double grow = Math.Max(1.0, MinAdobePageDim / Math.Min(wPt, hPt));
+                wPt *= grow; hPt *= grow;
 
                 // Copy the active frame to a fresh 32bpp bitmap, then encode PNG (XImage reads that).
                 byte[] png;

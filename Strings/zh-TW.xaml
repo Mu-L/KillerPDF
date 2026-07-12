@@ -145,6 +145,9 @@
 您可以隨時透過新增或移除程式來解除安裝。</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">您有未儲存的變更。要在不儲存的情況下關閉此檔案嗎？</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">您有未儲存的變更。要在不儲存的情況下關閉 KillerPDF 嗎？</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">此文件有 {0} 個頁面的尺寸超出 Adobe Reader 支援的範圍（每邊 3 到 14400 點），Adobe 會將這些頁面顯示為空白。
+
+要將它們縮放至支援的尺寸嗎？頁面的外觀和比例保持不變。</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">無法開啟 PDF：
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>

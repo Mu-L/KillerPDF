@@ -143,6 +143,9 @@ Die Anwendung wird nach %LocalAppData%\KillerPDF kopiert und eine Verknüpfung i
 Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen“ deinstallieren.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Es gibt ungespeicherte Änderungen. Diese Datei ohne Speichern schließen?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Es gibt ungespeicherte Änderungen. KillerPDF ohne Speichern beenden?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">Dieses Dokument enthält {0} Seite(n) außerhalb des von Adobe Reader unterstützten Größenbereichs (3 bis 14.400 Punkte je Seite) - Adobe zeigt diese als leere Seiten an.
+
+Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten bleiben erhalten.</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">PDF konnte nicht geöffnet werden:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>

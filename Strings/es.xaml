@@ -143,6 +143,9 @@ Esto copiará la aplicación a %LocalAppData%\KillerPDF y creará un acceso dire
 Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Tiene cambios sin guardar. ¿Cerrar este archivo sin guardar?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Tiene cambios sin guardar. ¿Cerrar KillerPDF sin guardar?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">Este documento tiene {0} página(s) con un tamaño fuera del rango que admite Adobe Reader (3 a 14.400 puntos por lado) - Adobe las muestra como páginas en blanco.
+
+¿Escalarlas a un tamaño compatible? Las páginas conservan su aspecto y proporciones.</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">Error al abrir PDF:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>

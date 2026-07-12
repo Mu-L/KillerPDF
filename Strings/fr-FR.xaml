@@ -129,6 +129,9 @@ L'application sera copiée dans %LocalAppData%\KillerPDF et un raccourci sera cr
 Vous pourrez désinstaller le programme à tout moment via « Ajouter ou supprimer des programmes ».</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Des modifications non enregistrées sont présentes. Fermer ce fichier sans enregistrer ?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Des modifications non enregistrées sont présentes. Quitter KillerPDF sans enregistrer ?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">Ce document contient {0} page(s) dont la taille sort des limites prises en charge par Adobe Reader (3 à 14 400 points par côté) - Adobe les affiche comme des pages vides.
+
+Les redimensionner à une taille prise en charge ? Les pages conservent leur apparence et leurs proportions.</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">Impossible d'ouvrir le PDF :
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>

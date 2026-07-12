@@ -143,6 +143,9 @@ Bu işlem uygulamayı %LocalAppData%\KillerPDF konumuna kopyalar ve bir Başlat 
 İstediğiniz zaman Program Ekle/Kaldır üzerinden kaldırabilirsiniz.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Kaydedilmemiş değişiklikleriniz var. Bu dosya kaydedilmeden kapatılsın mı?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Kaydedilmemiş değişiklikleriniz var. KillerPDF kaydedilmeden kapatılsın mı?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">Bu belgede Adobe Reader'ın desteklediği aralığın (kenar başına 3 - 14.400 punto) dışında boyutlandırılmış {0} sayfa var - Adobe bu sayfaları boş gösterir.
+
+Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları korunur.</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">PDF açılamadı:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>

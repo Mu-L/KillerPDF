@@ -37,7 +37,7 @@ html[data-theme="light"] .wm-logo { filter: none; }
 html[data-theme="light"] .page-title { text-shadow: none; }
 
 /* ---- Top bar (single app-style chrome bar) ---- */
-.topbar { position: relative; flex: 0 0 auto; z-index: 100; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 62px; padding: 9px 16px; background: var(--sidebar); }
+.topbar { position: relative; flex: 0 0 auto; z-index: 100; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 16px; background: var(--sidebar); }
 .topbar::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: url('grain.png?v=2') repeat fixed; background-size: 256px 256px; opacity: 1; }
 .topbar > * { position: relative; z-index: 1; }
 .tb-home { display: inline-flex; align-items: center; gap: 9px; color: var(--text); }
@@ -84,7 +84,7 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 .shell { display: grid; grid-template-columns: 1fr 268px; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .content { min-width: 0; min-height: 0; overflow-y: auto; position: relative; scroll-behavior: smooth; background-image: url('grain.png?v=2'); background-repeat: repeat; background-size: 256px 256px; background-attachment: fixed; animation: pageFadeIn .28s ease both; }
-.frame-shadow { position: fixed; top: 62px; left: 0; right: 268px; bottom: 30px; pointer-events: none; z-index: 101; border: 1px solid var(--pane-border); border-right-color: var(--dragline); border-bottom-color: var(--dragline); border-left: 0; box-shadow: 0 0 20px 0 rgba(0,0,0,0.42); border-radius: 0; }
+.frame-shadow { position: fixed; top: 52px; left: 0; right: 268px; bottom: 24px; pointer-events: none; z-index: 101; border: 1px solid var(--pane-border); border-right-color: var(--dragline); border-bottom-color: var(--dragline); border-left: 0; box-shadow: 0 0 20px 0 rgba(0,0,0,0.42); border-radius: 0; }
 
 /* ---- Sidebar (the app's docked pane) ---- */
 .sidebar { position: relative; height: 100%; min-height: 0; background: var(--sidebar); display: flex; flex-direction: column; z-index: 5; }
@@ -95,7 +95,7 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 .sb-tabs .on { color: var(--accent); border-bottom: 2px solid var(--tab-edge); }
 
 /* ---- Status bar footer (matches the app) ---- */
-.statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 16px; background: var(--sidebar); font-family: Consolas, monospace; font-size: 11.5px; color: var(--footer-text); position: relative; flex: 0 0 auto; z-index: 10; }
+.statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 3px 16px; background: var(--sidebar); font-family: Consolas, monospace; font-size: 11.5px; color: var(--footer-text); position: relative; flex: 0 0 auto; z-index: 10; }
 .statusbar::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: url('grain.png?v=2') repeat fixed; background-size: 256px 256px; opacity: 1; }
 /* Resize-grip dots in the window corner, matching the app chrome (grain owns ::after) */
 .statusbar::before { content: ""; position: absolute; right: 5px; bottom: 5px; width: 2px; height: 2px; background: var(--footer-text); box-shadow: -4px 0 var(--footer-text), -8px 0 var(--footer-text), 0 -4px var(--footer-text), -4px -4px var(--footer-text), 0 -8px var(--footer-text); opacity: .8; pointer-events: none; z-index: 1; }
@@ -171,7 +171,7 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 
 /* ============ Header nav + appearance flyout (shared) ============ */
 .tb-nav { display: inline-flex; align-items: center; gap: 1px; }
-.tb-nav a { font-family: 'TypewriterHead', 'Courier New', monospace; color: var(--text2); font-size: 18px; font-weight: normal; letter-spacing: .3px; padding: 6px 11px; border-radius: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.tb-nav a { font-family: 'TypewriterHead', 'Courier New', monospace; color: var(--text2); font-size: 18px; font-weight: normal; letter-spacing: .3px; line-height: 1.2; padding: 6px 11px; border-radius: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 html[data-theme="light"] .tb-nav a { text-shadow: none; }
 .tb-nav a:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 12%, transparent); filter: none; }
 .tb-nav a.on { color: var(--accent); }
@@ -244,7 +244,7 @@ html[data-theme="cyanotic"] .spec-table th { background: var(--chrome); color: v
 }
 
 /* ---- Accent bar: drops down under the toolbar when a base theme is picked (like the app's annotate bars) ---- */
-.accent-bar { position: fixed; left: 0; right: 0; top: 62px; z-index: 102; display: flex; justify-content: center; pointer-events: none; opacity: 0; transform: translateY(-12px); transition: opacity 0.18s ease, transform 0.18s ease; }
+.accent-bar { position: fixed; left: 0; right: 0; top: 52px; z-index: 102; display: flex; justify-content: center; pointer-events: none; opacity: 0; transform: translateY(-12px); transition: opacity 0.18s ease, transform 0.18s ease; }
 .accent-bar.show { opacity: 1; transform: translateY(0); }
 .accent-bar .pill { position: relative; overflow: hidden; pointer-events: auto; display: inline-flex; align-items: center; gap: 11px; background: var(--surface); border: 1px solid var(--pane-border); border-radius: 3px; padding: 8px 13px; box-shadow: 0 0 18px 1px rgba(0,0,0,0.45), 0 14px 30px rgba(0,0,0,0.5); }
 .accent-bar .pill::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: url('grain.png?v=2') repeat; background-size: 256px 256px; opacity: 1; border-radius: inherit; }

@@ -8,9 +8,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Added
 - Page Up / Page Down navigate to the previous / next page, consistently regardless of what has focus (a focused sidebar thumbnail no longer pages its own selection instead). Page reordering stays on the toolbar Move Up / Move Down buttons (#117).
+- Japanese (ja-JP) interface translation, selectable from the language picker (#118, thanks coolvitto).
+
+### Changed
+- Status-bar and dialog messages that were still shown in English now follow the selected language; the remaining hardcoded strings were extracted to resource keys and translated across all nine locales.
 
 ### Fixed
 - The in-app self-updater now reads `SHA256SUMS.txt` from the release assets instead of from the repo at the release tag. The checksum file and the exe are uploaded to the release together, so the hash can no longer drift from the binary when tag/commit order varies, which was causing the update to fail its checksum and quietly fall back to the releases page.
+- Importing images with broken DPI metadata (common in WhatsApp photos and some scans) produced pages Adobe Reader refuses to display ("The dimensions of this page are out-of-range", shown as blank); imported image pages are now kept within Adobe's supported 3-14,400 point range. KillerPDF itself rendered these files fine, so the problem only showed up in other viewers - typically after a merge or page edit (thanks Richard Lam for the report).
+- Saving a document that already contains out-of-range pages (created by earlier KillerPDF versions or other tools) now offers to scale them to a supported size; the pages keep their look and proportions.
 
 ## [1.6.1] - 2026-07-01
 

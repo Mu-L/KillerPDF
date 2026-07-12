@@ -1334,6 +1334,101 @@ namespace KillerPDF
             return item;
         }
 
+        // ============================================================
+        // Adobe page-size guard
+        // ============================================================
+
+        // Adobe Reader only displays pages whose sides are 3-14400 points; anything outside
+        // that range shows "The dimensions of this page are out-of-range" and renders blank.
+        // Such pages usually come from images with broken DPI metadata turned into a PDF (by
+        // KillerPDF 1.6.1 and earlier, or by other tools). PDFium renders any size, so the
+        // file looks normal in KillerPDF and only fails in Adobe.
+        internal const double MinAdobePageDim = 3.0;
+        internal const double MaxAdobePageDim = 14400.0;
+
+        private static bool PageOutOfAdobeRange(PdfPage p)
+        {
+            double w = p.Width.Point, h = p.Height.Point;
+            return w < MinAdobePageDim || w > MaxAdobePageDim || h < MinAdobePageDim || h > MaxAdobePageDim;
+        }
+
+        // Called at the top of every user-facing save. If any page is outside Adobe's supported
+        // range, offers a proportional rescale (content, page boxes, and annotations all scale
+        // by the same factor, so pages look identical at their new size). Declining saves as-is.
+        private void OfferRescaleOutOfRangePages()
+        {
+            if (_doc is null) return;
+            int bad = 0;
+            for (int i = 0; i < _doc.PageCount; i++)
+                if (PageOutOfAdobeRange(_doc.Pages[i])) bad++;
+            if (bad == 0) return;
+            var res = KillerDialog.Show(this, string.Format(Loc("Str_Dlg_PageOutOfRange"), bad),
+                "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (res != MessageBoxResult.Yes) return;
+            for (int i = 0; i < _doc.PageCount; i++)
+                if (PageOutOfAdobeRange(_doc.Pages[i]))
+                    RescalePageToAdobeRange(_doc.Pages[i]);
+        }
+
+        // Rescales one page into Adobe's supported range: wraps the existing content in a
+        // "q <s> 0 0 <s> 0 0 cm ... Q" transform and scales the page boxes and annotation
+        // rectangles by the same factor.
+        private static void RescalePageToAdobeRange(PdfPage page)
+        {
+            double w = page.Width.Point, h = page.Height.Point;
+            double s = 1.0;
+            if (w > MaxAdobePageDim || h > MaxAdobePageDim)
+                s = Math.Min(MaxAdobePageDim / w, MaxAdobePageDim / h);
+            else if (w < MinAdobePageDim || h < MinAdobePageDim)
+                s = Math.Max(MinAdobePageDim / w, MinAdobePageDim / h);
+            if (s == 1.0) return;
+
+            string inv = s.ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
+            page.Contents.PrependContent().CreateStream(
+                System.Text.Encoding.ASCII.GetBytes($"q {inv} 0 0 {inv} 0 0 cm\n"));
+            page.Contents.AppendContent().CreateStream(
+                System.Text.Encoding.ASCII.GetBytes("\nQ\n"));
+
+            ScaleRectValue(page.Elements, "/MediaBox", s);
+            ScaleRectValue(page.Elements, "/CropBox",  s);
+            ScaleRectValue(page.Elements, "/BleedBox", s);
+            ScaleRectValue(page.Elements, "/TrimBox",  s);
+            ScaleRectValue(page.Elements, "/ArtBox",   s);
+
+            // Annotation rectangles (and link quad points) must follow so they stay on target.
+            var annotsItem = page.Elements["/Annots"];
+            if (annotsItem != null && DerefItemStatic(annotsItem) is PdfArray annots)
+            {
+                foreach (var item in annots.Elements)
+                {
+                    if (DerefItemStatic(item) is not PdfDictionary annot) continue;
+                    ScaleRectValue(annot.Elements, "/Rect", s);
+                    if (annot.Elements["/QuadPoints"] is PdfArray quads)
+                        for (int i = 0; i < quads.Elements.Count; i++)
+                            quads.Elements[i] = new PdfReal(RectNum(quads.Elements[i]) * s);
+                }
+            }
+        }
+
+        // Multiplies a rectangle-valued dictionary entry by s in place; no-op when absent.
+        // PdfSharpCore holds these as PdfRectangle (parsed) or PdfArray, so handle both.
+        private static void ScaleRectValue(PdfDictionary.DictionaryElements elements, string key, double s)
+        {
+            var item = elements[key];
+            if (item == null) return;
+            item = DerefItemStatic(item);
+            if (item is PdfRectangle rect)
+                elements.SetRectangle(key, new PdfRectangle(
+                    new XPoint(rect.X1 * s, rect.Y1 * s),
+                    new XPoint(rect.X2 * s, rect.Y2 * s)));
+            else if (item is PdfArray arr && arr.Elements.Count == 4)
+                for (int i = 0; i < 4; i++)
+                    arr.Elements[i] = new PdfReal(RectNum(arr.Elements[i]) * s);
+        }
+
+        private static double RectNum(PdfItem item) =>
+            item is PdfReal r ? r.Value : item is PdfInteger n ? n.Value : 0;
+
         private void SaveInPlace()
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
@@ -1342,6 +1437,7 @@ namespace KillerPDF
             // (e.g. a repaired temp-backed open), fall back to Save As.
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(this, new RoutedEventArgs()); return; }
             CommitActiveTextBox();
+            OfferRescaleOutOfRangePages();   // Adobe page-size guard
             string saveTarget = _originalFile!;
             try
             {
@@ -1427,6 +1523,7 @@ namespace KillerPDF
             }
             catch { /* malformed seed path - just open the dialog with its defaults */ }
             if (dlg.ShowDialog(this) != true) return;
+            OfferRescaleOutOfRangePages();   // Adobe page-size guard
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1483,6 +1580,7 @@ namespace KillerPDF
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save Flattened PDF",
                                            CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
+            OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)

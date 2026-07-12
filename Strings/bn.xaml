@@ -143,6 +143,9 @@
 যেকোনো সময় Add/Remove Programs-এর মাধ্যমে আনইনস্টল করা যাবে।</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">আপনার অসংরক্ষিত পরিবর্তন রয়েছে। সংরক্ষণ না করে এই ফাইলটি বন্ধ করবেন?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">আপনার অসংরক্ষিত পরিবর্তন রয়েছে। সংরক্ষণ না করে KillerPDF বন্ধ করবেন?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">এই ডকুমেন্টে {0}টি পৃষ্ঠার আকার Adobe Reader-এর সমর্থিত সীমার (প্রতি পাশে 3 থেকে 14,400 পয়েন্ট) বাইরে - Adobe এই পৃষ্ঠাগুলিকে ফাঁকা দেখায়।
+
+এগুলিকে সমর্থিত আকারে স্কেল করবেন? পৃষ্ঠার চেহারা ও অনুপাত একই থাকবে।</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">PDF খুলতে ব্যর্থ হয়েছে:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>

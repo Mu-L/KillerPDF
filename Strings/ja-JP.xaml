@@ -158,6 +158,9 @@
 いつでも「プログラムの追加と削除」からアンインストールできます。</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">保存されていない変更があります。保存せずにこのファイルを閉じますか？</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">保存されていない変更があります。保存せずに KillerPDF を終了しますか？</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">この文書には、Adobe Reader が対応する範囲（1 辺あたり 3～14,400 ポイント）外のサイズのページが {0} ページあります。Adobe ではこれらのページは白紙で表示されます。
+
+対応するサイズに拡大・縮小しますか？ページの見た目と縦横比は変わりません。</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">PDF を開けませんでした :
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>

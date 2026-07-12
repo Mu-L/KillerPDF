@@ -169,6 +169,9 @@ This will copy the app to %LocalAppData%\KillerPDF and create a Start Menu short
 You can uninstall via Add/Remove Programs at any time.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">You have unsaved changes. Close this file without saving?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">You have unsaved changes. Close KillerPDF without saving?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">This document has {0} page(s) sized outside what Adobe Reader supports (3 to 14,400 points per side) - Adobe shows these as blank pages.
+
+Scale them to a supported size? The pages keep their look and proportions.</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen">Failed to open PDF:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
