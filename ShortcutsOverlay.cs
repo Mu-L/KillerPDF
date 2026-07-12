@@ -74,8 +74,8 @@ namespace KillerPDF
         [
             new KsSection { TitleKey = "Str_KS_Navigation", Rows =
             [
-                new("← / → or ↑ / ↓", "Str_KS_PrevNext"),
-                new("PgUp / PgDn",                        "Str_KS_PrevNext"),
+                new("← / → or PgUp / PgDn", "Str_KS_PrevNext"),
+                new("↑ / ↓",          "Str_KS_ScrollView"),
                 new("Ctrl+Scroll",    "Str_KS_ZoomCursor"),
                 new("Ctrl+= / Ctrl+-","Str_KS_ZoomInOut"),
                 new("Ctrl+0",         "Str_KS_ResetZoom"),

@@ -85,6 +85,7 @@
     <sys:String x:Key="Str_KS_Print">Print</sys:String>
     <sys:String x:Key="Str_KS_Navigation">NAVIGATION</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">Previous / next page</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">Scroll (flips page at the edges)</sys:String>
     <sys:String x:Key="Str_KS_ZoomCursor">Zoom in / out (cursor-anchored)</sys:String>
     <sys:String x:Key="Str_KS_ZoomInOut">Zoom in / out</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">Reset zoom to 100%</sys:String>

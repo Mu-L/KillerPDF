@@ -83,6 +83,7 @@
     <sys:String x:Key="Str_KS_Print">打印</sys:String>
     <sys:String x:Key="Str_KS_Navigation">导航</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">上一页 / 下一页</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">滚动（到页面边缘时翻页）</sys:String>
     <sys:String x:Key="Str_KS_ZoomCursor">放大 / 缩小（以光标为中心）</sys:String>
     <sys:String x:Key="Str_KS_ZoomInOut">放大 / 缩小</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">重设缩放至 100%</sys:String>

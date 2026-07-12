@@ -83,6 +83,7 @@
     <sys:String x:Key="Str_KS_Print">Drucken</sys:String>
     <sys:String x:Key="Str_KS_Navigation">NAVIGATION</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">Vorherige / nächste Seite</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">Scrollen (blättert am Seitenrand um)</sys:String>
     <sys:String x:Key="Str_KS_ZoomCursor">Vergrößern / Verkleinern (am Cursor)</sys:String>
     <sys:String x:Key="Str_KS_ZoomInOut">Vergrößern / Verkleinern</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">Zoom auf 100 % zurücksetzen</sys:String>

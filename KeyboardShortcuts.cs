@@ -230,7 +230,7 @@ namespace KillerPDF
             {
                 e.Handled = true;
             }
-            else if ((e.Key == Key.Left || e.Key == Key.Up) && Keyboard.Modifiers == ModifierKeys.None)
+            else if (e.Key == Key.Left && Keyboard.Modifiers == ModifierKeys.None)
             {
                 if (_doc is not null && PageList.SelectedIndex > 0)
                 {
@@ -238,11 +238,25 @@ namespace KillerPDF
                     e.Handled = true;
                 }
             }
-            else if ((e.Key == Key.Right || e.Key == Key.Down) && Keyboard.Modifiers == ModifierKeys.None)
+            else if (e.Key == Key.Right && Keyboard.Modifiers == ModifierKeys.None)
             {
                 if (_doc is not null && PageList.SelectedIndex < _doc.PageCount - 1)
                 {
                     PageList.SelectedIndex++;
+                    e.Handled = true;
+                }
+            }
+            // Up/Down scroll the view like the mouse wheel instead of jumping a page; at the top/
+            // bottom edge (or when the page fits the viewport, where there's nothing to scroll)
+            // they flip to the previous/next page, so at fit-to-page zoom this behaves exactly
+            // like the old page navigation. Left/Right and PgUp/PgDn stay hard page jumps.
+            // Handled at the window level so a focused sidebar thumbnail doesn't move its own
+            // selection instead (same reasoning as PgUp/PgDn above).
+            else if ((e.Key == Key.Up || e.Key == Key.Down) && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                if (_doc is not null)
+                {
+                    ScrollOrFlipByKey(up: e.Key == Key.Up);
                     e.Handled = true;
                 }
             }
@@ -273,6 +287,39 @@ namespace KillerPDF
                 PagePreviewPanel.Cursor = Cursors.Hand;
                 e.Handled = true;
             }
+        }
+
+        // One Up/Down arrow press scrolls this many DIP; key auto-repeat makes holding the key a
+        // smooth continuous scroll. Kept smaller than a wheel notch (144 DIP, see WheelScrollFactor)
+        // for fine reading control.
+        private const double ArrowScrollStep = 48.0;
+
+        // Up/Down arrow behavior, mirroring PagePreview_PreviewMouseWheel exactly: Grid and
+        // Continuous are one scroll over the whole document, so the keys always scroll; Single/
+        // Two-Page scroll within the page and flip to the previous/next page at the edges.
+        private void ScrollOrFlipByKey(bool up)
+        {
+            double step = up ? -ArrowScrollStep : ArrowScrollStep;
+            if (_viewMode == ViewMode.Grid || _viewMode == ViewMode.Continuous)
+            {
+                PagePreviewPanel.ScrollToVerticalOffset(PagePreviewPanel.VerticalOffset + step);
+                return;
+            }
+            // NavigatePageByWheel treats positive delta as "previous page" (wheel-up), so reuse
+            // the same convention here.
+            if (PagePreviewPanel.ScrollableHeight <= 0)
+            {
+                NavigatePageByWheel(up ? 120 : -120);
+                return;
+            }
+            bool atTop    = PagePreviewPanel.VerticalOffset <= 0;
+            bool atBottom = PagePreviewPanel.VerticalOffset >= PagePreviewPanel.ScrollableHeight - 1;
+            if ((atTop && up) || (atBottom && !up))
+            {
+                NavigatePageByWheel(up ? 120 : -120);
+                return;
+            }
+            PagePreviewPanel.ScrollToVerticalOffset(PagePreviewPanel.VerticalOffset + step);
         }
 
         protected override void OnPreviewKeyUp(KeyEventArgs e)

@@ -83,6 +83,7 @@
     <sys:String x:Key="Str_KS_Print">Yazdır</sys:String>
     <sys:String x:Key="Str_KS_Navigation">GEZİNME</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">Önceki / sonraki sayfa</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">Kaydırma (kenarlarda sayfa çevirir)</sys:String>
     <sys:String x:Key="Str_KS_ZoomCursor">Yakınlaştır / uzaklaştır (imleç merkezli)</sys:String>
     <sys:String x:Key="Str_KS_ZoomInOut">Yakınlaştır / uzaklaştır</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">Yakınlaştırmayı %100'e sıfırla</sys:String>

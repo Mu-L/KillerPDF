@@ -86,6 +86,7 @@
     <sys:String x:Key="Str_KS_Print">印刷</sys:String>
     <sys:String x:Key="Str_KS_Navigation">ナビゲーション</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">前のページ / 次のページ</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">スクロール（端でページをめくる）</sys:String>
     <sys:String x:Key="Str_KS_ZoomCursor">ズームイン / アウト (カーソル位置基準)</sys:String>
     <sys:String x:Key="Str_KS_ZoomInOut">ズームイン / アウト</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">ズームを 100% にリセット</sys:String>

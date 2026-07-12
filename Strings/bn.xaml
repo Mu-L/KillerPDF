@@ -83,6 +83,7 @@
     <sys:String x:Key="Str_KS_Print">মুদ্রণ</sys:String>
     <sys:String x:Key="Str_KS_Navigation">নেভিগেশন</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">আগের / পরের পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">স্ক্রল (প্রান্তে পৃষ্ঠা বদলায়)</sys:String>
     <sys:String x:Key="Str_KS_ZoomCursor">জুম ইন / আউট (কার্সার-নোঙর করা)</sys:String>
     <sys:String x:Key="Str_KS_ZoomInOut">জুম ইন / আউট</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">জুম ১০০%-এ রিসেট করুন</sys:String>

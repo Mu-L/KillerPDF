@@ -83,6 +83,7 @@
     <sys:String x:Key="Str_KS_Print">Imprimir</sys:String>
     <sys:String x:Key="Str_KS_Navigation">NAVEGACIÓN</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">Página anterior / siguiente</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">Desplazar (cambia de página en los bordes)</sys:String>
     <sys:String x:Key="Str_KS_ZoomCursor">Acercar / alejar (anclado al cursor)</sys:String>
     <sys:String x:Key="Str_KS_ZoomInOut">Acercar / alejar</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">Restablecer zoom al 100%</sys:String>

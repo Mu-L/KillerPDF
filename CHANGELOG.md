@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Japanese (ja-JP) interface translation, selectable from the language picker (#118, thanks coolvitto).
 
 ### Changed
+- Up / Down arrows now scroll the view like the mouse wheel, flipping to the previous / next page at the top or bottom edge - so at fit-to-page zoom they still flip pages exactly as before, and when zoomed in or in Continuous view they scroll instead of jumping a whole page. Left / Right and PgUp / PgDn remain hard page jumps.
 - Status-bar and dialog messages that were still shown in English now follow the selected language; the remaining hardcoded strings were extracted to resource keys and translated across all nine locales.
 
 ### Fixed
