@@ -33,6 +33,11 @@ namespace KillerPDF
 
         private void ShowAboutOverlay()
         {
+            // Full-window overlays are mutually exclusive: opening About dismisses the shortcuts
+            // overlay (and the Settings flyout) instead of stacking on top of it.
+            if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
+            if (SettingsOverlay.Visibility == Visibility.Visible) SlideSettingsClosed();
+
             // Populate dynamic values (SHA256 is slow; run on background thread)
             var version = System.Reflection.Assembly.GetExecutingAssembly()
                                .GetName().Version?.ToString(3) ?? "?";

@@ -3,7 +3,7 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ================================================================
-         KillerPDF  —  English (en-US) strings
+         KillerPDF  -  English (en-US) strings
          ================================================================ -->
 
     <!-- ── Toolbar tooltips ─────────────────────────────────────────── -->
@@ -17,7 +17,7 @@
     <sys:String x:Key="Str_Drop_Sub">or click to browse</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">Save As (Ctrl+Shift+S)</sys:String>
-    <sys:String x:Key="Str_TT_SaveFlattened">Save Flattened PDF (rasterize all pages — fully uneditable)</sys:String>
+    <sys:String x:Key="Str_TT_SaveFlattened">Save Flattened PDF (rasterize all pages - fully uneditable)</sys:String>
     <sys:String x:Key="Str_TT_Print">Print (Ctrl+P)</sys:String>
     <sys:String x:Key="Str_TT_MergePDFs">Merge PDFs (combine additional PDFs into this one)</sys:String>
     <sys:String x:Key="Str_TT_ExtractPages">Extract Pages (save selected pages to a new PDF)</sys:String>
@@ -37,16 +37,16 @@
     <sys:String x:Key="Str_TT_ClearAnnotations">Clear All Annotations</sys:String>
     <sys:String x:Key="Str_TT_Search">Search (Ctrl+F)</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Undo Last (Ctrl+Z)</sys:String>
-    <sys:String x:Key="Str_TT_MultiPageGrid">Multi-page grid view</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">Multi-page grid view (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Zoom out (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">Zoom level (Ctrl+scroll · Ctrl+=/- · Ctrl+0=reset)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">Zoom in (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Go to page (Enter to navigate)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">Collapse sidebar</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">Expand sidebar</sys:String>
-    <sys:String x:Key="Str_TT_KeyboardShortcuts">Keyboard shortcuts (Ctrl+?)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Settings</sys:String>
-    <sys:String x:Key="Str_TT_About">About KillerPDF</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Collapse sidebar (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Expand sidebar (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">Keyboard shortcuts (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">Settings (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">About KillerPDF (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
     <sys:String x:Key="Str_About_Version">VERSION</sys:String>
@@ -54,11 +54,11 @@
     <sys:String x:Key="Str_About_Thumbprint">THUMBPRINT</sys:String>
     <sys:String x:Key="Str_About_ExeSha">EXE SHA256</sys:String>
     <sys:String x:Key="Str_About_Computing">Computing...</sys:String>
-    <sys:String x:Key="Str_Tagline">A fast, free PDF toolkit for Windows with annotation, merge, OCR, signing, and form tools. A GPLv3 tool from {0}.</sys:String>
+    <sys:String x:Key="Str_Tagline">A fast, free PDF toolkit for Windows with annotation, merge, OCR, signing, and form tools. A GPLv3 utility from {0}.</sys:String>
 
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">PAGES</sys:String>
-    <sys:String x:Key="Str_TabOutlines">OUTLINES</sys:String>
+    <sys:String x:Key="Str_TabOutlines">OUTLINE</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Settings">Settings</sys:String>
@@ -98,7 +98,7 @@
     <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
 
     <!-- Document Info dialog -->
-    <sys:String x:Key="Str_TT_DocInfo">Document info (F12)</sys:String>
+    <sys:String x:Key="Str_TT_DocInfo">Document info (F4)</sys:String>
     <sys:String x:Key="Str_DocInfo_Suffix">Document Info</sys:String>
     <sys:String x:Key="Str_DocInfo_Title">Title</sys:String>
     <sys:String x:Key="Str_DocInfo_Author">Author</sys:String>
@@ -114,6 +114,8 @@
     <sys:String x:Key="Str_KS_Help">HELP</sys:String>
     <sys:String x:Key="Str_KS_ThisList">This shortcut list</sys:String>
     <sys:String x:Key="Str_KS_About">About dialog</sys:String>
+    <sys:String x:Key="Str_KS_Settings">Settings</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">Document info</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Full guide &amp; how-to online</sys:String>
     <sys:String x:Key="Str_KS_Tools">TOOLS</sys:String>
     <sys:String x:Key="Str_KS_Paste">Paste image / text</sys:String>
@@ -124,7 +126,7 @@
     <sys:String x:Key="Str_Portable">PORTABLE</sys:String>
     <sys:String x:Key="Str_InstallBtn">Install KillerPDF...</sys:String>
 
-    <!-- ── Status messages (format strings — use string.Format) ─────── -->
+    <!-- ── Status messages (format strings - use string.Format) ─────── -->
     <sys:String x:Key="Str_Opened">Opened {0} - {1} page(s)</sys:String>
     <sys:String x:Key="Str_OpenedReadOnly">Opened {0} (read-only - owner restrictions) - {1} page(s)</sys:String>
     <sys:String x:Key="Str_OpenedReadOnlyXRef">Opened {0} (read-only - non-standard XRef table) - {1} page(s)</sys:String>
@@ -132,7 +134,7 @@
     <sys:String x:Key="Str_OpenedRasterRepair">Opened {0} (rasterized repair - save to keep changes) - {1} page(s)</sys:String>
     <sys:String x:Key="Str_PageOf">Page {0} of {1}</sys:String>
     <sys:String x:Key="Str_PageOfLinks">Page {0} of {1}  ({2} link(s))</sys:String>
-    <sys:String x:Key="Str_PageFormFields">Page {0} of {1} — this page contains fillable form fields</sys:String>
+    <sys:String x:Key="Str_PageFormFields">Page {0} of {1} - this page contains fillable form fields</sys:String>
     <sys:String x:Key="Str_PageRenderError">Page {0} - could not render</sys:String>
     <sys:String x:Key="Str_RenderError">Render error: {0}</sys:String>
     <sys:String x:Key="Str_Rotated">Rotated {0} page(s)</sys:String>
@@ -243,7 +245,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Ctx_Print">Print</sys:String>
     <sys:String x:Key="Str_Ctx_OcrPage">OCR Page (Copy Text)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">OCR page (copy text)</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">OCR page (copy text) (Ctrl+Shift+O)</sys:String>
     <sys:String x:Key="Str_Ocr_Region">OCR Region...</sys:String>
     <sys:String x:Key="Str_Ocr_SearchablePdf">Make Searchable PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Extract All Text...</sys:String>
@@ -534,4 +536,44 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Dlg_NoValidPages">No valid pages in that range.</sys:String>
     <sys:String x:Key="Str_Dlg_SignedSavedTo">Signed copy saved to:</sys:String>
     <sys:String x:Key="Str_Dlg_DrawSignatureFirst">Draw a signature first.</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">Add a bookmark for the current page</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">Add bookmark</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">Add child bookmark</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">Rename</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">Delete</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">Page {0}</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">Delete this bookmark and its {0} child bookmark(s)?</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">Move up</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">Move down</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">Point at current page</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">Delete all bookmarks</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">Delete {0} bookmarks?</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">Remove all bookmarks from this document?</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">Redo</sys:String>
+    <sys:String x:Key="Str_St_Redone">Redone</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">Nothing to redo</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">First / last page</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">Back / forward (jump history)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Actual size / fit width / fit page</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">Context menu at selection</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">LIST</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">KEYBOARD</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Hold Ctrl, Shift or Alt to preview that layer - hover a lit key for its action</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">Actual size</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">Previous tab</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">Previous page</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">Next page</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">First page</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">Last page</sys:String>
+    <sys:String x:Key="Str_Kb_Back">Back</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">Forward</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">Next result</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">Previous result</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">Confirm</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">Cancel</sys:String>
 </ResourceDictionary>

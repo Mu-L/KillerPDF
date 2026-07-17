@@ -219,6 +219,9 @@ namespace KillerPDF
             _continuousLinks.Clear();   // drop the previous document's cached link rects
             CloseLinkPdfiumDoc();       // and release the cached PDFium link handle for the old file
             _undoStack.Clear();
+            _redoStack.Clear();
+            _navBack.Clear();
+            _navForward.Clear();
             _renderDims.Clear();
             _formTextValues.Clear();
             _formCheckValues.Clear();
@@ -290,18 +293,36 @@ namespace KillerPDF
         // PDFium P/Invoke
         // PDFium (pdfium.dll) is already shipped with Docnet. We use it here to strip
         // encryption from PDFs that PdfSharpCore can read but cannot re-save when modified.
+        //
+        // THREADING: PDFium is single-threaded. Docnet serializes every native call it makes
+        // on an internal static lock (Docnet.Core.DocLib.Lock). Every DIRECT pdfium.dll call
+        // in this app must hold that SAME lock, or a background Docnet render and a direct
+        // call (link extraction, encryption strip) can be inside PDFium at the same time -
+        // native heap corruption, exit code 0xc0000374. Confirmed from a 1.6.3 crash dump
+        // (2026-07-17): two threads with concurrent PDFium frames. The raw externs are
+        // suffixed Raw; only the lock-holding wrappers below them may be called.
+        internal static readonly object PdfiumLock =
+            typeof(DocLib).GetField("Lock",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                ?.GetValue(null) ?? new object();
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDF_LoadDocument(
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_LoadDocument", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDF_LoadDocumentRaw(
             [MarshalAs(UnmanagedType.LPStr)] string filePath,
             [MarshalAs(UnmanagedType.LPStr)] string? password);
+        internal static IntPtr FPDF_LoadDocument(string filePath, string? password)
+        { lock (PdfiumLock) return FPDF_LoadDocumentRaw(filePath, password); }
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern void FPDF_CloseDocument(IntPtr document);
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_CloseDocument", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDF_CloseDocumentRaw(IntPtr document);
+        internal static void FPDF_CloseDocument(IntPtr document)
+        { lock (PdfiumLock) FPDF_CloseDocumentRaw(document); }
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool FPDF_SaveWithVersion(
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_SaveWithVersion", CallingConvention = CallingConvention.Cdecl)]
+        private static extern bool FPDF_SaveWithVersionRaw(
             IntPtr document, ref FPDF_FILEWRITE fileWrite, uint flags, int fileVersion);
+        private static bool FPDF_SaveWithVersion(IntPtr document, ref FPDF_FILEWRITE fileWrite, uint flags, int fileVersion)
+        { lock (PdfiumLock) return FPDF_SaveWithVersionRaw(document, ref fileWrite, flags, fileVersion); }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct FPDF_FILEWRITE
@@ -315,20 +336,30 @@ namespace KillerPDF
 
         private const uint FPDF_REMOVE_SECURITY = 3;
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int FPDF_GetPageCount(IntPtr document);
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_GetPageCount", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDF_GetPageCountRaw(IntPtr document);
+        private static int FPDF_GetPageCount(IntPtr document)
+        { lock (PdfiumLock) return FPDF_GetPageCountRaw(document); }
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDF_LoadPage(IntPtr document, int page_index);
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_LoadPage", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDF_LoadPageRaw(IntPtr document, int page_index);
+        internal static IntPtr FPDF_LoadPage(IntPtr document, int page_index)
+        { lock (PdfiumLock) return FPDF_LoadPageRaw(document, page_index); }
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern void FPDF_ClosePage(IntPtr page);
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_ClosePage", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDF_ClosePageRaw(IntPtr page);
+        internal static void FPDF_ClosePage(IntPtr page)
+        { lock (PdfiumLock) FPDF_ClosePageRaw(page); }
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern void FPDFPage_SetRotation(IntPtr page, int rotation);
+        [DllImport("pdfium.dll", EntryPoint = "FPDFPage_SetRotation", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDFPage_SetRotationRaw(IntPtr page, int rotation);
+        private static void FPDFPage_SetRotation(IntPtr page, int rotation)
+        { lock (PdfiumLock) FPDFPage_SetRotationRaw(page, rotation); }
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool FPDFPage_GenerateContent(IntPtr page);
+        [DllImport("pdfium.dll", EntryPoint = "FPDFPage_GenerateContent", CallingConvention = CallingConvention.Cdecl)]
+        private static extern bool FPDFPage_GenerateContentRaw(IntPtr page);
+        private static bool FPDFPage_GenerateContent(IntPtr page)
+        { lock (PdfiumLock) return FPDFPage_GenerateContentRaw(page); }
 
         /// <summary>
         /// Returns true if the PDF file has an /Encrypt entry in its trailer.
@@ -736,6 +767,9 @@ namespace KillerPDF
             RemoveTextEditHandles();
             _annotations.Clear();
             _undoStack.Clear();
+            _redoStack.Clear();
+            _navBack.Clear();
+            _navForward.Clear();
             _renderDims.Clear();
             _formTextValues.Clear();
             _formCheckValues.Clear();
@@ -1176,7 +1210,8 @@ namespace KillerPDF
         /// Builds a map of named destination string -> 0-based page index from a source document's
         /// /Dests dictionary and /Names /Dests name tree.
         /// </summary>
-        private Dictionary<string, int> BuildNamedDestMap(PdfDocument src)
+        // Static (since the CLI merge): touches no instance state, only the passed document.
+        private static Dictionary<string, int> BuildNamedDestMap(PdfDocument src)
         {
             var map = new Dictionary<string, int>(StringComparer.Ordinal);
             try
@@ -1205,7 +1240,8 @@ namespace KillerPDF
             return map;
         }
 
-        private void WalkNameTree(PdfDocument src, PdfDictionary node, Dictionary<string, int> map)
+        // Static (since the CLI merge): pure recursion over the passed document.
+        private static void WalkNameTree(PdfDocument src, PdfDictionary node, Dictionary<string, int> map)
         {
             var namesArr = node.Elements.GetArray("/Names");
             if (namesArr != null)
@@ -1507,6 +1543,39 @@ namespace KillerPDF
             catch { /* malformed page tree - leave the save as-is */ }
         }
 
+        // A KillerPDF save fully REWRITES the file, which mathematically invalidates any existing
+        // digital signature: its /ByteRange and digest describe the old bytes (ISO 19005-2, 6.4.3
+        // requires the digest to cover the entire file). Carrying the dead signature forward
+        // misleads viewers and fails PDF/A validation, so strip signature VALUES (/V) from
+        // signature fields and the catalog's /Perms certification (DocMDP / usage rights) that
+        // references them. The empty fields stay and can be re-signed via Sign Document.
+        // Called before every save of the working document.
+        private static void ScrubDeadSignatures(PdfDocument doc)
+        {
+            try
+            {
+                var cat = doc.Internals.Catalog;
+                cat.Elements.Remove("/Perms");
+                if (DerefItemStatic(cat.Elements["/AcroForm"]) is not PdfDictionary acro) return;
+                if (DerefItemStatic(acro.Elements["/Fields"]) is PdfArray fields)
+                    ScrubSigFieldValues(fields, 0);
+            }
+            catch { /* malformed catalog - leave the save as-is */ }
+        }
+
+        private static void ScrubSigFieldValues(PdfArray fields, int depth)
+        {
+            if (depth > 8) return;   // defensive: malformed circular /Kids
+            foreach (var item in fields.Elements)
+            {
+                if (DerefItemStatic(item) is not PdfDictionary field) continue;
+                if (field.Elements.GetName("/FT") == "/Sig" && field.Elements["/V"] != null)
+                    field.Elements.Remove("/V");
+                if (DerefItemStatic(field.Elements["/Kids"]) is PdfArray kids)
+                    ScrubSigFieldValues(kids, depth + 1);
+            }
+        }
+
         private void SaveInPlace()
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
@@ -1518,7 +1587,13 @@ namespace KillerPDF
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
             ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
+            ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             string saveTarget = _originalFile!;
+            // #129: the cached PDFium link handle (EnsureLinkPdfiumDoc) can hold _currentFile open,
+            // and on a plain open _currentFile IS the user's real file - PdfSharp then can't overwrite
+            // it (sharing violation, "being used by another process"). Release it before saving; it
+            // reopens lazily on the next render sweep, re-parsing the freshly saved file.
+            CloseLinkPdfiumDoc();
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1603,9 +1678,11 @@ namespace KillerPDF
             }
             catch { /* malformed seed path - just open the dialog with its defaults */ }
             if (dlg.ShowDialog(this) != true) return;
+            CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
             ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
+            ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1662,9 +1739,11 @@ namespace KillerPDF
             var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save Flattened PDF",
                                            CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
+            CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
             ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
+            ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)

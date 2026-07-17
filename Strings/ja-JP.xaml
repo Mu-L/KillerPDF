@@ -37,16 +37,16 @@
     <sys:String x:Key="Str_TT_ClearAnnotations">すべての注釈をクリア</sys:String>
     <sys:String x:Key="Str_TT_Search">検索 (Ctrl+F)</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">元に戻す (Ctrl+Z)</sys:String>
-    <sys:String x:Key="Str_TT_MultiPageGrid">マルチページグリッド表示</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">マルチページグリッド表示 (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">ズームアウト (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">ズームレベル (Ctrl+ホイール · Ctrl+=/- · Ctrl+0=リセット)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">ズームイン (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">ページへ移動 (Enterで移動)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">サイドバーを折りたたむ</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">サイドバーを展開</sys:String>
-    <sys:String x:Key="Str_TT_KeyboardShortcuts">キーボードショートカット (Ctrl+?)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">設定</sys:String>
-    <sys:String x:Key="Str_TT_About">KillerPDF について</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">サイドバーを折りたたむ (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">サイドバーを展開 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">キーボードショートカット (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">設定 (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">KillerPDF について (F12)</sys:String>
 
     <!-- ── バージョン情報オーバーレイ ──────────────────────────────────── -->
     <sys:String x:Key="Str_About_Version">バージョン</sys:String>
@@ -99,7 +99,7 @@
     <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
 
     <!-- ドキュメント情報ダイアログ -->
-    <sys:String x:Key="Str_TT_DocInfo">ドキュメント情報 (F12)</sys:String>
+    <sys:String x:Key="Str_TT_DocInfo">ドキュメント情報 (F4)</sys:String>
     <sys:String x:Key="Str_DocInfo_Suffix">ドキュメント情報</sys:String>
     <sys:String x:Key="Str_DocInfo_Title">タイトル</sys:String>
     <sys:String x:Key="Str_DocInfo_Author">作成者</sys:String>
@@ -115,6 +115,8 @@
     <sys:String x:Key="Str_KS_Help">ヘルプ</sys:String>
     <sys:String x:Key="Str_KS_ThisList">このショートカット一覧</sys:String>
     <sys:String x:Key="Str_KS_About">バージョン情報ダイアログ</sys:String>
+    <sys:String x:Key="Str_KS_Settings">設定</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">æ-‡æ›¸æƒ…å ±</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">完全ガイド &amp; 使い方 (オンライン)</sys:String>
     <sys:String x:Key="Str_KS_Tools">ツール</sys:String>
     <sys:String x:Key="Str_KS_Paste">画像 / テキストを貼り付け</sys:String>
@@ -232,7 +234,7 @@
     <sys:String x:Key="Str_Ctx_Print">印刷</sys:String>
     <sys:String x:Key="Str_Ctx_OcrPage">OCR 実行 (テキストをコピー)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">OCR 実行 (テキストをコピー)</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">OCR 実行 (テキストをコピー) (Ctrl+Shift+O)</sys:String>
     <sys:String x:Key="Str_Ocr_Region">OCR 領域...</sys:String>
     <sys:String x:Key="Str_Ocr_SearchablePdf">検索可能な PDF を作成...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">すべてのテキストを抽出...</sys:String>
@@ -535,4 +537,44 @@
     <sys:String x:Key="Str_Dlg_NoValidPages">その範囲に有効なページがありません。</sys:String>
     <sys:String x:Key="Str_Dlg_SignedSavedTo">署名済みのコピーの保存先：</sys:String>
     <sys:String x:Key="Str_Dlg_DrawSignatureFirst">最初に署名を描いてください。</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">現在のページにブックマークを追加</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">ブックマークを追加</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">子ブックマークを追加</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">名前を変更</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">削除</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">ページ {0}</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">このブックマークと {0} 個の子ブックマークを削除しますか？</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">上へ移動</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">下へ移動</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">現在のページに設定</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">すべてのブックマークを削除</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">{0} 個のブックマークを削除しますか？</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">この文書からすべてのブックマークを削除しますか？</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">やり直し</sys:String>
+    <sys:String x:Key="Str_St_Redone">やり直しました</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">やり直す操作はありません</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">最初 / 最後のページ</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">戻る / 進む（ジャンプ履歴）</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">実際のサイズ / 幅に合わせる / ページに合わせる</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">選択位置のコンテキストメニュー</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">リスト</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">キーボード</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Ctrl、Shift、Alt を押し続けるとそのレイヤーを表示 - 点灯したキーにカーソルを合わせると操作を表示</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">実際のサイズ</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">前のタブ</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">前のページ</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">次のページ</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">最初のページ</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">最後のページ</sys:String>
+    <sys:String x:Key="Str_Kb_Back">戻る</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">進む</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">次の結果</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">前の結果</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">確定</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">キャンセル</sys:String>
 </ResourceDictionary>

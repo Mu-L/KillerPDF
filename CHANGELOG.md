@@ -4,6 +4,38 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.4] - 2026-07-17
+
+### Added
+- Full command-line interface: `--merge`, `--extract-pages`, `--split`, `--decrypt`, `--to-image`, `--flatten`, `--print`, `--ocr`, `--version`, and `--help` run headlessly with meaningful exit codes, work while the app window is open, and reuse the exact pipelines the GUI runs (merge link rewriting, pre-save scrubs, lossless PDFium decrypt, rotation-safe 150/300 dpi rasterizing, searchable-PDF OCR with on-demand language download). See the Command Line section on the help page.
+- Bookmark editing in the sidebar Outline panel (#133, thanks alivio-israu): add via the row at the top of the tree (named in place), inline rename, child bookmarks, reorder, retarget, and delete - with Ctrl/Shift multi-select, Delete and F2 keys, delete all, and full Ctrl+Z undo. Hidden on read-only files.
+- Redo: Ctrl+Y (or Ctrl+Shift+Z) re-applies undone actions - annotations, text edits, stamps, clears, and document-level operations alike. Any new edit clears the redo chain, and redo history is kept per tab.
+- Jump history: Alt+Left / Alt+Right and the mouse back / forward buttons retrace bookmark, link, jump-box, and Home/End jumps, browser-style.
+- Keyboard view in the shortcuts overlay (F1): a visual keyboard with every bound key lit and color-coded by category. Toggle LIST / KEYBOARD in the header (the choice sticks), click a layer or hold Ctrl / Shift / Alt to preview it, and hover a lit key for its action. Follows the active theme and language.
+- More conventions from the big viewers: Home / End jump to the first / last page, Ctrl+1 / Ctrl+2 / Ctrl+3 set actual size / fit width / fit page, and the Menu key or Shift+F10 opens the right-click menu at the current selection (keyboard accessibility).
+- Japanese OCR language (`jpn`), downloadable on demand like the rest - the OCR language list now covers the same nine languages as the interface.
+- Command-line batch mode: `KillerPDF.exe --batch-resave <input> <output> [--log report.csv] [--quiet]` resaves a single PDF or a whole folder tree headlessly through the standard open/save pipeline, with per-file OK/SKIP/FAIL reporting. Built for the validation harness.
+- Standards-conformance validation harness (`validation/`): `Compare-VeraPDF.ps1` diffs two veraPDF batch reports (corpus baseline vs a `--batch-resave` output tree) and flags any file whose validation outcome a KillerPDF save changed. Verifies that saving through KillerPDF does not degrade PDF/A conformance.
+
+### Changed
+- Shortcut remap: About moved from F2 to F12, and Document Info moved from F12 to F4 (Ctrl+D also works, matching Acrobat/Foxit/Sumatra's Document Properties). F2 now renames the selected bookmark in the Outline panel, the Windows rename convention. Settings gained F9 (Ctrl+, also works, the VS Code / Windows Terminal convention), and F3 / Shift+F3 step to the next / previous search match from anywhere (F3 opens search when it isn't). Pressing a dialog shortcut while the shortcuts overlay is open dismisses the overlay first. The shortcuts overlay and the help page keyboard map follow.
+- Keyboard shortcut hints audited app-wide: menus now show their shortcut dimmed at the right edge wherever one exists (OCR, close tab, bookmark rename/delete, and more), the help tooltip advertises F1, and missing tooltip hints were added in all nine languages (OCR Ctrl+Shift+O, sidebar collapse Ctrl+B, grid view F8).
+- Continuous view: clicking a page no longer snap-scrolls its top to the viewport. Clicks in the document are for tools and selection only, and the current page follows the viewport as you scroll - the convention the big viewers use. The sidebar, jump box, links, bookmarks, and page keys still jump as before (#128, thanks Ryokoxx).
+- German translation refinements: Dokumentinfo, Zuschneidebereich for CropBox, Entf for the Delete key (thanks Mr-Update, #126).
+- The sidebar tab is labeled OUTLINE (singular) in English, matching the other languages.
+
+### Fixed
+- Resaving a PDF no longer reduces its PDF/A conformance. The PDF library (PdfSharpCore, MIT) is now vendored under third_party/ with six patches: no Producer/Creator stamping into an imported document's Info dictionary, no /ModDate rewrite at open, no transparency /Group injected into every page, stream /Length now always matches the spec's byte count (empty streams included), boolean values written as the spec's lowercase true/false keywords, and the debug-only verbose file layout removed. Found by the new veraPDF validation harness across a 2,900-file corpus.
+- Intermittent hard crash (native heap corruption) while scrolling or clicking through a document, most visible on annotation-heavy pages: KillerPDF's direct PDFium calls (link extraction, encryption stripping) could land at the same moment as a background page render inside PDFium, which is single-threaded. Every direct call now holds the same lock the render path uses. Diagnosed from a 1.6.3 crash dump showing two threads inside PDFium at once.
+- Saving a PDF that carries a digital signature kept the old signature value even though any edit breaks its digest (which must cover the entire file), so strict validators rejected the result. Saves now strip dead signature values and the matching /Perms entry; the signature fields themselves are kept.
+- Saving over the open file failed with "being used by another process" on PDFs whose pages carry annotations but no links readable by the primary parser (typically fillable forms): the cached PDFium link handle was holding the file open. It is now released before every save (#129, thanks Peter5164).
+- Opening a PDF whose page tree parses to zero pages crashed Continuous view with an out-of-range page index; it is now guarded (#130, thanks demo1866).
+- Bookmark titles in password-protected PDFs showed as mojibake (a stray BOM prefix followed by garbled characters) instead of their Unicode text - most visible on Chinese outlines. Titles the parser hands over raw are now re-decoded for display (#133, thanks alivio-israu).
+- Grid view never tracked the current page while scrolling, so the statusbar counter, the page jump box, and the page a new bookmark targets could all point at a page long since scrolled away. Grid now follows the tile nearest the viewport center, like Continuous.
+
+### Security
+- Image codec library SixLabors.ImageSharp updated from 1.0.4 to 2.1.13, clearing all seven published advisories against the old version (denial-of-service and out-of-bounds issues in image parsing). Image import, clipboard paste, and signature images all pass untrusted files through this library.
+
 ## [1.6.3] - 2026-07-12
 
 ### Changed

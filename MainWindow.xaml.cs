@@ -79,6 +79,14 @@ namespace KillerPDF
         private enum UndoKind { Annotation, Document, StampBatch, ClearAnnotations, AnnotationGroup, PageSnapshot }
         private readonly record struct UndoEntry(UndoKind Kind, int PageIdx = -1, byte[]? DocBytes = null, bool WasDirty = false, int[]? Pages = null, PageAnnotation? Annot = null, Dictionary<int, List<PageAnnotation>>? AnnotSnapshot = null, List<PageAnnotation>? AnnotGroup = null);
         private Stack<UndoEntry> _undoStack = new();
+        // Redo: inverses captured by Undo_Click land here; any NEW edit clears it (PushUndo).
+        // Swapped per tab alongside _undoStack (Tabs.cs) so redo can never replay another document.
+        private Stack<UndoEntry> _redoStack = new();
+        // Jump history for Alt+Left / Alt+Right and the mouse back/forward buttons. Page-granular,
+        // recorded at the long-jump sites (bookmark, internal link, jump box, Home/End); cleared on
+        // document open and tab switch.
+        private readonly Stack<int> _navBack = new();
+        private readonly Stack<int> _navForward = new();
         private bool _isDrawing;
         private Point _drawStart;
         private UIElement? _activePreview;
@@ -320,6 +328,7 @@ namespace KillerPDF
             _continuousPanel = (StackPanel)FindName("ContinuousPanel")!;
             PagePreviewPanel.ScrollChanged += PagePreviewPanel_ScrollChanged;
             PreviewMouseDown += SettingsDismiss_PreviewMouseDown;   // non-modal Settings: close on outside click
+            PreviewMouseDown += NavHistory_PreviewMouseDown;        // mouse back/forward buttons retrace jumps
             // Keep the (bottom-anchored) Settings panel sized to the document area while the window
             // resizes, so it tracks smoothly instead of snapping on the next open.
             MainContentGrid.SizeChanged += (_, _) =>

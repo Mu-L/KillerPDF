@@ -10,11 +10,22 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\kp-icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.6.3</Version>
-    <AssemblyVersion>1.6.3.0</AssemblyVersion>
-    <FileVersion>1.6.3.0</FileVersion>
+    <Version>1.6.4</Version>
+    <AssemblyVersion>1.6.4.0</AssemblyVersion>
+    <FileVersion>1.6.4.0</FileVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
+
+  <!-- The vendored PdfSharpCore builds as its own ProjectReference; keep the app's implicit
+       source globs OUT of third_party or every vendored file compiles twice. -->
+  <ItemGroup>
+    <Compile Remove="third_party\**" />
+    <EmbeddedResource Remove="third_party\**" />
+    <None Remove="third_party\**" />
+    <Content Remove="third_party\**" />
+    <Page Remove="third_party\**" />
+    <Resource Remove="third_party\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="5.7.0">
@@ -25,7 +36,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="PdfSharpCore" Version="1.3.67" />
+    <!-- PdfSharpCore is vendored (third_party/PdfSharpCore, MIT) so PDF/A conformance bugs can be patched at the source - see VENDORED.txt -->
+    <ProjectReference Include="third_party\PdfSharpCore\PdfSharpCore.csproj" />
     <!-- Digital signatures only (Services/Signing). Separate namespace (PdfSharp.*) so it does not
          clash with PdfSharpCore, which still drives the rest of the app. -->
     <PackageReference Include="PDFsharp" Version="6.2.4" />

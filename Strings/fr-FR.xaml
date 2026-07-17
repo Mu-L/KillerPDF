@@ -32,16 +32,16 @@
     <sys:String x:Key="Str_TT_CropTool">Outil Recadrage - sélectionner une zone et l'appliquer aux pages</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Supprimer toutes les annotations</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Annuler la dernière action (Ctrl+Z)</sys:String>
-    <sys:String x:Key="Str_TT_MultiPageGrid">Vue en grille multi-pages</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">Vue en grille multi-pages (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Réduire le zoom (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">Niveau de zoom (Ctrl+molette · Ctrl+=/- · Ctrl+0=Réinitialiser)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">Augmenter le zoom (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Aller à la page (Entrée pour naviguer)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">Réduire le panneau latéral</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">Développer le panneau latéral</sys:String>
-    <sys:String x:Key="Str_TT_KeyboardShortcuts">Raccourcis clavier (Ctrl+?)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Paramètres</sys:String>
-    <sys:String x:Key="Str_TT_About">À propos de KillerPDF</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Réduire le panneau latéral (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Développer le panneau latéral (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">Raccourcis clavier (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">Paramètres (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">À propos de KillerPDF (F12)</sys:String>
 
     <!-- About overlay -->
     <sys:String x:Key="Str_About_Version">VERSION</sys:String>
@@ -185,6 +185,8 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
 
     <!-- Keyboard shortcuts (remainder) -->
     <sys:String x:Key="Str_KS_About">Boîte de dialogue À propos</sys:String>
+    <sys:String x:Key="Str_KS_Settings">Paramètres</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">Informations du document</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Guide complet et tutoriels en ligne</sys:String>
     <sys:String x:Key="Str_KS_Tools">OUTILS</sys:String>
     <sys:String x:Key="Str_KS_Paste">Coller image / texte</sys:String>
@@ -416,7 +418,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Ocr_Language">Langue</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Ouvrez d'abord un PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - bientôt disponible</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">OCR de la page (copier le texte)</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">OCR de la page (copier le texte) (Ctrl+Maj+O)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
     <sys:String x:Key="Str_Ctx_OcrPage">OCR de la page (copier le texte)</sys:String>
 
@@ -522,4 +524,70 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Dlg_NoValidPages">Aucune page valide dans cette plage.</sys:String>
     <sys:String x:Key="Str_Dlg_SignedSavedTo">Copie signée enregistrée dans :</sys:String>
     <sys:String x:Key="Str_Dlg_DrawSignatureFirst">Dessinez d'abord une signature.</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">Ajouter un signet pour la page actuelle</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">Ajouter un signet</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">Ajouter un signet enfant</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">Renommer</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">Supprimer</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">Page {0}</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">Supprimer ce signet et ses {0} signets enfants ?</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">Monter</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">Descendre</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">Pointer vers la page actuelle</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">Supprimer tous les signets</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">Supprimer {0} signets ?</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">Retirer tous les signets de ce document ?</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">Rétablir</sys:String>
+    <sys:String x:Key="Str_St_Redone">Rétabli</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">Rien à rétablir</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">Première / dernière page</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">Précédent / suivant (historique des sauts)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Taille réelle / pleine largeur / page entière</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">Menu contextuel sur la sélection</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">LISTE</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">CLAVIER</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Maintenez Ctrl, Maj ou Alt pour afficher cette couche - survolez une touche allumée pour voir son action</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">Taille réelle</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">Onglet précédent</sys:String>
+
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">Page précédente</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">Page suivante</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">Première page</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">Dernière page</sys:String>
+    <sys:String x:Key="Str_Kb_Back">Retour</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">Avancer</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">Résultat suivant</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">Résultat précédent</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">Confirmer</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">Annuler</sys:String>
+
+    <!-- Document Info dialog + link strings -->
+    <sys:String x:Key="Str_TT_DocInfo">Informations du document (F4)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">Informations du document</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">Titre</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">Auteur</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">Sujet</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">Mots-clés</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">Créateur</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">Enregistrer</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">Annuler</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">Échec de la suppression du lien :</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">Lien bloqué (type non pris en charge) :</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">Impossible d'ouvrir le lien</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">Ouvrir ce lien dans votre navigateur ?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">Ouvrir le lien ?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">Ne plus demander</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">Ouvrir le lien</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">Copier l'adresse du lien</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">Copier l'adresse e-mail</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">Supprimer le lien du PDF</sys:String>
+    <sys:String x:Key="Str_LinksSection">LIENS</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">Confirmer avant d'ouvrir les liens</sys:String>
+    <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
 </ResourceDictionary>

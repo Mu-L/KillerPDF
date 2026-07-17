@@ -2302,7 +2302,7 @@ namespace KillerPDF
             if (!_annotations.ContainsKey(annotation.PageIndex))
                 _annotations[annotation.PageIndex] = [];
             _annotations[annotation.PageIndex].Add(annotation);
-            _undoStack.Push(new UndoEntry(UndoKind.Annotation, annotation.PageIndex, WasDirty: _isDirty, Annot: annotation));
+            PushUndo(new UndoEntry(UndoKind.Annotation, annotation.PageIndex, WasDirty: _isDirty, Annot: annotation));
             MarkDirty();
         }
 
@@ -2316,7 +2316,7 @@ namespace KillerPDF
             if (_doc is null) return;
             using var ms = new System.IO.MemoryStream();
             _doc.Save(ms);
-            _undoStack.Push(new UndoEntry(UndoKind.Document, DocBytes: ms.ToArray(), WasDirty: _isDirty));
+            PushUndo(new UndoEntry(UndoKind.Document, DocBytes: ms.ToArray(), WasDirty: _isDirty));
         }
 
         // Snapshot one page's annotations (deep clones) onto the undo stack so an in-place edit - erase,
@@ -2331,7 +2331,7 @@ namespace KillerPDF
                 if (_annotations.TryGetValue(p, out var list))
                     snap[p] = [.. list.Select(CloneAnnotation).Where(c => c is not null).Cast<PageAnnotation>()];
             if (snap.Count > 0)
-                _undoStack.Push(new UndoEntry(UndoKind.PageSnapshot, WasDirty: _isDirty, AnnotSnapshot: snap));
+                PushUndo(new UndoEntry(UndoKind.PageSnapshot, WasDirty: _isDirty, AnnotSnapshot: snap));
         }
 
         private void Undo_Click(object sender, RoutedEventArgs e)
@@ -2350,7 +2350,66 @@ namespace KillerPDF
             }
 
             var entry = _undoStack.Pop();
+            // Capture what this undo is about to overwrite, so Ctrl+Y can bring it back.
+            var inverse = CaptureInverse(entry);
+            if (ApplyHistoryEntry(entry) && inverse is { } inv)
+                _redoStack.Push(inv);
+        }
 
+        /// <summary>Redo (Ctrl+Y / Ctrl+Shift+Z): re-applies the last undone action. Any new edit
+        /// clears the redo stack (see PushUndo), so redo only chains directly after undos.</summary>
+        private void Redo_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeTextBox is not null)
+                CommitActiveTextBox();
+            if (_redoStack.Count == 0)
+            {
+                SetStatus(Loc("Str_St_NothingToRedo"));
+                return;
+            }
+            var entry = _redoStack.Pop();
+            var inverse = CaptureInverse(entry);
+            // Straight onto the undo stack - NOT PushUndo, which would clear the redo chain.
+            if (ApplyHistoryEntry(entry) && inverse is { } inv)
+                _undoStack.Push(inv);
+            SetStatus(Loc("Str_St_Redone"));
+        }
+
+        /// <summary>The state that applying <paramref name="entry"/> will overwrite, captured as a
+        /// history entry of its own: a document byte snapshot for document-level entries, a cloned
+        /// page-annotation snapshot for every annotation-level kind. Applying the returned entry
+        /// restores exactly what was there, which is what makes undo and redo symmetric.</summary>
+        private UndoEntry? CaptureInverse(UndoEntry entry)
+        {
+            try
+            {
+                if (entry.Kind == UndoKind.Document)
+                {
+                    if (_doc is null) return null;
+                    using var ms = new System.IO.MemoryStream();
+                    _doc.Save(ms);
+                    return new UndoEntry(UndoKind.Document, DocBytes: ms.ToArray(), WasDirty: _isDirty);
+                }
+                int[] pages = entry.Kind switch
+                {
+                    UndoKind.Annotation or UndoKind.AnnotationGroup => [entry.PageIdx],
+                    UndoKind.StampBatch => entry.Pages ?? [],
+                    _ => entry.AnnotSnapshot is null ? [] : [.. entry.AnnotSnapshot.Keys],
+                };
+                var snap = new Dictionary<int, List<PageAnnotation>>();
+                foreach (int p in pages.Distinct())
+                    snap[p] = _annotations.TryGetValue(p, out var list)
+                        ? [.. list.Select(CloneAnnotation).Where(c => c is not null).Cast<PageAnnotation>()]
+                        : [];
+                return new UndoEntry(UndoKind.PageSnapshot, WasDirty: _isDirty, AnnotSnapshot: snap);
+            }
+            catch { return null; }   // a failed snapshot must never block the undo itself
+        }
+
+        // Applies a history entry - the shared engine behind undo AND redo. Returns false when the
+        // entry cannot be applied (missing document bytes) so the caller skips pushing its inverse.
+        private bool ApplyHistoryEntry(UndoEntry entry)
+        {
             if (entry.Kind == UndoKind.Annotation)
             {
                 int pageIdx = entry.PageIdx;
@@ -2417,7 +2476,7 @@ namespace KillerPDF
             }
             else // Document snapshot
             {
-                if (entry.DocBytes is null) return;
+                if (entry.DocBytes is null) return false;
                 int selectedIdx = PageList.SelectedIndex;
                 var tempPath = App.MakeTempFile("undo");
                 System.IO.File.WriteAllBytes(tempPath, entry.DocBytes);
@@ -2444,6 +2503,7 @@ namespace KillerPDF
                 ClearSelection();
                 MarkDirty(entry.WasDirty);
                 RefreshPageList();
+                LoadOutlines();   // #133: bookmark edits ride this undo path, and page-level undos can change the outline too
                 if (selectedIdx >= 0 && selectedIdx < PageList.Items.Count)
                     PageList.SelectedIndex = selectedIdx;
                 else if (PageList.Items.Count > 0)
@@ -2463,6 +2523,15 @@ namespace KillerPDF
                     }));
                 SetStatus(Loc("Str_St_UndidDocChange"));
             }
+            return true;
+        }
+
+        // Every NEW user action pushes history through here: fresh edits invalidate the redo chain
+        // (the branched future can no longer be replayed safely).
+        private void PushUndo(UndoEntry entry)
+        {
+            _undoStack.Push(entry);
+            _redoStack.Clear();
         }
 
         // Re-renders annotations on every page that currently has a visible surface: each overlay
@@ -2487,7 +2556,7 @@ namespace KillerPDF
             {
                 // Snapshot this page so the clear is a single undo, then drop the annotations.
                 var snap = new Dictionary<int, List<PageAnnotation>> { [pageIdx] = [.. list] };
-                _undoStack.Push(new UndoEntry(UndoKind.ClearAnnotations, WasDirty: _isDirty, AnnotSnapshot: snap));
+                PushUndo(new UndoEntry(UndoKind.ClearAnnotations, WasDirty: _isDirty, AnnotSnapshot: snap));
                 _annotations.Remove(pageIdx);
                 MarkDirty();
             }
@@ -2511,7 +2580,7 @@ namespace KillerPDF
             var snapshot = new Dictionary<int, List<PageAnnotation>>();
             foreach (var kv in _annotations)
                 if (kv.Value.Count > 0) snapshot[kv.Key] = [.. kv.Value];
-            _undoStack.Push(new UndoEntry(UndoKind.ClearAnnotations, WasDirty: _isDirty, AnnotSnapshot: snapshot));
+            PushUndo(new UndoEntry(UndoKind.ClearAnnotations, WasDirty: _isDirty, AnnotSnapshot: snapshot));
 
             _annotations.Clear();
             ClearSelection();

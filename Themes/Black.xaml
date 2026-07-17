@@ -52,4 +52,14 @@
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}"     Color="#003322" po:Freeze="True"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#00ff66" po:Freeze="True"/>
 
+    <!-- Shortcut keyboard view: category colors (Nav lightened a step so pure purple reads on black) -->
+    <SolidColorBrush x:Key="KsCatFile"      Color="#00fff9" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatTools"     Color="#ffd319" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatEdit"      Color="#ff2975" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatNav"       Color="#a64dff" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatView"      Color="#f222ff" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatSearch"    Color="#00b3ff" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatHelp"      Color="#39ff14" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatOcr"       Color="#ff901f" po:Freeze="True"/>
+
 </ResourceDictionary>

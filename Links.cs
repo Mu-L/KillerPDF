@@ -119,7 +119,10 @@ namespace KillerPDF
             if (target is int pageIndex)
             {
                 if (_doc != null && pageIndex >= 0 && pageIndex < _doc.PageCount)
+                {
+                    RecordNavJump();   // Alt+Left retraces the link hop
                     PageList.SelectedIndex = pageIndex;
+                }
                 return;
             }
 
@@ -297,32 +300,66 @@ namespace KillerPDF
         private const int PDFACTION_GOTO = 1;
         private const int PDFACTION_URI  = 3;
 
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern double FPDF_GetPageWidth(IntPtr page);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern double FPDF_GetPageHeight(IntPtr page);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool FPDFLink_Enumerate(IntPtr page, ref int startPos, out IntPtr linkAnnot);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool FPDFLink_GetAnnotRect(IntPtr linkAnnot, out FS_RECTF rect);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDFLink_GetDest(IntPtr document, IntPtr link);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDFLink_GetAction(IntPtr link);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern uint FPDFAction_GetType(IntPtr action);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDFAction_GetDest(IntPtr document, IntPtr action);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern uint FPDFAction_GetURIPath(IntPtr document, IntPtr action, byte[]? buffer, uint buflen);
-        [DllImport("pdfium.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int FPDFDest_GetDestPageIndex(IntPtr document, IntPtr dest);
+        // THREADING: raw externs suffixed Raw; only the wrappers below may be called. Every
+        // wrapper holds PdfiumLock (FileOperations.cs) - the same lock Docnet's renders use -
+        // because a UI-thread link pass racing a background render inside PDFium corrupts the
+        // native heap (0xc0000374, confirmed from a 1.6.3 crash dump on 2026-07-17).
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_GetPageWidth", CallingConvention = CallingConvention.Cdecl)]
+        private static extern double FPDF_GetPageWidthRaw(IntPtr page);
+        private static double FPDF_GetPageWidth(IntPtr page)
+        { lock (PdfiumLock) return FPDF_GetPageWidthRaw(page); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_GetPageHeight", CallingConvention = CallingConvention.Cdecl)]
+        private static extern double FPDF_GetPageHeightRaw(IntPtr page);
+        private static double FPDF_GetPageHeight(IntPtr page)
+        { lock (PdfiumLock) return FPDF_GetPageHeightRaw(page); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_Enumerate", CallingConvention = CallingConvention.Cdecl)]
+        private static extern bool FPDFLink_EnumerateRaw(IntPtr page, ref int startPos, out IntPtr linkAnnot);
+        private static bool FPDFLink_Enumerate(IntPtr page, ref int startPos, out IntPtr linkAnnot)
+        { lock (PdfiumLock) return FPDFLink_EnumerateRaw(page, ref startPos, out linkAnnot); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_GetAnnotRect", CallingConvention = CallingConvention.Cdecl)]
+        private static extern bool FPDFLink_GetAnnotRectRaw(IntPtr linkAnnot, out FS_RECTF rect);
+        private static bool FPDFLink_GetAnnotRect(IntPtr linkAnnot, out FS_RECTF rect)
+        { lock (PdfiumLock) return FPDFLink_GetAnnotRectRaw(linkAnnot, out rect); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_GetDest", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDFLink_GetDestRaw(IntPtr document, IntPtr link);
+        private static IntPtr FPDFLink_GetDest(IntPtr document, IntPtr link)
+        { lock (PdfiumLock) return FPDFLink_GetDestRaw(document, link); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_GetAction", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDFLink_GetActionRaw(IntPtr link);
+        private static IntPtr FPDFLink_GetAction(IntPtr link)
+        { lock (PdfiumLock) return FPDFLink_GetActionRaw(link); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAction_GetType", CallingConvention = CallingConvention.Cdecl)]
+        private static extern uint FPDFAction_GetTypeRaw(IntPtr action);
+        private static uint FPDFAction_GetType(IntPtr action)
+        { lock (PdfiumLock) return FPDFAction_GetTypeRaw(action); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAction_GetDest", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDFAction_GetDestRaw(IntPtr document, IntPtr action);
+        private static IntPtr FPDFAction_GetDest(IntPtr document, IntPtr action)
+        { lock (PdfiumLock) return FPDFAction_GetDestRaw(document, action); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAction_GetURIPath", CallingConvention = CallingConvention.Cdecl)]
+        private static extern uint FPDFAction_GetURIPathRaw(IntPtr document, IntPtr action, byte[]? buffer, uint buflen);
+        private static uint FPDFAction_GetURIPath(IntPtr document, IntPtr action, byte[]? buffer, uint buflen)
+        { lock (PdfiumLock) return FPDFAction_GetURIPathRaw(document, action, buffer, buflen); }
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFDest_GetDestPageIndex", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDFDest_GetDestPageIndexRaw(IntPtr document, IntPtr dest);
+        private static int FPDFDest_GetDestPageIndex(IntPtr document, IntPtr dest)
+        { lock (PdfiumLock) return FPDFDest_GetDestPageIndexRaw(document, dest); }
 
         // Cached PDFium document handle for link extraction. Object-stream PDFs take the PDFium fallback
         // on every annotated page; without this we'd FPDF_LoadDocument (re-parse the whole file) once per
         // page during a render sweep. Keyed by path so it self-heals when the working file changes
-        // (SaveTempAndReload swaps in a new temp). _currentFile is a TEMP working copy - the user's real
-        // file is _originalFile - so holding this open never locks the user's document. Only touched from
+        // (SaveTempAndReload swaps in a new temp). NOTE: on a plain open _currentFile IS the user's real
+        // file (it is only a temp copy after a page edit or repair), so holding this open blocks saving
+        // over that file - every save-over path calls CloseLinkPdfiumDoc() first (#129). Only touched from
         // UI-thread render paths (RenderPageLinks / AddSecondaryPageLinks), so no locking is needed.
         private IntPtr _linkPdfiumDoc = IntPtr.Zero;
         private string? _linkPdfiumDocPath;

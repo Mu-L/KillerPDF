@@ -53,14 +53,17 @@ namespace KillerPDF
 
         // Tesseract code -> display name, covering KillerPDF's 8 UI locales. English is bundled; the rest
         // are downloaded on demand into OcrNativeBootstrap.TessDataDir.
+        // Order mirrors the Settings language picker (English first, then the
+        // same sequence as the LangGroup radios in MainWindow.xaml).
         private static readonly (string Code, string Name)[] OcrLanguageCatalog =
         [
             ("eng", "English"),
+            ("ben", "Bengali"),
+            ("deu", "German"),
             ("spa", "Spanish"),
             ("fra", "French"),
-            ("deu", "German"),
+            ("jpn", "Japanese"),
             ("tur", "Turkish"),
-            ("ben", "Bengali"),
             ("chi_sim", "Chinese (Simplified)"),
             ("chi_tra", "Chinese (Traditional)"),
         ];
@@ -572,8 +575,8 @@ namespace KillerPDF
             else
             {
                 int pageIdx = PageList.SelectedIndex;
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (_, _) => OcrPageToClipboard(pageIdx)));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_Region"), (_, _) => BeginOcrRegion()));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (_, _) => OcrPageToClipboard(pageIdx), "Ctrl+Shift+O"));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_Region"), (_, _) => BeginOcrRegion(), "Ctrl+Shift+I"));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_SearchablePdf"), (_, _) => MakeSearchablePdf()));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_ExtractText"), (_, _) => ExtractAllText()));

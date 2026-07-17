@@ -105,6 +105,7 @@ namespace KillerPDF
             {
                 foreach (TreeViewItem node in items)
                 {
+                    if (node.Tag is not OutlineNodeRef) continue;   // ghost add-row: no text to measure
                     var ft = new System.Windows.Media.FormattedText(
                         node.Header?.ToString() ?? string.Empty,
                         System.Globalization.CultureInfo.CurrentUICulture,
@@ -129,10 +130,14 @@ namespace KillerPDF
 
         private void OutlineTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            if (e.NewValue is TreeViewItem item && item.Tag is int pageIdx && pageIdx >= 0 && _doc is not null)
+            if (_suppressOutlineNav) return;   // programmatic re-select (e.g. after a move) must not jump the view
+            if (e.NewValue is TreeViewItem item && item.Tag is OutlineNodeRef nref && nref.PageIndex >= 0 && _doc is not null)
             {
-                if (pageIdx < _doc.PageCount)
-                    PageList.SelectedIndex = pageIdx;
+                if (nref.PageIndex < _doc.PageCount)
+                {
+                    RecordNavJump();   // Alt+Left retraces the bookmark hop
+                    PageList.SelectedIndex = nref.PageIndex;
+                }
             }
         }
 
@@ -147,6 +152,7 @@ namespace KillerPDF
         private void LoadOutlines()
         {
             _outlinesFitted = false;   // triggers auto-fit on next tab switch
+            _bmExtraSel.Clear();       // outlines may be gone after a rebuild/undo - selection resets
             OutlineTree.Items.Clear();
             try
             {
@@ -159,10 +165,15 @@ namespace KillerPDF
                 var outlines = hasOutlines ? _doc!.Outlines : null;
                 if (outlines is null || outlines.Count == 0)
                 {
-                    SidebarOutlinesTab.IsEnabled = false;
+                    // #133: stay enabled on an editable document so the user can open the panel and
+                    // add a first bookmark (the ghost row is then the only entry); read-only
+                    // documents keep the old gating.
+                    SidebarOutlinesTab.IsEnabled = CanEditBookmarks;
+                    if (CanEditBookmarks) OutlineTree.Items.Add(BuildAddBookmarkGhostRow());
                     return;
                 }
                 SidebarOutlinesTab.IsEnabled = true;
+                if (CanEditBookmarks) OutlineTree.Items.Add(BuildAddBookmarkGhostRow());
                 AddOutlineItems(OutlineTree.Items, outlines);
             }
             catch
@@ -172,16 +183,40 @@ namespace KillerPDF
             }
         }
 
+        /// <summary>
+        /// #133: PdfSharpCore's lexer decodes UTF-16 bookmark titles by their BOM, but strings it
+        /// decrypts AFTER parsing (owner-password protected files) never get that BOM re-check, so
+        /// the title arrives as raw bytes widened to chars: a U+00FE U+00FF prefix (the BOM bytes)
+        /// followed by one char per byte (mojibake).
+        /// Detect the widened BOM, re-pack the chars into bytes, and decode as UTF-16. Titles that
+        /// parsed correctly don't start with those two chars and pass through untouched.
+        /// </summary>
+        private static string FixRawUnicodeTitle(string s)
+        {
+            if (s.Length < 2) return s;
+            bool be = s[0] == '\u00FE' && s[1] == '\u00FF';   // UTF-16BE BOM as raw chars
+            bool le = s[0] == '\u00FF' && s[1] == '\u00FE';   // UTF-16LE (Adobe tolerance)
+            if (!be && !le) return s;
+            foreach (char c in s)
+                if (c > '\u00FF') return s;   // not byte-widened data - a real (odd) title, leave it
+            var sb = new System.Text.StringBuilder((s.Length - 2) / 2);
+            for (int i = 2; i + 1 < s.Length; i += 2)   // a trailing odd byte is dropped rather than corrupting the pairs
+                sb.Append(be ? (char)((s[i] << 8) | s[i + 1])
+                             : (char)((s[i + 1] << 8) | s[i]));
+            return sb.ToString();
+        }
+
         private void AddOutlineItems(ItemCollection target, PdfSharpCore.Pdf.PdfOutlineCollection outlines)
         {
             foreach (PdfSharpCore.Pdf.PdfOutline outline in outlines)
             {
                 int pageIdx = GetOutlinePageIndex(outline);
+                string title = FixRawUnicodeTitle(outline.Title ?? string.Empty);
                 var item = new TreeViewItem
                 {
-                    Header = string.IsNullOrEmpty(outline.Title) ? "(untitled)" : outline.Title,
+                    Header = string.IsNullOrEmpty(title) ? "(untitled)" : title,
                     IsExpanded = true,
-                    Tag = pageIdx,
+                    Tag = new OutlineNodeRef(outline, outlines, pageIdx),
                     ToolTip = pageIdx >= 0 ? $"Page {pageIdx + 1}" : null,
                     Style = (Style)FindResource("OutlineItemStyle")
                 };
@@ -199,6 +234,528 @@ namespace KillerPDF
                     if (ReferenceEquals(_doc.Pages[i], destPage)) return i;
             }
             return -1;
+        }
+
+        // ============================================================
+        // Bookmark editing (#133): add / rename / delete
+        // ============================================================
+
+        /// <summary>Ties a TreeViewItem to its PdfOutline and the collection that contains it.</summary>
+        private sealed class OutlineNodeRef
+        {
+            public readonly PdfSharpCore.Pdf.PdfOutline Outline;
+            public readonly PdfSharpCore.Pdf.PdfOutlineCollection Parent;
+            public readonly int PageIndex;
+            public OutlineNodeRef(PdfSharpCore.Pdf.PdfOutline outline,
+                                  PdfSharpCore.Pdf.PdfOutlineCollection parent, int pageIndex)
+            { Outline = outline; Parent = parent; PageIndex = pageIndex; }
+        }
+
+        // PdfSharpCore cannot save a document opened read-only (owner-password or XRef-fallback
+        // opens), so bookmark editing is hidden there rather than failing at save time.
+        private bool CanEditBookmarks => _doc is not null && !_doc.IsReadOnly;
+
+        // Multi-select (#133 phase 2). WPF's TreeView is hard single-select, so its built-in
+        // selection stays the "primary" item and Ctrl/Shift clicks maintain this extra set on top.
+        // Keyed by PdfOutline object so the selection survives tree rebuilds within one document.
+        private readonly HashSet<PdfSharpCore.Pdf.PdfOutline> _bmExtraSel = new();
+        private bool _suppressOutlineNav;
+
+        /// <summary>All bookmark rows in visual order (optionally only rows currently visible,
+        /// i.e. with every ancestor expanded). The ghost add-row is never included.</summary>
+        private static void FlattenBookmarkItems(ItemCollection items, bool visibleOnly,
+                                                 List<(TreeViewItem Item, OutlineNodeRef Ref)> into)
+        {
+            foreach (TreeViewItem it in items)
+            {
+                if (it.Tag is OutlineNodeRef r) into.Add((it, r));
+                if (!visibleOnly || it.IsExpanded)
+                    FlattenBookmarkItems(it.Items, visibleOnly, into);
+            }
+        }
+
+        /// <summary>Paints/clears the extra-selection look. The item template's IsSelected trigger
+        /// drives Bd.Background/BorderBrush + Foreground; extras set the same three locally (local
+        /// values outrank template triggers) and ClearValue restores normal styling.</summary>
+        private void ApplyExtraSelectionVisuals()
+        {
+            var all = new List<(TreeViewItem Item, OutlineNodeRef Ref)>();
+            FlattenBookmarkItems(OutlineTree.Items, visibleOnly: false, all);
+            foreach (var (it, r) in all)
+            {
+                it.ApplyTemplate();
+                var bd = it.Template?.FindName("Bd", it) as Border;
+                if (_bmExtraSel.Contains(r.Outline))
+                {
+                    if (bd is not null)
+                    {
+                        bd.Background = UiKit.Brush("SelectionBg");
+                        bd.BorderBrush = UiKit.Brush("Accent");
+                    }
+                    it.Foreground = Brushes.White;   // matches the IsSelected trigger
+                }
+                else
+                {
+                    if (bd is not null)
+                    {
+                        bd.ClearValue(Border.BackgroundProperty);
+                        bd.ClearValue(Border.BorderBrushProperty);
+                    }
+                    it.ClearValue(ForegroundProperty);
+                }
+            }
+        }
+
+        private void ClearBookmarkMultiSelection()
+        {
+            if (_bmExtraSel.Count == 0) return;
+            _bmExtraSel.Clear();
+            ApplyExtraSelectionVisuals();
+        }
+
+        // True when the click landed on the expand/collapse toggle - those pass through untouched.
+        private static bool IsExpanderClick(DependencyObject? d)
+        {
+            while (d is not null && d is not TreeViewItem)
+            {
+                if (d is System.Windows.Controls.Primitives.ToggleButton) return true;
+                d = d is Visual or System.Windows.Media.Media3D.Visual3D
+                    ? VisualTreeHelper.GetParent(d)
+                    : LogicalTreeHelper.GetParent(d);
+            }
+            return false;
+        }
+
+        private void OutlineTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (IsExpanderClick(e.OriginalSource as DependencyObject)) return;
+            var tvi = OutlineItemAt(e.OriginalSource as DependencyObject);
+            bool ctrl  = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+            bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+            if (tvi?.Tag is not OutlineNodeRef nref || !CanEditBookmarks || (!ctrl && !shift))
+            {
+                // Plain click, ghost row, or empty space: default single-selection behavior.
+                ClearBookmarkMultiSelection();
+                return;
+            }
+            if (ctrl)
+            {
+                // Fold the primary into the set so the whole selection lives in one place, then toggle.
+                if (OutlineTree.SelectedItem is TreeViewItem prim && prim.Tag is OutlineNodeRef pr)
+                    _bmExtraSel.Add(pr.Outline);
+                if (!_bmExtraSel.Add(nref.Outline)) _bmExtraSel.Remove(nref.Outline);
+            }
+            else
+            {
+                // Shift: range from the primary to the clicked row, in visible order.
+                _bmExtraSel.Clear();
+                var flat = new List<(TreeViewItem Item, OutlineNodeRef Ref)>();
+                FlattenBookmarkItems(OutlineTree.Items, visibleOnly: true, flat);
+                var primary = (OutlineTree.SelectedItem as TreeViewItem)?.Tag as OutlineNodeRef;
+                int ia = primary is null ? -1 : flat.FindIndex(t => ReferenceEquals(t.Ref, primary));
+                int ib = flat.FindIndex(t => ReferenceEquals(t.Item, tvi));
+                if (ib < 0) return;
+                if (ia < 0) ia = ib;
+                for (int k = Math.Min(ia, ib); k <= Math.Max(ia, ib); k++)
+                    _bmExtraSel.Add(flat[k].Ref.Outline);
+            }
+            ApplyExtraSelectionVisuals();
+            e.Handled = true;   // keep the built-in primary selection where it is
+        }
+
+        private void OutlineTree_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!CanEditBookmarks) return;
+            if (e.OriginalSource is TextBox) return;   // inline rename in progress: Delete edits text, not bookmarks
+            var primary = (OutlineTree.SelectedItem as TreeViewItem)?.Tag as OutlineNodeRef;
+            if (e.Key == Key.Delete && (primary is not null || _bmExtraSel.Count > 0))
+            {
+                e.Handled = true;
+                DeleteSelectedBookmarks(primary);
+            }
+            else if (e.Key == Key.F2 && primary is not null && OutlineTree.SelectedItem is TreeViewItem tvi)
+            {
+                e.Handled = true;
+                BeginInlineRename(tvi, primary);
+            }
+        }
+
+        /// <summary>The add action lives as a dim first row inside the tree itself (#133): a + glyph
+        /// and "Add bookmark", brightening on hover. Tag stays null so the selection handler, the
+        /// context menu, width auto-fit, and the refresh walks all treat it as a non-bookmark row.</summary>
+        private TreeViewItem BuildAddBookmarkGhostRow()
+        {
+            var icon = new TextBlock
+            {
+                Text = "\uE710",   // Segoe MDL2 Add
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 5, 0)
+            };
+            var text = new TextBlock { Text = Loc("Str_Ctx_BmAdd"), VerticalAlignment = VerticalAlignment.Center };
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Opacity = 0.55 };
+            panel.Children.Add(icon);
+            panel.Children.Add(text);
+            var item = new TreeViewItem
+            {
+                Header = panel,
+                ToolTip = Loc("Str_TT_AddBookmark"),
+                Style = (Style)FindResource("OutlineItemStyle")
+            };
+            item.MouseEnter += (_, _2) => panel.Opacity = 1.0;
+            item.MouseLeave += (_, _2) => panel.Opacity = 0.55;
+            item.PreviewMouseLeftButtonUp += (_, e) => { e.Handled = true; AddBookmarkInto(null); };
+            return item;
+        }
+
+        /// <summary>Adds a bookmark pointing at the current page - to the root list, or as a child of
+        /// <paramref name="parent"/> - titled "Page N", then drops straight into an inline rename of
+        /// the new entry (no dialog). Esc keeps the default title.</summary>
+        private void AddBookmarkInto(OutlineNodeRef? parent)
+        {
+            if (!CanEditBookmarks) return;
+            if (parent is not null && !ReferenceEquals(parent.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+            int page = Math.Max(0, PageList.SelectedIndex);
+            if (page >= _doc!.PageCount) page = _doc.PageCount - 1;
+            if (page < 0) return;
+            PushDocUndo();   // bookmark ops ride the document-snapshot undo like crop/page ops do
+            var col = parent is null ? _doc.Outlines : parent.Outline.Outlines;
+            var added = col.Add(string.Format(Loc("Str_Bm_DefaultTitle"), page + 1), _doc.Pages[page], true);
+            ScrubStaleOutlineLinkKeys();
+            MarkDirty(true);
+            RefreshOutlines();
+            if (FindOutlineItem(OutlineTree.Items, added) is { } tvi && tvi.Tag is OutlineNodeRef nref)
+            {
+                tvi.BringIntoView();
+                BeginInlineRename(tvi, nref);
+            }
+        }
+
+        /// <summary>Swaps a tree item's header for an inline TextBox (rename-in-place; also used right
+        /// after adding). Enter or clicking elsewhere commits, Esc cancels.</summary>
+        private void BeginInlineRename(TreeViewItem tvi, OutlineNodeRef nref)
+        {
+            if (!CanEditBookmarks) return;
+            if (!ReferenceEquals(nref.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+            string current = FixRawUnicodeTitle(nref.Outline.Title ?? string.Empty);
+            // UiKit.Field: self-templated, so the OS-default white box / blue focus chrome never shows.
+            var box = UiKit.Field();
+            box.Text = current;
+            box.MinWidth = 110;
+            box.FontSize = OutlineTree.FontSize;
+            box.Padding = new Thickness(3, 1, 3, 1);
+            box.BorderBrush = UiKit.Brush("Accent");   // accent border = active in-place edit
+            box.CaretBrush = UiKit.Brush("Accent");
+            bool done = false;
+            void Commit()
+            {
+                if (done) return;
+                done = true;
+                string t = box.Text.Trim();
+                if (t.Length > 0 && t != current)
+                {
+                    PushDocUndo();
+                    nref.Outline.Title = t;   // the setter writes a proper Unicode string, healing mojibake entries
+                    MarkDirty(true);
+                    RefreshOutlines();
+                }
+                else
+                    tvi.Header = string.IsNullOrEmpty(current) ? "(untitled)" : current;
+            }
+            void Cancel()
+            {
+                if (done) return;
+                done = true;
+                tvi.Header = string.IsNullOrEmpty(current) ? "(untitled)" : current;
+            }
+            box.PreviewKeyDown += (_, ke) =>
+            {
+                if (ke.Key == Key.Enter)  { ke.Handled = true; Commit(); }
+                if (ke.Key == Key.Escape) { ke.Handled = true; Cancel(); }
+            };
+            box.LostFocus += (_, _2) => Commit();
+            tvi.Header = box;
+            // The box can't take focus until it has been laid out - focus it after render.
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,
+                (Action)(() => { box.Focus(); box.SelectAll(); }));
+        }
+
+        /// <summary>Finds the tree item for a PdfOutline, expanding collapsed ancestors on the way.</summary>
+        private static TreeViewItem? FindOutlineItem(ItemCollection items, object outline)
+        {
+            foreach (TreeViewItem it in items)
+            {
+                if (it.Tag is OutlineNodeRef r && ReferenceEquals(r.Outline, outline)) return it;
+                if (FindOutlineItem(it.Items, outline) is { } hit) { it.IsExpanded = true; return hit; }
+            }
+            return null;
+        }
+
+        /// <summary>Deletes the multi-selection if one exists, plus the clicked/primary item. One
+        /// confirm covers the whole set; one undo entry restores it.</summary>
+        private void DeleteSelectedBookmarks(OutlineNodeRef? clicked)
+        {
+            if (!CanEditBookmarks) return;
+            if (clicked is not null && !ReferenceEquals(clicked.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+
+            // Gather targets: the extra set, the primary, and the clicked item, deduplicated.
+            var all = new List<(TreeViewItem Item, OutlineNodeRef Ref)>();
+            FlattenBookmarkItems(OutlineTree.Items, visibleOnly: false, all);
+            var targets = new List<OutlineNodeRef>();
+            foreach (var (_, r) in all)
+                if (_bmExtraSel.Contains(r.Outline)) targets.Add(r);
+            void AddTarget(OutlineNodeRef? r)
+            {
+                if (r is not null && !targets.Any(t => ReferenceEquals(t.Outline, r.Outline))) targets.Add(r);
+            }
+            AddTarget((OutlineTree.SelectedItem as TreeViewItem)?.Tag as OutlineNodeRef);
+            AddTarget(clicked);
+            if (targets.Count == 0) return;
+
+            // A target with a selected ancestor is covered by deleting the ancestor - drop it so the
+            // remaining targets are independent (their parent collections stay valid during removal).
+            var chosen = new HashSet<object>(targets.Select(t => (object)t.Outline));
+            bool Covered(PdfSharpCore.Pdf.PdfOutline o)
+            {
+                for (var p = o.Parent; p is not null; p = p.Parent)
+                    if (chosen.Contains(p)) return true;
+                return false;
+            }
+            targets = targets.Where(t => !Covered(t.Outline)).ToList();
+
+            int total = targets.Sum(t => 1 + CountOutlines(t.Outline.Outlines));
+            if (total > 1)
+            {
+                string msg = targets.Count == 1
+                    ? string.Format(Loc("Str_Bm_DeleteKids"), total - 1)
+                    : string.Format(Loc("Str_Bm_DeleteMulti"), total);
+                var r = KillerDialog.Show(this, msg, Loc("Str_Dlg_AppTitle"),
+                                          MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (r != MessageBoxResult.Yes) return;
+            }
+            PushDocUndo();   // one Ctrl+Z restores the whole set
+            foreach (var t in targets)
+                RemoveOutlineRecursive(t.Parent, t.Outline);
+            ScrubStaleOutlineLinkKeys();
+            MarkDirty(true);
+            RefreshOutlines();   // also clears _bmExtraSel via LoadOutlines
+        }
+
+        /// <summary>Moves a bookmark one position up or down among its siblings.</summary>
+        private void MoveBookmark(OutlineNodeRef nref, int delta)
+        {
+            if (!CanEditBookmarks) return;
+            if (!ReferenceEquals(nref.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+            int i = nref.Parent.IndexOf(nref.Outline);
+            int j = i + delta;
+            if (i < 0 || j < 0 || j >= nref.Parent.Count) return;
+            PushDocUndo();
+            // RemoveAt drops the object from the xref table; Insert/Add puts it straight back.
+            nref.Parent.RemoveAt(i);
+            if (j >= nref.Parent.Count) nref.Parent.Add(nref.Outline);
+            else nref.Parent.Insert(j, nref.Outline);
+            ScrubStaleOutlineLinkKeys();
+            MarkDirty(true);
+            RefreshOutlines();
+            // Keep the moved item selected, without the page-jump side effect.
+            if (FindOutlineItem(OutlineTree.Items, nref.Outline) is { } moved)
+            {
+                _suppressOutlineNav = true;
+                try { moved.IsSelected = true; moved.BringIntoView(); }
+                finally { _suppressOutlineNav = false; }
+            }
+        }
+
+        /// <summary>Repoints a bookmark at the current page as a plain go-to-page destination.</summary>
+        private void SetBookmarkDestination(OutlineNodeRef nref)
+        {
+            if (!CanEditBookmarks) return;
+            if (!ReferenceEquals(nref.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+            int page = Math.Max(0, PageList.SelectedIndex);
+            if (page >= _doc!.PageCount) page = _doc.PageCount - 1;
+            if (page < 0) return;
+            PushDocUndo();
+            nref.Outline.DestinationPage = _doc.Pages[page];
+            // Plain jump: /XYZ null null null keeps the reader's current zoom/position behavior.
+            nref.Outline.PageDestinationType = PdfSharpCore.Pdf.PdfPageDestinationType.Xyz;
+            nref.Outline.Left = double.NaN;
+            nref.Outline.Top = double.NaN;
+            nref.Outline.Zoom = double.NaN;
+            MarkDirty(true);
+            RefreshOutlines();
+        }
+
+        /// <summary>Removes every bookmark in the document (one confirm, one undo entry).</summary>
+        private void DeleteAllBookmarks()
+        {
+            if (!CanEditBookmarks || _doc is null) return;
+            if (_doc.Internals.Catalog.Elements["/Outlines"] is null) return;   // nothing to do, and never plant one
+            if (_doc.Outlines.Count == 0) return;
+            var r = KillerDialog.Show(this, Loc("Str_Bm_DeleteAllConfirm"), Loc("Str_Dlg_AppTitle"),
+                                      MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) return;
+            PushDocUndo();
+            while (_doc.Outlines.Count > 0)
+                RemoveOutlineRecursive(_doc.Outlines, _doc.Outlines[_doc.Outlines.Count - 1]);
+            ScrubStaleOutlineLinkKeys();
+            MarkDirty(true);
+            RefreshOutlines();
+        }
+
+        private static int CountOutlines(PdfSharpCore.Pdf.PdfOutlineCollection col)
+        {
+            int n = 0;
+            foreach (PdfSharpCore.Pdf.PdfOutline o in col) n += 1 + CountOutlines(o.Outlines);
+            return n;
+        }
+
+        // Bottom-up: Collection.Remove() drops the removed object from the document's reference
+        // table, so deleting the whole branch leaf-first leaves no orphaned outline objects (with
+        // dangling /Parent refs) behind in the saved file.
+        private static void RemoveOutlineRecursive(PdfSharpCore.Pdf.PdfOutlineCollection parent,
+                                                   PdfSharpCore.Pdf.PdfOutline outline)
+        {
+            while (outline.Outlines.Count > 0)
+                RemoveOutlineRecursive(outline.Outlines, outline.Outlines[outline.Outlines.Count - 1]);
+            parent.Remove(outline);
+        }
+
+        // PdfSharpCore's PrepareForSave rewrites outline linkage keys (/First /Last /Next /Prev
+        // /Parent /Count) from the in-memory collections but never REMOVES entries that no longer
+        // apply: an item that became last keeps its old /Next, a parent whose children were all
+        // deleted keeps /First /Last, and an emptied root would dangle (ScrubEmptyOutlines only
+        // drops the catalog entry when /First is gone). After any bookmark edit, strip the linkage
+        // keys everywhere - the writer rebuilds all of them from the collections on save.
+        private void ScrubStaleOutlineLinkKeys()
+        {
+            if (_doc is null) return;
+            try
+            {
+                var item = _doc.Internals.Catalog.Elements["/Outlines"];
+                if (item is null) return;
+                if (DerefItemStatic(item) is PdfDictionary root)
+                {
+                    root.Elements.Remove("/First");
+                    root.Elements.Remove("/Last");
+                    root.Elements.Remove("/Count");
+                }
+                ScrubOutlineLinkKeys(_doc.Outlines);
+            }
+            catch { /* malformed outline tree - the save-time scrubs are the backstop */ }
+        }
+
+        private static void ScrubOutlineLinkKeys(PdfSharpCore.Pdf.PdfOutlineCollection col)
+        {
+            foreach (PdfSharpCore.Pdf.PdfOutline o in col)
+            {
+                o.Elements.Remove("/First");
+                o.Elements.Remove("/Last");
+                o.Elements.Remove("/Next");
+                o.Elements.Remove("/Prev");
+                o.Elements.Remove("/Parent");
+                o.Elements.Remove("/Count");
+                ScrubOutlineLinkKeys(o.Outlines);
+            }
+        }
+
+        /// <summary>Rebuilds the outline panel after an edit, keeping collapsed branches collapsed
+        /// (the PdfOutline objects survive the rebuild, so they key the state).</summary>
+        private void RefreshOutlines()
+        {
+            var collapsed = new HashSet<object>();
+            void Capture(ItemCollection items)
+            {
+                foreach (TreeViewItem it in items)
+                {
+                    if (!it.IsExpanded && it.Tag is OutlineNodeRef r) collapsed.Add(r.Outline);
+                    Capture(it.Items);
+                }
+            }
+            Capture(OutlineTree.Items);
+            // LoadOutlines re-arms the sidebar width auto-fit (_outlinesFitted = false), which is right
+            // for a NEW document but wrong here: after a bookmark edit the next tab switch would re-fit
+            // and override the width the user dragged the sidebar to. The panel must stay where the
+            // user put it - preserve the flag across the rebuild.
+            bool fitted = _outlinesFitted;
+            LoadOutlines();
+            _outlinesFitted = fitted;
+            if (collapsed.Count == 0) return;
+            void Restore(ItemCollection items)
+            {
+                foreach (TreeViewItem it in items)
+                {
+                    if (it.Tag is OutlineNodeRef r && collapsed.Contains(r.Outline)) it.IsExpanded = false;
+                    Restore(it.Items);
+                }
+            }
+            Restore(OutlineTree.Items);
+        }
+
+        /// <summary>Right-click on the outline panel: bookmark menu for the item under the cursor,
+        /// or the add-bookmark menu on empty space. Hidden entirely on read-only documents.</summary>
+        private void OutlineTree_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!CanEditBookmarks) return;
+            var tvi = OutlineItemAt(e.OriginalSource as DependencyObject);
+            var menu = new ContextMenu();
+            TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
+            TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
+            if (tvi?.Tag is OutlineNodeRef nref)
+            {
+                // Right-click outside the multi-selection collapses it to the clicked item (the
+                // file-explorer convention); inside it, the menu acts on the whole set.
+                bool inMulti = _bmExtraSel.Contains(nref.Outline);
+                if (!inMulti) ClearBookmarkMultiSelection();
+                _suppressOutlineNav = true;
+                try { tvi.IsSelected = true; }   // WPF doesn't select on right-click by itself
+                finally { _suppressOutlineNav = false; }
+
+                if (inMulti && _bmExtraSel.Count > 1)
+                {
+                    menu.Items.Add(MakeMenuItem($"{Loc("Str_Ctx_BmDelete")} ({_bmExtraSel.Count})",
+                                                (_, _2) => DeleteSelectedBookmarks(nref), "Delete"));
+                }
+                else
+                {
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmRename"), (_, _2) => BeginInlineRename(tvi, nref), "F2"));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmAddChild"), (_, _2) => AddBookmarkInto(nref)));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmSetDest"), (_, _2) => SetBookmarkDestination(nref)));
+                    menu.Items.Add(new Separator());
+                    int idx = nref.Parent.IndexOf(nref.Outline);
+                    var up = MakeMenuItem(Loc("Str_Ctx_BmMoveUp"), (_, _2) => MoveBookmark(nref, -1));
+                    up.IsEnabled = idx > 0;
+                    menu.Items.Add(up);
+                    var down = MakeMenuItem(Loc("Str_Ctx_BmMoveDown"), (_, _2) => MoveBookmark(nref, +1));
+                    down.IsEnabled = idx >= 0 && idx < nref.Parent.Count - 1;
+                    menu.Items.Add(down);
+                    menu.Items.Add(new Separator());
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmDelete"), (_, _2) => DeleteSelectedBookmarks(nref), "Delete"));
+                }
+            }
+            else
+            {
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmAdd"), (_, _2) => AddBookmarkInto(null)));
+                bool hasAny = _doc?.Internals.Catalog.Elements["/Outlines"] is not null
+                              && OutlineTree.Items.Count > 1;   // ghost row + at least one real entry
+                if (hasAny)
+                {
+                    menu.Items.Add(new Separator());
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmDeleteAll"), (_, _2) => DeleteAllBookmarks()));
+                }
+            }
+            menu.PlacementTarget = OutlineTree;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        private static TreeViewItem? OutlineItemAt(DependencyObject? d)
+        {
+            while (d is not null && d is not TreeViewItem)
+                d = d is Visual or System.Windows.Media.Media3D.Visual3D
+                    ? VisualTreeHelper.GetParent(d)
+                    : LogicalTreeHelper.GetParent(d);   // e.g. a Run inside the header
+            return d as TreeViewItem;
         }
 
         private void ToolSelect_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Select);

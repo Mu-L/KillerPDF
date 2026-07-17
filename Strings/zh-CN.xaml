@@ -35,16 +35,16 @@
     <sys:String x:Key="Str_TT_CropTool">裁切工具 - 拖曳设置裁切区域，然后套用至页面</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">清除所有注释</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">复原上一步 (Ctrl+Z)</sys:String>
-    <sys:String x:Key="Str_TT_MultiPageGrid">多页网格视图</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">多页网格视图 (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">缩小 (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">缩放比例 (Ctrl+滚轮 · Ctrl+=/- · Ctrl+0=重设)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">放大 (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">前往页面（按 Enter 导航）</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">折叠侧边栏</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">展开侧边栏</sys:String>
-    <sys:String x:Key="Str_TT_KeyboardShortcuts">键盘快速键 (Ctrl+?)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">设置</sys:String>
-    <sys:String x:Key="Str_TT_About">关于 KillerPDF</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">折叠侧边栏 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">展开侧边栏 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">键盘快速键 (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">设置 (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">关于 KillerPDF (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
     <sys:String x:Key="Str_About_Version">版本</sys:String>
@@ -100,6 +100,8 @@
     <sys:String x:Key="Str_KS_Help">说明</sys:String>
     <sys:String x:Key="Str_KS_ThisList">此快速键清单</sys:String>
     <sys:String x:Key="Str_KS_About">关于对话框</sys:String>
+    <sys:String x:Key="Str_KS_Settings">设置</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">æ-‡æ¡£ä¿¡æ¯</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">完整指南和在线教程</sys:String>
     <sys:String x:Key="Str_KS_Tools">工具</sys:String>
     <sys:String x:Key="Str_KS_Paste">粘贴图片／文本</sys:String>
@@ -403,7 +405,7 @@
     <sys:String x:Key="Str_Ocr_Language">语言</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">请先打开一个 PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - 即将推出</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">对页面执行 OCR（复制文本）</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">对页面执行 OCR（复制文本） (Ctrl+Shift+O)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
     <sys:String x:Key="Str_Ctx_OcrPage">对页面执行 OCR（复制文本）</sys:String>
 
@@ -508,4 +510,69 @@
     <sys:String x:Key="Str_Dlg_NoValidPages">该范围内没有有效页面。</sys:String>
     <sys:String x:Key="Str_Dlg_SignedSavedTo">已签署的副本保存至：</sys:String>
     <sys:String x:Key="Str_Dlg_DrawSignatureFirst">请先绘制签名。</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">为当前页面添加书签</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">添加书签</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">添加子书签</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">重命名</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">删除</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">第 {0} 页</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">删除此书签及其 {0} 个子书签？</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">上移</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">下移</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">指向当前页面</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">删除所有书签</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">删除 {0} 个书签？</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">从此文档中删除所有书签？</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">重做</sys:String>
+    <sys:String x:Key="Str_St_Redone">已重做</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">没有可重做的操作</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">第一页 / 最后一页</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">后退 / 前进（跳转历史）</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">实际大小 / 适合宽度 / 适合页面</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">在所选位置打开右键菜单</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">列表</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">键盘</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">按住 Ctrl、Shift 或 Alt 预览该层 - 悬停在亮起的按键上查看操作</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">实际大小</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">上一个标签页</sys:String>
+
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">上一页</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">下一页</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">第一页</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">最后一页</sys:String>
+    <sys:String x:Key="Str_Kb_Back">后退</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">前进</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">下一个结果</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">上一个结果</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">确认</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">取消</sys:String>
+
+    <!-- Document Info dialog + link strings -->
+    <sys:String x:Key="Str_TT_DocInfo">文档信息 (F4)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">文档信息</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">标题</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">作者</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">主题</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">关键词</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">创建者</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">保存</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">取消</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">移除链接失败:</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">已拦截链接(不支持的类型):</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">无法打开链接</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">在浏览器中打开此链接?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">打开链接?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">不再询问</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">打开链接</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">复制链接地址</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">复制电子邮件地址</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">从 PDF 中移除链接</sys:String>
+    <sys:String x:Key="Str_LinksSection">链接</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">打开链接前确认</sys:String>
 </ResourceDictionary>

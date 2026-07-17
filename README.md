@@ -1,14 +1,8 @@
 # KillerPDF
 
-Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. Single Windows EXE, ~14.7 MB (ZIPs to 10.2MB), no runtime install required.
+Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. Single Windows EXE, ~15.6 MB (ZIPs to 12.6MB), no runtime install required.
 
-Landing page is hosted at [KillerPDF.net](https://killerpdf.net)
-
-## Why this exists
-
-I hate Adobe. Acrobat is bloated, wants a subscription to do basic things, and phones home constantly. Most of the "free" alternatives are either ad-riddled, cloud-based, or rebrands of the same PDF engine sold under three different names.
-
-KillerPDF is what I wanted: local-only, portable, no account, no telemetry. The PDF equivalent of Notepad.
+Landing page is hosted at [KillerPDF.net](https://KillerPDF.net)
 
 ## Features
 
@@ -19,6 +13,8 @@ KillerPDF is what I wanted: local-only, portable, no account, no telemetry. The 
 - Tabbed documents: open several PDFs at once, each restoring its page, zoom, and view mode
 - Full-text search across the whole document with highlighting; drag-select to copy text
 - Outline/bookmark navigation and clickable links, including internal cross-references and TOC back-links
+- Bookmark editing in the sidebar: add, inline-rename, nest, reorder, retarget, and delete - with multi-select and full undo
+- Jump history: Alt+Left / Alt+Right and the mouse back / forward buttons retrace bookmark, link, and page jumps, browser-style; Home / End jump to the first / last page
 - Zoom presets with scroll-wheel sync; Fit to Width and Fit Page re-apply on resize
 - Full-screen mode (F11) hides all chrome so only the document fills the screen
 - Recent files on the start screen and Open menu, each with its real Windows file-type icon
@@ -30,6 +26,7 @@ KillerPDF is what I wanted: local-only, portable, no account, no telemetry. The 
 - Freehand draw, a straight-line tool, and highlight - each with its own color, opacity, and width
 - Full RGB color picker: saturation/value square, hue strip, hex input, screen eyedropper, and editable palette
 - Select tool to move, resize, multi-select, and restyle any annotation in place
+- Undo and redo (Ctrl+Z / Ctrl+Y) across annotations, text edits, stamps, and document-level operations, tracked per tab
 - Insert images as resizable annotations, burned into the PDF on save
 - Page-number and watermark stamping across a page range, applied as one undo
 
@@ -60,18 +57,38 @@ KillerPDF is what I wanted: local-only, portable, no account, no telemetry. The 
 - Save Flattened PDF: rasterize every page into a fully uneditable document
 - Document Info: view and edit title, author, subject, keywords, and creator metadata
 
+### Command line
+
+Every core operation also runs headless from a terminal - no window, meaningful exit codes (0 success, 1 failed, 2 bad usage), and it works even while the app is open:
+
+```powershell
+KillerPDF.exe --merge out.pdf a.pdf b.pdf scan.jpg
+KillerPDF.exe --extract-pages in.pdf 1-3,5 out.pdf
+KillerPDF.exe --split in.pdf pages\
+KillerPDF.exe --decrypt locked.pdf open.pdf [--password p]
+KillerPDF.exe --to-image in.pdf imgs\ --dpi 300 --format jpg
+KillerPDF.exe --flatten in.pdf flat.pdf
+KillerPDF.exe --print in.pdf --printer "HP LaserJet" --pages 1-4 --copies 2
+KillerPDF.exe --ocr scan.pdf searchable.pdf --lang eng
+KillerPDF.exe --batch-resave inDir\ outDir\ --log report.csv
+KillerPDF.exe --help
+```
+
+Each command reuses the exact pipeline its GUI equivalent runs - merges rewrite named-destination links, saves scrub the same structural hazards, OCR languages download on first use. Full reference on the [help page](https://killerpdf.net/help.html).
+
 ### Customize
 
 - Six themes - Dark, Light, Black, Blood, Greed, Cyanotic - with per-theme accent colors, switchable live
 - Toolbar style (icon size, text placement) and a resizable sidebar that docks left or right
 - Localized UI in 9 languages (English, Spanish, Traditional and Simplified Chinese, German, French, Turkish, Bengali, Japanese); contribute via `Strings/TRANSLATING.md`
-- Full keyboard shortcut overlay (Ctrl+?) with a link to the online guide
+- Full keyboard shortcut overlay (F1 or Ctrl+?) with a list view and a visual keyboard view, color-coded by category, plus a link to the online guide
 
 ### App & files
 
-- Single portable Windows EXE, ~14.7 MB, no runtime install
+- Single portable Windows EXE, ~15.6 MB, no runtime install
 - Self-installs per-user to %LOCALAPPDATA% (no UAC), registers as a PDF handler with a branded file icon, and uninstalls cleanly via Add/Remove Programs
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
+- Standards-safe saves: every release is validated with veraPDF across a 2,900-file conformance corpus with a zero-regressions bar - see [validation/RESULTS.md](validation/RESULTS.md)
 - Local-only: no account, no telemetry, no phone-home
 
 ## Screenshots
@@ -105,7 +122,7 @@ choco install killerpdf
 ```
 
 - Prebuilt binary: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe>
-- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.6.3/KillerPDF-1.6.3-src.zip>
+- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.6.4/KillerPDF-1.6.4-src.zip>
 
 ## Build from source
 
@@ -118,6 +135,8 @@ dotnet publish -c Release
 Output lands in `bin/Release/net48/publish/`. The publish step produces a single Costura-bundled `KillerPDF.exe` plus a versioned `KillerPDF-<version>-src.zip` for GPL3 source distribution.
 
 Requires the .NET 8 SDK or later to build (even though the output targets .NET Framework 4.8).
+
+The PDF write engine (PdfSharpCore, MIT) is vendored under `third_party/PdfSharpCore/` and builds as part of the solution; it carries six standards-conformance patches, each marked `KillerPDF patch` in the source. Origin commit and details are recorded in `third_party/PdfSharpCore/VENDORED.txt`.
 
 ## Changelog
 

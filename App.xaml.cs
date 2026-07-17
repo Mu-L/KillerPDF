@@ -72,6 +72,15 @@ namespace KillerPDF
                 return;
             }
 
+            // Headless CLI commands (see Cli.cs; --batch-resave in BatchMode.cs). Checked
+            // before the single-instance mutex so CLI runs work while a GUI instance is
+            // open, never forward to it, and never show a window.
+            if (KillerPDF.MainWindow.TryRunCli(e.Args, out int cliExit))
+            {
+                Shutdown(cliExit);
+                return;
+            }
+
             // Single instance: a second launch (e.g. double-clicking another PDF in Explorer)
             // forwards its file path to the already-running instance, which opens it as a new
             // tab, then this process exits. Without this, every launch spawned its own window.

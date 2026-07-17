@@ -40,12 +40,13 @@ namespace KillerPDF
                 new("Ctrl+Q",       "Str_KS_CloseAll"),
                 new("Ctrl+N",       "Str_KS_NewBlank"),
                 new("Ctrl+P",       "Str_KS_Print"),
+                new("Ctrl+D / F4",  "Str_KS_DocInfo"),
             ]},
             new KsSection { TitleKey = "Str_KS_Tools", Rows =
             [
                 new("1 (or V)", "Str_Lbl_Select"),
                 new("2 (or T)", "Str_Lbl_Text"),
-                new("3 (or L)", "Str_Lbl_Line"),
+                new("3 (or L or U)", "Str_Lbl_Line"),
                 new("4 (or H)", "Str_Lbl_Highlight"),
                 new("5 (or D)", "Str_Lbl_Draw"),
                 new("6 (or I)", "Str_Lbl_Image"),
@@ -57,15 +58,18 @@ namespace KillerPDF
             new KsSection { TitleKey = "Str_KS_Editing", Rows =
             [
                 new("Ctrl+Z",         "Str_KS_Undo"),
+                new("Ctrl+Y",         "Str_Ctx_Redo"),
                 new("Ctrl+C",         "Str_KS_CopyText"),
                 new("Ctrl+V",         "Str_KS_Paste"),
                 new("Delete",         "Str_KS_DeleteAnnot"),
                 new("Enter / Escape", "Str_KS_ConfirmCancel"),
+                new("Menu / Shift+F10","Str_KS_ContextMenu"),
             ]},
             new KsSection { TitleKey = "Str_KS_Help", Rows =
             [
                 new("F1 / Ctrl+?", "Str_KS_ThisList"),
-                new("F2",          "Str_KS_About"),
+                new("F9 / Ctrl+,", "Str_KS_Settings"),
+                new("F12",         "Str_KS_About"),
             ]},
         ];
 
@@ -74,11 +78,15 @@ namespace KillerPDF
         [
             new KsSection { TitleKey = "Str_KS_Navigation", Rows =
             [
-                new("← / → or PgUp / PgDn", "Str_KS_PrevNext"),
+                // Tightened to fit the 120px key column with a visible gap before the label.
+                new("← / → or PgUp/PgDn", "Str_KS_PrevNext"),
+                new("Home / End",     "Str_KS_FirstLast"),
+                new("Alt+← / Alt+→",  "Str_KS_BackForward"),
                 new("↑ / ↓",          "Str_KS_ScrollView"),
                 new("Ctrl+Scroll",    "Str_KS_ZoomCursor"),
                 new("Ctrl+= / Ctrl+-","Str_KS_ZoomInOut"),
                 new("Ctrl+0",         "Str_KS_ResetZoom"),
+                new("Ctrl+1/2/3",     "Str_KS_ZoomPresets"),
                 new("Middle drag",    "Str_KS_PanView"),
                 new("Space + drag",   "Str_KS_PanView"),
                 new("Ctrl+B",         "Str_KS_ToggleSidebar"),
@@ -100,6 +108,7 @@ namespace KillerPDF
             new KsSection { TitleKey = "Str_KS_SearchSelect", Rows =
             [
                 new("Ctrl+F",              "Str_KS_Find"),
+                new("F3 / Shift+F3",       "Str_KS_NextPrevResult"),
                 new("Enter / Shift+Enter", "Str_KS_NextPrevResult"),
                 new("Ctrl+A",              "Str_KS_SelectAll"),
                 new("Shift+Click",         "Str_KS_MultiSelect"),

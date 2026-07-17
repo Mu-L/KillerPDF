@@ -31,6 +31,9 @@ namespace KillerPDF
         {
             base.OnPreviewKeyDown(e);
 
+            // Keyboard view of the shortcuts overlay: holding Ctrl / Shift / Alt previews that layer.
+            KbSyncLayerFromModifiers();
+
             // Don't intercept keys when typing in an editable TextBox (typewriter tool or form field).
             // The zoom ComboBox is editable-but-read-only; after using it, focus parks on its inner
             // TextBox and would otherwise swallow every shortcut (e.g. Ctrl+F) until the user clicked away.
@@ -61,6 +64,19 @@ namespace KillerPDF
             else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 ToggleSearchBar();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F3 && (Keyboard.Modifiers == ModifierKeys.None || Keyboard.Modifiers == ModifierKeys.Shift))
+            {
+                // F3 / Shift+F3 - next / previous search match, the Find Next convention (Acrobat and
+                // Sumatra do the same). With the search bar closed, F3 opens it like Ctrl+F.
+                if (_searchBar is null || _searchBar.Visibility != Visibility.Visible)
+                    ToggleSearchBar();
+                else if (_allSearchRects.Count > 0)
+                {
+                    if (Keyboard.Modifiers == ModifierKeys.Shift) SearchPrevResult();
+                    else SearchNextResult();
+                }
                 e.Handled = true;
             }
             else if (e.Key == Key.Enter && _currentTool == EditTool.Crop && _cropConfirmBar is not null)
@@ -105,25 +121,37 @@ namespace KillerPDF
             else if (e.Key == Key.OemQuestion && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
-                else FadeOverlayIn(ShortcutOverlay);
+                else ShowShortcutsOverlayExclusive();
                 e.Handled = true;
             }
             else if (e.Key == Key.F1)
             {
                 // Toggle the shortcuts overlay (conventional Help key, alongside Ctrl+?).
                 if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
-                else FadeOverlayIn(ShortcutOverlay);
-                e.Handled = true;
-            }
-            else if (e.Key == Key.F2)
-            {
-                // Toggle the About dialog.
-                if (AboutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(AboutOverlay);
-                else ShowAboutOverlay();
+                else ShowShortcutsOverlayExclusive();
                 e.Handled = true;
             }
             else if (e.Key == Key.F12)
             {
+                // Toggle the About dialog. (Moved off F2, which now belongs to rename-bookmark in the
+                // outline panel, #133 - Windows convention. Document Info moved to F4 / Ctrl+D below.)
+                if (AboutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(AboutOverlay);
+                else ShowAboutOverlay();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F4 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // Document Info - the advertised single-key shortcut (F1 help, F4 info, F5-F8 views,
+                // F11 full screen, F12 about). Looked it up on the shortcuts overlay and pressed it?
+                // The cheat sheet gets out of the way first.
+                if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
+                OpenDocumentInfo();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.D && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Compatibility alias: Ctrl+D is Document Properties in Acrobat, Foxit, and SumatraPDF.
+                if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
                 OpenDocumentInfo();
                 e.Handled = true;
             }
@@ -218,6 +246,81 @@ namespace KillerPDF
                 SidebarToggle_Click(this, e);   // collapse / restore the sidebar
                 e.Handled = true;
             }
+            else if (e.Key == Key.F9 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // Settings - single-key primary (house style: single keys over combos).
+                if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
+                if (AboutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(AboutOverlay);
+                SettingsBtn_Click(this, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.OemComma && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Compatibility alias: Ctrl+, is the settings shortcut in VS Code, Windows Terminal,
+                // Discord, and macOS. SettingsBtn_Click is already a toggle.
+                if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
+                if (AboutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(AboutOverlay);
+                SettingsBtn_Click(this, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Home && Keyboard.Modifiers == ModifierKeys.None && _doc is not null)
+            {
+                // First / last page (the Acrobat / Sumatra convention).
+                RecordNavJump();
+                PageList.SelectedIndex = 0;
+                e.Handled = true;
+            }
+            else if (e.Key == Key.End && Keyboard.Modifiers == ModifierKeys.None && _doc is not null)
+            {
+                RecordNavJump();
+                PageList.SelectedIndex = _doc.PageCount - 1;
+                e.Handled = true;
+            }
+            else if (e.Key == Key.D1 && Keyboard.Modifiers == ModifierKeys.Control && _doc is not null)
+            {
+                _fitMode = FitMode.None;
+                SetZoom(1.0);        // actual size (Acrobat Ctrl+1); Ctrl+0 stays the 100% reset
+                e.Handled = true;
+            }
+            else if (e.Key == Key.D2 && Keyboard.Modifiers == ModifierKeys.Control && _doc is not null)
+            {
+                FitToWidth();        // (Acrobat Ctrl+2)
+                e.Handled = true;
+            }
+            else if (e.Key == Key.D3 && Keyboard.Modifiers == ModifierKeys.Control && _doc is not null)
+            {
+                FitToPage();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (!e.IsRepeat) Redo_Click(this, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Z && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                if (!e.IsRepeat) Redo_Click(this, e);   // Ctrl+Shift+Z, the editor-style redo
+                e.Handled = true;
+            }
+            else if (e.Key == Key.System && e.SystemKey == Key.Left && Keyboard.Modifiers == ModifierKeys.Alt)
+            {
+                NavHistoryGo(back: true);    // retrace bookmark / link / jump-box jumps
+                e.Handled = true;
+            }
+            else if (e.Key == Key.System && e.SystemKey == Key.Right && Keyboard.Modifiers == ModifierKeys.Alt)
+            {
+                NavHistoryGo(back: false);
+                e.Handled = true;
+            }
+            else if ((e.Key == Key.Apps
+                      || (e.Key == Key.System && e.SystemKey == Key.F10 && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)))
+                     && _doc is not null)
+            {
+                // Windows accessibility convention: the Menu key / Shift+F10 opens the context menu
+                // at the current selection without the mouse.
+                OpenContextMenuAtSelection();
+                e.Handled = true;
+            }
             // Bare-key tool switches. Only when a document is open, no modifier is held, and no
             // overlay is up (and not while typing - guarded at the top of this handler).
             else if (Keyboard.Modifiers == ModifierKeys.None && _doc is not null
@@ -281,6 +384,82 @@ namespace KillerPDF
             }
         }
 
+        // Full-window overlays are mutually exclusive: opening the shortcuts overlay dismisses
+        // About (and the Settings flyout) instead of stacking - ShowAboutOverlay does the converse.
+        private void ShowShortcutsOverlayExclusive()
+        {
+            if (AboutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(AboutOverlay);
+            if (SettingsOverlay.Visibility == Visibility.Visible) SlideSettingsClosed();
+            ApplyPersistedShortcutView();
+            FadeOverlayIn(ShortcutOverlay);
+        }
+
+        // ── Jump history (Alt+Left / Alt+Right / mouse back-forward buttons) ─────────────────────
+        // Page-granular: recorded at the long-jump sites (bookmark click, internal link, the page
+        // jump box, Home/End) so a reader thrown 30 pages by a bookmark can retrace the hop.
+
+        /// <summary>Records the CURRENT page onto the back stack. Call BEFORE performing a jump.</summary>
+        private void RecordNavJump()
+        {
+            if (_doc is null) return;
+            int cur = Math.Max(0, PageList.SelectedIndex);
+            if (_navBack.Count > 0 && _navBack.Peek() == cur) { _navForward.Clear(); return; }
+            _navBack.Push(cur);
+            _navForward.Clear();   // a fresh jump invalidates the forward chain, like a browser
+        }
+
+        private void NavHistoryGo(bool back)
+        {
+            if (_doc is null) return;
+            var from = back ? _navBack : _navForward;
+            var to   = back ? _navForward : _navBack;
+            if (from.Count == 0) return;
+            int cur = Math.Max(0, PageList.SelectedIndex);
+            int target = from.Pop();
+            to.Push(cur);
+            if (target >= 0 && target < _doc.PageCount)
+                PageList.SelectedIndex = target;
+        }
+
+        // Mouse back / forward buttons (XButton1 / XButton2) retrace the same history, like a
+        // browser. Registered on the window in the MainWindow constructor.
+        private void NavHistory_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.XButton1)      { NavHistoryGo(back: true);  e.Handled = true; }
+            else if (e.ChangedButton == MouseButton.XButton2) { NavHistoryGo(back: false); e.Handled = true; }
+        }
+
+        /// <summary>Keyboard access to the right-click menu (Menu key / Shift+F10): the selected
+        /// annotation's menu at its bounds, or the page-level menu centered on the current page's
+        /// canvas. Placement is set to Center just for this open and restored on close, so the
+        /// mouse path keeps its open-at-cursor behavior.</summary>
+        private void OpenContextMenuAtSelection()
+        {
+            if (_doc is null || _annotationCanvas.ContextMenu is not ContextMenu cm) return;
+            int pg = Math.Max(0, PageList.SelectedIndex);
+            Point pt;
+            if (_selectedAnnotation is not null)
+            {
+                pg = _selectedAnnotation.PageIndex;
+                var b = AnnotBounds(_selectedAnnotation);
+                pt = new Point(b.X + b.Width / 2, b.Y + b.Height / 2);
+            }
+            else
+                pt = _renderDims.TryGetValue(pg, out var rd)
+                    ? new Point(rd.w / 2.0, rd.h / 2.0)
+                    : new Point(0, 0);
+            var canvas = VisibleCanvasForPage(pg) ?? CanvasForPage(pg);
+            if (canvas is null) return;
+            _activeCanvas = canvas;
+            PopulateContextMenu(pt, pg);
+            cm.PlacementTarget = canvas;
+            var prevPlacement = cm.Placement;
+            cm.Placement = System.Windows.Controls.Primitives.PlacementMode.Center;
+            void Restore(object? s, RoutedEventArgs a) { cm.Placement = prevPlacement; cm.Closed -= Restore; }
+            cm.Closed += Restore;
+            cm.IsOpen = true;
+        }
+
         // One Up/Down arrow press scrolls this many DIP; key auto-repeat makes holding the key a
         // smooth continuous scroll. Kept smaller than a wheel notch (144 DIP, see WheelScrollFactor)
         // for fine reading control.
@@ -317,6 +496,7 @@ namespace KillerPDF
         protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
             base.OnPreviewKeyUp(e);
+            KbSyncLayerFromModifiers();   // releasing a modifier drops the keyboard view back a layer
             if (e.Key == Key.Space && _spaceHeld)
             {
                 _spaceHeld = false;

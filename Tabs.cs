@@ -53,6 +53,7 @@ namespace KillerPDF
             public Dictionary<string, string> FormRadioValues = [];
             public Dictionary<int, double> FormFontSizes = [];
             public Stack<UndoEntry> UndoStack = new();
+            public Stack<UndoEntry> RedoStack = new();
             public Dictionary<int, List<(double left, double bottom, double right, double top)>> AllSearchRects = [];
             public List<int> SearchResultPages = [];
 
@@ -95,6 +96,7 @@ namespace KillerPDF
             s.FormRadioValues  = _formRadioValues;
             s.FormFontSizes    = _formFontSizes;
             s.UndoStack        = _undoStack;
+            s.RedoStack        = _redoStack;
             s.AllSearchRects   = _allSearchRects;
             s.SearchResultPages = _searchResultPages;
             // Persist this document's fit/zoom/view/page so reopening it (even after a restart) restores it.
@@ -179,6 +181,9 @@ namespace KillerPDF
             _formRadioValues  = s.FormRadioValues;
             _formFontSizes    = s.FormFontSizes;
             _undoStack        = s.UndoStack;
+            _redoStack        = s.RedoStack;
+            _navBack.Clear();      // jump history is per-view-session: a tab switch starts fresh
+            _navForward.Clear();
             _allSearchRects   = s.AllSearchRects;
             _searchResultPages = s.SearchResultPages;
             TouchRenderLru(s);   // this tab is now active: keep its render cache, evict tabs beyond the window
@@ -992,7 +997,7 @@ namespace KillerPDF
             bd.MouseRightButtonUp += (_, ev) =>
             {
                 var menu = MakeThemedMenu();
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CloseTab"), (_, _) => CloseTab(s)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CloseTab"), (_, _) => CloseTab(s), "Ctrl+W"));
                 var others = MakeMenuItem(Loc("Str_Ctx_CloseOthers"), (_, _) => CloseOtherTabs(s));
                 others.IsEnabled = _sessions.Count(z => z.Doc != null || z.DeferredPath != null) > 1;
                 menu.Items.Add(others);

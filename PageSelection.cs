@@ -60,6 +60,7 @@ namespace KillerPDF
             if (int.TryParse(_pageJumpBox.Text, out int pg))
             {
                 int idx = Math.Max(0, Math.Min(_doc.PageCount - 1, pg - 1));
+                RecordNavJump();   // Alt+Left retraces the typed jump
                 PageList.SelectedIndex = idx;
             }
             else
@@ -95,6 +96,9 @@ namespace KillerPDF
                     // re-anchor the grid. It still needs an initial render (open / first display)
                     // when no tiles exist yet; later selections only update the highlight.
                     _pageJumpBox.Text = (PageList.SelectedIndex + 1).ToString();
+                    // Keep the statusbar counter honest even when the clicked tile is already in
+                    // view (BringIntoView then scrolls nothing, so the scroll-sync never fires).
+                    SetStatus(string.Format(Loc("Str_PageOf"), PageList.SelectedIndex + 1, _doc!.PageCount) + $" - {DisplayZoomPct():F0}%");
                     if (_pageContentPanel.Children.Count <= 1)
                     {
                         PagePreviewPanel.ScrollToTop();
@@ -140,7 +144,7 @@ namespace KillerPDF
         private void ShortcutHelp_Click(object sender, RoutedEventArgs e)
         {
             if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
-            else FadeOverlayIn(ShortcutOverlay);
+            else ShowShortcutsOverlayExclusive();
         }
 
         private void ShortcutOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

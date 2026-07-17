@@ -367,69 +367,9 @@
         <!-- The themed ScrollBar style + ThumbFloor converter now live at app scope (App.xaml) so every
              dialog window inherits the same scrollbar instead of the gray system default. -->
 
-        <!-- Themed slider (size/opacity bars): groove + thumb that match the scrollbar palette.
-             OverridesDefaultStyle so none of WPF's default blue track/selection can show through. -->
-        <Style x:Key="DarkSliderRepeat" TargetType="RepeatButton">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RepeatButton">
-                        <Border Background="Transparent"/>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="DarkSliderThumb" TargetType="Thumb">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Width" Value="12"/>
-            <Setter Property="Height" Value="14"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Thumb">
-                        <!-- Solid at rest (the scrollbar's active color) so it's always visible,
-                             brightening to the accent while hovered/dragged. -->
-                        <Border x:Name="tb" Background="{DynamicResource ScrollThumbHover}" CornerRadius="3"/>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="tb" Property="Background" Value="{DynamicResource Accent}"/>
-                            </Trigger>
-                            <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="tb" Property="Background" Value="{DynamicResource Accent}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="DarkSlider" TargetType="Slider">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Height" Value="20"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid VerticalAlignment="Center" Background="Transparent">
-                            <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
-                                    Background="{DynamicResource SliderTrack}"/>
-                            <Track x:Name="PART_Track">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Style="{DynamicResource DarkSliderRepeat}" Command="{x:Static Slider.DecreaseLarge}"/>
-                                </Track.DecreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb Style="{DynamicResource DarkSliderThumb}"/>
-                                </Track.Thumb>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Style="{DynamicResource DarkSliderRepeat}" Command="{x:Static Slider.IncreaseLarge}"/>
-                                </Track.IncreaseRepeatButton>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <!-- Themed slider styles (DarkSlider / DarkSliderThumb / DarkSliderRepeat) live in App.xaml:
+             the Transform and Stamp dialogs resolve them by DynamicResource from their own windows,
+             so they must be app-scoped (window-scoped copies here left those dialogs on stock chrome). -->
 
         <!-- Dark context menu -->
         <!-- Themed menu separator: a thin dim line instead of the bright default. -->
@@ -1445,6 +1385,9 @@
                                       BorderThickness="0"
                                       Style="{StaticResource OutlineTreeStyle}"
                                       ItemContainerStyle="{StaticResource OutlineItemStyle}"
+                                      PreviewMouseRightButtonDown="OutlineTree_PreviewMouseRightButtonDown"
+                                      PreviewMouseLeftButtonDown="OutlineTree_PreviewMouseLeftButtonDown"
+                                      PreviewKeyDown="OutlineTree_PreviewKeyDown"
                                       Padding="4,2"/>
                         </ScrollViewer>
                     </DockPanel>
@@ -2440,7 +2383,7 @@
               Background="#88000000"
               MouseLeftButtonDown="ShortcutOverlay_MouseLeftButtonDown"
               MouseRightButtonDown="ShortcutOverlay_MouseLeftButtonDown">
-            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="480" MaxWidth="640">
+            <Grid x:Name="ShortcutCardGrid" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="480" MaxWidth="640">
                 <!-- Shadow cast by a separate element so the card content stays crisp. -->
                 <Border Background="{DynamicResource BgModal}" CornerRadius="6" IsHitTestVisible="False">
                     <Border.Effect>
@@ -2466,14 +2409,22 @@
                                 <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.55"/>
                             </TextBlock.Effect>
                         </TextBlock>
+                        <!-- LIST / KEYBOARD view toggle (#keyboard-map) -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Button x:Name="KsViewListBtn" Style="{StaticResource SidebarTabBtn}"
+                                    Content="{DynamicResource Str_KS_ViewList}" Click="KsViewList_Click"
+                                    Margin="0,0,12,0"/>
+                            <Button x:Name="KsViewKeyboardBtn" Style="{StaticResource SidebarTabBtn}"
+                                    Content="{DynamicResource Str_KS_ViewKeyboard}" Click="KsViewKeyboard_Click"/>
+                        </StackPanel>
                         <Button Click="ShortcutOverlayClose_Click"
                                 HorizontalAlignment="Right" VerticalAlignment="Center"
                                 Width="24" Height="24" Content="&#xE711;"
                                 Style="{StaticResource DangerCloseButton}"/>
                     </Grid>
 
-                    <!-- Column layout -->
-                    <Grid>
+                    <!-- Column layout (LIST view) -->
+                    <Grid x:Name="ShortcutListHost">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="16"/>
@@ -2486,6 +2437,8 @@
                         <!-- Right column - rows generated from KsRightColumn in ShortcutsOverlay.cs -->
                         <StackPanel x:Name="ShortcutRightColumn" Grid.Column="2"/>
                     </Grid>
+                    <!-- KEYBOARD view - generated by KeyboardMapOverlay.cs, hidden until toggled -->
+                    <StackPanel x:Name="ShortcutKeyboardHost" Visibility="Collapsed"/>
                     <TextBlock HorizontalAlignment="Right" Margin="0,14,0,0" FontFamily="Consolas" FontSize="11">
                         <Hyperlink Click="OnlineHelp_Click" Foreground="{DynamicResource Accent}"
                                    ToolTip="https://killerpdf.net/help.html"><Run Text="{DynamicResource Str_KS_OnlineHelp}"/></Hyperlink>

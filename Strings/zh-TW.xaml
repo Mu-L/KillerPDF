@@ -3,8 +3,8 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ================================================================
-         KillerPDF  —  Traditional Chinese (zh-TW) strings
-         Stub file — translations to be provided by leox243 (PR #61).
+         KillerPDF  -  Traditional Chinese (zh-TW) strings
+         Stub file - translations to be provided by leox243 (PR #61).
          All keys fall back to English until filled in.
          ================================================================ -->
 
@@ -37,16 +37,16 @@
     <sys:String x:Key="Str_TT_CropTool">裁切工具 - 拖曳設定裁切區域，然後套用至頁面</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">清除所有注釋</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">復原上一步 (Ctrl+Z)</sys:String>
-    <sys:String x:Key="Str_TT_MultiPageGrid">多頁格檢視</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">多頁格檢視 (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">縮小 (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">縮放比例 (Ctrl+滾輪 · Ctrl+=/- · Ctrl+0=重設)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">放大 (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">前往頁面（按 Enter 導航）</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">收合側邊欄</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">展開側邊欄</sys:String>
-    <sys:String x:Key="Str_TT_KeyboardShortcuts">鍵盤快速鍵 (Ctrl+?)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">設定</sys:String>
-    <sys:String x:Key="Str_TT_About">關於 KillerPDF</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">收合側邊欄 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">展開側邊欄 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">鍵盤快速鍵 (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">設定 (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">關於 KillerPDF (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
     <sys:String x:Key="Str_About_Version">版本</sys:String>
@@ -102,6 +102,8 @@
     <sys:String x:Key="Str_KS_Help">說明</sys:String>
     <sys:String x:Key="Str_KS_ThisList">此快速鍵清單</sys:String>
     <sys:String x:Key="Str_KS_About">關於對話方塊</sys:String>
+    <sys:String x:Key="Str_KS_Settings">設定</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">æ-‡ä»¶è³‡è¨Š</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">完整指南與線上教學</sys:String>
     <sys:String x:Key="Str_KS_Tools">工具</sys:String>
     <sys:String x:Key="Str_KS_Paste">貼上圖片／文字</sys:String>
@@ -112,7 +114,7 @@
     <sys:String x:Key="Str_Portable">可攜版</sys:String>
     <sys:String x:Key="Str_InstallBtn">安裝 KillerPDF...</sys:String>
 
-    <!-- ── Status messages (format strings — use string.Format) ─────── -->
+    <!-- ── Status messages (format strings - use string.Format) ─────── -->
     <sys:String x:Key="Str_Opened">已開啟 {0} - {1} 頁</sys:String>
     <sys:String x:Key="Str_OpenedReadOnly">已開啟 {0}（唯讀 - 擁有者限制）- {1} 頁</sys:String>
     <sys:String x:Key="Str_OpenedReadOnlyXRef">已開啟 {0}（唯讀 - 非標準 XRef 表）- {1} 頁</sys:String>
@@ -120,7 +122,7 @@
     <sys:String x:Key="Str_OpenedRasterRepair">已開啟 {0}（點陣化修復 - 請儲存以保留變更）- {1} 頁</sys:String>
     <sys:String x:Key="Str_PageOf">第 {0} 頁，共 {1} 頁</sys:String>
     <sys:String x:Key="Str_PageOfLinks">第 {0} 頁，共 {1} 頁（{2} 個連結）</sys:String>
-    <sys:String x:Key="Str_PageFormFields">第 {0} 頁，共 {1} 頁 — 此頁面包含可填寫的表單欄位</sys:String>
+    <sys:String x:Key="Str_PageFormFields">第 {0} 頁，共 {1} 頁 - 此頁面包含可填寫的表單欄位</sys:String>
     <sys:String x:Key="Str_PageRenderError">第 {0} 頁 - 無法呈現</sys:String>
     <sys:String x:Key="Str_RenderError">呈現錯誤：{0}</sys:String>
     <sys:String x:Key="Str_Rotated">已旋轉 {0} 頁</sys:String>
@@ -405,7 +407,7 @@
     <sys:String x:Key="Str_Ocr_Language">語言</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">請先開啟一個 PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - 即將推出</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">OCR 頁面（複製文字）</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">OCR 頁面（複製文字） (Ctrl+Shift+O)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
     <sys:String x:Key="Str_Ctx_OcrPage">OCR 頁面（複製文字）</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">變形</sys:String>
@@ -506,4 +508,69 @@
     <sys:String x:Key="Str_Dlg_NoValidPages">該範圍中沒有有效的頁面。</sys:String>
     <sys:String x:Key="Str_Dlg_SignedSavedTo">已簽署的副本儲存至：</sys:String>
     <sys:String x:Key="Str_Dlg_DrawSignatureFirst">請先繪製簽名。</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">為目前頁面新增書籤</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">新增書籤</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">新增子書籤</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">重新命名</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">刪除</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">第 {0} 頁</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">刪除此書籤及其 {0} 個子書籤？</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">上移</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">下移</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">指向目前頁面</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">刪除所有書籤</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">刪除 {0} 個書籤？</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">從此文件中刪除所有書籤？</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">重做</sys:String>
+    <sys:String x:Key="Str_St_Redone">已重做</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">沒有可重做的操作</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">第一頁 / 最後一頁</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">後退 / 前進（跳轉歷史）</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">實際大小 / 符合寬度 / 符合頁面</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">在所選位置開啟右鍵選單</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">清單</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">鍵盤</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">按住 Ctrl、Shift 或 Alt 預覽該層 - 懸停在亮起的按鍵上查看操作</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">實際大小</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">上一個標籤頁</sys:String>
+
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">上一頁</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">下一頁</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">第一頁</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">最後一頁</sys:String>
+    <sys:String x:Key="Str_Kb_Back">後退</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">前進</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">下一個結果</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">上一個結果</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">確認</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">取消</sys:String>
+
+    <!-- Document Info dialog + link strings -->
+    <sys:String x:Key="Str_TT_DocInfo">文件資訊 (F4)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">文件資訊</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">標題</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">作者</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">主旨</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">關鍵字</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">建立者</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">儲存</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">取消</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">移除連結失敗:</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">已封鎖連結(不支援的類型):</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">無法開啟連結</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">在瀏覽器中開啟此連結?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">開啟連結?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">不再詢問</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">開啟連結</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">複製連結網址</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">複製電子郵件地址</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">從 PDF 中移除連結</sys:String>
+    <sys:String x:Key="Str_LinksSection">連結</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">開啟連結前確認</sys:String>
 </ResourceDictionary>

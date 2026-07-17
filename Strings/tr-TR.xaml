@@ -3,7 +3,7 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ================================================================
-         KillerPDF  —  Türkçe (tr-TR) metinleri
+         KillerPDF  -  Türkçe (tr-TR) metinleri
          ================================================================ -->
 
     <!-- ── Araç çubuğu ipuçları ─────────────────────────────────────── -->
@@ -35,16 +35,16 @@
     <sys:String x:Key="Str_TT_CropTool">Kırpma Aracı - kırpma alanını belirlemek için sürükle, ardından sayfa(lar)a uygula</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Tüm Açıklamaları Temizle</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Son İşlemi Geri Al (Ctrl+Z)</sys:String>
-    <sys:String x:Key="Str_TT_MultiPageGrid">Çok sayfalı ızgara görünümü</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">Çok sayfalı ızgara görünümü (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Uzaklaştır (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">Yakınlaştırma düzeyi (Ctrl+kaydırma · Ctrl+=/- · Ctrl+0=sıfırla)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">Yakınlaştır (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Sayfaya git (gitmek için Enter)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">Kenar çubuğunu daralt</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">Kenar çubuğunu genişlet</sys:String>
-    <sys:String x:Key="Str_TT_KeyboardShortcuts">Klavye kısayolları (Ctrl+?)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Ayarlar</sys:String>
-    <sys:String x:Key="Str_TT_About">KillerPDF Hakkında</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Kenar çubuğunu daralt (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Kenar çubuğunu genişlet (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">Klavye kısayolları (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">Ayarlar (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">KillerPDF Hakkında (F12)</sys:String>
 
     <!-- ── Hakkında katmanı ──────────────────────────────────────────── -->
     <sys:String x:Key="Str_About_Version">SÜRÜM</sys:String>
@@ -100,6 +100,8 @@
     <sys:String x:Key="Str_KS_Help">YARDIM</sys:String>
     <sys:String x:Key="Str_KS_ThisList">Bu kısayol listesi</sys:String>
     <sys:String x:Key="Str_KS_About">Hakkında penceresi</sys:String>
+    <sys:String x:Key="Str_KS_Settings">Ayarlar</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">Belge bilgisi</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Tam kılavuz ve çevrimiçi rehber</sys:String>
     <sys:String x:Key="Str_KS_Tools">ARAÇLAR</sys:String>
     <sys:String x:Key="Str_KS_Paste">Görsel / metin yapıştır</sys:String>
@@ -110,7 +112,7 @@
     <sys:String x:Key="Str_Portable">KURULUMSUZ</sys:String>
     <sys:String x:Key="Str_InstallBtn">KillerPDF'i yükle...</sys:String>
 
-    <!-- ── Durum mesajları (biçim dizeleri — string.Format kullanır) ── -->
+    <!-- ── Durum mesajları (biçim dizeleri - string.Format kullanır) ── -->
     <sys:String x:Key="Str_Opened">Açıldı {0} - {1} sayfa</sys:String>
     <sys:String x:Key="Str_OpenedReadOnly">Açıldı {0} (salt okunur - sahip kısıtlamaları) - {1} sayfa</sys:String>
     <sys:String x:Key="Str_OpenedReadOnlyXRef">Açıldı {0} (salt okunur - standart dışı XRef tablosu) - {1} sayfa</sys:String>
@@ -118,7 +120,7 @@
     <sys:String x:Key="Str_OpenedRasterRepair">Açıldı {0} (rasterize edilerek onarıldı - değişiklikleri korumak için kaydedin) - {1} sayfa</sys:String>
     <sys:String x:Key="Str_PageOf">Sayfa {0} / {1}</sys:String>
     <sys:String x:Key="Str_PageOfLinks">Sayfa {0} / {1}  ({2} bağlantı)</sys:String>
-    <sys:String x:Key="Str_PageFormFields">Sayfa {0} / {1} — bu sayfa doldurulabilir form alanları içeriyor</sys:String>
+    <sys:String x:Key="Str_PageFormFields">Sayfa {0} / {1} - bu sayfa doldurulabilir form alanları içeriyor</sys:String>
     <sys:String x:Key="Str_PageRenderError">Sayfa {0} - görüntülenemedi</sys:String>
     <sys:String x:Key="Str_RenderError">Görüntüleme hatası: {0}</sys:String>
     <sys:String x:Key="Str_Rotated">{0} sayfa döndürüldü</sys:String>
@@ -403,7 +405,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Ocr_Language">Dil</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Önce bir PDF açın</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - yakında</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">Sayfada OCR uygula (metni kopyala)</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">Sayfada OCR uygula (metni kopyala) (Ctrl+Shift+O)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
     <sys:String x:Key="Str_Ctx_OcrPage">Sayfada OCR Uygula (Metni Kopyala)</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Dönüştür</sys:String>
@@ -504,4 +506,69 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Dlg_NoValidPages">Bu aralıkta geçerli sayfa yok.</sys:String>
     <sys:String x:Key="Str_Dlg_SignedSavedTo">İmzalı kopya şuraya kaydedildi:</sys:String>
     <sys:String x:Key="Str_Dlg_DrawSignatureFirst">Önce bir imza çizin.</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">Geçerli sayfa için yer imi ekle</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">Yer imi ekle</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">Alt yer imi ekle</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">Yeniden adlandır</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">Sil</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">Sayfa {0}</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">Bu yer imi ve {0} alt yer imi silinsin mi?</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">Yukarı taşı</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">Aşağı taşı</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">Geçerli sayfaya yönlendir</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">Tüm yer imlerini sil</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">{0} yer imi silinsin mi?</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">Bu belgedeki tüm yer imleri kaldırılsın mı?</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">Yinele</sys:String>
+    <sys:String x:Key="Str_St_Redone">Yinelendi</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">Yinelenecek bir şey yok</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">İlk / son sayfa</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">Geri / ileri (atlama geçmişi)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Gerçek boyut / genişliğe sığdır / sayfaya sığdır</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">Seçimde bağlam menüsü</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">LİSTE</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">KLAVYE</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Katmanı önizlemek için Ctrl, Shift veya Alt tuşunu basılı tutun - eylemi görmek için yanan tuşun üzerine gelin</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">Gerçek boyut</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">Önceki sekme</sys:String>
+
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">Önceki sayfa</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">Sonraki sayfa</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">İlk sayfa</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">Son sayfa</sys:String>
+    <sys:String x:Key="Str_Kb_Back">Geri</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">İleri</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">Sonraki sonuç</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">Önceki sonuç</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">Onayla</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">İptal</sys:String>
+
+    <!-- Document Info dialog + link strings -->
+    <sys:String x:Key="Str_TT_DocInfo">Belge bilgisi (F4)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">Belge bilgisi</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">Başlık</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">Yazar</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">Konu</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">Anahtar kelimeler</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">Oluşturan</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">Kaydet</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">İptal</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">Bağlantı kaldırılamadı:</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">Engellenen bağlantı (desteklenmeyen tür):</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">Bağlantı açılamadı</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">Bu bağlantı tarayıcınızda açılsın mı?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">Bağlantı açılsın mı?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">Bir daha sorma</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">Bağlantıyı Aç</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">Bağlantı Adresini Kopyala</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">E-posta Adresini Kopyala</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">Bağlantıyı PDF'den Kaldır</sys:String>
+    <sys:String x:Key="Str_LinksSection">BAĞLANTILAR</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">Bağlantıları açmadan önce sor</sys:String>
 </ResourceDictionary>

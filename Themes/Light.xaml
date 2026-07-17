@@ -55,4 +55,14 @@
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}"     Color="#c8f5d8" po:Freeze="True"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#1b5e20" po:Freeze="True"/>
 
+    <!-- Shortcut keyboard view: category colors (darker to read on light keycaps) -->
+    <SolidColorBrush x:Key="KsCatFile"      Color="#009e99" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatTools"     Color="#a67c00" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatEdit"      Color="#d1105a" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatNav"       Color="#6a11cc" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatView"      Color="#a316b5" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatSearch"    Color="#0077b3" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatHelp"      Color="#128c07" po:Freeze="True"/>
+    <SolidColorBrush x:Key="KsCatOcr"       Color="#cc6a00" po:Freeze="True"/>
+
 </ResourceDictionary>

@@ -44,34 +44,65 @@ namespace KillerPDF
                 RepositionAnnotationBars();
             }
 
-            if (_viewMode != ViewMode.Continuous || _continuousTops.Count == 0) return;
-
-            double viewportCenter = (PagePreviewPanel.VerticalOffset + PagePreviewPanel.ViewportHeight * 0.5)
-                                    / Math.Max(0.01, _zoomLevel);
-            int nearest = 0;
-            double minDist = double.MaxValue;
-            for (int i = 0; i < _continuousTops.Count; i++)
+            if (_viewMode == ViewMode.Continuous && _continuousTops.Count > 0)
             {
-                if (i >= _continuousPanel.Children.Count) break;
-                var slot = (FrameworkElement)_continuousPanel.Children[i];
-                double center = _continuousTops[i] + slot.Height * 0.5;
-                double dist   = Math.Abs(center - viewportCenter);
-                if (dist < minDist) { minDist = dist; nearest = i; }
+                double viewportCenter = (PagePreviewPanel.VerticalOffset + PagePreviewPanel.ViewportHeight * 0.5)
+                                        / Math.Max(0.01, _zoomLevel);
+                int nearest = 0;
+                double minDist = double.MaxValue;
+                for (int i = 0; i < _continuousTops.Count; i++)
+                {
+                    if (i >= _continuousPanel.Children.Count) break;
+                    var slot = (FrameworkElement)_continuousPanel.Children[i];
+                    double center = _continuousTops[i] + slot.Height * 0.5;
+                    double dist   = Math.Abs(center - viewportCenter);
+                    if (dist < minDist) { minDist = dist; nearest = i; }
+                }
+
+                SyncCurrentPageTo(nearest);
+
+                // Once the scroll settles, sharpen the pages now in view (and release the ones that left).
+                // Cheap when there's nothing to do: below the hi-res threshold it's a restore-only pass over
+                // an (almost always empty) set (#85).
+                StartRerenderTimer();
+                return;
             }
 
-            if (PageList.SelectedIndex != nearest)
+            // Grid scrolls through this same ScrollViewer but never tracked the current page, so the
+            // statusbar counter, the jump box, and anything reading PageList.SelectedIndex (e.g. the
+            // page a new bookmark targets, #133) went stale the moment the user scrolled. Track the
+            // tile nearest the viewport center, exactly like Continuous. TranslatePoint to the scroll
+            // content root already includes the zoom LayoutTransform, so no manual scaling is needed.
+            if (_viewMode == ViewMode.Grid && _pageContentPanel.Children.Count > 1
+                && PagePreviewPanel.Content is FrameworkElement gridRoot)
             {
-                _pageJumpBox.Text = (nearest + 1).ToString();
-                // Update sidebar thumbnail without triggering a full page render
-                PageList.SelectionChanged -= PageList_SelectionChanged;
-                PageList.SelectedIndex = nearest;
-                PageList.SelectionChanged += PageList_SelectionChanged;
+                double viewCenter = PagePreviewPanel.VerticalOffset + PagePreviewPanel.ViewportHeight * 0.5;
+                int nearest = -1;
+                double minDist = double.MaxValue;
+                for (int i = 0; i < _pageContentPanel.Children.Count; i++)
+                {
+                    if (_pageContentPanel.Children[i] is not FrameworkElement tile || tile.ActualHeight <= 0)
+                        continue;
+                    double cy = tile.TranslatePoint(new Point(0, tile.ActualHeight * 0.5), gridRoot).Y;
+                    double dist = Math.Abs(cy - viewCenter);
+                    if (dist < minDist) { minDist = dist; nearest = i; }
+                }
+                if (nearest >= 0) SyncCurrentPageTo(nearest);
             }
+        }
 
-            // Once the scroll settles, sharpen the pages now in view (and release the ones that left).
-            // Cheap when there's nothing to do: below the hi-res threshold it's a restore-only pass over
-            // an (almost always empty) set (#85).
-            StartRerenderTimer();
+        // Reflects a scroll-derived current page in the jump box, the sidebar selection, and the
+        // statusbar page counter - without re-rendering (the selection handler is detached while
+        // the index is set, matching the original Continuous sync).
+        private void SyncCurrentPageTo(int nearest)
+        {
+            if (PageList.SelectedIndex == nearest) return;
+            _pageJumpBox.Text = (nearest + 1).ToString();
+            PageList.SelectionChanged -= PageList_SelectionChanged;
+            PageList.SelectedIndex = nearest;
+            PageList.SelectionChanged += PageList_SelectionChanged;
+            if (_doc is not null)
+                SetStatus(string.Format(Loc("Str_PageOf"), nearest + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
         }
 
         // Common overlay wiring shared by the continuous and secondary-tile builders: the move/up
@@ -85,7 +116,9 @@ namespace KillerPDF
             overlay.PreviewMouseLeftButtonUp += Canvas_MouseLeftButtonUp;
             overlay.PreviewMouseRightButtonUp += (s, ev) =>
             {
-                if (_viewMode != ViewMode.TwoPage) PageList.SelectedIndex = page;
+                // #128: Continuous never click-selects (current page is viewport-driven); the menu
+                // below is populated for the clicked page directly. Grid keeps the click highlight.
+                if (_viewMode == ViewMode.Grid) PageList.SelectedIndex = page;
                 if (_annotationCanvas.ContextMenu is ContextMenu cm)
                 {
                     // Selection chrome draws on _activeCanvas, so point it at this tile before populating.
@@ -154,6 +187,9 @@ namespace KillerPDF
         private void SetupContinuousView(int initialPage, bool fitDefault = true)
         {
             if (_doc is null) return;
+            // #130: a malformed page tree can parse to zero pages - Pages[0] below would throw
+            // ArgumentOutOfRangeException. Bail out instead of crashing; the view just stays empty.
+            if (_doc.PageCount == 0) return;
             // Coming from Grid, the shared ScrollViewer still carries the grid's overrides
             // (horizontal bar Disabled, vertical Visible). Continuous never passes through
             // RefreshPageView, where the other modes restore them - so restore here, or a
@@ -235,8 +271,8 @@ namespace KillerPDF
                     Tag = i,
                     Child = slotGrid
                 };
-                int capturedI = i;
-                placeholder.PreviewMouseLeftButtonDown += (_, _) => PageList.SelectedIndex = capturedI;
+                // #128: no click-to-select in Continuous. The current page follows the viewport via
+                // scroll-sync (like Acrobat/Sumatra), so a click must not scroll or move the counter.
                 _continuousPanel.Children.Add(placeholder);
                 y += slotH + 12;
             }
@@ -778,7 +814,12 @@ namespace KillerPDF
             int pagesPerRow = _viewMode == ViewMode.TwoPage ? 2
                             : _viewMode == ViewMode.Grid    ? Math.Max(1, _gridColumns)
                             : Math.Max(1, (int)(availablePreZoom / pageSlotW + 1e-6));
-            double panelW = pagesPerRow * pageSlotW;
+            // +0.5/slot: secondary tiles round their DIP width to a whole pixel (AddSecondaryTile),
+            // so a row can measure up to half a pixel per tile wider than n exact slots. Without
+            // this slack the WrapPanel wraps the row's last tile early and the grid shows n-1
+            // columns with a dead column of background on the right. The slack is far below one
+            // slot width, so it can never admit an extra column.
+            double panelW = pagesPerRow * (pageSlotW + 0.5);
             if (panelW > 0) _pageContentPanel.Width = panelW;
 
             // Cancel any previously running secondary render.

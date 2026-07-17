@@ -3,7 +3,7 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ================================================================
-         KillerPDF  —  Bengali (bn) strings
+         KillerPDF  -  Bengali (bn) strings
          ================================================================ -->
 
     <!-- ── Toolbar tooltips ─────────────────────────────────────────── -->
@@ -17,7 +17,7 @@
     <sys:String x:Key="Str_TT_Save">সংরক্ষণ করুন (Ctrl+S)</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
     <sys:String x:Key="Str_TT_SaveAs">এভাবে সংরক্ষণ করুন (Ctrl+Shift+S)</sys:String>
-    <sys:String x:Key="Str_TT_SaveFlattened">ফ্ল্যাটেন করা PDF সংরক্ষণ করুন (সব পৃষ্ঠা রাস্টারাইজ করুন — সম্পূর্ণ অসম্পাদনযোগ্য)</sys:String>
+    <sys:String x:Key="Str_TT_SaveFlattened">ফ্ল্যাটেন করা PDF সংরক্ষণ করুন (সব পৃষ্ঠা রাস্টারাইজ করুন - সম্পূর্ণ অসম্পাদনযোগ্য)</sys:String>
     <sys:String x:Key="Str_TT_Print">মুদ্রণ (Ctrl+P)</sys:String>
     <sys:String x:Key="Str_TT_MergePDFs">PDF একত্রিত করুন (এই PDF-এ অতিরিক্ত PDF যোগ করুন)</sys:String>
     <sys:String x:Key="Str_TT_ExtractPages">পৃষ্ঠা বের করুন (নির্বাচিত পৃষ্ঠাগুলো নতুন PDF-এ সংরক্ষণ করুন)</sys:String>
@@ -35,16 +35,16 @@
     <sys:String x:Key="Str_TT_CropTool">ক্রপ টুল - ক্রপ এলাকা নির্ধারণে টেনে আনুন, তারপর পৃষ্ঠায় প্রয়োগ করুন</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">সব অ্যানোটেশন মুছুন</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">শেষ কাজ পূর্বাবস্থায় ফেরান (Ctrl+Z)</sys:String>
-    <sys:String x:Key="Str_TT_MultiPageGrid">বহু-পৃষ্ঠা গ্রিড ভিউ</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">বহু-পৃষ্ঠা গ্রিড ভিউ (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">জুম আউট (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">জুম স্তর (Ctrl+স্ক্রল · Ctrl+=/- · Ctrl+0=রিসেট)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">জুম ইন (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">পৃষ্ঠায় যান (নেভিগেট করতে Enter চাপুন)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">সাইডবার সংকুচিত করুন</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">সাইডবার প্রসারিত করুন</sys:String>
-    <sys:String x:Key="Str_TT_KeyboardShortcuts">কীবোর্ড শর্টকাট (Ctrl+?)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">সেটিংস</sys:String>
-    <sys:String x:Key="Str_TT_About">KillerPDF সম্পর্কে</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">সাইডবার সংকুচিত করুন (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">সাইডবার প্রসারিত করুন (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">কীবোর্ড শর্টকাট (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">সেটিংস (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">KillerPDF সম্পর্কে (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
     <sys:String x:Key="Str_About_Version">সংস্করণ</sys:String>
@@ -100,6 +100,8 @@
     <sys:String x:Key="Str_KS_Help">সহায়তা</sys:String>
     <sys:String x:Key="Str_KS_ThisList">এই শর্টকাট তালিকা</sys:String>
     <sys:String x:Key="Str_KS_About">সম্পর্কে ডায়ালগ</sys:String>
+    <sys:String x:Key="Str_KS_Settings">সেটিংস</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">à¦¡à¦•à§à¦®à§‡à¦¨à§à¦Ÿà§‡à¦° à¦¤à¦¥à§à¦¯</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">সম্পূর্ণ গাইড ও অনলাইন নির্দেশিকা</sys:String>
     <sys:String x:Key="Str_KS_Tools">টুল</sys:String>
     <sys:String x:Key="Str_KS_Paste">ছবি / টেক্সট পেস্ট করুন</sys:String>
@@ -110,7 +112,7 @@
     <sys:String x:Key="Str_Portable">পোর্টেবল</sys:String>
     <sys:String x:Key="Str_InstallBtn">KillerPDF ইনস্টল করুন...</sys:String>
 
-    <!-- ── Status messages (format strings — use string.Format) ─────── -->
+    <!-- ── Status messages (format strings - use string.Format) ─────── -->
     <sys:String x:Key="Str_Opened">{0} খোলা হয়েছে - {1} পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_OpenedReadOnly">{0} খোলা হয়েছে (শুধুমাত্র পঠনযোগ্য - মালিকের বিধিনিষেধ) - {1} পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_OpenedReadOnlyXRef">{0} খোলা হয়েছে (শুধুমাত্র পঠনযোগ্য - অ-মানক XRef টেবিল) - {1} পৃষ্ঠা</sys:String>
@@ -118,7 +120,7 @@
     <sys:String x:Key="Str_OpenedRasterRepair">{0} খোলা হয়েছে (রাস্টারাইজড মেরামত - পরিবর্তন রাখতে সংরক্ষণ করুন) - {1} পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_PageOf">{1}-এর মধ্যে {0} পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_PageOfLinks">{1}-এর মধ্যে {0} পৃষ্ঠা  ({2}টি লিংক)</sys:String>
-    <sys:String x:Key="Str_PageFormFields">{1}-এর মধ্যে {0} পৃষ্ঠা — এই পৃষ্ঠায় পূরণযোগ্য ফর্ম ফিল্ড রয়েছে</sys:String>
+    <sys:String x:Key="Str_PageFormFields">{1}-এর মধ্যে {0} পৃষ্ঠা - এই পৃষ্ঠায় পূরণযোগ্য ফর্ম ফিল্ড রয়েছে</sys:String>
     <sys:String x:Key="Str_PageRenderError">{0} পৃষ্ঠা - রেন্ডার করা যায়নি</sys:String>
     <sys:String x:Key="Str_RenderError">রেন্ডার ত্রুটি: {0}</sys:String>
     <sys:String x:Key="Str_Rotated">{0}টি পৃষ্ঠা ঘোরানো হয়েছে</sys:String>
@@ -403,7 +405,7 @@
     <sys:String x:Key="Str_Ocr_Language">ভাষা</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">প্রথমে একটি PDF খুলুন</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - শীঘ্রই আসছে</sys:String>
-    <sys:String x:Key="Str_TT_Ocr">পৃষ্ঠায় OCR করুন (টেক্সট কপি করুন)</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">পৃষ্ঠায় OCR করুন (টেক্সট কপি করুন) (Ctrl+Shift+O)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
     <sys:String x:Key="Str_Ctx_OcrPage">পৃষ্ঠায় OCR করুন (টেক্সট কপি করুন)</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">রূপান্তর</sys:String>
@@ -504,4 +506,69 @@
     <sys:String x:Key="Str_Dlg_NoValidPages">সেই পরিসরে কোনো বৈধ পৃষ্ঠা নেই।</sys:String>
     <sys:String x:Key="Str_Dlg_SignedSavedTo">স্বাক্ষরিত কপি এখানে সংরক্ষণ করা হয়েছে:</sys:String>
     <sys:String x:Key="Str_Dlg_DrawSignatureFirst">প্রথমে একটি স্বাক্ষর আঁকুন।</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">বর্তমান পৃষ্ঠার জন্য একটি বুকমার্ক যোগ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">বুকমার্ক যোগ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">চাইল্ড বুকমার্ক যোগ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">নাম পরিবর্তন করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">মুছে ফেলুন</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">পৃষ্ঠা {0}</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">এই বুকমার্ক এবং এর {0}টি চাইল্ড বুকমার্ক মুছে ফেলা হবে?</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">উপরে সরান</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">নিচে সরান</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">বর্তমান পৃষ্ঠায় নির্দেশ করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">সব বুকমার্ক মুছে ফেলুন</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">{0}টি বুকমার্ক মুছে ফেলবেন?</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">এই ডকুমেন্ট থেকে সব বুকমার্ক মুছে ফেলা হবে?</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">পুনরায় করুন</sys:String>
+    <sys:String x:Key="Str_St_Redone">পুনরায় করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">পুনরায় করার কিছু নেই</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">প্রথম / শেষ পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">পেছনে / সামনে (জাম্প ইতিহাস)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">প্রকৃত আকার / প্রস্থে মানানসই / পৃষ্ঠায় মানানসই</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">নির্বাচনে কনটেক্সট মেনু</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">তালিকা</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">কীবোর্ড</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">সেই স্তরটি দেখতে Ctrl, Shift বা Alt চেপে ধরুন - আলোকিত কী-এর ওপর হভার করে এর কাজ দেখুন</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">প্রকৃত আকার</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">পূর্ববর্তী ট্যাব</sys:String>
+
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">পূর্ববর্তী পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">পরবর্তী পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">প্রথম পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">শেষ পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Kb_Back">পিছনে</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">সামনে</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">পরবর্তী ফলাফল</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">পূর্ববর্তী ফলাফল</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">নিশ্চিত করুন</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">বাতিল</sys:String>
+
+    <!-- Document Info dialog + link strings -->
+    <sys:String x:Key="Str_TT_DocInfo">নথির তথ্য (F4)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">নথির তথ্য</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">শিরোনাম</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">লেখক</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">বিষয়</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">কীওয়ার্ড</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">নির্মাতা</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">সংরক্ষণ</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">বাতিল</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">লিঙ্ক সরানো যায়নি:</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">অবরুদ্ধ লিঙ্ক (অসমর্থিত ধরন):</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">লিঙ্ক খোলা যায়নি</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">এই লিঙ্কটি ব্রাউজারে খুলবেন?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">লিঙ্ক খুলবেন?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">আর জিজ্ঞাসা করবেন না</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">লিঙ্ক খুলুন</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">লিঙ্কের ঠিকানা কপি করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">ইমেল ঠিকানা কপি করুন</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">PDF থেকে লিঙ্ক সরান</sys:String>
+    <sys:String x:Key="Str_LinksSection">লিঙ্ক</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">লিঙ্ক খোলার আগে নিশ্চিত করুন</sys:String>
 </ResourceDictionary>

@@ -221,6 +221,9 @@ html[data-theme="light"] .tb-nav a { text-shadow: none; }
 .tech-sec h2, .about-card h2 { font-family: 'TypewriterHead', 'Courier New', monospace; font-size: 24px; font-weight: normal; letter-spacing: .5px; margin: 6px 0 12px; color: var(--text); }
 .tech-sec h3 { font-family: 'TypewriterHead', 'Courier New', monospace; font-size: 15px; font-weight: normal; letter-spacing: .5px; color: var(--accent); margin: 16px 0 7px; }
 .tech-sec p { color: var(--muted); font-size: 14px; line-height: 1.7; margin-bottom: 11px; }
+.tech-sec ul { margin: 0 0 11px; padding-left: 28px; }
+.tech-sec li { color: var(--muted); font-size: 14px; line-height: 1.7; margin-bottom: 3px; }
+.tech-sec li::marker { color: var(--accent); }
 .tech-sec b { color: var(--text); }
 .tech-sec a { color: var(--accent); font-weight: 600; }
 .codeblock { background: var(--panel); border: 1px solid var(--pane-border); border-left: 2px solid var(--accent); border-radius: 7px; padding: 13px 16px; margin: 10px 0 14px; font-family: Consolas, monospace; font-size: 12.5px; line-height: 1.7; color: var(--text); white-space: pre-wrap; overflow-x: auto; }

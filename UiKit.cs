@@ -307,7 +307,7 @@ namespace KillerPDF
             return btn;
         }
 
-        private static ControlTemplate ButtonTemplate()
+        internal static ControlTemplate ButtonTemplate()
         {
             var bf = new FrameworkElementFactory(typeof(Border)) { Name = "bd" };
             bf.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });

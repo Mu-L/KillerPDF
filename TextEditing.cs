@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -686,7 +686,7 @@ namespace KillerPDF
                     // push ONE grouped undo so a single Ctrl+Z right after cancels the whole edit. After
                     // this, cover and text are independent annotations (move/resize/recolor separately).
                     _annotations[pageIdx].Add(ta);
-                    _undoStack.Push(new UndoEntry(UndoKind.AnnotationGroup, pageIdx,
+                    PushUndo(new UndoEntry(UndoKind.AnnotationGroup, pageIdx,
                         WasDirty: _pendingEditWasDirty, AnnotGroup: [_pendingCover, ta]));
                     _pendingCover = null;
                     MarkDirty();

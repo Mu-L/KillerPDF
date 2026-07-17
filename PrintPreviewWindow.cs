@@ -807,6 +807,36 @@ namespace KillerPDF
             }
         }
 
+        /// <summary>
+        /// Picks the printer paper that matches the DOCUMENT page size (Acrobat's
+        /// "choose paper source by PDF page size"). A printer defaulting to Letter under
+        /// an A4 document letterboxes every sheet with white side margins; selecting the
+        /// supported paper that matches the page removes them, in the preview and in the
+        /// spooled output alike. Orientation-agnostic compare in DIPs with a 6-DIP
+        /// (~1/16 inch) tolerance; the first page is the reference. Returns null when the
+        /// printer stocks no matching paper - the printer default stays and fit-to-page
+        /// letterboxing is then genuinely unavoidable.
+        /// </summary>
+        private PageMediaSize? MediaSizeForDocument()
+        {
+            try
+            {
+                if (_queue is null || _pageDipW.Length == 0) return null;
+                double pw = _pageDipW[0], ph = _pageDipH[0];
+                if (pw > ph) (pw, ph) = (ph, pw);   // portrait-normalize
+                var caps = _queue.GetPrintCapabilities();
+                foreach (var ms in caps.PageMediaSizeCapability)
+                {
+                    if (ms is null || !ms.Width.HasValue || !ms.Height.HasValue) continue;
+                    double w = ms.Width.Value, h = ms.Height.Value;
+                    if (w > h) (w, h) = (h, w);
+                    if (Math.Abs(w - pw) <= 6 && Math.Abs(h - ph) <= 6) return ms;
+                }
+            }
+            catch { /* driver quirk - keep the printer default */ }
+            return null;
+        }
+
         private void RefreshArea()
         {
             double w = 816, h = 1056;   // Letter portrait fallback
@@ -815,6 +845,15 @@ namespace KillerPDF
                 if (_queue != null)
                 {
                     var pd = new PrintDialog { PrintQueue = _queue };
+                    // Paper follows the document page size when the printer supports it,
+                    // so the preview sheet (and the print) has no letterbox margins.
+                    var docMedia = MediaSizeForDocument();
+                    if (docMedia != null)
+                    {
+                        var t = pd.PrintTicket;
+                        t.PageMediaSize = docMedia;
+                        pd.PrintTicket = t;
+                    }
                     if (pd.PrintableAreaWidth > 0 && pd.PrintableAreaHeight > 0)
                     {
                         w = pd.PrintableAreaWidth;
@@ -1013,6 +1052,10 @@ namespace KillerPDF
                 ticket.PageOrientation = _landscape ? PageOrientation.Landscape : PageOrientation.Portrait;
                 if (_duplex) ticket.Duplexing = Duplexing.TwoSidedLongEdge;
                 ticket.OutputColor = _grayscale ? OutputColor.Grayscale : OutputColor.Color;
+                // Same paper pick the preview used: match the document page size so the
+                // spooled sheet carries no letterbox margins (see MediaSizeForDocument).
+                var docMedia = MediaSizeForDocument();
+                if (docMedia != null) ticket.PageMediaSize = docMedia;
                 pd.PrintTicket = ticket;
 
                 double aw = pd.PrintableAreaWidth, ah = pd.PrintableAreaHeight;
