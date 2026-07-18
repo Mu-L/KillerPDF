@@ -79,6 +79,24 @@ namespace KillerPDF
                 }
                 e.Handled = true;
             }
+            else if (e.Key == Key.Escape && _shapePolyPoints.Count > 0)
+            {
+                // Shapes tool (#127 Phase 3): abandon the in-progress polygon.
+                CancelShapePolygon();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Back && _shapePolyPoints.Count > 0)
+            {
+                // Remove the last placed polygon vertex.
+                ShapePolyBackspace();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter && _shapePolyPoints.Count >= 3)
+            {
+                // Close the polygon from the keyboard.
+                CommitShapePolygon();
+                e.Handled = true;
+            }
             else if (e.Key == Key.Enter && _currentTool == EditTool.Crop && _cropConfirmBar is not null)
             {
                 ApplyCrop([PageList.SelectedIndex]);

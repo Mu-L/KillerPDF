@@ -603,6 +603,7 @@ namespace KillerPDF
             [""] = "Str_Lbl_ZoomIn",    // boxed plus  (AddTo)      - new zoom-in glyph
             [""] = "Str_Lbl_Search",    // magnifier - toolbar search button
             [""] = "Str_Lbl_Stamp",     // page-number / watermark stamp tool
+            [""] = "Str_Lbl_Shape",   // Shapes tool (rect / ellipse / polygon)
         };
 
         // Walks LeftBar + RightBar once and records each icon button with its glyph + label key.
@@ -847,6 +848,7 @@ namespace KillerPDF
                     (ToolImageBtn,      new UIElement[] { MiImage }),
                     (ToolCropBtn,       new UIElement[] { MiCrop }),
                     (GrpUndo,           new UIElement[] { MiUndo, MiClear }),
+                    (ToolShapeBtn,      new UIElement[] { MiShape }),
                     (ToolDrawBtn,       new UIElement[] { MiDraw }),
                     (ToolUnderlineBtn,  new UIElement[] { MiUnderline }),   // now the Line tool
                     (ToolHighlightBtn,  new UIElement[] { MiHighlight }),
@@ -881,6 +883,7 @@ namespace KillerPDF
                     EditTool.Line      => ToolUnderlineBtn,   // repurposed to the Line tool
                     EditTool.Highlight => ToolHighlightBtn,
                     EditTool.Draw      => ToolDrawBtn,
+                    EditTool.Shape     => ToolShapeBtn,
                     EditTool.Image     => ToolImageBtn,
                     EditTool.Crop      => ToolCropBtn,
                     EditTool.Signature => GrpSignature,

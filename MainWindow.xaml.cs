@@ -263,6 +263,7 @@ namespace KillerPDF
         private readonly Button _toolHighlightBtn = null!;
         private readonly Button _toolUnderlineBtn = null!;
         private readonly Button _toolDrawBtn = null!;
+        private readonly Button _toolShapeBtn = null!;
         private readonly Button _toolSignatureBtn = null!;
         private readonly Button _toolImageBtn = null!;
         private readonly Button _saveAsBtnRef = null!;
@@ -302,6 +303,7 @@ namespace KillerPDF
             _toolHighlightBtn = (Button)FindName("ToolHighlightBtn")!;
             _toolUnderlineBtn = (Button)FindName("ToolUnderlineBtn")!;
             _toolDrawBtn = (Button)FindName("ToolDrawBtn")!;
+            _toolShapeBtn = (Button)FindName("ToolShapeBtn")!;
             _toolSignatureBtn = (Button)FindName("ToolSignatureBtn")!;
             _toolImageBtn = (Button)FindName("ToolImageBtn")!;
             _toolCropBtn = (Button)FindName("ToolCropBtn")!;

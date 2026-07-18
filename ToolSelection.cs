@@ -37,6 +37,7 @@ namespace KillerPDF
             EditTool.Underline => Cursors.Cross,
             EditTool.Draw => Cursors.Pen,
             EditTool.Line => Cursors.Cross,
+            EditTool.Shape => Cursors.Cross,
             EditTool.Signature => Cursors.Pen,
             EditTool.Image => Cursors.Hand,
             EditTool.Crop => Cursors.Cross,
@@ -59,6 +60,7 @@ namespace KillerPDF
             // Continuous view now supports annotation tools inline via per-page overlays.
             CommitActiveTextBox();
             ClearTextSelection();
+            CancelShapePolygon();   // abandon an in-progress polygon when switching tools
             if (tool != EditTool.Draw) HideBrushPreview();   // drop the brush cursor when leaving Draw
             _currentTool = tool;
 
@@ -69,6 +71,7 @@ namespace KillerPDF
                 (_toolHighlightBtn, EditTool.Highlight),
                 (_toolUnderlineBtn, EditTool.Line),          // the old Underline button is now the Line tool
                 (_toolDrawBtn, EditTool.Draw),
+                (_toolShapeBtn, EditTool.Shape),
                 (_toolSignatureBtn, EditTool.Signature),
                 (_toolImageBtn, EditTool.Image),
                 (_toolCropBtn, EditTool.Crop),
@@ -100,7 +103,7 @@ namespace KillerPDF
                 overlay.Cursor = toolCursor;
 
             // Show/hide draw settings bar
-            if ((tool is EditTool.Draw or EditTool.Line) || tool == EditTool.Highlight
+            if ((tool is EditTool.Draw or EditTool.Line or EditTool.Shape) || tool == EditTool.Highlight
                 || tool == EditTool.Strikethrough || tool == EditTool.Underline)
                 ShowDrawSettings(tool);
             else

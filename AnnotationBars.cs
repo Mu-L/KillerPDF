@@ -369,7 +369,8 @@ namespace KillerPDF
             // Strikethrough / Draw) swaps it in place instantly - otherwise the two near-identical bars
             // crossfade through ~50% opacity and read as a blink even though nothing visually changed.
             bool prevWasDrawBar = _annotBarTool is EditTool.Draw or EditTool.Highlight
-                                                or EditTool.Underline or EditTool.Strikethrough or EditTool.Line;
+                                                or EditTool.Underline or EditTool.Strikethrough or EditTool.Line
+                                                or EditTool.Shape;
             bool appearing = _annotBarTool != tool && !prevWasDrawBar;
             if (_drawSettingsBar is not null)
             {
@@ -454,8 +455,68 @@ namespace KillerPDF
                 EditTool.Draw => BarCheck(Loc("Str_Bar_Eraser"), _drawErase,
                     "Brush over annotations to delete them",
                     () => { _drawErase = !_drawErase; ShowDrawSettings(tool); }),
+                EditTool.Shape => ShapeKindPicker(),
                 _ => null
             };
+
+            // Shapes tool (#127 Phase 3): radio-style buttons whose glyphs are literal mini shapes
+            // (drawn WPF elements, not font glyphs, so they render on every locale/font setup),
+            // plus the Fill toggle. Clicking a shape switches the sub-mode and rebuilds the bar.
+            StackPanel ShapeKindPicker()
+            {
+                Border KindBtn(ShapeKind kind, Shape glyph, string tip)
+                {
+                    bool active = _shapeKind == kind;
+                    glyph.StrokeThickness = 1.5;
+                    glyph.Fill = Brushes.Transparent;
+                    glyph.HorizontalAlignment = HorizontalAlignment.Center;
+                    glyph.VerticalAlignment = VerticalAlignment.Center;
+                    glyph.SetResourceReference(Shape.StrokeProperty, active ? "SelectionAccent" : "TextSecondary");
+                    var b = new Border
+                    {
+                        Width = 26,
+                        Height = 20,
+                        CornerRadius = new CornerRadius(3),
+                        BorderThickness = new Thickness(active ? 1.5 : 1),
+                        Background = Brushes.Transparent,
+                        Margin = new Thickness(1, 0, 1, 0),
+                        Cursor = Cursors.Hand,
+                        ToolTip = tip,
+                        Child = glyph
+                    };
+                    if (active) b.SetResourceReference(Border.BorderBrushProperty, "SelectionAccent");
+                    else b.BorderBrush = _swatchDimBorder;
+                    b.MouseLeftButtonDown += (_, _) =>
+                    {
+                        if (_shapeKind == kind) return;
+                        _shapeKind = kind;
+                        if (kind != ShapeKind.Polygon) CancelShapePolygon();
+                        ShowDrawSettings(tool);
+                    };
+                    return b;
+                }
+
+                var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
+                row.Children.Add(KindBtn(ShapeKind.Rectangle, new Rectangle { Width = 13, Height = 9 },
+                    "Box - drag a rectangle"));
+                row.Children.Add(KindBtn(ShapeKind.Ellipse, new Ellipse { Width = 13, Height = 9 },
+                    "Ellipse - drag an oval"));
+                var pent = new Polygon
+                {
+                    Width = 13,
+                    Height = 11,
+                    Points = [new Point(6.5, 0), new Point(13, 4.5), new Point(10.5, 11), new Point(2.5, 11), new Point(0, 4.5)]
+                };
+                row.Children.Add(KindBtn(ShapeKind.Polygon, pent,
+                    "Freeform - click points; click the first point or double-click to close, Esc cancels, Backspace removes the last point"));
+
+                var fillCheck = BarCheck(Loc("Str_Bar_ShapeFill"), _shapeFill,
+                    "Fill the inside of the shape",
+                    () => { _shapeFill = !_shapeFill; ShowDrawSettings(tool); });
+                fillCheck.Margin = new Thickness(10, 0, 18, 0);
+                row.Children.Add(fillCheck);
+                return row;
+            }
 
             // Color group (label + swatches + more) - one wrap unit.
             var colorGroup = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 16, 2) };
@@ -472,7 +533,7 @@ namespace KillerPDF
 
             // Color swatches
             bool isLineTool = tool == EditTool.Strikethrough || tool == EditTool.Underline;
-            var activeColor = (tool is EditTool.Draw or EditTool.Line) ? _drawColor
+            var activeColor = (tool is EditTool.Draw or EditTool.Line or EditTool.Shape) ? _drawColor
                             : isLineTool ? Color.FromRgb(_lineAnnotColor.R, _lineAnnotColor.G, _lineAnnotColor.B)
                             : Color.FromRgb(_highlightColor.R, _highlightColor.G, _highlightColor.B);
             foreach (var color in SwatchColors)
@@ -496,7 +557,7 @@ namespace KillerPDF
                 swatch.MouseLeftButtonDown += (s, e) =>
                 {
                     var c = (Color)((Border)s!).Tag;
-                    if ((tool is EditTool.Draw or EditTool.Line))
+                    if ((tool is EditTool.Draw or EditTool.Line or EditTool.Shape))
                         _drawColor = Color.FromArgb(_drawOpacity, c.R, c.G, c.B);
                     else if (isLineTool)
                         _lineAnnotColor = Color.FromArgb(_lineAnnotColor.A, c.R, c.G, c.B);
@@ -533,7 +594,7 @@ namespace KillerPDF
             };
             moreDraw.MouseLeftButtonDown += (_, _) => OpenColorPicker(activeColor, c =>
             {
-                if ((tool is EditTool.Draw or EditTool.Line)) _drawColor = Color.FromArgb(_drawOpacity, c.R, c.G, c.B);
+                if ((tool is EditTool.Draw or EditTool.Line or EditTool.Shape)) _drawColor = Color.FromArgb(_drawOpacity, c.R, c.G, c.B);
                 else if (isLineTool) _lineAnnotColor = Color.FromArgb(_lineAnnotColor.A, c.R, c.G, c.B);
                 else _highlightColor = Color.FromArgb(_highlightColor.A, c.R, c.G, c.B);
                 ApplyDrawStyleToSelection();
@@ -551,7 +612,7 @@ namespace KillerPDF
             _annotBarDragInners.Add(dRest);
 
             // Size slider (draw only)
-            if ((tool is EditTool.Draw or EditTool.Line))
+            if ((tool is EditTool.Draw or EditTool.Line or EditTool.Shape))
             {
                 var sizeGroup = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 16, 2) };
                 var sizeLbl = new TextBlock
@@ -608,7 +669,7 @@ namespace KillerPDF
             opacityLbl.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
             opacityGroup.Children.Add(opacityLbl);
 
-            byte currentOpacity = (tool is EditTool.Draw or EditTool.Line) ? _drawOpacity : isLineTool ? _lineAnnotColor.A : _highlightColor.A;
+            byte currentOpacity = (tool is EditTool.Draw or EditTool.Line or EditTool.Shape) ? _drawOpacity : isLineTool ? _lineAnnotColor.A : _highlightColor.A;
             var opacitySlider = new Slider
             {
                 Minimum = 10,
@@ -633,7 +694,7 @@ namespace KillerPDF
             {
                 byte a = (byte)e.NewValue;
                 opacityLabel.Text = $"{(int)(a / 255.0 * 100)}%";
-                if ((tool is EditTool.Draw or EditTool.Line))
+                if ((tool is EditTool.Draw or EditTool.Line or EditTool.Shape))
                 {
                     _drawOpacity = a;
                     _drawColor = Color.FromArgb(a, _drawColor.R, _drawColor.G, _drawColor.B);
@@ -701,7 +762,7 @@ namespace KillerPDF
             FadeOutAndRemoveBar(_drawSettingsBar);
             _drawSettingsBar = null;
             if (_annotBarTool is EditTool.Draw or EditTool.Highlight
-                or EditTool.Strikethrough or EditTool.Underline)
+                or EditTool.Strikethrough or EditTool.Underline or EditTool.Shape)
                 _annotBarTool = null;
         }
     }

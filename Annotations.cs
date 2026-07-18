@@ -164,6 +164,20 @@ namespace KillerPDF
                         break;
                     case InkAnnotation ia:
                         if (ia.Points.Count < 2) continue;
+                        if (ia.HasFill)
+                        {
+                            // Filled shape (#127 Phase 3): closed outline - one Polygon, filled + stroked.
+                            var pg = new Polygon
+                            {
+                                Stroke = new SolidColorBrush(ia.GetColor()),
+                                StrokeThickness = ia.StrokeWidth,
+                                StrokeLineJoin = PenLineJoin.Round,
+                                Fill = new SolidColorBrush(ia.GetFillColor())
+                            };
+                            foreach (var pt in ia.Points) pg.Points.Add(pt);
+                            _activeCanvas.Children.Add(pg);
+                            break;
+                        }
                         var poly = new Polyline
                         {
                             Stroke = new SolidColorBrush(ia.GetColor()),
@@ -244,6 +258,8 @@ namespace KillerPDF
             // Search highlights live on this same canvas and were wiped by the clear above; repaint
             // them last so they sit on top and survive every re-render and continuous scroll.
             ApplySearchHighlights(pageIndex, _activeCanvas);
+            // Flowing text selection quads (#127) live here too - same deal, repaint last.
+            ApplyTextSelectionQuads(pageIndex, _activeCanvas);
         }
 
         // Decode a placed annotation's Base64 image once and cache the frozen result on the annotation,
@@ -1019,6 +1035,28 @@ namespace KillerPDF
                     {
                         // Shift+click builds a multi-selection instead of replacing it.
                         bool shiftSel = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+                        // Flowing text selection (#127): when the press lands ON text, the text run
+                        // owns the DRAG even if an unselected annotation (e.g. a paragraph-covering
+                        // highlight) sits underneath - a plain CLICK still selects that annotation,
+                        // resolved on mouse-up via _txtSelClickAnnot. An already-selected annotation
+                        // keeps drag priority so click-then-drag moves it. Empty page, Shift, and
+                        // OCR region capture all keep the classic marquee below.
+                        bool selectedUnderPress = _selectedAnnotation is not null
+                            && _selectedAnnotation.PageIndex == pageIdx
+                            && HitTestAnnotation(_selectedAnnotation, pos, out _);
+                        if (!_ocrRegionMode && !shiftSel && !selectedUnderPress
+                            && TryBeginTextSelection(pageIdx, pos))
+                        {
+                            ClearSelection();
+                            if (_annotations.TryGetValue(pageIdx, out var underPress))
+                                for (int i = underPress.Count - 1; i >= 0; i--)
+                                    if (IsDraggable(underPress[i]) && HitTestAnnotation(underPress[i], pos, out Rect ub))
+                                    { _txtSelClickAnnot = underPress[i]; _txtSelClickAnnotBounds = ub; break; }
+                            if (_viewMode == ViewMode.Grid) PageList.SelectedIndex = pageIdx;
+                            _activeCanvas.CaptureMouse();
+                            e.Handled = true;
+                            break;
+                        }
                         // Single click: check if hitting a PlacedAnnotation first - select and drag
                         bool hitPlaced = false;
                         if (_annotations.TryGetValue(pageIdx, out var pageAnnotsList))
@@ -1107,6 +1145,26 @@ namespace KillerPDF
                 case EditTool.Strikethrough:
                 case EditTool.Underline:
                     ClearSelection();
+                    // #127 Phase 2: on text these tools FLOW along the character runs exactly like
+                    // text selection; the release turns the selected lines into per-line annotations.
+                    // The rectangle path below survives ONLY for the highlight eraser. A press on a
+                    // page with no text under it hints instead of silently laying down a rect
+                    // (hint wording gains the Shapes pointer in Phase 3).
+                    if (!(_currentTool == EditTool.Highlight && _highlightErase))
+                    {
+                        ClearTextSelection();
+                        if (TryBeginTextSelection(pageIdx, pos))
+                        {
+                            _txtSelCommitTool = _currentTool;
+                            _activeCanvas.CaptureMouse();
+                        }
+                        else
+                        {
+                            SetStatus(Loc("Str_St_NoTextInSelection"));
+                        }
+                        e.Handled = true;
+                        break;
+                    }
                     _isDrawing = true;
                     _drawStart = pos;
                     var previewFill = _currentTool == EditTool.Highlight
@@ -1132,6 +1190,11 @@ namespace KillerPDF
                     _activeCanvas.Children.Add(rect);
                     _activePreview = rect;
                     _activeCanvas.CaptureMouse();
+                    break;
+
+                case EditTool.Shape:
+                    // #127 Phase 3: rectangle/ellipse drag or polygon vertex click - see Shapes.cs.
+                    ShapeToolMouseDown(pageIdx, pos, e);
                     break;
 
                 case EditTool.Draw:
@@ -1280,6 +1343,13 @@ namespace KillerPDF
             // Don't interfere with mouse interaction inside form field overlays.
             if (e.OriginalSource is DependencyObject moveSrc && IsFormFieldElement(moveSrc))
                 return;
+
+            // Shapes tool (#127 Phase 3): rubber-band the in-progress polygon (no button held).
+            if (_currentTool == EditTool.Shape && _shapePolyPoints.Count > 0)
+            {
+                UpdateShapePolyRubber(e);
+                return;
+            }
 
             // Tiled views: hand cursor + the link's target in the status bar while hovering (links have no
             // clickable overlay here - see Canvas_MouseLeftButtonDown - so hover is resolved by hit-testing
@@ -1505,6 +1575,13 @@ namespace KillerPDF
                 return;
             }
 
+            // Flowing text selection drag (#127): move the focus caret and repaint the quads.
+            if (_txtSelActive)
+            {
+                UpdateTextSelectionDrag(e);
+                return;
+            }
+
             // Text selection drag
             if (_isSelecting && _selectRect is not null)
             {
@@ -1554,6 +1631,7 @@ namespace KillerPDF
 
             switch (_currentTool)
             {
+                case EditTool.Shape when _activePreview is Rectangle:
                 case EditTool.Highlight when _activePreview is Rectangle:
                 case EditTool.Strikethrough when _activePreview is Rectangle:
                 case EditTool.Underline when _activePreview is Rectangle:
@@ -1562,6 +1640,13 @@ namespace KillerPDF
                     Canvas.SetTop(rect, Math.Min(pos.Y, _drawStart.Y));
                     rect.Width = Math.Abs(pos.X - _drawStart.X);
                     rect.Height = Math.Abs(pos.Y - _drawStart.Y);
+                    break;
+
+                case EditTool.Shape when _activePreview is Ellipse sell:
+                    Canvas.SetLeft(sell, Math.Min(pos.X, _drawStart.X));
+                    Canvas.SetTop(sell, Math.Min(pos.Y, _drawStart.Y));
+                    sell.Width = Math.Abs(pos.X - _drawStart.X);
+                    sell.Height = Math.Abs(pos.Y - _drawStart.Y);
                     break;
 
                 case EditTool.Draw when _activePreview is Polyline poly && _activeInk is not null:
@@ -1735,6 +1820,15 @@ namespace KillerPDF
                 return;
             }
 
+            // Flowing text selection release (#127): commit the run, copy it, keep the quads on screen.
+            if (_txtSelActive)
+            {
+                (_gestureCanvas ?? _activeCanvas)?.ReleaseMouseCapture();
+                FinishTextSelection();
+                e.Handled = true;
+                return;
+            }
+
             // Handle text selection release
             if (_isSelecting)
             {
@@ -1862,6 +1956,11 @@ namespace KillerPDF
                             _activeCanvas?.Children.Remove(rect);
                         }
                     }
+                    break;
+
+                case EditTool.Shape when _activePreview is Shape:
+                    // #127 Phase 3: rectangle/ellipse drag commit - see Shapes.cs.
+                    CommitShapeDrag(pageIdx);
                     break;
 
                 case EditTool.Draw when _activeInk is not null:
@@ -2696,6 +2795,14 @@ namespace KillerPDF
                         case InkAnnotation ia:
                             if (ia.Points.Count < 2) break;
                             var ic = ia.GetColor();
+                            if (ia.HasFill)
+                            {
+                                // Filled shape (#127 Phase 3): fill the enclosed region first, then stroke.
+                                var fc = ia.GetFillColor();
+                                var fillPts = ia.Points.Select(p => new XPoint(p.X * sx, p.Y * sy)).ToArray();
+                                gfx.DrawPolygon(new XSolidBrush(XColor.FromArgb(fc.A, fc.R, fc.G, fc.B)),
+                                                fillPts, XFillMode.Alternate);
+                            }
                             var pen = new XPen(XColor.FromArgb(ic.A, ic.R, ic.G, ic.B), ia.StrokeWidth * sx)
                             {
                                 LineJoin = XLineJoin.Round,

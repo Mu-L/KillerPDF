@@ -1101,6 +1101,7 @@
                     <Button x:Name="ToolUnderlineBtn" Content="&#xE738;" Style="{StaticResource ToolbarButton}" Click="ToolLine_Click" ToolTip="{DynamicResource Str_TT_LineTool}"/>
                     <Button x:Name="ToolHighlightBtn" Content="&#xE7E6;" Style="{StaticResource ToolbarButton}" Click="ToolHighlight_Click" ToolTip="{DynamicResource Str_TT_HighlightTool}"/>
                     <Button x:Name="ToolDrawBtn" Content="&#xED63;" Style="{StaticResource ToolbarButton}" Click="ToolDraw_Click" ToolTip="{DynamicResource Str_TT_DrawTool}"/>
+                    <Button x:Name="ToolShapeBtn" Content="&#xE739;" Style="{StaticResource ToolbarButton}" Click="ToolShape_Click" ToolTip="{DynamicResource Str_TT_ShapeTool}"/>
                     <Button x:Name="ToolImageBtn" Content="&#xEB9F;" Style="{StaticResource ToolbarButton}" Click="ToolImage_Click" ToolTip="{DynamicResource Str_TT_ImageTool}"/>
                     <StackPanel x:Name="GrpSignature" Orientation="Horizontal">
                         <Button x:Name="ToolSignatureBtn" Content="&#xEE56;" Style="{StaticResource ToolbarButton}" Click="ToolSignature_Click" ToolTip="{DynamicResource Str_TT_SignatureTool}"/>
@@ -1190,6 +1191,9 @@
                                 </Button>
                                 <Button x:Name="MiDraw" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolDraw_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED63;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Draw}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                </Button>
+                                <Button x:Name="MiShape" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolShape_Click">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE739;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Shape}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiImage" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolImage_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEB9F;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Image}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>

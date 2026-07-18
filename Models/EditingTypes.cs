@@ -4,7 +4,11 @@ using System.Windows.Media;
 
 namespace KillerPDF
 {
-    public enum EditTool { Select, Text, Highlight, Strikethrough, Underline, Draw, Signature, Image, Crop, Line, Rotate }
+    public enum EditTool { Select, Text, Highlight, Strikethrough, Underline, Draw, Signature, Image, Crop, Line, Rotate, Shape }
+
+    /// <summary>Sub-mode of the Shapes tool (#127 Phase 3): drag a rectangle or ellipse, or click
+    /// out a free-form polygon vertex by vertex.</summary>
+    public enum ShapeKind { Rectangle, Ellipse, Polygon }
 
     /// <summary>How a HighlightAnnotation paints over its bounds.</summary>
     public enum HighlightStyle { Fill, Strikethrough, Underline }
@@ -85,6 +89,18 @@ namespace KillerPDF
 
         public Color GetColor() => Color.FromArgb(ColorA, ColorR, ColorG, ColorB);
         public void SetColor(Color c) { ColorR = c.R; ColorG = c.G; ColorB = c.B; ColorA = c.A; }
+
+        // Shapes (#127 Phase 3): a non-zero alpha fills the region enclosed by the stroke (the
+        // Shapes tool commits closed outlines - the last point repeats the first). Plain ink
+        // strokes and lines leave FillA = 0 and render exactly as before.
+        public byte FillR { get; set; }
+        public byte FillG { get; set; }
+        public byte FillB { get; set; }
+        public byte FillA { get; set; }
+
+        public bool HasFill => FillA > 0;
+        public Color GetFillColor() => Color.FromArgb(FillA, FillR, FillG, FillB);
+        public void SetFillColor(Color c) { FillR = c.R; FillG = c.G; FillB = c.B; FillA = c.A; }
     }
 
     // One brush-eraser pass over a highlight: a stroke (canvas-space points) of the given radius. The

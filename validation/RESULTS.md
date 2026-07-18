@@ -1,10 +1,13 @@
 # Standards-conformance validation results - KillerPDF 1.6.4
 
-Run date: 2026-07-17. Question under test: does saving a PDF through KillerPDF degrade its
+Run date: 2026-07-17.
+
+Question under test: does saving a PDF through KillerPDF degrade its
 standards conformance? Every file in a 2,907-file public corpus was validated, resaved through
-KillerPDF's standard open/save pipeline, and validated again. **Result: zero conformance
-regressions across every file KillerPDF will save, with one documented engine limitation
-(PDF/A-4's PDF 2.0 header). 63 files came out more conformant than they went in.**
+KillerPDF's standard open/save pipeline, and validated again.
+
+Result: **Zero** conformance regressions across every file KillerPDF will save, with one documented engine limitation
+(PDF/A-4's PDF 2.0 header). **63 files came out more conformant than they went in.**
 
 ## Tools
 
