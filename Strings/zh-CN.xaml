@@ -518,6 +518,7 @@
     <sys:String x:Key="Str_Ctx_BmRename">重命名</sys:String>
     <sys:String x:Key="Str_Ctx_BmDelete">删除</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">第 {0} 页</sys:String>
+    <sys:String x:Key="Str_PageLabel">第 {0} 页</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">删除此书签及其 {0} 个子书签？</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">上移</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">下移</sys:String>

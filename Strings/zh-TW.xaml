@@ -516,6 +516,7 @@
     <sys:String x:Key="Str_Ctx_BmRename">重新命名</sys:String>
     <sys:String x:Key="Str_Ctx_BmDelete">刪除</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">第 {0} 頁</sys:String>
+    <sys:String x:Key="Str_PageLabel">第 {0} 頁</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">刪除此書籤及其 {0} 個子書籤？</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">上移</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">下移</sys:String>

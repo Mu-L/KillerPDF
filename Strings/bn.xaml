@@ -514,6 +514,7 @@
     <sys:String x:Key="Str_Ctx_BmRename">নাম পরিবর্তন করুন</sys:String>
     <sys:String x:Key="Str_Ctx_BmDelete">মুছে ফেলুন</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">পৃষ্ঠা {0}</sys:String>
+    <sys:String x:Key="Str_PageLabel">পৃষ্ঠা {0}</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">এই বুকমার্ক এবং এর {0}টি চাইল্ড বুকমার্ক মুছে ফেলা হবে?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">উপরে সরান</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">নিচে সরান</sys:String>

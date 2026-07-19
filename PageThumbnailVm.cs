@@ -24,7 +24,8 @@ namespace KillerPDF
         private bool         _loadRequested;
 
         public int    PageIndex { get; } = pageIndex;
-        public string Label     => $"Page {PageIndex + 1}";
+        public string Label     => string.Format(
+            Application.Current?.TryFindResource("Str_PageLabel") as string ?? "Page {0}", PageIndex + 1);
 
         private readonly string _filePath = filePath;
         private readonly int    _rotation = ((rotation % 360) + 360) % 360; // degrees: 0, 90, 180, 270

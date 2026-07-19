@@ -545,6 +545,7 @@
     <sys:String x:Key="Str_Ctx_BmRename">名前を変更</sys:String>
     <sys:String x:Key="Str_Ctx_BmDelete">削除</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">ページ {0}</sys:String>
+    <sys:String x:Key="Str_PageLabel">ページ {0}</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">このブックマークと {0} 個の子ブックマークを削除しますか？</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">上へ移動</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">下へ移動</sys:String>

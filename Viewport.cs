@@ -975,7 +975,7 @@ namespace KillerPDF
 
             var overlay = BuildPageOverlay(pi, pageDipW, pageDipH, null);
             overlay.Cursor = CursorForTool(_currentTool);
-            overlay.ToolTip = $"Page {pi + 1}";
+            overlay.ToolTip = string.Format(Loc("Str_PageLabel"), pi + 1);
 
             var pageGrid = new Grid();
             pageGrid.Children.Add(img);

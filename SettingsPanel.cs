@@ -501,6 +501,11 @@ namespace KillerPDF
             // The crop bar is built once with Loc() snapshots; rebuild it in the new language if it's showing.
             RebuildCropBarForLocale();
 
+            // Page thumbnails and outline tooltips snapshot Loc() strings when built; rebuild both
+            // lists so their "Page N" labels switch to the new language immediately.
+            RefreshPageList();
+            RefreshOutlines();
+
             // A visible signature popup is built with Loc() too; rebuild it so its section headers and
             // pen labels switch immediately.
             RefreshSignaturePopupLanguage();
