@@ -2660,7 +2660,17 @@ namespace KillerPDF
                             var layoutRect = new XRect(tboxX + padX, tboxY + padY,
                                                        Math.Max(1, tboxW - 2 * padX), Math.Max(1, tboxH));
                             var tf = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
-                            tf.DrawString(ta.Content, font, taBrush, layoutRect);
+                            // Align explicitly. The shorter DrawString overload hardcodes Justify,
+                            // which the on-screen TextBlock never does (it sets no TextAlignment,
+                            // so WPF gives it Left), so burned text silently rendered differently
+                            // from the editor once a line wrapped. TextFormatAlignment's own
+                            // defaults are Left/Top, which is what we want - state Horizontal
+                            // anyway so a future default change can't quietly undo this.
+                            tf.DrawString(ta.Content, font, taBrush, layoutRect,
+                                new PdfSharpCore.Drawing.Layout.TextFormatAlignment
+                                {
+                                    Horizontal = PdfSharpCore.Drawing.Layout.XParagraphAlignment.Left
+                                });
                             break;
                         }
 
