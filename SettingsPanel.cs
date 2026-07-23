@@ -45,6 +45,7 @@ namespace KillerPDF
             // Sync language picker
             var curLoc = KillerPDF.Services.LocaleManager.Current;
             LangEnRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.EnUS;
+            LangCsRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.CsCZ;
             LangEsRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.Es;
             LangFrRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.Fr;
             LangZhTWRadio.IsChecked = curLoc == KillerPDF.Services.Locale.ZhTW;
@@ -492,6 +493,7 @@ namespace KillerPDF
         };
 
         private void LangEnRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.EnUS);
+        private void LangCsRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.CsCZ);
         private void LangEsRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.Es);
         private void LangFrRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.Fr);
         private void LangZhTWRadio_Checked(object sender, RoutedEventArgs e) => SelectLocale(KillerPDF.Services.Locale.ZhTW);
@@ -541,6 +543,11 @@ namespace KillerPDF
             // The crop bar is built once with Loc() snapshots; rebuild it in the new language if it's showing.
             RebuildCropBarForLocale();
 
+            // Page thumbnails and outline tooltips snapshot Loc() strings when built; rebuild both
+            // lists so their "Page N" labels switch to the new language immediately.
+            RefreshPageList();
+            RefreshOutlines();
+
             // A visible signature popup is built with Loc() too; rebuild it so its section headers and
             // pen labels switch immediately.
             RefreshSignaturePopupLanguage();
@@ -581,6 +588,7 @@ namespace KillerPDF
         // Native name (autonym) for each language, shown in the picker regardless of UI locale.
         private static string LangDisplayName(KillerPDF.Services.Locale loc) => loc switch
         {
+            KillerPDF.Services.Locale.CsCZ => "Čeština",
             KillerPDF.Services.Locale.Es   => "Español",
             KillerPDF.Services.Locale.Fr   => "Français",
             KillerPDF.Services.Locale.ZhTW => "中文 (繁體)",

@@ -1,0 +1,581 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- ================================================================
+         KillerPDF  -  Czech (cs-CZ) strings
+         ================================================================ -->
+
+    <!-- ── Toolbar tooltips ─────────────────────────────────────────── -->
+    <sys:String x:Key="Str_TT_Open">Otevřít (Ctrl+O)</sys:String>
+    <sys:String x:Key="Str_TT_NewBlank">Nový prázdný dokument (Ctrl+N)</sys:String>
+    <sys:String x:Key="Str_TT_CloseFile">Zavřít soubor (Ctrl+W)</sys:String>
+    <sys:String x:Key="Str_TT_Save">Uložit (Ctrl+S)</sys:String>
+
+    <!-- ── Drop zone / empty state ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Drop_Title">Přetáhněte PDF sem</sys:String>
+    <sys:String x:Key="Str_Drop_Sub">nebo klikněte pro výběr souboru</sys:String>
+    <sys:Double x:Key="ZoomBoxWidth">132</sys:Double>
+    <sys:String x:Key="Str_TT_SaveAs">Uložit jako (Ctrl+Shift+S)</sys:String>
+    <sys:String x:Key="Str_TT_SaveFlattened">Uložit PDF se sloučenými vrstvami (rastrovat všechny stránky - zcela neupravitelné)</sys:String>
+    <sys:String x:Key="Str_TT_Print">Tisk (Ctrl+P)</sys:String>
+    <sys:String x:Key="Str_TT_MergePDFs">Sloučit PDF (připojit další PDF do tohoto)</sys:String>
+    <sys:String x:Key="Str_TT_ExtractPages">Extrahovat stránky (uložit vybrané stránky do nového PDF)</sys:String>
+    <sys:String x:Key="Str_TT_DeletePages">Smazat vybrané stránky</sys:String>
+    <sys:String x:Key="Str_TT_MovePageUp">Posunout stránku nahoru (změna pořadí)</sys:String>
+    <sys:String x:Key="Str_TT_MovePageDown">Posunout stránku dolů (změna pořadí)</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">Nástroj výběru - klikněte na anotace, tažením vyberte text, dvojklikem upravte</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">Textový nástroj - kliknutím přidáte text</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">Zvýrazňovač - tažením zvýrazněte</sys:String>
+    <sys:String x:Key="Str_TT_StrikeTool">Přeškrtnutí - táhněte přes text</sys:String>
+    <sys:String x:Key="Str_TT_UnderlineTool">Podtržení - táhněte přes text</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">Kreslení - volnou rukou</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">Podpis - vytvoření a umístění podpisů</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">Nástroj obrázku - kliknutím vložíte obrázek na stránku</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">Ořez - tažením nastavte oblast ořezu a poté použijte na stránky</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Transformace stránky - otočení / narovnání (změna měřítka již brzy)</sys:String>
+    <sys:String x:Key="Str_TT_ClearAnnotations">Odstranit všechny anotace</sys:String>
+    <sys:String x:Key="Str_TT_Search">Hledat (Ctrl+F)</sys:String>
+    <sys:String x:Key="Str_TT_UndoLast">Zpět (Ctrl+Z)</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">Mřížkové zobrazení více stránek (F8)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomOut">Oddálit (Ctrl+-)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">Úroveň přiblížení (Ctrl+kolečko · Ctrl+=/- · Ctrl+0=obnovit)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Přiblížit (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_GoToPage">Přejít na stránku (potvrďte klávesou Enter)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Sbalit postranní panel (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Rozbalit postranní panel (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">Klávesové zkratky (F1)</sys:String>
+    <sys:String x:Key="Str_TT_Settings">Nastavení (F9)</sys:String>
+    <sys:String x:Key="Str_TT_About">O aplikaci KillerPDF (F12)</sys:String>
+
+    <!-- ── About overlay ─────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_About_Version">VERZE</sys:String>
+    <sys:String x:Key="Str_About_Publisher">VYDAVATEL</sys:String>
+    <sys:String x:Key="Str_About_Thumbprint">OTISK CERTIFIKÁTU</sys:String>
+    <sys:String x:Key="Str_About_ExeSha">EXE SHA256</sys:String>
+    <sys:String x:Key="Str_About_Computing">Počítám...</sys:String>
+    <sys:String x:Key="Str_Tagline">Rychlá a bezplatná sada nástrojů pro PDF ve Windows s anotacemi, slučováním, OCR, podepisováním a formuláři. Nástroj pod licencí GPLv3 od {0}.</sys:String>
+
+    <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_TabPages">STRÁNKY</sys:String>
+    <sys:String x:Key="Str_TabOutlines">OSNOVA</sys:String>
+    <sys:String x:Key="Str_PageLabel">Stránka {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(bez názvu)</sys:String>
+
+    <!-- ── Settings panel ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Settings">Nastavení</sys:String>
+    <sys:String x:Key="Str_Theme">MOTIV</sys:String>
+    <sys:String x:Key="Str_Language">JAZYK</sys:String>
+    <sys:String x:Key="Str_Toolbar">PANEL NÁSTROJŮ</sys:String>
+    <sys:String x:Key="Str_Toolbar_SmallIcons">Malé ikony</sys:String>
+    <sys:String x:Key="Str_Toolbar_LargeIcons">Velké ikony</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextBeside">Text vedle ikon</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextUnder">Text pod ikonami</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextOnly">Pouze text</sys:String>
+    <sys:String x:Key="Str_Lang_English">English</sys:String>
+    <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
+    <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
+
+    <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
+    <sys:String x:Key="Str_KS_Title">Klávesové zkratky</sys:String>
+    <sys:String x:Key="Str_KS_File">SOUBOR</sys:String>
+    <sys:String x:Key="Str_KS_Open">Otevřít</sys:String>
+    <sys:String x:Key="Str_KS_CloseFile">Zavřít soubor</sys:String>
+    <sys:String x:Key="Str_KS_CloseAll">Zavřít vše</sys:String>
+    <sys:String x:Key="Str_KS_NewBlank">Nový prázdný dokument</sys:String>
+    <sys:String x:Key="Str_KS_SaveAs">Uložit jako</sys:String>
+    <sys:String x:Key="Str_KS_Print">Tisk</sys:String>
+    <sys:String x:Key="Str_KS_Navigation">NAVIGACE</sys:String>
+    <sys:String x:Key="Str_KS_PrevNext">Předchozí / další stránka</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">Posouvání (na okraji otočí stránku)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomCursor">Přiblížit / oddálit (ukotveno ke kurzoru)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomInOut">Přiblížit / oddálit</sys:String>
+    <sys:String x:Key="Str_KS_ResetZoom">Obnovit přiblížení na 100 %</sys:String>
+    <sys:String x:Key="Str_KS_PanView">Posun zobrazení</sys:String>
+    <sys:String x:Key="Str_KS_Editing">ÚPRAVY</sys:String>
+    <sys:String x:Key="Str_KS_Undo">Zpět</sys:String>
+    <sys:String x:Key="Str_KS_DeleteAnnot">Smazat vybranou anotaci</sys:String>
+    <sys:String x:Key="Str_KS_ConfirmCancel">Potvrdit / zrušit text nebo ořez</sys:String>
+    <sys:String x:Key="Str_KS_SearchSelect">HLEDÁNÍ &amp; VÝBĚR</sys:String>
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <!-- Document Info dialog -->
+    <sys:String x:Key="Str_TT_DocInfo">Informace o dokumentu (F4)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">Informace o dokumentu</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">Název</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">Autor</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">Předmět</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">Klíčová slova</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">Vytvořeno v</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">Uložit</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">Zrušit</sys:String>
+    <sys:String x:Key="Str_KS_Find">Najít / hledat</sys:String>
+    <sys:String x:Key="Str_KS_NextPrevResult">Další / předchozí výsledek</sys:String>
+    <sys:String x:Key="Str_KS_SelectAll">Vybrat veškerý text na stránce</sys:String>
+    <sys:String x:Key="Str_KS_CopyText">Kopírovat vybraný text</sys:String>
+    <sys:String x:Key="Str_KS_Help">NÁPOVĚDA</sys:String>
+    <sys:String x:Key="Str_KS_ThisList">Tento seznam zkratek</sys:String>
+    <sys:String x:Key="Str_KS_About">Dialog O aplikaci</sys:String>
+    <sys:String x:Key="Str_KS_Settings">Nastavení</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">Informace o dokumentu</sys:String>
+    <sys:String x:Key="Str_KS_OnlineHelp">Kompletní příručka &amp; návody online</sys:String>
+    <sys:String x:Key="Str_KS_Tools">NÁSTROJE</sys:String>
+    <sys:String x:Key="Str_KS_Paste">Vložit obrázek / text</sys:String>
+    <sys:String x:Key="Str_KS_MultiSelect">Přidat do výběru</sys:String>
+
+    <!-- ── Status bar ────────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Ready">Připraveno</sys:String>
+    <sys:String x:Key="Str_Portable">PORTABLE</sys:String>
+    <sys:String x:Key="Str_InstallBtn">Nainstalovat KillerPDF...</sys:String>
+
+    <!-- ── Status messages (format strings - use string.Format) ─────── -->
+    <sys:String x:Key="Str_Opened">Otevřeno {0} - stránek: {1}</sys:String>
+    <sys:String x:Key="Str_OpenedReadOnly">Otevřeno {0} (jen pro čtení - omezení vlastníka) - stránek: {1}</sys:String>
+    <sys:String x:Key="Str_OpenedReadOnlyXRef">Otevřeno {0} (jen pro čtení - nestandardní tabulka XRef) - stránek: {1}</sys:String>
+    <sys:String x:Key="Str_OpenedRepaired">Otevřeno {0} (opravená kopie - změny zachováte uložením) - stránek: {1}</sys:String>
+    <sys:String x:Key="Str_OpenedRasterRepair">Otevřeno {0} (rastrová oprava - změny zachováte uložením) - stránek: {1}</sys:String>
+    <sys:String x:Key="Str_PageOf">Stránka {0} z {1}</sys:String>
+    <sys:String x:Key="Str_PageOfLinks">Stránka {0} z {1}  (odkazů: {2})</sys:String>
+    <sys:String x:Key="Str_PageFormFields">Stránka {0} z {1} - tato stránka obsahuje vyplnitelná pole formuláře</sys:String>
+    <sys:String x:Key="Str_PageRenderError">Stránka {0} - nelze vykreslit</sys:String>
+    <sys:String x:Key="Str_RenderError">Chyba vykreslení: {0}</sys:String>
+    <sys:String x:Key="Str_Rotated">Otočeno stránek: {0}</sys:String>
+    <sys:String x:Key="Str_Cropped">Oříznuto stránek: {0}</sys:String>
+    <sys:String x:Key="Str_CropFailed">Ořez selhal: {0}</sys:String>
+    <sys:String x:Key="Str_RemovedCrop">CropBox odstraněn ze stránek: {0}</sys:String>
+    <sys:String x:Key="Str_RemoveCropFailed">Odstranění ořezu selhalo: {0}</sys:String>
+    <sys:String x:Key="Str_Extracted">Extrahováno stránek: {0} do {1}</sys:String>
+    <sys:String x:Key="Str_Deleted">Smazáno stránek: {0} - zbývá stránek: {1}</sys:String>
+    <sys:String x:Key="Str_Printed">Na tiskárnu odesláno stránek: {0}</sys:String>
+    <sys:String x:Key="Str_LinkRemoved">Odkaz odstraněn.</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">Odstranění odkazu selhalo:</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">Blokovaný odkaz (nepodporovaný typ):</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">Odkaz se nepodařilo otevřít</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">Otevřít tento odkaz v prohlížeči?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">Otevřít odkaz?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">Příště se neptat</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">Otevřít odkaz</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">Kopírovat adresu odkazu</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">Kopírovat e-mailovou adresu</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">Odstranit odkaz z PDF</sys:String>
+    <sys:String x:Key="Str_LinksSection">ODKAZY</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">Před otevřením odkazů se zeptat</sys:String>
+    <sys:String x:Key="Str_InvalidRange">Neplatný rozsah - použijte např. 1-3,5,7</sys:String>
+    <sys:String x:Key="Str_CropNoDoc">Ořez: není otevřen žádný dokument</sys:String>
+    <sys:String x:Key="Str_CropNoPage">Ořez: není vybrána žádná stránka</sys:String>
+    <sys:String x:Key="Str_CropNoDims">Ořez: rozměry stránky nejsou k dispozici</sys:String>
+    <sys:String x:Key="Str_RotateFailed">Otočení selhalo: {0}</sys:String>
+
+    <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_InstallTitle">Nainstalovat KillerPDF</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallMsg">Nainstalovat KillerPDF do vašeho uživatelského profilu?
+
+Aplikace se zkopíruje do %LocalAppData%\KillerPDF a v nabídce Start se vytvoří zástupce.
+Odinstalovat ji můžete kdykoli přes Přidat/odebrat programy.</sys:String>
+    <sys:String x:Key="Str_Dlg_UnsavedClose">Máte neuložené změny. Zavřít tento soubor bez uložení?</sys:String>
+    <sys:String x:Key="Str_Dlg_UnsavedExit">Máte neuložené změny. Zavřít KillerPDF bez uložení?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">Tento dokument obsahuje stránky (počet: {0}) s rozměry mimo rozsah podporovaný aplikací Adobe Reader (3 až 14 400 bodů na stranu) - Adobe je zobrazuje jako prázdné.
+
+Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporce.</sys:String>
+    <sys:String x:Key="Str_Dlg_FailedOpen">Nepodařilo se otevřít PDF:
+{0}</sys:String>
+    <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
+    <sys:String x:Key="Str_Dlg_CloseAllDocs">Máte otevřené dokumenty (počet: {0}). Chcete, aby je KillerPDF při ukončení aplikace všechny zavřel?</sys:String>
+    <sys:String x:Key="Str_Dlg_CloseAllDocsOne">Máte otevřený 1 dokument. Chcete, aby jej KillerPDF při ukončení aplikace zavřel?</sys:String>
+    <sys:String x:Key="Str_Dlg_RememberChoice">Zapamatovat mou volbu</sys:String>
+
+
+    <!-- ── Theme names ────────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Theme_Dark">Tmavý</sys:String>
+    <sys:String x:Key="Str_Theme_Light">Světlý</sys:String>
+    <sys:String x:Key="Str_Theme_Black">Černý</sys:String>
+    <sys:String x:Key="Str_Theme_Blood">Krvavý</sys:String>
+    <sys:String x:Key="Str_Theme_Greed">Chamtivý</sys:String>
+    <sys:String x:Key="Str_Theme_Cyanotic">Kyanotický</sys:String>
+
+    <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Zoom_FitWidth">Přizpůsobit šířce</sys:String>
+    <sys:String x:Key="Str_Zoom_FitPage">Přizpůsobit stránce</sys:String>
+    <sys:String x:Key="Str_FitWidth">Stránka {0} z {1} - přizpůsobeno šířce ({2} %)</sys:String>
+    <sys:String x:Key="Str_FitPage">Stránka {0} z {1} - přizpůsobeno stránce ({2} %)</sys:String>
+
+    <!-- ── KS overlay font size (sys:Double) ──────────────────────────── -->
+    <sys:Double x:Key="Str_KS_FontSize">11</sys:Double>
+
+
+    <!-- ── View mode ──────────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_ViewMode">REŽIM ZOBRAZENÍ</sys:String>
+    <sys:String x:Key="Str_View_Single">Jedna stránka</sys:String>
+    <sys:String x:Key="Str_View_Continuous">Souvislé</sys:String>
+    <sys:String x:Key="Str_View_TwoPage">Dvoustrana</sys:String>
+    <sys:String x:Key="Str_View_Grid">Mřížka</sys:String>
+    <sys:String x:Key="Str_Continuous_EditMsg">Pro nástroje úprav přepněte na zobrazení jedné stránky</sys:String>
+
+    <!-- ── Overflow menu + menu item labels ───────────────────────────── -->
+    <sys:String x:Key="Str_Lbl_Merge">Sloučit PDF</sys:String>
+    <sys:String x:Key="Str_Lbl_Extract">Extrahovat stránky</sys:String>
+    <sys:String x:Key="Str_Lbl_Delete">Smazat stránky</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveUp">Posunout stránku nahoru</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveDown">Posunout stránku dolů</sys:String>
+    <sys:String x:Key="Str_Lbl_Text">Text</sys:String>
+    <sys:String x:Key="Str_Lbl_Highlight">Zvýraznění</sys:String>
+    <sys:String x:Key="Str_Lbl_Strike">Přeškrtnutí</sys:String>
+    <sys:String x:Key="Str_Lbl_Underline">Podtržení</sys:String>
+    <sys:String x:Key="Str_Lbl_Bold">Tučné</sys:String>
+    <sys:String x:Key="Str_Lbl_Italic">Kurzíva</sys:String>
+    <sys:String x:Key="Str_Lbl_Draw">Kreslení</sys:String>
+    <sys:String x:Key="Str_Lbl_Crop">Ořez</sys:String>
+    <sys:String x:Key="Str_Lbl_Rotate">Transformace</sys:String>
+    <sys:String x:Key="Str_Lbl_Stamp">Razítko</sys:String>
+    <sys:String x:Key="Str_Lbl_Image">Přidat obrázek</sys:String>
+    <sys:String x:Key="Str_Lbl_Signature">Podpis</sys:String>
+    <sys:String x:Key="Str_Lbl_Undo">Zpět</sys:String>
+    <sys:String x:Key="Str_Lbl_Clear">Vymazat vše</sys:String>
+    <sys:String x:Key="Str_Lbl_New">Nový</sys:String>
+    <sys:String x:Key="Str_Lbl_Open">Otevřít</sys:String>
+    <sys:String x:Key="Str_Lbl_Close">Zavřít</sys:String>
+    <sys:String x:Key="Str_Lbl_Save">Uložit</sys:String>
+    <sys:String x:Key="Str_Lbl_Flatten">Sloučit vrstvy</sys:String>
+    <sys:String x:Key="Str_Lbl_Print">Tisk</sys:String>
+    <sys:String x:Key="Str_Lbl_Select">Výběr</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomOut">Oddálit</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomIn">Přiblížit</sys:String>
+    <sys:String x:Key="Str_Lbl_Search">Hledat</sys:String>
+
+    <!-- ── Right-click menu labels ────────────────────────────────────── -->
+    <sys:String x:Key="Str_Ctx_CopyText">Kopírovat text</sys:String>
+    <sys:String x:Key="Str_Ctx_Print">Tisk</sys:String>
+    <sys:String x:Key="Str_Ctx_OcrPage">OCR stránky (kopírovat text)</sys:String>
+    <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">OCR stránky (kopírovat text) (Ctrl+Shift+O)</sys:String>
+    <sys:String x:Key="Str_Ocr_Region">Oblast OCR...</sys:String>
+    <sys:String x:Key="Str_Ocr_SearchablePdf">Vytvořit prohledávatelné PDF...</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractText">Extrahovat veškerý text...</sys:String>
+    <sys:String x:Key="Str_Ocr_Language">Jazyk</sys:String>
+    <sys:String x:Key="Str_Ocr_NoDoc">Nejprve otevřete PDF</sys:String>
+    <sys:String x:Key="Str_Ocr_ComingSoon">{0} - již brzy</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectTool">Nástroj výběru</sys:String>
+    <sys:String x:Key="Str_Ctx_TextTool">Textový nástroj</sys:String>
+    <sys:String x:Key="Str_Ctx_HighlightTool">Zvýrazňovač</sys:String>
+    <sys:String x:Key="Str_Ctx_DrawTool">Kreslení</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCW">Otočit stránku doprava</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCW">Otočit stránku doleva</sys:String>
+    <sys:String x:Key="Str_Ctx_StampNumbers">Razítkovat čísla stránek...</sys:String>
+    <sys:String x:Key="Str_Ctx_DeleteSel">Smazat vybrané</sys:String>
+    <sys:String x:Key="Str_Ctx_UndoLast">Zpět</sys:String>
+    <sys:String x:Key="Str_Ctx_ClearPage">Vymazat anotace stránky</sys:String>
+    <sys:String x:Key="Str_Ctx_InsertBlank">Vložit prázdnou stránku za</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCWShort">Otočit doprava</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCWShort">Otočit doleva</sys:String>
+    <sys:String x:Key="Str_Ctx_ExtractPages">Extrahovat stránky</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePages">Smazat stránky</sys:String>
+
+    <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Stamp_Title">Razítkování čísel stránek</sys:String>
+    <sys:String x:Key="Str_Stamp_StartAt">Začít od</sys:String>
+    <sys:String x:Key="Str_Stamp_Format">Formát</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">Použijte {n} pro číslo stránky, {N} pro celkový počet</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint2">Příklad: "Stránka {n} z {N}"</sys:String>
+    <sys:String x:Key="Str_Stamp_Position">Umístění</sys:String>
+    <sys:String x:Key="Str_Stamp_FontSize">Velikost písma (pt)</sys:String>
+    <sys:String x:Key="Str_Stamp_Cancel">Zrušit</sys:String>
+    <sys:String x:Key="Str_Stamp_Stamp">Razítkovat</sys:String>
+    <sys:String x:Key="Str_Stamp_Suffix">Razítkování stránek</sys:String>
+    <sys:String x:Key="Str_Stamp_SecNumbers">Čísla stránek</sys:String>
+    <sys:String x:Key="Str_Stamp_SecWatermark">Vodoznak</sys:String>
+    <sys:String x:Key="Str_Stamp_Color">Barva</sys:String>
+    <sys:String x:Key="Str_Stamp_Pages">Stránky</sys:String>
+    <sys:String x:Key="Str_Stamp_WmText">Text</sys:String>
+    <sys:String x:Key="Str_Stamp_WmImage">Obrázek</sys:String>
+    <sys:String x:Key="Str_Stamp_WmTextLabel">Text vodoznaku</sys:String>
+    <sys:String x:Key="Str_Stamp_ChooseImage">Vybrat obrázek...</sys:String>
+    <sys:String x:Key="Str_Stamp_Scale">Měřítko</sys:String>
+    <sys:String x:Key="Str_Stamp_Angle">Úhel</sys:String>
+    <sys:String x:Key="Str_Stamp_Opacity">Krytí</sys:String>
+    <sys:String x:Key="Str_Stamp_Mirror">Zrcadlit na protilehlých stránkách (vnější okraj)</sys:String>
+    <sys:String x:Key="Str_Stamp_Applied">Orazítkováno stránek: {0}</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">Razítkování stránek</sys:String>
+    <sys:String x:Key="Str_Ctx_StampPages">Razítkovat stránky</sys:String>
+    <sys:String x:Key="Str_Pos_BottomCenter">Dole uprostřed</sys:String>
+    <sys:String x:Key="Str_Pos_BottomRight">Vpravo dole</sys:String>
+    <sys:String x:Key="Str_Pos_BottomLeft">Vlevo dole</sys:String>
+    <sys:String x:Key="Str_Pos_TopCenter">Nahoře uprostřed</sys:String>
+    <sys:String x:Key="Str_Pos_TopRight">Vpravo nahoře</sys:String>
+    <sys:String x:Key="Str_Pos_TopLeft">Vlevo nahoře</sys:String>
+
+    <!-- ── Print dialog ───────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Print_Title">KillerPDF - Tisk</sys:String>
+    <sys:String x:Key="Str_Print_Printer">Tiskárna</sys:String>
+    <sys:String x:Key="Str_Print_Orientation">Orientace</sys:String>
+    <sys:String x:Key="Str_Print_Portrait">Na výšku</sys:String>
+    <sys:String x:Key="Str_Print_Landscape">Na šířku</sys:String>
+    <sys:String x:Key="Str_Print_Scale">Měřítko</sys:String>
+    <sys:String x:Key="Str_Print_Fit">Přizpůsobit stránce</sys:String>
+    <sys:String x:Key="Str_Print_Actual">Skutečná velikost (100 %)</sys:String>
+    <sys:String x:Key="Str_Print_Custom">Vlastní %</sys:String>
+    <sys:String x:Key="Str_Print_ScaleHint">Procento měřítka (např. 50 nebo 50,23)</sys:String>
+    <sys:String x:Key="Str_Print_Copies">Kopie</sys:String>
+    <sys:String x:Key="Str_Print_Pages">Stránky</sys:String>
+    <sys:String x:Key="Str_Print_PagesHint">např. 1-3,5  (prázdné = vše)</sys:String>
+    <sys:String x:Key="Str_Print_NoPages">Žádné stránky</sys:String>
+    <sys:String x:Key="Str_Print_Margins">Okraje</sys:String>
+    <sys:String x:Key="Str_Margin_None">Žádné</sys:String>
+    <sys:String x:Key="Str_Margin_Narrow">Úzké</sys:String>
+    <sys:String x:Key="Str_Margin_Normal">Normální</sys:String>
+    <sys:String x:Key="Str_Margin_Wide">Široké</sys:String>
+    <sys:String x:Key="Str_Print_PagesPerSheet">Stránek na list</sys:String>
+    <sys:String x:Key="Str_Print_TwoSided">Oboustranný tisk</sys:String>
+    <sys:String x:Key="Str_Print_Color">Barevně</sys:String>
+    <sys:String x:Key="Str_Print_BW">Černobíle</sys:String>
+    <sys:String x:Key="Str_Pos_Center">Uprostřed</sys:String>
+    <sys:String x:Key="Str_Pos_Custom">Vlastní (táhněte v náhledu)</sys:String>
+    <sys:String x:Key="Str_Pos_Top">Nahoře</sys:String>
+    <sys:String x:Key="Str_Pos_Bottom">Dole</sys:String>
+    <sys:String x:Key="Str_Pos_Left">Vlevo</sys:String>
+    <sys:String x:Key="Str_Pos_Right">Vpravo</sys:String>
+
+    <!-- ── Save / recent menus + signature dialog ──────────────────── -->
+    <sys:String x:Key="Str_Menu_Save">Uložit</sys:String>
+    <sys:String x:Key="Str_Menu_SaveAs">Uložit jako...</sys:String>
+    <sys:String x:Key="Str_Menu_SaveNothing">Není co uložit</sys:String>
+    <sys:String x:Key="Str_Menu_RecentNone">Žádné nedávné soubory</sys:String>
+    <sys:String x:Key="Str_Menu_ClearList">Vymazat seznam</sys:String>
+    <sys:String x:Key="Str_Menu_RemoveFromRecents">Odebrat z nedávných</sys:String>
+
+    <!-- Import images as PDF / Compress to ZIP -->
+    <sys:String x:Key="Str_Menu_Import">Importovat obrázky jako PDF</sys:String>
+    <sys:String x:Key="Str_Menu_CompressZip">Komprimovat do ZIP</sys:String>
+    <sys:String x:Key="Str_Filter_Images">Obrázky</sys:String>
+    <sys:String x:Key="Str_Filter_AllFiles">Všechny soubory</sys:String>
+    <sys:String x:Key="Str_Filter_Zip">Archiv ZIP</sys:String>
+    <sys:String x:Key="Str_Status_Imported">Importováno obrázků: {0} - zatím neuloženo</sys:String>
+    <sys:String x:Key="Str_Err_ImportFailed">Import selhal:</sys:String>
+    <sys:String x:Key="Str_Err_NoImages">Žádné obrázky se nepodařilo načíst.</sys:String>
+    <sys:String x:Key="Str_Drop_Prompt">Přetáhli jste soubory (počet: {0}). Jak je chcete otevřít?</sys:String>
+    <sys:String x:Key="Str_Drop_Merge">Sloučit do jednoho PDF</sys:String>
+    <sys:String x:Key="Str_Drop_Separate">Otevřít samostatně</sys:String>
+    <sys:String x:Key="Str_Drop_NothingOpenable">Nebyly nalezeny žádné PDF ani obrázky k otevření.</sys:String>
+    <sys:String x:Key="Str_Drop_ManyTabs">Otevřou se samostatné karty (počet: {0}). Pokračovat?</sys:String>
+    <sys:String x:Key="Str_Drop_TooMany">Tato složka nebo archiv obsahuje soubory (počet: {0}). KillerPDF otevře jen prvních {1}. Pokračovat?</sys:String>
+    <sys:String x:Key="Str_Status_Merged">Sloučeno souborů: {0} - zatím neuloženo</sys:String>
+    <sys:String x:Key="Str_Drop_Merging">Slučuji soubory...</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCancelled">Slučování zrušeno</sys:String>
+    <sys:String x:Key="Str_Dlg_UnsavedCloseAll">Zavřít všechny dokumenty? Neuložené změny budou ztraceny.</sys:String>
+    <sys:String x:Key="Str_Msg_OpenFirst">Nejprve otevřete PDF.</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveBeforeZip">Uložit změny před komprimací do ZIP?</sys:String>
+    <sys:String x:Key="Str_Status_Zipped">Zkomprimováno do {0} - {1} (původně {2})</sys:String>
+    <sys:String x:Key="Str_Err_ZipFailed">Komprimace do ZIP selhala:</sys:String>
+    <sys:String x:Key="Str_Sig_Title">Podpisy</sys:String>
+    <sys:String x:Key="Str_Sig_None">Žádné uložené podpisy</sys:String>
+    <sys:String x:Key="Str_Sig_Create">Vytvořit podpis</sys:String>
+    <sys:String x:Key="Str_Sig_Import">Importovat obrázek</sys:String>
+    <sys:String x:Key="Str_Sig_DrawHere">Zde nakreslete svůj podpis</sys:String>
+    <sys:String x:Key="Str_Sig_Clear">Vymazat</sys:String>
+    <sys:String x:Key="Str_Sig_SaveSig">Uložit podpis</sys:String>
+
+    <!-- Crop confirm bar tooltips -->
+    <sys:String x:Key="Str_TT_CropThisPage">Oříznout tuto stránku (Enter)</sys:String>
+    <sys:String x:Key="Str_TT_CropRange">Oříznout stránky v zadaném rozsahu</sys:String>
+    <sys:String x:Key="Str_TT_CropRemove">Odstranit CropBox (a TrimBox) z této stránky</sys:String>
+    <sys:String x:Key="Str_TT_CropRemoveAll">Odstranit CropBox ze všech stránek</sys:String>
+    <sys:String x:Key="Str_TT_CropCancel">Zrušit (Escape)</sys:String>
+
+    <!-- ── Line tool, layer / group menu (added v1.5.x) ───────────────── -->
+    <sys:String x:Key="Str_Lbl_Line">Čára</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Čára - tažením nakreslíte rovnou čáru</sys:String>
+    <sys:String x:Key="Str_Ctx_Edit">Upravit</sys:String>
+    <sys:String x:Key="Str_Ctx_Raise">O vrstvu výš</sys:String>
+    <sys:String x:Key="Str_Ctx_Lower">O vrstvu níž</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectCover">Vybrat překrytí</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectText">Vybrat text</sys:String>
+    <sys:String x:Key="Str_Ctx_Unpair">Rozpojit text + překrytí</sys:String>
+    <sys:String x:Key="Str_Ctx_Group">Seskupit vybrané</sys:String>
+    <sys:String x:Key="Str_Ctx_Ungroup">Zrušit skupinu</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveFromGroup">Odebrat ze skupiny</sys:String>
+    <sys:String x:Key="Str_Ctx_Copy">Kopírovat</sys:String>
+    <sys:String x:Key="Str_Ctx_Paste">Vložit</sys:String>
+    <!-- ── Annotate-bar labels ────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Bar_Color">Barva:</sys:String>
+    <sys:String x:Key="Str_Bar_Fill">Výplň:</sys:String>
+    <sys:String x:Key="Str_Bar_Size">Velikost:</sys:String>
+    <sys:String x:Key="Str_Bar_Opacity">Krytí:</sys:String>
+    <sys:String x:Key="Str_Bar_FillOpacity">Krytí výplně:</sys:String>
+    <sys:String x:Key="Str_Bar_Font">Písmo:</sys:String>
+    <sys:String x:Key="Str_Bar_Level">Přichytit k ose</sys:String>
+    <sys:String x:Key="Str_Bar_Eraser">Guma</sys:String>
+    <sys:String x:Key="Str_Bar_MoreColors">Další barvy...</sys:String>
+    <sys:String x:Key="Str_Sig_Signatures">Podpisy</sys:String>
+    <sys:String x:Key="Str_Sig_Initials">Iniciály</sys:String>
+    <sys:String x:Key="Str_Sig_Pen">Pero</sys:String>
+    <sys:String x:Key="Str_Sig_Thin">Tenké</sys:String>
+    <sys:String x:Key="Str_Sig_Medium">Střední</sys:String>
+    <sys:String x:Key="Str_Sig_Thick">Silné</sys:String>
+    <!-- ── Digital Signature dialog ───────────────────────────────────── -->
+    <sys:String x:Key="Str_Sign_Desc">Zapečetí {0} certifikátem a uloží podepsanou kopii.</sys:String>
+    <sys:String x:Key="Str_Sign_Certificate">Certifikát</sys:String>
+    <sys:String x:Key="Str_Sign_FromFile">Ze souboru (.pfx / .p12)</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Z úložiště certifikátů Windows</sys:String>
+    <sys:String x:Key="Str_Sign_Browse">Procházet...</sys:String>
+    <sys:String x:Key="Str_Sign_Password">Heslo</sys:String>
+    <sys:String x:Key="Str_Sign_Reason">Důvod (nepovinné)</sys:String>
+    <sys:String x:Key="Str_Sign_Location">Místo (nepovinné)</sys:String>
+    <sys:String x:Key="Str_Sign_Contact">Kontakt (nepovinné)</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Uložit podepsanou kopii jako</sys:String>
+    <sys:String x:Key="Str_Sign_Sign">Podepsat</sys:String>
+    <sys:String x:Key="Str_Sign_Cancel">Zrušit</sys:String>
+    <sys:String x:Key="Str_Sign_TitleSuffix">Digitální podpis</sys:String>
+    <sys:String x:Key="Str_Lbl_DigitalSig">Digitální podpis...</sys:String>
+    <sys:String x:Key="Str_Sidebar">POSTRANNÍ PANEL</sys:String>
+    <sys:String x:Key="Str_Sidebar_Left">Vlevo</sys:String>
+    <sys:String x:Key="Str_Sidebar_Right">Vpravo</sys:String>
+    <sys:String x:Key="Str_KS_ToggleSidebar">Přepnout postranní panel</sys:String>
+    <sys:String x:Key="Str_KS_NextTab">Další karta (Shift: předchozí)</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePage">Smazat stránku</sys:String>
+    <sys:String x:Key="Str_Ctx_DuplicatePage">Duplikovat stránku</sys:String>
+    <sys:String x:Key="Str_Ctx_AddBlankPage">Přidat prázdnou stránku</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseTab">Zavřít kartu</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseOthers">Zavřít ostatní karty</sys:String>
+
+    <!-- Transform tool -->
+    <sys:String x:Key="Str_Tf_Suffix">Transformace</sys:String>
+    <sys:String x:Key="Str_Tf_Rotate">OTOČENÍ</sys:String>
+    <sys:String x:Key="Str_Tf_Scale">MĚŘÍTKO</sys:String>
+    <sys:String x:Key="Str_Tf_Flip">PŘEVRÁCENÍ</sys:String>
+    <sys:String x:Key="Str_Tf_Skew">NAROVNÁNÍ</sys:String>
+    <sys:String x:Key="Str_Tf_Angle">Úhel</sys:String>
+    <sys:String x:Key="Str_Tf_Size">Velikost</sys:String>
+    <sys:String x:Key="Str_Tf_WhenScaling">Při změně měřítka:</sys:String>
+    <sys:String x:Key="Str_Tf_ResizePage">Změnit velikost celé stránky</sys:String>
+    <sys:String x:Key="Str_Tf_KeepSize">Zachovat velikost stránky (přidat okraje)</sys:String>
+    <sys:String x:Key="Str_Tf_FlipH">Převrátit vodorovně</sys:String>
+    <sys:String x:Key="Str_Tf_FlipV">Převrátit svisle</sys:String>
+    <sys:String x:Key="Str_Tf_LevelLine">Nakreslit vodorovnou linii</sys:String>
+    <sys:String x:Key="Str_Tf_SkewHint">Táhněte podél čehokoli, co má být vodorovně (hrana, řádek textu). Stránka se podle toho natočí.</sys:String>
+    <sys:String x:Key="Str_Tf_Output">Výstup: {0} × {1} palců</sys:String>
+    <sys:String x:Key="Str_Tf_ResetAll">Obnovit vše</sys:String>
+    <sys:String x:Key="Str_Tf_Reset">Obnovit</sys:String>
+    <sys:String x:Key="Str_Tf_Cancel">Zrušit</sys:String>
+    <sys:String x:Key="Str_Tf_Apply">Použít</sys:String>
+    <sys:String x:Key="Str_Tf_Warn">Transformace stránky (otočení nebo změna měřítka) ji rastruje: stránka se znovu uloží jako obrázek, takže veškerý vybratelný text na ní bude ztracen. Následným spuštěním OCR ji můžete znovu učinit prohledávatelnou.</sys:String>
+    <sys:String x:Key="Str_Tf_DontWarn">Příště nevarovat</sys:String>
+    <sys:String x:Key="Str_Tf_Done">Transformována stránka {0}</sys:String>
+    <sys:String x:Key="Str_Tf_NoRender">Stránku se nepodařilo vykreslit - zkuste to za okamžik znovu.</sys:String>
+    <sys:String x:Key="Str_Tf_Failed">Transformace selhala: {0}</sys:String>
+
+    <!-- Crop bar -->
+    <sys:String x:Key="Str_Crop_Position">Pozice</sys:String>
+    <sys:String x:Key="Str_Crop_Size">Velikost</sys:String>
+    <sys:String x:Key="Str_Crop_Pages">Stránky</sys:String>
+    <sys:String x:Key="Str_Crop_All">Vše</sys:String>
+    <sys:String x:Key="Str_Crop_Apply">Oříznout</sys:String>
+    <sys:String x:Key="Str_Crop_RangeTip">Rozsah stránek, např. 1-3,5 (prázdné = aktuální stránka)</sys:String>
+    <sys:String x:Key="Str_Crop_AllTip">Oříznout všechny stránky</sys:String>
+
+    <!-- View-mode + full-screen shortcuts -->
+    <sys:String x:Key="Str_KS_View">Zobrazení</sys:String>
+    <sys:String x:Key="Str_KS_FullScreen">Celá obrazovka</sys:String>
+    <sys:String x:Key="Str_FullScreen_Hint">Celou obrazovku ukončíte stisknutím F11 nebo Esc</sys:String>
+    <!-- KillerFind-style quit prompt (family standard) -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">Ukončit KillerPDF?</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">Zavřít mé otevřené karty</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">Ukončit</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">Zrušit</sys:String>
+
+
+    <!-- Status-bar messages (extracted from code) -->
+    <sys:String x:Key="Str_St_DataCleared">Všechna data KillerPDF vymazána</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCancelled">Oblast OCR zrušena</sys:String>
+    <sys:String x:Key="Str_St_Erased">Vymazáno</sys:String>
+    <sys:String x:Key="Str_St_Ungrouped">Skupina zrušena</sys:String>
+    <sys:String x:Key="Str_St_RemovedFromGroup">Odebráno ze skupiny</sys:String>
+    <sys:String x:Key="Str_St_NothingToUndo">Není co vrátit zpět</sys:String>
+    <sys:String x:Key="Str_St_UndidAnnotation">Poslední anotace vrácena zpět</sys:String>
+    <sys:String x:Key="Str_St_UndidTextEdit">Úprava textu vrácena zpět</sys:String>
+    <sys:String x:Key="Str_St_RemovedStamps">Razítkovaná čísla stránek odstraněna</sys:String>
+    <sys:String x:Key="Str_St_RestoredAnnotations">Vymazané anotace obnoveny</sys:String>
+    <sys:String x:Key="Str_St_Undone">Vráceno zpět</sys:String>
+    <sys:String x:Key="Str_St_UndidDocChange">Změna dokumentu vrácena zpět</sys:String>
+    <sys:String x:Key="Str_St_ClearedPageAnnotations">Anotace na této stránce vymazány</sys:String>
+    <sys:String x:Key="Str_St_NoAnnotationsToClear">Žádné anotace k vymazání</sys:String>
+    <sys:String x:Key="Str_St_RepairCancelled">Oprava zrušena</sys:String>
+    <sys:String x:Key="Str_St_Cancelled">Zrušeno</sys:String>
+    <sys:String x:Key="Str_St_DocInfoUpdated">Informace o dokumentu aktualizovány - změny zachováte uložením souboru</sys:String>
+    <sys:String x:Key="Str_St_FlattenCancelled">Sloučení vrstev zrušeno (žádný soubor nebyl zapsán)</sys:String>
+    <sys:String x:Key="Str_St_FlattenPrintFailed">Anotace se pro tisk nepodařilo sloučit se stránkou; tisknu bez nich.</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCancelled">Stahování vysoce kvalitního modelu zrušeno</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCancelled">Stahování jazyka zrušeno</sys:String>
+    <sys:String x:Key="Str_St_OcrCancelled">OCR zrušeno</sys:String>
+    <sys:String x:Key="Str_St_OcrDragBox">Tažením vyznačte oblast k rozpoznání</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionTooSmall">Oblast OCR je příliš malá</sys:String>
+    <sys:String x:Key="Str_St_OcrNoText">OCR: ve vybrané oblasti nebyl nalezen žádný text</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCancelled">Prohledávatelné PDF zrušeno (žádný soubor nebyl zapsán)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCancelled">Extrakce textu zrušena (žádný soubor nebyl zapsán)</sys:String>
+    <sys:String x:Key="Str_St_NoTextOnPage">Na této stránce nebyl nalezen žádný text</sys:String>
+    <sys:String x:Key="Str_St_NoTextSelected">Není vybrán žádný text - text vyberete tažením</sys:String>
+    <sys:String x:Key="Str_St_NoTextInSelection">Ve výběru nebyl nalezen žádný text</sys:String>
+    <sys:String x:Key="Str_St_SignaturePlaced">Podpis umístěn - tažením jej přemístíte, rohovým úchytem změníte velikost</sys:String>
+    <sys:String x:Key="Str_St_FieldCleared">Pole vymazáno</sys:String>
+    <sys:String x:Key="Str_St_FieldSigned">Pole podepsáno</sys:String>
+    <sys:String x:Key="Str_St_SignatureSaved">Podpis uložen - kliknutím na stránku jej umístíte</sys:String>
+    <sys:String x:Key="Str_St_ImageLoaded">Obrázek načten - kliknutím na stránku jej umístíte</sys:String>
+    <sys:String x:Key="Str_St_EditingText">Úprava textu - velikost/barvu změníte nahoře, Enter uloží</sys:String>
+    <sys:String x:Key="Str_St_AlreadyEditHere">Zde už úprava je - kliknutím na její text ji upravíte znovu, nebo přetáhněte překrytí</sys:String>
+    <sys:String x:Key="Str_St_NoTextLine">Na této pozici nebyl nalezen žádný řádek textu</sys:String>
+    <sys:String x:Key="Str_St_LineAlreadyEdited">Tento řádek je již upraven - kliknutím na jeho text jej změníte</sys:String>
+    <sys:String x:Key="Str_St_ImagePlaced">Obrázek umístěn - tažením jej přemístíte, rohovým úchytem změníte velikost</sys:String>
+    <sys:String x:Key="Str_St_ClipImageUnreadable">Obrázek ze schránky se nepodařilo načíst</sys:String>
+    <sys:String x:Key="Str_St_PastedImage">Obrázek vložen - tažením jej přemístíte, rohovým úchytem změníte velikost</sys:String>
+    <sys:String x:Key="Str_St_ClipNoText">Schránka neobsahuje žádný text k vložení</sys:String>
+    <sys:String x:Key="Str_St_PastedText">Text vložen - tažením jej přemístíte, klávesou Delete odstraníte</sys:String>
+    <sys:String x:Key="Str_St_ClipEmpty">Ve schránce není nic k vložení</sys:String>
+
+    <!-- Dialog / message-box strings (extracted from code) -->
+    <sys:String x:Key="Str_Dlg_SaveBeforeUpdate">Před aktualizací prosím uložte změny.</sys:String>
+    <sys:String x:Key="Str_Dlg_Uninstalled">KillerPDF byl odinstalován.</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectExtract">Vyberte stránky k extrakci.</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectDelete">Vyberte stránky ke smazání.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoPrinter">Není k dispozici žádná tiskárna.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoValidPages">V zadaném rozsahu nejsou žádné platné stránky.</sys:String>
+    <sys:String x:Key="Str_Dlg_SignedSavedTo">Podepsaná kopie uložena do:</sys:String>
+    <sys:String x:Key="Str_Dlg_DrawSignatureFirst">Nejprve nakreslete podpis.</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">Přidat záložku pro aktuální stránku</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">Přidat záložku</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">Přidat vnořenou záložku</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">Přejmenovat</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">Smazat</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">Stránka {0}</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">Smazat tuto záložku a její vnořené záložky (počet: {0})?</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">Posunout nahoru</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">Posunout dolů</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">Odkázat na aktuální stránku</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">Smazat všechny záložky</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">Smazat záložky (počet: {0})?</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">Odstranit z tohoto dokumentu všechny záložky?</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">Znovu</sys:String>
+    <sys:String x:Key="Str_St_Redone">Provedeno znovu</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">Není co provést znovu</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">První / poslední stránka</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">Zpět / vpřed (historie skoků)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Skutečná velikost / přizpůsobit šířce / přizpůsobit stránce</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">Kontextová nabídka u výběru</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">SEZNAM</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">KLÁVESNICE</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Podržením Ctrl, Shift nebo Alt zobrazíte danou vrstvu - najetím na zvýrazněnou klávesu zjistíte její akci</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">Skutečná velikost</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">Předchozí karta</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">Předchozí stránka</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">Další stránka</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">První stránka</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">Poslední stránka</sys:String>
+    <sys:String x:Key="Str_Kb_Back">Zpět</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">Vpřed</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">Další výsledek</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">Předchozí výsledek</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">Potvrdit</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">Zrušit</sys:String>
+</ResourceDictionary>
