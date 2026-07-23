@@ -228,6 +228,14 @@ namespace KillerPDF
             }
         }
 
+        /// <summary>
+        /// PdfSharpCore only fills DestinationPage when the bookmark's /Dest is a literal array.
+        /// Bookmarks pointing at a *named* destination leave it null - wkhtmltopdf writes
+        /// /Dest /__WKANCHOR_n into a flat catalog /Dests dictionary, and since most HTML-to-PDF
+        /// invoice and statement generators are wkhtmltopdf underneath, that path is common.
+        /// Fall back to ResolveDest (Links.cs), which already walks /Dests and the /Names /Dests
+        /// name tree for the link layer.
+        /// </summary>
         private int GetOutlinePageIndex(PdfSharpCore.Pdf.PdfOutline outline)
         {
             if (outline.DestinationPage is PdfSharpCore.Pdf.PdfPage destPage)
@@ -235,7 +243,15 @@ namespace KillerPDF
                 for (int i = 0; i < _doc!.PageCount; i++)
                     if (ReferenceEquals(_doc.Pages[i], destPage)) return i;
             }
-            return -1;
+
+            var dest = outline.Elements.GetValue("/Dest");
+            if (dest is null
+                && outline.Elements.GetValue("/A") is PdfSharpCore.Pdf.PdfDictionary action
+                && action.Elements.GetName("/S") == "/GoTo")
+            {
+                dest = action.Elements.GetValue("/D");
+            }
+            return ResolveDest(dest) ?? -1;
         }
 
         // ============================================================

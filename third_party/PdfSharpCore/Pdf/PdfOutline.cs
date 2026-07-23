@@ -339,9 +339,20 @@ namespace PdfSharpCore.Pdf
                 {
                     SplitDestinationPage(destArray);
                 }
+                else if (dest is PdfReference destRef && destRef.Value is PdfArray refArray)
+                {
+                    // /Dest held indirectly. Same handling as the inline array.
+                    SplitDestinationPage(refArray);
+                }
                 else
                 {
-                    Debug.Assert(false, "See what to do when this happened.");
+                    // Named destination: /Dest is a name or string that resolves through the
+                    // catalog's /Dests dictionary or /Names /Dests tree, neither of which this
+                    // class can reach. Perfectly legal PDF - wkhtmltopdf (and so most HTML-to-PDF
+                    // invoice generators) emits exactly this. Leave DestinationPage null and let
+                    // the caller resolve the name.
+                    // Was Debug.Assert(false), which popped a modal assert dialog on every such
+                    // document in Debug builds and silently produced a dead bookmark in Release.
                 }
             }
             else if (a != null)
@@ -372,7 +383,9 @@ namespace PdfSharpCore.Pdf
                 }
                 else
                 {
-                    Debug.Assert(false, "See what to do when this happened.");
+                    // An action that isn't /GoTo (/URI, /GoToR, /Launch, /Named, ...). Legal on an
+                    // outline item - there is just no page in this document to point at, so leave
+                    // DestinationPage null. Was Debug.Assert(false).
                 }
             }
             else
