@@ -30,4 +30,8 @@
     <Compile Include="..\Services\SearchService.cs" Link="Services\SearchService.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\third_party\PdfSharpCore\PdfSharpCore.csproj" />
+  </ItemGroup>
+
 </Project>
