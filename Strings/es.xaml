@@ -514,6 +514,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Ctx_BmRename">Cambiar nombre</sys:String>
     <sys:String x:Key="Str_Ctx_BmDelete">Eliminar</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">Página {0}</sys:String>
+    <sys:String x:Key="Str_PageLabel">Página {0}</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">¿Eliminar este marcador y sus {0} marcadores hijos?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">Subir</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">Bajar</sys:String>

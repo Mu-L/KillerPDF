@@ -514,6 +514,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Ctx_BmRename">Yeniden adlandır</sys:String>
     <sys:String x:Key="Str_Ctx_BmDelete">Sil</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">Sayfa {0}</sys:String>
+    <sys:String x:Key="Str_PageLabel">Sayfa {0}</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">Bu yer imi ve {0} alt yer imi silinsin mi?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">Yukarı taşı</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">Aşağı taşı</sys:String>

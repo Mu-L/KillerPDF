@@ -216,10 +216,10 @@ namespace KillerPDF
                 string title = FixRawUnicodeTitle(outline.Title ?? string.Empty);
                 var item = new TreeViewItem
                 {
-                    Header = string.IsNullOrEmpty(title) ? "(untitled)" : title,
+                    Header = string.IsNullOrEmpty(title) ? Loc("Str_Outline_Untitled") : title,
                     IsExpanded = true,
                     Tag = new OutlineNodeRef(outline, outlines, pageIdx),
-                    ToolTip = pageIdx >= 0 ? $"Page {pageIdx + 1}" : null,
+                    ToolTip = pageIdx >= 0 ? string.Format(Loc("Str_PageLabel"), pageIdx + 1) : null,
                     Style = (Style)FindResource("OutlineItemStyle")
                 };
                 if (outline.Outlines is not null && outline.Outlines.Count > 0)

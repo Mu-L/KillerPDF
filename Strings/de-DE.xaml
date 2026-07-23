@@ -520,6 +520,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Ctx_BmRename">Umbenennen</sys:String>
     <sys:String x:Key="Str_Ctx_BmDelete">Löschen</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">Seite {0}</sys:String>
+    <sys:String x:Key="Str_PageLabel">Seite {0}</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">Dieses Lesezeichen und seine {0} Unter-Lesezeichen löschen?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">Nach oben</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">Nach unten</sys:String>
