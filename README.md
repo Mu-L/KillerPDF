@@ -122,7 +122,7 @@ choco install killerpdf
 ```
 
 - Prebuilt binary: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe>
-- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.6.4/KillerPDF-1.6.4-src.zip>
+- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.6.5/KillerPDF-1.6.5-src.zip>
 
 ## Build from source
 

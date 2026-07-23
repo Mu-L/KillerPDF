@@ -317,6 +317,25 @@ try {
     if ($branch -ne 'main') { throw "On branch '$branch', expected main" }
     $dirty = git status --porcelain
     if ($dirty) { throw "Working tree is not clean. Commit or stash first:`n$($dirty -join "`n")" }
+
+    # Keep the README's GPL3 source link pointed at the current release - it
+    # names the versioned -src.zip, so it goes stale on every version bump.
+    # ReadAllText/WriteAllText: UTF-8 no BOM, PS 5.1-safe (absolute paths).
+    $readmePath = Join-Path $PSScriptRoot 'README.md'
+    $readmeRaw  = [System.IO.File]::ReadAllText($readmePath)
+    $readmeNew  = $readmeRaw -replace 'releases/download/v[0-9]+\.[0-9]+\.[0-9]+/KillerPDF-[0-9]+\.[0-9]+\.[0-9]+-src\.zip', "releases/download/v$Version/KillerPDF-$Version-src.zip"
+    if ($readmeNew -ne $readmeRaw) {
+        if ($DryRun) {
+            Write-Host "    DryRun: README source link is stale, would update it to $Tag" -ForegroundColor Yellow
+        } else {
+            Write-Host "    Updating README source link to $Tag"
+            [System.IO.File]::WriteAllText($readmePath, $readmeNew)
+            git commit README.md -m "Point README source link at $Tag" --quiet
+            git push origin main --quiet
+            if ($LASTEXITCODE -ne 0) { throw "README source-link commit failed to push" }
+        }
+    }
+
     git fetch origin main --quiet
     if ((git rev-parse HEAD).Trim() -ne (git rev-parse origin/main).Trim()) {
         throw "Local main and origin/main differ. Push or pull first."
