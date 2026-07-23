@@ -570,5 +570,20 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Ctx_CopyEmail">E-posta Adresini Kopyala</sys:String>
     <sys:String x:Key="Str_Ctx_RemoveLink">Bağlantıyı PDF'den Kaldır</sys:String>
     <sys:String x:Key="Str_LinksSection">BAĞLANTILAR</sys:String>
+    <sys:String x:Key="Str_PrivacySection">GİZLİLİK</sys:String>
+    <sys:String x:Key="Str_NoRecentSetting">Son açılan dosyaları hatırlama</sys:String>
+    <sys:String x:Key="Str_Menu_ExportImages">Sayfaları görüntü olarak dışa aktar...</sys:String>
+    <sys:String x:Key="Str_ExportImg_Suffix">Sayfaları Görüntü Olarak Dışa Aktar</sys:String>
+    <sys:String x:Key="Str_ExportImg_Format">Biçim</sys:String>
+    <sys:String x:Key="Str_ExportImg_Dpi">Çözünürlük (DPI)</sys:String>
+    <sys:String x:Key="Str_ExportImg_Export">Dışa aktar</sys:String>
+    <sys:String x:Key="Str_ExportImg_Done">{0} sayfa {1} konumuna aktarıldı</sys:String>
+    <sys:String x:Key="Str_Print_AllPages">Tüm sayfalar</sys:String>
+    <sys:String x:Key="Str_Print_OddOnly">Yalnızca tek sayfalar</sys:String>
+    <sys:String x:Key="Str_Print_EvenOnly">Yalnızca çift sayfalar</sys:String>
+    <sys:String x:Key="Str_DocInvertSetting">Belge renklerini ters çevir</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın</sys:String>
+    <sys:String x:Key="Str_St_AppSize">Uygulama boyutu %{0}</sys:String>
+    <sys:String x:Key="Str_KS_AppSize">Tüm uygulamayı yakınlaştır (erişilebilirlik)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Bağlantıları açmadan önce sor</sys:String>
 </ResourceDictionary>

@@ -29,13 +29,13 @@ namespace KillerPDF
             // user's width). A star length means it isn't the sized column yet, so fall back.
             GridLength sized = (_sidebarCol != null && _sidebarCol.Width.GridUnitType == GridUnitType.Pixel)
                 ? _sidebarCol.Width
-                : new GridLength(180);
-            double maxW = _sidebarShowingOutlines ? SidebarMaxOutlines : SidebarMaxPages;
+                : new GridLength(SbPx(180));
+            double maxW = SbPx(_sidebarShowingOutlines ? SidebarMaxOutlines : SidebarMaxPages);
 
             if (!_sidebarRight)
             {
                 // Sidebar on the LEFT (column 0); document fills column 2.
-                sidebarColDef.MinWidth = _sidebarCollapsed ? 24 : SidebarMinOpen; sidebarColDef.MaxWidth = maxW; sidebarColDef.Width = sized;
+                sidebarColDef.MinWidth = SbPx(_sidebarCollapsed ? 24 : SidebarMinOpen); sidebarColDef.MaxWidth = maxW; sidebarColDef.Width = sized;
                 docColDef.MinWidth = 0; docColDef.MaxWidth = double.PositiveInfinity;
                 docColDef.Width = new GridLength(1, GridUnitType.Star);
                 Grid.SetColumn(sbOuter, 0);
@@ -54,7 +54,7 @@ namespace KillerPDF
             else
             {
                 // Sidebar on the RIGHT (column 2); document fills column 0.
-                docColDef.MinWidth = _sidebarCollapsed ? 24 : SidebarMinOpen; docColDef.MaxWidth = maxW; docColDef.Width = sized;
+                docColDef.MinWidth = SbPx(_sidebarCollapsed ? 24 : SidebarMinOpen); docColDef.MaxWidth = maxW; docColDef.Width = sized;
                 sidebarColDef.MinWidth = 0; sidebarColDef.MaxWidth = double.PositiveInfinity;
                 sidebarColDef.Width = new GridLength(1, GridUnitType.Star);
                 Grid.SetColumn(sbOuter, 2);

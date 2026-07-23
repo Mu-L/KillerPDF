@@ -588,6 +588,21 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Ctx_CopyEmail">Copier l'adresse e-mail</sys:String>
     <sys:String x:Key="Str_Ctx_RemoveLink">Supprimer le lien du PDF</sys:String>
     <sys:String x:Key="Str_LinksSection">LIENS</sys:String>
+    <sys:String x:Key="Str_PrivacySection">CONFIDENTIALITÉ</sys:String>
+    <sys:String x:Key="Str_NoRecentSetting">Ne pas mémoriser les fichiers récemment ouverts</sys:String>
+    <sys:String x:Key="Str_Menu_ExportImages">Exporter les pages en images...</sys:String>
+    <sys:String x:Key="Str_ExportImg_Suffix">Exporter les pages en images</sys:String>
+    <sys:String x:Key="Str_ExportImg_Format">Format</sys:String>
+    <sys:String x:Key="Str_ExportImg_Dpi">Résolution (DPI)</sys:String>
+    <sys:String x:Key="Str_ExportImg_Export">Exporter</sys:String>
+    <sys:String x:Key="Str_ExportImg_Done">{0} pages exportées vers {1}</sys:String>
+    <sys:String x:Key="Str_Print_AllPages">Toutes les pages</sys:String>
+    <sys:String x:Key="Str_Print_OddOnly">Pages impaires uniquement</sys:String>
+    <sys:String x:Key="Str_Print_EvenOnly">Pages paires uniquement</sys:String>
+    <sys:String x:Key="Str_DocInvertSetting">Inverser les couleurs du document</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application</sys:String>
+    <sys:String x:Key="Str_St_AppSize">Taille de l'application {0} %</sys:String>
+    <sys:String x:Key="Str_KS_AppSize">Zoomer toute l'application (accessibilité)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirmer avant d'ouvrir les liens</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
 </ResourceDictionary>

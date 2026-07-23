@@ -146,8 +146,16 @@ namespace KillerPDF
             var tempClean  = App.MakeTempFile("xfclean");
             var tempBurned = App.MakeTempFile("xfburn");
             _doc.Save(tempClean);
-            DrawAnnotationsOnDocument(pageIdx);
-            _doc.Save(tempBurned);
+            // #142: a failed burn (one bad annotation) must not crash the tool that asked for the
+            // preview. The clean snapshot is already on disk, so on failure fall through to the
+            // restore below and render without the annotation layer instead.
+            bool burnOk = true;
+            try
+            {
+                DrawAnnotationsOnDocument(pageIdx);
+                _doc.Save(tempBurned);
+            }
+            catch { burnOk = false; }
             _doc.Close();
             try
             {
@@ -163,7 +171,7 @@ namespace KillerPDF
                 _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
             }
             _currentFile = tempClean;
-            return tempBurned;
+            return burnOk ? tempBurned : null;
         }
 
         // Renders a page to a white-backed bitmap (transparent page backgrounds show white, not the dark

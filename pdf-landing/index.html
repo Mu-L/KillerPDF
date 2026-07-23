@@ -85,7 +85,15 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 .feature-card code { display: inline-block; margin-top: 4px; background: var(--panel); padding: 2px 7px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; color: var(--text); white-space: nowrap; }
 
 /* Sidebar (the app's thumbnail pane) */
-.sb-thumbs { padding: 12px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; }
+.sb-thumbs { padding: 4px 12px 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; }
+/* Grain fade overlays pinned to the sidebar top/bottom (not a mask on the scroller, so the
+   scrollbar is never faded). Inset 8px from the right to clear the scrollbar. JS toggles .on:
+   top only once scrolled down, bottom only while more shots remain below. */
+.sb-fade { position: absolute; left: 0; right: 8px; height: 40px; pointer-events: none; z-index: 2; opacity: 0; transition: opacity 0.12s ease;
+  background: var(--sidebar) url('grain.png?v=2') repeat fixed; background-size: 256px 256px; }
+.sb-fade-top { top: 0; -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent); }
+.sb-fade-bottom { bottom: 0; -webkit-mask-image: linear-gradient(to top, #000, transparent); mask-image: linear-gradient(to top, #000, transparent); }
+.sb-fade.on { opacity: 1; }
 .sb-thumb { flex-shrink: 0; border: 2px solid transparent; border-radius: 5px; overflow: hidden; cursor: pointer; background: var(--panel); transition: border-color 0.15s, transform 0.12s; position: relative; }
 .sb-thumb:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
 .sb-thumb img { display: block; width: 100%; height: auto; }
@@ -101,7 +109,7 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
   .feature-grid { grid-template-columns: 1fr; }
   .hero-cta { flex: 0 0 auto; order: 1; align-items: center; text-align: center; }
   .hero-info { order: 0; }
-  .sb-thumbs { flex-direction: row; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  .sb-thumbs { flex-direction: row; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; -webkit-mask-image: none; mask-image: none; }
   .sb-thumb { flex: 0 0 auto; width: 240px; min-width: 240px; }
 }
 @media (max-width: 560px) {
@@ -233,6 +241,8 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 
 <aside class="sidebar">
 <div class="sb-thumbs" id="sbThumbs"></div>
+<div class="sb-fade sb-fade-top" aria-hidden="true"></div>
+<div class="sb-fade sb-fade-bottom" aria-hidden="true"></div>
 </aside>
 </div>
 
@@ -260,8 +270,24 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
     b.className = 'sb-thumb'; b.title = 'Screenshot ' + (idx + 1);
     b.innerHTML = '<img src="' + src + '" alt="KillerPDF screenshot ' + (idx + 1) + '" loading="lazy">';
     b.addEventListener('click', function () { openLightbox(src); });
+    var im = b.querySelector('img');
+    if (im) { im.addEventListener('load', updateFade); im.addEventListener('error', updateFade); }
     sbThumbs.appendChild(b);
   });
+
+  // Fade the bottom of the strip while it overflows and isn't scrolled to the last shot,
+  // matching the app sidebar (no fade once the last screenshot is in view).
+  var fadeTop = document.querySelector('.sb-fade-top');
+  var fadeBottom = document.querySelector('.sb-fade-bottom');
+  function updateFade() {
+    var scrolledDown = sbThumbs.scrollTop > 2;
+    var more = sbThumbs.scrollHeight - sbThumbs.clientHeight - sbThumbs.scrollTop > 2;
+    if (fadeTop) fadeTop.classList.toggle('on', scrolledDown);
+    if (fadeBottom) fadeBottom.classList.toggle('on', more);
+  }
+  sbThumbs.addEventListener('scroll', updateFade, { passive: true });
+  window.addEventListener('resize', updateFade);
+  updateFade();
 
   function openLightbox(src) { lightboxImg.src = src; lightbox.classList.add('show'); }
   lightbox.addEventListener('click', function () { lightbox.classList.remove('show'); });

@@ -94,12 +94,12 @@ Each command reuses the exact pipeline its GUI equivalent runs - merges rewrite 
 ## Screenshots
 
 <p align="center">
-  <img src="pdf-landing/screenshots/02.png" width="32%" alt="KillerPDF" />
-  <img src="pdf-landing/screenshots/04.png" width="32%" alt="KillerPDF" />
-  <img src="pdf-landing/screenshots/06.png" width="32%" alt="KillerPDF" />
-  <img src="pdf-landing/screenshots/07.png" width="32%" alt="KillerPDF" />
-  <img src="pdf-landing/screenshots/12.png" width="32%" alt="KillerPDF" />
-  <img src="pdf-landing/screenshots/13.png" width="32%" alt="KillerPDF" />
+  <img src="docs/screenshot-02.png" width="32%" alt="KillerPDF" />
+  <img src="docs/screenshot-04.png" width="32%" alt="KillerPDF" />
+  <img src="docs/screenshot-06.png" width="32%" alt="KillerPDF" />
+  <img src="docs/screenshot-07.png" width="32%" alt="KillerPDF" />
+  <img src="docs/screenshot-12.png" width="32%" alt="KillerPDF" />
+  <img src="docs/screenshot-13.png" width="32%" alt="KillerPDF" />
 </p>
 
 ## Requirements

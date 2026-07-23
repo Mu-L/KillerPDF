@@ -76,12 +76,15 @@ namespace KillerPDF
                 ["D0"] = ("View", "Str_KS_ResetZoom"),  ["D1"] = ("View", "Str_Zoom_ActualSize"),
                 ["D2"] = ("View", "Str_Zoom_FitWidth"), ["D3"] = ("View", "Str_Zoom_FitPage"),
                 ["Equals"] = ("View", "Str_Lbl_ZoomIn"), ["Minus"] = ("View", "Str_Lbl_ZoomOut"),
+                ["I"] = ("View", "Str_DocInvertSetting"),
             },
             [KbLayer.CtrlShift] = new()
             {
                 ["S"] = ("File", "Str_KS_SaveAs"),      ["O"] = ("Ocr", "Str_Ctx_OcrPage"),
                 ["I"] = ("Ocr", "Str_Ocr_Region"),      ["Z"] = ("Edit", "Str_Ctx_Redo"),
                 ["Tab"] = ("Nav", "Str_KS_PrevTab"),
+                ["Equals"] = ("View", "Str_KS_AppSize"), ["Minus"] = ("View", "Str_KS_AppSize"),
+                ["D0"] = ("View", "Str_KS_AppSize"),
             },
             [KbLayer.Shift] = new()
             {

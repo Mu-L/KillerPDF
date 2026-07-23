@@ -44,10 +44,10 @@ namespace KillerPDF
             SidebarOutlinesTab.Foreground = (Brush)FindResource("TextSecondary");
             // Save current outlines width before snapping back to pages.
             if (!_sidebarCollapsed && _sidebarCol.ActualWidth > 0)
-                _savedOutlinesWidth = Math.Min(_sidebarCol.ActualWidth, SidebarMaxOutlines);
+                _savedOutlinesWidth = Math.Min(_sidebarCol.ActualWidth, SbPx(SidebarMaxOutlines));
 
             SidebarSplitter.IsEnabled = true;   // pages are resizable too now (drag the splitter)
-            _sidebarCol.MaxWidth = SidebarMaxPages;
+            _sidebarCol.MaxWidth = SbPx(SidebarMaxPages);
             if (!_sidebarCollapsed)
             {
                 double target = _savedPagesWidth;
@@ -61,7 +61,7 @@ namespace KillerPDF
         {
             // Save current pages width, then restore (or auto-fit) the outlines width.
             if (!_sidebarCollapsed && _sidebarCol.ActualWidth > 0)
-                _savedPagesWidth = Math.Min(_sidebarCol.ActualWidth, SidebarMaxPages);
+                _savedPagesWidth = Math.Min(_sidebarCol.ActualWidth, SbPx(SidebarMaxPages));
 
             _sidebarShowingOutlines = true;
             PageList.Visibility = Visibility.Collapsed;
@@ -70,7 +70,7 @@ namespace KillerPDF
             SidebarPagesTab.Foreground = (Brush)FindResource("TextSecondary");
             SidebarOutlinesTab.Foreground = (Brush)FindResource("Accent");
             SidebarSplitter.IsEnabled = true;
-            _sidebarCol.MaxWidth = SidebarMaxOutlines;
+            _sidebarCol.MaxWidth = SbPx(SidebarMaxOutlines);
             if (!_sidebarCollapsed)
             {
                 if (!_outlinesFitted)
@@ -121,8 +121,10 @@ namespace KillerPDF
 
             Walk(OutlineTree.Items, 0);
 
-            // TreeView outer padding (8 px) + sidebar margins + scrollbar gutter (~36 px)
-            double target = Math.Max(160.0, Math.Min(max + 44.0, SidebarMaxOutlines));
+            // TreeView outer padding (8 px) + sidebar margins + scrollbar gutter (~36 px).
+            // Measured widths are logical (the tree lives in the scaled grid); the column
+            // is screen px, so convert.
+            double target = SbPx(Math.Max(160.0, Math.Min(max + 44.0, SidebarMaxOutlines)));
             _savedOutlinesWidth = target;
             _outlinesFitted = true;
             _sidebarCol.Width = new GridLength(target);

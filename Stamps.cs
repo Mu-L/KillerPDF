@@ -270,6 +270,11 @@ namespace KillerPDF
         // DrawAnnotationsOnDocument at each save site so stamps sit beneath annotations.
         private void DrawStampsOnDocument(int? onlyPage = null) => DrawStampsIntoDoc(_doc, _docStampSpec, onlyPage);
 
+        // True when the document carries stamps that must be burned on save. The save sites used to
+        // gate the whole burn block on the ANNOTATION count alone, so a document whose only markup
+        // was stamps (page numbers / watermark on a fresh doc) saved without them (#147).
+        private bool HasActiveStamps => _docStampSpec is { } s && (s.NumbersEnabled || s.WmEnabled);
+
         // Static so the print flow can run it on a background thread against a throwaway document copy.
         private static void DrawStampsIntoDoc(PdfSharpCore.Pdf.PdfDocument? doc, StampSpec? spec, int? onlyPage = null)
         {

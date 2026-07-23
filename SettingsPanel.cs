@@ -322,6 +322,46 @@ namespace KillerPDF
             else                                    App.SetSetting(SkipLinkConfirmSetting, "1");
         }
 
+        // Privacy section (#146): don't remember recently opened files. Turning it ON also clears
+        // the existing list (matching the user's privacy expectation on a shared machine); the
+        // guard makes the settings-open sync a no-op so opening the panel never wipes anything.
+        private void NoRecentCheck_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool off = NoRecentCheck.IsChecked == true;
+            if ((App.GetSetting(App.NoRecentFilesSetting) == "1") == off) return;   // sync, not a user change
+            if (off)
+            {
+                App.SetSetting(App.NoRecentFilesSetting, "1");
+                App.ClearRecentFiles();
+                PopulateRecentFilesList();   // start screen hides its Recent box immediately
+            }
+            else
+            {
+                App.RemoveSetting(App.NoRecentFilesSetting);
+            }
+        }
+
+        // Invert document colors (#135): flips the display-only dark mode. Shared by the rail's
+        // moon toggle and Ctrl+I. The state is baked into rendered pixels, so flush the render
+        // caches and rebuild the current view through the mode-switch path (the only full
+        // re-render entry; reset the field so ApplyViewMode doesn't early-return on a
+        // same-mode call).
+        private void ToggleDocInvert(bool on)
+        {
+            if (DocInvert == on) return;
+            DocInvert = on;
+            App.SetSetting("DocInvert", on ? "1" : "0");
+            DocInvertBtn.Tag = on ? "on" : null;   // lights the rail icon in the accent while active
+            FlushAllRenderCaches();
+            if (_doc is null) return;
+            var mode = _viewMode;
+            _viewMode = (ViewMode)(-1);
+            ApplyViewMode(mode);
+        }
+
+        private void DocInvertBtn_Click(object sender, RoutedEventArgs e)
+            => ToggleDocInvert(!DocInvert);
+
         private void OnThemeChanged()
         {
             // Refresh snapshot FindResource calls that were set as local values.

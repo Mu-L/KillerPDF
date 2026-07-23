@@ -254,6 +254,29 @@ namespace KillerPDF
                 BeginOcrRegion();
                 e.Handled = true;
             }
+            else if (e.Key == Key.I && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                ToggleDocInvert(!DocInvert);   // #135: document dark mode
+                e.Handled = true;
+            }
+            // App-wide accessibility size (AppScale.cs), distinct from the Ctrl+wheel page zoom:
+            // Ctrl+Shift +/- steps the whole-app size, Ctrl+Shift+0 resets it. Works with no
+            // mouse; the wheel-over-logo gesture drives the same scale.
+            else if ((e.Key == Key.OemPlus || e.Key == Key.Add) && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                ApplyAppScale(_appScale + AppScaleStep, persist: true);
+                e.Handled = true;
+            }
+            else if ((e.Key == Key.OemMinus || e.Key == Key.Subtract) && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                ApplyAppScale(_appScale - AppScaleStep, persist: true);
+                e.Handled = true;
+            }
+            else if ((e.Key == Key.D0 || e.Key == Key.NumPad0) && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                ApplyAppScale(1.0, persist: true);
+                e.Handled = true;
+            }
             else if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 NewDocument();

@@ -37,6 +37,34 @@ namespace KillerPDF
         internal static (byte[] bytes, int w, int h) RotateBitmapStatic(byte[] src, int w, int h, int degrees)
             => RotateBitmap(src, w, h, degrees);
 
+        // ============================================================
+        // Document color inversion (#135, "dark mode")
+        // ============================================================
+
+        // True = the document pane renders with inverted colors (dark-mode reading). DISPLAY
+        // ONLY: saves, prints, exports, OCR, thumbnails, and tool previews all keep the
+        // document's true colors. Loaded from the "DocInvert" setting at startup; toggled from
+        // the Settings panel, which flushes the render caches (the state is baked into pixels).
+        internal static bool DocInvert;
+
+        /// <summary>In-place inversion for the display dark mode, called at the Viewport render
+        /// sites right after rotation. PDF pages usually paint NO background - the "paper" is
+        /// transparent pixels compositing over the white page slot - so a plain RGB flip left
+        /// the page white and merely faded the ink. Composite over white and invert in one
+        /// step: out = a*(255-c)/255 with alpha forced opaque. White (or unpainted) paper
+        /// becomes black, dark ink becomes light, and opaque images get a true negative.</summary>
+        internal static void InvertBgraInPlace(byte[] bgra)
+        {
+            for (int i = 0; i + 3 < bgra.Length; i += 4)
+            {
+                int a = bgra[i + 3];
+                bgra[i]     = (byte)(a * (255 - bgra[i])     / 255);
+                bgra[i + 1] = (byte)(a * (255 - bgra[i + 1]) / 255);
+                bgra[i + 2] = (byte)(a * (255 - bgra[i + 2]) / 255);
+                bgra[i + 3] = 255;
+            }
+        }
+
         private static (byte[] bytes, int w, int h) RotateBitmap(byte[] src, int w, int h, int degrees)
         {
             degrees = ((degrees % 360) + 360) % 360;

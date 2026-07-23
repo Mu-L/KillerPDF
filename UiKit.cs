@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 
 namespace KillerPDF
@@ -56,6 +57,37 @@ namespace KillerPDF
         // Active-theme brush by key, with a safe fallback so the kit never throws before the theme loads.
         public static Brush Brush(string key, Brush? fallback = null)
             => Application.Current?.TryFindResource(key) as Brush ?? fallback ?? Brushes.Gray;
+
+        // ---- inline flyout -----------------------------------------------------------------------
+        // The style for small helpers that float ON the document itself (the form font-size
+        // stepper; future on-page controls): a translucent dark pill that reads over any page
+        // content without shouting. Slightly see-through at rest so the page underneath stays
+        // visible; hovering solidifies it (animated). Deliberately theme-independent - pages are
+        // usually white whatever the app theme, so one consistent dark pill (with fixed light
+        // text inside) reads best everywhere.
+        public const double InlineFlyoutRestOpacity = 0.85;
+
+        public static Border InlineFlyout(FrameworkElement content)
+        {
+            var b = new Border
+            {
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(7, 1, 7, 1),
+                BorderThickness = new Thickness(1),
+                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x16, 0x16, 0x16)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)),
+                Effect = Shadow(10, 2, 0.25),
+                Child = content,
+                SnapsToDevicePixels = true,
+            };
+            b.MouseEnter += (_, _) => b.BeginAnimation(UIElement.OpacityProperty,
+                new DoubleAnimation(1.0, new Duration(TimeSpan.FromMilliseconds(110)))
+                { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
+            b.MouseLeave += (_, _) => b.BeginAnimation(UIElement.OpacityProperty,
+                new DoubleAnimation(InlineFlyoutRestOpacity, new Duration(TimeSpan.FromMilliseconds(220)))
+                { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
+            return b;
+        }
 
         private static T Res<T>(string key, T fallback) where T : class
             => Application.Current?.TryFindResource(key) as T ?? fallback;

@@ -436,6 +436,10 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
+                                <!-- Icon slot: MenuItem.Icon renders in the same 16px gutter the check
+                                     glyph uses (MakeMenuItem's glyph parameter fills it with MDL2 icons). -->
+                                <ContentPresenter x:Name="IconPresenter" Grid.Column="0" ContentSource="Icon"
+                                                  VerticalAlignment="Center" HorizontalAlignment="Left"/>
                                 <!-- check glyph for checkable items (e.g. OCR language multi-select) -->
                                 <TextBlock x:Name="Check" Grid.Column="0" Text="&#xE73E;"
                                            FontFamily="Segoe MDL2 Assets" FontSize="11"
@@ -486,6 +490,7 @@
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="IconPresenter" Property="Visibility" Value="Collapsed"/>
                             </Trigger>
                             <Trigger Property="Role" Value="SubmenuHeader">
                                 <Setter TargetName="SubArrow" Property="Visibility" Value="Visible"/>
@@ -1039,17 +1044,34 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <!-- Wordmark -->
-                <Grid Grid.Column="0" VerticalAlignment="Center" Margin="16,0,0,0">
-                    <!-- Soft drop shadow: a blurred, offset copy behind the crisp wordmark -->
-                    <StackPanel Orientation="Horizontal" Margin="1,2,0,0" Opacity="{DynamicResource IconShadowOpacity}">
-                        <StackPanel.Effect><BlurEffect Radius="3"/></StackPanel.Effect>
-                        <TextBlock><Run Text="Killer" FontFamily="{DynamicResource WordmarkFont}" FontSize="16.5" Foreground="#D8000000"/><Run Text="PDF" FontFamily="{DynamicResource WordmarkFontPdf}" FontWeight="Bold" FontSize="21.45" Foreground="#D8000000"/></TextBlock>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock><Run Text="Killer" FontFamily="{DynamicResource WordmarkFont}" FontSize="16.5" Foreground="{DynamicResource TextPrimary}"/><Run Text="PDF" FontFamily="{DynamicResource WordmarkFontPdf}" FontWeight="Bold" FontSize="21.45" Foreground="{DynamicResource AccentLogo}"/></TextBlock>
-                    </StackPanel>
-                </Grid>
+                <!-- Logo: app icon + wordmark. Hit-test-visible in the chrome so the wheel can
+                     drive the app-wide size (AppScale.cs); that opts it out of the native
+                     caption, so drag / double-click-maximize come back via LogoBar handlers. -->
+                <Border x:Name="LogoBar" Grid.Column="0" Background="Transparent"
+                        WindowChrome.IsHitTestVisibleInChrome="True"
+                        ToolTip="{DynamicResource Str_TT_AppSize}"
+                        MouseWheel="LogoBar_MouseWheel"
+                        MouseLeftButtonDown="LogoBar_MouseLeftButtonDown">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Image Source="pack://application:,,,/Resources/kp-icon.png"
+                           Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Effect>
+                            <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                        </Image.Effect>
+                    </Image>
+                    <Grid VerticalAlignment="Center">
+                        <!-- Soft drop shadow: a blurred, offset copy behind the crisp wordmark -->
+                        <StackPanel Orientation="Horizontal" Margin="1,2,0,0" Opacity="{DynamicResource IconShadowOpacity}">
+                            <StackPanel.Effect><BlurEffect Radius="3"/></StackPanel.Effect>
+                            <TextBlock><Run Text="Killer" FontFamily="{DynamicResource WordmarkFont}" FontSize="16.5" Foreground="#D8000000"/><Run Text="PDF" FontFamily="{DynamicResource WordmarkFontPdf}" FontWeight="Bold" FontSize="21.45" Foreground="#D8000000"/></TextBlock>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock><Run Text="Killer" FontFamily="{DynamicResource WordmarkFont}" FontSize="16.5" Foreground="{DynamicResource TextPrimary}"/><Run Text="PDF" FontFamily="{DynamicResource WordmarkFontPdf}" FontWeight="Bold" FontSize="21.45" Foreground="{DynamicResource AccentLogo}"/></TextBlock>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+                </Border>
                 <!-- File name: takes the middle space and truncates before the window buttons -->
                 <TextBlock Grid.Column="1" Text="" x:Name="FileNameLabel" VerticalAlignment="Center"
                            Margin="16,0,12,0" TextTrimming="CharacterEllipsis"
@@ -1422,6 +1444,39 @@
                                 Click="SidebarToggle_Click"/>
                         <!-- Settings and help icons pinned to bottom -->
                         <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,6">
+                            <!-- Invert document colors (#135): moon toggle, lit in the accent while
+                                 active (Tag="on", set from ToggleDocInvert). Ctrl+I does the same. -->
+                            <Button x:Name="DocInvertBtn" Click="DocInvertBtn_Click"
+                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
+                                    ToolTip="{DynamicResource Str_DocInvertSetting}"
+                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <TextBlock Text="&#xE708;"
+                                                       FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                                                </TextBlock.Effect>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}" Value="on">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
                             <Button Click="DocInfo_Click"
                                     Cursor="Hand" FocusVisualStyle="{x:Null}"
                                     ToolTip="{DynamicResource Str_TT_DocInfo}"
@@ -1650,9 +1705,30 @@
                                     <Border Background="{DynamicResource GrainBrushShared}" IsHitTestVisible="False"
                                             Opacity="{DynamicResource GrainOpacity}"/>
                                     <DockPanel Margin="18,22,12,16">
-                                        <TextBlock DockPanel.Dock="Top" Text="RECENT" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
-                                                   FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Accent}" Margin="2,0,0,10"/>
+                                        <DockPanel DockPanel.Dock="Top" Margin="2,0,0,10">
+                                            <!-- Clear all (#146): one click empties the whole list, matching the
+                                                 dropdown's Clear list item. Foreground lives in the style so the
+                                                 hover trigger can override it (a local value would win over it). -->
+                                            <TextBlock DockPanel.Dock="Right" Text="{DynamicResource Str_Menu_ClearList}"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
+                                                       FontSize="11" Cursor="Hand" Margin="8,0,6,0"
+                                                       MouseLeftButtonDown="RecentClearAll_Click">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                <Setter Property="TextDecorations" Value="Underline"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="RECENT" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
+                                                       FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource Accent}"/>
+                                        </DockPanel>
                                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                             <ItemsControl x:Name="RecentFilesList"/>
                                         </ScrollViewer>
@@ -2482,7 +2558,7 @@
                                     ViewportUnits="Absolute" Viewport="0,0,256,256" Stretch="None"/>
                     </Border.Background>
                 </Border>
-                <Grid Margin="28,20,28,22">
+                <Grid Margin="28,20,28,14">
                     <StackPanel Margin="0">
                     <!-- Header: bloody KillerPDF icon to the left of the title + tagline.
                          A Grid (not a horizontal StackPanel) so the text column is bounded and the
@@ -2589,9 +2665,17 @@
                                    FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{DynamicResource Accent}"/>
                     </Button>
-                    <!-- Tiny destructive footer link, bottom-right like the main-window footer, red on hover. -->
-                    <TextBlock FontFamily="Consolas" FontSize="10" Margin="0,10,0,0"
-                               HorizontalAlignment="Right">
+                    <!-- Footer row: the recent-files privacy toggle (#146) sits left, the tiny
+                         destructive Clear-all-Data link bottom-right (red on hover) - the About
+                         window is where the data-hygiene controls live. -->
+                    <DockPanel Margin="0,12,0,0" LastChildFill="False">
+                    <CheckBox x:Name="NoRecentCheck" DockPanel.Dock="Left"
+                              Content="{DynamicResource Str_NoRecentSetting}"
+                              Style="{StaticResource ThemeCheck}" FontSize="11"
+                              VerticalAlignment="Center"
+                              Checked="NoRecentCheck_Toggled" Unchecked="NoRecentCheck_Toggled"/>
+                    <TextBlock DockPanel.Dock="Right" FontFamily="Consolas" FontSize="10"
+                               VerticalAlignment="Center">
                         <Hyperlink TextDecorations="None" Cursor="Hand" Click="AboutClearData_Click">
                             <Hyperlink.Style>
                                 <Style TargetType="Hyperlink">
@@ -2606,6 +2690,7 @@
                             <Run Text="Clear all Data"/>
                         </Hyperlink>
                     </TextBlock>
+                    </DockPanel>
                     </StackPanel>
                     <!-- X close button overlaid at top-right - no vertical space consumed -->
                     <Button Click="AboutOverlayClose_Click"

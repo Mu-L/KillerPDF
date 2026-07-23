@@ -601,12 +601,26 @@ namespace KillerPDF
             e.Handled = true;
         }
 
-        private static MenuItem MakeMenuItem(string header, RoutedEventHandler click, string? gesture = null)
+        // glyph: optional Segoe MDL2 codepoint rendered in the menu's left gutter (the 16px
+        // check column doubles as an icon slot - see the MenuItem template in MainWindow.xaml).
+        private static MenuItem MakeMenuItem(string header, RoutedEventHandler click, string? gesture = null, string? glyph = null)
         {
             var item = new MenuItem { Header = header };
             item.Click += click;
             if (gesture != null)
                 item.InputGestureText = gesture;
+            if (glyph != null)
+            {
+                var icon = new TextBlock
+                {
+                    Text = glyph,
+                    FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                icon.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                item.Icon = icon;
+            }
             return item;
         }
     }

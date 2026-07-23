@@ -570,5 +570,20 @@
     <sys:String x:Key="Str_Ctx_CopyEmail">ইমেল ঠিকানা কপি করুন</sys:String>
     <sys:String x:Key="Str_Ctx_RemoveLink">PDF থেকে লিঙ্ক সরান</sys:String>
     <sys:String x:Key="Str_LinksSection">লিঙ্ক</sys:String>
+    <sys:String x:Key="Str_PrivacySection">গোপনীয়তা</sys:String>
+    <sys:String x:Key="Str_NoRecentSetting">সম্প্রতি খোলা ফাইলগুলি মনে রাখবেন না</sys:String>
+    <sys:String x:Key="Str_Menu_ExportImages">পৃষ্ঠাগুলি ছবি হিসেবে এক্সপোর্ট করুন...</sys:String>
+    <sys:String x:Key="Str_ExportImg_Suffix">পৃষ্ঠাগুলি ছবি হিসেবে এক্সপোর্ট</sys:String>
+    <sys:String x:Key="Str_ExportImg_Format">ফরম্যাট</sys:String>
+    <sys:String x:Key="Str_ExportImg_Dpi">রেজোলিউশন (DPI)</sys:String>
+    <sys:String x:Key="Str_ExportImg_Export">এক্সপোর্ট</sys:String>
+    <sys:String x:Key="Str_ExportImg_Done">{0}টি পৃষ্ঠা {1}-এ এক্সপোর্ট হয়েছে</sys:String>
+    <sys:String x:Key="Str_Print_AllPages">সব পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Print_OddOnly">শুধু বিজোড় পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_Print_EvenOnly">শুধু জোড় পৃষ্ঠা</sys:String>
+    <sys:String x:Key="Str_DocInvertSetting">ডকুমেন্টের রং উল্টে দিন</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন</sys:String>
+    <sys:String x:Key="Str_St_AppSize">অ্যাপের আকার {0}%</sys:String>
+    <sys:String x:Key="Str_KS_AppSize">পুরো অ্যাপ জুম করুন (অ্যাক্সেসযোগ্যতা)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">লিঙ্ক খোলার আগে নিশ্চিত করুন</sys:String>
 </ResourceDictionary>

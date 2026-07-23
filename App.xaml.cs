@@ -718,6 +718,8 @@ namespace KillerPDF
 
         // ── Recent files (most-recent first, capped) ─────────────────────
         private const int RecentFilesMax = 10;
+        // "1" = don't track recently opened files at all (#146, privacy on shared machines).
+        internal const string NoRecentFilesSetting = "NoRecentFiles";
 
         internal static System.Collections.Generic.List<string> GetRecentFiles()
         {
@@ -731,6 +733,7 @@ namespace KillerPDF
 
         internal static void AddRecentFile(string path)
         {
+            if (GetSetting(NoRecentFilesSetting) == "1") return;   // tracking disabled (#146)
             if (string.IsNullOrWhiteSpace(path)) return;
             var list = GetRecentFiles();
             list.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));

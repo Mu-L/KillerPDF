@@ -168,14 +168,14 @@ namespace KillerPDF
                 if (_sidebarCol.ActualWidth > 24)
                 {
                     if (_sidebarShowingOutlines)
-                        _savedOutlinesWidth = Math.Min(_sidebarCol.ActualWidth, SidebarMaxOutlines);
+                        _savedOutlinesWidth = Math.Min(_sidebarCol.ActualWidth, SbPx(SidebarMaxOutlines));
                     else
-                        _savedPagesWidth = Math.Min(_sidebarCol.ActualWidth, SidebarMaxPages);
+                        _savedPagesWidth = Math.Min(_sidebarCol.ActualWidth, SbPx(SidebarMaxPages));
                 }
                 _sidebarToggleBtn.ToolTip = Loc("Str_TT_ExpandSidebar");
                 _sidebarBorder.Visibility = Visibility.Collapsed;
-                _sidebarCol.Width = new GridLength(24);
-                _sidebarCol.MinWidth = 24;
+                _sidebarCol.Width = new GridLength(SbPx(24));
+                _sidebarCol.MinWidth = SbPx(24);
                 // Splitter stays enabled so the user can grab it and drag the sidebar back open.
             }
             else
@@ -183,7 +183,7 @@ namespace KillerPDF
                 _sidebarBorder.Visibility = Visibility.Visible;
                 double restore = _sidebarShowingOutlines ? _savedOutlinesWidth : _savedPagesWidth;
                 _sidebarCol.Width = new GridLength(restore);
-                _sidebarCol.MinWidth = SidebarMinOpen;   // open: clamp so the list can't be dragged below readable
+                _sidebarCol.MinWidth = SbPx(SidebarMinOpen);   // open: clamp so the list can't be dragged below readable
                 _sidebarToggleBtn.ToolTip = Loc("Str_TT_CollapseSidebar");
                 SidebarSplitter.IsEnabled = true;
             }
@@ -222,7 +222,7 @@ namespace KillerPDF
             if (_sidebarCollapsed || e.LeftButton != System.Windows.Input.MouseButtonState.Pressed) return;
             if (_sidebarDragOpening)
             {
-                SidebarContentPanel.Visibility = _sidebarCol.ActualWidth >= SidebarMinOpen
+                SidebarContentPanel.Visibility = _sidebarCol.ActualWidth >= SbPx(SidebarMinOpen)
                     ? Visibility.Visible : Visibility.Collapsed;
                 return;
             }
@@ -232,8 +232,8 @@ namespace KillerPDF
             double mx = e.GetPosition(MainContentGrid).X;
             const double closeBuffer = 36;   // pull this far past the minimum edge to close on release
             _sidebarWantClose = _sidebarRight
-                ? mx > MainContentGrid.ActualWidth - SidebarMinOpen + closeBuffer
-                : mx < SidebarMinOpen - closeBuffer;
+                ? mx > MainContentGrid.ActualWidth - SbPx(SidebarMinOpen) + closeBuffer
+                : mx < SbPx(SidebarMinOpen) - closeBuffer;
         }
 
         // Called when the user finishes dragging the sidebar splitter. If they dragged it narrower than
@@ -248,20 +248,20 @@ namespace KillerPDF
             {
                 if (_sidebarCollapsed) return;
                 double w = _sidebarCol.ActualWidth;
-                if (w < SidebarMinOpen)
+                if (w < SbPx(SidebarMinOpen))
                 {
                     // Released below the readable minimum: snap to whichever end the user let go nearer
                     // to - fully closed, or the minimum open width.
-                    double mid = (24 + SidebarMinOpen) / 2.0;
+                    double mid = SbPx((24 + SidebarMinOpen) / 2.0);
                     if (w < mid) { CollapseSidebarToStrip(); return; }
-                    _sidebarCol.Width = new GridLength(SidebarMinOpen);
-                    w = SidebarMinOpen;
+                    _sidebarCol.Width = new GridLength(SbPx(SidebarMinOpen));
+                    w = SbPx(SidebarMinOpen);
                 }
                 _sidebarBorder.Visibility = Visibility.Visible;        // ensure the list shows when settled open
                 SidebarContentPanel.Visibility = Visibility.Visible;
-                _sidebarCol.MinWidth = SidebarMinOpen;                 // clamp future resizes so they can't clip
-                if (_sidebarShowingOutlines) _savedOutlinesWidth = Math.Min(w, SidebarMaxOutlines);
-                else _savedPagesWidth = Math.Min(w, SidebarMaxPages);
+                _sidebarCol.MinWidth = SbPx(SidebarMinOpen);           // clamp future resizes so they can't clip
+                if (_sidebarShowingOutlines) _savedOutlinesWidth = Math.Min(w, SbPx(SidebarMaxOutlines));
+                else _savedPagesWidth = Math.Min(w, SbPx(SidebarMaxPages));
             }));
         }
 
@@ -273,8 +273,8 @@ namespace KillerPDF
             _sidebarToggleBtn.ToolTip = Loc("Str_TT_ExpandSidebar");
             _sidebarBorder.Visibility = Visibility.Collapsed;
             SidebarContentPanel.Visibility = Visibility.Visible;   // reset so the next border-show has content
-            _sidebarCol.Width = new GridLength(24);
-            _sidebarCol.MinWidth = 24;
+            _sidebarCol.Width = new GridLength(SbPx(24));
+            _sidebarCol.MinWidth = SbPx(24);
             UpdateSidebarToggleGlyph();   // splitter stays enabled so it can be dragged back open
         }
     }

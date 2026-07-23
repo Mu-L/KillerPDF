@@ -857,7 +857,7 @@ namespace KillerPDF
             TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
             TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
 
-            menu.Items.Add(MakeMenuItem(Loc("Str_Menu_Import") + "...", (s2, e2) => ImportImages_Click(s2, e2)));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Menu_Import") + "...", (s2, e2) => ImportImages_Click(s2, e2), null, ""));
             menu.Items.Add(new Separator());
 
             var recents = App.GetRecentFiles();
@@ -937,12 +937,22 @@ namespace KillerPDF
                     menu.Items.Add(item);
                 }
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_ClearList"), (_, _) => App.ClearRecentFiles()));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_ClearList"),
+                    (_, _) => { App.ClearRecentFiles(); PopulateRecentFilesList(); }));   // keep the start screen in sync (#146)
             }
 
             menu.PlacementTarget = (UIElement)sender;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
             menu.IsOpen = true;
+        }
+
+        // Start-screen "Clear list" link (#146): one click, then the box hides itself (empty list).
+        // Handled = true, or the click bubbles into the surrounding DropZone and opens the file dialog.
+        private void RecentClearAll_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            App.ClearRecentFiles();
+            PopulateRecentFilesList();
         }
 
         // ---- File-type (shell) icons for the Recent list ----
@@ -1144,11 +1154,12 @@ namespace KillerPDF
             }
             else
             {
-                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_Save"), (_, _) => SaveInPlace(), "Ctrl+S"));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_SaveAs"), (s2, e2) => SaveAs_Click(s2, e2), "Ctrl+Shift+S"));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_CompressZip"), (s2, e2) => CompressToZip_Click(s2, e2)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_Save"), (_, _) => SaveInPlace(), "Ctrl+S", ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_SaveAs"), (s2, e2) => SaveAs_Click(s2, e2), "Ctrl+Shift+S", ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_CompressZip"), (s2, e2) => CompressToZip_Click(s2, e2), null, ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Menu_ExportImages"), (s2, e2) => ExportImages_Click(s2, e2), null, ""));   // #132
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_DigitalSig"), (_, _) => OpenSignDialog()));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_DigitalSig"), (_, _) => OpenSignDialog(), null, ""));
             }
 
             menu.PlacementTarget = (UIElement)sender;
@@ -1375,8 +1386,12 @@ namespace KillerPDF
         }
 
         // Static version of DerefItem for use in static helpers.
-        private static PdfItem DerefItemStatic(PdfItem item)
+        private static PdfItem? DerefItemStatic(PdfItem? item)
         {
+            // Absent dictionary keys arrive here as null (Elements["/X"] on a fresh document is
+            // null for /AcroForm, /Kids, ...). The scrubs' pattern matches treat null as "not
+            // there", which is correct - dereferencing it here just tripped an NRE first.
+            if (item is null) return null;
             var valueProp = item.GetType().GetProperty("Value",
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (valueProp?.GetValue(item) is PdfObject resolved) return resolved;
@@ -1602,7 +1617,7 @@ namespace KillerPDF
                 // so mailto/URI links don't appear as strikethrough lines in other viewers.
                 StripLinkAnnotationBorders(_doc);
 
-                if (hasAnnotations)
+                if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
                     // Save a clean copy of the doc (without burned annotations), burn
                     // annotations into the real file, then restore the in-memory doc
@@ -1690,7 +1705,7 @@ namespace KillerPDF
                 // Always strip link annotation borders regardless of user annotation count.
                 StripLinkAnnotationBorders(_doc);
 
-                if (hasAnnotations)
+                if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
@@ -1749,7 +1764,7 @@ namespace KillerPDF
             // (must happen on UI thread before we go async)
             string sourcePath;
             bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
-            if (hasAnnotations)
+            if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
             {
                 var tempClean  = App.MakeTempFile("clean");
                 var tempBurned = App.MakeTempFile("burned");
@@ -1864,6 +1879,132 @@ namespace KillerPDF
             {
                 try { KillerDialog.Show(this, $"Flatten failed:\n{ex.GetType().Name}: {ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error); }
                 catch { /* dialog failed; overlay still removed in finally */ }
+            }
+            finally
+            {
+                try { HideFlattenProgress(overlay); } catch { /* ensure overlay never leaks */ }
+                EndCancellableOp();
+            }
+        }
+
+        // ---- Export pages as images (#132) ----
+        // The CLI --to-image pipeline behind a GUI entry (Save dropdown). Burns pending
+        // annotations + stamps into a temp render source first (same clean-copy dance as Save
+        // Flattened, so future saves don't double-burn), then renders each selected page at the
+        // chosen DPI and writes <base>-page-NNN.<ext> beside the base name the user picked.
+        private async void ExportImages_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
+            CommitActiveTextBox();
+
+            var opts = new ExportImagesDialog(this);
+            opts.ShowDialog();   // fade-close dialogs don't reliably return true; rely on Confirmed
+            if (!opts.Confirmed) return;
+
+            List<int>? selected = null;
+            if (opts.Range.Length > 0)
+            {
+                selected = CliParsePageRange(opts.Range, _doc.PageCount, out string rangeErr);
+                if (selected is null)
+                {
+                    KillerDialog.Show(this, rangeErr.Length > 0 ? rangeErr : Loc("Str_InvalidRange"),
+                                      "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+            selected ??= [.. Enumerable.Range(0, _doc.PageCount)];
+
+            string ext = opts.Jpeg ? "jpg" : "png";
+            var dlg = new SaveFileDialog
+            {
+                Filter = opts.Jpeg ? "JPEG image|*.jpg" : "PNG image|*.png",
+                Title  = Loc("Str_ExportImg_Suffix"),
+                CheckFileExists = false, CheckPathExists = true,
+                FileName = System.IO.Path.GetFileNameWithoutExtension(_originalFile ?? _currentFile) + "." + ext,
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            string outDir   = System.IO.Path.GetDirectoryName(dlg.FileName) is { Length: > 0 } d2 ? d2 : ".";
+            string baseName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+
+            // Burn pending annotations + stamps into a temp render source (UI thread).
+            string sourcePath;
+            bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
+            if (hasAnnotations || HasActiveStamps)
+            {
+                var tempClean  = App.MakeTempFile("clean");
+                var tempBurned = App.MakeTempFile("burned");
+                _doc.Save(tempClean);
+                DrawStampsOnDocument();
+                DrawAnnotationsOnDocument();
+                _doc.Save(tempBurned);
+                _doc.Close();
+                try
+                {
+                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                }
+                catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
+                {
+                    var fixedPath = App.MakeTempFile("savefixed");
+                    if (!TryImportRepairToPath(tempClean, fixedPath)
+                        && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
+                        throw;
+                    tempClean = fixedPath;
+                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                }
+                _currentFile = tempClean;
+                sourcePath = tempBurned;
+            }
+            else
+            {
+                var temp = App.MakeTempFile("src");
+                _doc.Save(temp);
+                sourcePath = temp;
+            }
+
+            // In-app rotations live outside the file (the working copy has /Rotate stripped -
+            // BitmapHelpers), so snapshot them and rotate the pixels like the render path does.
+            var rotSnapshot = new int[_doc.PageCount];
+            for (int i = 0; i < rotSnapshot.Length; i++)
+                if (_pageRotations.TryGetValue(i, out int r)) rotSnapshot[i] = r;
+
+            var overlay = ShowFlattenProgress(selected.Count, "Exporting");
+            int digits  = Math.Max(3, _doc.PageCount.ToString().Length);
+            bool jpeg   = opts.Jpeg;
+            double dpi  = opts.Dpi;
+            var pages   = selected;
+            try
+            {
+                var ct = BeginCancellableOp("export");
+                int written = 0;
+                await Task.Run(() =>
+                {
+                    using var dr = DocLib.Instance.GetDocReader(sourcePath, new PageDimensions(dpi / 72.0));
+                    int done = 0;
+                    foreach (var idx in pages)
+                    {
+                        if (ct.IsCancellationRequested) return;
+                        byte[] raw; int w, h;
+                        using (var pr = dr.GetPageReader(idx))
+                        {
+                            raw = pr.GetImage();
+                            w   = pr.GetPageWidth();
+                            h   = pr.GetPageHeight();
+                        }
+                        int rot = idx < rotSnapshot.Length ? rotSnapshot[idx] : 0;
+                        if (rot != 0) (raw, w, h) = RotateBitmapStatic(raw, w, h, rot);
+                        var bytes = jpeg ? CliEncodeJpeg(raw, w, h) : RenderToPng(raw, w, h);
+                        var name  = $"{baseName}-page-{(idx + 1).ToString().PadLeft(digits, '0')}.{(jpeg ? "jpg" : "png")}";
+                        System.IO.File.WriteAllBytes(System.IO.Path.Combine(outDir, name), bytes);
+                        written++;
+                        int n = ++done;
+                        Dispatcher.BeginInvoke(new Action(() => UpdateFlattenProgress(overlay, n, pages.Count)));
+                    }
+                });
+                SetStatus(string.Format(Loc("Str_ExportImg_Done"), written, outDir));
+            }
+            catch (Exception ex)
+            {
+                KillerDialog.Show(this, $"Export failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {

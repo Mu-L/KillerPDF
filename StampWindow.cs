@@ -26,6 +26,7 @@ namespace KillerPDF
         private readonly int _pageCount;
         private int _pageIndex;
         private readonly StampSpec _spec;
+        private readonly bool _hadExisting;   // dialog opened on a doc that already has stamps (#145)
         // Renders an arbitrary page for the preview stepper: returns that page's bitmap + size in points.
         private readonly Func<int, (BitmapSource? src, double wpt, double hpt)>? _pageProvider;
         private TextBlock _pageNavLabel = null!;
@@ -89,6 +90,7 @@ namespace KillerPDF
             _pageCount = pageCount;
             _pageIndex = pageIndex;
             _pageProvider = pageProvider;
+            _hadExisting = existing is not null;   // #145: clearing existing stamps must stay applyable
             _spec = existing?.Clone() ?? new StampSpec { NumbersEnabled = true };
             Result = _spec;
 
@@ -481,8 +483,10 @@ namespace KillerPDF
         {
             if (_wmTextPanel != null) _wmTextPanel.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
             if (_wmImagePanel != null) _wmImagePanel.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            // Nothing to apply unless at least one section is enabled.
-            if (_applyBtn != null) _applyBtn.IsEnabled = _numEnable.IsChecked == true || _wmEnable.IsChecked == true;
+            // Nothing to apply unless at least one section is enabled - EXCEPT when the document
+            // already has stamps: applying with both sections off is how they are removed (#145).
+            if (_applyBtn != null) _applyBtn.IsEnabled = _hadExisting
+                || _numEnable?.IsChecked == true || _wmEnable?.IsChecked == true;
         }
 
         // Mirroring only makes sense for a left/right position, so grey it out on a centered one.

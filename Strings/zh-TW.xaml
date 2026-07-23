@@ -572,5 +572,20 @@
     <sys:String x:Key="Str_Ctx_CopyEmail">複製電子郵件地址</sys:String>
     <sys:String x:Key="Str_Ctx_RemoveLink">從 PDF 中移除連結</sys:String>
     <sys:String x:Key="Str_LinksSection">連結</sys:String>
+    <sys:String x:Key="Str_PrivacySection">隱私</sys:String>
+    <sys:String x:Key="Str_NoRecentSetting">不記住最近開啟的檔案</sys:String>
+    <sys:String x:Key="Str_Menu_ExportImages">將頁面匯出為圖片...</sys:String>
+    <sys:String x:Key="Str_ExportImg_Suffix">將頁面匯出為圖片</sys:String>
+    <sys:String x:Key="Str_ExportImg_Format">格式</sys:String>
+    <sys:String x:Key="Str_ExportImg_Dpi">解析度 (DPI)</sys:String>
+    <sys:String x:Key="Str_ExportImg_Export">匯出</sys:String>
+    <sys:String x:Key="Str_ExportImg_Done">已將 {0} 頁匯出到 {1}</sys:String>
+    <sys:String x:Key="Str_Print_AllPages">所有頁面</sys:String>
+    <sys:String x:Key="Str_Print_OddOnly">僅奇數頁</sys:String>
+    <sys:String x:Key="Str_Print_EvenOnly">僅偶數頁</sys:String>
+    <sys:String x:Key="Str_DocInvertSetting">反轉文件顏色</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">捲動以調整整個應用程式大小</sys:String>
+    <sys:String x:Key="Str_St_AppSize">應用程式大小 {0}%</sys:String>
+    <sys:String x:Key="Str_KS_AppSize">縮放整個應用程式（無障礙）</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">開啟連結前確認</sys:String>
 </ResourceDictionary>

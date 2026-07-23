@@ -2758,8 +2758,36 @@ namespace KillerPDF
                             double padX = 2 * sx, padY = 2 * sy;
                             var layoutRect = new XRect(tboxX + padX, tboxY + padY,
                                                        Math.Max(1, tboxW - 2 * padX), Math.Max(1, tboxH));
-                            var tf = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
-                            tf.DrawString(ta.Content, font, taBrush, layoutRect);
+                            // #142 root cause (PR #144, thanks Ryokoxx): the short DrawString
+                            // overload hardcodes Justify, whose draw path NREd on the null-Text
+                            // LineBreak blocks a newline produces - any font, any machine. The
+                            // formatter is fixed, and the alignment is now stated explicitly:
+                            // the on-screen TextBlock sets no TextAlignment, so WPF renders it
+                            // Left - burned output must match, not silently justify.
+                            // The retry/skip below stays as the net for GENUINE font failures:
+                            // DrawString resolves the typeface lazily, so a font that CONSTRUCTED
+                            // fine can still throw at first draw on machines missing that face.
+                            var taAlign = new PdfSharpCore.Drawing.Layout.TextFormatAlignment
+                            {
+                                Horizontal = PdfSharpCore.Drawing.Layout.XParagraphAlignment.Left
+                            };
+                            if (!string.IsNullOrEmpty(ta.Content))
+                            {
+                                try
+                                {
+                                    var tf = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
+                                    tf.DrawString(ta.Content, font, taBrush, layoutRect, taAlign);
+                                }
+                                catch
+                                {
+                                    try
+                                    {
+                                        var tf2 = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
+                                        tf2.DrawString(ta.Content, new XFont("Segoe UI", ta.FontSize * sy, xstyle), taBrush, layoutRect, taAlign);
+                                    }
+                                    catch { /* skip this annotation rather than fail the whole save (#142) */ }
+                                }
+                            }
                             break;
                         }
 

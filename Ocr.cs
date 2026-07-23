@@ -137,6 +137,9 @@ namespace KillerPDF
             bool hqPref = OcrHighQuality;
 
             var root = new MenuItem { Header = Loc("Str_Ocr_Language") };
+            // Not-yet-installed language rows, so the HQ toggle can refresh their "(download)"
+            // suffixes in place while the menu stays open.
+            var downloadItems = new List<(MenuItem item, string code, string name)>();
 
             // Header with the Tesseract language code right-aligned, mirroring the Settings language list.
             FrameworkElement LangHeader(string name, string code, string? suffix = null)
@@ -185,6 +188,7 @@ namespace KillerPDF
                 {
                     var item = new MenuItem { Header = LangHeader(name, code, hqPref ? "(download HQ)" : "(download)") };
                     item.Click += (_, _) => DownloadOcrLanguage(code, name);
+                    downloadItems.Add((item, code, name));
                     root.Items.Add(item);
                 }
             }
@@ -196,14 +200,18 @@ namespace KillerPDF
             {
                 Header = "Use High Quality Models",
                 IsChecked = hqPref,
+                StaysOpenOnClick = true,   // stay open like the language checkboxes above
             };
-            // Closes the menu on click (no StaysOpenOnClick) so it reopens with a refreshed checkmark and
-            // (download HQ) labels. Flips the persisted preference directly so the setting can't drift from
-            // the visual state.
+            // Flips the persisted preference directly so the setting can't drift from the visual
+            // state; the checkmark and the "(download)" suffixes refresh IN PLACE, so the menu can
+            // stay open instead of closing just to rebuild those labels.
             hq.Click += (_, _) =>
             {
                 bool now = !OcrHighQuality;
                 SetOcrHighQuality(now);
+                hq.IsChecked = now;
+                foreach (var (item, code, name) in downloadItems)
+                    item.Header = LangHeader(name, code, now ? "(download HQ)" : "(download)");
                 if (now) RedownloadSelectedHighQuality();
             };
             root.Items.Add(hq);
@@ -575,11 +583,11 @@ namespace KillerPDF
             else
             {
                 int pageIdx = PageList.SelectedIndex;
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (_, _) => OcrPageToClipboard(pageIdx), "Ctrl+Shift+O"));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_Region"), (_, _) => BeginOcrRegion(), "Ctrl+Shift+I"));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (_, _) => OcrPageToClipboard(pageIdx), "Ctrl+Shift+O", ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_Region"), (_, _) => BeginOcrRegion(), "Ctrl+Shift+I", ""));
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_SearchablePdf"), (_, _) => MakeSearchablePdf()));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_ExtractText"), (_, _) => ExtractAllText()));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_SearchablePdf"), (_, _) => MakeSearchablePdf(), null, ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_ExtractText"), (_, _) => ExtractAllText(), null, ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(BuildLanguageMenu());
             }

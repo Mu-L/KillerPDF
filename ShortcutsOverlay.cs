@@ -99,6 +99,8 @@ namespace KillerPDF
                 new("F7",        "Str_View_TwoPage"),
                 new("F8",        "Str_View_Grid"),
                 new("F11 / Esc", "Str_KS_FullScreen"),
+                new("Ctrl+I",    "Str_DocInvertSetting"),
+                new("Ctrl+Shift+= / - / 0", "Str_KS_AppSize"),
             ]},
             new KsSection { TitleKey = "Str_KS_Ocr", Rows =
             [

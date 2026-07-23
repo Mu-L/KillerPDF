@@ -53,6 +53,7 @@ namespace KillerPDF
         private int _nUp = 1;                // pages per sheet (1, 2, 4, 6, 9)
         private bool _duplex;                // two-sided printing (when the printer supports it)
         private CheckBox _duplexCheck = null!;
+        private ComboBox _subsetCombo = null!;   // all / odd only / even only (#134, manual duplex)
         private bool _grayscale;             // send the job as grayscale/B&W rather than color
 
         // Printable area in DIPs for the currently selected printer + orientation.
@@ -300,7 +301,22 @@ namespace KillerPDF
         // The page indices the preview walks AND the Print button sends - whatever range is typed in the
         // Pages box (blank or unparseable falls back to every page, matching ParseRange). Driving the
         // preview off this keeps it showing exactly the pages that will print (type "6" -> preview page 6).
-        private List<int> SelectedIndices() => ParseRange(_pagesBox.Text, _pages.Length);
+        private List<int> SelectedIndices()
+        {
+            var list = ParseRange(_pagesBox.Text, _pages.Length);
+            // Odd/even subset (#134): filters by 1-based page NUMBER on top of the typed range,
+            // so "print odds, flip the stack, print evens" works like Word's manual duplex.
+            // The preview follows, since everything drives off this list.
+            int subset = _subsetCombo?.SelectedIndex ?? 0;
+            if (subset != 0)
+            {
+                var filtered = new List<int>(list.Count);
+                foreach (var i in list)
+                    if ((i % 2 == 0) == (subset == 1)) filtered.Add(i);   // 0-based even index = odd page number
+                list = filtered;
+            }
+            return list;
+        }
 
         private int SheetCount() => _pages.Length == 0 ? 0 : (SelectedIndices().Count + _nUp - 1) / _nUp;
 
@@ -652,9 +668,20 @@ namespace KillerPDF
                 Text         = S("Str_Print_PagesHint"),
                 Foreground   = R("TextSecondary"),
                 FontSize     = 11,
-                Margin       = new Thickness(0, 0, 0, 16),
+                Margin       = new Thickness(0, 0, 0, 8),
                 TextWrapping = TextWrapping.Wrap
             });
+
+            // Odd/even subset (#134): Word-style manual duplex - print the odd pages, flip the
+            // stack, print the even pages. Applies on top of the Pages range above.
+            _subsetCombo = new ComboBox { Margin = new Thickness(0, 0, 0, 14), Height = 26 };
+            ApplyComboStyle(_subsetCombo);
+            _subsetCombo.Items.Add(S("Str_Print_AllPages"));
+            _subsetCombo.Items.Add(S("Str_Print_OddOnly"));
+            _subsetCombo.Items.Add(S("Str_Print_EvenOnly"));
+            _subsetCombo.SelectedIndex = 0;
+            _subsetCombo.SelectionChanged += (_, _) => { _previewIndex = 0; UpdatePreview(); };
+            panel.Children.Add(_subsetCombo);
 
             // Two-sided: the printer does the flipping; we just set the ticket when it's supported.
             _duplexCheck = UiKit.CheckBox(S("Str_Print_TwoSided"));

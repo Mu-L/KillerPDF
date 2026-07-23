@@ -865,9 +865,16 @@ namespace KillerPDF
         }
 
         // Form-field font-size stepper
-        // A small "Field size: - N +" bar shown top-right while a form text field is focused, so the
-        // user can resize that field's text (PDF forms otherwise lock the size to the field's /DA).
-        // The chosen size is stored per field and baked into the field's /DA on save.
+        // A small "Font size: - N +" bar shown while a form text field is focused, so the user can
+        // resize that field's text (PDF forms otherwise lock the size to the field's /DA). The chosen
+        // size is stored per field and baked into the field's /DA on save.
+        //
+        // Dressed like the annotate bars (same surface, grain, shadow, fade) but ANCHORED TO THE
+        // FIELD: the bar drips down from the box being typed in, dropdown-style, and follows it
+        // through scrolling and zoom. It flips above the field when there is no room below, so it
+        // can never collide with the annotate bars or float detached over the page.
+        private ScrollChangedEventHandler? _formBarScrollHook;   // detached in HideFormSizeBar
+
         private void ShowFormSizeBar(TextBox tb, int objNum, double scale)
         {
             HideFormSizeBar();
@@ -877,64 +884,102 @@ namespace KillerPDF
 
             double curPt = Math.Round(_activeFormTb.FontSize / _activeFormScale);
 
-            var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 4, 8, 4) };
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(3, 1, 3, 1), Background = Brushes.Transparent };
+
+            // Fixed light text: the InlineFlyout pill is dark regardless of the app theme.
             var lbl = new TextBlock
             {
                 Text = "Font size:",
-                FontFamily = UiKit.UiFont, FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
+                FontFamily = UiKit.UiFont, FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xB8, 0xB8, 0xB8)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0)
             };
-            lbl.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
             panel.Children.Add(lbl);
 
             var sizeLbl = new TextBlock
             {
                 Text = curPt.ToString("0"),
-                FontFamily = UiKit.UiFont, FontSize = 12,
-                MinWidth = 22, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                FontFamily = UiKit.UiFont, FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF2)),
+                MinWidth = 20, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center
             };
-            sizeLbl.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
 
             panel.Children.Add(MakeFormSizeStep("", () => AdjustFormFontSize(-1, sizeLbl)));  // minus
             panel.Children.Add(sizeLbl);
             panel.Children.Add(MakeFormSizeStep("", () => AdjustFormFontSize(+1, sizeLbl)));  // plus
 
-            _formSizeBar = new Border
-            {
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment   = VerticalAlignment.Top,
-                CornerRadius = new CornerRadius(0, 0, 4, 4),
-                Padding = new Thickness(4),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 16, ShadowDepth = 3, Direction = 270, Opacity = 0.55 },
-                Margin  = new Thickness(0, 0, 8, 0),
-                Child   = panel,
-            };
-            _formSizeBar.SetResourceReference(Border.BackgroundProperty,  "BgPanel");
-            _formSizeBar.SetResourceReference(Border.BorderBrushProperty, "BorderDim");
+            // The on-document "inline flyout" style: translucent pill, solidifies on hover.
+            _formSizeBar = UiKit.InlineFlyout(panel);
+            _formSizeBar.HorizontalAlignment = HorizontalAlignment.Left;
+            _formSizeBar.VerticalAlignment   = VerticalAlignment.Top;
+
             if (PagePreviewPanel.Parent is Grid g)
             {
-                Panel.SetZIndex(_formSizeBar, 100);
-                g.Children.Add(_formSizeBar);
+                var bar = _formSizeBar;
+                // Just under the field, aligned to its left edge (clamped inside the pane); flips
+                // above the field when it sits at the bottom. Re-run on scroll/zoom and on the
+                // bar's own size changes so it rides with the box instead of hanging in space.
+                void Reposition()
+                {
+                    if (_formSizeBar != bar || _activeFormTb is null) return;
+                    try
+                    {
+                        double barW = bar.ActualWidth  > 0 ? bar.ActualWidth  : 160;
+                        double barH = bar.ActualHeight > 0 ? bar.ActualHeight : 34;
+                        var below = _activeFormTb.TranslatePoint(new Point(0, _activeFormTb.ActualHeight), g);
+                        double x = Math.Max(0, Math.Min(below.X, g.ActualWidth - barW));
+                        double y = below.Y + 4;
+                        if (y + barH > g.ActualHeight)
+                            y = Math.Max(0, _activeFormTb.TranslatePoint(new Point(0, 0), g).Y - barH - 4);
+                        bar.Margin = new Thickness(x, y, 0, 0);
+                    }
+                    catch { /* field mid-layout; the next scroll/size tick repositions */ }
+                }
+
+                Panel.SetZIndex(bar, 100);
+                g.Children.Add(bar);
+                Reposition();
+                bar.SizeChanged += (_, _) => Reposition();   // the first real measure replaces the estimate
+                _formBarScrollHook = (_, _) => Reposition();
+                PagePreviewPanel.ScrollChanged += _formBarScrollHook;
+
+                // Fade in to the pill's translucent rest state (hover solidifies it from there).
+                bar.Opacity = 0;
+                bar.BeginAnimation(UIElement.OpacityProperty,
+                    new DoubleAnimation(0, UiKit.InlineFlyoutRestOpacity, new Duration(TimeSpan.FromMilliseconds(120)))
+                    { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
             }
         }
 
         // A flat, non-focusable +/- step. It's a Border (not a Button) so clicking it doesn't move
-        // keyboard focus out of the text field, which would otherwise blur the field and dismiss this bar.
-        private Border MakeFormSizeStep(string glyph, Action onClick)
+        // keyboard focus out of the text field, which would otherwise blur the field and dismiss this
+        // bar. The minus/plus are DRAWN (centered rounded rectangles), not font glyphs: the icon font
+        // and the number's text font carry different line metrics, so glyph-based signs sat on a
+        // slightly different vertical axis than the size readout between them and read as misaligned.
+        // Fixed light color: the InlineFlyout pill is dark regardless of the app theme.
+        // Shim for the original glyph-string call sites: E710 is the MDL2 Add glyph, anything
+        // else is the minus. The glyphs themselves are no longer rendered (see above).
+        private Border MakeFormSizeStep(string glyph, Action onClick) => MakeFormSizeStep(glyph == "", onClick);
+
+        private Border MakeFormSizeStep(bool plus, Action onClick)
         {
-            var t = new TextBlock
+            var fill = new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xEE));
+            var shape = new Grid
             {
-                Text = glyph, FontFamily = UiKit.IconFont, FontSize = 11,
+                Width = 9, Height = 9, SnapsToDevicePixels = true,
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
             };
-            t.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
+            shape.Children.Add(new Border
+            { Width = 9, Height = 1.6, CornerRadius = new CornerRadius(0.8), Background = fill, VerticalAlignment = VerticalAlignment.Center });
+            if (plus)
+                shape.Children.Add(new Border
+                { Width = 1.6, Height = 9, CornerRadius = new CornerRadius(0.8), Background = fill, HorizontalAlignment = HorizontalAlignment.Center });
             var b = new Border
             {
-                Width = 24, Height = 22, CornerRadius = new CornerRadius(3), Cursor = Cursors.Hand,
-                Margin = new Thickness(2, 0, 2, 0), Background = Brushes.Transparent, Child = t
+                Width = 21, Height = 19, CornerRadius = new CornerRadius(9), Cursor = Cursors.Hand,
+                Margin = new Thickness(2, 0, 2, 0), Background = Brushes.Transparent, Child = shape
             };
-            b.MouseEnter += (_, _) => b.SetResourceReference(Border.BackgroundProperty, "BgHover");
+            b.MouseEnter += (_, _) => b.Background = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF));
             b.MouseLeave += (_, _) => b.Background = Brushes.Transparent;
             b.MouseLeftButtonDown += (_, e) => { e.Handled = true; onClick(); };
             return b;
@@ -954,9 +999,14 @@ namespace KillerPDF
 
         private void HideFormSizeBar()
         {
+            if (_formBarScrollHook is not null)
+            {
+                PagePreviewPanel.ScrollChanged -= _formBarScrollHook;
+                _formBarScrollHook = null;
+            }
             if (_formSizeBar is not null)
             {
-                (PagePreviewPanel.Parent as Grid)?.Children.Remove(_formSizeBar);
+                FadeOutAndRemoveBar(_formSizeBar);   // annotate-bar fade-out; removes it from its parent
                 _formSizeBar = null;
             }
         }
