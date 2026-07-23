@@ -1,7 +1,7 @@
-# Standards-conformance validation results - KillerPDF 1.6.5
+# Standards-conformance validation results - KillerPDF 1.6.6
 
-Run date: 2026-07-22. (Numbers identical to the 1.6.4 run of 2026-07-17 - the 1.6.5
-save-pipeline changes moved nothing.)
+Run date: 2026-07-23. (Numbers identical to the 1.6.4 and 1.6.5 runs of 2026-07-17 and
+2026-07-22 - the 1.6.6 changes touched no save-engine code.)
 
 Question under test: does saving a PDF through KillerPDF degrade its
 standards conformance? Every file in a 2,907-file public corpus was validated, resaved through
@@ -16,7 +16,7 @@ Result: **Zero** conformance regressions across every file KillerPDF will save, 
 |---|---|---|
 | veraPDF | 1.30.2 | PDF/A + PDF/UA validation (the industry reference validator) |
 | qpdf | 12.3.2 | Structural check (`--check` exit codes) |
-| KillerPDF | 1.6.5 | `--batch-resave` through the standard open/save pipeline |
+| KillerPDF | 1.6.6 | `--batch-resave` through the standard open/save pipeline |
 | Compare-VeraPDF.ps1 | this folder | Diffs the two veraPDF reports file by file |
 
 ## Corpus
@@ -72,7 +72,7 @@ does not claim PDF/A-4 output.
 
 | Exit code before -> after | Files |
 |---|---|
-| 0 -> 0 (clean both sides) | 2,031 |
+| 0 -> 0 (clean both sides) | 2,032 |
 | 3 -> 0 (warnings before, clean after) | 195 |
 | 3 -> 3 (kept preexisting warnings) | 9 |
 | Worsened | 0 |
