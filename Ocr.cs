@@ -59,6 +59,7 @@ namespace KillerPDF
         [
             ("eng", "English"),
             ("ben", "Bengali"),
+            ("ces", "Czech"),
             ("deu", "German"),
             ("spa", "Spanish"),
             ("fra", "French"),

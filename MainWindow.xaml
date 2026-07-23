@@ -2048,6 +2048,19 @@
                                                        Foreground="{DynamicResource TextSecondary}"/>
                                         </Grid>
                                     </RadioButton>
+                                    <RadioButton x:Name="LangCsRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangCsRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Čeština" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="cs-CZ" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                        </Grid>
+                                    </RadioButton>
                                     <RadioButton x:Name="LangDeRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
                                                  Checked="LangDeRadio_Checked">
                                         <Grid>
