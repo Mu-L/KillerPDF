@@ -667,8 +667,23 @@ namespace KillerPDF
         private string Loc(string key)
             => Application.Current.TryFindResource(key) as string ?? key;
 
+        // A "held" status message briefly wins over routine updates: scrolling the logo to
+        // resize the app must show "App size N%", but the chrome resize immediately re-runs
+        // the fit pipeline, whose "Page x of y - Fit Page" status stomped it the same frame.
+        // While the hold is active, plain SetStatus calls are ignored; the hold refreshes on
+        // every wheel notch and expires on its own, after which normal statuses flow again.
+        private DateTime _statusHoldUntil = DateTime.MinValue;
+
         private void SetStatus(string text)
         {
+            if (DateTime.UtcNow < _statusHoldUntil) return;   // a held message is showing
+            StatusText.Text = text;
+            CrashReporter.PushStatusMessage(text);
+        }
+
+        private void SetStatusHeld(string text, int holdMs = 1200)
+        {
+            _statusHoldUntil = DateTime.UtcNow.AddMilliseconds(holdMs);
             StatusText.Text = text;
             CrashReporter.PushStatusMessage(text);
         }

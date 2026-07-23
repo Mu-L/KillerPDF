@@ -83,7 +83,9 @@ namespace KillerPDF
             if (persist)
             {
                 App.SetSetting("AppScale", scale.ToString("0.###", CultureInfo.InvariantCulture));
-                SetStatus(string.Format(Loc("Str_St_AppSize"), (int)Math.Round(scale * 100)));
+                // Held: the chrome resize re-runs the fit pipeline, whose page/zoom status
+                // would otherwise overwrite this the same frame (MainWindow.xaml.cs SetStatus).
+                SetStatusHeld(string.Format(Loc("Str_St_AppSize"), (int)Math.Round(scale * 100)));
             }
         }
     }

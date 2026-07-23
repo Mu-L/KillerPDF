@@ -59,9 +59,11 @@ namespace KillerPDF
             [
                 new("Ctrl+Z",         "Str_KS_Undo"),
                 new("Ctrl+Y",         "Str_Ctx_Redo"),
+                new("Ctrl+Shift+Z",   "Str_Ctx_Redo"),
                 new("Ctrl+C",         "Str_KS_CopyText"),
                 new("Ctrl+V",         "Str_KS_Paste"),
                 new("Delete",         "Str_KS_DeleteAnnot"),
+                new("F2",             "Str_Ctx_BmRename"),
                 new("Enter / Escape", "Str_KS_ConfirmCancel"),
                 new("Menu / Shift+F10","Str_KS_ContextMenu"),
             ]},
@@ -91,6 +93,7 @@ namespace KillerPDF
                 new("Space + drag",   "Str_KS_PanView"),
                 new("Ctrl+B",         "Str_KS_ToggleSidebar"),
                 new("Ctrl+Tab",       "Str_KS_NextTab"),
+                new("Ctrl+Shift+Tab", "Str_KS_PrevTab"),
             ]},
             new KsSection { TitleKey = "Str_KS_View", Rows =
             [

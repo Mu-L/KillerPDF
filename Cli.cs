@@ -143,8 +143,9 @@ namespace KillerPDF
             "  --split <in.pdf> <outDir>                write one PDF per page",
             "  --decrypt <in.pdf> <out.pdf> [--password <p>]",
             "                                           remove encryption (lossless when possible)",
-            "  --to-image <in.pdf> <outDir> [--dpi <n>] [--format png|jpg] [--pages <range>]",
-            "                                           render pages to images (default 150 dpi, png)",
+            "  --to-image <in.pdf> <outDir> [--dpi <n>] [--format png|jpg] [--pages <range>] [--transparent]",
+            "                                           render pages to images (default 150 dpi, png;",
+            "                                           background composites to white unless --transparent, png only)",
             "  --flatten <in.pdf> <out.pdf> [--dpi <n>] rasterize into an uneditable PDF (default 150 dpi)",
             "  --print <in.pdf> [--printer <name>] [--pages <range>] [--copies <n>]",
             "                                           print silently (default printer if none named)",
@@ -464,13 +465,18 @@ namespace KillerPDF
         }
 
         // ============================================================
-        // --to-image <in.pdf> <outDir> [--dpi n] [--format png|jpg] [--pages range]
+        // --to-image <in.pdf> <outDir> [--dpi n] [--format png|jpg] [--pages range] [--transparent]
         // ============================================================
+        // PDFium leaves unpainted background pixels as BGRA 0,0,0,0. Encoders
+        // that drop alpha (JPEG) then show them BLACK, and PNG/flatten output
+        // carries a useless full-page alpha channel (issue #148, Ryokoxx).
+        // Default is now composite-over-white via Docnet's transparency
+        // remover; --transparent keeps the raw alpha for PNG output.
         private static int CliToImage(List<string> pos, Dictionary<string, string> options, TextWriter con)
         {
             if (pos.Count != 2)
             {
-                con.WriteLine("Usage: KillerPDF.exe --to-image <in.pdf> <outputFolder> [--dpi <n>] [--format png|jpg] [--pages <range>]");
+                con.WriteLine("Usage: KillerPDF.exe --to-image <in.pdf> <outputFolder> [--dpi <n>] [--format png|jpg] [--pages <range>] [--transparent]");
                 return 2;
             }
             string inPath = Path.GetFullPath(pos[0]), outDir = Path.GetFullPath(pos[1]);
@@ -480,6 +486,8 @@ namespace KillerPDF
             string fmt = (fmtRaw ?? "png").ToLowerInvariant();
             if (fmt == "jpeg") fmt = "jpg";
             if (fmt != "png" && fmt != "jpg") { con.WriteLine("--format must be png or jpg"); return 2; }
+            // JPEG has no alpha channel, so --transparent only means anything for png.
+            bool transparent = fmt == "png" && options.ContainsKey("--transparent");
             Directory.CreateDirectory(outDir);
 
             options.TryGetValue("--password", out var password);
@@ -507,7 +515,9 @@ namespace KillerPDF
                 byte[] raw; int w, h;
                 using (var pr = dr.GetPageReader(idx))
                 {
-                    raw = pr.GetImage();
+                    raw = transparent
+                        ? pr.GetImage()
+                        : pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                     w = pr.GetPageWidth();
                     h = pr.GetPageHeight();
                 }
@@ -550,7 +560,9 @@ namespace KillerPDF
                 byte[] raw; int w, h;
                 using (var pr = dr.GetPageReader(i))
                 {
-                    raw = pr.GetImage();
+                    // Composite over white (#148): keeps the /SMask alpha channel out
+                    // of the rebuilt page images entirely.
+                    raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                     w = pr.GetPageWidth();
                     h = pr.GetPageHeight();
                 }

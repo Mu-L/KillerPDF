@@ -1837,7 +1837,10 @@ namespace KillerPDF
                         lock (docGate)
                         {
                             using var pr = flattenReader.GetPageReader(i);
-                            bgra = pr.GetImage();
+                            // Composite over white (#148, Ryokoxx): PDFium leaves unpainted
+                            // background as BGRA 0,0,0,0, which used to embed a full-page
+                            // /SMask alpha channel in the flattened output.
+                            bgra = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                             rw   = pr.GetPageWidth();
                             rh   = pr.GetPageHeight();
                         }
@@ -1986,7 +1989,10 @@ namespace KillerPDF
                         byte[] raw; int w, h;
                         using (var pr = dr.GetPageReader(idx))
                         {
-                            raw = pr.GetImage();
+                            // Composite over white (#148, Ryokoxx): bare GetImage leaves the
+                            // unpainted background at BGRA 0,0,0,0 - JPEG export dropped the
+                            // alpha and produced black pages, PNG came out transparent.
+                            raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                             w   = pr.GetPageWidth();
                             h   = pr.GetPageHeight();
                         }

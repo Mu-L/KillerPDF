@@ -35,7 +35,12 @@
 param(
     [string]$CertThumbprint = "",
     [string]$CertName       = "Open Source Developer Stephen Riley",
-    [switch]$SkipSign
+    [switch]$SkipSign,
+    # Everything except tag push, gh release, and winget submit.
+    [switch]$DryRun,
+    # Skip build + sign and publish the artifacts already in the publish folder
+    # (use after a completed normal run, so the signed exe is not rebuilt).
+    [switch]$PublishOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,6 +57,8 @@ $tsaList = @(
     "http://timestamp.sectigo.com",
     "http://ts.ssl.com"
 )
+
+if (-not $PublishOnly) {
 
 # ── 0. SimplySign preflight ──────────────────────────────────────────────────
 if (-not $SkipSign) {
@@ -225,6 +232,16 @@ if (-not $SkipSign) {
     $actualCN    = "(not signed)"
 }
 
+} else {
+    # PublishOnly: the artifacts from the last full run are the release.
+    Write-Host "`n==> PublishOnly: skipping build and sign, using existing artifacts." -ForegroundColor Yellow
+    if (-not (Test-Path $exe)) { throw "PublishOnly: no built exe at $exe - run the full script first." }
+    $pdfiumPath  = $null
+    $pdfiumHash  = ""
+    $actualThumb = "(existing signature)"
+    $actualCN    = "(existing signature)"
+}
+
 # ── 4. SHA256 (final EXE) ─────────────────────────────────────────────────
 Write-Host "`n==> Computing final EXE SHA256..." -ForegroundColor Cyan
 $exeHash = (Get-FileHash $exe -Algorithm SHA256).Hash
@@ -247,6 +264,10 @@ if ($srcZip) {
 # Written into the publish folder next to KillerPDF.exe and the -src.zip, so every file you
 # upload to the GitHub release is in one place. The updater reads this from the release assets.
 $sumsPath = Join-Path $publishDir "SHA256SUMS.txt"
+if ($PublishOnly -and (Test-Path $sumsPath)) {
+    # Keep the full-run file: rewriting here would drop the pdfium line (not recomputed).
+    Write-Host "`n==> PublishOnly: keeping existing SHA256SUMS.txt." -ForegroundColor Yellow
+} else {
 $lines    = [System.Collections.Generic.List[string]]::new()
 $lines.Add("KillerPDF.exe           $exeHash")
 if ($pdfiumPath) { $lines.Add("pdfium.dll              $pdfiumHash") }
@@ -256,6 +277,7 @@ if ($srcZip) {
 }
 [System.IO.File]::WriteAllLines($sumsPath, $lines, [System.Text.UTF8Encoding]::new($false))
 Write-Host "`n==> SHA256SUMS.txt written to: $sumsPath" -ForegroundColor Green
+}
 
 # ── 7. Summary ───────────────────────────────────────────────────────────────
 Write-Host "`n╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
@@ -273,3 +295,91 @@ Write-Host   ""
 Write-Host   "  Paste EXE SHA256 into:"
 Write-Host   "    KillerPDF\pdf-landing\index.html (line ~183)"
 Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+
+# ============================================================================
+# Publish phases (ported from the KillerNotes release script): notes from the
+# CHANGELOG, git preflight, tag + push, GitHub release, winget submit.
+# ============================================================================
+
+# ── 8. Version + publish preflight ───────────────────────────────────────────
+Write-Host "`n==> Publish preflight..." -ForegroundColor Cyan
+$csprojRaw = Get-Content -Path $proj -Raw
+if ($csprojRaw -notmatch '<Version>([0-9]+\.[0-9]+\.[0-9]+)</Version>') {
+    throw "No <Version>x.y.z</Version> found in KillerPDF.csproj"
+}
+$Version = $Matches[1]
+$Tag = "v$Version"
+Write-Host "    Version: $Version (tag $Tag)"
+
+Push-Location $PSScriptRoot
+try {
+    $branch = (git rev-parse --abbrev-ref HEAD).Trim()
+    if ($branch -ne 'main') { throw "On branch '$branch', expected main" }
+    $dirty = git status --porcelain
+    if ($dirty) { throw "Working tree is not clean. Commit or stash first:`n$($dirty -join "`n")" }
+    git fetch origin main --quiet
+    if ((git rev-parse HEAD).Trim() -ne (git rev-parse origin/main).Trim()) {
+        throw "Local main and origin/main differ. Push or pull first."
+    }
+    if (git tag --list $Tag) { throw "Tag $Tag already exists" }
+    if (git ls-remote --tags origin $Tag) { throw "Tag $Tag already exists on origin" }
+    $changelog = Get-Content -Path (Join-Path $PSScriptRoot 'CHANGELOG.md') -Raw
+    if ($changelog -match [regex]::Escape("## [$Version] - Unreleased")) {
+        throw "CHANGELOG.md section [$Version] is still marked Unreleased"
+    }
+    if ($changelog -notmatch [regex]::Escape("## [$Version]")) {
+        throw "CHANGELOG.md has no [$Version] section"
+    }
+    Write-Host "    Preflight OK" -ForegroundColor Green
+
+    # ── 9. Release notes from the CHANGELOG section ──────────────────────────
+    Write-Host "`n==> Extracting release notes from CHANGELOG.md..." -ForegroundColor Cyan
+    $clLines = Get-Content -Path (Join-Path $PSScriptRoot 'CHANGELOG.md')
+    $notes = New-Object System.Collections.Generic.List[string]
+    $inSection = $false
+    foreach ($line in $clLines) {
+        if ($line -match "^## \[$([regex]::Escape($Version))\]") { $inSection = $true; continue }
+        if ($inSection -and $line -match '^## \[') { break }
+        if ($inSection) { $notes.Add($line) }
+    }
+    if ($notes.Count -eq 0) { throw "Could not extract [$Version] notes from CHANGELOG.md" }
+    $notesFile = Join-Path $env:TEMP "KillerPDF-$Version-notes.md"
+    $notes -join "`r`n" | Set-Content -Path $notesFile -Encoding UTF8
+    Write-Host "    Notes written to $notesFile ($($notes.Count) lines)"
+
+    if ($DryRun) {
+        Write-Host "`n==> DryRun: stopping before tag and release." -ForegroundColor Yellow
+        Write-Host "    Would tag $Tag, push it, and publish KillerPDF.exe, the -src.zip, and SHA256SUMS.txt."
+        exit 0
+    }
+
+    # ── 10. Tag + push ───────────────────────────────────────────────────────
+    Write-Host "`n==> Tagging $Tag..." -ForegroundColor Cyan
+    git tag -a $Tag -m "KillerPDF $Tag"
+    git push origin $Tag
+    if ($LASTEXITCODE -ne 0) { throw "Tag push failed" }
+
+    # ── 11. GitHub release ───────────────────────────────────────────────────
+    Write-Host "`n==> Creating GitHub release..." -ForegroundColor Cyan
+    $assets = @($exe)
+    if ($srcZip) { $assets += $srcZip.FullName }
+    if (Test-Path $sumsPath) { $assets += $sumsPath }
+    gh release create $Tag @assets --title "KillerPDF $Tag" --notes-file $notesFile --verify-tag
+    if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
+
+    # ── 12. Submit to winget-pkgs (komac) ────────────────────────────────────
+    # Non-fatal: the GitHub release is already out, so a winget hiccup must not
+    # fail the run. Requires the previous version's winget PR to be merged.
+    Write-Host "`n==> Submitting to winget-pkgs (komac)..." -ForegroundColor Cyan
+    $exeUrl = "https://github.com/SteveTheKiller/KillerPDF/releases/download/$Tag/KillerPDF.exe"
+    komac update SteveTheKiller.KillerPDF --version $Version --urls $exeUrl --submit
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "winget submit failed. Run it by hand once the previous version's PR is merged:"
+        Write-Warning "  komac update SteveTheKiller.KillerPDF --version $Version --urls $exeUrl --submit"
+    }
+
+    Write-Host "`n==> Release $Tag published:" -ForegroundColor Green
+    gh release view $Tag --json url --jq '.url'
+} finally {
+    Pop-Location
+}

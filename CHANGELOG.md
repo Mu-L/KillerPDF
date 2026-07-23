@@ -4,7 +4,12 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.5] - Unreleased
+## [1.6.6] - Unreleased
+
+### Fixed
+- Exported JPEGs no longer come out as black pages, and exported PNGs no longer carry a transparent background (#148, thanks Ryokoxx). PDFium leaves unpainted background pixels fully transparent; the JPEG encoder dropped that alpha channel and kept the zeroed color underneath, so any page without an explicit background - most PDFs - rendered solid black through `--to-image --format jpg` and the new Export pages as images dialog. Exports now composite over white by default, which also keeps the needless full-page alpha channel out of flattened PDFs (`--flatten` and Save Flattened). A new `--transparent` flag on `--to-image` keeps the raw alpha for PNG output when transparency is actually wanted.
+
+## [1.6.5] - 2026-07-23
 
 ### Added
 - Shapes tool: rectangle, ellipse, and free-form polygon markers, each with an optional fill. Box keeps the classic drag-a-filled-rectangle gesture the highlighter used to have; ellipse and polygon are closed outlines that move, resize, flatten, and print like any other drawing. Freeform places points click by click - click the first point (its target lights up when you are close) or double-click to close, Esc cancels, Backspace removes the last point. The tool shares the draw bar's color, size, and opacity, with a mini-shape sub-mode picker and a Fill toggle.
@@ -24,6 +29,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The sidebar page thumbnails, outline tooltips, and grid-view tooltips always said English "Page N" regardless of the interface language (#137, thanks jiri-ops) - the labels are now real localized strings in every language, and they update immediately on a language switch.
 - Japanese: repaired a garbled Document Info shortcut label (mojibake) and tightened the About wording (#136, thanks coolvitto).
 - Fresh clones build again without manual repair: an explicit .gitattributes rule keeps EOL normalization away from the vendored third_party sources (#140, thanks Ryokoxx), belt and braces on top of the earlier re-encode.
+- The Shapes tool strings and the outline's "(untitled)" placeholder existed only in English and Czech - the other eight languages showed blank tooltips and labels there. All ten languages now carry the full string set, verified key-for-key against English.
 
 ### Changed
 - Text selection now flows with the text (#127, thanks Ryokoxx): dragging with the Select tool tracks the actual run of characters in reading order, browser-style - across lines, paragraphs, and (in continuous view) across pages. A plain click still selects annotations, and drags that start on empty page keep the classic box select, so scans and annotation multi-select behave as before. Ctrl+A now shows real per-line selection on the page.
@@ -31,6 +37,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Black theme: the on-page selection color was a stray royal blue; it is now a readable dark green matching the theme.
 - The form-field font-size stepper is now an "inline flyout" - a new style for controls that float on the document itself: a translucent rounded pill that drips down from the field being typed in, follows it through scrolling and zoom, flips above it at the bottom of the pane, and solidifies on hover. Subtle enough to sit on a legal document without being in the way, and it can no longer collide with the draw/text bars or the toolbar.
 - Menu polish: dropdown items can carry icons in the gutter the check column always reserved (Save, Open, and OCR menus got them), and the OCR "Use High Quality Models" toggle now keeps the menu open, refreshing its checkmark and the per-language "(download)" labels in place.
+- Tooltips now show their keyboard shortcut everywhere one exists, in all ten languages: the whole tool palette carries its single-key hint (V select, T text, H highlight, D draw, L line, I image, G signature, C crop, R transform, S stamp), and the invert and app-size controls show Ctrl+I and Ctrl+Shift+=/-/0. The shortcuts overlay's list view also caught up with the keyboard view: Ctrl+Shift+Z (redo), Ctrl+Shift+Tab (previous tab), and F2 (rename bookmark) are listed now.
+- Collapsing and expanding the sidebar is now a smooth slide instead of a snap: the panel glides shut over a quarter second with the thumbnails holding their size (clipped, not squished), and the document settles in a single crisp pass afterwards - the same pipeline a splitter drag uses.
 
 ## [1.6.4] - 2026-07-17
 
