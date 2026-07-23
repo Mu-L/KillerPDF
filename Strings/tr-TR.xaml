@@ -24,15 +24,16 @@
     <sys:String x:Key="Str_TT_DeletePages">Seçili Sayfaları Sil</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">Sayfayı Yukarı Taşı (yeniden sırala)</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">Sayfayı Aşağı Taşı (yeniden sırala)</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">Seçim Aracı - açıklamalara tıkla, metin seçmek için sürükle, düzenlemek için çift tıkla</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">Metin Aracı - metin eklemek için tıkla</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">Vurgulama Aracı - vurgulamak için sürükle</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">Seçim Aracı - açıklamalara tıkla, metin seçmek için sürükle, düzenlemek için çift tıkla (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">Metin Aracı - metin eklemek için tıkla (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">Vurgulama Aracı - vurgulamak için sürükle (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Üstü çizili - metin boyunca sürükle</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Altı çizili - metin boyunca sürükle</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">Çizim Aracı - serbest çizim</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">İmza - imza oluştur ve yerleştir</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">Görsel Aracı - sayfaya görsel eklemek için tıkla</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">Kırpma Aracı - kırpma alanını belirlemek için sürükle, ardından sayfa(lar)a uygula</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">Çizim Aracı - serbest çizim (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">Şekiller - dikdörtgen, elips veya serbest çokgen</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">İmza - imza oluştur ve yerleştir (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">Görsel Aracı - sayfaya görsel eklemek için tıkla (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">Kırpma Aracı - kırpma alanını belirlemek için sürükle, ardından sayfa(lar)a uygula (C)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Tüm Açıklamaları Temizle</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Son İşlemi Geri Al (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Çok sayfalı ızgara görünümü (F8)</sys:String>
@@ -196,6 +197,8 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Lbl_Bold">Kalın</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">İtalik</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">Çiz</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">Şekiller</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">Dolgu</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Kırp</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Resim Ekle</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">İmza</sys:String>
@@ -253,7 +256,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Stamp_Mirror">Karşılıklı sayfalarda yansıt (dış kenar)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">{0} sayfa damgalandı</sys:String>
     <sys:String x:Key="Str_Pos_Custom">Özel (önizlemede sürükle)</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">Sayfaları Damgala</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">Sayfaları Damgala (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">Sayfaları Damgala</sys:String>
     <sys:String x:Key="Str_Stamp_Cancel">İptal</sys:String>
     <sys:String x:Key="Str_Stamp_Stamp">Bas</sys:String>
@@ -342,7 +345,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
 
     <!-- ── Çizgi aracı, katman / grup menüsü (v1.5.x eklendi) ─────────── -->
     <sys:String x:Key="Str_Lbl_Line">Çizgi</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">Çizgi - düz bir çizgi çizmek için sürükleyin</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Çizgi - düz bir çizgi çizmek için sürükleyin (L)</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">Düzenle</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">Yükselt</sys:String>
     <sys:String x:Key="Str_Ctx_Lower">Alçalt</sys:String>
@@ -410,7 +413,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Ctx_OcrPage">Sayfada OCR Uygula (Metni Kopyala)</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Dönüştür</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Damga</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">Sayfayı dönüştür - döndür / düzelt (ölçekleme yakında)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Sayfayı dönüştür - döndür / düzelt (ölçekleme yakında) (R)</sys:String>
     <sys:String x:Key="Str_Tf_Suffix">Dönüştür</sys:String>
     <sys:String x:Key="Str_Tf_Rotate">DÖNDÜR</sys:String>
     <sys:String x:Key="Str_Tf_Scale">ÖLÇEKLE</sys:String>
@@ -515,6 +518,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Ctx_BmDelete">Sil</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">Sayfa {0}</sys:String>
     <sys:String x:Key="Str_PageLabel">Sayfa {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(başlıksız)</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">Bu yer imi ve {0} alt yer imi silinsin mi?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">Yukarı taşı</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">Aşağı taşı</sys:String>
@@ -583,7 +587,8 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Print_OddOnly">Yalnızca tek sayfalar</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Yalnızca çift sayfalar</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Belge renklerini ters çevir</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Belge renklerini ters çevir (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Uygulama boyutu %{0}</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Tüm uygulamayı yakınlaştır (erişilebilirlik)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Bağlantıları açmadan önce sor</sys:String>

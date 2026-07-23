@@ -24,15 +24,16 @@
     <sys:String x:Key="Str_TT_DeletePages">删除选取的页面</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">向上移动页面（重新排序）</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">向下移动页面（重新排序）</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">选取工具 - 点击注释、拖曳选取文本、双击编辑</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">文本工具 - 点击以添加文本</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">高亮笔工具 - 拖曳以高亮标记</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">选取工具 - 点击注释、拖曳选取文本、双击编辑 (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">文本工具 - 点击以添加文本 (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">高亮笔工具 - 拖曳以高亮标记 (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">删除线 - 拖曳划过文本</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">底线 - 拖曳划过文本</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">绘图工具 - 自由手绘</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">签名 - 创建并放置签名</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">图片工具 - 点击以插入图片至页面</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">裁切工具 - 拖曳设置裁切区域，然后套用至页面</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">绘图工具 - 自由手绘 (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">形状 - 矩形、椭圆或自由多边形</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">签名 - 创建并放置签名 (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">图片工具 - 点击以插入图片至页面 (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">裁切工具 - 拖曳设置裁切区域，然后套用至页面 (C)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">清除所有注释</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">复原上一步 (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">多页网格视图 (F8)</sys:String>
@@ -196,6 +197,8 @@
     <sys:String x:Key="Str_Lbl_Bold">粗体</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">斜体</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">绘图</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">形状</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">填充</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">裁切</sys:String>
     <sys:String x:Key="Str_Lbl_Image">加入图片</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">签名</sys:String>
@@ -253,7 +256,7 @@
     <sys:String x:Key="Str_Stamp_Mirror">在对开页上镜像（外侧边缘）</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">已盖章 {0} 页</sys:String>
     <sys:String x:Key="Str_Pos_Custom">自定义（在预览上拖动）</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">盖章页面</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">盖章页面 (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">盖章页面</sys:String>
     <sys:String x:Key="Str_Stamp_Cancel">取消</sys:String>
     <sys:String x:Key="Str_Stamp_Stamp">套用</sys:String>
@@ -342,7 +345,7 @@
 
     <!-- ── 直线工具、图层 / 组合菜单（v1.5.x 新增） ─────────────────────── -->
     <sys:String x:Key="Str_Lbl_Line">直线</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">直线 - 拖动以绘制直线</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">直线 - 拖动以绘制直线 (L)</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">编辑</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">上移</sys:String>
     <sys:String x:Key="Str_Ctx_Lower">下移</sys:String>
@@ -412,7 +415,7 @@
     <!-- ── Transform（旋转 / 缩放 / 翻转 / 倾斜） ──────────────────────────── -->
     <sys:String x:Key="Str_Lbl_Rotate">变换</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">盖章</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">变换页面 - 旋转 / 校正倾斜（缩放即将推出）</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">变换页面 - 旋转 / 校正倾斜（缩放即将推出）(R)</sys:String>
     <sys:String x:Key="Str_Tf_Suffix">变换</sys:String>
     <sys:String x:Key="Str_Tf_Rotate">旋转</sys:String>
     <sys:String x:Key="Str_Tf_Scale">缩放</sys:String>
@@ -519,6 +522,7 @@
     <sys:String x:Key="Str_Ctx_BmDelete">删除</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">第 {0} 页</sys:String>
     <sys:String x:Key="Str_PageLabel">第 {0} 页</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(无标题)</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">删除此书签及其 {0} 个子书签？</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">上移</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">下移</sys:String>
@@ -587,7 +591,8 @@
     <sys:String x:Key="Str_Print_OddOnly">仅奇数页</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">仅偶数页</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">反转文档颜色</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">滚动以调整整个应用的大小</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">反转文档颜色 (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">滚动以调整整个应用的大小 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">应用大小 {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">缩放整个应用（无障碍）</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">打开链接前确认</sys:String>

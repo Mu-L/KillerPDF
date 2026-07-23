@@ -606,7 +606,12 @@ namespace KillerPDF
             }, cts.Token);
         }
 
-        private void RenderPage(int pageIndex)
+        // keepTiles: leave the existing secondary tiles in place instead of clearing them first.
+        // For a pixels-only repaint (invert toggle) the tile set is unchanged, and clearing it
+        // made the whole grid flash empty and re-stream - RenderAdditionalPages swaps bitmaps
+        // into existing tiles in place, so keeping them repaints without any layout jitter.
+        // Navigation keeps the default (clear first) since the tile set actually changes.
+        private void RenderPage(int pageIndex, bool keepTiles = false)
         {
             if (_currentFile is null || _doc is null) return;
             // Continuous has its own pipeline (SetupContinuousView + RenderContinuousPages into
@@ -696,7 +701,7 @@ namespace KillerPDF
                                                         // selected index - otherwise annotations on it
                                                         // are unhittable and clicks "do nothing".
                 ClearSelection();
-                ClearSecondaryPages();
+                if (!keepTiles) ClearSecondaryPages();
                 _pages[pageIndex] = _annotationCanvas;   // the primary is a normal entry in the unified map
                 RenderAllAnnotations(pageIndex);
                 SetStatus(string.Format(Loc("Str_PageOf"), pageIndex + 1, _doc!.PageCount));

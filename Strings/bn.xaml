@@ -24,15 +24,16 @@
     <sys:String x:Key="Str_TT_DeletePages">নির্বাচিত পৃষ্ঠাগুলো মুছুন</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">পৃষ্ঠা উপরে সরান (পুনর্বিন্যাস)</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">পৃষ্ঠা নিচে সরান (পুনর্বিন্যাস)</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">নির্বাচন টুল - অ্যানোটেশনে ক্লিক করুন, টেক্সট নির্বাচনে টেনে আনুন, সম্পাদনার জন্য ডাবল-ক্লিক করুন</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">টেক্সট টুল - টেক্সট যোগ করতে ক্লিক করুন</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">হাইলাইট টুল - হাইলাইট করতে টেনে আনুন</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">নির্বাচন টুল - অ্যানোটেশনে ক্লিক করুন, টেক্সট নির্বাচনে টেনে আনুন, সম্পাদনার জন্য ডাবল-ক্লিক করুন (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">টেক্সট টুল - টেক্সট যোগ করতে ক্লিক করুন (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">হাইলাইট টুল - হাইলাইট করতে টেনে আনুন (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">স্ট্রাইকথ্রু - লেখার উপর দিয়ে টেনে আনুন</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">আন্ডারলাইন - লেখার উপর দিয়ে টেনে আনুন</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">আঁকার টুল - ফ্রিহ্যান্ড কালি</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">স্বাক্ষর - স্বাক্ষর তৈরি ও স্থাপন করুন</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">ছবি টুল - পৃষ্ঠায় ছবি সন্নিবেশ করতে ক্লিক করুন</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">ক্রপ টুল - ক্রপ এলাকা নির্ধারণে টেনে আনুন, তারপর পৃষ্ঠায় প্রয়োগ করুন</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">আঁকার টুল - ফ্রিহ্যান্ড কালি (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">আকার - আয়তক্ষেত্র, উপবৃত্ত বা মুক্ত বহুভুজ</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">স্বাক্ষর - স্বাক্ষর তৈরি ও স্থাপন করুন (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">ছবি টুল - পৃষ্ঠায় ছবি সন্নিবেশ করতে ক্লিক করুন (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">ক্রপ টুল - ক্রপ এলাকা নির্ধারণে টেনে আনুন, তারপর পৃষ্ঠায় প্রয়োগ করুন (C)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">সব অ্যানোটেশন মুছুন</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">শেষ কাজ পূর্বাবস্থায় ফেরান (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">বহু-পৃষ্ঠা গ্রিড ভিউ (F8)</sys:String>
@@ -196,6 +197,8 @@
     <sys:String x:Key="Str_Lbl_Bold">বোল্ড</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">ইটালিক</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">আঁকুন</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">আকার</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">ভরাট</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">ক্রপ</sys:String>
     <sys:String x:Key="Str_Lbl_Image">ছবি যোগ করুন</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">স্বাক্ষর</sys:String>
@@ -253,7 +256,7 @@
     <sys:String x:Key="Str_Stamp_Mirror">মুখোমুখি পৃষ্ঠায় মিরর করুন (বাইরের প্রান্ত)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">{0}টি পৃষ্ঠা স্ট্যাম্প করা হয়েছে</sys:String>
     <sys:String x:Key="Str_Pos_Custom">কাস্টম (প্রিভিউতে টেনে আনুন)</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">পৃষ্ঠা স্ট্যাম্প করুন</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">পৃষ্ঠা স্ট্যাম্প করুন (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">পৃষ্ঠা স্ট্যাম্প করুন</sys:String>
     <sys:String x:Key="Str_Stamp_Cancel">বাতিল</sys:String>
     <sys:String x:Key="Str_Stamp_Stamp">বসান</sys:String>
@@ -342,7 +345,7 @@
 
     <!-- ── রেখা টুল, লেয়ার / গ্রুপ মেনু (v1.5.x এ যোগ করা হয়েছে) ──────────── -->
     <sys:String x:Key="Str_Lbl_Line">রেখা</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">রেখা - সরল রেখা আঁকতে টানুন</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">রেখা - সরল রেখা আঁকতে টানুন (L)</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">সম্পাদনা করুন</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">উপরে তুলুন</sys:String>
     <sys:String x:Key="Str_Ctx_Lower">নিচে নামান</sys:String>
@@ -410,7 +413,7 @@
     <sys:String x:Key="Str_Ctx_OcrPage">পৃষ্ঠায় OCR করুন (টেক্সট কপি করুন)</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">রূপান্তর</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">স্ট্যাম্প</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">পৃষ্ঠা রূপান্তর - ঘোরান / সোজা করুন (স্কেল শীঘ্রই আসছে)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">পৃষ্ঠা রূপান্তর - ঘোরান / সোজা করুন (স্কেল শীঘ্রই আসছে) (R)</sys:String>
     <sys:String x:Key="Str_Tf_Suffix">রূপান্তর</sys:String>
     <sys:String x:Key="Str_Tf_Rotate">ঘোরান</sys:String>
     <sys:String x:Key="Str_Tf_Scale">স্কেল</sys:String>
@@ -515,6 +518,7 @@
     <sys:String x:Key="Str_Ctx_BmDelete">মুছে ফেলুন</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">পৃষ্ঠা {0}</sys:String>
     <sys:String x:Key="Str_PageLabel">পৃষ্ঠা {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(শিরোনামহীন)</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">এই বুকমার্ক এবং এর {0}টি চাইল্ড বুকমার্ক মুছে ফেলা হবে?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">উপরে সরান</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">নিচে সরান</sys:String>
@@ -583,7 +587,8 @@
     <sys:String x:Key="Str_Print_OddOnly">শুধু বিজোড় পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">শুধু জোড় পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">ডকুমেন্টের রং উল্টে দিন</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">ডকুমেন্টের রং উল্টে দিন (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">অ্যাপের আকার {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">পুরো অ্যাপ জুম করুন (অ্যাক্সেসযোগ্যতা)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">লিঙ্ক খোলার আগে নিশ্চিত করুন</sys:String>

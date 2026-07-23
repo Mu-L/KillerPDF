@@ -24,17 +24,17 @@
     <sys:String x:Key="Str_TT_DeletePages">Delete Selected Pages</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">Move Page Up (reorder)</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">Move Page Down (reorder)</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">Select Tool - click annotations, drag to select text, double-click to edit</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">Text Tool - click to add text</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">Highlight Tool - drag to highlight</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">Select Tool - click annotations, drag to select text, double-click to edit (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">Text Tool - click to add text (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">Highlight Tool - drag to highlight (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Strikethrough - drag across text</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Underline - drag across text</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">Draw Tool - freehand ink</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">Draw Tool - freehand ink (D)</sys:String>
     <sys:String x:Key="Str_TT_ShapeTool">Shapes - rectangle, ellipse, or free-form polygon</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">Signature - create and place signatures</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">Image Tool - click to insert an image onto the page</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">Crop Tool - drag to set crop area, then apply to page(s)</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">Transform page - rotate / deskew (scale coming soon)</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">Signature - create and place signatures (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">Image Tool - click to insert an image onto the page (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">Crop Tool - drag to set crop area, then apply to page(s) (C)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Transform page - rotate / deskew (scale coming soon) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Clear All Annotations</sys:String>
     <sys:String x:Key="Str_TT_Search">Search (Ctrl+F)</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Undo Last (Ctrl+Z)</sys:String>
@@ -172,7 +172,8 @@
     <sys:String x:Key="Str_Print_OddOnly">Odd pages only</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Even pages only</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invert document colors</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Invert document colors (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App size {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom the whole app (accessibility)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirm before opening links</sys:String>
@@ -311,7 +312,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Stamp_Opacity">Opacity</sys:String>
     <sys:String x:Key="Str_Stamp_Mirror">Mirror on facing pages (outer edge)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">Stamped {0} page(s)</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">Stamp Pages</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">Stamp Pages (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">Stamp Pages</sys:String>
     <sys:String x:Key="Str_Pos_BottomCenter">Bottom Center</sys:String>
     <sys:String x:Key="Str_Pos_BottomRight">Bottom Right</sys:String>
@@ -399,7 +400,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
 
     <!-- ── Line tool, layer / group menu (added v1.5.x) ───────────────── -->
     <sys:String x:Key="Str_Lbl_Line">Line</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">Line - drag to draw a straight line</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Line - drag to draw a straight line (L)</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">Edit</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">Raise</sys:String>
     <sys:String x:Key="Str_Ctx_Lower">Lower</sys:String>

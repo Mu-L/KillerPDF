@@ -23,13 +23,14 @@
     <sys:String x:Key="Str_TT_DeletePages">Supprimer les pages sélectionnées</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">Déplacer la page vers le haut (réorganiser)</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">Déplacer la page vers le bas (réorganiser)</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">Outil Sélection - cliquer sur les annotations, glisser pour sélectionner du texte, double-cliquer pour modifier</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">Outil Texte - cliquer pour ajouter du texte</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">Outil Surlignage - glisser pour surligner</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">Outil Dessin - dessin à main levée</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">Signature - créer et placer des signatures</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">Outil Image - cliquer pour insérer une image</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">Outil Recadrage - sélectionner une zone et l'appliquer aux pages</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">Outil Sélection - cliquer sur les annotations, glisser pour sélectionner du texte, double-cliquer pour modifier (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">Outil Texte - cliquer pour ajouter du texte (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">Outil Surlignage - glisser pour surligner (H)</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">Outil Dessin - dessin à main levée (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">Formes - rectangle, ellipse ou polygone à main levée</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">Signature - créer et placer des signatures (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">Outil Image - cliquer pour insérer une image (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">Outil Recadrage - sélectionner une zone et l'appliquer aux pages (C)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Supprimer toutes les annotations</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Annuler la dernière action (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Vue en grille multi-pages (F8)</sys:String>
@@ -208,6 +209,8 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Lbl_Bold">Gras</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">Italique</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">Dessiner</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">Formes</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">Remplissage</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Recadrer</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Ajouter une image</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">Signature</sys:String>
@@ -284,7 +287,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Stamp_Mirror">Refléter sur les pages en vis-à-vis (bord extérieur)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">{0} page(s) tamponnée(s)</sys:String>
     <sys:String x:Key="Str_Pos_Custom">Personnalisé (glisser sur l'aperçu)</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">Tamponner les pages</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">Tamponner les pages (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">Tamponner les pages</sys:String>
     <sys:String x:Key="Str_Stamp_Cancel">Annuler</sys:String>
     <sys:String x:Key="Str_Stamp_Stamp">Numéroter</sys:String>
@@ -376,7 +379,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_TT_CropRemove">Supprimer la CropBox (et la TrimBox) de cette page</sys:String>
     <sys:String x:Key="Str_TT_CropRemoveAll">Supprimer la CropBox de toutes les pages</sys:String>
     <sys:String x:Key="Str_TT_CropCancel">Annuler (Échap)</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">Ligne - glisser pour tracer une ligne droite</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Ligne - glisser pour tracer une ligne droite (L)</sys:String>
 
     <!-- Annotate-bar labels -->
     <sys:String x:Key="Str_Bar_Color">Couleur :</sys:String>
@@ -425,7 +428,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <!-- Transform tool -->
     <sys:String x:Key="Str_Lbl_Rotate">Transformer</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Tampon</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">Transformer la page - pivoter / redresser (mise à l'échelle bientôt disponible)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Transformer la page - pivoter / redresser (mise à l'échelle bientôt disponible) (R)</sys:String>
     <sys:String x:Key="Str_Tf_Suffix">Transformer</sys:String>
     <sys:String x:Key="Str_Tf_Rotate">PIVOTER</sys:String>
     <sys:String x:Key="Str_Tf_Scale">ÉCHELLE</sys:String>
@@ -533,6 +536,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Ctx_BmDelete">Supprimer</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">Page {0}</sys:String>
     <sys:String x:Key="Str_PageLabel">Page {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(sans titre)</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">Supprimer ce signet et ses {0} signets enfants ?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">Monter</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">Descendre</sys:String>
@@ -601,7 +605,8 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Print_OddOnly">Pages impaires uniquement</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Pages paires uniquement</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Inverser les couleurs du document</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Inverser les couleurs du document (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application (Ctrl+Maj+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Taille de l'application {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoomer toute l'application (accessibilité)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirmer avant d'ouvrir les liens</sys:String>

@@ -344,9 +344,10 @@ namespace KillerPDF
 
         // Invert document colors (#135): flips the display-only dark mode. Shared by the rail's
         // moon toggle and Ctrl+I. The state is baked into rendered pixels, so flush the render
-        // caches and rebuild the current view through the mode-switch path (the only full
-        // re-render entry; reset the field so ApplyViewMode doesn't early-return on a
-        // same-mode call).
+        // caches and repaint IN PLACE - never through ApplyViewMode. The mode-switch rebuild
+        // re-laid-out the whole view and restored scroll approximately, so pages visibly
+        // shuffled before the new colors arrived. Invert changes pixels, never geometry:
+        // layout and scroll stay exactly where they are and only the bitmaps re-render.
         private void ToggleDocInvert(bool on)
         {
             if (DocInvert == on) return;
@@ -355,9 +356,30 @@ namespace KillerPDF
             DocInvertBtn.Tag = on ? "on" : null;   // lights the rail icon in the accent while active
             FlushAllRenderCaches();
             if (_doc is null) return;
-            var mode = _viewMode;
-            _viewMode = (ViewMode)(-1);
-            ApplyViewMode(mode);
+            if (_viewMode == ViewMode.Continuous)
+            {
+                // Null every slot's bitmap so the render pass (which skips filled slots)
+                // repaints the window around the viewport; far slots stay empty scaffolds
+                // until virtualization brings them back, exactly as after a long scroll.
+                // Slot sizes are untouched, so scroll geometry cannot move.
+                _continuousSharpenCts?.Cancel();
+                _continuousSharpPages.Clear();
+                foreach (var child in _continuousPanel.Children)
+                    if (child is Border b && b.Child is Grid g
+                        && g.Children.Count > 0 && g.Children[0] is System.Windows.Controls.Image img)
+                        img.Source = null;
+                _ = RenderContinuousPages(Math.Max(0, PageList.SelectedIndex));
+                StartRerenderTimer();   // then re-sharpen the visible pages at the current zoom
+            }
+            else
+            {
+                // Single/Two-Page/Grid: RenderPage repaints the primary and streams the
+                // secondary tiles back (grid anchors at page 0, like ApplyViewMode).
+                // keepTiles: the tile set is unchanged, so existing tiles stay put and get
+                // their bitmaps swapped in place - no clear-and-refill jitter in grid.
+                RenderPage(_viewMode == ViewMode.Grid ? 0 : Math.Max(0, PageList.SelectedIndex),
+                           keepTiles: true);
+            }
         }
 
         private void DocInvertBtn_Click(object sender, RoutedEventArgs e)

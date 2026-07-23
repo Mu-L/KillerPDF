@@ -1054,7 +1054,7 @@
                         MouseLeftButtonDown="LogoBar_MouseLeftButtonDown">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                     <Image Source="pack://application:,,,/Resources/kp-icon.png"
-                           Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center"
+                           Width="25" Height="25" Margin="0,0,7,0" VerticalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality">
                         <Image.Effect>
                             <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
@@ -1448,7 +1448,7 @@
                                  active (Tag="on", set from ToggleDocInvert). Ctrl+I does the same. -->
                             <Button x:Name="DocInvertBtn" Click="DocInvertBtn_Click"
                                     Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                    ToolTip="{DynamicResource Str_DocInvertSetting}"
+                                    ToolTip="{DynamicResource Str_TT_DocInvert}"
                                     Width="24" Height="24" Padding="0" Margin="0,0,0,6">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">

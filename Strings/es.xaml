@@ -24,15 +24,16 @@
     <sys:String x:Key="Str_TT_DeletePages">Eliminar páginas seleccionadas</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">Subir página (reordenar)</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">Bajar página (reordenar)</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">Herramienta de selección - clic en anotaciones, arrastrar para seleccionar texto, doble clic para editar</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">Herramienta de texto - clic para agregar texto</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">Herramienta de resaltado - arrastrar para resaltar</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">Herramienta de selección - clic en anotaciones, arrastrar para seleccionar texto, doble clic para editar (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">Herramienta de texto - clic para agregar texto (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">Herramienta de resaltado - arrastrar para resaltar (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Tachado - arrastra sobre el texto</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Subrayado - arrastra sobre el texto</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">Herramienta de dibujo - tinta a mano alzada</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">Firma - crear y colocar firmas</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">Herramienta de imagen - clic para insertar una imagen en la página</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">Herramienta de recorte - arrastrar para definir el área, luego aplicar a la(s) página(s)</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">Herramienta de dibujo - tinta a mano alzada (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">Formas - rectángulo, elipse o polígono a mano alzada</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">Firma - crear y colocar firmas (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">Herramienta de imagen - clic para insertar una imagen en la página (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">Herramienta de recorte - arrastrar para definir el área, luego aplicar a la(s) página(s) (C)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Eliminar todas las anotaciones</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Deshacer último (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Vista de cuadrícula multipágina (F8)</sys:String>
@@ -196,6 +197,8 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Lbl_Bold">Negrita</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">Cursiva</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">Dibujar</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">Formas</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">Relleno</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Recortar</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Agregar imagen</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">Firma</sys:String>
@@ -253,7 +256,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Stamp_Mirror">Reflejar en páginas enfrentadas (borde exterior)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">{0} página(s) selladas</sys:String>
     <sys:String x:Key="Str_Pos_Custom">Personalizada (arrastrar en la vista previa)</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">Sellar páginas</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">Sellar páginas (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">Sellar páginas</sys:String>
     <sys:String x:Key="Str_Stamp_Cancel">Cancelar</sys:String>
     <sys:String x:Key="Str_Stamp_Stamp">Aplicar</sys:String>
@@ -342,7 +345,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
 
     <!-- ── Herramienta Línea, menú de capas / grupos (añadido v1.5.x) ──── -->
     <sys:String x:Key="Str_Lbl_Line">Línea</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">Línea: arrastra para dibujar una línea recta</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Línea: arrastra para dibujar una línea recta (L)</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">Editar</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">Subir</sys:String>
     <sys:String x:Key="Str_Ctx_Lower">Bajar</sys:String>
@@ -410,7 +413,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Ctx_OcrPage">OCR de la página (copiar texto)</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Transformar</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Sello</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">Transformar página - rotar / enderezar (escala próximamente)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Transformar página - rotar / enderezar (escala próximamente) (R)</sys:String>
     <sys:String x:Key="Str_Tf_Suffix">Transformar</sys:String>
     <sys:String x:Key="Str_Tf_Rotate">ROTAR</sys:String>
     <sys:String x:Key="Str_Tf_Scale">ESCALAR</sys:String>
@@ -515,6 +518,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Ctx_BmDelete">Eliminar</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">Página {0}</sys:String>
     <sys:String x:Key="Str_PageLabel">Página {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(sin título)</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">¿Eliminar este marcador y sus {0} marcadores hijos?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">Subir</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">Bajar</sys:String>
@@ -583,7 +587,8 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Print_OddOnly">Solo páginas impares</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Solo páginas pares</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invertir colores del documento</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Desplácese para cambiar el tamaño de toda la aplicación</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Invertir colores del documento (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Desplácese para cambiar el tamaño de toda la aplicación (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Tamaño de la aplicación {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom de toda la aplicación (accesibilidad)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirmar antes de abrir enlaces</sys:String>

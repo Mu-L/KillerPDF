@@ -24,16 +24,17 @@
     <sys:String x:Key="Str_TT_DeletePages">選択ページを削除</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">ページを上に移動 (並べ替え)</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">ページを下に移動 (並べ替え)</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">選択ツール - 注釈をクリック、テキストをドラッグして選択、ダブルクリックで編集</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">テキストツール - クリックしてテキストを追加</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">ハイライトツール - ドラッグしてハイライト</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">選択ツール - 注釈をクリック、テキストをドラッグして選択、ダブルクリックで編集 (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">テキストツール - クリックしてテキストを追加 (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">ハイライトツール - ドラッグしてハイライト (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">打消し線 - テキスト上をドラッグ</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">下線 - テキスト上をドラッグ</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">描画ツール - フリーハンドインク</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">署名 - 署名を作成して配置</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">画像ツール - クリックしてページに画像を挿入</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">トリミングツール - ドラッグしてトリミング範囲を設定し、ページに適用</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">ページ変換 - 回転 / 傾き補正 (拡大縮小は近日対応)</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">描画ツール - フリーハンドインク (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">図形 - 長方形、楕円、自由多角形</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">署名 - 署名を作成して配置 (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">画像ツール - クリックしてページに画像を挿入 (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">トリミングツール - ドラッグしてトリミング範囲を設定し、ページに適用 (C)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">ページ変換 - 回転 / 傾き補正 (拡大縮小は近日対応) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">すべての注釈をクリア</sys:String>
     <sys:String x:Key="Str_TT_Search">検索 (Ctrl+F)</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">元に戻す (Ctrl+Z)</sys:String>
@@ -211,6 +212,8 @@
     <sys:String x:Key="Str_Lbl_Bold">太字</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">斜体</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">描画</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">図形</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">塗りつぶし</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">トリミング</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">変換</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">スタンプ</sys:String>
@@ -281,7 +284,7 @@
     <sys:String x:Key="Str_Stamp_Opacity">不透明度</sys:String>
     <sys:String x:Key="Str_Stamp_Mirror">見開きページでミラー (外側)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">{0} ページにスタンプを適用しました</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">ページにスタンプ</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">ページにスタンプ (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">ページにスタンプ</sys:String>
     <sys:String x:Key="Str_Pos_BottomCenter">下部中央</sys:String>
     <sys:String x:Key="Str_Pos_BottomRight">下部右</sys:String>
@@ -369,7 +372,7 @@
 
     <!-- ── 線ツール、レイヤー / グループメニュー (v1.5.x 追加) ───────────────── -->
     <sys:String x:Key="Str_Lbl_Line">線</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">線 - ドラッグして直線を描画</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">線 - ドラッグして直線を描画 (L)</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">編集</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">前面へ</sys:String>
     <sys:String x:Key="Str_Ctx_Lower">背面へ</sys:String>
@@ -483,7 +486,8 @@
     <sys:String x:Key="Str_Print_OddOnly">奇数ページのみ</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">偶数ページのみ</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">文書の色を反転</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">スクロールでアプリ全体のサイズを変更</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">文書の色を反転 (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">スクロールでアプリ全体のサイズを変更 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">アプリのサイズ {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">アプリ全体をズーム (アクセシビリティ)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">リンクを開く前に確認する</sys:String>
@@ -561,6 +565,7 @@
     <sys:String x:Key="Str_Ctx_BmDelete">削除</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">ページ {0}</sys:String>
     <sys:String x:Key="Str_PageLabel">ページ {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(無題)</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">このブックマークと {0} 個の子ブックマークを削除しますか？</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">上へ移動</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">下へ移動</sys:String>

@@ -24,15 +24,16 @@
     <sys:String x:Key="Str_TT_DeletePages">Ausgewählte Seiten löschen</sys:String>
     <sys:String x:Key="Str_TT_MovePageUp">Seite nach oben verschieben (Reihenfolge ändern)</sys:String>
     <sys:String x:Key="Str_TT_MovePageDown">Seite nach unten verschieben (Reihenfolge ändern)</sys:String>
-    <sys:String x:Key="Str_TT_SelectTool">Auswahlwerkzeug - Anmerkungen anklicken, Text markieren, doppelklicken zum Bearbeiten</sys:String>
-    <sys:String x:Key="Str_TT_TextTool">Textwerkzeug - klicken, um Text hinzuzufügen</sys:String>
-    <sys:String x:Key="Str_TT_HighlightTool">Markierungswerkzeug - ziehen zum Hervorheben</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">Auswahlwerkzeug - Anmerkungen anklicken, Text markieren, doppelklicken zum Bearbeiten (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">Textwerkzeug - klicken, um Text hinzuzufügen (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">Markierungswerkzeug - ziehen zum Hervorheben (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Durchstreichen - über Text ziehen</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Unterstreichen - über Text ziehen</sys:String>
-    <sys:String x:Key="Str_TT_DrawTool">Zeichenwerkzeug - Freihandzeichnung</sys:String>
-    <sys:String x:Key="Str_TT_SignatureTool">Signatur - Signaturen erstellen und platzieren</sys:String>
-    <sys:String x:Key="Str_TT_ImageTool">Bildwerkzeug - klicken, um ein Bild einzufügen</sys:String>
-    <sys:String x:Key="Str_TT_CropTool">Zuschneidewerkzeug - Bereich wählen und auf Seiten anwenden</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">Zeichenwerkzeug - Freihandzeichnung (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">Formen - Rechteck, Ellipse oder Freiform-Polygon</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">Signatur - Signaturen erstellen und platzieren (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">Bildwerkzeug - klicken, um ein Bild einzufügen (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">Zuschneidewerkzeug - Bereich wählen und auf Seiten anwenden (C)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Alle Anmerkungen entfernen</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Letzte Aktion rückgängig machen (Strg+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Mehrseitige Rasteransicht (F8)</sys:String>
@@ -196,6 +197,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Lbl_Bold">Fett</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">Kursiv</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">Zeichnen</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">Formen</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">Füllung</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Zuschneiden</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Bild hinzufügen</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">Signatur</sys:String>
@@ -253,7 +256,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Stamp_Mirror">Auf gegenüberliegenden Seiten spiegeln (Außenrand)</sys:String>
     <sys:String x:Key="Str_Stamp_Applied">{0} Seite(n) gestempelt</sys:String>
     <sys:String x:Key="Str_Pos_Custom">Benutzerdefiniert (in der Vorschau ziehen)</sys:String>
-    <sys:String x:Key="Str_TT_StampTool">Seiten stempeln</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">Seiten stempeln (S)</sys:String>
     <sys:String x:Key="Str_Ctx_StampPages">Seiten stempeln</sys:String>
     <sys:String x:Key="Str_Stamp_Cancel">Abbrechen</sys:String>
     <sys:String x:Key="Str_Stamp_Stamp">Einfügen</sys:String>
@@ -342,7 +345,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
 
     <!-- ── Line tool, layer / group menu (added v1.5.x) ───────────────── -->
     <sys:String x:Key="Str_Lbl_Line">Linie</sys:String>
-    <sys:String x:Key="Str_TT_LineTool">Linie - ziehen, um eine gerade Linie zu zeichnen</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Linie - ziehen, um eine gerade Linie zu zeichnen (L)</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">Bearbeiten</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">Nach vorn</sys:String>
     <sys:String x:Key="Str_Ctx_Lower">Nach hinten</sys:String>
@@ -412,7 +415,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <!-- ── Transform tool ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Lbl_Rotate">Transformieren</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Stempel</sys:String>
-    <sys:String x:Key="Str_TT_RotateTool">Seite transformieren - drehen / entzerren (Skalieren demnächst verfügbar)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Seite transformieren - drehen / entzerren (Skalieren demnächst verfügbar) (R)</sys:String>
     <sys:String x:Key="Str_Tf_Suffix">Transformieren</sys:String>
     <sys:String x:Key="Str_Tf_Rotate">DREHEN</sys:String>
     <sys:String x:Key="Str_Tf_Scale">SKALIEREN</sys:String>
@@ -521,6 +524,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Ctx_BmDelete">Löschen</sys:String>
     <sys:String x:Key="Str_Bm_DefaultTitle">Seite {0}</sys:String>
     <sys:String x:Key="Str_PageLabel">Seite {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(ohne Titel)</sys:String>
     <sys:String x:Key="Str_Bm_DeleteKids">Dieses Lesezeichen und seine {0} Unter-Lesezeichen löschen?</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveUp">Nach oben</sys:String>
     <sys:String x:Key="Str_Ctx_BmMoveDown">Nach unten</sys:String>
@@ -589,7 +593,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Print_OddOnly">Nur ungerade Seiten</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Nur gerade Seiten</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Dokumentfarben invertieren</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Dokumentfarben invertieren (Strg+I)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren (Strg+Umschalt+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App-Größe {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Die ganze App zoomen (Barrierefreiheit)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Vor dem Öffnen von Links bestätigen</sys:String>

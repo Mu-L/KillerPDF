@@ -10,6 +10,34 @@ using System.Windows.Media.Effects;
 
 namespace KillerPDF
 {
+    // WPF has no built-in animation for GridLength, so grid columns (the sidebar) can only snap.
+    // This drives a pixel-unit GridLength between From and To so a column glides instead.
+    // From/To/Easing MUST be dependency properties: starting the clock freezes/clones the
+    // timeline, and the clone only carries DPs - as plain CLR properties they were lost and
+    // the "animation" held a constant until the completion snap.
+    internal sealed class GridLengthAnimation : AnimationTimeline
+    {
+        public static readonly DependencyProperty FromProperty =
+            DependencyProperty.Register(nameof(From), typeof(GridLength), typeof(GridLengthAnimation));
+        public static readonly DependencyProperty ToProperty =
+            DependencyProperty.Register(nameof(To), typeof(GridLength), typeof(GridLengthAnimation));
+        public static readonly DependencyProperty EasingProperty =
+            DependencyProperty.Register(nameof(Easing), typeof(IEasingFunction), typeof(GridLengthAnimation));
+
+        public GridLength From { get => (GridLength)GetValue(FromProperty); set => SetValue(FromProperty, value); }
+        public GridLength To   { get => (GridLength)GetValue(ToProperty);   set => SetValue(ToProperty, value); }
+        public IEasingFunction? Easing { get => (IEasingFunction?)GetValue(EasingProperty); set => SetValue(EasingProperty, value); }
+
+        public override Type TargetPropertyType => typeof(GridLength);
+        protected override Freezable CreateInstanceCore() => new GridLengthAnimation();
+        public override object GetCurrentValue(object defaultOriginValue, object defaultDestinationValue, AnimationClock animationClock)
+        {
+            double p = animationClock.CurrentProgress ?? 0.0;
+            if (Easing is { } ease) p = ease.Ease(p);
+            return new GridLength(From.Value + (To.Value - From.Value) * p);
+        }
+    }
+
     // Design tokens (fonts, radii, shadows) and code-built controls (buttons, checkboxes, fields, labels)
     // for dialogs and tools. Tokens resolve from App.xaml's resource dictionary.
     internal static class UiKit

@@ -173,24 +173,85 @@ namespace KillerPDF
                         _savedPagesWidth = Math.Min(_sidebarCol.ActualWidth, SbPx(SidebarMaxPages));
                 }
                 _sidebarToggleBtn.ToolTip = Loc("Str_TT_ExpandSidebar");
-                _sidebarBorder.Visibility = Visibility.Collapsed;
-                _sidebarCol.Width = new GridLength(SbPx(24));
+                // Glide shut sliding, not squishing: freeze the content at its open width so
+                // the shrinking border CLIPS it (thumbnails hold their size), then hide the
+                // border once the strip width is reached. MinWidth drops first so the
+                // animation isn't clamped at the readable floor.
+                BeginSidebarSlide(SidebarContentPanel.ActualWidth);
                 _sidebarCol.MinWidth = SbPx(24);
+                AnimateSidebarWidth(SbPx(24), () =>
+                {
+                    _sidebarBorder.Visibility = Visibility.Collapsed;
+                    EndSidebarSlide();
+                });
                 // Splitter stays enabled so the user can grab it and drag the sidebar back open.
             }
             else
             {
                 _sidebarBorder.Visibility = Visibility.Visible;
                 double restore = _sidebarShowingOutlines ? _savedOutlinesWidth : _savedPagesWidth;
-                _sidebarCol.Width = new GridLength(restore);
-                _sidebarCol.MinWidth = SbPx(SidebarMinOpen);   // open: clamp so the list can't be dragged below readable
+                // Slide in at full size: content fixed at the target width from the first
+                // frame, revealed by the growing border instead of reflowing up to size.
+                BeginSidebarSlide(_sbSlideContentW > 0 ? _sbSlideContentW
+                    : Math.Max(0, restore / Math.Max(0.01, _appScale) - 24));
+                AnimateSidebarWidth(restore, () =>
+                {
+                    _sidebarCol.MinWidth = SbPx(SidebarMinOpen);   // open: clamp so the list can't be dragged below readable
+                    EndSidebarSlide();
+                });
                 _sidebarToggleBtn.ToolTip = Loc("Str_TT_CollapseSidebar");
                 SidebarSplitter.IsEnabled = true;
             }
             UpdateSidebarToggleGlyph();
-            if (PageList.SelectedIndex >= 0)
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                    () => RefreshPageView(PageList.SelectedIndex));
+        }
+
+        // Sidebar slide freeze: while the column animates, the content keeps a FIXED width
+        // (anchored at the outer edge) and the border clips it - so thumbnails and labels
+        // hold their size and slide out of view instead of reflowing every frame. Restored
+        // to normal stretch layout when the glide lands.
+        private double _sbSlideContentW;
+
+        private void BeginSidebarSlide(double contentW)
+        {
+            if (contentW <= 0) return;
+            _sbSlideContentW = contentW;
+            SidebarContentPanel.Width = contentW;
+            SidebarContentPanel.HorizontalAlignment =
+                _sidebarRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            _sidebarBorder.ClipToBounds = true;
+        }
+
+        private void EndSidebarSlide()
+        {
+            SidebarContentPanel.Width = double.NaN;
+            SidebarContentPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+            _sidebarBorder.ClipToBounds = false;
+        }
+
+        // Animates the sidebar column between widths (toggle collapse / expand). No explicit
+        // re-render here: every frame fires PagePreviewPanel_SizeChanged, whose lite fit keeps
+        // the page tracking the pane smoothly and whose settle timer runs ONE crisp pass a beat
+        // after the last frame - exactly the splitter-drag pipeline. An extra RefreshPageView at
+        // Completed doubled up with that settle pass and read as a two-step stutter. Completion
+        // clears the animation and writes the target as a plain local value so the splitter,
+        // side flip, and full screen can keep setting Width directly.
+        private void AnimateSidebarWidth(double target, Action? onDone = null)
+        {
+            var anim = new GridLengthAnimation
+            {
+                From     = new GridLength(Math.Max(0, _sidebarCol.ActualWidth)),
+                To       = new GridLength(target),
+                Duration = TimeSpan.FromMilliseconds(280),
+                Easing   = new System.Windows.Media.Animation.CubicEase
+                           { EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut },
+            };
+            anim.Completed += (_, _) =>
+            {
+                _sidebarCol.BeginAnimation(ColumnDefinition.WidthProperty, null);
+                _sidebarCol.Width = new GridLength(target);
+                onDone?.Invoke();
+            };
+            _sidebarCol.BeginAnimation(ColumnDefinition.WidthProperty, anim);
         }
 
         // Pressing the splitter while the sidebar is collapsed begins pulling it open: reveal the page
