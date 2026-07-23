@@ -9,7 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Fixed
 - Exported JPEGs no longer come out as black pages, and exported PNGs no longer carry a transparent background (#148, thanks Ryokoxx). PDFium leaves unpainted background pixels fully transparent; the JPEG encoder dropped that alpha channel and kept the zeroed color underneath, so any page without an explicit background - most PDFs - rendered solid black through `--to-image --format jpg` and the new Export pages as images dialog. Exports now composite over white by default, which also keeps the needless full-page alpha channel out of flattened PDFs (`--flatten` and Save Flattened). A new `--transparent` flag on `--to-image` keeps the raw alpha for PNG output when transparency is actually wanted.
 
-## [1.6.5] - 2026-07-23
+## [1.6.5] - 2026-07-22
 
 ### Added
 - Shapes tool: rectangle, ellipse, and free-form polygon markers, each with an optional fill. Box keeps the classic drag-a-filled-rectangle gesture the highlighter used to have; ellipse and polygon are closed outlines that move, resize, flatten, and print like any other drawing. Freeform places points click by click - click the first point (its target lights up when you are close) or double-click to close, Esc cancels, Backspace removes the last point. The tool shares the draw bar's color, size, and opacity, with a mini-shape sub-mode picker and a Fill toggle.

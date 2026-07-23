@@ -1,6 +1,6 @@
 # Standards-conformance validation results - KillerPDF 1.6.5
 
-Run date: 2026-07-23. (Numbers identical to the 1.6.4 run of 2026-07-17 - the 1.6.5
+Run date: 2026-07-22. (Numbers identical to the 1.6.4 run of 2026-07-17 - the 1.6.5
 save-pipeline changes moved nothing.)
 
 Question under test: does saving a PDF through KillerPDF degrade its
