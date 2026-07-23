@@ -300,18 +300,42 @@ namespace KillerPDF
             // or whose CropBox is inset from the MediaBox, otherwise shift every field a little;
             // mapping to the rendered box's own origin lines them up the way Acrobat/Chrome do.
             //
-            // CRITICAL: read the boxes via GetArray, NEVER via page.MediaBox/page.CropBox. Those
-            // property getters have create-on-read semantics in PdfSharpCore: touching page.CropBox
-            // on a page without one PLANTS an empty /CropBox [0 0 0 0] into the page dictionary
-            // (the same lazy-getter trap as the phantom /Outlines, #103), which then saves to disk
-            // and makes Adobe reject every page as "dimensions out-of-range".
+            // CRITICAL: read the boxes via the raw dictionary, NEVER via page.MediaBox/page.CropBox.
+            // Those property getters have create-on-read semantics in PdfSharpCore: touching
+            // page.CropBox on a page without one PLANTS an empty /CropBox [0 0 0 0] into the page
+            // dictionary (the same lazy-getter trap as the phantom /Outlines, #103), which then
+            // saves to disk and makes Adobe reject every page as "dimensions out-of-range".
+            //
+            // The entry can be a parsed PdfArray (as loaded from disk) OR a PdfRectangle:
+            // PdfSharpCore's GetRectangle - which backs page.MediaBox / page.Width / page.Height -
+            // converts the array to a PdfRectangle and STORES IT BACK into the dictionary
+            // (PdfDictionary.GetRectangle: "this[key] = value"). The link layer reads
+            // pdfPage.Width.Point on every page render, so by the time fields are parsed the array
+            // is usually gone and a plain GetArray came back null - which dropped every non-A4
+            // document into the A4 fallback below and shifted all field overlays, worst near the
+            // top of the page (found 2026-07-23 via the US Letter brochure build; the shipped A4
+            // brochure masked it). Handle both shapes, like ScrubDegenerateCropBoxes does, and
+            // walk /Parent: /MediaBox and /CropBox are inheritable page-tree attributes.
             (double x, double y, double w, double h)? ReadBox(string key)
             {
-                if (page.Elements.GetArray(key) is { Elements.Count: 4 } a)
+                PdfDictionary? node = page;
+                for (int depth = 0; node is not null && depth < 32; depth++)
                 {
-                    double x1 = a.Elements.GetReal(0), y1 = a.Elements.GetReal(1);
-                    double x2 = a.Elements.GetReal(2), y2 = a.Elements.GetReal(3);
-                    return (Math.Min(x1, x2), Math.Min(y1, y2), Math.Abs(x2 - x1), Math.Abs(y2 - y1));
+                    PdfItem? item = node.Elements[key];
+                    if (item is not null && item is not PdfArray && item is not PdfRectangle)
+                        item = DerefItem(item);
+                    if (item is PdfRectangle pr)
+                        return (Math.Min(pr.X1, pr.X2), Math.Min(pr.Y1, pr.Y2),
+                                Math.Abs(pr.X2 - pr.X1), Math.Abs(pr.Y2 - pr.Y1));
+                    if (item is PdfArray { Elements.Count: 4 } a)
+                    {
+                        double x1 = a.Elements.GetReal(0), y1 = a.Elements.GetReal(1);
+                        double x2 = a.Elements.GetReal(2), y2 = a.Elements.GetReal(3);
+                        return (Math.Min(x1, x2), Math.Min(y1, y2), Math.Abs(x2 - x1), Math.Abs(y2 - y1));
+                    }
+                    var parent = node.Elements["/Parent"];
+                    node = parent is null ? null
+                         : parent as PdfDictionary ?? DerefItem(parent) as PdfDictionary;
                 }
                 return null;
             }

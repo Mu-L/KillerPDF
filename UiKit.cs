@@ -283,6 +283,38 @@ namespace KillerPDF
             return new ControlTemplate(typeof(TextBox)) { VisualTree = b };
         }
 
+        // Themed PasswordBox matching Field(): our border/fill, no OS white box or blue focus chrome.
+        public static PasswordBox PasswordField(double width = double.NaN)
+        {
+            var pb = new PasswordBox
+            {
+                FontFamily      = UiFont,
+                FontSize        = 12,
+                Background      = Brush("BgCanvas"),
+                Foreground      = Brush("TextPrimary"),
+                BorderBrush     = Brush("BorderDim"),
+                BorderThickness = new Thickness(1),
+                Padding         = new Thickness(6, 5, 6, 5),
+                CaretBrush      = Brush("TextPrimary"),
+                Template        = PasswordFieldTemplate()
+            };
+            if (!double.IsNaN(width)) pb.Width = width;
+            return pb;
+        }
+
+        private static ControlTemplate PasswordFieldTemplate()
+        {
+            var b = new FrameworkElementFactory(typeof(Border));
+            b.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
+            b.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
+            b.SetBinding(Border.BorderThicknessProperty, new Binding("BorderThickness") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
+            b.SetValue(Border.CornerRadiusProperty, RadControl);
+            var sv = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
+            sv.SetValue(Control.PaddingProperty, new Thickness(0));
+            b.AppendChild(sv);
+            return new ControlTemplate(typeof(PasswordBox)) { VisualTree = b };
+        }
+
         // A dialog section heading (e.g. "ROTATE", "PAGE NUMBERS").
         public static TextBlock SectionHeader(string text) => new()
         {

@@ -582,6 +582,20 @@ namespace KillerPDF
                 CommitActiveTextBox();
                 e.Handled = true;
             }
+            else if (Keyboard.Modifiers == ModifierKeys.Control
+                     && (e.Key == Key.B || e.Key == Key.I || e.Key == Key.U))
+            {
+                // 1.6.6: the standard formatting chords while typing in a box - mirror the text
+                // bar's B/I/U toggles (whole-annotation style, like the buttons). Ctrl+I became
+                // available when Invert moved to the bare N key.
+                if (e.Key == Key.B) _textBold = !_textBold;
+                else if (e.Key == Key.I) _textItalic = !_textItalic;
+                else _textUnderline = !_textUnderline;
+                if (sender is TextBox stb) StyleEditBox(stb);
+                ApplyTextStyleToSelection();
+                ShowTextSettings();
+                e.Handled = true;
+            }
         }
 
         // Abandons the in-progress text edit: removes the editing box and its handles, drops a pending

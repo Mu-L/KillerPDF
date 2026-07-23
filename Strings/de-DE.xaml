@@ -106,6 +106,7 @@
     <sys:String x:Key="Str_KS_OnlineHelp">Vollständige Anleitung &amp; Tutorials online</sys:String>
     <sys:String x:Key="Str_KS_Tools">WERKZEUGE</sys:String>
     <sys:String x:Key="Str_KS_Paste">Bild / Text einfügen</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">Fett / kursiv / unterstrichen (Textfeld)</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">Zur Auswahl hinzufügen</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
@@ -490,6 +491,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_St_NoTextOnPage">Kein Text auf dieser Seite gefunden</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">Kein Text ausgewählt - zum Auswählen ziehen</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">Kein Text in der Auswahl gefunden</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">Kein Text hier - Formen liegt auf 4</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">Signatur platziert - zum Verschieben ziehen, Größe über den Eckpunkt ändern</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">Feld geleert</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">Feld signiert</sys:String>
@@ -584,6 +586,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_PrivacySection">DATENSCHUTZ</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">Zuletzt geöffnete Dateien nicht merken</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">Seiten als Bilder exportieren...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">Passwort entfernen</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">Ohne Passwortschutz gespeichert - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">Seiten als Bilder exportieren</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Format</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Auflösung (DPI)</sys:String>
@@ -593,7 +597,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Print_OddOnly">Nur ungerade Seiten</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Nur gerade Seiten</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Dokumentfarben invertieren</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">Dokumentfarben invertieren (Strg+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Dokumentfarben invertieren (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren (Strg+Umschalt+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App-Größe {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Die ganze App zoomen (Barrierefreiheit)</sys:String>

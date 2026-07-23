@@ -1148,8 +1148,8 @@ namespace KillerPDF
                     // #127 Phase 2: on text these tools FLOW along the character runs exactly like
                     // text selection; the release turns the selected lines into per-line annotations.
                     // The rectangle path below survives ONLY for the highlight eraser. A press on a
-                    // page with no text under it hints instead of silently laying down a rect
-                    // (hint wording gains the Shapes pointer in Phase 3).
+                    // page with no text under it hints instead of silently laying down a rect,
+                    // pointing at the Shapes tool (digit 4) as the deliberate rectangle path.
                     if (!(_currentTool == EditTool.Highlight && _highlightErase))
                     {
                         ClearTextSelection();
@@ -1160,7 +1160,7 @@ namespace KillerPDF
                         }
                         else
                         {
-                            SetStatus(Loc("Str_St_NoTextInSelection"));
+                            SetStatus(Loc("Str_St_NoTextUseShapes"));
                         }
                         e.Handled = true;
                         break;

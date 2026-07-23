@@ -157,17 +157,17 @@ namespace KillerPDF
             // Edit sits at the top of every single-annotation menu (completes the menu). For a text box it
             // lifts the text into an editable box; for other types it just ensures the editing bar is open.
             if (!multi)
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Edit"), (s, e) => EditAnnotation(hit)));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Edit"), (s, e) => EditAnnotation(hit), glyph: ""));
 
             // Raise / Lower one visual layer. Enabled only when something actually overlaps in that
             // direction (so they're greyed out when nothing is stacked above / below at this spot).
             int idx = -1;
             _annotations.TryGetValue(hit.PageIndex, out var pageList);
             if (pageList is not null) idx = pageList.IndexOf(hit);
-            var raise = MakeMenuItem(Loc("Str_Ctx_Raise"), (s, e) => MoveAnnotationLayer(hit, +1));
+            var raise = MakeMenuItem(Loc("Str_Ctx_Raise"), (s, e) => MoveAnnotationLayer(hit, +1), glyph: "");
             raise.IsEnabled = pageList is not null && idx >= 0 && OverlapNeighbor(pageList, idx, hit, +1) >= 0;
             _ctxMenu.Items.Add(raise);
-            var lower = MakeMenuItem(Loc("Str_Ctx_Lower"), (s, e) => MoveAnnotationLayer(hit, -1));
+            var lower = MakeMenuItem(Loc("Str_Ctx_Lower"), (s, e) => MoveAnnotationLayer(hit, -1), glyph: "");
             lower.IsEnabled = pageList is not null && idx >= 0 && OverlapNeighbor(pageList, idx, hit, -1) >= 0;
             _ctxMenu.Items.Add(lower);
 
@@ -179,26 +179,26 @@ namespace KillerPDF
                 if (partner is not null)
                     _ctxMenu.Items.Add(MakeMenuItem(
                         Loc(partner is CoverAnnotation ? "Str_Ctx_SelectCover" : "Str_Ctx_SelectText"),
-                        (s, e) => SelectPartner(hit)));
+                        (s, e) => SelectPartner(hit), glyph: ""));
             }
             if (SelectedPaired() is not null)
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Unpair"), (s, e) => UnpairSelected()));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Unpair"), (s, e) => UnpairSelected(), glyph: ""));
 
             // Grouping: group an ad-hoc multi-selection, or - on a grouped item - drop just this one
             // (Remove from group) or dissolve the whole group (Ungroup).
             if (hit.GroupId.Length > 0)
             {
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RemoveFromGroup"), (s, e) => RemoveFromGroup(hit)));
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Ungroup"), (s, e) => UngroupAnnotation(hit)));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RemoveFromGroup"), (s, e) => RemoveFromGroup(hit), glyph: ""));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Ungroup"), (s, e) => UngroupAnnotation(hit), glyph: ""));
             }
             else if (multi)
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Group"), (s, e) => GroupSelected()));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Group"), (s, e) => GroupSelected(), glyph: ""));
 
             _ctxMenu.Items.Add(new Separator());
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Copy"), (s, e) => CopySelectedAnnotations(), "Ctrl+C"));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Copy"), (s, e) => CopySelectedAnnotations(), "Ctrl+C", ""));
             if (_annotationClipboard.Count > 0)
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Paste"), (s, e) => PasteAnnotations(hit.PageIndex), "Ctrl+V"));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeleteSel"), (s, e) => DeleteSelected(), "Delete"));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Paste"), (s, e) => PasteAnnotations(hit.PageIndex), "Ctrl+V", ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeleteSel"), (s, e) => DeleteSelected(), "Delete", ""));
         }
 
         // Page-level menu shown when the right-click lands on empty page space (no annotation under it).
@@ -212,9 +212,9 @@ namespace KillerPDF
 
             // Copy Text only when there is actually selected text to copy.
             if (hasTextSel)
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyText"), (s, e) => CopySelectedText(), "Ctrl+C"));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Print"), (s, e) => Print_Click(s!, e), "Ctrl+P"));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (s, e) => OcrPageToClipboard(pageIdx), "Ctrl+Shift+O"));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyText"), (s, e) => CopySelectedText(), "Ctrl+C", ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Print"), (s, e) => Print_Click(s!, e), "Ctrl+P", ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (s, e) => OcrPageToClipboard(pageIdx), "Ctrl+Shift+O", ""));
             _ctxMenu.Items.Add(new Separator());
 
             // Placement actions - drop the item exactly where the user right-clicked (Select / Highlight /
@@ -224,40 +224,40 @@ namespace KillerPDF
                 SetTool(EditTool.Text);
                 _activeCanvas = CanvasForPage(pageIdx);
                 PlaceTextBox(pt, pageIdx);
-            }));
+            }, glyph: ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Image"), (s, e) =>
             {
                 _activeCanvas = CanvasForPage(pageIdx);
                 PlaceImageFromDialog(pt, pageIdx);
-            }));
+            }, glyph: ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Signature"), (s, e) =>
             {
                 _activeCanvas = CanvasForPage(pageIdx);
                 if (_pendingSignature is not null) PlaceSignature(pt, pageIdx);
                 else { SetTool(EditTool.Signature); ShowSignaturePopup(); }
-            }));
+            }, glyph: ""));
             _ctxMenu.Items.Add(new Separator());
 
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCW"), (s, e) => RotatePages_Click(90)));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCW"), (s, e) => RotatePages_Click(-90)));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCW"), (s, e) => RotatePages_Click(90), glyph: ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCW"), (s, e) => RotatePages_Click(-90), glyph: ""));
             _ctxMenu.Items.Add(new Separator());
 
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, e) => DuplicatePage(pageIdx)));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, e) => DuplicatePage(pageIdx), glyph: ""));
             // Delete Selected when something is selected; otherwise Delete Page (the page under the cursor,
             // which the right-click already made the selected page).
             if (hasSelection)
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeleteSel"), (s, e) => DeleteSelected(), "Delete"));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeleteSel"), (s, e) => DeleteSelected(), "Delete", ""));
             else
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeletePage"), (s, e) => Delete_Click(s!, e)));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeletePage"), (s, e) => Delete_Click(s!, e), glyph: ""));
             _ctxMenu.Items.Add(new Separator());
 
             if (_annotationClipboard.Count > 0)
-                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Paste"), (s, e) => PasteAnnotations(pageIdx), "Ctrl+V"));
+                _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Paste"), (s, e) => PasteAnnotations(pageIdx), "Ctrl+V", ""));
 
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, e) => OpenStampTool()));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z"));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y"));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ClearPage"), (s, e) => ClearAnnotations_Click(s!, e)));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, e) => OpenStampTool(), glyph: ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z", ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y", ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ClearPage"), (s, e) => ClearAnnotations_Click(s!, e), glyph: ""));
         }
 
         // Deep-copies page pageIdx and inserts the copy right after it. AddPage on a same-document page
@@ -539,19 +539,19 @@ namespace KillerPDF
             var menu = MakeThemedMenu();
             if (onThumb)
             {
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_InsertBlank"), (s, ev) => InsertBlankPage_Click(s!, ev)));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, ev) => DuplicatePage(PageList.SelectedIndex)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_InsertBlank"), (s, ev) => InsertBlankPage_Click(s!, ev), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, ev) => DuplicatePage(PageList.SelectedIndex), glyph: ""));
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCWShort"), (s, ev) => RotatePages_Click(90)));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCWShort"), (s, ev) => RotatePages_Click(-90)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCWShort"), (s, ev) => RotatePages_Click(90), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCWShort"), (s, ev) => RotatePages_Click(-90), glyph: ""));
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveUp"), (s, ev) => MoveUp_Click(s!, ev)));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveDown"), (s, ev) => MoveDown_Click(s!, ev)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveUp"), (s, ev) => MoveUp_Click(s!, ev), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveDown"), (s, ev) => MoveDown_Click(s!, ev), glyph: ""));
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ExtractPages"), (s, ev) => Split_Click(s!, ev)));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeletePages"), (s, ev) => Delete_Click(s!, ev)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ExtractPages"), (s, ev) => Split_Click(s!, ev), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeletePages"), (s, ev) => Delete_Click(s!, ev), glyph: ""));
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, ev) => OpenStampTool()));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, ev) => OpenStampTool(), glyph: ""));
             }
             else
             {
@@ -574,15 +574,15 @@ namespace KillerPDF
         // area below the thumbnails, or the gray area around the page in the document pane.
         private void FillPageAgnosticMenu(ContextMenu menu)
         {
-            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_AddBlankPage"), (s, e) => AddBlankPageAtEnd()));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_AddBlankPage"), (s, e) => AddBlankPageAtEnd(), glyph: ""));
             menu.Items.Add(new Separator());
-            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Print"), (s, e) => Print_Click(s!, e), "Ctrl+P"));
-            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomIn"), (s, e) => ZoomIn_Click(s!, e), "Ctrl+="));
-            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomOut"), (s, e) => ZoomOut_Click(s!, e), "Ctrl+-"));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Print"), (s, e) => Print_Click(s!, e), "Ctrl+P", ""));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomIn"), (s, e) => ZoomIn_Click(s!, e), "Ctrl+=", ""));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomOut"), (s, e) => ZoomOut_Click(s!, e), "Ctrl+-", ""));
             menu.Items.Add(new Separator());
-            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z"));
-            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y"));
-            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Clear"), (s, e) => ClearAllAnnotations_Click(s!, e)));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z", ""));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y", ""));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Clear"), (s, e) => ClearAllAnnotations_Click(s!, e), glyph: ""));
         }
 
         // Opens the page-agnostic menu for a right-click on the gray area around the page (the document

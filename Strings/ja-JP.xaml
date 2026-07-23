@@ -121,6 +121,7 @@
     <sys:String x:Key="Str_KS_OnlineHelp">完全ガイド &amp; 使い方 (オンライン)</sys:String>
     <sys:String x:Key="Str_KS_Tools">ツール</sys:String>
     <sys:String x:Key="Str_KS_Paste">画像 / テキストを貼り付け</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">太字 / 斜体 / 下線（テキストボックス）</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">選択に追加</sys:String>
 
     <!-- ── ステータスバー ────────────────────────────────────────── -->
@@ -477,6 +478,8 @@
     <sys:String x:Key="Str_PrivacySection">プライバシー</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">最近開いたファイルを記憶しない</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">ページを画像としてエクスポート...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">パスワードを削除</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">パスワード保護なしで保存しました - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">ページを画像としてエクスポート</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">形式</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">解像度 (DPI)</sys:String>
@@ -486,7 +489,7 @@
     <sys:String x:Key="Str_Print_OddOnly">奇数ページのみ</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">偶数ページのみ</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">文書の色を反転</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">文書の色を反転 (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">文書の色を反転 (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">スクロールでアプリ全体のサイズを変更 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">アプリのサイズ {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">アプリ全体をズーム (アクセシビリティ)</sys:String>
@@ -533,6 +536,7 @@
     <sys:String x:Key="Str_St_NoTextOnPage">このページにテキストが見つかりませんでした</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">テキストが選択されていません。ドラッグしてテキストを選択してください</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">選択範囲にテキストが見つかりませんでした</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">ここにテキストはありません - 図形は 4 です</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">署名を配置しました。ドラッグで位置を変更し、角のハンドルでサイズを変更できます</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">フィールドを消去しました</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">フィールドに署名しました</sys:String>

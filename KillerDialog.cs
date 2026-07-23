@@ -451,5 +451,47 @@ namespace KillerPDF
             return (confirmed, closeTabs, remember);
         }
 
+        /// <summary>
+        /// Themed "Password Required" prompt: the family dialog chrome (wordmark title bar, grain,
+        /// red close, Esc to cancel) around a themed PasswordBox. Returns the entered password, or
+        /// null if the user cancelled / closed the dialog.
+        /// </summary>
+        public static string? PromptPassword(Window? owner, string filename)
+        {
+            string? result = null;
+
+            var win = new Window { Width = 380, SizeToContent = SizeToContent.Height };
+            DialogChrome.Configure(win, owner, fade: true);
+
+            void CloseCancel() { result = null; win.Close(); }
+
+            var body = new StackPanel();
+
+            // Message: "<file>" is password protected.
+            var msg = new TextBlock { Foreground = R("TextPrimary"), FontSize = 13, TextWrapping = TextWrapping.Wrap };
+            msg.Inlines.Add(new System.Windows.Documents.Run($"“{System.IO.Path.GetFileName(filename)}” ") { FontWeight = FontWeights.SemiBold });
+            msg.Inlines.Add(new System.Windows.Documents.Run("is password protected."));
+            body.Children.Add(new Border { Padding = new Thickness(20, 4, 20, 10), Child = msg });
+
+            var pw = UiKit.PasswordField();
+            body.Children.Add(new Border { Padding = new Thickness(20, 0, 20, 4), Child = pw });
+
+            var openBtn = UiKit.Make("Open", accent: true);
+            openBtn.IsDefault = true;
+            openBtn.Click += (_, _2) => { result = pw.Password; win.Close(); };
+            var cancelBtn = UiKit.Make("Cancel", accent: false);
+            cancelBtn.IsCancel = true;
+            cancelBtn.Click += (_, _2) => CloseCancel();
+            body.Children.Add(new Border { Padding = new Thickness(16, 12, 16, 16), Child = UiKit.ButtonRow(openBtn, cancelBtn) });
+
+            // Enter anywhere in the field submits.
+            pw.KeyDown += (_, e) => { if (e.Key == Key.Enter) { result = pw.Password; win.Close(); } };
+
+            win.Content = DialogChrome.Frame(win, owner, "KillerPDF", CloseCancel, body);
+            win.Loaded += (_, _2) => pw.Focus();
+            win.ShowDialog();
+            return result;
+        }
+
     }
 }

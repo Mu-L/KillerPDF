@@ -122,6 +122,7 @@
     <sys:String x:Key="Str_KS_OnlineHelp">Full guide &amp; how-to online</sys:String>
     <sys:String x:Key="Str_KS_Tools">TOOLS</sys:String>
     <sys:String x:Key="Str_KS_Paste">Paste image / text</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">Bold / italic / underline (text box)</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">Add to selection</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
@@ -163,6 +164,8 @@
     <sys:String x:Key="Str_PrivacySection">PRIVACY</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">Don't remember recently opened files</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">Export Pages as Images...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">Remove Password</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">Saved without password protection - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">Export Pages as Images</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Format</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Resolution (DPI)</sys:String>
@@ -172,7 +175,7 @@
     <sys:String x:Key="Str_Print_OddOnly">Odd pages only</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Even pages only</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invert document colors</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">Invert document colors (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Invert document colors (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App size {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom the whole app (accessibility)</sys:String>
@@ -532,6 +535,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_St_NoTextOnPage">No text found on this page</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">No text selected - drag to select text</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">No text found in selection</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">No text here - Shapes is on 4</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">Signature placed - drag to reposition, use the corner handle to resize</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">Field cleared</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">Field signed</sys:String>

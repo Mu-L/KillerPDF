@@ -28,6 +28,11 @@ namespace KillerPDF
         // the background path finalizes the tab itself via FinalizeAsyncOpen.
         private bool _asyncOpenPending;
 
+        // True when the open document came from a password/encryption-protected source file (#149).
+        // Drives the Save menu's Remove Password entry and the saved-without-protection status note.
+        // Cleared once a save writes the unprotected file; carried per tab via DocumentSession.
+        private bool _openedFromProtected;
+
         private void OpenFile(string path)
         {
             // Record real user files in the recent list (skips blank/new docs, which don't open a path).
@@ -102,6 +107,7 @@ namespace KillerPDF
                     _doc = PdfReader.Open(tempDec, PdfDocumentOpenMode.Modify);
                     _currentFile = tempDec;
                     FinishOpenFile(path, tempDec);
+                    _openedFromProtected = true;   // #149: unlocked with the user's password
                 }
                 catch (Exception ex2)
                 {
@@ -232,6 +238,7 @@ namespace KillerPDF
             _searchPageCursor = -1;
             _gridScrollToPage = -1;
             MarkDirty(false);
+            _openedFromProtected = false;   // #149: set true by the two protected-open paths after this returns
             // Restore this file's last fit/zoom/view/page if we've seen it before; otherwise open at the
             // per-view-mode default. Set the fields first, then let BootstrapDocumentView apply them.
             if (TryGetDocState(displayPath, out var sfit, out var szoom, out var sview, out var spage))
@@ -247,6 +254,7 @@ namespace KillerPDF
                 BootstrapDocumentView(0, autoFit: true);
             }
             SetStatus(string.Format(Loc("Str_Opened"), System.IO.Path.GetFileName(displayPath), _doc!.PageCount));
+            SyncSidebarToDocState(hasDoc: true, startup: false);   // a document is up: open the rail, show page controls
         }
 
         private static bool IsPasswordException(Exception ex) =>
@@ -254,41 +262,8 @@ namespace KillerPDF
             ex.Message.IndexOf("protected", StringComparison.OrdinalIgnoreCase) >= 0 ||
             ex.Message.IndexOf("encrypted", StringComparison.OrdinalIgnoreCase) >= 0;
 
-        private string? PromptForPassword(string filename)
-        {
-            string? result = null;
-            var win = new Window
-            {
-                Title = "Password Required",
-                Width = 360,
-                Height = 165,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                ResizeMode = ResizeMode.NoResize,
-                Background = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x22))
-            };
-            var sp = new StackPanel { Margin = new Thickness(20, 16, 20, 16) };
-            sp.Children.Add(new TextBlock
-            {
-                Text = $"\"{System.IO.Path.GetFileName(filename)}\" is password protected.",
-                Foreground = Brushes.White,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 10)
-            });
-            var pwBox = new PasswordBox { Margin = new Thickness(0, 0, 0, 14) };
-            sp.Children.Add(pwBox);
-            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var okBtn = new Button { Content = "Open", Width = 76, Margin = new Thickness(0, 0, 8, 0) };
-            var cancelBtn = new Button { Content = "Cancel", Width = 76 };
-            okBtn.Click += (s, ev) => { result = pwBox.Password; win.DialogResult = true; };
-            cancelBtn.Click += (s, ev) => { win.DialogResult = false; };
-            pwBox.KeyDown += (s, ev) => { if (ev.Key == Key.Enter) { result = pwBox.Password; win.DialogResult = true; } };
-            btnRow.Children.Add(okBtn);
-            btnRow.Children.Add(cancelBtn);
-            sp.Children.Add(btnRow);
-            win.Content = sp;
-            return win.ShowDialog() == true ? result : null;
-        }
+        // Themed "Password Required" prompt (KillerDialog): family dialog chrome + themed PasswordBox.
+        private string? PromptForPassword(string filename) => KillerDialog.PromptPassword(this, filename);
 
         // PDFium P/Invoke
         // PDFium (pdfium.dll) is already shipped with Docnet. We use it here to strip
@@ -628,6 +603,7 @@ namespace KillerPDF
                 _doc = PdfReader.Open(repairedPath, PdfDocumentOpenMode.Modify);
                 _currentFile = repairedPath;
                 FinishOpenFile(displayPath, repairedPath);
+                _openedFromProtected = true;   // #149: source carried encryption, silently stripped above
                 if (markDirty) MarkDirty(true);   // stripped copy lives in temp - user must Save As to keep it
                 HideBusyOverlay(busy);
                 FinalizeAsyncOpen();
@@ -1160,6 +1136,12 @@ namespace KillerPDF
                 menu.Items.Add(MakeMenuItem(Loc("Str_Menu_ExportImages"), (s2, e2) => ExportImages_Click(s2, e2), null, ""));   // #132
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_DigitalSig"), (_, _) => OpenSignDialog(), null, ""));
+                // #149: visible always (discoverability, the PDF Viewer Plus way), enabled only when the
+                // open file actually had a password/encryption. Saving in place IS the removal - the
+                // working doc is already decrypted - and the SaveInPlace tail reports it and drops the flag.
+                var removePw = MakeMenuItem(Loc("Str_Menu_RemovePassword"), (_, _) => SaveInPlace(), null, "");
+                removePw.IsEnabled = _openedFromProtected;
+                menu.Items.Add(removePw);
             }
 
             menu.PlacementTarget = (UIElement)sender;
@@ -1649,7 +1631,15 @@ namespace KillerPDF
                 }
 
                 MarkDirty(false);
-                SetStatus($"Saved - {System.IO.Path.GetFileName(saveTarget)}");
+                if (_openedFromProtected)
+                {
+                    // #149: the file on disk no longer carries its password - say so instead of the
+                    // plain saved message, and drop the flag (the source is unprotected from here on).
+                    _openedFromProtected = false;
+                    SetStatus(string.Format(Loc("Str_St_SavedNoPassword"), System.IO.Path.GetFileName(saveTarget)));
+                }
+                else
+                    SetStatus($"Saved - {System.IO.Path.GetFileName(saveTarget)}");
             }
             catch (Exception ex)
             {
@@ -1730,7 +1720,14 @@ namespace KillerPDF
                     _originalFile = dlg.FileName;
                     FileNameLabel.Text = System.IO.Path.GetFileName(dlg.FileName);
                     MarkDirty(false);
-                    SetStatus($"Saved with annotations to {System.IO.Path.GetFileName(dlg.FileName)}");
+                    if (_openedFromProtected)
+                    {
+                        // #149: the saved copy is now this tab's file, and it has no password.
+                        _openedFromProtected = false;
+                        SetStatus(string.Format(Loc("Str_St_SavedNoPassword"), System.IO.Path.GetFileName(dlg.FileName)));
+                    }
+                    else
+                        SetStatus($"Saved with annotations to {System.IO.Path.GetFileName(dlg.FileName)}");
                 }
                 else
                 {
@@ -1738,7 +1735,14 @@ namespace KillerPDF
                     _originalFile = dlg.FileName;
                     FileNameLabel.Text = System.IO.Path.GetFileName(dlg.FileName);
                     MarkDirty(false);
-                    SetStatus($"Saved to {System.IO.Path.GetFileName(dlg.FileName)}");
+                    if (_openedFromProtected)
+                    {
+                        // #149: the saved copy is now this tab's file, and it has no password.
+                        _openedFromProtected = false;
+                        SetStatus(string.Format(Loc("Str_St_SavedNoPassword"), System.IO.Path.GetFileName(dlg.FileName)));
+                    }
+                    else
+                        SetStatus($"Saved to {System.IO.Path.GetFileName(dlg.FileName)}");
                 }
             }
             catch (Exception ex)

@@ -39,7 +39,7 @@ namespace KillerPDF
             _sidebarShowingOutlines = false;
             PageList.Visibility = Visibility.Visible;
             OutlineScrollViewer.Visibility = Visibility.Collapsed;
-            PageControlsRow.Visibility = Visibility.Visible;
+            PageControlsRow.Visibility = _doc != null ? Visibility.Visible : Visibility.Collapsed;   // no empty box when nothing is open
             SidebarPagesTab.Foreground = (Brush)FindResource("Accent");
             SidebarOutlinesTab.Foreground = (Brush)FindResource("TextSecondary");
             // Save current outlines width before snapping back to pages.

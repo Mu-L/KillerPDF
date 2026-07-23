@@ -104,10 +104,11 @@
     <sys:String x:Key="Str_KS_ThisList">此快速鍵清單</sys:String>
     <sys:String x:Key="Str_KS_About">關於對話方塊</sys:String>
     <sys:String x:Key="Str_KS_Settings">設定</sys:String>
-    <sys:String x:Key="Str_KS_DocInfo">æ-‡ä»¶è³‡è¨Š</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">文件資訊</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">完整指南與線上教學</sys:String>
     <sys:String x:Key="Str_KS_Tools">工具</sys:String>
     <sys:String x:Key="Str_KS_Paste">貼上圖片／文字</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">粗體／斜體／底線（文字方塊）</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">加入選取</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
@@ -488,6 +489,7 @@
     <sys:String x:Key="Str_St_NoTextOnPage">本頁找不到文字</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">未選取文字-請拖曳以選取文字</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">選取範圍中找不到文字</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">此處沒有文字 - 形狀在 4 鍵</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">已放置簽名-拖曳以重新定位，使用角落控點調整大小</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">已清除欄位</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">已簽署欄位</sys:String>
@@ -580,6 +582,8 @@
     <sys:String x:Key="Str_PrivacySection">隱私</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">不記住最近開啟的檔案</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">將頁面匯出為圖片...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">移除密碼</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">已儲存，無密碼保護 - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">將頁面匯出為圖片</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">格式</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">解析度 (DPI)</sys:String>
@@ -589,7 +593,7 @@
     <sys:String x:Key="Str_Print_OddOnly">僅奇數頁</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">僅偶數頁</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">反轉文件顏色</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">反轉文件顏色 (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">反轉文件顏色 (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">捲動以調整整個應用程式大小 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">應用程式大小 {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">縮放整個應用程式（無障礙）</sys:String>

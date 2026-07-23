@@ -43,8 +43,8 @@ namespace KillerPDF
                 ["F7"] = ("View", "Str_View_TwoPage"),  ["F8"] = ("View", "Str_View_Grid"),
                 ["F9"] = ("Help", "Str_KS_Settings"),   ["F11"] = ("View", "Str_KS_FullScreen"),
                 ["F12"] = ("Help", "Str_KS_About"),
-                ["D1"] = ("Tools", "Str_Lbl_Select"),   ["D2"] = ("Tools", "Str_Lbl_Text"),
-                ["D3"] = ("Tools", "Str_Lbl_Line"),     ["D4"] = ("Tools", "Str_Lbl_Highlight"),
+                ["D1"] = ("Tools", "Str_Lbl_Text"),     ["D2"] = ("Tools", "Str_Lbl_Highlight"),
+                ["D3"] = ("Tools", "Str_Lbl_Line"),     ["D4"] = ("Tools", "Str_Lbl_Shape"),
                 ["D5"] = ("Tools", "Str_Lbl_Draw"),     ["D6"] = ("Tools", "Str_Lbl_Image"),
                 ["D7"] = ("Tools", "Str_Lbl_Signature"),["D8"] = ("Tools", "Str_Lbl_Crop"),
                 ["D9"] = ("Tools", "Str_Lbl_Rotate"),   ["D0"] = ("Tools", "Str_TT_StampTool"),
@@ -54,6 +54,7 @@ namespace KillerPDF
                 ["I"] = ("Tools", "Str_Lbl_Image"),     ["G"] = ("Tools", "Str_Lbl_Signature"),
                 ["C"] = ("Tools", "Str_Lbl_Crop"),      ["R"] = ("Tools", "Str_Lbl_Rotate"),
                 ["S"] = ("Tools", "Str_TT_StampTool"),
+                ["N"] = ("View", "Str_DocInvertSetting"),
                 ["Home"] = ("Nav", "Str_Kb_FirstPage"), ["End"] = ("Nav", "Str_Kb_LastPage"),
                 ["PgUp"] = ("Nav", "Str_Kb_PrevPage"),  ["PgDn"] = ("Nav", "Str_Kb_NextPage"),
                 ["Left"] = ("Nav", "Str_Kb_PrevPage"),  ["Right"] = ("Nav", "Str_Kb_NextPage"),
@@ -76,7 +77,7 @@ namespace KillerPDF
                 ["D0"] = ("View", "Str_KS_ResetZoom"),  ["D1"] = ("View", "Str_Zoom_ActualSize"),
                 ["D2"] = ("View", "Str_Zoom_FitWidth"), ["D3"] = ("View", "Str_Zoom_FitPage"),
                 ["Equals"] = ("View", "Str_Lbl_ZoomIn"), ["Minus"] = ("View", "Str_Lbl_ZoomOut"),
-                ["I"] = ("View", "Str_DocInvertSetting"),
+                ["I"] = ("Edit", "Str_Lbl_Italic"),     ["U"] = ("Edit", "Str_Lbl_Underline"),
             },
             [KbLayer.CtrlShift] = new()
             {

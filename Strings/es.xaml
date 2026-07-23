@@ -102,10 +102,11 @@
     <sys:String x:Key="Str_KS_ThisList">Esta lista de atajos</sys:String>
     <sys:String x:Key="Str_KS_About">Cuadro Acerca de</sys:String>
     <sys:String x:Key="Str_KS_Settings">Configuración</sys:String>
-    <sys:String x:Key="Str_KS_DocInfo">InformaciÃ³n del documento</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">Información del documento</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Guía completa y tutoriales en línea</sys:String>
     <sys:String x:Key="Str_KS_Tools">HERRAMIENTAS</sys:String>
     <sys:String x:Key="Str_KS_Paste">Pegar imagen / texto</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">Negrita / cursiva / subrayado (cuadro de texto)</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">Añadir a la selección</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
@@ -486,6 +487,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_St_NoTextOnPage">No se encontró texto en esta página</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">No hay texto seleccionado - arrastre para seleccionar texto</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">No se encontró texto en la selección</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">No hay texto aquí - Formas está en 4</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">Firma colocada - arrastre para reposicionarla, use el controlador de esquina para cambiar el tamaño</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">Campo borrado</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">Campo firmado</sys:String>
@@ -578,6 +580,8 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_PrivacySection">PRIVACIDAD</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">No recordar los archivos abiertos recientemente</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">Exportar páginas como imágenes...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">Quitar contraseña</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">Guardado sin protección por contraseña - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">Exportar páginas como imágenes</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Formato</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Resolución (DPI)</sys:String>
@@ -587,7 +591,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Print_OddOnly">Solo páginas impares</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Solo páginas pares</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invertir colores del documento</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">Invertir colores del documento (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Invertir colores del documento (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Desplácese para cambiar el tamaño de toda la aplicación (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Tamaño de la aplicación {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom de toda la aplicación (accesibilidad)</sys:String>

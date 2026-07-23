@@ -44,10 +44,11 @@ namespace KillerPDF
             ]},
             new KsSection { TitleKey = "Str_KS_Tools", Rows =
             [
-                new("1 (or V)", "Str_Lbl_Select"),
-                new("2 (or T)", "Str_Lbl_Text"),
+                new("V",        "Str_Lbl_Select"),
+                new("1 (or T)", "Str_Lbl_Text"),
+                new("2 (or H)", "Str_Lbl_Highlight"),
                 new("3 (or L or U)", "Str_Lbl_Line"),
-                new("4 (or H)", "Str_Lbl_Highlight"),
+                new("4",        "Str_Lbl_Shape"),
                 new("5 (or D)", "Str_Lbl_Draw"),
                 new("6 (or I)", "Str_Lbl_Image"),
                 new("7 (or G)", "Str_Lbl_Signature"),
@@ -62,6 +63,7 @@ namespace KillerPDF
                 new("Ctrl+Shift+Z",   "Str_Ctx_Redo"),
                 new("Ctrl+C",         "Str_KS_CopyText"),
                 new("Ctrl+V",         "Str_KS_Paste"),
+                new("Ctrl+B / I / U", "Str_KS_TextStyle"),
                 new("Delete",         "Str_KS_DeleteAnnot"),
                 new("F2",             "Str_Ctx_BmRename"),
                 new("Enter / Escape", "Str_KS_ConfirmCancel"),
@@ -102,7 +104,7 @@ namespace KillerPDF
                 new("F7",        "Str_View_TwoPage"),
                 new("F8",        "Str_View_Grid"),
                 new("F11 / Esc", "Str_KS_FullScreen"),
-                new("Ctrl+I",    "Str_DocInvertSetting"),
+                new("N",         "Str_DocInvertSetting"),
                 new("Ctrl+Shift+= / - / 0", "Str_KS_AppSize"),
             ]},
             new KsSection { TitleKey = "Str_KS_Ocr", Rows =

@@ -1120,10 +1120,10 @@
                     <StackPanel x:Name="RightBar" Orientation="Horizontal">
                     <Button x:Name="ToolSelectBtn" Content="&#xE8B0;" Style="{StaticResource ToolbarButton}" Click="ToolSelect_Click" ToolTip="{DynamicResource Str_TT_SelectTool}"/>
                     <Button x:Name="ToolTextBtn" Content="&#xE8D2;" Style="{StaticResource ToolbarButton}" Click="ToolText_Click" ToolTip="{DynamicResource Str_TT_TextTool}"/>
-                    <Button x:Name="ToolUnderlineBtn" Content="&#xE738;" Style="{StaticResource ToolbarButton}" Click="ToolLine_Click" ToolTip="{DynamicResource Str_TT_LineTool}"/>
                     <Button x:Name="ToolHighlightBtn" Content="&#xE7E6;" Style="{StaticResource ToolbarButton}" Click="ToolHighlight_Click" ToolTip="{DynamicResource Str_TT_HighlightTool}"/>
-                    <Button x:Name="ToolDrawBtn" Content="&#xED63;" Style="{StaticResource ToolbarButton}" Click="ToolDraw_Click" ToolTip="{DynamicResource Str_TT_DrawTool}"/>
+                    <Button x:Name="ToolUnderlineBtn" Content="&#xE738;" Style="{StaticResource ToolbarButton}" Click="ToolLine_Click" ToolTip="{DynamicResource Str_TT_LineTool}"/>
                     <Button x:Name="ToolShapeBtn" Content="&#xE739;" Style="{StaticResource ToolbarButton}" Click="ToolShape_Click" ToolTip="{DynamicResource Str_TT_ShapeTool}"/>
+                    <Button x:Name="ToolDrawBtn" Content="&#xED63;" Style="{StaticResource ToolbarButton}" Click="ToolDraw_Click" ToolTip="{DynamicResource Str_TT_DrawTool}"/>
                     <Button x:Name="ToolImageBtn" Content="&#xEB9F;" Style="{StaticResource ToolbarButton}" Click="ToolImage_Click" ToolTip="{DynamicResource Str_TT_ImageTool}"/>
                     <StackPanel x:Name="GrpSignature" Orientation="Horizontal">
                         <Button x:Name="ToolSignatureBtn" Content="&#xEE56;" Style="{StaticResource ToolbarButton}" Click="ToolSignature_Click" ToolTip="{DynamicResource Str_TT_SignatureTool}"/>
@@ -1298,7 +1298,7 @@
                                     Click="SidebarOutlinesTab_Click"/>
                         </DockPanel>
                         <!-- Page controls row (hidden in outlines mode) -->
-                        <DockPanel x:Name="PageControlsRow" DockPanel.Dock="Top" LastChildFill="False" Margin="12,2,8,4">
+                        <DockPanel x:Name="PageControlsRow" DockPanel.Dock="Top" LastChildFill="False" Margin="12,2,8,4" Visibility="Collapsed">
                             <TextBox x:Name="PageJumpBox" DockPanel.Dock="Left"
                                      Width="30" Height="20" VerticalAlignment="Center"
                                      TextAlignment="Center" VerticalContentAlignment="Center"

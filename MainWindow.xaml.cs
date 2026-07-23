@@ -460,6 +460,10 @@ namespace KillerPDF
 
                 if (App.IsPortable())
                     _portableBadge.Visibility = Visibility.Visible;
+
+                // Start with the sidebar collapsed when no PDF is open (nothing to show); a document
+                // opened above will have expanded it via FinishOpenFile (Steve, 2026-07-23).
+                SyncSidebarToDocState(hasDoc: _doc != null, startup: true);
             };
         }
 

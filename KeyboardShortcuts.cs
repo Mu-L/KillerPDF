@@ -254,9 +254,15 @@ namespace KillerPDF
                 BeginOcrRegion();
                 e.Handled = true;
             }
-            else if (e.Key == Key.I && Keyboard.Modifiers == ModifierKeys.Control)
+            else if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.None && _doc is not null
+                     && ShortcutOverlay.Visibility != Visibility.Visible
+                     && AboutOverlay.Visibility != Visibility.Visible
+                     && SettingsOverlay.Visibility != Visibility.Visible)
             {
-                ToggleDocInvert(!DocInvert);   // #135: document dark mode
+                // Bare N = invert document colors (night mode), #135. Moved off Ctrl+I in 1.6.6 so
+                // the conventional italic chord is free while editing text; single-key house style.
+                // Same guards as the bare-key tool switches below (doc open, no overlay, not typing).
+                ToggleDocInvert(!DocInvert);
                 e.Handled = true;
             }
             // App-wide accessibility size (AppScale.cs), distinct from the Ctrl+wheel page zoom:
@@ -411,6 +417,14 @@ namespace KillerPDF
                 SetZoom(1.0);
                 e.Handled = true;
             }
+            else if (e.Key == Key.Escape && _doc is not null && _currentTool != EditTool.Select)
+            {
+                // 1.6.6 (#127 Phase 3): Esc with nothing left to cancel drops back to the Select
+                // tool, Acrobat-style. With Select already active it keeps falling through to the
+                // app-exit handler below, unchanged.
+                SetTool(EditTool.Select);
+                e.Handled = true;
+            }
             else if (e.Key == Key.Escape)
             {
                 // No overlay active - ESC exits the app
@@ -555,12 +569,16 @@ namespace KillerPDF
         {
             switch (key)
             {
-                // Tools are reachable by their toolbar position (1-8, left to right); the original letter
-                // keys stay as fallbacks. Both the number-row and numpad digits map.
-                case Key.V: case Key.D1: case Key.NumPad1: SetTool(EditTool.Select); return true;
-                case Key.T: case Key.D2: case Key.NumPad2: SetTool(EditTool.Text); return true;
+                // Tools are reachable by their toolbar position (digits 1-9, 0 mirror the toolbar,
+                // left to right); the original letter keys stay as fallbacks. Both the number-row and
+                // numpad digits map. 1.6.6 remap (#127 Phase 3): Select is V-only (the Photoshop /
+                // Illustrator / Figma convention) - its digit went to Text so Shapes could take 4 and
+                // the digits keep mirroring the toolbar order.
+                case Key.V: SetTool(EditTool.Select); return true;
+                case Key.T: case Key.D1: case Key.NumPad1: SetTool(EditTool.Text); return true;
+                case Key.H: case Key.D2: case Key.NumPad2: SetTool(EditTool.Highlight); return true;
                 case Key.L: case Key.U: case Key.D3: case Key.NumPad3: SetTool(EditTool.Line); return true;
-                case Key.H: case Key.D4: case Key.NumPad4: SetTool(EditTool.Highlight); return true;
+                case Key.D4: case Key.NumPad4: SetTool(EditTool.Shape); return true;
                 case Key.D: case Key.D5: case Key.NumPad5: SetTool(EditTool.Draw); return true;
                 case Key.I: case Key.D6: case Key.NumPad6: SetTool(EditTool.Image); return true;
                 case Key.G: case Key.D7: case Key.NumPad7: ToolSignature_Click(this, new RoutedEventArgs()); return true;
@@ -571,23 +589,25 @@ namespace KillerPDF
             }
         }
 
-        // Appends each tool's toolbar position (1-8, left to right) to its tooltip, e.g. "Highlight (4)".
+        // Appends each tool's key to its tooltip, e.g. "Highlight (2)". Digits mirror the toolbar
+        // position (1-9, 0); Select shows its letter (V) since the 1.6.6 remap made it V-only.
         // Re-resolves the localized base text so a language switch keeps the right wording (from SelectLocale).
         private void ApplyToolNumberTooltips()
         {
-            void Set(System.Windows.Controls.Button btn, string key, int n)
+            void Set(System.Windows.Controls.Button btn, string key, string n)
             {
                 if (btn != null && TryFindResource(key) is string s) btn.ToolTip = $"{s} ({n})";
             }
-            Set(ToolSelectBtn, "Str_TT_SelectTool", 1);
-            Set(ToolTextBtn, "Str_TT_TextTool", 2);
-            Set(ToolUnderlineBtn, "Str_TT_LineTool", 3);   // repurposed to the Line tool
-            Set(ToolHighlightBtn, "Str_TT_HighlightTool", 4);
-            Set(ToolDrawBtn, "Str_TT_DrawTool", 5);
-            Set(ToolImageBtn, "Str_TT_ImageTool", 6);
-            Set(ToolSignatureBtn, "Str_TT_SignatureTool", 7);
-            Set(ToolCropBtn, "Str_TT_CropTool", 8);
-            Set(_toolRotateBtn, "Str_TT_RotateTool", 9);
+            Set(ToolSelectBtn, "Str_TT_SelectTool", "V");
+            Set(ToolTextBtn, "Str_TT_TextTool", "1");
+            Set(ToolHighlightBtn, "Str_TT_HighlightTool", "2");
+            Set(ToolUnderlineBtn, "Str_TT_LineTool", "3");   // repurposed to the Line tool
+            Set(ToolShapeBtn, "Str_TT_ShapeTool", "4");
+            Set(ToolDrawBtn, "Str_TT_DrawTool", "5");
+            Set(ToolImageBtn, "Str_TT_ImageTool", "6");
+            Set(ToolSignatureBtn, "Str_TT_SignatureTool", "7");
+            Set(ToolCropBtn, "Str_TT_CropTool", "8");
+            Set(_toolRotateBtn, "Str_TT_RotateTool", "9");
         }
 
         // Opens the online help / how-to page in the user's default browser.

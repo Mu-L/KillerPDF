@@ -122,6 +122,7 @@
     <sys:String x:Key="Str_KS_OnlineHelp">Kompletní příručka &amp; návody online</sys:String>
     <sys:String x:Key="Str_KS_Tools">NÁSTROJE</sys:String>
     <sys:String x:Key="Str_KS_Paste">Vložit obrázek / text</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">Tučné / kurzíva / podtržení (textové pole)</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">Přidat do výběru</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
@@ -163,6 +164,8 @@
     <sys:String x:Key="Str_PrivacySection">SOUKROMÍ</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">Nepamatovat si naposledy otevřené soubory</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">Exportovat stránky jako obrázky...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">Odebrat heslo</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">Uloženo bez ochrany heslem - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">Exportovat stránky jako obrázky</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Formát</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Rozlišení (DPI)</sys:String>
@@ -172,7 +175,7 @@
     <sys:String x:Key="Str_Print_OddOnly">Pouze liché stránky</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Pouze sudé stránky</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invertovat barvy dokumentu</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">Invertovat barvy dokumentu (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Invertovat barvy dokumentu (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Rolováním změníte velikost celé aplikace (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Velikost aplikace {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zvětšení celé aplikace (usnadnění přístupu)</sys:String>
@@ -532,6 +535,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_St_NoTextOnPage">Na této stránce nebyl nalezen žádný text</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">Není vybrán žádný text - text vyberete tažením</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">Ve výběru nebyl nalezen žádný text</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">Zde není žádný text - Tvary jsou na 4</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">Podpis umístěn - tažením jej přemístíte, rohovým úchytem změníte velikost</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">Pole vymazáno</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">Pole podepsáno</sys:String>

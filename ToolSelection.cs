@@ -338,5 +338,25 @@ namespace KillerPDF
             _sidebarCol.MinWidth = SbPx(24);
             UpdateSidebarToggleGlyph();   // splitter stays enabled so it can be dragged back open
         }
+
+        // The rail auto-collapses when no PDF is open and re-opens when one is (Steve, 2026-07-23): with
+        // nothing loaded there are no thumbnails to show, so the strip gets out of the way. The empty
+        // page-jump box + "/ –" hide alongside. Only fires on the open/close transition (FinishOpenFile /
+        // ShowEmptyState) and at startup - NOT on tab switches - so a manual toggle mid-session sticks.
+        // startup=true collapses instantly (no glide before the first paint); runtime transitions animate.
+        private void SyncSidebarToDocState(bool hasDoc, bool startup)
+        {
+            if (PageControlsRow != null)
+                PageControlsRow.Visibility = (hasDoc && !_sidebarShowingOutlines)
+                    ? Visibility.Visible : Visibility.Collapsed;
+
+            if (hasDoc && _sidebarCollapsed)
+                SidebarToggle_Click(this, new RoutedEventArgs());          // open the rail for the document
+            else if (!hasDoc && !_sidebarCollapsed)
+            {
+                if (startup) CollapseSidebarToStrip();                     // instant at launch
+                else SidebarToggle_Click(this, new RoutedEventArgs());     // animated on last-tab close
+            }
+        }
     }
 }

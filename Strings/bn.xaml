@@ -102,10 +102,11 @@
     <sys:String x:Key="Str_KS_ThisList">এই শর্টকাট তালিকা</sys:String>
     <sys:String x:Key="Str_KS_About">সম্পর্কে ডায়ালগ</sys:String>
     <sys:String x:Key="Str_KS_Settings">সেটিংস</sys:String>
-    <sys:String x:Key="Str_KS_DocInfo">à¦¡à¦•à§à¦®à§‡à¦¨à§à¦Ÿà§‡à¦° à¦¤à¦¥à§à¦¯</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">ডকুমেন্টের তথ্য</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">সম্পূর্ণ গাইড ও অনলাইন নির্দেশিকা</sys:String>
     <sys:String x:Key="Str_KS_Tools">টুল</sys:String>
     <sys:String x:Key="Str_KS_Paste">ছবি / টেক্সট পেস্ট করুন</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">গাঢ় / তির্যক / নিম্নরেখা (টেক্সট বক্স)</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">নির্বাচনে যোগ করুন</sys:String>
 
     <!-- ── Status bar ────────────────────────────────────────────────── -->
@@ -486,6 +487,7 @@
     <sys:String x:Key="Str_St_NoTextOnPage">এই পৃষ্ঠায় কোনো টেক্সট পাওয়া যায়নি</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">কোনো টেক্সট নির্বাচন করা হয়নি - টেক্সট নির্বাচন করতে টেনে আনুন</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">নির্বাচনে কোনো টেক্সট পাওয়া যায়নি</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">এখানে কোনো টেক্সট নেই - আকার ৪-এ আছে</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">স্বাক্ষর স্থাপন করা হয়েছে - পুনরায় স্থাপন করতে টেনে আনুন, আকার পরিবর্তন করতে কোণার হ্যান্ডেল ব্যবহার করুন</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">ফিল্ড মুছে ফেলা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">ফিল্ড স্বাক্ষরিত হয়েছে</sys:String>
@@ -578,6 +580,8 @@
     <sys:String x:Key="Str_PrivacySection">গোপনীয়তা</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">সম্প্রতি খোলা ফাইলগুলি মনে রাখবেন না</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">পৃষ্ঠাগুলি ছবি হিসেবে এক্সপোর্ট করুন...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">পাসওয়ার্ড সরান</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">পাসওয়ার্ড সুরক্ষা ছাড়াই সংরক্ষিত হয়েছে - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">পৃষ্ঠাগুলি ছবি হিসেবে এক্সপোর্ট</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">ফরম্যাট</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">রেজোলিউশন (DPI)</sys:String>
@@ -587,7 +591,7 @@
     <sys:String x:Key="Str_Print_OddOnly">শুধু বিজোড় পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">শুধু জোড় পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">ডকুমেন্টের রং উল্টে দিন</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">ডকুমেন্টের রং উল্টে দিন (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">ডকুমেন্টের রং উল্টে দিন (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">অ্যাপের আকার {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">পুরো অ্যাপ জুম করুন (অ্যাক্সেসযোগ্যতা)</sys:String>

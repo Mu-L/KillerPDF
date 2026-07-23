@@ -36,6 +36,7 @@ namespace KillerPDF
             public EditTool Tool = EditTool.Select;   // active editing tool, remembered per document
             public int PageIndex;
             public bool IsDirty;
+            public bool ProtectedSource;               // #149: source file had a password/encryption when opened
             public double ScrollH;
             public double ScrollV;
             public int SearchPageCursor = -1;
@@ -83,6 +84,7 @@ namespace KillerPDF
             s.GridColumns    = _gridColumns;
             s.Tool           = _currentTool;
             s.IsDirty        = _isDirty;
+            s.ProtectedSource = _openedFromProtected;
             s.SearchPageCursor = _searchPageCursor;
             s.PageIndex      = PageList.SelectedIndex >= 0 ? PageList.SelectedIndex : s.PageIndex;
             s.ScrollH        = PagePreviewPanel?.HorizontalOffset ?? 0;
@@ -171,6 +173,7 @@ namespace KillerPDF
             _gridColumns    = s.GridColumns;
             _currentTool    = s.Tool;
             _isDirty        = s.IsDirty;
+            _openedFromProtected = s.ProtectedSource;
             _searchPageCursor = s.SearchPageCursor;
 
             _annotations      = s.Annotations;
@@ -349,6 +352,7 @@ namespace KillerPDF
             OutlineTree.Items.Clear();
             SidebarOutlinesTab.IsEnabled = false;
             if (_sidebarShowingOutlines) SwitchSidebarToPagesTab();
+            SyncSidebarToDocState(hasDoc: false, startup: false);   // nothing open: collapse the rail, hide page controls
             MarkDirty(false);
             SetStatus(Loc("Str_Ready"));
         }

@@ -106,6 +106,7 @@
     <sys:String x:Key="Str_KS_OnlineHelp">Tam kılavuz ve çevrimiçi rehber</sys:String>
     <sys:String x:Key="Str_KS_Tools">ARAÇLAR</sys:String>
     <sys:String x:Key="Str_KS_Paste">Görsel / metin yapıştır</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">Kalın / italik / altı çizili (metin kutusu)</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">Seçime ekle</sys:String>
 
     <!-- ── Durum çubuğu ──────────────────────────────────────────────── -->
@@ -486,6 +487,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_St_NoTextOnPage">Bu sayfada metin bulunamadı</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">Metin seçilmedi - metin seçmek için sürükleyin</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">Seçimde metin bulunamadı</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">Burada metin yok - Şekiller 4'te</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">İmza yerleştirildi - yeniden konumlandırmak için sürükleyin, boyutlandırmak için köşe tutamacını kullanın</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">Alan temizlendi</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">Alan imzalandı</sys:String>
@@ -578,6 +580,8 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_PrivacySection">GİZLİLİK</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">Son açılan dosyaları hatırlama</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">Sayfaları görüntü olarak dışa aktar...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">Parolayı Kaldır</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">Parola koruması olmadan kaydedildi - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">Sayfaları Görüntü Olarak Dışa Aktar</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Biçim</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Çözünürlük (DPI)</sys:String>
@@ -587,7 +591,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Print_OddOnly">Yalnızca tek sayfalar</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Yalnızca çift sayfalar</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Belge renklerini ters çevir</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">Belge renklerini ters çevir (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Belge renklerini ters çevir (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Uygulama boyutu %{0}</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Tüm uygulamayı yakınlaştır (erişilebilirlik)</sys:String>

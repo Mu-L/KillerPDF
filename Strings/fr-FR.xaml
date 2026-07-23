@@ -191,6 +191,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_KS_OnlineHelp">Guide complet et tutoriels en ligne</sys:String>
     <sys:String x:Key="Str_KS_Tools">OUTILS</sys:String>
     <sys:String x:Key="Str_KS_Paste">Coller image / texte</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">Gras / italique / souligné (zone de texte)</sys:String>
     <sys:String x:Key="Str_KS_MultiSelect">Ajouter à la sélection</sys:String>
 
     <!-- Theme name -->
@@ -504,6 +505,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_St_NoTextOnPage">Aucun texte trouvé sur cette page</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">Aucun texte sélectionné - faites glisser pour sélectionner du texte</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">Aucun texte trouvé dans la sélection</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">Pas de texte ici - Formes est sur 4</sys:String>
     <sys:String x:Key="Str_St_SignaturePlaced">Signature placée - faites glisser pour repositionner, utilisez la poignée d'angle pour redimensionner</sys:String>
     <sys:String x:Key="Str_St_FieldCleared">Champ effacé</sys:String>
     <sys:String x:Key="Str_St_FieldSigned">Champ signé</sys:String>
@@ -596,6 +598,8 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_PrivacySection">CONFIDENTIALITÉ</sys:String>
     <sys:String x:Key="Str_NoRecentSetting">Ne pas mémoriser les fichiers récemment ouverts</sys:String>
     <sys:String x:Key="Str_Menu_ExportImages">Exporter les pages en images...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">Supprimer le mot de passe</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">Enregistré sans protection par mot de passe - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">Exporter les pages en images</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Format</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Résolution (DPI)</sys:String>
@@ -605,7 +609,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Print_OddOnly">Pages impaires uniquement</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Pages paires uniquement</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Inverser les couleurs du document</sys:String>
-    <sys:String x:Key="Str_TT_DocInvert">Inverser les couleurs du document (Ctrl+I)</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Inverser les couleurs du document (N)</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application (Ctrl+Maj+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Taille de l'application {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoomer toute l'application (accessibilité)</sys:String>
