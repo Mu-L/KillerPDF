@@ -1217,7 +1217,7 @@ namespace KillerPDF
             _rerenderTimer.Start();
         }
 
-        private void ResetZoom() => SetZoom(1.0);
+        private void ResetZoom() => SetTrueZoom(1.0);
 
         // On-screen pixel gap between grid tiles, so adjacent pages don't visually merge - the
         // document pane background shows through it. Tile margins live inside the zoom transform,
@@ -1294,6 +1294,20 @@ namespace KillerPDF
             SyncZoomBox();
             if (_doc != null && PageList.SelectedIndex >= 0)
                 SetStatus(string.Format(Loc("Str_PageOf"), PageList.SelectedIndex + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
+        }
+
+        /// <summary>
+        /// Zoom entry point for callers that work in TRUE zoom (1.0 = the 100% the user sees),
+        /// as opposed to <see cref="SetZoom"/>, which takes the internal render-dim scale.
+        /// Converts through <see cref="DisplayZoomFactor"/> so an absolute zoom lands on the same
+        /// percentage in every view mode instead of ~182% outside Continuous. The zoom dropdown
+        /// already does this same conversion inline for its presets.
+        /// </summary>
+        private void SetTrueZoom(double trueZoom)
+        {
+            double zf = DisplayZoomFactor();
+            if (zf <= 0) zf = 1.0;
+            SetZoom(trueZoom / zf);
         }
 
         private void ZoomIn_Click(object sender, RoutedEventArgs e)  { if (_viewMode == ViewMode.Grid) GridZoomStep(false); else SetZoom(_zoomLevel + ZoomStep); }
