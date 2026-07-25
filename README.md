@@ -1,8 +1,8 @@
-# KillerPDF
+<p align="center">
+  <a href="https://killerpdf.net"><img src="docs/wordmark.png" width="640" alt="KillerPDF - Free PDF Editor"></a>
+</p>
 
 Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. Single Windows EXE, ~15.6 MB (ZIPs to 12.6MB), no runtime install required.
-
-Landing page is hosted at [KillerPDF.net](https://KillerPDF.net)
 
 ## Features
 
