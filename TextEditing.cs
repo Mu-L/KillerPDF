@@ -270,8 +270,15 @@ namespace KillerPDF
                     if (firstWord.Letters.Count > 0)
                     {
                         var letter = firstWord.Letters[0];
-                        double pdfFontPts = letter.FontSize;
-                        canvasFontSize = pdfFontPts * syInv;
+                        // PointSize is the glyph size in points. FontSize is the size as written in the
+                        // content stream, which only matches the point size when the text matrix doesn't
+                        // scale: a generator that emits "/F1 1 Tf" and scales through Tm reports FontSize
+                        // 1, which collapsed the replacement onto the floor below and read back as 3pt
+                        // (#163). Fall back to FontSize, then to the line-height estimate above, since
+                        // PointSize can be 0 on fonts with no usable metrics (e.g. some Type3).
+                        double pdfFontPts = letter.PointSize > 0 ? letter.PointSize : letter.FontSize;
+                        if (pdfFontPts > 0)
+                            canvasFontSize = pdfFontPts * syInv;
 
                         // Try to get font name from letter
                         string? rawFont = null;
