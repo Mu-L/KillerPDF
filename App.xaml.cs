@@ -978,7 +978,7 @@ namespace KillerPDF
             public uint   dwStateAction;       // 0 = WTD_STATEACTION_IGNORE
             public IntPtr hWVTStateData;
             public IntPtr pwszURLReference;
-            public uint   dwProvFlags;         // 0 = allow network fetch of intermediates
+            public uint   dwProvFlags;         // 0x1000 = WTD_CACHE_ONLY_URL_RETRIEVAL
             public uint   dwUIContext;
             public IntPtr pSignatureSettings;
         }
@@ -1032,7 +1032,7 @@ namespace KillerPDF
                     dwUIChoice    = 2,  // WTD_UI_NONE
                     dwUnionChoice = 1,  // WTD_CHOICE_FILE
                     pUnion        = fileInfoPtr,
-                    dwProvFlags   = 0   // allow network fetch of intermediate certs
+                    dwProvFlags   = 0x1000   // WTD_CACHE_ONLY_URL_RETRIEVAL, never hit the network
                 }, dataPtr, false);
 
                 var actionId = WTD_VERIFY_GENERIC;

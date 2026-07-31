@@ -394,8 +394,14 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
-                        <!-- Margin leaves room for the drop shadow to render inside the popup. -->
-                        <Grid Margin="5">
+                        <!-- Margin leaves room for the drop shadow to render inside the popup.
+                             FADE IN: a ContextMenu has no PopupAnimation property - it is not a
+                             Popup, it is hosted inside one WPF owns - so the fade is driven from
+                             the template with an EventTrigger on Loaded. The SubPopup below already
+                             sets PopupAnimation="Fade", so a menu appeared instantly while its own
+                             children faded in, which is backwards. 150ms ease-out.
+                             (Steve, 2026-07-30.) -->
+                        <Grid x:Name="MenuRoot" Opacity="0" Margin="5">
                             <!-- Shadow-only layer behind, so the menu text stays crisp. -->
                             <Border Background="{TemplateBinding Background}" CornerRadius="4" IsHitTestVisible="False">
                                 <Border.Effect>
@@ -414,6 +420,18 @@
                                 </Grid>
                             </Border>
                         </Grid>
+                        <ControlTemplate.Triggers>
+                            <EventTrigger RoutedEvent="ContextMenu.Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="MenuRoot" Storyboard.TargetProperty="Opacity"
+                                                         From="0" To="1" Duration="0:0:0.15">
+                                            <DoubleAnimation.EasingFunction><QuadraticEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -480,8 +498,18 @@
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- SELECTION, not a gray wash. BgHover is #404040 in every theme, so
+                                 the menu was the one place in the product where "this is the one"
+                                 rendered in neutral gray - and KillerPDF is the app the others
+                                 copy. Now the family's selected treatment: SelectionBg fill with
+                                 SelectionFg text. The gesture and chevron are recoloured too, as
+                                 TextSecondary is unreadable on a saturated fill.
+                                 (Steve, 2026-07-30: "even killerpdf".) -->
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="MenuBd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="MenuBd" Property="Background" Value="{DynamicResource SelectionBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
+                                <Setter TargetName="Gesture" Property="Foreground" Value="{DynamicResource SelectionFg}"/>
+                                <Setter TargetName="SubArrow" Property="Foreground" Value="{DynamicResource SelectionFg}"/>
                             </Trigger>
                             <!-- Collapse the shortcut column when there is no gesture, so items without a
                                  shortcut do not reserve its 24px left margin as phantom right padding. -->
@@ -2624,10 +2652,22 @@
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="{DynamicResource Str_About_Version}" Foreground="{DynamicResource TextSecondary}"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" Margin="0,0,0,2"/>
-                                <TextBlock x:Name="AboutVersionBlock"
-                                           FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12"
-                                           Foreground="{DynamicResource Accent}"
-                                           Cursor="Hand"/>
+                                <!-- One row, two ends: version accent left, release date dim and
+                                     italic hard right, so a user can tell how old their build is.
+                                     Bottom-aligned so the two sizes share a baseline. Family
+                                     standard, see code/CLAUDE.md. -->
+                                <Grid>
+                                    <TextBlock x:Name="AboutVersionBlock"
+                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12"
+                                               Foreground="{DynamicResource Accent}"
+                                               HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                                               Cursor="Hand"/>
+                                    <TextBlock x:Name="AboutReleaseDateBlock"
+                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11"
+                                               FontStyle="Italic"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                                </Grid>
                             </StackPanel>
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="{DynamicResource Str_About_Publisher}" Foreground="{DynamicResource TextSecondary}"
@@ -2635,6 +2675,12 @@
                                 <TextBlock x:Name="AboutPublisherBlock"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12"
                                            Foreground="{DynamicResource TextPrimary}"/>
+                                <!-- Shown only on an exe signed by Steve; the certificate subject is
+                                     the legal name, this ties it back to the name people know.
+                                     Inlines are built in About.cs like the tagline and version. -->
+                                <TextBlock x:Name="AboutAkaBlock" Visibility="Collapsed"
+                                           FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondary}" Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="{DynamicResource Str_About_Thumbprint}" Foreground="{DynamicResource TextSecondary}"

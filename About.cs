@@ -25,6 +25,29 @@ namespace KillerPDF
     {
         // About overlay
 
+        // The certificate subject is the legal name ("Open Source Developer Stephen Riley"),
+        // so the About card ties it back to the name people know. Gated on the subject actually
+        // being Steve's: a fork signed by somebody else must not claim the alias, and an
+        // unsigned build has no subject at all. Family standard, see code/CLAUDE.md.
+        private const string SignerName = "Stephen Riley";
+        private const string AkaName    = "Steve the Killer";
+
+        /// <summary>Release date baked in from the csproj's ReleaseDate property, so a user can
+        /// see how old their build is. A file timestamp would not survive being copied and the
+        /// PE linker stamp is a build date, not a release date. Empty when the attribute is
+        /// missing (an older build), in which case the version line shows the version alone.</summary>
+        private static string ReleaseDate
+        {
+            get
+            {
+                foreach (var a in System.Reflection.CustomAttributeExtensions.GetCustomAttributes
+                             <System.Reflection.AssemblyMetadataAttribute>(
+                                 System.Reflection.Assembly.GetExecutingAssembly()))
+                    if (a.Key == "ReleaseDate") return a.Value ?? string.Empty;
+                return string.Empty;
+            }
+        }
+
         private void VersionLabel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             e.Handled = true;
@@ -46,6 +69,36 @@ namespace KillerPDF
             AboutPublisherBlock.Text   = sigValid ? sigSubject : "(not signed or chain failed)";
             AboutThumbprintBlock.Text  = string.IsNullOrEmpty(sigThumbprint) ? "(none)" : sigThumbprint;
             AboutSha256Block.Text      = Loc("Str_About_Computing");
+
+            // Release date, so a user can tell how old their build is. Baked in from the
+            // csproj's <ReleaseDate>; empty on an older build, which just shows the version.
+            AboutReleaseDateBlock.Text = ReleaseDate;
+
+            // AKA line: shown only when the exe is signed by Steve, not merely signed by
+            // somebody - a fork signed by someone else must not claim the alias. Built as
+            // inlines here like the tagline and version blocks below.
+            bool signedByMe = sigValid && sigSubject.IndexOf(SignerName, StringComparison.OrdinalIgnoreCase) >= 0;
+            AboutAkaBlock.Visibility = signedByMe ? Visibility.Visible : Visibility.Collapsed;
+            if (signedByMe)
+            {
+                AboutAkaBlock.Inlines.Clear();
+                AboutAkaBlock.Inlines.Add(new System.Windows.Documents.Run("AKA ")
+                {
+                    Foreground = (System.Windows.Media.Brush)FindResource("TextSecondary")
+                });
+                // 0x201C / 0x201D are the curly quotes, built from codepoints so this file
+                // stays ASCII on disk.
+                var akaHl = new System.Windows.Documents.Hyperlink(
+                    new System.Windows.Documents.Run((char)0x201C + AkaName + (char)0x201D))
+                {
+                    Foreground      = (System.Windows.Media.Brush)FindResource("Accent"),
+                    TextDecorations = null,
+                    ToolTip         = "thekiller.net"
+                };
+                akaHl.Click += (_, _) =>
+                    Process.Start(new ProcessStartInfo("https://thekiller.net") { UseShellExecute = true });
+                AboutAkaBlock.Inlines.Add(akaHl);
+            }
 
             // Reuse the main window's film-grain texture on the About card.
             if (GrainBrush?.ImageSource != null) AboutGrainBrush.ImageSource = GrainBrush.ImageSource;
@@ -283,29 +336,73 @@ namespace KillerPDF
                 var relArg = string.IsNullOrEmpty(reopen) ? "" : $" \"{reopen}\"";
                 var bat    = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"killerpdf_update_{Guid.NewGuid():N}.bat");
 
+                // A machine-wide install (Program Files, from winget, choco or an RMM) is not
+                // writable by a normal user, so the swap has to run elevated. This previously ran
+                // the batch unelevated and sent the copy to >nul with no errorlevel check, so on
+                // those installs it silently failed and then relaunched the OLD exe - the app
+                // appeared to "update" to the same version, with no error.
+                bool needsElevation = !CanWriteTo(System.IO.Path.GetDirectoryName(curExe)!);
+
+                // When elevated, relaunch through explorer.exe so the app comes back at the user's
+                // normal integrity level rather than inheriting the elevated token. explorer.exe
+                // cannot forward arguments, so the currently-open file is not reopened on that
+                // path - a one-off convenience loss, preferred over leaving KillerPDF running as
+                // administrator for the rest of the session.
+                string relaunch = needsElevation
+                    ? $"start \"\" explorer.exe \"{curExe}\""
+                    : $"start \"\" \"{curExe}\"{relArg}";
+
                 File.WriteAllText(bat,
                     "@echo off\r\n" +
                     ":wait\r\n" +
                     $"tasklist /fi \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul\r\n" +
                     "if not errorlevel 1 ( ping -n 2 127.0.0.1 >nul & goto wait )\r\n" +
-                    $"copy /y \"{newExe}\" \"{curExe}\" >nul\r\n" +
-                    $"start \"\" \"{curExe}\"{relArg}\r\n" +
+                    $"copy /y \"{newExe}\" \"{curExe}\" >nul 2>&1\r\n" +
+                    "if errorlevel 1 goto failed\r\n" +
+                    relaunch + "\r\n" +
+                    "goto cleanup\r\n" +
+                    ":failed\r\n" +
+                    // Do not relaunch a stale exe and call it an update: send the user to the
+                    // releases page so the failure is visible and fixable by hand.
+                    "start \"\" \"https://github.com/SteveTheKiller/KillerPDF/releases/latest\"\r\n" +
+                    ":cleanup\r\n" +
                     $"del \"{newExe}\" >nul 2>&1\r\n" +
                     "del \"%~f0\" >nul 2>&1\r\n");
 
-                Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{bat}\"")
+                var psi = new ProcessStartInfo("cmd.exe", $"/c \"{bat}\"")
                 {
                     WindowStyle = ProcessWindowStyle.Hidden,
                     UseShellExecute = true
-                });
+                };
+                if (needsElevation) psi.Verb = "runas";   // triggers the UAC prompt
 
+                // Declining UAC throws Win32Exception 1223, so only shut down once the helper
+                // is actually running - otherwise the app would close without updating.
+                Process.Start(psi);
                 Application.Current.Shutdown();
             }
             catch
             {
+                try { if (newExe is not null && File.Exists(newExe)) File.Delete(newExe); } catch { }
                 AboutUpdateButton.IsEnabled = true;
                 AboutUpdateText.Text = $"Update available: {tag}";
             }
+        }
+
+        /// <summary>True if this process can create a file in <paramref name="dir"/>. Used to decide
+        /// whether the self-update swap needs elevating: Program Files installs are not writable by a
+        /// normal user, per-user installs under LOCALAPPDATA always are.</summary>
+        private static bool CanWriteTo(string dir)
+        {
+            try
+            {
+                var probe = System.IO.Path.Combine(dir, $".kp_write_{Guid.NewGuid():N}.tmp");
+                using (new System.IO.FileStream(probe, System.IO.FileMode.CreateNew,
+                                                System.IO.FileAccess.Write, System.IO.FileShare.None,
+                                                1, System.IO.FileOptions.DeleteOnClose)) { }
+                return true;
+            }
+            catch { return false; }
         }
     }
 }

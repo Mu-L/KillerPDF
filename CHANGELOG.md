@@ -4,6 +4,14 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - Unreleased
+
+### Changed
+- New app icon. The old one - the document with the red bar across the bottom - now marks PDF *files* instead, so a KillerPDF window and a PDF sitting in a folder are no longer the same picture. Explorer caches icons aggressively, so a PDF may keep showing the old art until the cache refreshes.
+
+### Fixed
+- The app-size readout parked itself on the status bar. Rolling the wheel over the logo wrote "App size N%" into the footer behind a short hold, which existed so the chrome resize could not stomp the message with its own page and zoom status the same frame. When that hold expired nothing repainted the line, so the readout stayed put until the next page change, tool switch or open happened to write over it. It is transient now. Each notch rewrites the readout and restarts a five second timer, and the status line goes back to what it was showing before the first notch when the timer expires. The hold is unchanged and still only covers the same-frame stomp. If something else wrote a status after the hold lapsed the restore is skipped, so a real message is never replaced by a stale one.
+
 ## [1.6.6] - 2026-07-23
 
 1.6.6 is primarily a bug fix release - the big one being form fields sitting in the wrong place on non-A4 documents - plus a tool-hotkey remap, a new Remove Password command, more menu polish, and other small keyboard and UI improvements.

@@ -58,6 +58,27 @@ $tsaList = @(
     "http://ts.ssl.com"
 )
 
+# Resolve the repo's default branch instead of hardcoding it, so the same script works across
+# the Killer family. origin/HEAD is the best hint but it can go stale - it keeps naming a
+# branch that was renamed away, which is exactly the state this repo was in - so a candidate
+# is only accepted if it still exists on the remote. Order: origin/HEAD, then main, then master.
+# Call it from inside the Push-Location block so git runs against this repo.
+function Get-DefaultBranch {
+    $remoteHeads = @(git ls-remote --heads origin 2>$null) |
+        ForEach-Object { ($_ -split '\s+')[-1] -replace '^refs/heads/', '' }
+    if (-not $remoteHeads) { return $null }
+
+    $candidates = @()
+    $originHead = git symbolic-ref --quiet refs/remotes/origin/HEAD 2>$null
+    if ($originHead) { $candidates += (($originHead -replace '^refs/remotes/origin/', '').Trim()) }
+    foreach ($c in @('main', 'master')) { if ($candidates -notcontains $c) { $candidates += $c } }
+
+    foreach ($c in $candidates) {
+        if ($c -and $remoteHeads -contains $c) { return $c }
+    }
+    return $null
+}
+
 if (-not $PublishOnly) {
 
 # ── 0. SimplySign preflight ──────────────────────────────────────────────────
@@ -313,8 +334,11 @@ Write-Host "    Version: $Version (tag $Tag)"
 
 Push-Location $PSScriptRoot
 try {
+    $defaultBranch = Get-DefaultBranch
+    if (-not $defaultBranch) { throw "Could not determine the default branch from origin" }
+    Write-Host "    Default branch: $defaultBranch"
     $branch = (git rev-parse --abbrev-ref HEAD).Trim()
-    if ($branch -ne 'main') { throw "On branch '$branch', expected main" }
+    if ($branch -ne $defaultBranch) { throw "On branch '$branch', expected $defaultBranch" }
     $dirty = git status --porcelain
     if ($dirty) { throw "Working tree is not clean. Commit or stash first:`n$($dirty -join "`n")" }
 
@@ -331,14 +355,14 @@ try {
             Write-Host "    Updating README source link to $Tag"
             [System.IO.File]::WriteAllText($readmePath, $readmeNew)
             git commit README.md -m "Point README source link at $Tag" --quiet
-            git push origin main --quiet
+            git push origin $defaultBranch --quiet
             if ($LASTEXITCODE -ne 0) { throw "README source-link commit failed to push" }
         }
     }
 
-    git fetch origin main --quiet
-    if ((git rev-parse HEAD).Trim() -ne (git rev-parse origin/main).Trim()) {
-        throw "Local main and origin/main differ. Push or pull first."
+    git fetch origin $defaultBranch --quiet
+    if ((git rev-parse HEAD).Trim() -ne (git rev-parse "origin/$defaultBranch").Trim()) {
+        throw "Local $defaultBranch and origin/$defaultBranch differ. Push or pull first."
     }
     if (git tag --list $Tag) { throw "Tag $Tag already exists" }
     if (git ls-remote --tags origin $Tag) { throw "Tag $Tag already exists on origin" }
@@ -349,6 +373,24 @@ try {
     if ($changelog -notmatch [regex]::Escape("## [$Version]")) {
         throw "CHANGELOG.md has no [$Version] section"
     }
+
+    # The About card shows <ReleaseDate> beside the version so users can tell how old
+    # their build is. It is a hand-edited csproj field, so it silently goes stale unless
+    # something checks it - that something is here. It must equal the date on this
+    # version's CHANGELOG section, which is the date the release actually goes out.
+    if ($csprojRaw -notmatch '<ReleaseDate>([0-9]{4}-[0-9]{2}-[0-9]{2})</ReleaseDate>') {
+        throw "No <ReleaseDate>yyyy-MM-dd</ReleaseDate> found in KillerPDF.csproj"
+    }
+    $releaseDate = $Matches[1]
+    if ($changelog -notmatch ('## \[' + [regex]::Escape($Version) + '\] - ([0-9]{4}-[0-9]{2}-[0-9]{2})')) {
+        throw "CHANGELOG.md section [$Version] has no yyyy-MM-dd date"
+    }
+    $changelogDate = $Matches[1]
+    if ($releaseDate -ne $changelogDate) {
+        throw "csproj <ReleaseDate> is $releaseDate but CHANGELOG [$Version] is dated $changelogDate. Bump the csproj."
+    }
+    Write-Host "    Release date: $releaseDate"
+
     Write-Host "    Preflight OK" -ForegroundColor Green
 
     # ── 9. Release notes from the CHANGELOG section ──────────────────────────

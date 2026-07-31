@@ -83,10 +83,49 @@ namespace KillerPDF
             if (persist)
             {
                 App.SetSetting("AppScale", scale.ToString("0.###", CultureInfo.InvariantCulture));
-                // Held: the chrome resize re-runs the fit pipeline, whose page/zoom status
-                // would otherwise overwrite this the same frame (MainWindow.xaml.cs SetStatus).
-                SetStatusHeld(string.Format(Loc("Str_St_AppSize"), (int)Math.Round(scale * 100)));
+                ShowScaleReadout(scale);
             }
+        }
+
+        // The readout is transient. Every wheel notch rewrites it and restarts the hold timer,
+        // so the footer carries it while you are zooming and gives the line back a beat after
+        // you stop. It still goes out through SetStatusHeld, because the chrome resize re-runs
+        // the fit pipeline and its page/zoom status would otherwise stomp this the same frame
+        // (MainWindow.xaml.cs SetStatus) - that hold is short and only covers the stomp.
+        //
+        // Whatever was showing before the first notch of a burst is snapshotted and put back,
+        // but only if the readout is still the text on screen, so a status written after the
+        // hold expired is never overwritten by a stale one. The restore assigns directly
+        // rather than going through SetStatus: this is putting a line back, not reporting
+        // something new, so it should not land in the crash breadcrumb a second time.
+        //
+        // Normal priority rather than the DispatcherTimer default of Background, so a busy
+        // render cannot leave the readout parked on the footer.
+        private System.Windows.Threading.DispatcherTimer? _appScaleHide;
+        private string _appScaleStatusWas = string.Empty;
+        private string _appScaleReadout   = string.Empty;
+
+        private void ShowScaleReadout(double scale)
+        {
+            if (_appScaleHide is null)
+            {
+                _appScaleHide = new System.Windows.Threading.DispatcherTimer(
+                    System.Windows.Threading.DispatcherPriority.Normal)
+                    { Interval = TimeSpan.FromSeconds(5) };
+                _appScaleHide.Tick += (_, _) =>
+                {
+                    _appScaleHide!.Stop();
+                    if (StatusText.Text == _appScaleReadout) StatusText.Text = _appScaleStatusWas;
+                };
+            }
+
+            // Only the first notch of a burst snapshots; the rest are our own readout.
+            if (!_appScaleHide.IsEnabled) _appScaleStatusWas = StatusText.Text;
+            _appScaleHide.Stop();
+
+            _appScaleReadout = string.Format(Loc("Str_St_AppSize"), (int)Math.Round(scale * 100));
+            SetStatusHeld(_appScaleReadout);
+            _appScaleHide.Start();
         }
     }
 }
