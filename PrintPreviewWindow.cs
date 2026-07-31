@@ -1041,7 +1041,9 @@ namespace KillerPDF
                 return;
             }
 
-            var indices = ParseRange(_pagesBox.Text, _pages.Length);
+            // Same list the preview and sheet count walk, so the odd/even subset (#134) reaches the
+            // job as well - calling ParseRange directly here skipped it and printed every page.
+            var indices = SelectedIndices();
             if (indices.Count == 0)
             {
                 KillerDialog.Show(this, S("Str_Dlg_NoValidPages"), "KillerPDF",
