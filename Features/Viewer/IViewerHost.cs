@@ -1,11 +1,16 @@
-namespace KillerPDF
+namespace KillerPDF.Features
 {
     /// <summary>
     /// What a document viewer needs from the window around it. Split pane stage 2.
     ///
+    /// EXTENDS IShellServices, per the family rule in that file - the shell implements Window /
+    /// Loc / SetStatus once, not once per feature. Those three cover the viewer's two heaviest
+    /// call groups on their own (Loc 70 uses, SetStatus 68) plus the modal-dialog owner that
+    /// TextEditing and Links need for KillerDialog (3 uses).
+    ///
     /// DERIVED FROM MEASUREMENT, not guessed: every member here came from grepping what the nine
     /// files bound for the viewer control (Viewport, Zoom, Annotations, Selection, TextEditing,
-    /// Crop, Links, Forms, PageSelection) actually reach for on MainWindow today. The counts are
+    /// Crop, Links, Forms, PageSelection) actually reach for on MainWindow today. Use counts are
     /// noted per member so the cost of each is visible.
     ///
     /// That audit split the coupling into three groups, and only the first belongs here:
@@ -26,15 +31,9 @@ namespace KillerPDF
     ///     this viewer is the focused one before acting. Getting this wrong is how the two panes
     ///     would end up fighting over the sidebar.
     /// </summary>
-    internal interface IViewerHost
+    internal interface IViewerHost : IShellServices
     {
         // ── Chrome the viewer updates (group A) ─────────────────────────────────────────────
-        /// <summary>Status line. 68 uses. Ignored when the calling viewer is not focused.</summary>
-        void SetStatus(string message);
-
-        /// <summary>Localized string lookup, falling back to the key. 70 uses.</summary>
-        string Loc(string key);
-
         /// <summary>Mark the active document dirty (unsaved changes). 32 uses. Stays a host
         /// service even though dirtiness is per-document, because it also drives window chrome -
         /// the tab's dirty dot and the title bar.</summary>
