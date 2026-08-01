@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -95,6 +96,16 @@ namespace KillerPDF.Services
                 return ms.ToArray();
             }
             finally { pin.Free(); }
+        }
+
+        // Builds a frozen bitmap sized so its baked DPI displays it at (dipW x dipH) DIPs. Shared by the
+        // tile and the render cache so a cached tile bitmap reuses the exact same geometry.
+        internal static BitmapSource BuildScaledBitmap(int w, int h, byte[] rawBytes, int dipW, int dipH)
+        {
+            var wb = new WriteableBitmap(w, h, 96.0 * w / Math.Max(1, dipW), 96.0 * h / Math.Max(1, dipH), PixelFormats.Bgra32, null);
+            wb.WritePixels(new Int32Rect(0, 0, w, h), rawBytes, w * 4, 0);
+            wb.Freeze();
+            return wb;
         }
 
         /// <summary>

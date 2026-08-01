@@ -387,7 +387,7 @@ namespace KillerPDF
                             // is zoom-independent and reusable). Square pixels via the matching dipH.
                             int ddw = Math.Max(1, (int)Math.Round(targetW));
                             int ddh = Math.Max(1, (int)Math.Round(targetW * fh / fw));
-                            var bmp = BuildScaledBitmap(fw, fh, bytes, ddw, ddh);
+                            var bmp = BitmapHelpers.BuildScaledBitmap(fw, fh, bytes, ddw, ddh);
                             CacheRender(session, fi, renderW, prot, bmp);
                             SetContinuousSlot(fi, bmp);
                         });
@@ -596,7 +596,7 @@ namespace KillerPDF
                             if (cts.IsCancellationRequested || _viewMode != ViewMode.Continuous) return;
                             int ddw = Math.Max(1, (int)Math.Round(targetW));
                             int ddh = Math.Max(1, (int)Math.Round(targetW * fh / (double)fw));
-                            SetContinuousSlot(fp, BuildScaledBitmap(fw, fh, bytes, ddw, ddh));
+                            SetContinuousSlot(fp, BitmapHelpers.BuildScaledBitmap(fw, fh, bytes, ddw, ddh));
                             _continuousSharpPages.Add(fp);
                         });
                     }
@@ -921,7 +921,7 @@ namespace KillerPDF
                                     if (_viewMode != ViewMode.Grid && _viewMode != ViewMode.TwoPage) return;
                                     int ddw = Math.Max(1, (int)Math.Round(primaryDipW));
                                     int ddh = Math.Max(1, (int)Math.Round(primaryDipW * ph / pw));
-                                    var bmp = BuildScaledBitmap(pw, ph, bytes, ddw, ddh);
+                                    var bmp = BitmapHelpers.BuildScaledBitmap(pw, ph, bytes, ddw, ddh);
                                     CacheRender(session, pi, tileBucket, prot, bmp);
                                     AddSecondaryTile(pi, bmp, primaryDipW);
                                 });
@@ -942,16 +942,6 @@ namespace KillerPDF
         /// Builds one secondary-page tile (image + annotation overlay + links) and appends it
         /// to the page content panel. Must run on the UI thread.
         /// </summary>
-        // Builds a frozen bitmap sized so its baked DPI displays it at (dipW x dipH) DIPs. Shared by the
-        // tile and the render cache so a cached tile bitmap reuses the exact same geometry.
-        private static System.Windows.Media.Imaging.BitmapSource BuildScaledBitmap(int w, int h, byte[] rawBytes, int dipW, int dipH)
-        {
-            var wb = new WriteableBitmap(w, h, 96.0 * w / Math.Max(1, dipW), 96.0 * h / Math.Max(1, dipH), PixelFormats.Bgra32, null);
-            wb.WritePixels(new Int32Rect(0, 0, w, h), rawBytes, w * 4, 0);
-            wb.Freeze();
-            return wb;
-        }
-
         private void AddSecondaryTile(int pi, System.Windows.Media.Imaging.BitmapSource bitmap, double primaryDipW)
         {
             int w = bitmap.PixelWidth, h = bitmap.PixelHeight;
