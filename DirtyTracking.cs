@@ -140,24 +140,7 @@ namespace KillerPDF
         private static void HideBusyOverlay(Border overlay)
             => (overlay.Parent as Panel)?.Children.Remove(overlay);
 
-        /// <summary>
-        /// Encodes raw BGRA pixel data from pdfium to PNG without touching the UI thread.
-        /// GDI+ Format32bppArgb is BGRA in memory - matches pdfium output exactly.
-        /// </summary>
-        internal static byte[] RenderToPng(byte[] bgra, int width, int height)
-        {
-            var pin = GCHandle.Alloc(bgra, GCHandleType.Pinned);
-            try
-            {
-                using var bmp = new System.Drawing.Bitmap(
-                    width, height, width * 4,
-                    System.Drawing.Imaging.PixelFormat.Format32bppArgb,
-                    pin.AddrOfPinnedObject());
-                using var ms = new MemoryStream();
-                bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                return ms.ToArray();
-            }
-            finally { pin.Free(); }
-        }
+        // RenderToPng lives in Services/BitmapHelpers.cs (KillerUI refactor), with the other
+        // raw-bitmap helpers.
     }
 }

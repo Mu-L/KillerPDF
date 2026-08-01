@@ -371,8 +371,8 @@ namespace KillerPDF
                         var raw = pr.GetImage();
                         if (w <= 0 || h <= 0 || raw is null) continue;
                         if (rot != 0)
-                            (raw, w, h) = RotateBitmap(raw, w, h, rot);
-                        if (DocInvert) InvertBgraInPlace(raw);   // #135: display-only dark mode
+                            (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
+                        if (BitmapHelpers.DocInvert) BitmapHelpers.InvertBgraInPlace(raw);   // #135: display-only dark mode
 
                         int fi = i, fw = w, fh = h, prot = rot;
                         byte[] bytes = raw;
@@ -585,8 +585,8 @@ namespace KillerPDF
                         var raw = pr.GetImage();
                         if (w <= 0 || h <= 0 || raw is null) continue;
                         int rot = rotations.TryGetValue(p, out int rr) ? rr : 0;
-                        if (rot != 0) (raw, w, h) = RotateBitmap(raw, w, h, rot);
-                        if (DocInvert) InvertBgraInPlace(raw);   // #135: display-only dark mode
+                        if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
+                        if (BitmapHelpers.DocInvert) BitmapHelpers.InvertBgraInPlace(raw);   // #135: display-only dark mode
 
                         int fp = p, fw = w, fh = h;
                         byte[] bytes = raw;
@@ -663,8 +663,8 @@ namespace KillerPDF
                     // The temp file has /Rotate stripped so Docnet renders unrotated (no clipping); rotate
                     // the pixel buffer to match the visual.
                     if (pgRot != 0)
-                        (rawBytes, width, height) = RotateBitmap(rawBytes, width, height, pgRot);
-                    if (DocInvert && rawBytes != null) InvertBgraInPlace(rawBytes);   // #135: display-only dark mode
+                        (rawBytes, width, height) = BitmapHelpers.RotateBitmap(rawBytes, width, height, pgRot);
+                    if (BitmapHelpers.DocInvert && rawBytes != null) BitmapHelpers.InvertBgraInPlace(rawBytes);   // #135: display-only dark mode
                     if (width <= 0 || height <= 0 || rawBytes == null || rawBytes.Length == 0)
                     {
                         PageImage.Source = null;
@@ -908,8 +908,8 @@ namespace KillerPDF
                             var rawBytes = pageReader.GetImage();
                             if (w <= 0 || h <= 0 || rawBytes is null) continue;
                             if (rot != 0)
-                                (rawBytes, w, h) = RotateBitmap(rawBytes, w, h, rot);
-                            if (DocInvert) InvertBgraInPlace(rawBytes);   // #135: display-only dark mode
+                                (rawBytes, w, h) = BitmapHelpers.RotateBitmap(rawBytes, w, h, rot);
+                            if (BitmapHelpers.DocInvert) BitmapHelpers.InvertBgraInPlace(rawBytes);   // #135: display-only dark mode
 
                             int pi = i, pw = w, ph = h, prot = rot;
                             byte[] bytes = rawBytes;

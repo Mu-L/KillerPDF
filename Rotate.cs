@@ -9,6 +9,7 @@ using Docnet.Core.Models;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using KillerPDF.Services;
 
 namespace KillerPDF
 {
@@ -189,7 +190,7 @@ namespace KillerPDF
                 int h = pr.GetPageHeight();
                 byte[] bgra = pr.GetImage();
                 if (_pageRotations.TryGetValue(pageIdx, out int prot) && prot != 0)
-                    (bgra, w, h) = RotateBitmap(bgra, w, h, prot);
+                    (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, prot);
                 if (bgra == null || bgra.Length == 0 || w <= 0 || h <= 0) return null;
 
                 var raw = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, bgra, w * 4);

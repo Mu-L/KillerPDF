@@ -358,8 +358,8 @@ namespace KillerPDF
             if (Enum.TryParse<ToolbarStyle>(App.GetSetting("ToolbarStyle"), out var savedTb))
                 _toolbarStyle = savedTb;
             InitAppScale();   // AppScale.cs: restore the app-wide size (scroll the logo to change it)
-            DocInvert = App.GetSetting("DocInvert") == "1";   // #135: document dark mode
-            DocInvertBtn.Tag = DocInvert ? "on" : null;       // rail moon lit while active
+            BitmapHelpers.DocInvert = App.GetSetting("DocInvert") == "1";   // #135: document dark mode
+            DocInvertBtn.Tag = BitmapHelpers.DocInvert ? "on" : null;       // rail moon lit while active
             // #146: the privacy toggle lives in the About window; init once - only its own
             // handler changes it afterwards (change-guarded, so this init is a no-op there).
             NoRecentCheck.IsChecked = App.GetSetting(App.NoRecentFilesSetting) == "1";

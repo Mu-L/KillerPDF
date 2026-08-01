@@ -1737,7 +1737,7 @@ namespace KillerPDF
                             rh   = pr.GetPageHeight();
                         }
                         // Encode BGRA to PNG (GDI+) outside the lock so it parallelizes.
-                        pngPages[i] = RenderToPng(bgra, rw, rh);
+                        pngPages[i] = BitmapHelpers.RenderToPng(bgra, rw, rh);
 
                         int n = System.Threading.Interlocked.Increment(ref done);
                         Dispatcher.BeginInvoke(new Action(() => UpdateFlattenProgress(overlay, n, pageCount)));
@@ -1889,8 +1889,8 @@ namespace KillerPDF
                             h   = pr.GetPageHeight();
                         }
                         int rot = idx < rotSnapshot.Length ? rotSnapshot[idx] : 0;
-                        if (rot != 0) (raw, w, h) = RotateBitmapStatic(raw, w, h, rot);
-                        var bytes = jpeg ? CliEncodeJpeg(raw, w, h) : RenderToPng(raw, w, h);
+                        if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
+                        var bytes = jpeg ? CliEncodeJpeg(raw, w, h) : BitmapHelpers.RenderToPng(raw, w, h);
                         var name  = $"{baseName}-page-{(idx + 1).ToString().PadLeft(digits, '0')}.{(jpeg ? "jpg" : "png")}";
                         System.IO.File.WriteAllBytes(System.IO.Path.Combine(outDir, name), bytes);
                         written++;
@@ -2080,7 +2080,7 @@ namespace KillerPDF
                         using var pr = docReader.GetPageReader(i);
                         int w = pr.GetPageWidth();
                         int h = pr.GetPageHeight();
-                        byte[] png = RenderToPng(pr.GetImage(), w, h);
+                        byte[] png = BitmapHelpers.RenderToPng(pr.GetImage(), w, h);
                         BitmapSource src;
                         using (var ms = new MemoryStream(png))
                             src = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);

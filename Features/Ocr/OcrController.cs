@@ -59,10 +59,8 @@ namespace KillerPDF.Features
                     int h = pageReader.GetPageHeight();
                     byte[] bgra = pageReader.GetImage();
 
-                    // Temp file has /Rotate stripped, so rotate the pixel buffer to the page's visual
-                    // orientation. RotateBitmapStatic is a Features-to-Shell static reach, same debt
-                    // bucket as CliRunner's scrub calls; it clears when BitmapHelpers moves to Services.
-                    if (rot != 0) (bgra, w, h) = MainWindow.RotateBitmapStatic(bgra, w, h, rot);
+                    // Temp file has /Rotate stripped, so rotate the pixel buffer to the page's visual orientation.
+                    if (rot != 0) (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, rot);
 
                     using var ocr = new OcrService(language: lang);   // engine is not thread-safe: one per operation
                     return ocr.RecognizeBgra(bgra, w, h);
@@ -120,7 +118,7 @@ namespace KillerPDF.Features
                     int w = pageReader.GetPageWidth();
                     int h = pageReader.GetPageHeight();
                     byte[] bgra = pageReader.GetImage();
-                    if (rot != 0) (bgra, w, h) = MainWindow.RotateBitmapStatic(bgra, w, h, rot);
+                    if (rot != 0) (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, rot);
 
                     double sx = (double)w / renderW, sy = (double)h / renderH;
                     byte[] crop = CropBgra(bgra, w, h,

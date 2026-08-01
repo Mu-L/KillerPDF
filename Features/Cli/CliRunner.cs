@@ -19,11 +19,12 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
-// The pre-save scrubs moved to Services/PdfScrub.cs (KillerUI refactor, 2026-07-31) and are
-// called qualified below. This static import remains ONLY for the import/render helpers still
-// on MainWindow (IsPdfPath, AddImagePagesFromFile, BuildNamedDestMap, RewriteNamedDestLinks,
-// PdfFileHasEncryption, TryPdfiumStripEncryption, TryImportRepairToPath, RotateBitmapStatic,
-// RenderToPng) - a Features-to-Shell dependency that clears with the Document extraction.
+// The pre-save scrubs and bitmap helpers moved to Services (PdfScrub.cs, BitmapHelpers.cs;
+// KillerUI refactor, 2026-07-31) and are called qualified below. This static import remains
+// ONLY for the import helpers still on MainWindow (IsPdfPath, AddImagePagesFromFile,
+// BuildNamedDestMap, RewriteNamedDestLinks, PdfFileHasEncryption, TryPdfiumStripEncryption,
+// TryImportRepairToPath) - a Features-to-Shell dependency that clears with the Document
+// extraction.
 using static KillerPDF.MainWindow;
 // OpenBatchConsole and FlattenBatchDetail are shared with the batch runner.
 using static KillerPDF.Features.BatchRunner;
@@ -400,7 +401,7 @@ namespace KillerPDF.Features
         // /Rotate 90/270 clip if rendered directly (same reason TempReload
         // strips rotations app-wide). Prep: decrypt if needed, capture per-page
         // /Rotate + point dims, strip rotations to a temp, and let callers
-        // rotate the pixel buffers afterward (BitmapHelpers.RotateBitmapStatic).
+        // rotate the pixel buffers afterward (BitmapHelpers.RotateBitmap).
         // Falls back to rendering the file as-is when PdfSharpCore cannot open
         // it (rare parser gaps PDFium tolerates); callers then derive
         // dimensions from the rendered pixels.
@@ -453,7 +454,7 @@ namespace KillerPDF.Features
             }
         }
 
-        // PNG encoding reuses the app's RenderToPng (DirtyTracking.cs). The
+        // PNG encoding reuses the app's RenderToPng (Services/BitmapHelpers.cs). The
         // JPEG variant is CLI-only - no JPEG encoder existed before.
         internal static byte[] CliEncodeJpeg(byte[] bgra, int width, int height)
         {
@@ -537,8 +538,8 @@ namespace KillerPDF.Features
                     h = pr.GetPageHeight();
                 }
                 int rot = rotations != null && idx < rotations.Length ? rotations[idx] : 0;
-                if (rot != 0) (raw, w, h) = RotateBitmapStatic(raw, w, h, rot);
-                var bytes = fmt == "png" ? RenderToPng(raw, w, h) : CliEncodeJpeg(raw, w, h);
+                if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
+                var bytes = fmt == "png" ? BitmapHelpers.RenderToPng(raw, w, h) : CliEncodeJpeg(raw, w, h);
                 var name = $"{baseName}-page-{(idx + 1).ToString().PadLeft(digits, '0')}.{fmt}";
                 File.WriteAllBytes(Path.Combine(outDir, name), bytes);
             }
@@ -582,8 +583,8 @@ namespace KillerPDF.Features
                     h = pr.GetPageHeight();
                 }
                 int rot = rotations != null && i < rotations.Length ? rotations[i] : 0;
-                if (rot != 0) (raw, w, h) = RotateBitmapStatic(raw, w, h, rot);
-                var png = RenderToPng(raw, w, h);
+                if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
+                var png = BitmapHelpers.RenderToPng(raw, w, h);
 
                 double wPt, hPt;
                 if (dims != null && i < dims.Length)
@@ -688,7 +689,7 @@ namespace KillerPDF.Features
                         h = pr.GetPageHeight();
                     }
                     int rot = rotations != null && idx < rotations.Length ? rotations[idx] : 0;
-                    if (rot != 0) (raw, w, h) = RotateBitmapStatic(raw, w, h, rot);
+                    if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
                     var bs = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, raw, w * 4);
                     bs.Freeze();
                     bitmaps.Add((bs, w, h));

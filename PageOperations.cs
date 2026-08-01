@@ -221,7 +221,7 @@ namespace KillerPDF
                                 continue;
                             rotSnap.TryGetValue(i, out int rot);
                             if (rot != 0)
-                                (raw, tw, th) = RotateBitmap(raw, tw, th, rot);
+                                (raw, tw, th) = BitmapHelpers.RotateBitmap(raw, tw, th, rot);
                             var src = PageThumbnailVm.BuildThumbFromRaw(raw, tw, th);
                             if (src != null && !ct.IsCancellationRequested)
                                 items[i].SetThumbnail(src);

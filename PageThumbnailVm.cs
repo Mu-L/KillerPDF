@@ -93,7 +93,7 @@ namespace KillerPDF
                     return null;
                 // Apply in-memory rotation (temp file stores /Rotate=0; _pageRotations holds true angle)
                 if (rotation != 0)
-                    (raw, tw, th) = MainWindow.RotateBitmapStatic(raw, tw, th, rotation);
+                    (raw, tw, th) = Services.BitmapHelpers.RotateBitmap(raw, tw, th, rotation);
                 return EncodeToBitmapSource(raw, tw, th);
             }
             catch { return null; }

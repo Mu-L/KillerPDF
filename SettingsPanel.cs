@@ -350,8 +350,8 @@ namespace KillerPDF
         // layout and scroll stay exactly where they are and only the bitmaps re-render.
         private void ToggleDocInvert(bool on)
         {
-            if (DocInvert == on) return;
-            DocInvert = on;
+            if (BitmapHelpers.DocInvert == on) return;
+            BitmapHelpers.DocInvert = on;
             App.SetSetting("DocInvert", on ? "1" : "0");
             DocInvertBtn.Tag = on ? "on" : null;   // lights the rail icon in the accent while active
             FlushAllRenderCaches();
@@ -383,7 +383,7 @@ namespace KillerPDF
         }
 
         private void DocInvertBtn_Click(object sender, RoutedEventArgs e)
-            => ToggleDocInvert(!DocInvert);
+            => ToggleDocInvert(!BitmapHelpers.DocInvert);
 
         private void OnThemeChanged()
         {

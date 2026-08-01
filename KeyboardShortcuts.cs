@@ -262,7 +262,7 @@ namespace KillerPDF
                 // Bare N = invert document colors (night mode), #135. Moved off Ctrl+I in 1.6.6 so
                 // the conventional italic chord is free while editing text; single-key house style.
                 // Same guards as the bare-key tool switches below (doc open, no overlay, not typing).
-                ToggleDocInvert(!DocInvert);
+                ToggleDocInvert(!BitmapHelpers.DocInvert);
                 e.Handled = true;
             }
             // App-wide accessibility size (AppScale.cs), distinct from the Ctrl+wheel page zoom:
