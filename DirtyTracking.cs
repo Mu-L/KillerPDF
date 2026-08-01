@@ -144,7 +144,7 @@ namespace KillerPDF
         /// Encodes raw BGRA pixel data from pdfium to PNG without touching the UI thread.
         /// GDI+ Format32bppArgb is BGRA in memory - matches pdfium output exactly.
         /// </summary>
-        private static byte[] RenderToPng(byte[] bgra, int width, int height)
+        internal static byte[] RenderToPng(byte[] bgra, int width, int height)
         {
             var pin = GCHandle.Alloc(bgra, GCHandleType.Pinned);
             try

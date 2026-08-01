@@ -72,10 +72,10 @@ namespace KillerPDF
                 return;
             }
 
-            // Headless CLI commands (see Cli.cs; --batch-resave in BatchMode.cs). Checked
-            // before the single-instance mutex so CLI runs work while a GUI instance is
-            // open, never forward to it, and never show a window.
-            if (KillerPDF.MainWindow.TryRunCli(e.Args, out int cliExit))
+            // Headless CLI commands (see Features/Cli/CliRunner.cs; --batch-resave in
+            // BatchRunner.cs). Checked before the single-instance mutex so CLI runs work
+            // while a GUI instance is open, never forward to it, and never show a window.
+            if (KillerPDF.Features.CliRunner.TryRunCli(e.Args, out int cliExit))
             {
                 Shutdown(cliExit);
                 return;

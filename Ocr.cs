@@ -323,7 +323,7 @@ namespace KillerPDF
             }
         }
 
-        private static System.Net.Http.HttpClient MakeDownloadClient()
+        internal static System.Net.Http.HttpClient MakeDownloadClient()
         {
             // Timeout covers connect + headers; the body is bounded by the cancellation token instead.
             System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
@@ -665,7 +665,7 @@ namespace KillerPDF
         // Renders each page, OCRs it, and appends an invisible (alpha 0) text layer positioned over the
         // recognized words. The text is real content-stream text, so PdfPig extracts it for search/select;
         // alpha 0 keeps it from showing or printing. Runs entirely off the UI thread.
-        private static (int pages, int words) BuildSearchablePdf(string src, string outPath, Action<int, int> report, CancellationToken ct, string language)
+        internal static (int pages, int words) BuildSearchablePdf(string src, string outPath, Action<int, int> report, CancellationToken ct, string language)
         {
             // Cache one XFont per integer point size so a page of words doesn't allocate thousands of fonts.
             var fontCache = new Dictionary<int, XFont>();

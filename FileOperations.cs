@@ -17,6 +17,9 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
+// CliParsePageRange and CliEncodeJpeg moved out with the CLI runner but are used here too -
+// neither is really CLI-specific and both want a home in Services/ eventually.
+using static KillerPDF.Features.CliRunner;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF
@@ -341,7 +344,7 @@ namespace KillerPDF
         /// Scans the last 2 KB so it's fast; works regardless of how PdfSharp
         /// reports security state after authenticating with an empty password.
         /// </summary>
-        private static bool PdfFileHasEncryption(string path)
+        internal static bool PdfFileHasEncryption(string path)
         {
             try
             {
@@ -362,7 +365,7 @@ namespace KillerPDF
         /// removed. Returns true on success. Falls back gracefully if PDFium is unavailable.
         /// PDFium is already initialised by Docnet; no separate init call is needed.
         /// </summary>
-        private static bool TryPdfiumStripEncryption(string sourcePath, string destPath)
+        internal static bool TryPdfiumStripEncryption(string sourcePath, string destPath)
         {
             try
             {
@@ -480,7 +483,7 @@ namespace KillerPDF
         /// Pass true when called from SaveTempAndReload (rotations already stripped in source).
         /// Pass false for open-time repair so original page rotations are preserved.
         /// </param>
-        private static bool TryImportRepairToPath(string sourcePath, string destPath, bool stripRotations = false)
+        internal static bool TryImportRepairToPath(string sourcePath, string destPath, bool stripRotations = false)
         {
             try
             {
@@ -1204,7 +1207,7 @@ namespace KillerPDF
         /// /Dests dictionary and /Names /Dests name tree.
         /// </summary>
         // Static (since the CLI merge): touches no instance state, only the passed document.
-        private static Dictionary<string, int> BuildNamedDestMap(PdfDocument src)
+        internal static Dictionary<string, int> BuildNamedDestMap(PdfDocument src)
         {
             var map = new Dictionary<string, int>(StringComparer.Ordinal);
             try
@@ -1295,7 +1298,7 @@ namespace KillerPDF
         /// document's page references. This is needed because PdfSharpCore's import does not
         /// copy the source document's /Names /Dests catalog entries.
         /// </summary>
-        private static void RewriteNamedDestLinks(PdfDocument doc, int pageOffset,
+        internal static void RewriteNamedDestLinks(PdfDocument doc, int pageOffset,
             Dictionary<string, int> namedDestMap)
         {
             for (int pi = pageOffset; pi < doc.PageCount; pi++)
@@ -1481,7 +1484,7 @@ namespace KillerPDF
         // with no /First contains no bookmarks, so dropping the entry is a semantic no-op that
         // keeps the file consistent. Real bookmark trees (/First present) are left untouched.
         // Called before every save of the working document.
-        private static void ScrubEmptyOutlines(PdfDocument doc)
+        internal static void ScrubEmptyOutlines(PdfDocument doc)
         {
             try
             {
@@ -1504,7 +1507,7 @@ namespace KillerPDF
         // no-op - the page falls back to its MediaBox - and it also HEALS files written by
         // affected versions (1.6.x up to 1.6.2) when they are re-saved. Real crops are untouched.
         // Called before every save of the working document.
-        private static void ScrubDegenerateCropBoxes(PdfDocument doc)
+        internal static void ScrubDegenerateCropBoxes(PdfDocument doc)
         {
             try
             {
@@ -1547,7 +1550,7 @@ namespace KillerPDF
         // signature fields and the catalog's /Perms certification (DocMDP / usage rights) that
         // references them. The empty fields stay and can be re-signed via Sign Document.
         // Called before every save of the working document.
-        private static void ScrubDeadSignatures(PdfDocument doc)
+        internal static void ScrubDeadSignatures(PdfDocument doc)
         {
             try
             {

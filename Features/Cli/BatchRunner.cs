@@ -5,8 +5,11 @@ using System.Runtime.InteropServices;
 using System.Text;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+// Pre-save scrubs are still MainWindow statics - see the note in CliRunner.cs. They move to
+// Services/PdfScrub.cs when FileOperations is extracted.
+using static KillerPDF.MainWindow;
 
-namespace KillerPDF
+namespace KillerPDF.Features
 {
     // ============================================================
     // Headless CLI batch mode
@@ -37,7 +40,9 @@ namespace KillerPDF
     // own; AttachConsole(-1) latches onto the parent terminal when launched
     // from one. Output interleaves with the prompt (standard GUI-app quirk) -
     // the authoritative record is the --log CSV and the exit code.
-    public partial class MainWindow
+    //
+    // All static, never touches the window - extracted from MainWindow 2026-07-31.
+    internal static class BatchRunner
     {
         [DllImport("kernel32.dll", EntryPoint = "AttachConsole", SetLastError = true)]
         private static extern bool BatchAttachConsole(int dwProcessId);
@@ -231,7 +236,8 @@ namespace KillerPDF
         // Attaches to the parent terminal's console when launched from one.
         // Returns TextWriter.Null when there is no parent console (e.g. double-click),
         // so batch code can write unconditionally.
-        private static TextWriter OpenBatchConsole()
+        // internal: CliRunner shares the console attach and the CSV detail flattener.
+        internal static TextWriter OpenBatchConsole()
         {
             try
             {
@@ -242,7 +248,7 @@ namespace KillerPDF
             return TextWriter.Null;
         }
 
-        private static string FlattenBatchDetail(string? s) =>
+        internal static string FlattenBatchDetail(string? s) =>
             (s ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
 
         private static string BatchCsvField(string s)

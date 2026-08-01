@@ -19,8 +19,16 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
+// The pre-save scrubs (ScrubEmptyOutlines, ScrubDegenerateCropBoxes, ScrubDeadSignatures) are
+// still MainWindow statics, because they lean on DerefItemStatic / RectNum / ScrubSigFieldValues
+// which live there too. Importing them statically keeps the call sites below unchanged. They
+// belong in Services/PdfScrub.cs and move there when FileOperations is extracted - a Features
+// class should not be reaching into the shell.
+using static KillerPDF.MainWindow;
+// OpenBatchConsole and FlattenBatchDetail are shared with the batch runner.
+using static KillerPDF.Features.BatchRunner;
 
-namespace KillerPDF
+namespace KillerPDF.Features
 {
     // ============================================================
     // Command-line interface
@@ -42,7 +50,11 @@ namespace KillerPDF
     // Console output rides on AttachConsole (GUI-subsystem exe, see
     // BatchMode.cs); lines can interleave with the shell prompt. Exit codes
     // are the scripting contract.
-    public partial class MainWindow
+    //
+    // Every member here is static and none of them touch the window, so this was never really a
+    // MainWindow partial - it just happened to be declared as one. Extracted to its own class
+    // 2026-07-31.
+    internal static class CliRunner
     {
         // Options that consume the next argument as their value.
         private static readonly string[] CliValueOptions =
@@ -62,7 +74,7 @@ namespace KillerPDF
 
             // The validation resave keeps its dedicated runner in BatchMode.cs.
             if (args.Any(a => Eq(a, "--batch-resave")))
-                return TryRunBatch(args, out exitCode);
+                return BatchRunner.TryRunBatch(args, out exitCode);
 
             string? command = args.FirstOrDefault(a =>
                 Eq(a, "--help") || Eq(a, "-h") || Eq(a, "/?") ||
@@ -192,7 +204,10 @@ namespace KillerPDF
         /// distinct 0-based indices. Returns null with a message in error when
         /// the spec is malformed or out of range.
         /// </summary>
-        private static List<int>? CliParsePageRange(string spec, int pageCount, out string error)
+        // internal, not private: FileOperations still calls these two. They are page-range parsing
+        // and JPEG encoding, neither of which is really CLI-specific - they want a home in
+        // Services/ eventually.
+        internal static List<int>? CliParsePageRange(string spec, int pageCount, out string error)
         {
             error = string.Empty;
             var pages = new SortedSet<int>();
@@ -440,7 +455,7 @@ namespace KillerPDF
 
         // PNG encoding reuses the app's RenderToPng (DirtyTracking.cs). The
         // JPEG variant is CLI-only - no JPEG encoder existed before.
-        private static byte[] CliEncodeJpeg(byte[] bgra, int width, int height)
+        internal static byte[] CliEncodeJpeg(byte[] bgra, int width, int height)
         {
             var bmp = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, bgra, width * 4);
             var encoder = new JpegBitmapEncoder { QualityLevel = 90 };

@@ -73,7 +73,7 @@ namespace KillerPDF
 
         // Appends one page per image frame (multi-frame TIFF/GIF expand to one page per frame). Page
         // size matches the image's physical size at its own DPI (96 if it declares none).
-        private static void AddImagePagesFromFile(PdfDocument pdf, string path)
+        internal static void AddImagePagesFromFile(PdfDocument pdf, string path)
         {
             using var img = System.Drawing.Image.FromFile(path);
             var dim = new System.Drawing.Imaging.FrameDimension(img.FrameDimensionsList[0]);
@@ -130,7 +130,7 @@ namespace KillerPDF
         // ----- Drag/drop of folders, archives, and multiple files ----------------------------
 
         private static readonly string[] DropImageExt = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff"];
-        private static bool IsPdfPath(string p)      => p.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+        internal static bool IsPdfPath(string p)     => p.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
         private static bool IsImagePath(string p)    => DropImageExt.Any(e => p.EndsWith(e, StringComparison.OrdinalIgnoreCase));
         private static bool IsOpenablePath(string p) => IsPdfPath(p) || IsImagePath(p);
 

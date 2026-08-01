@@ -575,7 +575,7 @@ namespace KillerPDF
         /// in the document so they render as invisible clickable areas rather than colored
         /// rectangles that can look like strikethroughs in other PDF viewers.
         /// </summary>
-        private static void StripLinkAnnotationBorders(PdfDocument doc)
+        internal static void StripLinkAnnotationBorders(PdfDocument doc)
         {
             foreach (var pdfPage in doc.Pages)
             {
