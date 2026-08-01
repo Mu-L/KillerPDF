@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 
 namespace KillerPDF
@@ -72,45 +73,89 @@ namespace KillerPDF
                 Grid.SetColumn(sbContent, 1);
             }
 
-            // The splitter's 1px divider line faces the SIDEBAR (opposite the document), sitting right
-            // beside the elevation shadow: on its left for a left sidebar, on its right for a right one.
-            if (FindName("SidebarSplitter") is GridSplitter splitter)
-                splitter.BorderThickness = _sidebarRight ? new Thickness(0, 0, 1, 0) : new Thickness(1, 0, 0, 0);
+            // The splitter's edge-line and the SidebarShadow gradient were both handled here. The
+            // splitter draws a single centered line now, which is symmetric and so needs no side
+            // handling, and the fake elevation gradient is gone - DocPaneBorder casts a real
+            // PaneShadow on all four sides. (2026-07-31.)
 
-            // Elevation shadow pokes out of the toggle strip onto the page list, away from the
-            // document, on whichever side the sidebar sits.
-            if (FindName("SidebarShadow") is Border sbShadow)
+            // The DocTopAccent / DocBottomAccent repositioning was here. Those two 1px rules are
+            // gone with the squared layout - the card carries its own border on all four sides now,
+            // so there is nothing left to bridge to the toolbar and footer. (2026-07-31.)
+
+            // The document card's 8px inset always sits on its OUTER edge - the window side, away
+            // from the splitter - so the gap reads as a margin off the window rather than a gutter
+            // between the pane and the sidebar. Full screen clears the margin, so leave it alone
+            // there; ApplyFullScreen restores it from this same helper on exit.
+            // The grip rides the CONTENT column and faces the rail, so it always sits on the list's
+            // inner lip: right edge with the sidebar on the left, left edge with it on the right.
+            if (FindName("SidebarSplitter") is Thumb grip)
             {
-                sbShadow.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
-                if (_sidebarRight)
-                {   // strip faces left (document on the left): dark at left, poke right into the list
-                    sbShadow.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
-                    sbShadow.Margin = new System.Windows.Thickness(0, 0, -12, 0);
-                    sbShadow.RenderTransform = null;
-                }
-                else
-                {   // strip faces right (document on the right): dark at right, poke left into the list
-                    sbShadow.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
-                    sbShadow.Margin = new System.Windows.Thickness(-12, 0, 0, 0);
-                    sbShadow.RenderTransform = new System.Windows.Media.ScaleTransform(-1, 1);
-                }
+                Grid.SetColumn(grip, _sidebarRight ? 1 : 0);
+                grip.HorizontalAlignment = _sidebarRight ? HorizontalAlignment.Left
+                                                         : HorizontalAlignment.Right;
             }
 
-            // Top/bottom accent lines span the splitter + document columns (never the sidebar):
-            // col 1-2 for a left sidebar (doc in col 2), col 0-1 for a right sidebar (doc in col 0).
-            int accentStartCol = _sidebarRight ? 0 : 1;
-            foreach (var n in new[] { "DocTopAccent", "DocBottomAccent" })
-                if (FindName(n) is Border accentLine) System.Windows.Controls.Grid.SetColumn(accentLine, accentStartCol);
-            // The top accent (pane-border color) bled 1px into the sidebar; inset its sidebar-facing
-            // edge by 1px so it stops exactly at the splitter instead of overhanging the list.
-            if (FindName("DocTopAccent") is Border topAccent)
-                topAccent.Margin = _sidebarRight ? new Thickness(0, 0, 1, 0) : new Thickness(1, 0, 0, 0);
+            // The shadow caster is a separate sibling (see MainWindow.xaml), so it has to track the
+            // pane through every column swap and margin flip or the shadow detaches from the card.
+            var docShadow = FindName("DocPaneShadow") as FrameworkElement;
+            if (docShadow != null) Grid.SetColumn(docShadow, _sidebarRight ? 0 : 2);
+
+            if (!_fullScreen)
+            {
+                docPane.Margin = DocPaneInsetMargin();
+                if (docShadow != null) docShadow.Margin = docPane.Margin;
+                // The tab band has to stop where the card stops, or it overhangs the card's rounded
+                // outer top corner and squares it off. Outer inset only - the band's other edge is
+                // the splitter column, which is where the card's -6 pull-back already puts its own.
+                if (tabStrip != null)
+                    tabStrip.Margin = _sidebarRight ? new Thickness(8, 0, 0, 0)
+                                                    : new Thickness(0, 0, 8, 0);
+            }
 
             UpdateSidebarToggleGlyph();
             UpdateTabStripFade();
             // The column swap repositions the document pane; re-anchor the footer shadow once layout
             // settles (TransformToVisual needs the final positions).
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)UpdateFooterFade);
+        }
+
+        // Document on the right (sidebar left) -> 8px inset on the right; mirrored when the sidebar
+        // moves. Top and bottom stay 0: PaneShadow is Direction 270 and draws outside the element's
+        // bounds without taking layout space, so a bottom gap would be real padding lifting the
+        // card off the footer, not room for the shadow (KillerShell's ResultsPane comment).
+        //
+        // The sidebar side is 0. That 6px column is a plain gap now - KillerShell's TreeGapCol -
+        // rather than something to pull back over: the grip moved inside the sidebar, so nothing
+        // lives there and the grain layer paints it like the rest of the surface. It briefly held
+        // a -6 pull-back while the grip was still a top-level GridSplitter. (Steve, 2026-07-31.)
+        // Top is -1, KillerShell's ResultsPane margin verbatim: the card's own top border tucks
+        // UNDER the tab band, which is opaque, so the active tab and the pane read as one surface
+        // instead of being split by a hairline. With no tabs open the band is collapsed and the -1
+        // just eats a pixel against the toolbar. (Steve, 2026-07-31: "remove the horizontal line
+        // under the active tab so it blends into the pane".)
+        private Thickness DocPaneInsetMargin()
+            => _sidebarRight ? new Thickness(8, -1, 0, 0) : new Thickness(0, -1, 8, 0);
+
+        // The grip drives SidebarCol's width directly (see the XAML comment). Dragging toward the
+        // document grows the sidebar when it is on the left and shrinks it when on the right, so
+        // the delta is signed by side. Clamped to the column's own Min/MaxWidth, which the collapse
+        // and outline/pages modes already maintain, so this cannot drag past a readable minimum.
+        private void SidebarGrip_DragDelta(object sender, DragDeltaEventArgs e)
+        {
+            if (_sidebarCol == null) return;
+            double w = _sidebarCol.ActualWidth + (_sidebarRight ? -e.HorizontalChange : e.HorizontalChange);
+            double min = _sidebarCol.MinWidth > 0 ? _sidebarCol.MinWidth : SbPx(24);
+            double max = double.IsPositiveInfinity(_sidebarCol.MaxWidth) ? double.MaxValue : _sidebarCol.MaxWidth;
+            _sidebarCol.Width = new GridLength(Math.Max(min, Math.Min(max, w)));
+        }
+
+        // A Border with a CornerRadius does not clip its child, so the canvas, the grain and the
+        // page itself all square the card's corners straight back off. Radius 5 = the card's 6
+        // less its 1px border, which is where the inner edge of the curve actually falls.
+        private void DocPane_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is not FrameworkElement el) return;
+            el.Clip = new RectangleGeometry(new Rect(0, 0, el.ActualWidth, el.ActualHeight), 5, 5);
         }
 
 

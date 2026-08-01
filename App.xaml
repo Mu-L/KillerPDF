@@ -115,6 +115,25 @@
             <DropShadowEffect x:Key="ShadowIcon"   Color="Black" BlurRadius="4"  ShadowDepth="1" Direction="270" Opacity="0.9"/>
             <DropShadowEffect x:Key="ShadowBar"    Color="Black" BlurRadius="6"  ShadowDepth="3" Direction="270" Opacity="0.38"/>
             <DropShadowEffect x:Key="ShadowDialog" Color="Black" BlurRadius="18" ShadowDepth="3" Direction="270" Opacity="0.6"/>
+            <!-- Elevation for the content pane, cast DOWN onto the footer. ShadowDepth must be
+                 non-zero with Direction 270; a zero depth is a halo with nothing below to land on.
+                 Direction stays 270 - that is the family rule and what puts the cast on the footer.
+                 DELIBERATE DEVIATION from the family 16/5/0.6 (KillerShell, KillerScan, KillerNotes):
+                 blur 22 and opacity 0.78. Those apps put a mid-gray pane (#3a3a3a) against #1c1c1c,
+                 where a 16px blur reads fine. KillerPDF's card is usually filled edge to edge by a
+                 WHITE page, so the boundary is a near-full-range value jump straight to a near-black
+                 gutter, and the family blur is simply swallowed by it - measured on the running app,
+                 the lateral falloff only spanned about 3px of the 8px gutter. The wider, stronger
+                 cast gives the gutter its depth back. (Steve, 2026-07-31: "the right gutter can use
+                 more depth".) Tunable here in one place; raising blur widens the falloff, raising
+                 opacity deepens it. -->
+            <!-- Depth 2, not the family 5. Depth pushes the whole cast downward, so at 5 the top
+                 edge got almost none of it and the card's rounded top corners had nothing tucked
+                 under them - the curve met the gutter abruptly. 2 keeps a downward bias, so the
+                 cast still lands on the footer as the family rule requires, while wrapping the
+                 corners evenly. Zero would be a symmetric halo and is what that rule forbids.
+                 (Steve, 2026-07-31: "the drop shadow needs to be under the rounded edge smoothly".) -->
+            <DropShadowEffect x:Key="PaneShadow"   Color="Black" BlurRadius="22" ShadowDepth="2" Direction="270" Opacity="0.78"/>
 
             <!-- Global themed tooltip (replaces the plain white system box) -->
             <Style TargetType="ToolTip">

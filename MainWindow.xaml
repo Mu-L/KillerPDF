@@ -1336,7 +1336,17 @@
         </Border>
 
         <!-- Main content -->
-        <Grid Grid.Row="2" Grid.RowSpan="2" x:Name="MainContentGrid">
+        <!-- BackgroundBrush, not the window's SurfaceBrush, is what the document card is inset
+             from. Measured on the running app: the card's canvas is BgCanvas #3a3a3a (lum 58) and
+             SurfaceBrush is #333333 (lum 51) - seven steps apart, so the 8px gutter read as the
+             same gray as the card and the whole thing looked like one flat field with a hairline
+             in it, shadow and all. KillerShell gets its lift from PaneBrush #3a3a3a on
+             BackgroundBrush #1c1c1c, thirty steps; this is the identical relationship, and it also
+             matches the sidebar and footer, which already paint BackgroundBrush. The sidebar and
+             the card both paint over this, so only the exposed gutter changes.
+             (Steve, 2026-07-31: "right side is still gray no drop shadow".) -->
+        <Grid Grid.Row="2" Grid.RowSpan="2" x:Name="MainContentGrid"
+              Background="{DynamicResource BackgroundBrush}">
             <Grid.ColumnDefinitions>
                 <!-- The sidebar lives in column 0 (left, default) or column 2 (right). ApplySidebarSide
                      swaps which column is the sized sidebar (24-260px) and which is the star document
@@ -1351,6 +1361,15 @@
                 <RowDefinition Height="Auto"/>   <!-- row 0: tab strip (above the document only) -->
                 <RowDefinition Height="*"/>      <!-- row 1: sidebar / splitter / document -->
             </Grid.RowDefinitions>
+
+            <!-- Grain for the window surface the document card is inset from. The card's 8px gutter
+                 exposes RootBorder's flat SurfaceBrush, which was the one untextured band in the
+                 window once the pane stopped running edge to edge. First child, spanning every
+                 column and row, so the sidebar and the card both paint over it and only the exposed
+                 surface shows through - and the card's shadow lands on texture, not flat paint.
+                 (Steve, 2026-07-31.) -->
+            <Border Grid.ColumnSpan="3" Grid.RowSpan="2" IsHitTestVisible="False"
+                    Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
 
             <!-- Sidebar column: inner grid splits content from permanent toggle strip. The toggle
                  strip is kept on the side facing the document (right when the sidebar is on the
@@ -2029,81 +2048,67 @@
                         </StackPanel>
                     </Grid>
                 </Border>
-            </Grid>
 
-            <!-- Drag-to-resize splitter (only active in OUTLINES mode) -->
-            <GridSplitter x:Name="SidebarSplitter"
-                          Grid.Column="1"
-                          Grid.Row="1"
-                          Width="6"
-                          HorizontalAlignment="Stretch"
-                          VerticalAlignment="Stretch"
-                          Background="{DynamicResource BgCanvas}"
-                          Cursor="SizeWE"
-                          IsEnabled="True"
-                          BorderThickness="0,0,1,0"
-                          ResizeBehavior="PreviousAndNext"
-                          ResizeDirection="Columns">
-                <GridSplitter.Template>
-                    <ControlTemplate TargetType="GridSplitter">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{DynamicResource DragLine}" BorderThickness="{TemplateBinding BorderThickness}">
-                            <!-- grip dots, centred vertically -->
-                            <ItemsControl VerticalAlignment="Center" HorizontalAlignment="Center"
-                                          IsHitTestVisible="False">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Vertical"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <Ellipse Width="3" Height="3" Margin="0,2" Fill="{DynamicResource BgDragHandle}"/>
-                                <Ellipse Width="3" Height="3" Margin="0,2" Fill="{DynamicResource BgDragHandle}"/>
-                                <Ellipse Width="3" Height="3" Margin="0,2" Fill="{DynamicResource BgDragHandle}"/>
-                                <Ellipse Width="3" Height="3" Margin="0,2" Fill="{DynamicResource BgDragHandle}"/>
-                                <Ellipse Width="3" Height="3" Margin="0,2" Fill="{DynamicResource BgDragHandle}"/>
-                            </ItemsControl>
+            <!-- RESIZE GRIP - KillerShell's TreeResizeGrip, verbatim in shape and reasoning.
+                 A Thumb rather than a GridSplitter: a splitter resizes the two columns either side
+                 of it, and this handle's neighbor is the 24px rail, which must never move. Driving
+                 SidebarCol's width by hand lets the document column absorb the change instead, and
+                 keeps the drag from fighting the collapse animation, which sets that same Width.
+                 It lives INSIDE the sidebar on the list's inner lip, so the order reads
+                 list | grip | rail | gap | document - the rail stays glued to the document edge
+                 and never moves, which is the whole point of a permanent rail.
+                 ApplySidebarSide puts it in the content column and faces it at the rail.
+                 (Steve, 2026-07-31: "the grab handle is on the wrong side of the rail".) -->
+            <Thumb x:Name="SidebarSplitter"
+                   Grid.Column="0"
+                   Panel.ZIndex="50"
+                   Width="5"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Stretch"
+                   Cursor="SizeWE"
+                   IsEnabled="True"
+                   Focusable="False"
+                   DragDelta="SidebarGrip_DragDelta">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <!-- Transparent, not empty: a Border with no Background is not hit-testable
+                             and the grip would be unusable (KillerShell's note). -->
+                        <Border Background="Transparent">
+                            <Border x:Name="line" Width="1" HorizontalAlignment="Center"
+                                    Background="{DynamicResource CardBorderBrush}" Margin="0,12" Opacity="0"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource BgCanvas}"/>
+                                <Setter TargetName="line" Property="Opacity" Value="1"/>
                             </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="{DynamicResource BgCanvas}"/>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="line" Property="Opacity" Value="1"/>
+                                <Setter TargetName="line" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
-                </GridSplitter.Template>
-            </GridSplitter>
+                </Thumb.Template>
+            </Thumb>
+            </Grid>
 
-            <!-- Elevation shadow cast by the document onto the sidebar: pokes out of the splitter
-                 handle (the 3-dot drag handle) onto the page list. ApplySidebarSide sets its side and
-                 flips its direction. Black-alpha (reads on light/gray sidebars, subtle on near-black). -->
-            <Border x:Name="SidebarShadow" Grid.Column="1" Grid.Row="1" IsHitTestVisible="False" Width="12"
-                    HorizontalAlignment="Left" Margin="-12,0,0,0" Panel.ZIndex="50"
-                    RenderTransformOrigin="0.5,0.5">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Offset="0.0" Color="#3A000000"/>
-                        <GradientStop Offset="1.0" Color="#00000000"/>
-                    </LinearGradientBrush>
-                </Border.Background>
-                <!-- Feather the top and bottom so the shadow has no hard horizontal ends. -->
-                <Border.OpacityMask>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Offset="0.00" Color="#00000000"/>
-                        <GradientStop Offset="0.06" Color="#FF000000"/>
-                        <GradientStop Offset="0.94" Color="#FF000000"/>
-                        <GradientStop Offset="1.00" Color="#00000000"/>
-                    </LinearGradientBrush>
-                </Border.OpacityMask>
-            </Border>
+            <!-- SidebarShadow was here: a hand-rolled 12px gradient poking out of the splitter
+                 onto the page list, faking the document's elevation because a flush squared pane
+                 could not cast one. DocPaneBorder carries the real PaneShadow now, on all four
+                 sides, so the fake would double up against it. (2026-07-31.) -->
 
             <!-- Tab strip = the grainy "menubar" band for row 0. Its background + grain + fade span the
                  splitter column AND the document column, so the band is one continuous grainy strip
                  with no unpainted gap (the old "6x31 rectangle" was root background showing through the
                  bare splitter column). The tabs sit on top, offset by TabScroll's margin to start at the
                  document edge. ApplySidebarSide sets the start column / span / tab offset per side. -->
+            <!-- Right margin matches the document card's 8px inset (ApplySidebarSide flips it with
+                 the sidebar). Without it the band ran the full width while the card below stopped
+                 8px short, so the band overhung the card's rounded top-right corner and that corner
+                 read as square. The band already spans the splitter column, which is exactly where
+                 the card's -6 pull-back puts its other edge, so the two line up on both sides.
+                 (Steve, 2026-07-31: "when multiple tabs are open the right side doesnt round".) -->
             <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="TabStripBorder"
+                    Margin="0,0,8,0"
                     Background="{DynamicResource BackgroundBrush}" Visibility="Collapsed">
                     <Grid>
                         <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
@@ -2115,16 +2120,39 @@
                         </ScrollViewer>
                     </Grid>
                 </Border>
-            <!-- 1px PaneBorder cap across the TOP of the splitter column so the document's top border reads
-                 as one continuous line into the corner; the splitter's vertical DragLine otherwise pokes
-                 up past the pane's top border at that corner. High ZIndex so it paints over the splitter. -->
-            <Border Grid.Row="1" Grid.Column="1" x:Name="SplitterTopCap" VerticalAlignment="Top" Height="1"
-                    Background="{DynamicResource PaneBorderBrush}" Panel.ZIndex="60" IsHitTestVisible="False"/>
-            <!-- Document pane: row 1 of the document column. -->
+            <!-- SplitterTopCap was here: a 1px cap across the top of the splitter column, joining
+                 the flush pane's top border into the corner so the splitter's vertical DragLine
+                 did not poke past it. The pane is a rounded inset card now and the splitter is a
+                 centered line with no border, so there is no corner to join and the cap would
+                 draw a stray rule across the gap. (2026-07-31.) -->
+            <!-- Document pane: row 1 of the document column.
+                 A lifted card, matching KillerShell's ResultsPane and the rest of the family:
+                 RadCard corners, 1px pane border, PaneShadow cast DOWN over the footer, and an
+                 8px inset on the outer side (ApplySidebarSide moves the inset to whichever side
+                 the document is on). No bottom margin - a DropShadowEffect draws outside the
+                 element's bounds without taking layout space, so a gap there would be real
+                 padding lifting the pane off the footer, not room for the shadow.
+                 (Steve, 2026-07-31: "the entire app is squared edges, it needs modernizing".) -->
+            <!-- Shadow caster: same geometry, NO content, not hit-testable. The effect must NOT go
+                 on DocPaneBorder itself - a WPF Effect rasterizes its whole subtree, so every glyph
+                 in the pane (drop-zone labels, page text, the annotate bars) would render through a
+                 bitmap effect and lose ClearType, and the page bitmap would be re-rasterized on
+                 every scroll and zoom. Family rule, and the same split RootBorder/WindowShadowBorder
+                 already use at the window level. ApplySidebarSide moves this with the pane. -->
+            <Border Grid.Row="1" Grid.Column="2" x:Name="DocPaneShadow" IsHitTestVisible="False"
+                    Background="{DynamicResource BgCanvas}"
+                    CornerRadius="{DynamicResource RadCard}" Margin="0,0,8,0"
+                    Effect="{StaticResource PaneShadow}"/>
             <Border Grid.Row="1" Grid.Column="2" x:Name="DocPaneBorder" Background="{DynamicResource BgCanvas}"
-                    BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1">
-                <Grid>
-                    <!-- Film grain - sits on the canvas background, behind the document -->
+                    BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1"
+                    CornerRadius="{DynamicResource RadCard}" Margin="0,0,8,0">
+                <!-- Clipped to the card's own corners (DocPane_SizeChanged). A Border with a
+                     CornerRadius does NOT clip its child, so the canvas and the page square the
+                     corners straight back off. Same treatment as KillerShell's PaneContent. -->
+                <Grid x:Name="DocPaneContent" SizeChanged="DocPane_SizeChanged">
+                    <!-- Film grain - sits on the canvas background, behind the document.
+                         Needs no CornerRadius of its own: the clip on DocPaneContent rounds
+                         everything inside the card, grain included. -->
                     <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}">
                         <Border.Background>
                             <ImageBrush x:Name="GrainBrush"
@@ -2275,20 +2303,21 @@
                 </Grid>
             </Border>
 
-            <!-- Border lines bridging the slider handle to the toolbar/footer (the doc-pane border
-                 doesn't cover the splitter column). They span the splitter + document columns;
-                 ApplySidebarSide sets the start column for the sidebar side. Top = doc-pane border
-                 color; bottom = slider accent, which continues into the sidebar-facing stripe. -->
-            <Border x:Name="DocTopAccent" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1"
-                    Height="1" VerticalAlignment="Top" IsHitTestVisible="False" Panel.ZIndex="60"
-                    Background="{DynamicResource PaneBorderBrush}"/>
-            <Border x:Name="DocBottomAccent" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1"
-                    Height="1" VerticalAlignment="Bottom" IsHitTestVisible="False" Panel.ZIndex="60"
-                    Background="{DynamicResource DragLine}"/>
+            <!-- DocTopAccent / DocBottomAccent were here: 1px rules at ZIndex 60 spanning the
+                 splitter + document columns, bridging the splitter to the toolbar and footer
+                 because the flush pane's own border stopped at the column edge. The pane is a
+                 rounded inset card now, so a full-width rule at that ZIndex would cut straight
+                 across both curved corners and over the 8px gap. (2026-07-31.) -->
         </Grid>
 
-        <!-- Status bar -->
-        <Border Grid.Row="4" x:Name="FooterBorder" Background="{DynamicResource BackgroundBrush}" CornerRadius="0,0,7,7">
+        <!-- Status bar.
+             ZIndex -1 so the document pane's PaneShadow lands ON the footer instead of being
+             painted over by it: root-grid children all default to 0 and ties break on declaration
+             order, and this is declared after MainContentGrid. Pushing the footer down rather than
+             lifting the content keeps the About overlay - declared later still - on top of both.
+             (Family rule; see KillerShell and Killendar.) -->
+        <Border Grid.Row="4" x:Name="FooterBorder" Panel.ZIndex="-1"
+                Background="{DynamicResource BackgroundBrush}" CornerRadius="0,0,7,7">
             <Grid>
             <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
             <!-- Mirror of the tab-strip shadow gradient, flipped so it darkens at the TOP (toward the

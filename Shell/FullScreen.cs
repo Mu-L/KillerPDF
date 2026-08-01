@@ -69,7 +69,19 @@ namespace KillerPDF
             SidebarOuterGrid.Visibility   = v;
             SidebarToggleStrip.Visibility = v;
             SidebarSplitter.Visibility    = v;
-            SidebarShadow.Visibility      = v;
+
+            // The document pane is a lifted card in normal use (RadCard corners, an 8px inset on
+            // its outer side, PaneShadow). Full screen wants the canvas edge to edge, so the card
+            // treatment comes off entirely and goes back on exit - otherwise a rounded corner and
+            // an 8px strip of window background sit inside a "full screen" view.
+            DocPaneBorder.Margin = entering ? new Thickness(0) : DocPaneInsetMargin();
+            DocPaneBorder.CornerRadius = entering ? new CornerRadius(0)
+                                                  : (CornerRadius)FindResource("RadCard");
+            DocPaneBorder.BorderThickness = new Thickness(entering ? 0 : 1);
+            // The shadow is its own sibling border; hide it outright rather than clearing the
+            // effect, so nothing casts onto a full-screen canvas.
+            DocPaneShadow.Visibility = v;
+            DocPaneShadow.Margin = DocPaneBorder.Margin;
 
             if (entering)
             {
