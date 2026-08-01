@@ -570,48 +570,8 @@ namespace KillerPDF
             }
         }
 
-        /// <summary>
-        /// Strips visual styling (border, color, appearance stream) from all Link annotations
-        /// in the document so they render as invisible clickable areas rather than colored
-        /// rectangles that can look like strikethroughs in other PDF viewers.
-        /// </summary>
-        internal static void StripLinkAnnotationBorders(PdfDocument doc)
-        {
-            foreach (var pdfPage in doc.Pages)
-            {
-                var annotsArr = pdfPage.Elements.GetArray("/Annots");
-                if (annotsArr is null) continue;
-                for (int i = 0; i < annotsArr.Elements.Count; i++)
-                {
-                    PdfItem? elem = annotsArr.Elements[i];
-                    PdfDictionary? ann = elem as PdfDictionary ?? DerefItem(elem) as PdfDictionary;
-                    if (ann is null) continue;
-
-                    // Dereference subtype in case it is an indirect name.
-                    var subtypeItem = ann.Elements["/Subtype"];
-                    var subtype = (subtypeItem as PdfDictionary ?? DerefItem(subtypeItem) as PdfDictionary) is null
-                        ? subtypeItem?.ToString() ?? ""
-                        : "";
-                    if (!subtype.Contains("Link")) continue;
-
-                    // Remove appearance stream and color.
-                    ann.Elements.Remove("/AP");
-                    ann.Elements.Remove("/C");
-
-                    // /BS (border style dict) takes precedence over /Border in PDF spec;
-                    // set W=0 explicitly.  Also set /Border [0 0 0] for older viewers.
-                    var bs = new PdfDictionary();
-                    bs.Elements["/W"] = new PdfInteger(0);
-                    ann.Elements["/BS"] = bs;
-
-                    var borderArr = new PdfArray();
-                    borderArr.Elements.Add(new PdfInteger(0));
-                    borderArr.Elements.Add(new PdfInteger(0));
-                    borderArr.Elements.Add(new PdfInteger(0));
-                    ann.Elements["/Border"] = borderArr;
-                }
-            }
-        }
+        // StripLinkAnnotationBorders lives in Services/PdfScrub.cs (KillerUI refactor), beside
+        // the other pre-save scrubs it always runs with.
 
         /// <summary>
         /// Records a page's link rectangles for the tiled views (continuous, grid, two-page). No

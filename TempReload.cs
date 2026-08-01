@@ -62,8 +62,8 @@ namespace KillerPDF
             var tempPath = App.MakeTempFile("temp");
             try
             {
-                ScrubEmptyOutlines(doc);   // #103: never write a dangling /Outlines reference
-                ScrubDegenerateCropBoxes(doc);   // never write a zero-size /CropBox (Adobe out-of-range)
+                PdfScrub.ScrubEmptyOutlines(doc);   // #103: never write a dangling /Outlines reference
+                PdfScrub.ScrubDegenerateCropBoxes(doc);   // never write a zero-size /CropBox (Adobe out-of-range)
                 doc.Save(tempPath);
                 doc.Close();
             }

@@ -2707,7 +2707,7 @@ namespace KillerPDF
 
             // Strip link annotation borders so they don't render as colored rectangles
             // (e.g. strikethrough-like lines) in other PDF viewers.
-            StripLinkAnnotationBorders(doc);
+            PdfScrub.StripLinkAnnotationBorders(doc);
 
             foreach (var kvp in annotations)
             {

@@ -1309,7 +1309,7 @@ namespace KillerPDF
                     {
                         PdfItem? elem = annotsArr.Elements[ai];
                         PdfDictionary? ann = elem as PdfDictionary
-                            ?? (DerefItemStatic(elem) as PdfDictionary);
+                            ?? (PdfScrub.DerefItemStatic(elem) as PdfDictionary);
                         if (ann is null) continue;
 
                         var subtype = ann.Elements["/Subtype"]?.ToString() ?? "";
@@ -1366,21 +1366,8 @@ namespace KillerPDF
             return arr;
         }
 
-        // Static version of DerefItem for use in static helpers. Internal, not private:
-        // Services/PdfOutlines.cs reaches it too (KillerUI refactor) - a Services-to-Shell reach
-        // in the same debt bucket as the scrubs, all of which folds into Services/PdfScrub.cs
-        // when the Document extraction moves them.
-        internal static PdfItem? DerefItemStatic(PdfItem? item)
-        {
-            // Absent dictionary keys arrive here as null (Elements["/X"] on a fresh document is
-            // null for /AcroForm, /Kids, ...). The scrubs' pattern matches treat null as "not
-            // there", which is correct - dereferencing it here just tripped an NRE first.
-            if (item is null) return null;
-            var valueProp = item.GetType().GetProperty("Value",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            if (valueProp?.GetValue(item) is PdfObject resolved) return resolved;
-            return item;
-        }
+        // DerefItemStatic, RectNum and the pre-save scrubs live in Services/PdfScrub.cs
+        // (KillerUI refactor) - pure functions shared by the GUI saves, TempReload and the CLI.
 
         // ============================================================
         // Adobe page-size guard
@@ -1445,15 +1432,15 @@ namespace KillerPDF
 
             // Annotation rectangles (and link quad points) must follow so they stay on target.
             var annotsItem = page.Elements["/Annots"];
-            if (annotsItem != null && DerefItemStatic(annotsItem) is PdfArray annots)
+            if (annotsItem != null && PdfScrub.DerefItemStatic(annotsItem) is PdfArray annots)
             {
                 foreach (var item in annots.Elements)
                 {
-                    if (DerefItemStatic(item) is not PdfDictionary annot) continue;
+                    if (PdfScrub.DerefItemStatic(item) is not PdfDictionary annot) continue;
                     ScaleRectValue(annot.Elements, "/Rect", s);
                     if (annot.Elements["/QuadPoints"] is PdfArray quads)
                         for (int i = 0; i < quads.Elements.Count; i++)
-                            quads.Elements[i] = new PdfReal(RectNum(quads.Elements[i]) * s);
+                            quads.Elements[i] = new PdfReal(PdfScrub.RectNum(quads.Elements[i]) * s);
                 }
             }
         }
@@ -1464,115 +1451,14 @@ namespace KillerPDF
         {
             var item = elements[key];
             if (item == null) return;
-            item = DerefItemStatic(item);
+            item = PdfScrub.DerefItemStatic(item);
             if (item is PdfRectangle rect)
                 elements.SetRectangle(key, new PdfRectangle(
                     new XPoint(rect.X1 * s, rect.Y1 * s),
                     new XPoint(rect.X2 * s, rect.Y2 * s)));
             else if (item is PdfArray arr && arr.Elements.Count == 4)
                 for (int i = 0; i < 4; i++)
-                    arr.Elements[i] = new PdfReal(RectNum(arr.Elements[i]) * s);
-        }
-
-        private static double RectNum(PdfItem item) =>
-            item is PdfReal r ? r.Value : item is PdfInteger n ? n.Value : 0;
-
-        // #103: PdfSharpCore's writer can emit the catalog's /Outlines reference without ever
-        // writing the (empty, lazily created) outlines object itself - a dangling xref entry
-        // that strict parsers, including PdfSharpCore on reopen, refuse. An outlines dictionary
-        // with no /First contains no bookmarks, so dropping the entry is a semantic no-op that
-        // keeps the file consistent. Real bookmark trees (/First present) are left untouched.
-        // Called before every save of the working document.
-        internal static void ScrubEmptyOutlines(PdfDocument doc)
-        {
-            try
-            {
-                var cat = doc.Internals.Catalog;
-                var item = cat.Elements["/Outlines"];
-                if (item == null) return;
-                var resolved = DerefItemStatic(item);
-                if (resolved is not PdfDictionary o || o.Elements["/First"] == null)
-                    cat.Elements.Remove("/Outlines");
-            }
-            catch { /* malformed catalog - leave the save as-is */ }
-        }
-
-        // PdfSharpCore's PdfPage.MediaBox/CropBox property GETTERS have create-on-read semantics:
-        // touching page.CropBox on a page that has none plants an empty /CropBox [0 0 0 0] into
-        // the page dictionary (the same lazy-getter trap as the phantom /Outlines above). A
-        // zero-size page box saves to disk and Adobe then rejects the page as "dimensions
-        // out-of-range" even though the MediaBox is fine (Chrome falls back to the MediaBox,
-        // which is why such files still open there). Dropping a degenerate CropBox is a semantic
-        // no-op - the page falls back to its MediaBox - and it also HEALS files written by
-        // affected versions (1.6.x up to 1.6.2) when they are re-saved. Real crops are untouched.
-        // Called before every save of the working document.
-        internal static void ScrubDegenerateCropBoxes(PdfDocument doc)
-        {
-            try
-            {
-                for (int i = 0; i < doc.PageCount; i++)
-                {
-                    var elements = doc.Pages[i].Elements;
-                    var item = elements["/CropBox"];
-                    if (item is null) continue;
-                    var resolved = DerefItemStatic(item);
-
-                    // The box can be a parsed PdfArray (loaded from disk) or a PdfRectangle
-                    // (planted in memory by the lazy getter) - handle both, like ScaleRectValue.
-                    double w = -1, h = -1;
-                    if (resolved is PdfRectangle rect)
-                    {
-                        w = Math.Abs(rect.X2 - rect.X1);
-                        h = Math.Abs(rect.Y2 - rect.Y1);
-                    }
-                    else if (resolved is PdfArray arr && arr.Elements.Count == 4 &&
-                             arr.Elements[0] is PdfReal or PdfInteger && arr.Elements[1] is PdfReal or PdfInteger &&
-                             arr.Elements[2] is PdfReal or PdfInteger && arr.Elements[3] is PdfReal or PdfInteger)
-                    {
-                        w = Math.Abs(RectNum(arr.Elements[2]) - RectNum(arr.Elements[0]));
-                        h = Math.Abs(RectNum(arr.Elements[3]) - RectNum(arr.Elements[1]));
-                    }
-
-                    // Remove only when we could read the box AND it is degenerate; anything we
-                    // cannot interpret is left alone rather than destroyed.
-                    if (w >= 0 && (w < 1 || h < 1))
-                        elements.Remove("/CropBox");
-                }
-            }
-            catch { /* malformed page tree - leave the save as-is */ }
-        }
-
-        // A KillerPDF save fully REWRITES the file, which mathematically invalidates any existing
-        // digital signature: its /ByteRange and digest describe the old bytes (ISO 19005-2, 6.4.3
-        // requires the digest to cover the entire file). Carrying the dead signature forward
-        // misleads viewers and fails PDF/A validation, so strip signature VALUES (/V) from
-        // signature fields and the catalog's /Perms certification (DocMDP / usage rights) that
-        // references them. The empty fields stay and can be re-signed via Sign Document.
-        // Called before every save of the working document.
-        internal static void ScrubDeadSignatures(PdfDocument doc)
-        {
-            try
-            {
-                var cat = doc.Internals.Catalog;
-                cat.Elements.Remove("/Perms");
-                if (DerefItemStatic(cat.Elements["/AcroForm"]) is not PdfDictionary acro) return;
-                if (DerefItemStatic(acro.Elements["/Fields"]) is PdfArray fields)
-                    ScrubSigFieldValues(fields, 0);
-            }
-            catch { /* malformed catalog - leave the save as-is */ }
-        }
-
-        private static void ScrubSigFieldValues(PdfArray fields, int depth)
-        {
-            if (depth > 8) return;   // defensive: malformed circular /Kids
-            foreach (var item in fields.Elements)
-            {
-                if (DerefItemStatic(item) is not PdfDictionary field) continue;
-                if (field.Elements.GetName("/FT") == "/Sig" && field.Elements["/V"] != null)
-                    field.Elements.Remove("/V");
-                if (DerefItemStatic(field.Elements["/Kids"]) is PdfArray kids)
-                    ScrubSigFieldValues(kids, depth + 1);
-            }
+                    arr.Elements[i] = new PdfReal(PdfScrub.RectNum(arr.Elements[i]) * s);
         }
 
         private void SaveInPlace()
@@ -1584,9 +1470,9 @@ namespace KillerPDF
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(this, new RoutedEventArgs()); return; }
             CommitActiveTextBox();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
-            ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
+            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
+            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
+            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             string saveTarget = _originalFile!;
             // #129: the cached PDFium link handle (EnsureLinkPdfiumDoc) can hold _currentFile open,
             // and on a plain open _currentFile IS the user's real file - PdfSharp then can't overwrite
@@ -1599,7 +1485,7 @@ namespace KillerPDF
                 WriteFormValuesToDocument();
                 // Always strip link annotation borders regardless of user annotation count
                 // so mailto/URI links don't appear as strikethrough lines in other viewers.
-                StripLinkAnnotationBorders(_doc);
+                PdfScrub.StripLinkAnnotationBorders(_doc);
 
                 if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
@@ -1687,15 +1573,15 @@ namespace KillerPDF
             if (dlg.ShowDialog(this) != true) return;
             CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
-            ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
+            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
+            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
+            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
                 WriteFormValuesToDocument();
                 // Always strip link annotation borders regardless of user annotation count.
-                StripLinkAnnotationBorders(_doc);
+                PdfScrub.StripLinkAnnotationBorders(_doc);
 
                 if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
@@ -1762,9 +1648,9 @@ namespace KillerPDF
             if (dlg.ShowDialog(this) != true) return;
             CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
-            ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
+            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
+            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
+            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)

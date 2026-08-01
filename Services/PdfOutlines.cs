@@ -64,9 +64,7 @@ namespace KillerPDF.Services
             {
                 var item = doc.Internals.Catalog.Elements["/Outlines"];
                 if (item is null) return;
-                // MainWindow.DerefItemStatic is a Shell static reach, same debt bucket as the
-                // scrubs; all of it folds into Services/PdfScrub.cs with the Document extraction.
-                if (MainWindow.DerefItemStatic(item) is PdfDictionary root)
+                if (PdfScrub.DerefItemStatic(item) is PdfDictionary root)
                 {
                     root.Elements.Remove("/First");
                     root.Elements.Remove("/Last");

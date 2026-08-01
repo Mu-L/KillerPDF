@@ -19,11 +19,11 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
-// The pre-save scrubs (ScrubEmptyOutlines, ScrubDegenerateCropBoxes, ScrubDeadSignatures) are
-// still MainWindow statics, because they lean on DerefItemStatic / RectNum / ScrubSigFieldValues
-// which live there too. Importing them statically keeps the call sites below unchanged. They
-// belong in Services/PdfScrub.cs and move there when FileOperations is extracted - a Features
-// class should not be reaching into the shell.
+// The pre-save scrubs moved to Services/PdfScrub.cs (KillerUI refactor, 2026-07-31) and are
+// called qualified below. This static import remains ONLY for the import/render helpers still
+// on MainWindow (IsPdfPath, AddImagePagesFromFile, BuildNamedDestMap, RewriteNamedDestLinks,
+// PdfFileHasEncryption, TryPdfiumStripEncryption, TryImportRepairToPath, RotateBitmapStatic,
+// RenderToPng) - a Features-to-Shell dependency that clears with the Document extraction.
 using static KillerPDF.MainWindow;
 // OpenBatchConsole and FlattenBatchDetail are shared with the batch runner.
 using static KillerPDF.Features.BatchRunner;
@@ -283,8 +283,8 @@ namespace KillerPDF.Features
                 }
             }
 
-            ScrubEmptyOutlines(outPdf);
-            ScrubDegenerateCropBoxes(outPdf);
+            PdfScrub.ScrubEmptyOutlines(outPdf);
+            PdfScrub.ScrubDegenerateCropBoxes(outPdf);
             CliEnsureParentDir(outPath);
             outPdf.Save(outPath);
             con.WriteLine($"Merged {inputs.Count} files ({outPdf.PageCount} pages) -> {outPath}");
@@ -313,8 +313,8 @@ namespace KillerPDF.Features
             using var newDoc = new PdfDocument();
             foreach (var idx in indices)
                 newDoc.AddPage(importDoc.Pages[idx]);
-            ScrubEmptyOutlines(newDoc);
-            ScrubDegenerateCropBoxes(newDoc);
+            PdfScrub.ScrubEmptyOutlines(newDoc);
+            PdfScrub.ScrubDegenerateCropBoxes(newDoc);
             CliEnsureParentDir(outPath);
             newDoc.Save(outPath);
             con.WriteLine($"Extracted {indices.Count} pages -> {outPath}");
@@ -342,8 +342,8 @@ namespace KillerPDF.Features
             {
                 using var single = new PdfDocument();
                 single.AddPage(importDoc.Pages[i]);
-                ScrubEmptyOutlines(single);
-                ScrubDegenerateCropBoxes(single);
+                PdfScrub.ScrubEmptyOutlines(single);
+                PdfScrub.ScrubDegenerateCropBoxes(single);
                 single.Save(Path.Combine(outDir, $"{baseName}-page-{(i + 1).ToString().PadLeft(digits, '0')}.pdf"));
             }
             con.WriteLine($"Split {importDoc.PageCount} pages into {outDir}");
@@ -372,8 +372,8 @@ namespace KillerPDF.Features
             if (!string.IsNullOrEmpty(password))
             {
                 using var doc = PdfReader.Open(inPath, password!, PdfDocumentOpenMode.Modify);
-                ScrubEmptyOutlines(doc);
-                ScrubDegenerateCropBoxes(doc);
+                PdfScrub.ScrubEmptyOutlines(doc);
+                PdfScrub.ScrubDegenerateCropBoxes(doc);
                 doc.Save(outPath);
                 con.WriteLine($"Decrypted -> {outPath}");
                 return 0;
@@ -440,8 +440,8 @@ namespace KillerPDF.Features
                 if (!anyRot) return (workPath, rotations, dims);
 
                 var renderTemp = App.MakeTempFile("clirender");
-                ScrubEmptyOutlines(doc);
-                ScrubDegenerateCropBoxes(doc);
+                PdfScrub.ScrubEmptyOutlines(doc);
+                PdfScrub.ScrubDegenerateCropBoxes(doc);
                 doc.Save(renderTemp);
                 return (renderTemp, rotations, dims);
             }
@@ -773,8 +773,8 @@ namespace KillerPDF.Features
                 using var outDoc = PdfReader.Open(outPath, PdfDocumentOpenMode.Modify);
                 for (int i = 0; i < outDoc.PageCount && i < rotations.Length; i++)
                     if (rotations[i] != 0) outDoc.Pages[i].Rotate = rotations[i];
-                ScrubEmptyOutlines(outDoc);
-                ScrubDegenerateCropBoxes(outDoc);
+                PdfScrub.ScrubEmptyOutlines(outDoc);
+                PdfScrub.ScrubDegenerateCropBoxes(outDoc);
                 outDoc.Save(outPath);
             }
 

@@ -5,8 +5,10 @@ using System.Runtime.InteropServices;
 using System.Text;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
-// Pre-save scrubs are still MainWindow statics - see the note in CliRunner.cs. They move to
-// Services/PdfScrub.cs when FileOperations is extracted.
+using KillerPDF.Services;
+// Pre-save scrubs moved to Services/PdfScrub.cs (KillerUI refactor, 2026-07-31). This static
+// import remains ONLY for PdfFileHasEncryption, still on MainWindow - see the note in
+// CliRunner.cs; that debt clears with the Document extraction.
 using static KillerPDF.MainWindow;
 
 namespace KillerPDF.Features
@@ -19,8 +21,8 @@ namespace KillerPDF.Features
     //
     // Resaves one PDF (or every *.pdf under a folder tree, mirroring the
     // relative structure into the output folder) through the same pipeline a
-    // GUI save uses: PdfReader.Open(Modify), ScrubEmptyOutlines,
-    // ScrubDegenerateCropBoxes, StripLinkAnnotationBorders, Save. No window,
+    // GUI save uses: PdfReader.Open(Modify), PdfScrub.ScrubEmptyOutlines,
+    // PdfScrub.ScrubDegenerateCropBoxes, PdfScrub.StripLinkAnnotationBorders, Save. No window,
     // no dialogs, no repair fallbacks, no encryption stripping - files that
     // cannot go through the plain Modify pipeline are reported as SKIP with a
     // reason instead of silently faking a result.
@@ -217,10 +219,10 @@ namespace KillerPDF.Features
             try
             {
                 // Same pre-save pipeline as SaveInPlace for a document with no user edits.
-                ScrubEmptyOutlines(doc);          // #103: never write a dangling /Outlines reference
-                ScrubDegenerateCropBoxes(doc);    // never write a zero-size /CropBox (Adobe out-of-range)
-                ScrubDeadSignatures(doc);         // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
-                StripLinkAnnotationBorders(doc);  // link borders are stripped on every GUI save
+                PdfScrub.ScrubEmptyOutlines(doc);          // #103: never write a dangling /Outlines reference
+                PdfScrub.ScrubDegenerateCropBoxes(doc);    // never write a zero-size /CropBox (Adobe out-of-range)
+                PdfScrub.ScrubDeadSignatures(doc);         // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
+                PdfScrub.StripLinkAnnotationBorders(doc);  // link borders are stripped on every GUI save
                 doc.Save(dst);
                 doc.Close();
                 return "OK";
