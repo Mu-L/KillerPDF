@@ -178,6 +178,11 @@ namespace KillerPDF
             if (layoutTransform != null) overlay.LayoutTransform = layoutTransform;
             overlay.PreviewMouseLeftButtonDown += Canvas_MouseLeftButtonDown;
             WirePageOverlay(overlay, page);
+            // #151: the page-number tooltip only existed on the secondary tiles, so whether it
+            // showed depended on the view mode (none in Single/Continuous, even pages only in
+            // Two-Page, from page 2 in Grid). Set here it covers every code-built overlay; the
+            // XAML primary tile gets the same line in RenderPage, where its page changes.
+            overlay.ToolTip = string.Format(Loc("Str_PageLabel"), page + 1);
             return overlay;
         }
 
@@ -681,6 +686,10 @@ namespace KillerPDF
 
                 int pgRot = _pageRotations.TryGetValue(pageIndex, out int pr0) ? pr0 : 0;
 
+                // #151: keep the primary tile's page tooltip in step with what it shows, matching
+                // the code-built overlays (BuildPageOverlay).
+                _annotationCanvas.ToolTip = string.Format(Loc("Str_PageLabel"), pageIndex + 1);
+
                 // Reuse this tab's cached bitmap for (page, resolution, rotation) if present; otherwise
                 // rasterize once and cache it. On a switch back to a recent tab this skips pdfium entirely.
                 int width, height;
@@ -1025,7 +1034,6 @@ namespace KillerPDF
 
             var overlay = BuildPageOverlay(pi, pageDipW, pageDipH, null);
             overlay.Cursor = CursorForTool(_currentTool);
-            overlay.ToolTip = string.Format(Loc("Str_PageLabel"), pi + 1);
 
             var pageGrid = new Grid();
             pageGrid.Children.Add(img);

@@ -104,10 +104,13 @@ namespace KillerPDF
                 new("F7",        "Str_View_TwoPage"),
                 new("F8",        "Str_View_Grid"),
                 new("F9",        "Str_KS_CycleView"),
+                // Untranslated gesture literals, same convention as "Middle drag" below Navigation.
+                new("Wheel on view", "Str_KS_CycleView"),
                 new("F11 / Esc", "Str_KS_FullScreen"),
                 new("N",         "Str_DocInvertSetting"),
                 new("Shift+N",   "Str_InvertImagesToo"),
                 new("Ctrl+Shift+= / - / 0", "Str_KS_AppSize"),
+                new("Wheel on logo",   "Str_KS_AppSize"),
                 new("Ctrl+Shift+1..6", "Str_KS_ToolbarStyle"),
             ]},
             new KsSection { TitleKey = "Str_KS_Ocr", Rows =
