@@ -79,7 +79,7 @@ namespace KillerPDF
         // HighlightEraseGeometry (shared by on-screen rendering and PDF export) lives in
         // Services/PdfBurn.cs with the rest of the burn-to-document core.
 
-        private void RenderAllAnnotations(int pageIndex)
+        internal void RenderAllAnnotations(int pageIndex)
         {
             // Resolve this page's annotation surface from the unified per-page overlay map, which
             // every multi-page view populates; fall back to the single-page canvas. View-mode
@@ -258,7 +258,7 @@ namespace KillerPDF
             catch { return null; }
         }
 
-        private void ClearSelection()
+        internal void ClearSelection()
         {
             if (_selectionBorder is not null)
             {
@@ -730,7 +730,7 @@ namespace KillerPDF
 
         // Draws the selection marquee on the top-most MarqueeLayer (above every page) so a drag can span
         // pages. Maps the two corners from the start page's canvas into the layer's coordinate space.
-        private void UpdateMarquee(Point startInStartCanvas, Point currentInStartCanvas)
+        internal void UpdateMarquee(Point startInStartCanvas, Point currentInStartCanvas)
         {
             var gc = _gestureCanvas ?? _activeCanvas;
             if (_selectRect is null || gc is null) return;
@@ -800,7 +800,7 @@ namespace KillerPDF
             return null;
         }
 
-        private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        internal void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (_doc is null) return;
             if (sender is Canvas srcCanvas) _activeCanvas = srcCanvas;
@@ -1308,13 +1308,13 @@ namespace KillerPDF
 
         // The pointer left a page surface: drop the brush cursor so it doesn't hang frozen at the page
         // edge (MouseMove stops firing off-canvas, so it can't clear itself there).
-        private void Canvas_MouseLeave(object sender, MouseEventArgs e)
+        internal void Canvas_MouseLeave(object sender, MouseEventArgs e)
         {
             HideBrushPreview();
             ShowLinkHoverStatus(null);   // restore the status bar when the pointer leaves the page
         }
 
-        private void Canvas_MouseMove(object sender, MouseEventArgs e)
+        internal void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
             // Don't interfere with mouse interaction inside form field overlays.
             if (e.OriginalSource is DependencyObject moveSrc && IsFormFieldElement(moveSrc))
@@ -1659,7 +1659,7 @@ namespace KillerPDF
             }
         }
 
-        private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        internal void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             // Don't process release events that originate inside the crop confirm bar.
             if (_cropConfirmBar is not null && e.OriginalSource is DependencyObject cropSrc &&
@@ -2301,7 +2301,7 @@ namespace KillerPDF
             foreach (var hd in _resizeHandles) _activeCanvas.Children.Add(hd);
         }
 
-        private static bool IsDescendantOf(DependencyObject child, DependencyObject parent)
+        internal static bool IsDescendantOf(DependencyObject child, DependencyObject parent)
         {
             var current = child;
             while (current != null)

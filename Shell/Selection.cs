@@ -32,7 +32,7 @@ namespace KillerPDF
         // pale cream that washes out on white). Falls back to brand green.
         private Color AccentColor()
             => TryFindResource("SelectionAccent") is SolidColorBrush b ? b.Color : Color.FromRgb(30, 165, 76);
-        private SolidColorBrush AccentBrush(byte alpha = 255)
+        internal SolidColorBrush AccentBrush(byte alpha = 255)
         {
             var c = AccentColor();
             return new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
@@ -396,7 +396,7 @@ namespace KillerPDF
             }
         }
 
-        private void ClearTextSelection()
+        internal void ClearTextSelection()
         {
             if (_selectRect is not null)
             {

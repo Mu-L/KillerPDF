@@ -19,11 +19,20 @@ using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
-namespace KillerPDF
+namespace KillerPDF.Controls
 {
     // Page viewport: builds the page tiles and annotation overlays for all four view modes (single,
     // continuous, two-page, grid) and handles preview scrolling.
-    public partial class MainWindow
+    //
+    // Split pane stage 3: moved here from Shell/Viewport.cs, VERBATIM apart from this namespace and
+    // class line. RenderPage / SetupContinuousView / AddSecondaryTile / WirePageOverlay and the
+    // _pages / _continuousCanvases invariant had to travel together - CLAUDE.md documents why
+    // splitting them repoints every page at the hidden primary tile.
+    //
+    // The body still spells window things bare (PageList, _doc, Loc, RenderAllAnnotations, ...).
+    // Those resolve through PdfViewer.Bridge.cs, which forwards each one to Owner. That is what
+    // kept this file byte-identical instead of rewriting ~700 references.
+    public partial class PdfViewer
     {
         // ── Dark mode: image regions excluded from the inversion (#135 follow-up) ──────────────
         // Cache keyed by "page|file" so tab switches and temp reloads (which change the temp file
@@ -55,7 +64,17 @@ namespace KillerPDF
             return rects;
         }
 
-        private void ScrollContinuousToPage(int pageIndex)
+        /// <summary>Attach the scroll handler. The window used to wire this in its constructor, but
+        /// PagePreviewPanel is inside this control's namescope now, so the control does it - called
+        /// from the MainWindow ctor at the point the += used to sit.</summary>
+        internal void WireScrollChanged()
+            => PagePreviewPanel.ScrollChanged += PagePreviewPanel_ScrollChanged;
+
+        /// <summary>Drop the per-page image-rect cache (the night-mode carve-out). Called by the
+        /// window's FlushAllRenderCaches when the invert state flips; it re-fills lazily.</summary>
+        internal void FlushImageRectCache() => _pageImageRects.Clear();
+
+        internal void ScrollContinuousToPage(int pageIndex)
         {
             if (pageIndex < 0 || pageIndex >= _continuousTops.Count) return;
             double target = _continuousTops[pageIndex] * _zoomLevel;
@@ -139,7 +158,7 @@ namespace KillerPDF
             // Split pane stage 3a. This is the one write that detaches the handler (to avoid
             // re-entering the render path from a scroll sync), so it is also the one that would
             // slip past the mirror there. Set it by hand.
-            _view.CurrentPage = nearest;
+            State.CurrentPage = nearest;
             if (_doc is not null)
                 SetStatus(string.Format(Loc("Str_PageOf"), nearest + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
         }
@@ -200,7 +219,7 @@ namespace KillerPDF
         // It deliberately does NOT use WirePageOverlay - the primary must stay OUT of _continuousCanvases, and
         // RenderPage remains the sole registrar of _pages[primary], preserving ClearSecondaryPages' "keep the
         // index-0 tile" contract. Runs once from the constructor after _pageContentPanel is resolved.
-        private void BuildPrimaryTile()
+        internal void BuildPrimaryTile()
         {
             var img = new Image { Stretch = Stretch.None };
             RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
@@ -228,7 +247,7 @@ namespace KillerPDF
             _annotationCanvas = overlay;
         }
 
-        private void SetupContinuousView(int initialPage, bool fitDefault = true)
+        internal void SetupContinuousView(int initialPage, bool fitDefault = true)
         {
             if (_doc is null) return;
             // #130: a malformed page tree can parse to zero pages - Pages[0] below would throw
@@ -355,7 +374,7 @@ namespace KillerPDF
         private const int ContinuousKeepPages    = 10;   // pages each side of the viewport that get bitmaps
         private const int ContinuousReleasePages = 15;   // release only beyond this (hysteresis, no edge churn)
 
-        private async System.Threading.Tasks.Task RenderContinuousPages(int centerPage)
+        internal async System.Threading.Tasks.Task RenderContinuousPages(int centerPage)
         {
             if (_doc is null || _currentFile is null) return;
             _continuousRenderCts?.Cancel();
@@ -664,7 +683,7 @@ namespace KillerPDF
         // made the whole grid flash empty and re-stream - RenderAdditionalPages swaps bitmaps
         // into existing tiles in place, so keeping them repaints without any layout jitter.
         // Navigation keeps the default (clear first) since the tile set actually changes.
-        private void RenderPage(int pageIndex, bool keepTiles = false)
+        internal void RenderPage(int pageIndex, bool keepTiles = false)
         {
             if (_currentFile is null || _doc is null) return;
             // Continuous has its own pipeline (SetupContinuousView + RenderContinuousPages into
@@ -1092,7 +1111,7 @@ namespace KillerPDF
             }
         }
 
-        private void BootstrapDocumentView(int initialPage, bool autoFit, bool restoreFitMode = false)
+        internal void BootstrapDocumentView(int initialPage, bool autoFit, bool restoreFitMode = false)
         {
             // The document is (re)displaying - usually a different one (tab switch/close/open). The
             // skip-render guard in PageList_SelectionChanged compares the target page to the last
@@ -1164,7 +1183,7 @@ namespace KillerPDF
             }
         }
 
-        private void RefreshPageView(int pageIndex)
+        internal void RefreshPageView(int pageIndex)
         {
             if (_viewMode == ViewMode.Continuous)
                 return; // continuous mode manages its own rendering
@@ -1212,7 +1231,7 @@ namespace KillerPDF
                 RenderPageLinks(pageIndex, dims.w, dims.h);
         }
 
-        private void ApplyZoom(bool lite = false)
+        internal void ApplyZoom(bool lite = false)
         {
             if (_pageContentGrid.LayoutTransform is ScaleTransform st)
             {
@@ -1252,7 +1271,7 @@ namespace KillerPDF
         // Debounced high-resolution re-render, shared by zoom settle (all modes) and continuous scroll
         // settle. Continuous gets the targeted visible-page re-sharpen (#85); Single/Two-Page re-render
         // the primary via RenderPage (which is guarded off in Continuous).
-        private void StartRerenderTimer()
+        internal void StartRerenderTimer()
         {
             if (_rerenderTimer is null)
             {
@@ -1290,7 +1309,7 @@ namespace KillerPDF
         // Grid zoom snaps to "fit N pages across the viewport", so zooming steps through clean
         // columns (1, 2, 3, ... per row) instead of arbitrary percentages. N rises as you zoom out
         // and keeps going for larger documents until the page size hits the zoom floor.
-        private double GridZoomForN(int n)
+        internal double GridZoomForN(int n)
         {
             if (n < 1) n = 1;
             double rdW = _annotationCanvas.Width > 0 ? _annotationCanvas.Width : 1583;
@@ -1305,7 +1324,7 @@ namespace KillerPDF
             return (vw - n * GridGapPx) / (n * rdW);
         }
 
-        private void GridZoomStep(bool zoomOut)
+        internal void GridZoomStep(bool zoomOut)
         {
             double rdW = _annotationCanvas.Width > 0 ? _annotationCanvas.Width : 1583;
             double vw  = PagePreviewPanel.ActualWidth;
@@ -1345,9 +1364,9 @@ namespace KillerPDF
             if (naturalW <= 0) return 1.0;
             return d.w / naturalW;
         }
-        private double DisplayZoomPct() => _zoomLevel * DisplayZoomFactor() * 100.0;
+        internal double DisplayZoomPct() => _zoomLevel * DisplayZoomFactor() * 100.0;
 
-        private void SetZoom(double level)
+        internal void SetZoom(double level)
         {
             _fitMode   = FitMode.None;
             _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, level));
@@ -1364,17 +1383,17 @@ namespace KillerPDF
         /// percentage in every view mode instead of ~182% outside Continuous. The zoom dropdown
         /// already does this same conversion inline for its presets.
         /// </summary>
-        private void SetTrueZoom(double trueZoom)
+        internal void SetTrueZoom(double trueZoom)
         {
             double zf = DisplayZoomFactor();
             if (zf <= 0) zf = 1.0;
             SetZoom(trueZoom / zf);
         }
 
-        private void ZoomIn_Click(object sender, RoutedEventArgs e)  { if (_viewMode == ViewMode.Grid) GridZoomStep(false); else SetZoom(_zoomLevel + ZoomStep); }
-        private void ZoomOut_Click(object sender, RoutedEventArgs e) { if (_viewMode == ViewMode.Grid) GridZoomStep(true);  else SetZoom(_zoomLevel - ZoomStep); }
+        internal void ZoomIn_Click(object sender, RoutedEventArgs e)  { if (_viewMode == ViewMode.Grid) GridZoomStep(false); else SetZoom(_zoomLevel + ZoomStep); }
+        internal void ZoomOut_Click(object sender, RoutedEventArgs e) { if (_viewMode == ViewMode.Grid) GridZoomStep(true);  else SetZoom(_zoomLevel - ZoomStep); }
 
-        private void SyncZoomBox()
+        internal void SyncZoomBox()
         {
             if (_zoomBox is null) return;
             _zoomBox.SelectionChanged -= ZoomBox_SelectionChanged;
@@ -1413,7 +1432,7 @@ namespace KillerPDF
             _zoomBox.SelectionChanged += ZoomBox_SelectionChanged;
         }
 
-        private void ZoomBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        internal void ZoomBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_zoomBox?.SelectedItem is not ComboBoxItem item) return;
             // Editable combos highlight the shown value after a pick (looks like selected text);
@@ -1455,7 +1474,7 @@ namespace KillerPDF
                     PageImage.ActualHeight > 0 ? PageImage.ActualHeight : 1);
         }
 
-        private void FitToWidth(bool lite = false)
+        internal void FitToWidth(bool lite = false)
         {
             double viewW = PagePreviewPanel.ActualWidth - 40;
             if (viewW <= 0) return;
@@ -1489,7 +1508,7 @@ namespace KillerPDF
                 SetStatus(string.Format(Loc("Str_FitWidth"), idx + 1, _doc.PageCount, $"{DisplayZoomPct():F0}"));
         }
 
-        private void FitToPage(bool lite = false)
+        internal void FitToPage(bool lite = false)
         {
             double viewW = PagePreviewPanel.ActualWidth  - 40;
             double viewH = PagePreviewPanel.ActualHeight - 40;
@@ -1527,7 +1546,7 @@ namespace KillerPDF
 
         // Re-fit the main view after a reload. Grid keeps its column-fit (FitToWidth alone would
         // yank it out into a single-page Fit Width view); other modes honor the fit mode.
-        private void ReapplyGridOrFit()
+        internal void ReapplyGridOrFit()
         {
             if (_viewMode == ViewMode.Grid)
             {
@@ -1542,14 +1561,14 @@ namespace KillerPDF
             else FitToWidth();
         }
 
-        private void NavigatePageByWheel(int delta)
+        internal void NavigatePageByWheel(int delta)
             => NavigatePageStep(delta > 0 ? -1 : 1);
 
         // Moves the selection one page - or one two-page SPREAD in Two-Page mode (#120), landing on
         // the spread's left page so a press always shows the NEXT spread instead of re-showing the
         // current one from its right page. direction: -1 = back, +1 = forward. Returns true when
         // the selection moved. Shared by the wheel, the Up/Down edge-flip, and the Left/Right keys.
-        private bool NavigatePageStep(int direction)
+        internal bool NavigatePageStep(int direction)
         {
             if (_doc is null) return false;
             int cur = PageList.SelectedIndex;
@@ -1643,7 +1662,7 @@ namespace KillerPDF
             return best;
         }
 
-        private void SelectViewMode(ViewMode mode)
+        internal void SelectViewMode(ViewMode mode)
         {
             SetViewMode(mode);
             // Leave the flyout open (PanelMenuItem) so the user can try view modes back to back.
@@ -1657,7 +1676,10 @@ namespace KillerPDF
         // SetViewMode during that window just retargets it (rapid F5-F8 presses land on the last).
         // Forwarding property onto the per-view state (split pane stage 1) - it belongs to a view,
         // not to the window, since two panes fade independently.
-        private ViewMode? _pendingViewMode { get => _view.Pending; set => _view.Pending = value; }
+        // _pendingViewMode's definition moved to PdfViewer.Bridge.cs with the rest of the state
+        // accessors; PendingViewMode below is how the window's flyout code still reaches it.
+        internal ViewMode? PendingViewMode { get => _pendingViewMode; set => _pendingViewMode = value; }
+        internal int GridColumns { get => _gridColumns; set => _gridColumns = value; }
 
         // Fade wrapper around the actual mode switch (ApplyViewMode). The switch itself swaps panel
         // visibility instantly and defers its layout/scroll setup through the dispatcher, so doing
@@ -1665,7 +1687,7 @@ namespace KillerPDF
         // strip before the deferred ScrollContinuousToPage ran. Fading the viewport out, switching
         // while it's invisible, and fading back in AFTER the setup queue drains hides all of that
         // and gives every mode switch the same soft transition.
-        private void SetViewMode(ViewMode mode)
+        internal void SetViewMode(ViewMode mode)
         {
             if (_pendingViewMode is not null)   // mid-fade: retarget the switch already underway
             {
@@ -1699,7 +1721,7 @@ namespace KillerPDF
             PagePreviewPanel.BeginAnimation(UIElement.OpacityProperty, fadeOut);
         }
 
-        private void ApplyViewMode(ViewMode mode)
+        internal void ApplyViewMode(ViewMode mode)
         {
             if (_viewMode == mode) return;
             _viewMode = mode;

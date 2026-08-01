@@ -165,7 +165,7 @@ namespace KillerPDF
         // Cancels the previous thumbnail background load when the file changes.
         private System.Threading.CancellationTokenSource? _thumbCts;
 
-        private void RefreshPageList()
+        internal void RefreshPageList()
         {
             // Cancel any in-flight thumbnail load for the previous file.
             _thumbCts?.Cancel();

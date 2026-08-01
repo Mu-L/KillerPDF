@@ -23,6 +23,13 @@ namespace KillerPDF.Controls
         /// handler below is inert until it is.</summary>
         internal MainWindow? Owner { get; set; }
 
+        /// <summary>This viewer's own per-view state - page maps, view mode, zoom, render
+        /// cancellation, continuous bookkeeping. Split pane stage 3: the VIEWER owns this now,
+        /// where stage 1 had the window holding the single instance. MainWindow's `_view` reads it
+        /// back from here, so every forwarding property on the window still resolves and the ~500
+        /// call sites behind them never changed. A second pane gets its own simply by existing.</summary>
+        internal ViewerState State { get; } = new();
+
         public PdfViewer() => InitializeComponent();
 
         // ---- Element access for the window --------------------------------------------------
@@ -55,11 +62,9 @@ namespace KillerPDF.Controls
 
         private void RecentClearAll_Click(object s, MouseButtonEventArgs e) => Owner?.RecentClearAll_Click(s, e);
 
-        private void PagePreview_PreviewMouseWheel(object s, MouseWheelEventArgs e) => Owner?.PagePreview_PreviewMouseWheel(s, e);
-        private void PagePreviewPanel_SizeChanged(object s, SizeChangedEventArgs e) => Owner?.PagePreviewPanel_SizeChanged(s, e);
-        private void PagePreviewPanel_PreviewMouseDown(object s, MouseButtonEventArgs e) => Owner?.PagePreviewPanel_PreviewMouseDown(s, e);
-        private void PagePreviewPanel_PreviewMouseMove(object s, MouseEventArgs e) => Owner?.PagePreviewPanel_PreviewMouseMove(s, e);
-        private void PagePreviewPanel_PreviewMouseUp(object s, MouseButtonEventArgs e) => Owner?.PagePreviewPanel_PreviewMouseUp(s, e);
+        // The five preview/scroll handlers that used to forward from here are GONE as of stage 3:
+        // their bodies moved into this class (PdfViewer.Zoom.cs, PdfViewer.Viewport.cs), so a
+        // forward would now call straight back into itself. The XAML binds them directly.
         private void DocPaneBackground_RightClick(object s, MouseButtonEventArgs e) => Owner?.DocPaneBackground_RightClick(s, e);
     }
 }

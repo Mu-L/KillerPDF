@@ -3,31 +3,26 @@ using System.Windows.Controls;
 
 namespace KillerPDF
 {
-    public partial class MainWindow
+    /// <summary>
+    /// Everything ONE document view owns. Split pane needs two of these; as of stage 3 each
+    /// PdfViewer control owns one, and the window reads the active one back through its `_view`
+    /// property, so the ~500 call sites behind the window's forwarding properties are untouched.
+    ///
+    /// This is deliberately the PER-VIEW cut, not the per-document one. Per-document state
+    /// (annotations, undo, form values, search hits) already travels in DocumentSession, which
+    /// tab switching swaps by reference - see the comment above _annotations in
+    /// MainWindow.xaml.cs. A second pane needs its own live visual maps and its own view mode
+    /// and zoom; it does NOT need a second copy of the per-document machinery, because each
+    /// pane will simply own its own set of sessions.
+    ///
+    /// TOP-LEVEL, not nested in MainWindow (where stage 1 put it). The viewer lives in
+    /// KillerPDF.Controls now and cannot own a type nested in the window without every reference
+    /// spelling out MainWindow.ViewerState. ViewMode and FitMode moved out with it, for the same
+    /// reason and into Models/ViewTypes.cs - which also retires the CS0052 note that used to sit
+    /// here, since nothing is nested any more.
+    /// </summary>
+    internal sealed class ViewerState
     {
-        /// <summary>
-        /// Everything ONE document view owns. Split pane needs two of these; the window holds
-        /// exactly one today, so this pass changes no behavior.
-        ///
-        /// This is deliberately the PER-VIEW cut, not the per-document one. Per-document state
-        /// (annotations, undo, form values, search hits) already travels in DocumentSession, which
-        /// tab switching swaps by reference - see the comment above _annotations in
-        /// MainWindow.xaml.cs. A second pane needs its own live visual maps and its own view mode
-        /// and zoom; it does NOT need a second copy of the per-document machinery, because each
-        /// pane will simply own its own set of sessions.
-        ///
-        /// Nested inside MainWindow so it sits with the window's own types. Note ViewMode had to
-        /// become internal for this: CS0052 compares DECLARED accessibility, so a field cannot be
-        /// more accessible than its type even when both are inside MainWindow. Nesting does not
-        /// exempt it. The enum stays nested, so nothing outside the assembly gains reach.
-        ///
-        /// MIGRATION NOTE: the window's fields are forwarding properties onto this object, so all
-        /// ~500 existing call sites keep compiling untouched and the tree builds after every edit.
-        /// Call sites get repointed at a viewer instance gradually in later stages; do not attempt
-        /// that as one change. (BACKLOG.md "Split pane (F10)", stage 1.)
-        /// </summary>
-        internal sealed class ViewerState
-        {
             /// <summary>Unified page -> overlay map covering EVERY rendered page, the primary
             /// included. The single source of truth the canvas accessors read from.</summary>
             public readonly Dictionary<int, Canvas> Pages = [];
@@ -122,6 +117,5 @@ namespace KillerPDF
             /// <summary>Active annotation surface. Single view: always AnnotationCanvas.
             /// Continuous: set on mouse-down to the clicked page's overlay.</summary>
             public Canvas ActiveCanvas = null!;
-        }
     }
 }

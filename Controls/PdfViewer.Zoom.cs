@@ -19,9 +19,16 @@ using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
-namespace KillerPDF
+namespace KillerPDF.Controls
 {
-    public partial class MainWindow
+    // Wheel zoom, wheel scroll, and the pointer gestures that start on the page surface.
+    //
+    // Split pane stage 3: moved here from Shell/Zoom.cs, VERBATIM apart from this namespace and
+    // class line. It travels with the render pipeline because the two share the zoom state and the
+    // gesture routing (_activeCanvas / _gestureCanvas) that decides which page a press landed on.
+    //
+    // Window members referenced bare here resolve through PdfViewer.Bridge.cs.
+    public partial class PdfViewer
     {
         // ============================================================
         // Zoom
@@ -133,7 +140,8 @@ namespace KillerPDF
         // so scroll WheelScrollFactor times that instead. e.Delta is +-120 per notch on a standard
         // wheel (precision touchpads send smaller, more frequent deltas, which scale the same way).
         // ScrollToVerticalOffset clamps to the valid range itself.
-        private const double WheelScrollFactor = 3.0;
+        // internal: PageSelection.cs reuses it so the sidebar scrolls at the document's speed.
+        internal const double WheelScrollFactor = 3.0;
 
         private void ScrollWheel(MouseWheelEventArgs e)
         {

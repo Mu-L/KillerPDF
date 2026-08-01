@@ -29,7 +29,7 @@ namespace KillerPDF
 
         // Maps an editing tool to its mouse cursor. Shared by SetTool and by the
         // per-page overlay creation so freshly rendered tiles get the right cursor.
-        private static Cursor CursorForTool(EditTool tool) => tool switch
+        internal static Cursor CursorForTool(EditTool tool) => tool switch
         {
             EditTool.Text => Cursors.IBeam,
             EditTool.Highlight => Cursors.Cross,

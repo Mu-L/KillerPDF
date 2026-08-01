@@ -309,7 +309,7 @@ namespace KillerPDF
         // Re-applies the saved placement to every visible annotation bar. Called synchronously from the
         // window events that resize/move the content area (resize, maximize/restore, move), so
         // the bar tracks its anchored edge and stays fully on-screen through all of them.
-        private void RepositionAnnotationBars()
+        internal void RepositionAnnotationBars()
         {
             if (PagePreviewPanel?.Parent is not Grid area) return;
             foreach (var bar in new[] { _drawSettingsBar, _textSettingsBar })

@@ -27,7 +27,8 @@ namespace KillerPDF
         // PDF Link Annotation Overlays
         // ============================================================
 
-        private readonly record struct LinkInfo(double Cx, double Cy, double Cw, double Ch, object Tag, string Tip, int AnnotIndex);
+        // internal: PdfViewer.Bridge.cs types _continuousLinks with it (split pane stage 3).
+        internal readonly record struct LinkInfo(double Cx, double Cy, double Cw, double Ch, object Tag, string Tip, int AnnotIndex);
 
         // Per-page link rects for the tiled views (continuous / grid / two-page), keyed by page index.
         // Clicks and the hover cursor are resolved by bounds-testing these in Canvas_MouseLeftButtonDown
@@ -440,7 +441,7 @@ namespace KillerPDF
         /// Uses a manual bounds-check in Canvas_MouseLeftButtonDown for hit detection
         /// (transparent Canvas children are unreliable for WPF hit-testing alone).
         /// </summary>
-        private void RenderPageLinks(int pageIndex, int bitmapW, int bitmapH)
+        internal void RenderPageLinks(int pageIndex, int bitmapW, int bitmapH)
         {
             if (_doc is null || _currentFile is null) return;
 
@@ -530,7 +531,7 @@ namespace KillerPDF
         /// but its own handler never fires, so clicks and the hover cursor are resolved by bounds-
         /// testing these rects in Canvas_MouseLeftButtonDown and Canvas_MouseMove instead.
         /// </summary>
-        private void AddSecondaryPageLinks(int pageIndex, int bitmapW, int bitmapH)
+        internal void AddSecondaryPageLinks(int pageIndex, int bitmapW, int bitmapH)
         {
             _continuousLinks[pageIndex] = GetPageLinks(pageIndex, bitmapW, bitmapH);
         }

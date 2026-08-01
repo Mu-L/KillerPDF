@@ -86,7 +86,7 @@ namespace KillerPDF
         // Rebuild the shared context menu for a right-click at canvas point pt on the given page. If an
         // annotation sits under the cursor it is selected and gets a menu tailored to its type; otherwise
         // the page-level menu (tools, rotate, stamp, undo, clear) is shown.
-        private void PopulateContextMenu(Point pt, int pageIdx)
+        internal void PopulateContextMenu(Point pt, int pageIdx)
         {
             _ctxMenu.Items.Clear();
             var hit = AnnotationAt(pt, pageIdx);

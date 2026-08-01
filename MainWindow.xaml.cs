@@ -32,26 +32,21 @@ namespace KillerPDF
         private double _zoomLevel { get => _view.ZoomLevel; set => _view.ZoomLevel = value; }
         private double _lastRenderZoom { get => _view.LastRenderZoom; set => _view.LastRenderZoom = value; }
         private int _renderedPrimaryPage { get => _view.RenderedPrimaryPage; set => _view.RenderedPrimaryPage = value; }
-        private const double ZoomMin = 0.05;
-        private const double ZoomMax = 5.0;
-        private const double ZoomStep = 0.15;
-        // internal for the same CS0052 reason as ViewMode below - ViewerState has a field of it.
-        internal enum FitMode { None, Width, Page }
+        // internal: the viewer control aliases these as its own consts (PdfViewer.Bridge.cs).
+        // They stay declared here because MainWindow.xaml.cs and KeyboardShortcuts.cs read them
+        // too, and a const costs nothing to alias but would drift if duplicated.
+        internal const double ZoomMin = 0.05;
+        internal const double ZoomMax = 5.0;
+        internal const double ZoomStep = 0.15;
         private FitMode _fitMode { get => _view.Fit; set => _view.Fit = value; }
         private System.Windows.Threading.DispatcherTimer? _rerenderTimer { get => _view.RerenderTimer; set => _view.RerenderTimer = value; }
         private System.Threading.CancellationTokenSource? _secondaryRenderCts { get => _view.SecondaryRenderCts; set => _view.SecondaryRenderCts = value; }
-        // internal, not private: ViewerState (Models/ViewerState.cs) has fields of this type, and
-        // CS0052 compares DECLARED accessibility - a field cannot be more accessible than its type,
-        // even when both sit inside MainWindow. Still a nested type, so nothing outside the
-        // assembly gains anything by this; it is only reachable as MainWindow.ViewMode.
-        internal enum ViewMode { Single, Continuous, TwoPage, Grid }
-
-        // ── Split pane, stage 1 ────────────────────────────────────────────────────────────
-        // The per-view state now lives in one object (Models/ViewerState.cs) so a second pane can
-        // have its own. The window still holds exactly ONE, and the fields below are forwarding
-        // properties onto it, so every existing call site is untouched and behavior is identical.
-        // Later stages repoint call sites at a viewer instance; see BACKLOG.md "Split pane (F10)".
-        private readonly ViewerState _view = new();
+        // ── Split pane, stage 3 ────────────────────────────────────────────────────────────
+        // The per-view state lives in one object (Models/ViewerState.cs) so a second pane can have
+        // its own - and as of stage 3 the VIEWER owns it, not the window. The window reads it back
+        // through here, so the forwarding properties below (and the ~500 call sites behind them)
+        // are untouched and behavior is identical. See BACKLOG.md "Split pane (F10)".
+        private ViewerState _view => Viewer.State;
 
         private ViewMode _viewMode { get => _view.Mode; set => _view.Mode = value; }
         private StackPanel _continuousPanel { get => _view.ContinuousPanel; set => _view.ContinuousPanel = value; }
@@ -89,8 +84,13 @@ namespace KillerPDF
 
         // Undo stack - each entry is either an annotation removal or a full document snapshot.
         // AnnotationGroup removes a specific set of annotations in one step (a text edit = cover + text).
-        private enum UndoKind { Annotation, Document, StampBatch, ClearAnnotations, AnnotationGroup, PageSnapshot }
-        private readonly record struct UndoEntry(UndoKind Kind, int PageIdx = -1, byte[]? DocBytes = null, bool WasDirty = false, int[]? Pages = null, PageAnnotation? Annot = null, Dictionary<int, List<PageAnnotation>>? AnnotSnapshot = null, List<PageAnnotation>? AnnotGroup = null);
+        // internal, both of them, for the CS0052 reason stage 1 already hit twice: DocumentSession
+        // became internal so the viewer could pass a session to the render cache, and its UndoStack
+        // field is typed Stack<UndoEntry> - a field cannot be more accessible than its type, and
+        // UndoEntry's own signature drags UndoKind along with it. Still nested in MainWindow, so
+        // nothing outside the assembly gains reach.
+        internal enum UndoKind { Annotation, Document, StampBatch, ClearAnnotations, AnnotationGroup, PageSnapshot }
+        internal readonly record struct UndoEntry(UndoKind Kind, int PageIdx = -1, byte[]? DocBytes = null, bool WasDirty = false, int[]? Pages = null, PageAnnotation? Annot = null, Dictionary<int, List<PageAnnotation>>? AnnotSnapshot = null, List<PageAnnotation>? AnnotGroup = null);
         private Stack<UndoEntry> _undoStack = new();
         // Redo: inverses captured by Undo_Click land here; any NEW edit clears it (PushUndo).
         // Swapped per tab alongside _undoStack (Tabs.cs) so redo can never replay another document.
@@ -355,7 +355,7 @@ namespace KillerPDF
             _portableBadge = (StackPanel)FindName("PortableBadge")!;
             _pageJumpBox = (TextBox)FindName("PageJumpBox")!;
             _pageTotalLabel = (TextBlock)FindName("PageTotalLabel")!;
-            PagePreviewPanel.ScrollChanged += PagePreviewPanel_ScrollChanged;
+            Viewer.WireScrollChanged();      // handler moved into the control with the render pipeline
             PreviewMouseDown += NavHistory_PreviewMouseDown;        // mouse back/forward buttons retrace jumps
             MainContentGrid.SizeChanged += (_, _) => ScheduleFadeRefresh();
             // The sidebar column resizes via the splitter / collapse; track its width so the tab-strip

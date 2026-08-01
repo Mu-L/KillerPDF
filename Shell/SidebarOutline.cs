@@ -151,7 +151,7 @@ namespace KillerPDF
             e.Handled = true;
         }
 
-        private void LoadOutlines()
+        internal void LoadOutlines()
         {
             _outlinesFitted = false;   // triggers auto-fit on next tab switch
             _bmExtraSel.Clear();       // outlines may be gone after a rebuild/undo - selection resets

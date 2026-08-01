@@ -49,7 +49,7 @@ namespace KillerPDF
         {
             // Same speed knob as the document viewport (WheelScrollFactor in Zoom.cs).
             SidebarScrollViewer?.ScrollToVerticalOffset(
-                SidebarScrollViewer.VerticalOffset - e.Delta * (48.0 / 120.0) * WheelScrollFactor);
+                SidebarScrollViewer.VerticalOffset - e.Delta * (48.0 / 120.0) * Controls.PdfViewer.WheelScrollFactor);
             e.Handled = true;
         }
 

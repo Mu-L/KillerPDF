@@ -19,7 +19,10 @@ namespace KillerPDF
         // One open document. Holds the per-document state that the rest of MainWindow reads
         // and writes through its instance fields. The collection references here ARE the live
         // collections while this session is active.
-        private sealed class DocumentSession
+        // internal, not private: PdfViewer.Bridge.cs types the active session as
+        // MainWindow.DocumentSession so the moved render pipeline can pass it to the render cache
+        // unchanged. Still nested, so it is only reachable as MainWindow.DocumentSession.
+        internal sealed class DocumentSession
         {
             public PdfDocument? Doc;
             public string? CurrentFile;
@@ -200,7 +203,7 @@ namespace KillerPDF
         private const int RenderCacheTabCap = 3;
 
         // Background-thread safe: a cached frozen bitmap for this render, or null (the caller must rasterize).
-        private static System.Windows.Media.Imaging.BitmapSource? TryGetCachedRender(DocumentSession? s, int page, int bucket, int rot)
+        internal static System.Windows.Media.Imaging.BitmapSource? TryGetCachedRender(DocumentSession? s, int page, int bucket, int rot)
             => (s != null && s.RenderCache.TryGetValue((page, bucket, rot), out var b)) ? b : null;
 
         // #122: cap the number of cached page bitmaps per tab. The cache used to grow without
@@ -208,7 +211,7 @@ namespace KillerPDF
         // image-heavy document in Continuous view pinned gigabytes in one tab.
         private const int RenderCachePageCap = 48;
 
-        private static void CacheRender(DocumentSession? s, int page, int bucket, int rot, System.Windows.Media.Imaging.BitmapSource bmp)
+        internal static void CacheRender(DocumentSession? s, int page, int bucket, int rot, System.Windows.Media.Imaging.BitmapSource bmp)
         {
             if (s == null) return;
             if (bmp.CanFreeze && !bmp.IsFrozen) bmp.Freeze();
@@ -236,7 +239,7 @@ namespace KillerPDF
         private void FlushAllRenderCaches()
         {
             foreach (var s in _renderLru) s.RenderCache.Clear();
-            _pageImageRects.Clear();
+            Viewer.FlushImageRectCache();   // the rect cache moved into the viewer with the render pipeline
         }
 
         // Mark a tab most-recently-used; drop the bitmap caches of tabs that fall outside the LRU window.
