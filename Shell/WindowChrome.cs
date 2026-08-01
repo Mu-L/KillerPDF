@@ -38,6 +38,10 @@ namespace KillerPDF
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
+            // Themed system menu (Shell/SystemMenu.cs): swallow the caption right-click and
+            // Alt+Space before anything else, or Windows draws its stock white HMENU.
+            if (TryHandleSystemMenu(msg, wParam, lParam)) { handled = true; return IntPtr.Zero; }
+
             if (msg == WM_ERASEBKGND)
             {
                 // WPF paints the whole client area itself, so let nothing erase the background to a flat

@@ -601,4 +601,12 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Kb_PrevResult">Předchozí výsledek</sys:String>
     <sys:String x:Key="Str_Kb_Confirm">Potvrdit</sys:String>
     <sys:String x:Key="Str_Kb_Cancel">Zrušit</sys:String>
+
+    <!-- Themed Windows system menu (caption right-click / Alt+Space) -->
+    <sys:String x:Key="Str_Sys_Restore">Obnovit</sys:String>
+    <sys:String x:Key="Str_Sys_Move">Přesunout</sys:String>
+    <sys:String x:Key="Str_Sys_Size">Velikost</sys:String>
+    <sys:String x:Key="Str_Sys_Minimize">Minimalizovat</sys:String>
+    <sys:String x:Key="Str_Sys_Maximize">Maximalizovat</sys:String>
+    <sys:String x:Key="Str_Sys_Close">Zavřít</sys:String>
 </ResourceDictionary>

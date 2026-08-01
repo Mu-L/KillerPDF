@@ -596,4 +596,12 @@
     <sys:String x:Key="Str_St_AppSize">অ্যাপের আকার {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">পুরো অ্যাপ জুম করুন (অ্যাক্সেসযোগ্যতা)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">লিঙ্ক খোলার আগে নিশ্চিত করুন</sys:String>
+
+    <!-- Themed Windows system menu (caption right-click / Alt+Space) -->
+    <sys:String x:Key="Str_Sys_Restore">পুনরুদ্ধার</sys:String>
+    <sys:String x:Key="Str_Sys_Move">সরান</sys:String>
+    <sys:String x:Key="Str_Sys_Size">আকার</sys:String>
+    <sys:String x:Key="Str_Sys_Minimize">ছোট করুন</sys:String>
+    <sys:String x:Key="Str_Sys_Maximize">বড় করুন</sys:String>
+    <sys:String x:Key="Str_Sys_Close">বন্ধ করুন</sys:String>
 </ResourceDictionary>

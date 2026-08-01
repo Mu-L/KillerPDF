@@ -600,4 +600,12 @@
     <sys:String x:Key="Str_St_AppSize">应用大小 {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">缩放整个应用（无障碍）</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">打开链接前确认</sys:String>
+
+    <!-- Themed Windows system menu (caption right-click / Alt+Space) -->
+    <sys:String x:Key="Str_Sys_Restore">还原</sys:String>
+    <sys:String x:Key="Str_Sys_Move">移动</sys:String>
+    <sys:String x:Key="Str_Sys_Size">大小</sys:String>
+    <sys:String x:Key="Str_Sys_Minimize">最小化</sys:String>
+    <sys:String x:Key="Str_Sys_Maximize">最大化</sys:String>
+    <sys:String x:Key="Str_Sys_Close">关闭</sys:String>
 </ResourceDictionary>

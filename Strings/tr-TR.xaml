@@ -596,4 +596,12 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_St_AppSize">Uygulama boyutu %{0}</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Tüm uygulamayı yakınlaştır (erişilebilirlik)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Bağlantıları açmadan önce sor</sys:String>
+
+    <!-- Themed Windows system menu (caption right-click / Alt+Space) -->
+    <sys:String x:Key="Str_Sys_Restore">Geri Yükle</sys:String>
+    <sys:String x:Key="Str_Sys_Move">Taşı</sys:String>
+    <sys:String x:Key="Str_Sys_Size">Boyutlandır</sys:String>
+    <sys:String x:Key="Str_Sys_Minimize">Simge Durumuna Küçült</sys:String>
+    <sys:String x:Key="Str_Sys_Maximize">Ekranı Kapla</sys:String>
+    <sys:String x:Key="Str_Sys_Close">Kapat</sys:String>
 </ResourceDictionary>

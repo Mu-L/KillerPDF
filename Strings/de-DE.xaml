@@ -602,4 +602,12 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_St_AppSize">App-Größe {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Die ganze App zoomen (Barrierefreiheit)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Vor dem Öffnen von Links bestätigen</sys:String>
+
+    <!-- Themed Windows system menu (caption right-click / Alt+Space) -->
+    <sys:String x:Key="Str_Sys_Restore">Wiederherstellen</sys:String>
+    <sys:String x:Key="Str_Sys_Move">Verschieben</sys:String>
+    <sys:String x:Key="Str_Sys_Size">Größe ändern</sys:String>
+    <sys:String x:Key="Str_Sys_Minimize">Minimieren</sys:String>
+    <sys:String x:Key="Str_Sys_Maximize">Maximieren</sys:String>
+    <sys:String x:Key="Str_Sys_Close">Schließen</sys:String>
 </ResourceDictionary>

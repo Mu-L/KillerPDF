@@ -615,4 +615,12 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_KS_AppSize">Zoomer toute l'application (accessibilité)</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirmer avant d'ouvrir les liens</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
+
+    <!-- Themed Windows system menu (caption right-click / Alt+Space) -->
+    <sys:String x:Key="Str_Sys_Restore">Restaurer</sys:String>
+    <sys:String x:Key="Str_Sys_Move">Déplacer</sys:String>
+    <sys:String x:Key="Str_Sys_Size">Dimensionner</sys:String>
+    <sys:String x:Key="Str_Sys_Minimize">Réduire</sys:String>
+    <sys:String x:Key="Str_Sys_Maximize">Agrandir</sys:String>
+    <sys:String x:Key="Str_Sys_Close">Fermer</sys:String>
 </ResourceDictionary>
