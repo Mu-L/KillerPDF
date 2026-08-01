@@ -739,7 +739,7 @@ namespace KillerPDF.Features
         // ============================================================
         // --ocr <in.pdf> <out.pdf> [--lang code]
         // ============================================================
-        // Reuses the GUI's searchable-PDF core (Ocr.cs BuildSearchablePdf):
+        // Reuses the GUI's searchable-PDF core (OcrController.BuildSearchablePdf):
         // Docnet render, Tesseract per page, invisible text drawn over each
         // word. The GUI's model-download gate is dialog-driven, so the CLI
         // has its own silent equivalent honoring the OcrHighQuality setting.
@@ -761,7 +761,7 @@ namespace KillerPDF.Features
             var (srcForOcr, rotations, _) = CliPrepareRenderSource(inPath, password, con);
 
             CliEnsureParentDir(outPath);
-            var (pages, words) = BuildSearchablePdf(srcForOcr, outPath,
+            var (pages, words) = OcrController.BuildSearchablePdf(srcForOcr, outPath,
                 (i, n) => { if (i == 1 || i == n || i % 10 == 0) con.WriteLine($"OCR page {i}/{n}"); },
                 CancellationToken.None, lang);
 
@@ -805,7 +805,7 @@ namespace KillerPDF.Features
             {
                 Task.Run(async () =>
                 {
-                    using var http = MakeDownloadClient();
+                    using var http = OcrLanguages.MakeDownloadClient();
                     using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                     resp.EnsureSuccessStatusCode();
                     var part = dest + ".part";
