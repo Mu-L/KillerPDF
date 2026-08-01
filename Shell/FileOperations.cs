@@ -1329,6 +1329,7 @@ namespace KillerPDF
                 var annotsSnap = _annotations.ToDictionary(kv => kv.Key, kv => new List<PageAnnotation>(kv.Value));
                 var dimsSnap   = new Dictionary<int, (int w, int h)>(_renderDims);
                 var stampSnap  = _docStampSpec?.Clone();
+                var rotSnap    = new Dictionary<int, int>(_pageRotations);   // #169: the burn needs the visual frame
                 var burnPath   = App.MakeTempFile("print");
 
                 // Flatten the annotations onto a throwaway COPY on a background thread. The live _doc is never
@@ -1351,8 +1352,8 @@ namespace KillerPDF
                         }
                         using (burnDoc)
                         {
-                            PdfBurn.DrawStampsIntoDoc(burnDoc, stampSnap);   // stamps sit beneath annotations
-                            PdfBurn.DrawAnnotationsIntoDoc(burnDoc, annotsSnap, dimsSnap);
+                            PdfBurn.DrawStampsIntoDoc(burnDoc, stampSnap, null, rotSnap);   // stamps sit beneath annotations
+                            PdfBurn.DrawAnnotationsIntoDoc(burnDoc, annotsSnap, dimsSnap, null, rotSnap);
                             burnDoc.Save(burnPath);
                         }
                         return true;

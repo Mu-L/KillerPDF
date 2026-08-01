@@ -45,15 +45,55 @@ namespace KillerPDF.Services
             return new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(h.DrawRect()), holes);
         }
 
+        // ── The rotated-page frame (#169, thanks terada-d) ────────────────────────────────────
+        // A page's rotation lives OUTSIDE the working document: TempReload strips /Rotate to 0 and
+        // keeps the angle in the shell's _pageRotations, and the render path rotates the bitmap
+        // instead. So the canvas - and everything measured against it - is in the VISUAL frame,
+        // while XGraphics draws in the page's own unrotated frame. Every path that writes canvas
+        // coordinates back into a page has to bridge the two; these two helpers are that bridge,
+        // shared by the annotation burn and the stamp burn.
+        //
+        // Both frames are top-left origin with y down (XGraphics' default page direction and the
+        // bitmap convention), and the render path rotates CLOCKWISE by the angle, so the mapping
+        // is a plain quarter-turn about the page box.
+
+        /// <summary>The page's size as the user sees it: the point dimensions swap on a quarter turn.</summary>
+        private static (double w, double h) VisualPageSize(double pw, double ph, int rot)
+            => rot == 90 || rot == 270 ? (ph, pw) : (pw, ph);
+
+        /// <summary>Maps VISUAL-frame points onto the unrotated page frame XGraphics draws in.
+        /// Null for an unrotated page (nothing to apply). Prepend it to the graphics transform and
+        /// every subsequent draw call can keep passing visual coordinates unchanged.</summary>
+        private static XMatrix? VisualToPageMatrix(int rot, double pw, double ph) => rot switch
+        {
+            // Derived from the render path's clockwise bitmap rotation, then inverted:
+            //  90: x_page = y_vis,      y_page = ph - x_vis
+            // 180: x_page = pw - x_vis, y_page = ph - y_vis
+            // 270: x_page = pw - y_vis, y_page = x_vis
+            // XMatrix is (m11, m12, m21, m22, dx, dy) with x' = x*m11 + y*m21 + dx.
+            90  => new XMatrix(0, -1, 1, 0, 0, ph),
+            180 => new XMatrix(-1, 0, 0, -1, pw, ph),
+            270 => new XMatrix(0, 1, -1, 0, pw, 0),
+            _   => null,
+        };
+
+        private static int NormalizeRot(IReadOnlyDictionary<int, int>? rotations, int pageIdx)
+            => rotations is not null && rotations.TryGetValue(pageIdx, out int r) ? ((r % 360) + 360) % 360 : 0;
+
         // Burns annotations into the given document using only the supplied annotation + render-dim data and
         // nothing from the live UI state (static, so the compiler guarantees it). This makes it safe to run on
         // a background thread against a throwaway copy of the document - the print flow uses that to keep the
         // UI responsive while annotated pages are flattened.
+        //
+        // rotations: the out-of-document page angles (the shell's _pageRotations). Omitting them was
+        // #169 - annotations were burned in the unrotated frame, so on a rotated page they landed
+        // turned 90 degrees from where they were placed, offset, and scaled on swapped axes.
         internal static void DrawAnnotationsIntoDoc(
             PdfDocument? doc,
             IReadOnlyDictionary<int, List<PageAnnotation>> annotations,
             IReadOnlyDictionary<int, (int w, int h)> renderDims,
-            int? onlyPage = null)
+            int? onlyPage = null,
+            IReadOnlyDictionary<int, int>? rotations = null)
         {
             if (doc is null) return;
 
@@ -71,10 +111,19 @@ namespace KillerPDF.Services
 
                 var page = doc.Pages[pageIdx];
                 var (renderW, renderH) = renderDims[pageIdx];
-                double sx = page.Width.Point / renderW;
-                double sy = page.Height.Point / renderH;
+                // #169: the render dims are in the VISUAL frame (that is what the user drew on),
+                // so scale against the visual page size, not the raw page box - on a quarter-turned
+                // page those are on swapped axes.
+                int rot = NormalizeRot(rotations, pageIdx);
+                double pwPt = page.Width.Point, phPt = page.Height.Point;
+                var (visW, visH) = VisualPageSize(pwPt, phPt, rot);
+                double sx = visW / renderW;
+                double sy = visH / renderH;
 
                 using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+                // ...then turn the whole drawing back into the page's own frame, so every draw
+                // call below can keep working in visual coordinates exactly as it always has.
+                if (VisualToPageMatrix(rot, pwPt, phPt) is XMatrix m) gfx.MultiplyTransform(m);
 
                 foreach (var annot in annots)
                 {
@@ -280,7 +329,12 @@ namespace KillerPDF.Services
         // Draws the active stamps into the doc via XGraphics, in PDF-point space. Called BEFORE
         // DrawAnnotationsIntoDoc at each save site so stamps sit beneath annotations. Static so the
         // print flow can run it on a background thread against a throwaway document copy.
-        internal static void DrawStampsIntoDoc(PdfDocument? doc, StampSpec? spec, int? onlyPage = null)
+        // rotations: same story as the annotation burn (#169) - stamp positions are corners of the
+        // page as the USER sees it, so on a rotated page they have to be laid out in the visual
+        // frame and mapped back. The stamp PREVIEW already swapped the dimensions, so preview and
+        // output disagreed until this landed.
+        internal static void DrawStampsIntoDoc(PdfDocument? doc, StampSpec? spec, int? onlyPage = null,
+            IReadOnlyDictionary<int, int>? rotations = null)
         {
             if (doc is null || spec is null || (!spec.NumbersEnabled && !spec.WmEnabled)) return;
             int n = doc.PageCount;
@@ -304,9 +358,12 @@ namespace KillerPDF.Services
                 if (!doNum && !doWm) continue;
 
                 var page = doc.Pages[i];
-                double pw = page.Width.Point, ph = page.Height.Point;
+                int rot = NormalizeRot(rotations, i);
+                double pwPt = page.Width.Point, phPt = page.Height.Point;
+                var (pw, ph) = VisualPageSize(pwPt, phPt, rot);   // #169: lay out on the visual page
                 double mx = pw * 0.05, my = ph * 0.04;
                 using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+                if (VisualToPageMatrix(rot, pwPt, phPt) is XMatrix m) gfx.MultiplyTransform(m);
 
                 if (doWm)  DrawWatermarkPdf(gfx, spec, pw, ph, mx, my, wmImg);   // watermark first (underneath)
                 if (doNum) DrawNumberPdf(gfx, spec, i, firstNumPage, n, pw, ph, mx, my);

@@ -2667,7 +2667,7 @@ namespace KillerPDF
         // onlyPage: when set, burns just that one page's annotations (used by Transform, which rasterizes a
         // single page and wants its annotations baked in). Default null burns every page, as before.
         private void DrawAnnotationsOnDocument(int? onlyPage = null)
-            => PdfBurn.DrawAnnotationsIntoDoc(_doc, _annotations, _renderDims, onlyPage);
+            => PdfBurn.DrawAnnotationsIntoDoc(_doc, _annotations, _renderDims, onlyPage, _pageRotations);
 
         // The burn core (DrawAnnotationsIntoDoc) lives in Services/PdfBurn.cs.
     }

@@ -247,7 +247,8 @@ namespace KillerPDF
 
         // Draws the active stamps into the doc via XGraphics, in PDF-point space. Called BEFORE
         // DrawAnnotationsOnDocument at each save site so stamps sit beneath annotations.
-        private void DrawStampsOnDocument(int? onlyPage = null) => PdfBurn.DrawStampsIntoDoc(_doc, _docStampSpec, onlyPage);
+        private void DrawStampsOnDocument(int? onlyPage = null)
+            => PdfBurn.DrawStampsIntoDoc(_doc, _docStampSpec, onlyPage, _pageRotations);
 
         // True when the document carries stamps that must be burned on save. The save sites used to
         // gate the whole burn block on the ANNOTATION count alone, so a document whose only markup

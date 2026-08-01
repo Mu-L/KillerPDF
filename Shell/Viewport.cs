@@ -1314,7 +1314,7 @@ namespace KillerPDF
         /// <summary>
         /// Central zoom-change entry point for buttons, keyboard shortcuts, and the dropdown.
         /// Clamps to [ZoomMin, ZoomMax], applies the scale, syncs the combo box, and updates
-        /// the status bar. Does NOT apply a fit mode — call FitToWidth / FitToPage for that.
+        /// the status bar. Does NOT apply a fit mode - call FitToWidth / FitToPage for that.
         /// </summary>
         // The internal _zoomLevel scales each page's layout box. In Continuous mode that box is
         // the page's natural DIP width, so _zoomLevel already reads as true zoom (1.0 = 100%).
@@ -1467,7 +1467,7 @@ namespace KillerPDF
             int idx = PageList.SelectedIndex;
             double dipW = GetPageDipSize(idx).w;
             if (dipW <= 0) return;
-            // Two Page mode shows two pages side by side — each page gets roughly half
+            // Two Page mode shows two pages side by side - each page gets roughly half
             // the viewport width (minus a small gap between pages).
             double slotW = _viewMode == ViewMode.TwoPage ? (viewW - 12) / 2 : viewW;
             _fitMode = FitMode.Width;

@@ -61,6 +61,11 @@ namespace KillerPDF
 
             base.OnStartup(e);
 
+            // #168: install our font resolver before anything can create an XFont - PdfSharpCore
+            // caches the resolver on first use. Without this the save path sees only *.ttf and
+            // cannot embed the .ttc families every CJK script relies on.
+            Services.KillerFontResolver.Install();
+
             if (!CheckPdfiumIntegrity()) { Shutdown(2); return; }
 
             // Handle uninstall flag (called by Add/Remove Programs)
