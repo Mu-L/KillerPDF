@@ -31,7 +31,17 @@ namespace KillerPDF
         {
             // Toggle: clicking the gear while the panel is open closes it.
             if (SettingsOverlay.Visibility == Visibility.Visible) { SlideSettingsClosed(); return; }
-            // Sync radio buttons to current theme before showing
+            SyncPickerState();
+            PositionSettingsPanel();
+            SettingsOverlay.Visibility = Visibility.Visible;
+            SlideSettingsOpen();
+        }
+
+        // Syncs every picker's radios, accent dots and labels to live state. Shared by the
+        // Settings panel (on open) and the rail's theme/language flyouts (Shell/RailFlyouts.cs),
+        // so there is exactly ONE sync implementation - the family flyout rule.
+        private void SyncPickerState()
+        {
             var cur = ThemeManager.Current;
             ThemeDarkRadio.IsChecked  = cur == Theme.Dark;
             ThemeLightRadio.IsChecked = cur == Theme.Light;
@@ -39,7 +49,6 @@ namespace KillerPDF
             ThemeBloodRadio.IsChecked = cur == Theme.Blood;
             ThemeGreedRadio.IsChecked    = cur == Theme.Greed;
             ThemeCyanoticRadio.IsChecked = cur == Theme.Cyanotic;
-            ThemeCurrentLabel.Text       = ThemeDisplayName(cur);
             UpdateAccentDotSelection();
             UpdateAccentRowsVisibility(animate: false);
             // Sync language picker
@@ -54,7 +63,6 @@ namespace KillerPDF
             LangTrRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.TrTR;
             LangDeRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.De;
             LangJaRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.JaJP;
-            LangCurrentLabel.Text   = LangDisplayName(curLoc);
             // Sync view mode radios
             ViewSingleRadio.IsChecked     = _viewMode == ViewMode.Single;
             ViewContinuousRadio.IsChecked = _viewMode == ViewMode.Continuous;
@@ -74,9 +82,6 @@ namespace KillerPDF
             SidebarCurrentLabel.Text     = Loc(_sidebarRight ? "Str_Sidebar_Right" : "Str_Sidebar_Left");
             // Sync the Links section: confirm is ON unless the user has opted out ("Don't ask again").
             LinkConfirmCheck.IsChecked = App.GetSetting(SkipLinkConfirmSetting) != "1";
-            PositionSettingsPanel();
-            SettingsOverlay.Visibility = Visibility.Visible;
-            SlideSettingsOpen();
         }
 
         private const double SettingsPanelWidth = 228;
@@ -132,8 +137,6 @@ namespace KillerPDF
 
         private System.Windows.Controls.StackPanel? SubmenuFor(System.Windows.Controls.Primitives.ToggleButton btn)
         {
-            if (btn == LangMenuButton)    return LangSubmenu;
-            if (btn == ThemeMenuButton)   return ThemeSubmenu;
             if (btn == ToolbarMenuButton) return ToolbarSubmenu;
             if (btn == ViewMenuButton)    return ViewSubmenu;
             if (btn == SidebarMenuButton) return SidebarSubmenu;
@@ -415,7 +418,6 @@ namespace KillerPDF
         private void SelectTheme(Theme theme)
         {
             ThemeManager.Apply(theme);
-            if (ThemeCurrentLabel is not null) ThemeCurrentLabel.Text = ThemeDisplayName(theme);
             UpdateAccentDotSelection();
             UpdateAccentRowsVisibility(animate: true);
             // Intentionally leave the flyout open so the user can try another theme right away
@@ -529,13 +531,11 @@ namespace KillerPDF
         {
             KillerPDF.Services.LocaleManager.Apply(loc);
             ApplyToolNumberTooltips();   // re-append the numbers to the now-localized tool tooltips
-            LangCurrentLabel.Text = LangDisplayName(loc);
-            // The Theme and Toolbar picker labels are set imperatively (not DynamicResource), so the
+            // The Toolbar and View picker labels are set imperatively (not DynamicResource), so the
             // language switch happening while the panel is open would leave them in the old language.
-            if (ThemeCurrentLabel is not null)   ThemeCurrentLabel.Text   = ThemeDisplayName(ThemeManager.Current);
             if (ToolbarCurrentLabel is not null) ToolbarCurrentLabel.Text = ToolbarStyleName(_toolbarStyle);
             if (ViewCurrentLabel is not null)    ViewCurrentLabel.Text    = ViewModeDisplayName(_viewMode);
-            LangMenuButton.IsChecked = false;   // collapses the inline language section after a pick
+            LangFlyout.IsOpen = false;   // a pick closes the rail flyout, like the accordion used to collapse
 
             // The status bar text is a formatted string (not a DynamicResource), so it keeps the
             // language it was last set in. Re-set it in the new locale instead of leaving it stale.

@@ -1555,6 +1555,323 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
+                            <!-- Family rail order (locked 2026-07-30): app-specific toggles above, then
+                                 ? / language / theme - the three universal buttons, theme bottom-most, so
+                                 muscle memory carries across the apps. Flyouts follow the family standard:
+                                 ContextMenus with FlyoutCard/FlyoutGrain chrome, opened against the content
+                                 pane's bottom-left corner by FlyoutPlacement (Shell/RailFlyouts.cs). -->
+                            <Button x:Name="RailShortcutsBtn" Click="RailShortcuts_Click"
+                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
+                                    ToolTip="{DynamicResource Str_TT_KeyboardShortcuts}"
+                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <TextBlock Text="?"
+                                                       FontFamily="Consolas" FontSize="18"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                                                </TextBlock.Effect>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button x:Name="RailLangBtn" Click="RailLang_Click"
+                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
+                                    ToolTip="{DynamicResource Str_Language}"
+                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <TextBlock Text="&#xF2B7;"
+                                                       FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                                                </TextBlock.Effect>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="LangFlyout">
+                                        <!-- Family flyout standard: chrome ONLY from FlyoutCard/FlyoutGrain, grain LAST. -->
+                                        <ContextMenu.Template>
+                                            <ControlTemplate TargetType="ContextMenu">
+                                                <Border Style="{StaticResource FlyoutCard}">
+                                                    <Grid>
+                                                        <ItemsPresenter/>
+                                                        <Border Style="{StaticResource FlyoutGrain}"/>
+                                                    </Grid>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </ContextMenu.Template>
+                                        <ContextMenu.ItemContainerStyle>
+                                            <Style TargetType="MenuItem" BasedOn="{StaticResource PanelMenuItem}"/>
+                                        </ContextMenu.ItemContainerStyle>
+                        <StackPanel x:Name="LangSubmenu" Margin="12,10,14,10">
+                                    <RadioButton x:Name="LangEnRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangEnRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="English" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="en-US" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangBnRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangBnRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="বাংলা" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="bn" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangCsRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangCsRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Čeština" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="cs-CZ" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangDeRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangDeRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Deutsch" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="de-DE" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangEsRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangEsRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Español" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="es" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangFrRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangFrRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Français" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="fr-FR" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangJaRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangJaRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="日本語" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Yu Gothic UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="ja-JP" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangTrRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangTrRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Türkçe" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="tr-TR" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangZhCNRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangZhCNRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="中文 (简体)" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="zh-CN" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                                    <RadioButton x:Name="LangZhTWRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangZhTWRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="中文 (繁體)" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="zh-TW" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
+                        </StackPanel>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <Button x:Name="RailThemeBtn" Click="RailTheme_Click"
+                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
+                                    ToolTip="{DynamicResource Str_Theme}"
+                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <TextBlock Text="&#xE790;"
+                                                       FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                                                </TextBlock.Effect>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="ThemeFlyout">
+                                        <!-- Family flyout standard: chrome ONLY from FlyoutCard/FlyoutGrain, grain LAST. -->
+                                        <ContextMenu.Template>
+                                            <ControlTemplate TargetType="ContextMenu">
+                                                <Border Style="{StaticResource FlyoutCard}">
+                                                    <Grid>
+                                                        <ItemsPresenter/>
+                                                        <Border Style="{StaticResource FlyoutGrain}"/>
+                                                    </Grid>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </ContextMenu.Template>
+                                        <ContextMenu.ItemContainerStyle>
+                                            <Style TargetType="MenuItem" BasedOn="{StaticResource PanelMenuItem}"/>
+                                        </ContextMenu.ItemContainerStyle>
+                        <StackPanel x:Name="ThemeSubmenu" Margin="12,10,14,10">
+                                    <RadioButton x:Name="ThemeDarkRadio"
+                                                 Content="{DynamicResource Str_Theme_Dark}"
+                                                 GroupName="ThemeGroup"
+                                                 Style="{StaticResource ThemeRadio}"
+                                                 Checked="ThemeDarkRadio_Checked"/>
+                                    <!-- Each family's picker sits under its own theme. The rows animate their HEIGHT
+                                         (clipped), so when you switch, the old row shrinks while the new one grows by
+                                         the same amount: the picker slides to the selected theme and the total menu
+                                         height never changes. ROYGBIV order. -->
+                                    <StackPanel x:Name="DarkAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
+                                        <Border x:Name="AccentDotRed"    Style="{StaticResource AccentDot}" Background="#DD504B" Tag="Red"    MouseLeftButtonUp="AccentDot_Click"/>
+                                        <Border x:Name="AccentDotOrange" Style="{StaticResource AccentDot}" Background="#E8962C" Tag="Orange" MouseLeftButtonUp="AccentDot_Click"/>
+                                        <Border x:Name="AccentDotGreen"  Style="{StaticResource AccentDot}" Background="#1EA54C" Tag="Green"  MouseLeftButtonUp="AccentDot_Click"/>
+                                        <Border x:Name="AccentDotTeal"   Style="{StaticResource AccentDot}" Background="#1FB8A8" Tag="Teal"   MouseLeftButtonUp="AccentDot_Click"/>
+                                        <Border x:Name="AccentDotBlue"   Style="{StaticResource AccentDot}" Background="#4580D9" Tag="Blue"   MouseLeftButtonUp="AccentDot_Click"/>
+                                        <Border x:Name="AccentDotPurple" Style="{StaticResource AccentDot}" Background="#B982E3" Tag="Purple" MouseLeftButtonUp="AccentDot_Click"/>
+                                    </StackPanel>
+                                    <RadioButton x:Name="ThemeLightRadio"
+                                                 Content="{DynamicResource Str_Theme_Light}"
+                                                 GroupName="ThemeGroup"
+                                                 Style="{StaticResource ThemeRadio}"
+                                                 Checked="ThemeLightRadio_Checked"/>
+                                    <StackPanel x:Name="LightAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
+                                        <Border x:Name="AccentDotLightRed"    Style="{StaticResource AccentDot}" Background="#931A1A" Tag="Red"    MouseLeftButtonUp="AccentDotLight_Click"/>
+                                        <Border x:Name="AccentDotLightOrange" Style="{StaticResource AccentDot}" Background="#C7710F" Tag="Orange" MouseLeftButtonUp="AccentDotLight_Click"/>
+                                        <Border x:Name="AccentDotLightGreen"  Style="{StaticResource AccentDot}" Background="#1B5E20" Tag="Green"  MouseLeftButtonUp="AccentDotLight_Click"/>
+                                        <Border x:Name="AccentDotLightTeal"   Style="{StaticResource AccentDot}" Background="#0D827E" Tag="Teal"   MouseLeftButtonUp="AccentDotLight_Click"/>
+                                        <Border x:Name="AccentDotLightBlue"   Style="{StaticResource AccentDot}" Background="#18608E" Tag="Blue"   MouseLeftButtonUp="AccentDotLight_Click"/>
+                                        <Border x:Name="AccentDotLightPurple" Style="{StaticResource AccentDot}" Background="#5A1690" Tag="Purple" MouseLeftButtonUp="AccentDotLight_Click"/>
+                                    </StackPanel>
+                                    <RadioButton x:Name="ThemeHCRadio"
+                                                 Content="{DynamicResource Str_Theme_Black}"
+                                                 GroupName="ThemeGroup"
+                                                 Style="{StaticResource ThemeRadio}"
+                                                 Checked="ThemeHCRadio_Checked"/>
+                                    <StackPanel x:Name="BlackAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
+                                        <Border x:Name="AccentDotBlackRed"    Style="{StaticResource AccentDot}" Background="#FF2929" Tag="Red"    MouseLeftButtonUp="AccentDotBlack_Click"/>
+                                        <Border x:Name="AccentDotBlackOrange" Style="{StaticResource AccentDot}" Background="#FF910A" Tag="Orange" MouseLeftButtonUp="AccentDotBlack_Click"/>
+                                        <Border x:Name="AccentDotBlackGreen"  Style="{StaticResource AccentDot}" Background="#00FF66" Tag="Green"  MouseLeftButtonUp="AccentDotBlack_Click"/>
+                                        <Border x:Name="AccentDotBlackTeal"   Style="{StaticResource AccentDot}" Background="#0AFFE7" Tag="Teal"   MouseLeftButtonUp="AccentDotBlack_Click"/>
+                                        <Border x:Name="AccentDotBlackBlue"   Style="{StaticResource AccentDot}" Background="#298DFF" Tag="Blue"   MouseLeftButtonUp="AccentDotBlack_Click"/>
+                                        <Border x:Name="AccentDotBlackPurple" Style="{StaticResource AccentDot}" Background="#B829FF" Tag="Purple" MouseLeftButtonUp="AccentDotBlack_Click"/>
+                                    </StackPanel>
+                                    <RadioButton x:Name="ThemeBloodRadio"
+                                                 Content="{DynamicResource Str_Theme_Blood}"
+                                                 GroupName="ThemeGroup"
+                                                 Style="{StaticResource ThemeRadio}"
+                                                 Checked="ThemeBloodRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeGreedRadio"
+                                                 Content="{DynamicResource Str_Theme_Greed}"
+                                                 GroupName="ThemeGroup"
+                                                 Style="{StaticResource ThemeRadio}"
+                                                 Checked="ThemeGreedRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeCyanoticRadio"
+                                                 Content="{DynamicResource Str_Theme_Cyanotic}"
+                                                 GroupName="ThemeGroup"
+                                                 Style="{StaticResource ThemeRadio}"
+                                                 Checked="ThemeCyanoticRadio_Checked"/>
+                        </StackPanel>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
                             <Button Click="DocInfo_Click"
                                     Cursor="Hand" FocusVisualStyle="{x:Null}"
                                     ToolTip="{DynamicResource Str_TT_DocInfo}"
@@ -2051,292 +2368,6 @@
                                 Width="24" Height="24" Content="&#xE711;"
                                 Style="{StaticResource DangerCloseButton}"/>
                     </Grid>
-                    <TextBlock Text="{DynamicResource Str_Language}" Style="{StaticResource SettingsSubheader}"
-                               Margin="0,0,0,8"/>
-                    <!-- Language picker: a row that opens a flyout submenu. Languages are
-                         listed by their own native name (autonym) so the list scales to any
-                         number of languages without translating each name into every locale. -->
-                    <Grid Margin="0,0,0,4">
-                        <ToggleButton x:Name="LangMenuButton"
-                                      Checked="SettingsMenu_Toggled" Unchecked="SettingsMenu_Toggled"
-                                      Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
-                            <ToggleButton.Template>
-                                <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="RowBd" Background="Transparent" Margin="-10,0,2,0" Padding="10,4,10,4" CornerRadius="3">
-                                        <ContentPresenter/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </ToggleButton.Template>
-                            <DockPanel LastChildFill="True">
-                                <TextBlock DockPanel.Dock="Right"
-                                           FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                           VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource MutedTextBrush}">
-                                    <!-- Up chevron when the section is collapsed, down when expanded. -->
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="&#xE70E;"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
-                                                    <Setter Property="Text" Value="&#xE70D;"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock x:Name="LangCurrentLabel" Text="English" Style="{StaticResource SettingsAccentValue}"/>
-                            </DockPanel>
-                        </ToggleButton>
-                        </Grid>
-                        <!-- Language options expand inline below the row (accordion). -->
-                        <StackPanel x:Name="LangSubmenu" Visibility="Collapsed" Margin="10,2,0,6">
-                                    <RadioButton x:Name="LangEnRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangEnRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="English" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="en-US" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangBnRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangBnRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="বাংলা" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="bn" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangCsRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangCsRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Čeština" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="cs-CZ" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangDeRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangDeRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Deutsch" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="de-DE" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangEsRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangEsRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Español" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="es" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangFrRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangFrRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Français" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="fr-FR" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangJaRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangJaRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="日本語" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Yu Gothic UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="ja-JP" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangTrRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangTrRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Türkçe" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="tr-TR" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangZhCNRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangZhCNRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="中文 (简体)" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="zh-CN" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                                    <RadioButton x:Name="LangZhTWRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangZhTWRadio_Checked">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="中文 (繁體)" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                            <TextBlock Grid.Column="1" Text="zh-TW" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </Grid>
-                                    </RadioButton>
-                        </StackPanel>
-                    <TextBlock Text="{DynamicResource Str_Theme}" Style="{StaticResource SettingsSubheader}"
-                               Margin="0,12,0,8"/>
-                    <!-- Theme picker: a row that opens a flyout submenu, mirroring the Language picker
-                         so the Settings panel stays compact as more themes are added. -->
-                    <Grid Margin="0,0,0,4">
-                        <ToggleButton x:Name="ThemeMenuButton"
-                                      Checked="SettingsMenu_Toggled" Unchecked="SettingsMenu_Toggled"
-                                      Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
-                            <ToggleButton.Template>
-                                <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="RowBd" Background="Transparent" Margin="-10,0,2,0" Padding="10,4,10,4" CornerRadius="3">
-                                        <ContentPresenter/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </ToggleButton.Template>
-                            <DockPanel LastChildFill="True">
-                                <TextBlock DockPanel.Dock="Right"
-                                           FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                           VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource MutedTextBrush}">
-                                    <!-- Up chevron when the section is collapsed, down when expanded. -->
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="&#xE70E;"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
-                                                    <Setter Property="Text" Value="&#xE70D;"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock x:Name="ThemeCurrentLabel" Text="Dark" Style="{StaticResource SettingsAccentValue}"/>
-                            </DockPanel>
-                        </ToggleButton>
-                        </Grid>
-                        <StackPanel x:Name="ThemeSubmenu" Visibility="Collapsed" Margin="10,2,0,6">
-                                    <RadioButton x:Name="ThemeDarkRadio"
-                                                 Content="{DynamicResource Str_Theme_Dark}"
-                                                 GroupName="ThemeGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ThemeDarkRadio_Checked"/>
-                                    <!-- Each family's picker sits under its own theme. The rows animate their HEIGHT
-                                         (clipped), so when you switch, the old row shrinks while the new one grows by
-                                         the same amount: the picker slides to the selected theme and the total menu
-                                         height never changes. ROYGBIV order. -->
-                                    <StackPanel x:Name="DarkAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
-                                        <Border x:Name="AccentDotRed"    Style="{StaticResource AccentDot}" Background="#DD504B" Tag="Red"    MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotOrange" Style="{StaticResource AccentDot}" Background="#E8962C" Tag="Orange" MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotGreen"  Style="{StaticResource AccentDot}" Background="#1EA54C" Tag="Green"  MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotTeal"   Style="{StaticResource AccentDot}" Background="#1FB8A8" Tag="Teal"   MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotBlue"   Style="{StaticResource AccentDot}" Background="#4580D9" Tag="Blue"   MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotPurple" Style="{StaticResource AccentDot}" Background="#B982E3" Tag="Purple" MouseLeftButtonUp="AccentDot_Click"/>
-                                    </StackPanel>
-                                    <RadioButton x:Name="ThemeLightRadio"
-                                                 Content="{DynamicResource Str_Theme_Light}"
-                                                 GroupName="ThemeGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ThemeLightRadio_Checked"/>
-                                    <StackPanel x:Name="LightAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
-                                        <Border x:Name="AccentDotLightRed"    Style="{StaticResource AccentDot}" Background="#931A1A" Tag="Red"    MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightOrange" Style="{StaticResource AccentDot}" Background="#C7710F" Tag="Orange" MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightGreen"  Style="{StaticResource AccentDot}" Background="#1B5E20" Tag="Green"  MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightTeal"   Style="{StaticResource AccentDot}" Background="#0D827E" Tag="Teal"   MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightBlue"   Style="{StaticResource AccentDot}" Background="#18608E" Tag="Blue"   MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightPurple" Style="{StaticResource AccentDot}" Background="#5A1690" Tag="Purple" MouseLeftButtonUp="AccentDotLight_Click"/>
-                                    </StackPanel>
-                                    <RadioButton x:Name="ThemeHCRadio"
-                                                 Content="{DynamicResource Str_Theme_Black}"
-                                                 GroupName="ThemeGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ThemeHCRadio_Checked"/>
-                                    <StackPanel x:Name="BlackAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
-                                        <Border x:Name="AccentDotBlackRed"    Style="{StaticResource AccentDot}" Background="#FF2929" Tag="Red"    MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackOrange" Style="{StaticResource AccentDot}" Background="#FF910A" Tag="Orange" MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackGreen"  Style="{StaticResource AccentDot}" Background="#00FF66" Tag="Green"  MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackTeal"   Style="{StaticResource AccentDot}" Background="#0AFFE7" Tag="Teal"   MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackBlue"   Style="{StaticResource AccentDot}" Background="#298DFF" Tag="Blue"   MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackPurple" Style="{StaticResource AccentDot}" Background="#B829FF" Tag="Purple" MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                    </StackPanel>
-                                    <RadioButton x:Name="ThemeBloodRadio"
-                                                 Content="{DynamicResource Str_Theme_Blood}"
-                                                 GroupName="ThemeGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ThemeBloodRadio_Checked"/>
-                                    <RadioButton x:Name="ThemeGreedRadio"
-                                                 Content="{DynamicResource Str_Theme_Greed}"
-                                                 GroupName="ThemeGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ThemeGreedRadio_Checked"/>
-                                    <RadioButton x:Name="ThemeCyanoticRadio"
-                                                 Content="{DynamicResource Str_Theme_Cyanotic}"
-                                                 GroupName="ThemeGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ThemeCyanoticRadio_Checked"/>
-                        </StackPanel>
                     <TextBlock Text="{DynamicResource Str_Toolbar}" Style="{StaticResource SettingsSubheader}"
                                Margin="0,12,0,8"/>
                     <!-- Toolbar style picker: a flyout submenu mirroring Theme/Language. -->
