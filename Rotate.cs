@@ -166,7 +166,7 @@ namespace KillerPDF
             {
                 var fixedPath = App.MakeTempFile("xffixed");
                 if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
-                    && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
+                    && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                     throw;
                 tempClean = fixedPath;
                 _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);

@@ -289,70 +289,14 @@ namespace KillerPDF
         //
         // PdfSharpCore silently drops link annotations stored in object streams (linearized /
         // PDF 1.5+). PDFium - already shipped with Docnet and used elsewhere for security
-        // stripping - resolves them natively. FPDF_LoadDocument / FPDF_LoadPage / FPDF_ClosePage /
-        // FPDF_CloseDocument are declared in FileOperations.cs; only the link + page-size entry
-        // points are added here.
+        // stripping - resolves them natively via Services/PdfiumInterop.cs.
         // ============================================================
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct FS_RECTF { public float left, top, right, bottom; }
 
         private const int PDFACTION_GOTO = 1;
         private const int PDFACTION_URI  = 3;
 
-        // THREADING: raw externs suffixed Raw; only the wrappers below may be called. Every
-        // wrapper holds PdfiumLock (FileOperations.cs) - the same lock Docnet's renders use -
-        // because a UI-thread link pass racing a background render inside PDFium corrupts the
-        // native heap (0xc0000374, confirmed from a 1.6.3 crash dump on 2026-07-17).
-        [DllImport("pdfium.dll", EntryPoint = "FPDF_GetPageWidth", CallingConvention = CallingConvention.Cdecl)]
-        private static extern double FPDF_GetPageWidthRaw(IntPtr page);
-        private static double FPDF_GetPageWidth(IntPtr page)
-        { lock (PdfiumLock) return FPDF_GetPageWidthRaw(page); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDF_GetPageHeight", CallingConvention = CallingConvention.Cdecl)]
-        private static extern double FPDF_GetPageHeightRaw(IntPtr page);
-        private static double FPDF_GetPageHeight(IntPtr page)
-        { lock (PdfiumLock) return FPDF_GetPageHeightRaw(page); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_Enumerate", CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool FPDFLink_EnumerateRaw(IntPtr page, ref int startPos, out IntPtr linkAnnot);
-        private static bool FPDFLink_Enumerate(IntPtr page, ref int startPos, out IntPtr linkAnnot)
-        { lock (PdfiumLock) return FPDFLink_EnumerateRaw(page, ref startPos, out linkAnnot); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_GetAnnotRect", CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool FPDFLink_GetAnnotRectRaw(IntPtr linkAnnot, out FS_RECTF rect);
-        private static bool FPDFLink_GetAnnotRect(IntPtr linkAnnot, out FS_RECTF rect)
-        { lock (PdfiumLock) return FPDFLink_GetAnnotRectRaw(linkAnnot, out rect); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_GetDest", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDFLink_GetDestRaw(IntPtr document, IntPtr link);
-        private static IntPtr FPDFLink_GetDest(IntPtr document, IntPtr link)
-        { lock (PdfiumLock) return FPDFLink_GetDestRaw(document, link); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFLink_GetAction", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDFLink_GetActionRaw(IntPtr link);
-        private static IntPtr FPDFLink_GetAction(IntPtr link)
-        { lock (PdfiumLock) return FPDFLink_GetActionRaw(link); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFAction_GetType", CallingConvention = CallingConvention.Cdecl)]
-        private static extern uint FPDFAction_GetTypeRaw(IntPtr action);
-        private static uint FPDFAction_GetType(IntPtr action)
-        { lock (PdfiumLock) return FPDFAction_GetTypeRaw(action); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFAction_GetDest", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr FPDFAction_GetDestRaw(IntPtr document, IntPtr action);
-        private static IntPtr FPDFAction_GetDest(IntPtr document, IntPtr action)
-        { lock (PdfiumLock) return FPDFAction_GetDestRaw(document, action); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFAction_GetURIPath", CallingConvention = CallingConvention.Cdecl)]
-        private static extern uint FPDFAction_GetURIPathRaw(IntPtr document, IntPtr action, byte[]? buffer, uint buflen);
-        private static uint FPDFAction_GetURIPath(IntPtr document, IntPtr action, byte[]? buffer, uint buflen)
-        { lock (PdfiumLock) return FPDFAction_GetURIPathRaw(document, action, buffer, buflen); }
-
-        [DllImport("pdfium.dll", EntryPoint = "FPDFDest_GetDestPageIndex", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int FPDFDest_GetDestPageIndexRaw(IntPtr document, IntPtr dest);
-        private static int FPDFDest_GetDestPageIndex(IntPtr document, IntPtr dest)
-        { lock (PdfiumLock) return FPDFDest_GetDestPageIndexRaw(document, dest); }
+        // ALL direct PDFium P/Invoke (the link + page-size entry points included) lives in
+        // Services/PdfiumInterop.cs - one class, one lock (Docnet's), auditable discipline.
 
         // Cached PDFium document handle for link extraction. Object-stream PDFs take the PDFium fallback
         // on every annotated page; without this we'd FPDF_LoadDocument (re-parse the whole file) once per
@@ -374,7 +318,7 @@ namespace KillerPDF
 
             CloseLinkPdfiumDoc();
             try { _ = DocLib.Instance; } catch { }   // force Docnet to init PDFium before direct pdfium.dll calls
-            IntPtr doc = FPDF_LoadDocument(_currentFile, null);
+            IntPtr doc = PdfiumInterop.FPDF_LoadDocument(_currentFile, null);
             if (doc != IntPtr.Zero)
             {
                 _linkPdfiumDoc     = doc;
@@ -389,7 +333,7 @@ namespace KillerPDF
         {
             if (_linkPdfiumDoc != IntPtr.Zero)
             {
-                try { FPDF_CloseDocument(_linkPdfiumDoc); } catch { }
+                try { PdfiumInterop.FPDF_CloseDocument(_linkPdfiumDoc); } catch { }
                 _linkPdfiumDoc = IntPtr.Zero;
             }
             _linkPdfiumDocPath = null;
@@ -412,19 +356,19 @@ namespace KillerPDF
             IntPtr doc = EnsureLinkPdfiumDoc();
             if (doc == IntPtr.Zero) return links;
 
-            IntPtr page = FPDF_LoadPage(doc, pageIndex);
+            IntPtr page = PdfiumInterop.FPDF_LoadPage(doc, pageIndex);
             if (page == IntPtr.Zero) return links;
             try
             {
-                double pageWidthPt  = FPDF_GetPageWidth(page);
-                double pageHeightPt = FPDF_GetPageHeight(page);
+                double pageWidthPt  = PdfiumInterop.FPDF_GetPageWidth(page);
+                double pageHeightPt = PdfiumInterop.FPDF_GetPageHeight(page);
                 if (pageWidthPt  <= 0) pageWidthPt  = 595.28;
                 if (pageHeightPt <= 0) pageHeightPt = 841.89;
 
                 int startPos = 0;
-                while (FPDFLink_Enumerate(page, ref startPos, out IntPtr link))
+                while (PdfiumInterop.FPDFLink_Enumerate(page, ref startPos, out IntPtr link))
                 {
-                    if (!FPDFLink_GetAnnotRect(link, out FS_RECTF r)) continue;
+                    if (!PdfiumInterop.FPDFLink_GetAnnotRect(link, out PdfiumInterop.FS_RECTF r)) continue;
 
                     // PDFium may report top/bottom in either order; normalise to min/max so the
                     // mapping matches GetPageLinks (PDF origin is bottom-left, y up).
@@ -439,34 +383,34 @@ namespace KillerPDF
                     int? targetPage = null;
                     string? uri = null;
 
-                    IntPtr dest = FPDFLink_GetDest(doc, link);
+                    IntPtr dest = PdfiumInterop.FPDFLink_GetDest(doc, link);
                     if (dest != IntPtr.Zero)
                     {
-                        int t = FPDFDest_GetDestPageIndex(doc, dest);
+                        int t = PdfiumInterop.FPDFDest_GetDestPageIndex(doc, dest);
                         if (t >= 0) targetPage = t;
                     }
                     else
                     {
-                        IntPtr action = FPDFLink_GetAction(link);
+                        IntPtr action = PdfiumInterop.FPDFLink_GetAction(link);
                         if (action != IntPtr.Zero)
                         {
-                            uint at = FPDFAction_GetType(action);
+                            uint at = PdfiumInterop.FPDFAction_GetType(action);
                             if (at == PDFACTION_URI)
                             {
-                                uint len = FPDFAction_GetURIPath(doc, action, null, 0);
+                                uint len = PdfiumInterop.FPDFAction_GetURIPath(doc, action, null, 0);
                                 if (len > 1)
                                 {
                                     var buf = new byte[len];
-                                    FPDFAction_GetURIPath(doc, action, buf, len);
+                                    PdfiumInterop.FPDFAction_GetURIPath(doc, action, buf, len);
                                     uri = System.Text.Encoding.UTF8.GetString(buf, 0, (int)len - 1);
                                 }
                             }
                             else if (at == PDFACTION_GOTO)
                             {
-                                IntPtr d2 = FPDFAction_GetDest(doc, action);
+                                IntPtr d2 = PdfiumInterop.FPDFAction_GetDest(doc, action);
                                 if (d2 != IntPtr.Zero)
                                 {
-                                    int t = FPDFDest_GetDestPageIndex(doc, d2);
+                                    int t = PdfiumInterop.FPDFDest_GetDestPageIndex(doc, d2);
                                     if (t >= 0) targetPage = t;
                                 }
                             }
@@ -480,7 +424,7 @@ namespace KillerPDF
                     links.Add(new LinkInfo(cx, cy, cw, ch, tag, tip, -1));
                 }
             }
-            finally { FPDF_ClosePage(page); }
+            finally { PdfiumInterop.FPDF_ClosePage(page); }
             return links;
         }
 

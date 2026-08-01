@@ -2591,7 +2591,7 @@ namespace KillerPDF
                 {
                     var fixedPath = App.MakeTempFile("undofixed");
                     if (!PdfImport.TryImportRepairToPath(tempPath, fixedPath)
-                        && !TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))
+                        && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))
                         throw;
                     tempPath = fixedPath;
                     _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);

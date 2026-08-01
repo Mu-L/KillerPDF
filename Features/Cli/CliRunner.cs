@@ -19,11 +19,9 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
-// The scrubs, bitmap helpers and import helpers all live in Services now (PdfScrub.cs,
-// BitmapHelpers.cs, PdfImport.cs; KillerUI refactor, 2026-07-31), called qualified below. The
-// ONE remaining Features-to-Shell reach is the explicit MainWindow.TryPdfiumStripEncryption
-// calls - it rides the shared PDFium interop block (and its lock) on MainWindow, which gets
-// its own Services home as a deliberate step.
+// The scrubs, bitmap helpers, import helpers and PDFium interop all live in Services
+// (PdfScrub.cs, BitmapHelpers.cs, PdfImport.cs, PdfiumInterop.cs; KillerUI refactor,
+// 2026-07-31), called qualified below. No Features-to-Shell reaches remain in this file.
 // OpenBatchConsole and FlattenBatchDetail are shared with the batch runner.
 using static KillerPDF.Features.BatchRunner;
 
@@ -378,7 +376,7 @@ namespace KillerPDF.Features
                 return 0;
             }
 
-            if (MainWindow.TryPdfiumStripEncryption(inPath, outPath))
+            if (PdfiumInterop.TryPdfiumStripEncryption(inPath, outPath))
             {
                 con.WriteLine($"Decrypted (lossless) -> {outPath}");
                 return 0;
@@ -415,7 +413,7 @@ namespace KillerPDF.Features
                     using var pdoc = PdfReader.Open(inPath, password!, PdfDocumentOpenMode.Modify);
                     pdoc.Save(dec);
                 }
-                else if (!MainWindow.TryPdfiumStripEncryption(inPath, dec) && !PdfImport.TryImportRepairToPath(inPath, dec))
+                else if (!PdfiumInterop.TryPdfiumStripEncryption(inPath, dec) && !PdfImport.TryImportRepairToPath(inPath, dec))
                 {
                     throw new InvalidOperationException(
                         "File is encrypted and could not be unlocked - pass --password if it needs one.");
