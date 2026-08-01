@@ -21,6 +21,21 @@ namespace KillerPDF.Controls
                 });
         }
 
+        /// <summary>Fades an element out to 0 and calls <paramref name="done"/> when it lands.
+        /// EaseIn mirrors FadeIn's EaseOut, so the surface accelerates away as smoothly as it
+        /// arrived. Windows use this to fade before actually closing (see FileDialog.OnClosing);
+        /// without it a dialog that fades in vanishes instantly, which reads as a glitch.</summary>
+        public static void FadeOut(UIElement element, Action done)
+        {
+            var a = new DoubleAnimation(element.Opacity, 0, new Duration(TimeSpan.FromMilliseconds(FadeMs)))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            // Completed fires even if the value is already 0, so the callback cannot be stranded.
+            a.Completed += (_, _) => done?.Invoke();
+            element.BeginAnimation(UIElement.OpacityProperty, a);
+        }
+
         /// <summary>Fade plus a horizontal glide from dx px to rest (negative dx = in from
         /// the left). Used by the rail flyouts so they read as sliding out of the rail.</summary>
         public static void SlideInX(UIElement element, double dx)

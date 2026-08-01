@@ -102,11 +102,31 @@ namespace KillerPDF.Controls
         private const string PlacesHKey    = "FileDlgPlacesH";
         private const int    RecentsMax    = 12;
 
+        // Guards the fade-then-close re-entry below. Without it OnClosing would cancel forever.
+        private bool _fadingOut;
+
+        /// <summary>Fades the dialog out before it actually closes, so it leaves the same way it
+        /// arrived instead of blinking out. The first pass cancels the close, runs the fade, and
+        /// calls Close() again; the second pass sees the flag and lets it through. DialogResult is
+        /// already assigned by whatever asked to close, and cancelling does not disturb it, so
+        /// Accept / Cancel / the X / Escape all keep their result.</summary>
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_fadingOut)
+            {
+                _fadingOut = true;
+                e.Cancel = true;
+                Anim.FadeOut(RootFade, Close);
+                return;
+            }
+            base.OnClosing(e);
+        }
+
         public FileDialog(FileDialogMode mode = FileDialogMode.Open)
         {
             _mode = mode;
             InitializeComponent();
-            Loaded += (_, _) => Anim.FadeIn(RootBorder);
+            Loaded += (_, _) => Anim.FadeIn(RootFade);
 
             // Size and placement remembered separately from the folder picker: this dialog is a
             // different shape and sharing the keys would make each one fight the other.

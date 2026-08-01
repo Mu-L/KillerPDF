@@ -356,6 +356,8 @@ namespace KillerPDF
             // #146: the privacy toggle lives in the About window; init once - only its own
             // handler changes it afterwards (change-guarded, so this init is a no-op there).
             NoRecentCheck.IsChecked = App.GetSetting(App.NoRecentFilesSetting) == "1";
+            // Same deal for the link-confirm toggle beside it (default off).
+            LinkConfirmCheck.IsChecked = App.GetSetting(ConfirmLinksSetting) == "1";
             if (string.Equals(App.GetSetting("SidebarSide"), "Right", StringComparison.OrdinalIgnoreCase))
                 _sidebarRight = true;
             RestoreToolSettings();   // Draw + Text tool styles carry across sessions

@@ -2107,16 +2107,41 @@
                  read as square. The band already spans the splitter column, which is exactly where
                  the card's -6 pull-back puts its other edge, so the two line up on both sides.
                  (Steve, 2026-07-31: "when multiple tabs are open the right side doesnt round".) -->
+            <!-- ZIndex above the document card. The card's -1 top margin tucks its top border into
+                 this band's row, but the card is declared later and so painted over it, leaving the
+                 hairline the -1 was meant to hide. With the band on top, the active tab - which
+                 carries the pane's own BgCanvas - covers that pixel and the two read as one
+                 surface, while inactive tabs cover it with the strip color. (Steve, 2026-07-31.) -->
             <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="TabStripBorder"
-                    Margin="0,0,8,0"
+                    Margin="0,0,8,0" Panel.ZIndex="10"
                     Background="{DynamicResource BackgroundBrush}" Visibility="Collapsed">
                     <Grid>
                         <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
                         <Border x:Name="TabStripFade" IsHitTestVisible="False" Background="{DynamicResource TabStripFadeBrush}"/>
+                        <!-- TabBarRing, ported from KillerShell. Not a flat 1px strip: the card's
+                             top corners are rounded under an INACTIVE tab, and a straight line ran
+                             past the curve and stopped dead at the card's outer edge. This is the
+                             card's top border drawn again, radii and all - 7px tall with a -6
+                             bottom margin, so its 1px TOP edge lands in the band's last row and its
+                             curved sides drop out of the band and land exactly on the card's own
+                             left/right border, same brush, same pixels. SyncPaneLeadingCorner keeps
+                             the radii in step with the card's.
+                             Declared after the fade (whose dark bottom would otherwise wash it out)
+                             and before the tabs, so the tabs paint over it: the ACTIVE tab drops
+                             its 1px bottom margin and covers its own segment, which is what breaks
+                             the line exactly at the tab - the browser-tab join.
+                             Right margin 8 matches the card's inset; ApplySidebarSide flips it. -->
+                        <Border x:Name="TabBarRing" Height="7" VerticalAlignment="Bottom" Margin="0,0,0,-6"
+                                BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" IsHitTestVisible="False"
+                                BorderBrush="{DynamicResource PaneBorderBrush}"/>
                         <ScrollViewer x:Name="TabScroll" Margin="6,0,0,0" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Hidden"
                                       WindowChrome.IsHitTestVisibleInChrome="True" Background="Transparent"
                                       MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                            <StackPanel x:Name="TabStrip" Orientation="Horizontal" Margin="1,0,6,0"/>
+                            <!-- Left margin 0, not 1: TabScroll's 6px inset already cancels the gap
+                                 column exactly, so this extra pixel put the FIRST tab 1px right of
+                                 the card's edge - enough that squaring the card's leading corner to
+                                 meet it just moved the notch instead of closing it. -->
+                            <StackPanel x:Name="TabStrip" Orientation="Horizontal" Margin="0,0,6,0"/>
                         </ScrollViewer>
                     </Grid>
                 </Border>
@@ -2143,7 +2168,8 @@
                     Background="{DynamicResource BgCanvas}"
                     CornerRadius="{DynamicResource RadCard}" Margin="0,0,8,0"
                     Effect="{StaticResource PaneShadow}"/>
-            <Border Grid.Row="1" Grid.Column="2" x:Name="DocPaneBorder" Background="{DynamicResource BgCanvas}"
+            <Border Grid.Row="1" Grid.Column="2" x:Name="DocPaneBorder" Panel.ZIndex="6"
+                    Background="{DynamicResource BgCanvas}"
                     BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1"
                     CornerRadius="{DynamicResource RadCard}" Margin="0,0,8,0">
                 <!-- Clipped to the card's own corners (DocPane_SizeChanged). A Border with a
@@ -2640,11 +2666,23 @@
                          destructive Clear-all-Data link bottom-right (red on hover) - the About
                          window is where the data-hygiene controls live. -->
                     <DockPanel Margin="0,12,0,0" LastChildFill="False">
-                    <CheckBox x:Name="NoRecentCheck" DockPanel.Dock="Left"
-                              Content="{DynamicResource Str_NoRecentSetting}"
-                              Style="{StaticResource ThemeCheck}" FontSize="11"
-                              VerticalAlignment="Center"
-                              Checked="NoRecentCheck_Toggled" Unchecked="NoRecentCheck_Toggled"/>
+                    <!-- Stacked, not side by side: the SHA-256 line is the only thing allowed to
+                         set the card's width (family rule), and two checkboxes on one row would
+                         overrun it. -->
+                    <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                        <CheckBox x:Name="NoRecentCheck"
+                                  Content="{DynamicResource Str_NoRecentSetting}"
+                                  Style="{StaticResource ThemeCheck}" FontSize="11"
+                                  Checked="NoRecentCheck_Toggled" Unchecked="NoRecentCheck_Toggled"/>
+                        <!-- Confirm-before-opening-links. Lived as a hidden row in the Settings
+                             panel and came back here when that panel was dissolved: About is where
+                             the data-hygiene and safety controls live. Off by default, so link
+                             clicks stay immediate unless you ask for the prompt. -->
+                        <CheckBox x:Name="LinkConfirmCheck" Margin="0,6,0,0"
+                                  Content="{DynamicResource Str_LinkConfirmSetting}"
+                                  Style="{StaticResource ThemeCheck}" FontSize="11"
+                                  Checked="LinkConfirmCheck_Toggled" Unchecked="LinkConfirmCheck_Toggled"/>
+                    </StackPanel>
                     <TextBlock DockPanel.Dock="Right" FontFamily="Consolas" FontSize="10"
                                VerticalAlignment="Center">
                         <Hyperlink TextDecorations="None" Cursor="Hand" Click="AboutClearData_Click">

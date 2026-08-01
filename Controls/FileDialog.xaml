@@ -47,7 +47,13 @@
          AllowsTransparency Popup; a WPF Effect over a subtree containing one renders as a filled
          rectangle. That is fixed below and is a real bug, it just was not this one.
          (Steve, 2026-07-30, four attempts.) -->
-    <Grid Background="#01000000"
+    <!-- RootFade, not RootBorder, is what the open/close animation drives - and it starts at 0,
+         the same way KillerShell's RootGrid does. The fade used to run on RootBorder alone, but
+         the shadow layer below is a SIBLING carrying the identical BackgroundBrush and geometry,
+         with no starting opacity: it slammed in solid on the first frame and only the card faded
+         on top of it, so the dialog read as blinking into existence rather than fading. Fading the
+         shared parent takes the shadow with it. (Steve, 2026-07-31: "they kind of blink in".) -->
+    <Grid x:Name="RootFade" Opacity="0" Background="#01000000"
           MouseMove="Resize_MouseMove" MouseLeftButtonDown="Resize_MouseDown">
 
         <!-- Shadow layer: same geometry, NO content, not hit-testable. -->
@@ -58,7 +64,7 @@
             </Border.Effect>
         </Border>
 
-        <Border x:Name="RootBorder" Opacity="0" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+        <Border x:Name="RootBorder" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
                 Background="{DynamicResource BackgroundBrush}" CornerRadius="6" Margin="10">
             <Grid>
             <Grid.RowDefinitions>

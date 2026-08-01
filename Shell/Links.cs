@@ -41,20 +41,21 @@ namespace KillerPDF
         // (bounds-checks) so both feel the same.
         private const double LinkHitPad = 5;
 
-        // Persisted opt-out key for the click-safety confirmation prompt.
-        private const string SkipLinkConfirmSetting = "SkipLinkConfirm";
-
-        // Master switch for the confirm-before-opening-links prompt: OFF for now - links open
-        // directly. The prompt machinery (and its hidden Settings row, see MainWindow.xaml) is
-        // kept rather than deleted so it can return if the settings menu grows.
-        private static readonly bool LinkConfirmEnabled = false;
+        // Persisted opt-IN for the click-safety confirmation prompt, surfaced as the
+        // "Confirm before opening links" toggle on the About card footer.
+        //
+        // Positive sense and default OFF: links keep opening immediately unless you ask for the
+        // prompt. This replaces the old pair - a hardcoded master switch plus an inverted
+        // "SkipLinkConfirm" opt-out - which could disagree with each other, and whose UI row died
+        // with the Settings panel, leaving the feature unreachable. One key now, and the dialog's
+        // "Don't ask again" is the same switch as the checkbox. (Steve, 2026-07-31.)
+        internal const string ConfirmLinksSetting = "ConfirmLinks";
 
         // Confirms before opening an external link in the browser, unless the user opted out. Returns true
         // to proceed. Internal go-to-page links never call this.
         private bool ConfirmOpenLink(string url)
         {
-            if (!LinkConfirmEnabled) return true;
-            if (App.GetSetting(SkipLinkConfirmSetting) == "1") return true;
+            if (App.GetSetting(ConfirmLinksSetting) != "1") return true;
             var (result, dontAsk) = KillerDialog.ShowWithCheckbox(
                 this,
                 $"{Loc("Str_LinkConfirmBody")}\n\n{url}",
@@ -62,7 +63,13 @@ namespace KillerPDF
                 Loc("Str_LinkConfirmTitle"),
                 MessageBoxButton.OKCancel);
             if (result != MessageBoxResult.OK) return false;
-            if (dontAsk) App.SetSetting(SkipLinkConfirmSetting, "1");
+            // "Don't ask again" IS the toggle, so turn it off rather than setting a second key the
+            // About checkbox knows nothing about - that is how the two could drift apart before.
+            if (dontAsk)
+            {
+                App.SetSetting(ConfirmLinksSetting, "0");
+                if (LinkConfirmCheck != null) LinkConfirmCheck.IsChecked = false;
+            }
             return true;
         }
 

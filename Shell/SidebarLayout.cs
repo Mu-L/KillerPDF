@@ -110,6 +110,11 @@ namespace KillerPDF
                 if (tabStrip != null)
                     tabStrip.Margin = _sidebarRight ? new Thickness(8, 0, 0, 0)
                                                     : new Thickness(0, 0, 8, 0);
+                // TabBarRing redraws the card's top border inside the band, so its sides have to
+                // land on the card's sides - it keeps the -6 bottom that drops its curves out of
+                // the band, and takes no left/right inset of its own (the band already carries it).
+                if (FindName("TabBarRing") is FrameworkElement ring)
+                    ring.Margin = new Thickness(0, 0, 0, -6);
             }
 
             UpdateSidebarToggleGlyph();

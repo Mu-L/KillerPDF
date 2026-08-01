@@ -154,6 +154,12 @@ namespace KillerPDF
             }
         }
 
+        // Confirm-before-opening-links (About card footer). One key, positive sense - see the
+        // ConfirmLinksSetting comment in Links.cs. Writing the same value back on the init sync is
+        // a harmless no-op, so this needs no change guard.
+        private void LinkConfirmCheck_Toggled(object sender, RoutedEventArgs e)
+            => App.SetSetting(ConfirmLinksSetting, LinkConfirmCheck.IsChecked == true ? "1" : "0");
+
         // Privacy section (#146): don't remember recently opened files. Turning it ON also clears
         // the existing list (matching the user's privacy expectation on a shared machine); the
         // guard makes the settings-open sync a no-op so opening the panel never wipes anything.

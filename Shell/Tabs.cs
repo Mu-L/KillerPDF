@@ -707,6 +707,9 @@ namespace KillerPDF
                 _tabButtonList.Clear();
                 _tabButtonCache.Clear();
                 TabStripBorder.Visibility = Visibility.Collapsed;
+                // Strip gone: the card's leading corner goes back to a full radius, since there is
+                // no longer a flat tab edge above it to line up with.
+                SyncPaneLeadingCorner();
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)UpdateFooterFade);
                 return;
             }
@@ -821,6 +824,10 @@ namespace KillerPDF
                 SetTabStripChildren(children);
             }
             finally { _reflowingTabs = false; }
+            // Which button is FIRST on the strip changes here (overflow pulls the active tab in and
+            // pushes another out), so the pane's leading corner has to be re-decided after a reflow,
+            // not only on a plain switch.
+            SyncPaneLeadingCorner();
         }
 
         // The "N v" dropdown at the end of the strip. Clicking it lists the overflowed tabs; choosing one
@@ -878,8 +885,22 @@ namespace KillerPDF
                 bd.SetResourceReference(Border.BackgroundProperty, "BgCanvas");
                 bd.BorderThickness = new Thickness(0, 3, 0, 0);
                 bd.SetResourceReference(Border.BorderBrushProperty, "SelectionBg");
-                bd.Effect = new System.Windows.Media.Effects.DropShadowEffect
-                { Color = Colors.Black, BlurRadius = 9, ShadowDepth = 0, Opacity = 0.45 };
+                // ShadowBar - the app's own named elevation for "a panel lifted slightly off the
+                // surface", which is exactly what a raised tab is. Not invented numbers: an earlier
+                // pass had a halo here (ShadowDepth 0), which put shadow in the seam and drew the
+                // very outline TabBarRing's break exists to remove, and a second had an upward cast
+                // that was no better. ShadowBar is Direction 270 like every other elevation in the
+                // family, and the strip's ScrollViewer clips it, so it darkens the band around the
+                // tab and cannot bleed down onto the card.
+                // KillerShell's active tab has NO effect at all and reads flat because of it - the
+                // same shadow belongs there too (see BACKLOG).
+                // (Steve, 2026-07-31: "we need to add shadow to it".)
+                bd.Effect = TryFindResource("ShadowBar") as System.Windows.Media.Effects.Effect;
+                // Bottom margin 0: the active tab alone drops the 1px gap and so covers its own
+                // segment of TabBarRing, breaking that line exactly at the tab. That break IS the
+                // browser-tab join - the pane's top border runs across the band, stops at the
+                // active tab, and resumes after it. (KillerShell's mechanism, ported 2026-07-31.)
+                bd.Margin = new Thickness(0, 3, 1, 0);
                 Panel.SetZIndex(bd, 2);
             }
             else
@@ -889,6 +910,9 @@ namespace KillerPDF
                 bd.BorderThickness = new Thickness(0, 0, 1, 0);
                 bd.BorderBrush = MakeTabDividerBrush();
                 bd.Effect = null;
+                // 1px bottom margin keeps an inactive tab clear of TabBarRing, so the pane's top
+                // border runs unbroken underneath it - only the active tab cuts the line.
+                bd.Margin = new Thickness(0, 3, 1, 1);
                 Panel.SetZIndex(bd, 0);
             }
             if (label is null) return;
@@ -920,6 +944,41 @@ namespace KillerPDF
             var activeBtn = _tabButtonList.FirstOrDefault(t => t.s == _active).btn;
             if (activeBtn != null && TabStrip != null && !TabStrip.Children.Contains(activeBtn))
                 ReflowTabs();
+            SyncPaneLeadingCorner();
+        }
+
+        // The card's LEADING top corner squares off when the first tab on the strip is the active
+        // one. That tab's outer edge is flat and flush with the pane's, so a curve underneath cuts
+        // a notch out from under a square tab. Every other case keeps the full RadCard.
+        // Both top corners are in play, not just the leading one - see the rule inline below.
+        // Skipped in full screen, where ApplyFullScreen owns the radius and squares all four.
+        // (Steve, 2026-07-31: "when left tab is active that line needs to be flat".)
+        private void SyncPaneLeadingCorner()
+        {
+            if (DocPaneBorder == null || _fullScreen) return;
+            double r = TryFindResource("RadCard") is CornerRadius rc ? rc.TopLeft : 6;
+            // Each top corner squares off only when the tab sitting on it is the ACTIVE one:
+            // the first tab owns the top-left, the last owns the top-right. An inactive tab is
+            // window-colored and so a different surface anyway, and the card keeps its rounding
+            // under it; one document collapses the strip and the card takes its full radius back.
+            // (KillerShell's rule, verbatim from its Tabs.cs comment.)
+            bool strip = TabStripBorder != null && TabStripBorder.Visibility == Visibility.Visible
+                         && TabStrip != null && TabStrip.Children.Count > 0;
+            var ab = _tabButtonList.FirstOrDefault(t => t.s == _active).btn;
+            bool firstActive = false, lastActive = false;
+            if (strip && ab != null)
+            {
+                var vis = TabStrip!.Children.OfType<UIElement>()
+                                   .Where(c => c.Visibility == Visibility.Visible).ToList();
+                firstActive = vis.Count > 0 && ReferenceEquals(vis[0], ab);
+                lastActive  = vis.Count > 0 && ReferenceEquals(vis[^1], ab);
+            }
+            var cr = new CornerRadius(firstActive ? 0 : r, lastActive ? 0 : r, r, r);
+            DocPaneBorder.CornerRadius = cr;
+            if (DocPaneShadow != null) DocPaneShadow.CornerRadius = cr;
+            // Keep the ring's top radii in step with the card's, so its curved sides land exactly
+            // on the card's own left/right border rather than beside them.
+            if (TabBarRing != null) TabBarRing.CornerRadius = new CornerRadius(cr.TopLeft, cr.TopRight, 0, 0);
         }
 
         private FrameworkElement BuildTabButton(DocumentSession s)
