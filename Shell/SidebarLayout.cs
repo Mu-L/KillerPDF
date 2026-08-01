@@ -21,7 +21,7 @@ namespace KillerPDF
                 FindName("SidebarOuterGrid") is not Grid sbOuter ||
                 FindName("SidebarBorder") is not Border sbContent ||
                 FindName("SidebarToggleStrip") is not Border sbToggle ||
-                FindName("DocPaneBorder") is not FrameworkElement docPane ||
+                Viewer is not FrameworkElement docPane ||
                 FindName("SbContentCol") is not ColumnDefinition sbContentCol ||
                 FindName("SbToggleCol") is not ColumnDefinition sbToggleCol)
                 return;
@@ -95,15 +95,12 @@ namespace KillerPDF
                                                          : HorizontalAlignment.Right;
             }
 
-            // The shadow caster is a separate sibling (see MainWindow.xaml), so it has to track the
-            // pane through every column swap and margin flip or the shadow detaches from the card.
-            var docShadow = FindName("DocPaneShadow") as FrameworkElement;
-            if (docShadow != null) Grid.SetColumn(docShadow, _sidebarRight ? 0 : 2);
-
+            // The shadow caster used to be a separate grid child that had to be moved in step with
+            // the pane. It is inside the PdfViewer control now, so moving the control moves both -
+            // one less thing that can drift out of alignment. (Split pane stage 2.)
             if (!_fullScreen)
             {
                 docPane.Margin = DocPaneInsetMargin();
-                if (docShadow != null) docShadow.Margin = docPane.Margin;
                 // The tab band has to stop where the card stops, or it overhangs the card's rounded
                 // outer top corner and squares it off. Outer inset only - the band's other edge is
                 // the splitter column, which is where the card's -6 pull-back already puts its own.
@@ -157,7 +154,8 @@ namespace KillerPDF
         // A Border with a CornerRadius does not clip its child, so the canvas, the grain and the
         // page itself all square the card's corners straight back off. Radius 5 = the card's 6
         // less its 1px border, which is where the inner edge of the curve actually falls.
-        private void DocPane_SizeChanged(object sender, SizeChangedEventArgs e)
+        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        internal void DocPane_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (sender is not FrameworkElement el) return;
             el.Clip = new RectangleGeometry(new Rect(0, 0, el.ActualWidth, el.ActualHeight), 5, 5);

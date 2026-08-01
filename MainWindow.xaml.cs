@@ -308,7 +308,15 @@ namespace KillerPDF
             // canvas still holding mouse capture. End any in-progress gesture on deactivate so control is
             // restored the moment the user comes back.
             Deactivated += (_, _) => { if (_isDraggingAnnot || _isResizingSig) FinishStuckGesture(); };
-            _pageContentGrid = (Grid)FindName("PageContentGrid")!;
+            // Split pane stage 2: these three live inside the PdfViewer control now, and a
+            // UserControl is its own namescope - FindName would return NULL SILENTLY rather than
+            // throw, so the failure would surface much later as an unrelated NullReference. Take
+            // them off the control directly. They land in ViewerState via stage 1's forwarding
+            // properties, so nothing downstream changes.
+            Viewer.Owner = this;
+            _pageContentGrid  = Viewer.PageGrid;
+            _pageContentPanel = Viewer.PageHost;
+            _continuousPanel  = Viewer.ContinuousHost;
             _toolSelectBtn = (Button)FindName("ToolSelectBtn")!;
             _toolTextBtn = (Button)FindName("ToolTextBtn")!;
             _toolHighlightBtn = (Button)FindName("ToolHighlightBtn")!;
@@ -322,7 +330,6 @@ namespace KillerPDF
             _sidebarToggleBtn = (Button)FindName("SidebarToggleBtn")!;
             _sidebarBorder = (Border)FindName("SidebarBorder")!;
             _sidebarCol = (ColumnDefinition)FindName("SidebarCol")!;
-            _pageContentPanel = (WrapPanel)FindName("PageContentPanel")!;
             BuildPrimaryTile();              // code-built tile-0 (replaces the former XAML PageImage + AnnotationCanvas)
             _activeCanvas = _annotationCanvas;
             _saveAsBtnRef = (Button)FindName("SaveAsBtn")!;
@@ -338,7 +345,6 @@ namespace KillerPDF
             _portableBadge = (StackPanel)FindName("PortableBadge")!;
             _pageJumpBox = (TextBox)FindName("PageJumpBox")!;
             _pageTotalLabel = (TextBlock)FindName("PageTotalLabel")!;
-            _continuousPanel = (StackPanel)FindName("ContinuousPanel")!;
             PagePreviewPanel.ScrollChanged += PagePreviewPanel_ScrollChanged;
             PreviewMouseDown += NavHistory_PreviewMouseDown;        // mouse back/forward buttons retrace jumps
             MainContentGrid.SizeChanged += (_, _) => ScheduleFadeRefresh();

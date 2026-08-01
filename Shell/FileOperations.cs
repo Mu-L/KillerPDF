@@ -551,7 +551,8 @@ namespace KillerPDF
 
         // Start-screen "Clear list" link (#146): one click, then the box hides itself (empty list).
         // Handled = true, or the click bubbles into the surrounding DropZone and opens the file dialog.
-        private void RecentClearAll_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        internal void RecentClearAll_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             e.Handled = true;
             App.ClearRecentFiles();

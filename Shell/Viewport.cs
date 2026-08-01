@@ -1561,7 +1561,8 @@ namespace KillerPDF
         private System.Windows.Threading.DispatcherTimer? _resizeRefitTimer;
         private int _gridColumns = 1;   // columns the grid is currently laid out in; held across resizes
 
-        private void PagePreviewPanel_SizeChanged(object sender, SizeChangedEventArgs e)
+        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        internal void PagePreviewPanel_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             RepositionAnnotationBars();   // cheap; keep the draw/text bar tracking its anchored edge
             if (_cropPreviewRect is not null || _cropConfirmBar is not null) return;

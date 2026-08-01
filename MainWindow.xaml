@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:KillerPDF"
+        xmlns:ctrl="clr-namespace:KillerPDF.Controls"
         mc:Ignorable="d"
         Title="KillerPDF" Height="700" Width="1000" MinHeight="480" MinWidth="620"
         WindowStartupLocation="CenterScreen"
@@ -2164,170 +2165,12 @@
                  bitmap effect and lose ClearType, and the page bitmap would be re-rasterized on
                  every scroll and zoom. Family rule, and the same split RootBorder/WindowShadowBorder
                  already use at the window level. ApplySidebarSide moves this with the pane. -->
-            <Border Grid.Row="1" Grid.Column="2" x:Name="DocPaneShadow" IsHitTestVisible="False"
-                    Background="{DynamicResource BgCanvas}"
-                    CornerRadius="{DynamicResource RadCard}" Margin="0,0,8,0"
-                    Effect="{StaticResource PaneShadow}"/>
-            <Border Grid.Row="1" Grid.Column="2" x:Name="DocPaneBorder" Panel.ZIndex="6"
-                    Background="{DynamicResource BgCanvas}"
-                    BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1"
-                    CornerRadius="{DynamicResource RadCard}" Margin="0,0,8,0">
-                <!-- Clipped to the card's own corners (DocPane_SizeChanged). A Border with a
-                     CornerRadius does NOT clip its child, so the canvas and the page square the
-                     corners straight back off. Same treatment as KillerShell's PaneContent. -->
-                <Grid x:Name="DocPaneContent" SizeChanged="DocPane_SizeChanged">
-                    <!-- Film grain - sits on the canvas background, behind the document.
-                         Needs no CornerRadius of its own: the clip on DocPaneContent rounds
-                         everything inside the card, grain included. -->
-                    <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}">
-                        <Border.Background>
-                            <ImageBrush x:Name="GrainBrush"
-                                        TileMode="Tile"
-                                        ViewportUnits="Absolute"
-                                        Viewport="0,0,256,256"
-                                        Stretch="None"/>
-                        </Border.Background>
-                    </Border>
-
-                    <!-- Drop zone -->
-                    <Border x:Name="DropZone" Background="Transparent"
-                            AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver"
-                            MouseLeftButtonDown="DropZone_Click">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Drop target, centered in the remaining space -->
-                            <Border Grid.Column="0" BorderBrush="{DynamicResource DropBorder}" BorderThickness="2"
-                                    CornerRadius="8" Padding="40"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Background="Transparent" Style="{x:Null}">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock Text="{DynamicResource Str_Drop_Title}" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="20"
-                                               Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{DynamicResource Str_Drop_Sub}" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="13"
-                                               Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Recent files sidebar (populated in code-behind; hidden when empty) -->
-                            <Border x:Name="RecentFilesBox" Grid.Column="1" Width="340" Visibility="Collapsed"
-                                    Background="{DynamicResource BgRecentPanel}"
-                                    BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1,0,0,0">
-                                <Grid>
-                                    <Border Background="{DynamicResource GrainBrushShared}" IsHitTestVisible="False"
-                                            Opacity="{DynamicResource GrainOpacity}"/>
-                                    <DockPanel Margin="18,22,12,16">
-                                        <DockPanel DockPanel.Dock="Top" Margin="2,0,0,10">
-                                            <!-- Clear all (#146): one click empties the whole list, matching the
-                                                 dropdown's Clear list item. Foreground lives in the style so the
-                                                 hover trigger can override it (a local value would win over it). -->
-                                            <TextBlock DockPanel.Dock="Right" Text="{DynamicResource Str_Menu_ClearList}"
-                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
-                                                       FontSize="11" Cursor="Hand" Margin="8,0,6,0"
-                                                       MouseLeftButtonDown="RecentClearAll_Click">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                                                <Setter Property="TextDecorations" Value="Underline"/>
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <TextBlock Text="RECENT" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
-                                                       FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource PrimaryBrush}"/>
-                                        </DockPanel>
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <ItemsControl x:Name="RecentFilesList"/>
-                                        </ScrollViewer>
-                                    </DockPanel>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </Border>
-
-                    <!-- PDF page with annotation overlay -->
-                    <ScrollViewer x:Name="PagePreviewPanel" Visibility="Collapsed"
-                                  HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Auto"
-                                  Background="Transparent"
-                                  PreviewMouseWheel="PagePreview_PreviewMouseWheel"
-                                  SizeChanged="PagePreviewPanel_SizeChanged"
-                                  PreviewMouseDown="PagePreviewPanel_PreviewMouseDown"
-                                  PreviewMouseMove="PagePreviewPanel_PreviewMouseMove"
-                                  PreviewMouseUp="PagePreviewPanel_PreviewMouseUp"
-                                  MouseRightButtonUp="DocPaneBackground_RightClick"
-                                  AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver">
-                        <!-- Custom template: the VERTICAL scrollbar spans the full height (RowSpan=2),
-                             covering the bottom-right corner cell, and the horizontal bar butts up
-                             against it. The default template puts a white system-colored corner
-                             rectangle there, which read as a stray white square against the dark
-                             canvas whenever both scrollbars were visible. -->
-                        <ScrollViewer.Template>
-                            <ControlTemplate TargetType="ScrollViewer">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <ScrollContentPresenter Grid.Row="0" Grid.Column="0"
-                                                            Margin="{TemplateBinding Padding}"
-                                                            Content="{TemplateBinding Content}"
-                                                            ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                            CanContentScroll="{TemplateBinding CanContentScroll}"/>
-                                    <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
-                                               Value="{TemplateBinding VerticalOffset}"
-                                               Maximum="{TemplateBinding ScrollableHeight}"
-                                               ViewportSize="{TemplateBinding ViewportHeight}"
-                                               Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
-                                    <ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Row="1" Grid.Column="0"
-                                               Orientation="Horizontal"
-                                               Value="{TemplateBinding HorizontalOffset}"
-                                               Maximum="{TemplateBinding ScrollableWidth}"
-                                               ViewportSize="{TemplateBinding ViewportWidth}"
-                                               Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
-                                </Grid>
-                            </ControlTemplate>
-                        </ScrollViewer.Template>
-                        <Border x:Name="DocSurfacePad" VerticalAlignment="Top" HorizontalAlignment="Center" Padding="12">
-                            <!-- Override the window's Display/ClearType text mode for the zoomed
-                                 document surface. Display + ClearType pixel-snaps and color-fringes
-                                 when scaled, giving hard-edged text on annotations and form fields;
-                                 Ideal + Grayscale stays smoothly anti-aliased at any zoom, matching
-                                 how other PDF editors render. -->
-                            <Grid x:Name="PageContentGrid"
-                                  TextOptions.TextFormattingMode="Ideal"
-                                  TextOptions.TextRenderingMode="Grayscale">
-                                <Grid.LayoutTransform>
-                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                </Grid.LayoutTransform>
-                                <WrapPanel x:Name="PageContentPanel" Orientation="Horizontal">
-                                    <!-- Tile 0 (the primary page) is built in code by BuildPrimaryTile and
-                                         inserted at index 0; additional pages are rendered dynamically too. -->
-                                </WrapPanel>
-                                <!-- Continuous scroll panel - shown in Continuous view mode -->
-                                <StackPanel x:Name="ContinuousPanel"
-                                            HorizontalAlignment="Center"
-                                            Orientation="Vertical"
-                                            Visibility="Collapsed"/>
-                                <!-- Top-most layer for the selection marquee, so a drag can span pages -->
-                                <Canvas x:Name="MarqueeLayer" IsHitTestVisible="False"/>
-                            </Grid>
-                        </Border>
-                    </ScrollViewer>
-                </Grid>
-            </Border>
+            <!-- ONE document view, now a control (Controls/PdfViewer.xaml) so the split can have
+                 two. The card, its shadow caster and all 154 lines of contents moved there
+                 verbatim. The MARGIN stays out here because it is the layout's business, not the
+                 viewer's - ApplySidebarSide flips the 8px gutter to whichever side the document is
+                 on, and the -1 top tucks the card under the tab band. -->
+            <ctrl:PdfViewer x:Name="Viewer" Grid.Row="1" Grid.Column="2" Margin="0,-1,8,0"/>
 
             <!-- DocTopAccent / DocBottomAccent were here: 1px rules at ZIndex 60 spanning the
                  splitter + document columns, bridging the splitter to the toolbar and footer

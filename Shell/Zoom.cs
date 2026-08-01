@@ -27,7 +27,8 @@ namespace KillerPDF
         // Zoom
         // ============================================================
 
-        private void PagePreview_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        internal void PagePreview_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (Keyboard.Modifiers == ModifierKeys.Control)
             {
@@ -156,7 +157,7 @@ namespace KillerPDF
             return false;
         }
 
-        private void PagePreviewPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        internal void PagePreviewPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             // A press that lands on the document scrollbar must reach the scrollbar itself (thumb drag,
             // track paging). The pan/crop/marquee handling below otherwise claims the press first and sets
@@ -290,7 +291,7 @@ namespace KillerPDF
             return false;
         }
 
-        private void PagePreviewPanel_PreviewMouseMove(object sender, MouseEventArgs e)
+        internal void PagePreviewPanel_PreviewMouseMove(object sender, MouseEventArgs e)
         {
             if (!_isPanning) return;
             var pos = e.GetPosition(PagePreviewPanel);
@@ -299,7 +300,7 @@ namespace KillerPDF
             e.Handled = true;
         }
 
-        private void PagePreviewPanel_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        internal void PagePreviewPanel_PreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (!_isPanning) return;
             if (e.ChangedButton != MouseButton.Middle && e.ChangedButton != MouseButton.Left) return;

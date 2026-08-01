@@ -27,13 +27,14 @@ namespace KillerPDF
         // Drag/drop: file open
         // ============================================================
 
-        private void DropZone_DragOver(object sender, DragEventArgs e)
+        internal void DropZone_DragOver(object sender, DragEventArgs e)
         {
             e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
             e.Handled = true;
         }
 
-        private void DropZone_Drop(object sender, DragEventArgs e)
+        // internal: PdfViewer's XAML binds these three and forwards to them (split pane stage 2).
+        internal void DropZone_Drop(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -42,7 +43,7 @@ namespace KillerPDF
             }
         }
 
-        private void DropZone_Click(object sender, MouseButtonEventArgs e) => Open_Click(sender, e);
+        internal void DropZone_Click(object sender, MouseButtonEventArgs e) => Open_Click(sender, e);
 
         // ============================================================
         // Drag/drop: page reorder

@@ -627,7 +627,8 @@ namespace KillerPDF
 
         // Opens the page-agnostic menu for a right-click on the gray area around the page (the document
         // pane background). Wired in code so right-clicking outside the page is no longer a dead spot.
-        private void DocPaneBackground_RightClick(object sender, MouseButtonEventArgs e)
+        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        internal void DocPaneBackground_RightClick(object sender, MouseButtonEventArgs e)
         {
             if (_doc is null) return;
             // Only when the click really hit the background, not a page tile (those have their own menu).
