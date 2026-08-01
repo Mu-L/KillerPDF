@@ -170,13 +170,15 @@ namespace KillerPDF
 
         private void BrowsePfx()
         {
-            var dlg = new OpenFileDialog { Filter = "Certificate files|*.pfx;*.p12|All files|*.*", Title = "Choose a signing certificate" };
+            var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Open)
+                          { Filter = "Certificate files|*.pfx;*.p12|All files|*.*", Title = "Choose a signing certificate" };
             if (dlg.ShowDialog(this) == true) _pfxBox.Text = dlg.FileName;
         }
 
         private void BrowseOutput()
         {
-            var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save signed PDF as", FileName = Path.GetFileName(_outputBox.Text) };
+            var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Save)
+                          { Filter = "PDF files|*.pdf", Title = "Save signed PDF as", FileName = Path.GetFileName(_outputBox.Text) };
             if (dlg.ShowDialog(this) == true) _outputBox.Text = dlg.FileName;
         }
 

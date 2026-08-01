@@ -55,8 +55,9 @@ namespace KillerPDF
             var currentFile = _currentFile;
             var selected = PageList.SelectedItems;
             if (selected.Count == 0) { KillerDialog.Show(this, Loc("Str_Dlg_SelectExtract")); return; }
-            var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save extracted pages as",
-                                           CheckFileExists = false, CheckPathExists = true };
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
+                          { Filter = "PDF files|*.pdf", Title = "Save extracted pages as",
+                            CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
             try
             {

@@ -765,7 +765,7 @@ namespace KillerPDF
 
         private void ImportImageSignature(SignatureKind kind = SignatureKind.Signature)
         {
-            var dlg = new OpenFileDialog
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
             {
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*",
                 Title = "Import Signature Image"

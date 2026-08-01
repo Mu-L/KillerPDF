@@ -447,7 +447,8 @@ namespace KillerPDF
 
         private void Open_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog { Filter = "PDF files|*.pdf", Title = "Open PDF" };
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
+                          { Filter = "PDF files|*.pdf", Title = "Open PDF" };
             if (dlg.ShowDialog(this) == true) OpenInNewTab(dlg.FileName);
         }
 
@@ -752,7 +753,8 @@ namespace KillerPDF
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var doc = _doc;
-            var dlg = new OpenFileDialog { Filter = "PDF files|*.pdf", Title = "Select PDF to merge", Multiselect = true };
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
+                          { Filter = "PDF files|*.pdf", Title = "Select PDF to merge", Multiselect = true };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
@@ -970,8 +972,9 @@ namespace KillerPDF
         {
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
-            var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save PDF as",
-                                           CheckFileExists = false, CheckPathExists = true };
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
+                          { Filter = "PDF files|*.pdf", Title = "Save PDF as",
+                            CheckFileExists = false, CheckPathExists = true };
             // Seed the dialog from the last real save location. Guard every path call: on .NET Framework
             // Path.GetDirectoryName("") throws ArgumentException ("path is not of a legal form"), so a merged
             // or imported doc (where _originalFile is null) would crash Save before the dialog opened (#112).
@@ -1061,8 +1064,9 @@ namespace KillerPDF
         {
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
-            var dlg = new SaveFileDialog { Filter = "PDF files|*.pdf", Title = "Save Flattened PDF",
-                                           CheckFileExists = false, CheckPathExists = true };
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
+                          { Filter = "PDF files|*.pdf", Title = "Save Flattened PDF",
+                            CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
             CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
@@ -1173,7 +1177,7 @@ namespace KillerPDF
             selected ??= [.. Enumerable.Range(0, _doc.PageCount)];
 
             string ext = opts.Jpeg ? "jpg" : "png";
-            var dlg = new SaveFileDialog
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
             {
                 Filter = opts.Jpeg ? "JPEG image|*.jpg" : "PNG image|*.png",
                 Title  = Loc("Str_ExportImg_Suffix"),

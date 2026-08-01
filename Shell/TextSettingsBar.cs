@@ -647,7 +647,7 @@ namespace KillerPDF
 
         private void PlaceImageFromDialog(Point pos, int pageIdx)
         {
-            var dlg = new OpenFileDialog
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
             {
                 Title = "Insert Image",
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tiff;*.tif|All files|*.*"

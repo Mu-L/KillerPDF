@@ -1209,7 +1209,8 @@ namespace KillerPDF
             };
             b.Click += (_, _) =>
             {
-                var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "PDF files|*.pdf", Title = "Open PDF" };
+                var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
+                              { Filter = "PDF files|*.pdf", Title = "Open PDF" };
                 if (dlg.ShowDialog(this) == true) OpenInNewTab(dlg.FileName);
             };
             return b;

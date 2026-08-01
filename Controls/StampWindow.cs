@@ -498,8 +498,9 @@ namespace KillerPDF
 
         private void ChooseImage()
         {
-            var ofd = new OpenFileDialog { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*" };
-            if (ofd.ShowDialog() == true)
+            var ofd = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Open)
+                          { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*" };
+            if (ofd.ShowDialog(this) == true)
             {
                 _wmImagePath = ofd.FileName;
                 _wmImageLabel.Text = System.IO.Path.GetFileName(_wmImagePath);

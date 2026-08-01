@@ -173,7 +173,7 @@ namespace KillerPDF.Features
             if (!await _host.EnsureOcrModelsReadyAsync()) return;
             _host.CommitActiveTextBox();
 
-            var dlg = new SaveFileDialog
+            var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Save)
             {
                 Filter = "PDF files|*.pdf",
                 Title = "Save Searchable PDF",
@@ -311,7 +311,7 @@ namespace KillerPDF.Features
             if (!await _host.EnsureOcrModelsReadyAsync()) return;
             _host.CommitActiveTextBox();
 
-            var dlg = new SaveFileDialog
+            var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Save)
             {
                 Filter = "Text file|*.txt|Markdown|*.md",
                 Title = "Extract All Text",

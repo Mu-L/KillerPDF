@@ -23,7 +23,7 @@ namespace KillerPDF
 
         private void ImportImages_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
             {
                 Title       = Loc("Str_Menu_Import"),
                 Filter      = $"{Loc("Str_Filter_Images")}|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff|{Loc("Str_Filter_AllFiles")}|*.*",
@@ -312,7 +312,7 @@ namespace KillerPDF
             }
 
             string sourcePdf = _originalFile!;
-            var dlg = new SaveFileDialog
+            var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
             {
                 Filter   = $"{Loc("Str_Filter_Zip")}|*.zip",
                 Title    = Loc("Str_Menu_CompressZip"),
