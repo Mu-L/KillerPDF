@@ -1362,8 +1362,8 @@ namespace KillerPDF
                         }
                         using (burnDoc)
                         {
-                            DrawStampsIntoDoc(burnDoc, stampSnap);   // stamps sit beneath annotations
-                            DrawAnnotationsIntoDoc(burnDoc, annotsSnap, dimsSnap);
+                            PdfBurn.DrawStampsIntoDoc(burnDoc, stampSnap);   // stamps sit beneath annotations
+                            PdfBurn.DrawAnnotationsIntoDoc(burnDoc, annotsSnap, dimsSnap);
                             burnDoc.Save(burnPath);
                         }
                         return true;

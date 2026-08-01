@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PdfSharpCore.Drawing;
+using KillerPDF.Services;
 
 namespace KillerPDF
 {
@@ -66,11 +67,11 @@ namespace KillerPDF
             int n = _doc.PageCount;
 
             if (_docStampSpec.NumbersEnabled)
-                foreach (int p in StampPageRange(_docStampSpec.NumRange, n))
+                foreach (int p in PdfBurn.StampPageRange(_docStampSpec.NumRange, n))
                     AddStamp(p, StampKind.PageNumber);
 
             if (_docStampSpec.WmEnabled)
-                foreach (int p in StampPageRange(_docStampSpec.WmRange, n))
+                foreach (int p in PdfBurn.StampPageRange(_docStampSpec.WmRange, n))
                     AddStamp(p, StampKind.Watermark);
         }
 
@@ -116,7 +117,7 @@ namespace KillerPDF
             // First page that carries a number, so numbering starts at StartNumber there.
             int firstNumPage = -1;
             if (spec.NumbersEnabled)
-                foreach (int p in StampPageRange(spec.NumRange, _doc.PageCount)) { firstNumPage = p; break; }
+                foreach (int p in PdfBurn.StampPageRange(spec.NumRange, _doc.PageCount)) { firstNumPage = p; break; }
 
             foreach (var st in list)
             {
@@ -240,177 +241,20 @@ namespace KillerPDF
             catch { return null; }
         }
 
-        // 0-based page indices for a 1-based "1-3,5" range string ("" = all pages).
-        private static IEnumerable<int> StampPageRange(string range, int pageCount)
-        {
-            var set = new SortedSet<int>();
-            if (string.IsNullOrWhiteSpace(range))
-            {
-                for (int i = 0; i < pageCount; i++) set.Add(i);
-                return set;
-            }
-            foreach (var part in range.Split(','))
-            {
-                var p = part.Trim();
-                if (p.Length == 0) continue;
-                int dash = p.IndexOf('-');
-                if (dash > 0)
-                {
-                    if (int.TryParse(p[..dash].Trim(), out int a) && int.TryParse(p[(dash + 1)..].Trim(), out int b))
-                        for (int i = Math.Min(a, b); i <= Math.Max(a, b); i++) if (i >= 1 && i <= pageCount) set.Add(i - 1);
-                }
-                else if (int.TryParse(p, out int single) && single >= 1 && single <= pageCount) set.Add(single - 1);
-            }
-            return set;
-        }
+        // StampPageRange (shared with the burned output) lives in Services/PdfBurn.cs.
 
         // ---- Export: burn the stamp layer into the PDF (below annotations) on save/flatten ----
 
         // Draws the active stamps into the doc via XGraphics, in PDF-point space. Called BEFORE
         // DrawAnnotationsOnDocument at each save site so stamps sit beneath annotations.
-        private void DrawStampsOnDocument(int? onlyPage = null) => DrawStampsIntoDoc(_doc, _docStampSpec, onlyPage);
+        private void DrawStampsOnDocument(int? onlyPage = null) => PdfBurn.DrawStampsIntoDoc(_doc, _docStampSpec, onlyPage);
 
         // True when the document carries stamps that must be burned on save. The save sites used to
         // gate the whole burn block on the ANNOTATION count alone, so a document whose only markup
         // was stamps (page numbers / watermark on a fresh doc) saved without them (#147).
         private bool HasActiveStamps => _docStampSpec is { } s && (s.NumbersEnabled || s.WmEnabled);
 
-        // Static so the print flow can run it on a background thread against a throwaway document copy.
-        private static void DrawStampsIntoDoc(PdfSharpCore.Pdf.PdfDocument? doc, StampSpec? spec, int? onlyPage = null)
-        {
-            if (doc is null || spec is null || (!spec.NumbersEnabled && !spec.WmEnabled)) return;
-            int n = doc.PageCount;
-
-            HashSet<int> numPages = spec.NumbersEnabled ? [.. StampPageRange(spec.NumRange, n)] : [];
-            HashSet<int> wmPages  = spec.WmEnabled     ? [.. StampPageRange(spec.WmRange, n)]  : [];
-            int firstNumPage = int.MaxValue;
-            foreach (int p in numPages) if (p < firstNumPage) firstNumPage = p;
-            if (firstNumPage == int.MaxValue) firstNumPage = 0;
-
-            // Pre-fade the watermark image once (reused for all pages).
-            XImage? wmImg = null;
-            if (spec.WmEnabled && spec.WmIsImage && !string.IsNullOrEmpty(spec.WmImagePath) && System.IO.File.Exists(spec.WmImagePath))
-                wmImg = LoadStampImage(spec.WmImagePath!, spec.WmOpacity);
-
-            for (int i = 0; i < n && i < doc.PageCount; i++)
-            {
-                if (onlyPage.HasValue && i != onlyPage.Value) continue;
-                bool doNum = numPages.Contains(i);
-                bool doWm = wmPages.Contains(i);
-                if (!doNum && !doWm) continue;
-
-                var page = doc.Pages[i];
-                double pw = page.Width.Point, ph = page.Height.Point;
-                double mx = pw * 0.05, my = ph * 0.04;
-                using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-
-                if (doWm)  DrawWatermarkPdf(gfx, spec, pw, ph, mx, my, wmImg);   // watermark first (underneath)
-                if (doNum) DrawNumberPdf(gfx, spec, i, firstNumPage, n, pw, ph, mx, my);
-            }
-        }
-
-        private static void DrawNumberPdf(XGraphics gfx, StampSpec spec, int pageIndex, int firstNumPage, int total, double pw, double ph, double mx, double my)
-        {
-            int number = spec.StartNumber + Math.Max(0, pageIndex - firstNumPage);
-            string text = (string.IsNullOrEmpty(spec.Format) ? "{n}" : spec.Format)
-                .Replace("{n}", number.ToString()).Replace("{N}", total.ToString());
-            if (text.Length == 0) return;
-
-            var font = new XFont("Segoe UI", Math.Max(1, spec.NumFontPt), XFontStyle.Regular);
-            var c = spec.NumColor;
-            var brush = new XSolidBrush(XColor.FromArgb(255, c.R, c.G, c.B));
-            var size = gfx.MeasureString(text, font);
-            double w = size.Width, h = size.Height;
-
-            int posH = spec.NumPosH;
-            double x, y;
-            if (posH < 0)   // custom
-            {
-                double cx = spec.NumCustomX;
-                if (spec.NumMirror && (pageIndex % 2 == 1)) cx = 1 - cx;
-                x = cx * pw - w / 2; y = spec.NumCustomY * ph - h / 2;
-            }
-            else
-            {
-                if (spec.NumMirror && posH != 1 && (pageIndex % 2 == 1)) posH = 2 - posH;
-                x = posH == 0 ? mx : posH == 2 ? pw - w - mx : (pw - w) / 2;
-                y = spec.NumPosV == 0 ? my : spec.NumPosV == 1 ? (ph - h) / 2 : ph - h - my;
-            }
-            gfx.DrawString(text, font, brush, new XRect(x, y, w, h), XStringFormats.TopLeft);
-        }
-
-        private static void DrawWatermarkPdf(XGraphics gfx, StampSpec spec, double pw, double ph, double mx, double my, XImage? img)
-        {
-            double w, h;
-            XFont? font = null;
-            if (spec.WmIsImage)
-            {
-                if (img is null) return;
-                w = pw * 0.5 * spec.WmScale;
-                h = w * img.PixelHeight / Math.Max(1, img.PixelWidth);
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(spec.WmText)) return;
-                try { font = new XFont(string.IsNullOrWhiteSpace(spec.WmFont) ? "Segoe UI" : spec.WmFont, Math.Max(1, spec.WmFontPt), XFontStyle.Bold); }
-                catch { font = new XFont("Segoe UI", Math.Max(1, spec.WmFontPt), XFontStyle.Bold); }
-                var size = gfx.MeasureString(spec.WmText, font);
-                w = size.Width; h = size.Height;
-            }
-
-            double cx, cy;
-            if (spec.WmPosH < 0) { cx = spec.WmCustomX * pw; cy = spec.WmCustomY * ph; }
-            else
-            {
-                cx = spec.WmPosH == 0 ? mx + w / 2 : spec.WmPosH == 2 ? pw - mx - w / 2 : pw / 2;
-                cy = spec.WmPosV == 0 ? my + h / 2 : spec.WmPosV == 1 ? ph / 2 : ph - my - h / 2;
-            }
-
-            var state = gfx.Save();
-            gfx.TranslateTransform(cx, cy);
-            gfx.RotateTransform(-spec.WmAngle);
-            if (spec.WmIsImage)
-            {
-                gfx.DrawImage(img, -w / 2, -h / 2, w, h);
-            }
-            else
-            {
-                byte a = (byte)Math.Max(0, Math.Min(255, spec.WmOpacity * 255));
-                var c = spec.WmColor;
-                gfx.DrawString(spec.WmText, font, new XSolidBrush(XColor.FromArgb(a, c.R, c.G, c.B)), new XRect(-w / 2, -h / 2, w, h), XStringFormats.Center);
-            }
-            gfx.Restore(state);
-        }
-
-        // Loads a watermark image as an XImage, pre-faded to the requested opacity (PdfSharpCore has no
-        // per-draw image opacity, so we bake it into the pixels).
-        private static XImage? LoadStampImage(string path, double opacity)
-        {
-            try
-            {
-                byte[] bytes;
-                if (opacity >= 0.999)
-                {
-                    bytes = System.IO.File.ReadAllBytes(path);
-                }
-                else
-                {
-                    using var src = System.Drawing.Image.FromFile(path);
-                    using var bmp = new System.Drawing.Bitmap(src.Width, src.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                    using (var g = System.Drawing.Graphics.FromImage(bmp))
-                    {
-                        var cm = new System.Drawing.Imaging.ColorMatrix { Matrix33 = (float)Math.Max(0, Math.Min(1, opacity)) };
-                        using var ia = new System.Drawing.Imaging.ImageAttributes();
-                        ia.SetColorMatrix(cm);
-                        g.DrawImage(src, new System.Drawing.Rectangle(0, 0, src.Width, src.Height), 0, 0, src.Width, src.Height, System.Drawing.GraphicsUnit.Pixel, ia);
-                    }
-                    using var ms = new System.IO.MemoryStream();
-                    bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    bytes = ms.ToArray();
-                }
-                return XImage.FromStream(() => new System.IO.MemoryStream(bytes));
-            }
-            catch { return null; }
-        }
+        // DrawStampsIntoDoc and its DrawNumberPdf / DrawWatermarkPdf / LoadStampImage workers
+        // live in Services/PdfBurn.cs with the annotation burn core.
     }
 }

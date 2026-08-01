@@ -76,32 +76,8 @@ namespace KillerPDF
             _activeCanvas.Children.Add(box);
         }
 
-        // Builds the geometry for a carved highlight: the painted rectangle MINUS the union of the eraser
-        // strokes (each widened to its brush radius with round caps) - one smooth, anti-aliased shape. Used
-        // for both on-screen rendering and PDF export. Null when the highlight hasn't been carved.
-        private static Geometry? HighlightEraseGeometry(HighlightAnnotation h)
-        {
-            if (h.Erases is not { Count: > 0 } erases) return null;
-            var holes = new GeometryGroup { FillRule = FillRule.Nonzero };
-            foreach (var e in erases)
-            {
-                if (e.Points.Count == 0) continue;
-                if (e.Points.Count == 1)
-                {
-                    holes.Children.Add(new EllipseGeometry(e.Points[0], e.Radius, e.Radius));
-                    continue;
-                }
-                var fig = new PathFigure { StartPoint = e.Points[0], IsClosed = false, IsFilled = false };
-                for (int i = 1; i < e.Points.Count; i++) fig.Segments.Add(new LineSegment(e.Points[i], true));
-                var pg = new PathGeometry();
-                pg.Figures.Add(fig);
-                var pen = new Pen(Brushes.Black, Math.Max(0.5, e.Radius * 2))
-                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
-                holes.Children.Add(pg.GetWidenedPathGeometry(pen));
-            }
-            if (holes.Children.Count == 0) return null;
-            return new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(h.DrawRect()), holes);
-        }
+        // HighlightEraseGeometry (shared by on-screen rendering and PDF export) lives in
+        // Services/PdfBurn.cs with the rest of the burn-to-document core.
 
         private void RenderAllAnnotations(int pageIndex)
         {
@@ -142,7 +118,7 @@ namespace KillerPDF
                         _activeCanvas.Children.Add(covRect);
                         break;
                     case HighlightAnnotation ha:
-                        if (HighlightEraseGeometry(ha) is { } hgeo)
+                        if (PdfBurn.HighlightEraseGeometry(ha) is { } hgeo)
                         {
                             // Carved highlight: rectangle minus the eraser strokes, one anti-aliased fill.
                             _activeCanvas.Children.Add(new System.Windows.Shapes.Path
@@ -2691,211 +2667,8 @@ namespace KillerPDF
         // onlyPage: when set, burns just that one page's annotations (used by Transform, which rasterizes a
         // single page and wants its annotations baked in). Default null burns every page, as before.
         private void DrawAnnotationsOnDocument(int? onlyPage = null)
-            => DrawAnnotationsIntoDoc(_doc, _annotations, _renderDims, onlyPage);
+            => PdfBurn.DrawAnnotationsIntoDoc(_doc, _annotations, _renderDims, onlyPage);
 
-        // Burns annotations into the given document using only the supplied annotation + render-dim data and
-        // nothing from the live UI state (static, so the compiler guarantees it). This makes it safe to run on
-        // a background thread against a throwaway copy of the document - the print flow uses that to keep the
-        // UI responsive while annotated pages are flattened.
-        private static void DrawAnnotationsIntoDoc(
-            PdfDocument? doc,
-            IReadOnlyDictionary<int, List<PageAnnotation>> annotations,
-            IReadOnlyDictionary<int, (int w, int h)> renderDims,
-            int? onlyPage = null)
-        {
-            if (doc is null) return;
-
-            // Strip link annotation borders so they don't render as colored rectangles
-            // (e.g. strikethrough-like lines) in other PDF viewers.
-            PdfScrub.StripLinkAnnotationBorders(doc);
-
-            foreach (var kvp in annotations)
-            {
-                int pageIdx = kvp.Key;
-                if (onlyPage.HasValue && pageIdx != onlyPage.Value) continue;
-                var annots = kvp.Value;
-                if (annots.Count == 0 || pageIdx >= doc.PageCount) continue;
-                if (!renderDims.ContainsKey(pageIdx)) continue;
-
-                var page = doc.Pages[pageIdx];
-                var (renderW, renderH) = renderDims[pageIdx];
-                double sx = page.Width.Point / renderW;
-                double sy = page.Height.Point / renderH;
-
-                using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-
-                foreach (var annot in annots)
-                {
-                    switch (annot)
-                    {
-                        case TextAnnotation ta:
-                        {
-                            double tboxX = ta.Position.X * sx;
-                            double tboxY = ta.Position.Y * sy;
-                            double tboxW = ta.Width * sx;
-                            double tboxH = ta.Height * sy;
-                            // Background fill (whiteout) first, behind the text.
-                            if (ta.HasFill)
-                            {
-                                var fc = ta.GetFill();
-                                gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(fc.A, fc.R, fc.G, fc.B)),
-                                    tboxX, tboxY, Math.Max(1, tboxW), Math.Max(1, tboxH));
-                            }
-                            // Match the on-screen typeface + B/I/S. Strikeout is a font-style flag PDFsharp
-                            // draws as a line. Fall back to Segoe UI if the font can't be resolved/embedded.
-                            var xstyle = XFontStyle.Regular;
-                            if (ta.Bold) xstyle |= XFontStyle.Bold;
-                            if (ta.Italic) xstyle |= XFontStyle.Italic;
-                            if (ta.Strike) xstyle |= XFontStyle.Strikeout;
-                            if (ta.Underline) xstyle |= XFontStyle.Underline;
-                            XFont font;
-                            try { font = new XFont(string.IsNullOrEmpty(ta.FontName) ? "Segoe UI" : ta.FontName, ta.FontSize * sy, xstyle); }
-                            catch { font = new XFont("Segoe UI", ta.FontSize * sy, xstyle); }
-                            var taColor = ta.GetColor();
-                            var taBrush = new XSolidBrush(XColor.FromArgb(taColor.A, taColor.R, taColor.G, taColor.B));
-                            // Wrap inside the box, matching the on-screen TextWrapping=Wrap. The 2px editor
-                            // padding is scaled into the layout rect so wrap points line up with the canvas.
-                            double padX = 2 * sx, padY = 2 * sy;
-                            var layoutRect = new XRect(tboxX + padX, tboxY + padY,
-                                                       Math.Max(1, tboxW - 2 * padX), Math.Max(1, tboxH));
-                            // #142 root cause (PR #144, thanks Ryokoxx): the short DrawString
-                            // overload hardcodes Justify, whose draw path NREd on the null-Text
-                            // LineBreak blocks a newline produces - any font, any machine. The
-                            // formatter is fixed, and the alignment is now stated explicitly:
-                            // the on-screen TextBlock sets no TextAlignment, so WPF renders it
-                            // Left - burned output must match, not silently justify.
-                            // The retry/skip below stays as the net for GENUINE font failures:
-                            // DrawString resolves the typeface lazily, so a font that CONSTRUCTED
-                            // fine can still throw at first draw on machines missing that face.
-                            var taAlign = new PdfSharpCore.Drawing.Layout.TextFormatAlignment
-                            {
-                                Horizontal = PdfSharpCore.Drawing.Layout.XParagraphAlignment.Left
-                            };
-                            if (!string.IsNullOrEmpty(ta.Content))
-                            {
-                                try
-                                {
-                                    var tf = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
-                                    tf.DrawString(ta.Content, font, taBrush, layoutRect, taAlign);
-                                }
-                                catch
-                                {
-                                    try
-                                    {
-                                        var tf2 = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
-                                        tf2.DrawString(ta.Content, new XFont("Segoe UI", ta.FontSize * sy, xstyle), taBrush, layoutRect, taAlign);
-                                    }
-                                    catch { /* skip this annotation rather than fail the whole save (#142) */ }
-                                }
-                            }
-                            break;
-                        }
-
-                        case HighlightAnnotation ha:
-                            var hc = ha.GetColor();
-                            var hBrush = new XSolidBrush(XColor.FromArgb(hc.A, hc.R, hc.G, hc.B));
-                            if (HighlightEraseGeometry(ha) is { } hgeo)
-                            {
-                                // Carved highlight: flatten the rect-minus-strokes geometry to polygons and
-                                // draw as one filled path so the smooth hole survives into the saved PDF.
-                                var flat = hgeo.GetFlattenedPathGeometry();
-                                var hpath = new XGraphicsPath();
-                                foreach (var fig in flat.Figures)
-                                {
-                                    var poly = new System.Collections.Generic.List<XPoint> { new(fig.StartPoint.X * sx, fig.StartPoint.Y * sy) };
-                                    foreach (var seg in fig.Segments)
-                                        if (seg is PolyLineSegment pls) foreach (var p in pls.Points) poly.Add(new XPoint(p.X * sx, p.Y * sy));
-                                        else if (seg is LineSegment ls) poly.Add(new XPoint(ls.Point.X * sx, ls.Point.Y * sy));
-                                    if (poly.Count >= 3) hpath.AddPolygon([.. poly]);
-                                }
-                                hpath.FillMode = XFillMode.Winding;
-                                gfx.DrawPath(hBrush, hpath);
-                            }
-                            else
-                            {
-                                var hdr = ha.DrawRect();
-                                gfx.DrawRectangle(hBrush,
-                                    hdr.X * sx, hdr.Y * sy,
-                                    hdr.Width * sx, hdr.Height * sy);
-                            }
-                            break;
-
-                        case InkAnnotation ia:
-                            if (ia.Points.Count < 2) break;
-                            var ic = ia.GetColor();
-                            if (ia.HasFill)
-                            {
-                                // Filled shape (#127 Phase 3): fill the enclosed region first, then stroke.
-                                var fc = ia.GetFillColor();
-                                var fillPts = ia.Points.Select(p => new XPoint(p.X * sx, p.Y * sy)).ToArray();
-                                gfx.DrawPolygon(new XSolidBrush(XColor.FromArgb(fc.A, fc.R, fc.G, fc.B)),
-                                                fillPts, XFillMode.Alternate);
-                            }
-                            var pen = new XPen(XColor.FromArgb(ic.A, ic.R, ic.G, ic.B), ia.StrokeWidth * sx)
-                            {
-                                LineJoin = XLineJoin.Round,
-                                LineCap = XLineCap.Round
-                            };
-                            for (int i = 0; i < ia.Points.Count - 1; i++)
-                            {
-                                gfx.DrawLine(pen,
-                                    ia.Points[i].X * sx, ia.Points[i].Y * sy,
-                                    ia.Points[i + 1].X * sx, ia.Points[i + 1].Y * sy);
-                            }
-                            break;
-
-                        case SignatureAnnotation sa:
-                            if (sa.ImageData is not null)
-                            {
-                                try
-                                {
-                                    var imgBytes = Convert.FromBase64String(sa.ImageData);
-                                    var xImg = XImage.FromStream(() => new System.IO.MemoryStream(imgBytes));
-                                    double imgX = sa.Position.X * sx;
-                                    double imgY = sa.Position.Y * sy;
-                                    double imgW = sa.SourceWidth * sa.Scale * sx;
-                                    double imgH = sa.SourceHeight * sa.Scale * sy;
-                                    gfx.DrawImage(xImg, imgX, imgY, imgW, imgH);
-                                }
-                                catch { /* skip broken image */ }
-                            }
-                            else
-                            {
-                                var sigPen = new XPen(XColors.Black, sa.StrokeWidth * sa.Scale * sx)
-                                {
-                                    LineJoin = XLineJoin.Round,
-                                    LineCap = XLineCap.Round
-                                };
-                                foreach (var stroke in sa.Strokes)
-                                {
-                                    for (int i = 0; i < stroke.Count - 1; i++)
-                                    {
-                                        double x1 = (sa.Position.X + stroke[i].X * sa.Scale) * sx;
-                                        double y1 = (sa.Position.Y + stroke[i].Y * sa.Scale) * sy;
-                                        double x2 = (sa.Position.X + stroke[i + 1].X * sa.Scale) * sx;
-                                        double y2 = (sa.Position.Y + stroke[i + 1].Y * sa.Scale) * sy;
-                                        gfx.DrawLine(sigPen, x1, y1, x2, y2);
-                                    }
-                                }
-                            }
-                            break;
-
-                        case ImageAnnotation ia:
-                            try
-                            {
-                                var iaBytes = Convert.FromBase64String(ia.ImageData);
-                                var xia = XImage.FromStream(() => new System.IO.MemoryStream(iaBytes));
-                                double iaX = ia.Position.X * sx;
-                                double iaY = ia.Position.Y * sy;
-                                double iaW = ia.SourceWidth * ia.Scale * sx;
-                                double iaH = ia.SourceHeight * ia.Scale * sy;
-                                gfx.DrawImage(xia, iaX, iaY, iaW, iaH);
-                            }
-                            catch { /* skip broken image */ }
-                            break;
-                    }
-                }
-            }
-        }
+        // The burn core (DrawAnnotationsIntoDoc) lives in Services/PdfBurn.cs.
     }
 }
