@@ -143,6 +143,11 @@
     <sys:String x:Key="Str_RotateFailed">Drehen fehlgeschlagen: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">Im anderen Bereich ist „{0}“ ebenfalls geöffnet, mit eigenen ungespeicherten Änderungen.
+
+Beim Speichern wird die Datei überschrieben und diese Änderungen gehen verloren. Speichern Sie zuerst den anderen Bereich, wenn Sie sie behalten möchten.</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">Geteilte Ansicht an - F10 zum Schließen</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">Geteilte Ansicht aus</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF installieren</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF auf diesem Computer installieren?
 

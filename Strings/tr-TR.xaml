@@ -143,6 +143,11 @@
     <sys:String x:Key="Str_RotateFailed">Döndürme başarısız: {0}</sys:String>
 
     <!-- ── İletişim kutusu metinleri ────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">Diğer bölmede de "{0}" açık ve kendi kaydedilmemiş değişiklikleri var.
+
+Şimdi kaydetmek dosyanın üzerine yazar ve bu değişiklikler kaybolur. Korumak istiyorsanız önce diğer bölmeyi kaydedin.</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">Bölünmüş görünüm açık - kapatmak için F10</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">Bölünmüş görünüm kapalı</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF'i Yükle</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF bu bilgisayara yüklensin mi?
 

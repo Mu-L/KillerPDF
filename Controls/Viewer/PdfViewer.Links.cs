@@ -21,17 +21,16 @@ using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF.Controls
 {
-    // Split pane stage 4: moved from Shell/Links.cs, verbatim apart from the namespace and
-    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    // Moved from Shell/Links.cs; the namespace and class line are the only changes. Window members
+    // spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
         // ============================================================
         // PDF Link Annotation Overlays
         // ============================================================
 
-        // LinkInfo moved to Models/LinkTypes.cs in split pane stage 4 - ContextMenu.cs stays on the
-        // window and still reads the link rects, so the type cannot be nested in whichever class
-        // owns them.
+        // LinkInfo lives in Models/LinkTypes.cs, not here - ContextMenu.cs is on the window and also
+        // reads the link rects, so the type cannot be nested in whichever class owns them.
 
         // Per-page link rects for the tiled views (continuous / grid / two-page), keyed by page index.
         // Clicks and the hover cursor are resolved by bounds-testing these in Canvas_MouseLeftButtonDown
@@ -40,8 +39,8 @@ namespace KillerPDF.Controls
         private readonly Dictionary<int, List<LinkInfo>> _continuousLinks = [];
 
         /// <summary>The link-rect map, for the window side. ContextMenu.cs bounds-tests it to build
-        /// the right-click menu and FileOperations.cs clears it on document change; both stayed on
-        /// the window when Links.cs moved here in stage 4.</summary>
+        /// the right-click menu and FileOperations.cs clears it on document change; both live on the
+        /// window while Links.cs lives here.</summary>
         internal Dictionary<int, List<LinkInfo>> ContinuousLinks => _continuousLinks;
 
         /// <summary>Hit-slop around a link rect, shared with ContextMenu.cs so the menu targets the
@@ -58,10 +57,9 @@ namespace KillerPDF.Controls
         // "Confirm before opening links" toggle on the About card footer.
         //
         // Positive sense and default OFF: links keep opening immediately unless you ask for the
-        // prompt. This replaces the old pair - a hardcoded master switch plus an inverted
-        // "SkipLinkConfirm" opt-out - which could disagree with each other, and whose UI row died
-        // with the Settings panel, leaving the feature unreachable. One key now, and the dialog's
-        // "Don't ask again" is the same switch as the checkbox. (Steve, 2026-07-31.)
+        // prompt. ONE key, deliberately - a hardcoded master switch plus an inverted
+        // "SkipLinkConfirm" opt-out can disagree with each other. The dialog's "Don't ask again" is
+        // the same switch as the checkbox.
         internal const string ConfirmLinksSetting = "ConfirmLinks";
 
         // Confirms before opening an external link in the browser, unless the user opted out. Returns true
@@ -530,7 +528,7 @@ namespace KillerPDF.Controls
             }
             catch (Exception ex)
             {
-                // W, not `this` - Window? owner, UserControl since stage 4.
+                // W, not `this`: the owner parameter is Window?, and this is a UserControl.
                 KillerDialog.Show(W, $"{Loc("Str_LinkRemoveFailed")}\n{ex.Message}", "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }

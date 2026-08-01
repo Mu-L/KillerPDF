@@ -21,8 +21,8 @@ using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF.Controls
 {
-    // Split pane stage 4: moved from Shell/PageSelection.cs, verbatim apart from the namespace and
-    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    // Moved from Shell/PageSelection.cs; the namespace and class line are the only changes. Window
+    // members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
         // ============================================================
@@ -82,14 +82,22 @@ namespace KillerPDF.Controls
         /// reattaches this around the scroll-driven page sync, so the -= must match the +=; a method
         /// group would build a new delegate per call and the -= would silently remove nothing,
         /// leaving the handler attached and every scroll re-rendering. Held as one cached instance
-        /// for that reason - it was the window's field until stage 4 moved this handler here.</summary>
+        /// for that reason.</summary>
         private SelectionChangedEventHandler PageListSelHandler
             => _pageListSelHandler ??= PageList_SelectionChanged;
         private SelectionChangedEventHandler? _pageListSelHandler;
 
         private void PageList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Split pane stage 3a: mirror the sidebar into the view's own current page. Set
+            // The sidebar page list is WINDOW chrome - there is one of it, and BOTH panes attach
+            // their own handler to it. It describes the focused pane only, so the other pane has
+            // to sit this out. Scrolling a pane calls SyncCurrentPageTo, which detaches its OWN
+            // handler before setting SelectedIndex to avoid re-entering the render path; the other
+            // pane's handler stayed attached and navigated that pane to the page you had just
+            // scrolled to in this one, which is why scrolling pane A scrolled pane B.
+            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
+
+            // Mirror the sidebar into the view's own current page. Set
             // BEFORE the >= 0 guard on purpose - clearing the list (tab close, document close)
             // drops SelectedIndex to -1 and that has to be mirrored too, or a closed document
             // leaves a stale page number behind. Assigns _view.CurrentPage directly rather than

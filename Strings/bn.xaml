@@ -143,6 +143,11 @@
     <sys:String x:Key="Str_RotateFailed">ঘোরানো ব্যর্থ হয়েছে: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">অন্য প্যানেও "{0}" খোলা আছে এবং সেখানে নিজস্ব অসংরক্ষিত পরিবর্তন রয়েছে।
+
+এখন সংরক্ষণ করলে ফাইলটি ওভাররাইট হবে এবং সেই পরিবর্তনগুলি হারিয়ে যাবে। রাখতে চাইলে আগে অন্য প্যানটি সংরক্ষণ করুন।</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">স্প্লিট প্যান চালু - বন্ধ করতে F10</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">স্প্লিট প্যান বন্ধ</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF ইনস্টল করুন</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">এই কম্পিউটারে KillerPDF ইনস্টল করবেন?
 

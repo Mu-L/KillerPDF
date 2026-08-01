@@ -125,6 +125,11 @@
     <sys:String x:Key="Str_RotateFailed">Échec de la rotation : {0}</sys:String>
 
     <!-- Dialog strings -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">L'autre volet a également « {0} » ouvert, avec ses propres modifications non enregistrées.
+
+Enregistrer maintenant écrase le fichier et ces modifications seront perdues. Enregistrez d'abord l'autre volet si vous souhaitez les conserver.</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">Volet divisé activé - F10 pour fermer</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">Volet divisé désactivé</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">Installer KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">Installer KillerPDF sur cet ordinateur ?
 

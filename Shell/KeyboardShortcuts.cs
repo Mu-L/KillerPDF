@@ -177,11 +177,18 @@ namespace KillerPDF
             else if (e.Key == Key.F6) { SetViewMode(ViewMode.Single);     e.Handled = true; }
             else if (e.Key == Key.F7) { SetViewMode(ViewMode.TwoPage);    e.Handled = true; }
             else if (e.Key == Key.F8) { SetViewMode(ViewMode.Grid);       e.Handled = true; }
-            // F10 = dual pane, wired when the split lands. KEEP THIS NOTE: it must be matched as
-            // Key.System + SystemKey == Key.F10, NOT e.Key == Key.F10. F10 is a system key in WPF
-            // (it activates the menu bar), so it never arrives as Key.F10 and a plain check
-            // silently never fires. The Shift+F10 branch further down already has that shape;
-            // F11 below does not need it, because F11 is not a system key.
+            // F10 = split pane. Matched as Key.System + SystemKey == Key.F10, NOT e.Key == Key.F10:
+            // F10 is a system key in WPF (it activates the menu bar), so it never arrives as
+            // Key.F10 and a plain check silently never fires. The Shift+F10 branch further down has
+            // the same shape; F11 below does not need it, because F11 is not a system key.
+            // Shift is excluded here because Shift+F10 is the context menu - without that guard the
+            // two would both fire off one press.
+            else if (e.Key == Key.System && e.SystemKey == Key.F10
+                     && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                ToggleSplit();
+                e.Handled = true;
+            }
             else if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; }
             else if (e.Key == Key.Escape && _fullScreen) { ToggleFullScreen(); e.Handled = true; }
             // PgDn / PgUp navigate to the next / previous page - they never reorder pages (that's the

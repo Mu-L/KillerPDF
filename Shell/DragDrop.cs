@@ -33,7 +33,7 @@ namespace KillerPDF
             e.Handled = true;
         }
 
-        // internal: PdfViewer's XAML binds these three and forwards to them (split pane stage 2).
+        // internal: PdfViewer's XAML binds these three and forwards to them.
         internal void DropZone_Drop(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))

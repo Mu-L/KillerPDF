@@ -64,7 +64,10 @@ namespace KillerPDF
             var t = scale == 1.0 ? Transform.Identity : new ScaleTransform(scale, scale);
             ToolbarRowBorder.LayoutTransform = t;
             SidebarOuterGrid.LayoutTransform = t;
-            TabStripBorder.LayoutTransform   = t;
+            // BOTH panes: each carries its own strip, and scaling only the focused one would leave
+            // the other pane's tabs at the previous size.
+            Viewer.TabStripBorderCtl.LayoutTransform  = t;
+            ViewerB.TabStripBorderCtl.LayoutTransform = t;
             // Keep the sidebar's LOGICAL width constant across the change: the column and
             // the saved widths are screen px, so grow them with the scale (see SbPx above).
             if (scale != prev && prev > 0)

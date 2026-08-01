@@ -2,7 +2,7 @@ using KillerPDF.Features;
 
 namespace KillerPDF
 {
-    // MainWindow's half of IViewerHost. Split pane stage 2.
+    // MainWindow's half of IViewerHost.
     //
     // Explicit implementation throughout, matching Shell/About.cs: MainWindow's own members are
     // private, and a private member cannot implement an interface. Forwarding explicitly satisfies
@@ -22,8 +22,8 @@ namespace KillerPDF
         // Single pane today, so these just drive the existing chrome directly. When there are two,
         // each body gains a "is the caller the focused viewer?" guard - the sidebar, page list and
         // status line follow focus rather than whichever pane happened to update last. Keeping the
-        // calls in place now means stage 6 adds the guard in three known places instead of hunting
-        // through 84 PageList call sites. (BACKLOG.md, group C.)
+        // calls routed through here means that guard lands in three known places instead of being
+        // hunted through 84 PageList call sites. (BACKLOG.md, group C.)
 
         void IViewerHost.ViewerPageChanged(int pageIndex)
         {
@@ -41,8 +41,8 @@ namespace KillerPDF
 
         void IViewerHost.ViewerFocused()
         {
-            // Nothing to do while there is one viewer. Stage 6 moves the accent halo here and
-            // repoints the sidebar at the caller.
+            // Nothing to do while there is one viewer. With two panes this moves the accent halo
+            // here and repoints the sidebar at the caller.
         }
     }
 }

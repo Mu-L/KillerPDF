@@ -1,7 +1,7 @@
 namespace KillerPDF.Features
 {
     /// <summary>
-    /// What a document viewer needs from the window around it. Split pane stage 2.
+    /// What a document viewer needs from the window around it.
     ///
     /// EXTENDS IShellServices, per the family rule in that file - the shell implements Window /
     /// Loc / SetStatus once, not once per feature. Those three cover the viewer's two heaviest

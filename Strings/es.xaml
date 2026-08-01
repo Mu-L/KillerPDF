@@ -143,6 +143,11 @@
     <sys:String x:Key="Str_RotateFailed">Error al rotar: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">El otro panel también tiene «{0}» abierto, con cambios sin guardar propios.
+
+Al guardar ahora se sobrescribe el archivo y esos cambios se perderán. Guarde primero el otro panel si desea conservarlos.</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">Vista dividida activada - F10 para cerrar</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">Vista dividida desactivada</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">Instalar KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">¿Instalar KillerPDF en este equipo?
 

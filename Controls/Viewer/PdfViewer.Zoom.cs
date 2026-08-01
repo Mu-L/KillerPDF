@@ -23,9 +23,9 @@ namespace KillerPDF.Controls
 {
     // Wheel zoom, wheel scroll, and the pointer gestures that start on the page surface.
     //
-    // Split pane stage 3: moved here from Shell/Zoom.cs, VERBATIM apart from this namespace and
-    // class line. It travels with the render pipeline because the two share the zoom state and the
-    // gesture routing (_activeCanvas / _gestureCanvas) that decides which page a press landed on.
+    // Moved from Shell/Zoom.cs; this namespace and class line are the only changes. It lives with
+    // the render pipeline because the two share the zoom state and the gesture routing
+    // (_activeCanvas / _gestureCanvas) that decides which page a press landed on.
     //
     // Window members referenced bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
@@ -34,7 +34,7 @@ namespace KillerPDF.Controls
         // Zoom
         // ============================================================
 
-        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        // internal: PdfViewer's XAML binds this and forwards to it.
         internal void PagePreview_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (Keyboard.Modifiers == ModifierKeys.Control)

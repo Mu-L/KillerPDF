@@ -10,20 +10,19 @@ namespace KillerPDF.Controls
 {
     /// <summary>
     /// Everything the moved render pipeline still reaches for on the window, forwarded to Owner.
-    /// Split pane stage 3.
     ///
-    /// WHY THIS FILE EXISTS. PdfViewer.Viewport.cs and PdfViewer.Zoom.cs moved across VERBATIM -
+    /// WHY THIS FILE EXISTS. PdfViewer.Viewport.cs and PdfViewer.Zoom.cs were moved across VERBATIM -
     /// roughly 2,100 lines carrying about 700 references to window members spelled bare (PageList,
     /// _doc, Loc, RenderAllAnnotations...). Rewriting those 700 sites in the same change that moved
     /// the files would have been unreviewable. Declaring the names here instead means the moved
     /// files did not change a character of logic, and the entire coupling surface between viewer
-    /// and window is one readable list - which is exactly the list stages 4 to 6 work through.
+    /// and window is one readable list.
     ///
     /// THIS IS SCAFFOLDING, NOT THE DESTINATION. Read the groups below as a to-do list:
     ///   - Group B is per-DOCUMENT state that belongs in DocumentSession. When the viewer holds
     ///     its own active session, that block deletes itself.
-    ///   - Group C members live in files that move in stage 4. Each deletes itself as its defining
-    ///     file arrives; the defining file is named against every one.
+    ///   - Group C members live in files that have not moved into the viewer. Each deletes itself
+    ///     as its defining file arrives; the defining file is named against every one.
     ///   - Group A is the only group meant to survive, and it should end up expressed as
     ///     IViewerHost rather than as raw Owner reach.
     ///
@@ -78,7 +77,8 @@ namespace KillerPDF.Controls
         private void SetStatus(string text) => W.SetStatusText(text);
         private void RepositionAnnotationBars() => W.RepositionAnnotationBars();
 
-        private EditTool _currentTool => W.CurrentToolValue;
+        private EditTool _currentTool { get => W.CurrentToolValue; set => W.CurrentToolValue = value; }
+        private bool _fullScreen => W.FullScreenRef;
         private bool _vScrollVisible { get => W.VScrollVisible; set => W.VScrollVisible = value; }
         private bool _spaceHeld => W.SpaceHeld;
 
@@ -94,10 +94,12 @@ namespace KillerPDF.Controls
         // active session; when the viewer holds its own, this whole block goes.
         private PdfDocument? _doc { get => W.DocRef; set => W.DocRef = value; }
         private string? _currentFile { get => W.CurrentFileRef; set => W.CurrentFileRef = value; }
-        private Dictionary<int, List<PageAnnotation>> _annotations => W.AnnotationsRef;
-        private Dictionary<int, (int w, int h)> _renderDims => W.RenderDimsRef;
-        private Dictionary<int, int> _pageRotations => W.PageRotationsRef;
-        private MainWindow.DocumentSession? _active => W.ActiveSession;
+        // Settable: the tab switch rebinds all three by reference.
+        private Dictionary<int, List<PageAnnotation>> _annotations { get => W.AnnotationsRef; set => W.AnnotationsRef = value; }
+        private Dictionary<int, (int w, int h)> _renderDims { get => W.RenderDimsRef; set => W.RenderDimsRef = value; }
+        private Dictionary<int, int> _pageRotations { get => W.PageRotationsRef; set => W.PageRotationsRef = value; }
+        // _active is NOT forwarded: the session list lives in this class, so this pane owns its own
+        // active document. The window reads it back via ActiveSession.
         private List<Canvas> _linkOverlays => W.LinkOverlaysRef;
         // _continuousLinks is no longer forwarded - the field itself arrived with Links.cs and the
         // viewer owns it now. ContextMenu.cs and FileOperations.cs read it from the window side
@@ -115,28 +117,24 @@ namespace KillerPDF.Controls
         private Point _selectStart { get => W.SelectStart; set => W.SelectStart = value; }
         private Rectangle? _selectRect { get => W.SelectRect; set => W.SelectRect = value; }
         private int _cropPageIndex { get => W.CropPageIndex; set => W.CropPageIndex = value; }
-        // Get-only in stage 3; stage 4 brought Crop.cs and Annotations.cs, which ASSIGN both, so
-        // these now go through the settable pair on the window side.
+        // Crop.cs and Annotations.cs ASSIGN both, so these go through the settable pair on the
+        // window side rather than a get-only forward.
         private Rectangle? _cropPreviewRect { get => W.CropPreviewRectSet; set => W.CropPreviewRectSet = value; }
         private Border? _cropConfirmBar { get => W.CropConfirmBarSet; set => W.CropConfirmBarSet = value; }
 
         // ── Group C: methods in partials that have NOT moved yet ─────────────────────────────
-        // Stage 4 emptied most of this block: RenderAllAnnotations, ClearSelection, UpdateMarquee,
-        // IsDescendantOf, the four Canvas_Mouse* handlers, ClearTextSelection, AccentBrush,
-        // RenderPageLinks, AddSecondaryPageLinks and the PageList_SelectionChanged delegate all
-        // arrived with their defining files and are now real members of this class. What is left is
-        // the four whose files stay on the window.
+        // Only four are left - the ones whose defining files stay on the window. RenderAllAnnotations,
+        // ClearSelection, UpdateMarquee, IsDescendantOf, the four Canvas_Mouse* handlers,
+        // ClearTextSelection, AccentBrush, RenderPageLinks, AddSecondaryPageLinks and the
+        // PageList_SelectionChanged delegate are real members of this class now.
         private void PopulateContextMenu(Point pt, int page) => W.PopulateContextMenu(pt, page); // ContextMenu.cs
         private void RefreshPageList() => W.RefreshPageList();                              // PageOperations.cs
         private void LoadOutlines() => W.LoadOutlines();                                    // SidebarOutline.cs
         private static Cursor CursorForTool(EditTool t) => MainWindow.CursorForTool(t);     // ToolSelection.cs
 
-        // ── Render cache, still on Tabs.cs ───────────────────────────────────────────────────
-        private static System.Windows.Media.Imaging.BitmapSource? TryGetCachedRender(
-            MainWindow.DocumentSession? s, int page, int bucket, int rot)
-            => MainWindow.TryGetCachedRender(s, page, bucket, rot);
-        private static void CacheRender(MainWindow.DocumentSession? s, int page, int bucket, int rot,
-                                        System.Windows.Media.Imaging.BitmapSource bmp)
-            => MainWindow.CacheRender(s, page, bucket, rot, bmp);
+        // The render cache is not forwarded either - TryGetCachedRender / CacheRender are real
+        // members of this class. They work per-pane unchanged: the cache is keyed
+        // (page, bucket, rot) and both accessors take the session explicitly, so
+        // two panes at different zooms simply occupy different buckets of their own session's cache.
     }
 }

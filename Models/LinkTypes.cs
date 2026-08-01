@@ -8,9 +8,9 @@ namespace KillerPDF
     /// by bounds-testing these rects instead. That makes them the source of truth for links outside
     /// single-page view.
     ///
-    /// TOP-LEVEL, not nested, as of split pane stage 4. Links.cs moved into the viewer control but
-    /// ContextMenu.cs stayed on the window and still bounds-tests these rects to build the
-    /// right-click menu, so neither class can own the type.
+    /// TOP-LEVEL, not nested. Links.cs lives in the viewer control while ContextMenu.cs lives on the
+    /// window and also bounds-tests these rects to build the right-click menu, so neither class can
+    /// own the type.
     /// </summary>
     internal readonly record struct LinkInfo(
         double Cx, double Cy, double Cw, double Ch, object Tag, string Tip, int AnnotIndex);

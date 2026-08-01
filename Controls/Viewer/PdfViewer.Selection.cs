@@ -21,8 +21,8 @@ using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF.Controls
 {
-    // Split pane stage 4: moved from Shell/Selection.cs, verbatim apart from the namespace and
-    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    // Moved from Shell/Selection.cs; the namespace and class line are the only changes. Window
+    // members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
         // ============================================================

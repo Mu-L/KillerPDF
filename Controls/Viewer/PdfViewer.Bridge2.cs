@@ -8,13 +8,13 @@ using System.Windows.Shapes;
 namespace KillerPDF.Controls
 {
     /// <summary>
-    /// Stage 4's half of the bridge - the viewer end of MainWindowViewerBridge2.cs. Every name here
-    /// is spelled exactly as the moved editing code already spells it, so Annotations, TextEditing,
-    /// Crop, Forms, Links and Selection came across without a character of their logic changing.
+    /// The viewer end of MainWindowViewerBridge2.cs. Every name here is spelled exactly as the moved
+    /// editing code already spells it, so Annotations, TextEditing, Crop, Forms, Links and Selection
+    /// came across without a character of their logic changing.
     ///
-    /// Same discipline as stage 3's Bridge.cs, and the same expiry: this is per-DOCUMENT state that
-    /// belongs in DocumentSession. When the viewer holds its own active session, this file and its
-    /// window-side twin both go.
+    /// Same discipline as Bridge.cs, and the same expiry: this is per-DOCUMENT state that belongs in
+    /// DocumentSession. When the viewer holds its own active session, this file and its window-side
+    /// twin both go.
     /// </summary>
     public partial class PdfViewer
     {
@@ -100,10 +100,10 @@ namespace KillerPDF.Controls
         private bool _updatingCropInputs { get => W.UpdatingCropInputsRef; set => W.UpdatingCropInputsRef = value; }
 
         // ── Form filling ─────────────────────────────────────────────────────────────────────
-        private Dictionary<int, string> _formTextValues => W.FormTextValuesRef;
-        private Dictionary<int, bool> _formCheckValues => W.FormCheckValuesRef;
-        private Dictionary<string, string> _formRadioValues => W.FormRadioValuesRef;
-        private Dictionary<int, double> _formFontSizes => W.FormFontSizesRef;
+        private Dictionary<int, string> _formTextValues { get => W.FormTextValuesRef; set => W.FormTextValuesRef = value; }
+        private Dictionary<int, bool> _formCheckValues { get => W.FormCheckValuesRef; set => W.FormCheckValuesRef = value; }
+        private Dictionary<string, string> _formRadioValues { get => W.FormRadioValuesRef; set => W.FormRadioValuesRef = value; }
+        private Dictionary<int, double> _formFontSizes { get => W.FormFontSizesRef; set => W.FormFontSizesRef = value; }
         private Border? _formSizeBar { get => W.FormSizeBarRef; set => W.FormSizeBarRef = value; }
         private TextBox? _activeFormTb { get => W.ActiveFormTbRef; set => W.ActiveFormTbRef = value; }
         private int _activeFormObj { get => W.ActiveFormObjRef; set => W.ActiveFormObjRef = value; }
@@ -111,8 +111,8 @@ namespace KillerPDF.Controls
         private const string FormOverlayTag = MainWindow.FormOverlayTagShared;
 
         // ── Undo / dirty ─────────────────────────────────────────────────────────────────────
-        private Stack<UndoEntry> _undoStack => W.UndoStackRef;
-        private Stack<UndoEntry> _redoStack => W.RedoStackRef;
+        private Stack<UndoEntry> _undoStack { get => W.UndoStackRef; set => W.UndoStackRef = value; }
+        private Stack<UndoEntry> _redoStack { get => W.RedoStackRef; set => W.RedoStackRef = value; }
         private bool _isDirty { get => W.IsDirtyRef; set => W.IsDirtyRef = value; }
 
         // ── State owned by files that did not move ───────────────────────────────────────────
@@ -125,6 +125,30 @@ namespace KillerPDF.Controls
         private bool _annotBarMinimized { get => W.AnnotBarMinimizedRef; set => W.AnnotBarMinimizedRef = value; }
         private List<FrameworkElement> _annotBarDragInners => W.AnnotBarDragInnersRef;
         private static SolidColorBrush _swatchDimBorder => MainWindow.SwatchDimBorderRef;
+
+        // ══ What Tabs.cs reaches for, now that it lives here ════════════════════════════════
+        private string? _originalFile { get => W.OriginalFileRef; set => W.OriginalFileRef = value; }
+        private bool _openedFromProtected { get => W.OpenedFromProtectedRef; set => W.OpenedFromProtectedRef = value; }
+        private bool _asyncOpenPending { get => W.AsyncOpenPendingRef; set => W.AsyncOpenPendingRef = value; }
+        // This pane's own loader token, NOT the window's - see ThumbCts in PdfViewer.TabsApi.cs.
+        private System.Threading.CancellationTokenSource? _thumbCts { get => ThumbCts; set => ThumbCts = value; }
+        private bool _sidebarShowingOutlines => W.SidebarShowingOutlinesRef;
+        private System.Collections.Generic.Stack<int> _navBack => W.NavBackRef;
+        private System.Collections.Generic.Stack<int> _navForward => W.NavForwardRef;
+
+        private TextBlock FileNameLabel => W.FileNameLabelCtl;
+        private TreeView OutlineTree => W.OutlineTreeCtl;
+        private Button SidebarOutlinesTab => W.SidebarOutlinesTabCtl;
+
+        private ContextMenu MakeThemedMenu() => W.MakeThemedMenuBridge();
+        private void CloseSearchBar() => W.CloseSearchBarBridge();
+        private void HideSignaturePopup() => W.HideSignaturePopupBridge();
+        private void PopulateRecentFilesList() => W.PopulateRecentFilesListBridge(this);
+        private void SwitchSidebarToPagesTab() => W.SwitchSidebarToPagesTabBridge();
+        private void SyncSidebarToDocState(bool hasDoc, bool startup) => W.SyncSidebarToDocStateBridge(hasDoc, startup);
+        private void OpenFile(string path) => W.OpenFileBridge(path);
+        private void UpdateFooterFade() => W.UpdateFooterFadeBridge();
+        private void UpdateTabStripFade() => W.UpdateTabStripFadeBridge();
 
         // ── Chrome ───────────────────────────────────────────────────────────────────────────
         private TextBlock StatusText => W.StatusTextCtl;

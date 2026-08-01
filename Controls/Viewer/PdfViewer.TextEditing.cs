@@ -21,8 +21,8 @@ using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF.Controls
 {
-    // Split pane stage 4: moved from Shell/TextEditing.cs, verbatim apart from the namespace and
-    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    // Moved from Shell/TextEditing.cs; the namespace and class line are the only changes. Window
+    // members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
         // ============================================================
@@ -747,7 +747,7 @@ namespace KillerPDF.Controls
                 string missing = Services.FontCoverage.UncoveredChars(family, ta.Content);
                 if (missing.Length == 0) return;
                 // W, not `this`: KillerDialog.Show takes a Window? owner and this class is a
-                // UserControl since stage 4. W is the owning MainWindow.
+                // UserControl. W is the owning MainWindow.
                 KillerDialog.Show(W, string.Format(Loc("Str_Font_NoGlyphs"), missing), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }

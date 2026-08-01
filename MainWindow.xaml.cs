@@ -41,12 +41,15 @@ namespace KillerPDF
         private FitMode _fitMode { get => _view.Fit; set => _view.Fit = value; }
         private System.Windows.Threading.DispatcherTimer? _rerenderTimer { get => _view.RerenderTimer; set => _view.RerenderTimer = value; }
         private System.Threading.CancellationTokenSource? _secondaryRenderCts { get => _view.SecondaryRenderCts; set => _view.SecondaryRenderCts = value; }
-        // ── Split pane, stage 3 ────────────────────────────────────────────────────────────
+        // ── Split pane ─────────────────────────────────────────────────────────────────────
         // The per-view state lives in one object (Models/ViewerState.cs) so a second pane can have
-        // its own - and as of stage 3 the VIEWER owns it, not the window. The window reads it back
-        // through here, so the forwarding properties below (and the ~500 call sites behind them)
-        // are untouched and behavior is identical. See BACKLOG.md "Split pane (F10)".
-        private ViewerState _view => Viewer.State;
+        // its own, and the VIEWER owns it, not the window. The window reads it back through here,
+        // so the forwarding properties below (and the ~500 call sites behind them) stay as they
+        // are. See BACKLOG.md "Split pane (F10)".
+        // ActiveViewer, NOT Viewer: with two panes this has to be the FOCUSED pane's state, or every
+        // forwarding property behind it (view mode, zoom, page maps - ~500 call sites) would keep
+        // reporting pane A no matter which pane the user is working in.
+        private ViewerState _view => ActiveViewer.State;
 
         private ViewMode _viewMode { get => _view.Mode; set => _view.Mode = value; }
         private StackPanel _continuousPanel { get => _view.ContinuousPanel; set => _view.ContinuousPanel = value; }
@@ -84,8 +87,8 @@ namespace KillerPDF
 
         // Undo stack - each entry is either an annotation removal or a full document snapshot.
         // AnnotationGroup removes a specific set of annotations in one step (a text edit = cover + text).
-        // UndoKind / UndoEntry moved to Models/UndoTypes.cs in split pane stage 4 - the undo stack
-        // is pushed from Annotations.cs and TextEditing.cs, which now live in the viewer control.
+        // UndoKind / UndoEntry live in Models/UndoTypes.cs, not here - the undo stack is pushed from
+        // Annotations.cs and TextEditing.cs, which live in the viewer control.
         private Stack<UndoEntry> _undoStack = new();
         // Redo: inverses captured by Undo_Click land here; any NEW edit clears it (PushUndo).
         // Swapped per tab alongside _undoStack (Tabs.cs) so redo can never replay another document.
@@ -266,10 +269,10 @@ namespace KillerPDF
         // primary stops being a special case in routing/search/links.
         private Dictionary<int, Canvas> _pages => _view.Pages;
         private Grid _pageContentGrid { get => _view.PageContentGrid; set => _view.PageContentGrid = value; }
-        // The page this view is showing. Split pane stage 3a - see ViewerState.CurrentPage for why
-        // this exists at all (the app read the sidebar's SelectedIndex as its current page, which
-        // cannot survive a second pane). The setter drives the sidebar, which is what actually
-        // triggers navigation today via PageList_SelectionChanged; the handler mirrors the value
+        // The page this view is showing. See ViewerState.CurrentPage for why this exists at all
+        // (reading the sidebar's SelectedIndex as the current page cannot survive a second pane).
+        // The setter drives the sidebar, which is what actually triggers navigation today via
+        // PageList_SelectionChanged; the handler mirrors the value
         // straight back, so the two never disagree.
         private int _currentPage
         {
@@ -313,15 +316,17 @@ namespace KillerPDF
             // canvas still holding mouse capture. End any in-progress gesture on deactivate so control is
             // restored the moment the user comes back.
             Deactivated += (_, _) => { if (_isDraggingAnnot || _isResizingSig) FinishStuckGesture(); };
-            // Split pane stage 2: these three live inside the PdfViewer control now, and a
-            // UserControl is its own namescope - FindName would return NULL SILENTLY rather than
-            // throw, so the failure would surface much later as an unrelated NullReference. Take
-            // them off the control directly. They land in ViewerState via stage 1's forwarding
-            // properties, so nothing downstream changes.
-            Viewer.Owner = this;
-            _pageContentGrid  = Viewer.PageGrid;
-            _pageContentPanel = Viewer.PageHost;
-            _continuousPanel  = Viewer.ContinuousHost;
+            // These three live inside the PdfViewer control, and a UserControl is its own
+            // namescope - FindName would return NULL SILENTLY rather than throw, so the failure
+            // would surface much later as an unrelated NullReference. Take them off the control
+            // directly; they land in ViewerState through the forwarding properties.
+            // Both panes get an Owner and pane A becomes the active one (Shell/SplitPane.cs).
+            // Replaces the single `Viewer.Owner = this` - ViewerB exists from startup, collapsed,
+            // so its bridge would NullReference the moment anything touched it otherwise.
+            InitSplitPanes();
+            _pageContentGrid  = ActiveViewer.PageGrid;
+            _pageContentPanel = ActiveViewer.PageHost;
+            _continuousPanel  = ActiveViewer.ContinuousHost;
             _toolSelectBtn = (Button)FindName("ToolSelectBtn")!;
             _toolTextBtn = (Button)FindName("ToolTextBtn")!;
             _toolHighlightBtn = (Button)FindName("ToolHighlightBtn")!;
@@ -335,8 +340,9 @@ namespace KillerPDF
             _sidebarToggleBtn = (Button)FindName("SidebarToggleBtn")!;
             _sidebarBorder = (Border)FindName("SidebarBorder")!;
             _sidebarCol = (ColumnDefinition)FindName("SidebarCol")!;
-            BuildPrimaryTile();              // code-built tile-0 (replaces the former XAML PageImage + AnnotationCanvas)
-            _activeCanvas = _annotationCanvas;
+            // BuildPrimaryTile + _activeCanvas were here. Both panes now do it for themselves in
+            // InitSplitPanes above (PdfViewer.InitTiles) - calling it here as well would build pane
+            // A a SECOND tile.
             _saveAsBtnRef = (Button)FindName("SaveAsBtn")!;
             _closeFileBtnRef = (Button)FindName("CloseFileBtn")!;
             _zoomBox = (ComboBox)FindName("ZoomBox")!;
@@ -350,7 +356,10 @@ namespace KillerPDF
             _portableBadge = (StackPanel)FindName("PortableBadge")!;
             _pageJumpBox = (TextBox)FindName("PageJumpBox")!;
             _pageTotalLabel = (TextBlock)FindName("PageTotalLabel")!;
+            // Both panes: each tracks the page under its own viewport. Pane B was never wired, so
+            // its page counter, jump box and sidebar selection never moved as it scrolled.
             Viewer.WireScrollChanged();      // handler moved into the control with the render pipeline
+            ViewerB.WireScrollChanged();
             PreviewMouseDown += NavHistory_PreviewMouseDown;        // mouse back/forward buttons retrace jumps
             MainContentGrid.SizeChanged += (_, _) => ScheduleFadeRefresh();
             // The sidebar column resizes via the splitter / collapse; track its width so the tab-strip
@@ -449,17 +458,18 @@ namespace KillerPDF
                     // Lazy restore: create a placeholder tab for each saved file but load only the
                     // focused one. The rest materialize (load + render) the first time they're clicked,
                     // so startup cost no longer scales with how many tabs were open last session.
-                    _sessions.Clear();
-                    bool openedAny = false;
+                    // Built as a local list and handed to the pane, rather than mutating _sessions
+                    // in place: the session list belongs to a PdfViewer, so the restore has to say
+                    // WHICH pane. `OpenTabs` / `ActiveTab` are pane A; pane B is restored from
+                    // `OpenTabsB` / `ActiveTabB` by RestorePaneB below, once the split is reopened.
+                    var restored = new List<Controls.PdfViewer.DocumentSession>();
                     foreach (var f in paths)
                         if (!string.IsNullOrEmpty(f) && System.IO.File.Exists(f))
-                        {
-                            _sessions.Add(new DocumentSession { OriginalFile = f, CurrentFile = f, DeferredPath = f });
-                            openedAny = true;
-                        }
-                    if (!openedAny)
+                            restored.Add(Controls.PdfViewer.MakeDeferredSession(f));
+
+                    if (restored.Count == 0)
                     {
-                        _active = null;
+                        SetRestoredSessions(restored, null);
                         PopulateRecentFilesList();   // empty state: show the recent list
                         EnsureInitialSession();
                         RebuildTabStrip();
@@ -468,21 +478,22 @@ namespace KillerPDF
                     {
                         var wantActive = App.GetSetting("ActiveTab");
                         var activeTarget = (!string.IsNullOrEmpty(wantActive)
-                                ? _sessions.FirstOrDefault(ss => string.Equals(ss.OriginalFile, wantActive, StringComparison.OrdinalIgnoreCase))
+                                ? restored.FirstOrDefault(ss => string.Equals(ss.OriginalFile, wantActive, StringComparison.OrdinalIgnoreCase))
                                 : null)
-                            ?? _sessions[0];
-                        _active = activeTarget;
+                            ?? restored[0];
+                        SetRestoredSessions(restored, activeTarget);
                         ApplySessionState(activeTarget);
                         MaterializeDeferred(activeTarget);   // load + render only the focused tab
                         RebuildTabStrip();
                     }
+                    RestorePaneB();
                 }
 
                 if (App.IsPortable())
                     _portableBadge.Visibility = Visibility.Visible;
 
                 // Start with the sidebar collapsed when no PDF is open (nothing to show); a document
-                // opened above will have expanded it via FinishOpenFile (Steve, 2026-07-23).
+                // opened above will have expanded it via FinishOpenFile.
                 SyncSidebarToDocState(hasDoc: _doc != null, startup: true);
             };
         }
@@ -531,19 +542,44 @@ namespace KillerPDF
                         App.RemoveSetting("LastFile");
                     // Remember every open tab so the whole session restores next launch. Manually-closed
                     // tabs are already gone from _sessions, so they won't come back (Issue #75 still holds).
-                    var openFiles = _sessions
+                    // Saved PER PANE. `OpenTabs` / `ActiveTab` keep their old meaning - pane A - so
+                    // settings written before the split existed still restore; pane B gets its own
+                    // `OpenTabsB` / `ActiveTabB`, and the split itself gets `SplitOpen` and the
+                    // divider position. Without this a split window reopened with everything
+                    // stacked in pane A.
+                    static List<string> FilesOf(Controls.PdfViewer pane) => pane.SessionsRef
                         .Select(ss => ss.OriginalFile)
                         .Where(f => !string.IsNullOrEmpty(f) && System.IO.File.Exists(f))
                         .Distinct()
+                        .Select(f => f!)
                         .ToList();
-                    if (openFiles.Count > 0)
-                        App.SetSetting("OpenTabs", string.Join("|", openFiles!));
+
+                    static void SavePane(string tabsKey, string activeKey,
+                                         List<string> files, Controls.PdfViewer pane)
+                    {
+                        if (files.Count > 0) App.SetSetting(tabsKey, string.Join("|", files));
+                        else                 App.RemoveSetting(tabsKey);
+                        if (pane.ActiveSessionRef?.OriginalFile is { Length: > 0 } af
+                            && System.IO.File.Exists(af)) App.SetSetting(activeKey, af);
+                        else                              App.RemoveSetting(activeKey);
+                    }
+
+                    SavePane("OpenTabs",  "ActiveTab",  FilesOf(Viewer),  Viewer);
+                    SavePane("OpenTabsB", "ActiveTabB", FilesOf(ViewerB), ViewerB);
+
+                    if (IsSplit)
+                    {
+                        App.SetSetting("SplitOpen", "1");
+                        // The pixel width of pane B - pane A is star-sized and takes the remainder,
+                        // so one number describes the divider whatever the window is resized to.
+                        double bw = ViewerB.ActualWidth;
+                        if (bw > 0) App.SetSetting("SplitPaneBWidth",
+                            bw.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    }
                     else
-                        App.RemoveSetting("OpenTabs");
-                    if (_active?.OriginalFile is { Length: > 0 } af && System.IO.File.Exists(af))
-                        App.SetSetting("ActiveTab", af);
-                    else
-                        App.RemoveSetting("ActiveTab");
+                    {
+                        App.RemoveSetting("SplitOpen");
+                    }
                 }
                 else
                 {
@@ -551,6 +587,9 @@ namespace KillerPDF
                     App.RemoveSetting("LastFile");
                     App.RemoveSetting("OpenTabs");
                     App.RemoveSetting("ActiveTab");
+                    App.RemoveSetting("OpenTabsB");
+                    App.RemoveSetting("ActiveTabB");
+                    App.RemoveSetting("SplitOpen");
                 }
                 PersistToolSettings();
                 // The active tab may not have been captured yet at exit; persist its view state directly.

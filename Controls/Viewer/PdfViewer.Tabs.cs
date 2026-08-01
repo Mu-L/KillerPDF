@@ -8,13 +8,23 @@ using System.Windows.Input;
 using System.Windows.Media;
 using PdfSharpCore.Pdf;
 
-namespace KillerPDF
+namespace KillerPDF.Controls
 {
     // Tabbed document support. KillerPDF keeps one window and one live "working set" of
     // per-document fields (in MainWindow.xaml.cs). Each open PDF is a DocumentSession that
     // owns its own copy of those fields. Switching tabs captures the live fields into the
     // outgoing session and applies the incoming session's fields, then re-renders.
-    public partial class MainWindow
+    // Moved from Shell/Tabs.cs. THIS PANE's open documents and its own tab strip - `_sessions` and
+    // `_active` are per-pane, NOT one window-level list serving one window-level strip. That single
+    // ownership is what puts a document opened in the second pane's tab above the first one, and
+    // what makes the two panes fight over which shows a document; both symptoms are the same bug.
+    //
+    // DocumentSession deliberately carries VIEW state (zoom, page, scroll, view mode) alongside
+    // document state. That is correct because a session belongs to exactly one pane, so there is no
+    // second viewer to disagree with it. Opening the same file in both panes gives two independent
+    // copies, which is what makes that true - see the duplicate-file save guard, because two copies
+    // can otherwise save over each other.
+    public partial class PdfViewer
     {
         // One open document. Holds the per-document state that the rest of MainWindow reads
         // and writes through its instance fields. The collection references here ARE the live
@@ -239,7 +249,10 @@ namespace KillerPDF
         private void FlushAllRenderCaches()
         {
             foreach (var s in _renderLru) s.RenderCache.Clear();
-            Viewer.FlushImageRectCache();   // the rect cache moved into the viewer with the render pipeline
+            // THIS pane's rect cache - the bare call, NOT `Viewer.FlushImageRectCache()`, which
+            // hardcodes pane A and leaves pane B's night-mode carve-out cache serving rects from
+            // the previous state after an invert toggle.
+            FlushImageRectCache();
         }
 
         // Mark a tab most-recently-used; drop the bitmap caches of tabs that fall outside the LRU window.
@@ -283,7 +296,12 @@ namespace KillerPDF
             var s = new DocumentSession();
             _sessions.Add(s);
             _active = s;
-            CaptureSessionState(s);
+            // Only adopt the live working set when this pane actually owns it. CaptureSessionState
+            // copies _doc, _annotations, _undoStack and the rest BY REFERENCE, so capturing while
+            // the shared fields still describe the other pane makes this session an alias of that
+            // pane's live document - the same trap ApplyActiveSessionIfAny guards against. An
+            // unfocused pane's first session stays genuinely blank instead.
+            if (Owner == null || ReferenceEquals(Owner.ActiveViewer, this)) CaptureSessionState(s);
         }
 
         // Commit / cancel any in-progress interaction so it doesn't bleed onto another document.
@@ -564,7 +582,7 @@ namespace KillerPDF
 
             if (_isDirty)
             {
-                var res = KillerDialog.Show(this,
+                var res = KillerDialog.Show(W,   // W, not `this`: the owner parameter is Window?, and this is a UserControl
                     Loc("Str_Dlg_UnsavedClose"),
                     "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
@@ -612,7 +630,7 @@ namespace KillerPDF
 
             if (docTabs.Any(t => t.IsDirty))
             {
-                var res = KillerDialog.Show(this, Loc("Str_Dlg_UnsavedCloseAll"),
+                var res = KillerDialog.Show(W, Loc("Str_Dlg_UnsavedCloseAll"),   // W, not `this`
                     "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
             }
@@ -631,22 +649,11 @@ namespace KillerPDF
             RebuildTabStrip();
         }
 
-        // External (single-instance) entry points, called from App when a second launch forwards
-        // a file path to this already-running instance.
-        public void OpenFromExternal(string? path)
-        {
-            if (!string.IsNullOrEmpty(path) && File.Exists(path)) OpenInNewTab(path!);
-        }
-
-        public void RestoreAndActivate()
-        {
-            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
-            Activate();
-            // Briefly toggle Topmost to pull the window in front without keeping it pinned.
-            Topmost = true;
-            Topmost = false;
-            Focus();
-        }
+        // OpenFromExternal / RestoreAndActivate moved BACK to Shell/ExternalOpen.cs on MainWindow.
+        // They are window chrome, not pane behaviour: RestoreAndActivate drives WindowState,
+        // Activate() and Topmost, none of which exist on a UserControl, and App calls both on the
+        // window. Only the OpenInNewTab call inside them belongs to a pane, and that now routes
+        // through ActiveViewer like every other window -> viewer call.
 
         // ============================================================
         // Tab strip UI (built in code so it follows the active theme)
@@ -704,12 +711,22 @@ namespace KillerPDF
 
             var docTabs = _sessions.Where(t => t.Doc != null || t.DeferredPath != null).ToList();
             // Only show the strip once there's more than one document - a single open PDF doesn't need tabs.
-            if (docTabs.Count < 2)
+            //
+            // Except while split, where the band is a TWO-PANE decision: a pane with no strip has a
+            // zero-height row 0, so its card starts a whole band higher than its neighbour's and
+            // runs up under the toolbar. Both panes show the band so both tops line up, which is
+            // what KillerShell's OpenSecondPane does via UpdateTabBar.
+            if (docTabs.Count < 2 && Owner?.IsSplit != true)
             {
                 TabStrip.Children.Clear();
                 _tabButtonList.Clear();
                 _tabButtonCache.Clear();
                 TabStripBorder.Visibility = Visibility.Collapsed;
+                // No strip, so nothing to tuck the card under: drop the -1. Left on, it lifts this
+                // pane one pixel above the other one, and since a strip-less pane's row 0 collapses
+                // to nothing its card already starts level with the other pane's TAB BAR - which is
+                // where the two should line up.
+                CardRow.Margin = new Thickness(0);
                 // Strip gone: the card's leading corner goes back to a full radius, since there is
                 // no longer a flat tab edge above it to line up with.
                 SyncPaneLeadingCorner();
@@ -718,6 +735,9 @@ namespace KillerPDF
             }
 
             TabStripBorder.Visibility = Visibility.Visible;
+            // Strip is up: tuck the card's top border a pixel into the band so the active tab and
+            // the card read as one surface. See TabBarRing.
+            CardRow.Margin = new Thickness(0, -1, 0, 0);
 
             // Reuse one Border per session (cached) instead of recreating every tab on each rebuild. Recreating
             // re-parented and re-rasterized the whole strip (incl. the active tab's drop shadow), which blinked.
@@ -742,7 +762,13 @@ namespace KillerPDF
             }
 
             // Place buttons on the strip in order without a full clear, then reflow widths / overflow.
-            SetTabStripChildren([.. _tabButtonList.Select(t => t.btn)]);
+            // Split with nothing open in this pane: the band is Visible but holds no tab, so it
+            // measures zero height and the card still starts a band higher than the other pane's -
+            // showing the band is only half the fix. A tab-shaped spacer (same margin, padding and
+            // font metrics as a real tab, drawing nothing) gives the empty band a real tab's height.
+            SetTabStripChildren(_tabButtonList.Count == 0
+                ? [BuildTabHeightSpacer()]
+                : [.. _tabButtonList.Select(t => t.btn)]);
             UpdateTabStripFade();
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)ReflowTabs);
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)UpdateFooterFade);
@@ -826,11 +852,24 @@ namespace KillerPDF
                 children.Add(BuildTabOverflowButton(overflow));
                 SetTabStripChildren(children);
             }
-            finally { _reflowingTabs = false; }
-            // Which button is FIRST on the strip changes here (overflow pulls the active tab in and
-            // pushes another out), so the pane's leading corner has to be re-decided after a reflow,
-            // not only on a plain switch.
-            SyncPaneLeadingCorner();
+            // In the finally, NOT after the try. Which button is first or last on the strip changes
+            // here, so the card's corners and the tab halo have to be re-decided on EVERY exit -
+            // and the common "everything fits" path returns from inside the try, as does the
+            // not-laid-out guard. Sitting after the block, this ran only when tabs overflowed,
+            // which is why the active tab's edges came up wrong at startup and stayed wrong.
+            finally
+            {
+                _reflowingTabs = false;
+                SyncPaneLeadingCorner();
+                // And again once the widths are real. Whether the active tab REACHES the strip's
+                // right edge is measured from its ActualWidth, and on this pass the width it was
+                // just given has not been arranged yet - so a flush tab measured as not-flush, kept
+                // its own right border, and the ScrollViewer clipped that border away. That is the
+                // missing right side of the halo. The writes are all change-guarded, so a second
+                // pass that agrees with the first does nothing.
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                                       (Action)SyncPaneLeadingCorner);
+            }
         }
 
         // The "N v" dropdown at the end of the strip. Clicking it lists the overflowed tabs; choosing one
@@ -897,7 +936,6 @@ namespace KillerPDF
                 // tab and cannot bleed down onto the card.
                 // KillerShell's active tab has NO effect at all and reads flat because of it - the
                 // same shadow belongs there too (see BACKLOG).
-                // (Steve, 2026-07-31: "we need to add shadow to it".)
                 bd.Effect = TryFindResource("ShadowBar") as System.Windows.Media.Effects.Effect;
                 // Bottom margin 0: the active tab alone drops the 1px gap and so covers its own
                 // segment of TabBarRing, breaking that line exactly at the tab. That break IS the
@@ -955,10 +993,13 @@ namespace KillerPDF
         // a notch out from under a square tab. Every other case keeps the full RadCard.
         // Both top corners are in play, not just the leading one - see the rule inline below.
         // Skipped in full screen, where ApplyFullScreen owns the radius and squares all four.
-        // (Steve, 2026-07-31: "when left tab is active that line needs to be flat".)
         private void SyncPaneLeadingCorner()
         {
-            if (DocPaneBorder == null || _fullScreen) return;
+            // PaneBorder / PaneShadow, not DocPaneBorder / DocPaneShadow: those names are the
+            // window's forwards to the FOCUSED pane, and this method runs for whichever pane owns
+            // the strip that changed. Using them here squares pane A's corners when pane B's tabs
+            // move. These are this control's own elements.
+            if (PaneBorder == null || _fullScreen) return;
             double r = TryFindResource("RadCard") is CornerRadius rc ? rc.TopLeft : 6;
             // Each top corner squares off only when the tab sitting on it is the ACTIVE one:
             // the first tab owns the top-left, the last owns the top-right. An inactive tab is
@@ -976,12 +1017,104 @@ namespace KillerPDF
                 firstActive = vis.Count > 0 && ReferenceEquals(vis[0], ab);
                 lastActive  = vis.Count > 0 && ReferenceEquals(vis[^1], ab);
             }
-            var cr = new CornerRadius(firstActive ? 0 : r, lastActive ? 0 : r, r, r);
-            DocPaneBorder.CornerRadius = cr;
-            if (DocPaneShadow != null) DocPaneShadow.CornerRadius = cr;
+            // The right corner squares only when the active tab is last AND actually reaches the
+            // strip's right edge. Being last is not enough on its own: these tabs are fixed-width
+            // in a StackPanel, so with few enough tabs they stop short and leave bare strip, and
+            // squaring the corner under nothing left a notch. Whether they reach it depends on the
+            // pane width and the tab count, so it is MEASURED rather than assumed either way -
+            // assuming they always do (KillerShell's UniformGrid) and assuming they never do were
+            // both wrong, in opposite situations.
+            bool lastFlush = false;
+            if (lastActive && ab is FrameworkElement abFe && TabStripBorder != null
+                && abFe.ActualWidth > 0 && TabStripBorder.ActualWidth > 0)
+            {
+                var right = abFe.TranslatePoint(new Point(abFe.ActualWidth, 0), TabStripBorder).X;
+                lastFlush = right >= TabStripBorder.ActualWidth - 2;
+            }
+            var cr = new CornerRadius(firstActive ? 0 : r, lastFlush ? 0 : r, r, r);
+            PaneBorder.CornerRadius = cr;
+            if (PaneShadow != null) PaneShadow.CornerRadius = cr;
             // Keep the ring's top radii in step with the card's, so its curved sides land exactly
             // on the card's own left/right border rather than beside them.
-            if (TabBarRing != null) TabBarRing.CornerRadius = new CornerRadius(cr.TopLeft, cr.TopRight, 0, 0);
+            if (TabBarRing != null)
+            {
+                TabBarRing.CornerRadius = new CornerRadius(cr.TopLeft, cr.TopRight, 0, 0);
+                // Sides ONLY where the card's corner is square. There the ring has to carry the
+                // border up the flush tab edge. Against a rounded corner the card already draws
+                // that curve itself, and the ring's own end stands 7px above it as a stray accent
+                // stub rising out of the card - which is the line at pane B's left edge.
+                TabBarRing.BorderThickness = new Thickness(firstActive ? 1 : 0, 1, lastFlush ? 1 : 0, 0);
+            }
+
+            SyncTabHalo(ab, firstActive, lastFlush);
+        }
+
+        // Carry the pane's focus ring up and around the ACTIVE tab, so the tab and the card read as
+        // one outlined surface instead of the ring stopping dead at the band. Only in the focused
+        // pane while split: with one pane there is nothing to disambiguate, and two lit rings would
+        // both claim to be the live pane.
+        //
+        // The tab that sits on the strip's outer edge drops that side and lets the band draw it -
+        // see the TabEdge note in the body.
+        private void SyncTabHalo(FrameworkElement? activeBtn, bool firstActive, bool lastFlush)
+        {
+            bool lit = PaneHasFocus && Owner?.IsSplit == true;
+
+            // The band draws the outermost verticals, the tab draws the inner ones. A first or last
+            // tab's own outer border lands on the ScrollViewer's clip edge and gets cut, so whether
+            // it survived depended on the pane width - that is what made the ring come out uneven.
+            // These two are anchored to the band's own edges, which are the card's edges, so there
+            // is no arithmetic to land wrong and the line runs straight up from the card border.
+            if (TabEdgeLeft != null)
+            {
+                TabEdgeLeft.Visibility = lit && firstActive ? Visibility.Visible : Visibility.Collapsed;
+                TabEdgeLeft.SetResourceReference(Border.BackgroundProperty, "SelectionAccent");
+            }
+            // The right edge is the band's ONLY when the active tab actually reaches it (lastFlush,
+            // measured in SyncPaneLeadingCorner). There, the tab's own right border sits on the
+            // ScrollViewer's clip and gets cut - which is why the ring came up open down that side.
+            // When the tab stops short, the band's edge is nowhere near it and a line there reads
+            // as a stray vertical, so the tab draws its own.
+            if (TabEdgeRight != null)
+            {
+                TabEdgeRight.Visibility = lit && lastFlush ? Visibility.Visible : Visibility.Collapsed;
+                TabEdgeRight.SetResourceReference(Border.BackgroundProperty, "SelectionAccent");
+            }
+
+            if (activeBtn is not Border ab2) return;
+
+            // Every write below changes the tab's SIZE, and this runs from ReflowTabs, which the
+            // strip's own SizeChanged schedules. Writing unconditionally re-measures the strip,
+            // which schedules another reflow, which writes again - the app span at 100% CPU and
+            // never finished laying out, so it never painted. Only assign on a real change.
+            static void SetGeom(Border b, Thickness border, Thickness pad, Thickness margin)
+            {
+                if (b.BorderThickness != border) b.BorderThickness = border;
+                if (b.Padding != pad) b.Padding = pad;
+                if (b.Margin != margin) b.Margin = margin;
+            }
+
+            if (!lit)
+            {
+                // ApplyTabButtonState's own active styling: top stripe only, no side ring.
+                SetGeom(ab2, new Thickness(0, 3, 0, 0), new Thickness(12, 4, 5, 5), new Thickness(0, 3, 1, 0));
+                ab2.SetResourceReference(Border.BorderBrushProperty, "SelectionBg");
+                return;
+            }
+            // The tab drops whichever side the band is drawing, or the two 1px borders stack at the
+            // same x and that edge comes out 2px on a ring that is 1px everywhere else.
+            double left  = firstActive ? 0 : 1;   // the band draws these two when it owns them
+            double right = lastFlush   ? 0 : 1;
+            // Padding gives back whatever the border takes, so the title does not shift. No right
+            // margin while the ring is up: ApplyTabButtonState leaves the active tab a 1px right
+            // margin, which is a fine gap between plain tabs but puts the ring's right side a pixel
+            // short of the next tab, so the outline steps in at that corner instead of closing.
+            SetGeom(ab2, new Thickness(left, 3, right, 0),
+                         new Thickness(12 - left, 4, 5 - right, 5),
+                         new Thickness(0, 3, 0, 0));
+            // One brush for the whole lip, matching the card's ring - a top stripe in one color
+            // meeting sides in another reads as two different edges rather than one ring.
+            ab2.SetResourceReference(Border.BorderBrushProperty, "SelectionAccent");
         }
 
         private FrameworkElement BuildTabButton(DocumentSession s)
@@ -1254,6 +1387,24 @@ namespace KillerPDF
             return brush;
         }
 
+        // An invisible stand-in for a tab, so an empty band still measures a band tall. Metrics are
+        // copied from BuildTabButton - keep them in step if that changes.
+        private FrameworkElement? _tabHeightSpacer;
+        private FrameworkElement BuildTabHeightSpacer()
+            => _tabHeightSpacer ??= new Border
+            {
+                Margin = new Thickness(0, 3, 1, 0),
+                Padding = new Thickness(12, 4, 5, 5),
+                IsHitTestVisible = false,
+                Child = new TextBlock
+                {
+                    Text = " ",
+                    FontFamily = UiKit.UiFont,
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            };
+
         private FrameworkElement BuildNewTabButton()
         {
             var b = new Button
@@ -1273,7 +1424,7 @@ namespace KillerPDF
             {
                 var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
                               { Filter = "PDF files|*.pdf", Title = "Open PDF" };
-                if (dlg.ShowDialog(this) == true) OpenInNewTab(dlg.FileName);
+                if (dlg.ShowDialog(W) == true) OpenInNewTab(dlg.FileName);
             };
             return b;
         }

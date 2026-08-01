@@ -48,13 +48,16 @@ namespace KillerPDF
                 pixels[i + 3] = a;
             }
             bmp.WritePixels(new System.Windows.Int32Rect(0, 0, size, size), pixels, size * 4, 0);
-            GrainBrush.ImageSource = bmp;
+            // BOTH panes by name, not through GrainBrush - that member resolves to ActiveViewer, so
+            // only the focused pane ever got the texture and pane B rendered flat.
+            Viewer.Grain.ImageSource  = bmp;
+            ViewerB.Grain.ImageSource = bmp;
             if (SidebarGrainBrush != null) SidebarGrainBrush.ImageSource = bmp;
             if (ToggleGrainBrush != null) ToggleGrainBrush.ImageSource = bmp;
             // TryFindResource, NOT the Resources indexer: the indexer looks ONLY in this window's
             // own dictionary and returns null without complaint if the key lives higher up.
-            // GrainBrushShared moved to App.xaml in split pane stage 2, so the indexer stopped
-            // finding it - and the failure is silent, the grain simply never gets its texture.
+            // A key defined above this window (GrainBrushShared can be) is invisible to the
+            // indexer, and the failure is silent - the grain simply never gets its texture.
             // TryFindResource walks window -> app, so it works wherever the key is defined.
             if (TryFindResource("GrainBrushShared") is ImageBrush sharedGrain) sharedGrain.ImageSource = bmp;
             // The family flyout standard's grain tile (FlyoutGrain style) shares the same texture.
@@ -632,7 +635,7 @@ namespace KillerPDF
 
         // Opens the page-agnostic menu for a right-click on the gray area around the page (the document
         // pane background). Wired in code so right-clicking outside the page is no longer a dead spot.
-        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        // internal: PdfViewer's XAML binds this and forwards to it.
         internal void DocPaneBackground_RightClick(object sender, MouseButtonEventArgs e)
         {
             if (_doc is null) return;

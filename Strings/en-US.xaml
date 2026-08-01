@@ -178,6 +178,7 @@
     <sys:String x:Key="Str_Print_EvenOnly">Even pages only</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invert document colors</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invert document colors (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">Split pane - two documents side by side (F10)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invert images too</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">No font on this PC can draw these characters, so they will appear as boxes in the saved PDF:&#10;&#10;{0}&#10;&#10;Install a font that covers them, or pick a different font for this text.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift+=/-/0)</sys:String>
@@ -192,6 +193,11 @@
     <sys:String x:Key="Str_RotateFailed">Rotate failed: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">The other pane also has "{0}" open, with unsaved changes of its own.
+
+Saving now overwrites the file and those changes will be lost. Save the other pane first if you want to keep them.</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">Split pane on - F10 to close</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">Split pane off</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">Install KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">Install KillerPDF on this computer?
 

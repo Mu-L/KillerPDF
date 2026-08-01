@@ -9,7 +9,7 @@ using PdfSharpCore.Pdf;
 namespace KillerPDF
 {
     /// <summary>
-    /// The window's half of the viewer bridge. Split pane stage 3 - read this alongside
+    /// The window's half of the viewer bridge. Read this alongside
     /// Controls/PdfViewer.Bridge.cs, which is the other end of every line here.
     ///
     /// TWO DIRECTIONS, and they are kept apart on purpose:
@@ -26,8 +26,8 @@ namespace KillerPDF
     ///             names resolvable meant roughly 60 call sites across 20 files were not touched
     ///             by this change at all.
     ///
-    /// Both halves shrink as later stages move their owning code across; nothing here is meant to
-    /// be permanent except what eventually becomes IViewerHost.
+    /// Both halves shrink as more owning code moves across; nothing here is meant to be permanent
+    /// except what eventually becomes IViewerHost.
     /// </summary>
     public partial class MainWindow
     {
@@ -43,7 +43,9 @@ namespace KillerPDF
         internal string LocText(string key)   => Loc(key);
         internal void   SetStatusText(string text) => SetStatus(text);
 
-        internal EditTool CurrentToolValue => _currentTool;
+        // Settable: ApplySessionState restores each document's remembered tool.
+        internal EditTool CurrentToolValue { get => _currentTool; set => _currentTool = value; }
+        internal bool FullScreenRef => _fullScreen;
         internal bool VScrollVisible { get => _vScrollVisible; set => _vScrollVisible = value; }
         internal bool SpaceHeld => _spaceHeld;
 
@@ -55,19 +57,24 @@ namespace KillerPDF
         private SelectionChangedEventHandler? _pageListSelectionHandler;
 
         // ══ INWARD: per-document state (group B - goes when the viewer owns its session) ═════
-        // Settable: the xref-repair path in Annotations.cs reopens the document and re-points the
-        // temp file, and that code moved into the viewer in stage 4.
+        // Settable: the xref-repair path in Annotations.cs, which lives in the viewer, reopens the
+        // document and re-points the temp file.
         internal PdfDocument? DocRef { get => _doc; set => _doc = value; }
         internal string? CurrentFileRef { get => _currentFile; set => _currentFile = value; }
-        internal Dictionary<int, List<PageAnnotation>> AnnotationsRef => _annotations;
-        internal Dictionary<int, (int w, int h)> RenderDimsRef => _renderDims;
-        internal Dictionary<int, int> PageRotationsRef => _pageRotations;
-        internal DocumentSession? ActiveSession => _active;
+        // Settable: ApplySessionState, which lives in the viewer, swaps all three by reference on a
+        // tab switch.
+        internal Dictionary<int, List<PageAnnotation>> AnnotationsRef { get => _annotations; set => _annotations = value; }
+        internal Dictionary<int, (int w, int h)> RenderDimsRef { get => _renderDims; set => _renderDims = value; }
+        internal Dictionary<int, int> PageRotationsRef { get => _pageRotations; set => _pageRotations = value; }
+        // Reads OUT of the focused pane rather than exposing a window field: the session list
+        // belongs to the viewer. Callers still spell it `_active` - see the alias below.
+        internal Controls.PdfViewer.DocumentSession? ActiveSession => ActiveViewer.ActiveSessionRef;
+        private Controls.PdfViewer.DocumentSession? _active => ActiveViewer.ActiveSessionRef;
         internal List<Canvas> LinkOverlaysRef => _linkOverlays;
-        // Direction REVERSED in stage 4: the link-rect map moved into the viewer with Links.cs, so
-        // this now reads OUT of the control rather than exposing a window field. ContextMenu.cs and
-        // FileOperations.cs still call it by the old name and were not touched.
-        private Dictionary<int, List<LinkInfo>> _continuousLinks => Viewer.ContinuousLinks;
+        // Reads OUT of the control rather than exposing a window field: the link-rect map belongs
+        // to the viewer, alongside Links.cs. ContextMenu.cs and FileOperations.cs still call it by
+        // this name.
+        private Dictionary<int, List<LinkInfo>> _continuousLinks => ActiveViewer.ContinuousLinks;
 
         // Live gesture state, shared with the annotation and crop tools that have not moved yet.
         internal bool   IsPanning     { get => _isPanning;     set => _isPanning = value; }
@@ -86,44 +93,44 @@ namespace KillerPDF
 
         // ══ OUTWARD: the viewer's members, under the names the window already calls ══════════
         // Signatures mirror the originals exactly, defaults included, so no call site changed.
-        private void RenderPage(int pageIndex, bool keepTiles = false) => Viewer.RenderPage(pageIndex, keepTiles);
-        private void SetupContinuousView(int initialPage, bool fitDefault = true) => Viewer.SetupContinuousView(initialPage, fitDefault);
-        private System.Threading.Tasks.Task RenderContinuousPages(int centerPage) => Viewer.RenderContinuousPages(centerPage);
+        private void RenderPage(int pageIndex, bool keepTiles = false) => ActiveViewer.RenderPage(pageIndex, keepTiles);
+        private void SetupContinuousView(int initialPage, bool fitDefault = true) => ActiveViewer.SetupContinuousView(initialPage, fitDefault);
+        private System.Threading.Tasks.Task RenderContinuousPages(int centerPage) => ActiveViewer.RenderContinuousPages(centerPage);
         private void BootstrapDocumentView(int initialPage, bool autoFit, bool restoreFitMode = false)
-            => Viewer.BootstrapDocumentView(initialPage, autoFit, restoreFitMode);
-        private void RefreshPageView(int pageIndex) => Viewer.RefreshPageView(pageIndex);
-        private void ScrollContinuousToPage(int pageIndex) => Viewer.ScrollContinuousToPage(pageIndex);
+            => ActiveViewer.BootstrapDocumentView(initialPage, autoFit, restoreFitMode);
+        private void RefreshPageView(int pageIndex) => ActiveViewer.RefreshPageView(pageIndex);
+        private void ScrollContinuousToPage(int pageIndex) => ActiveViewer.ScrollContinuousToPage(pageIndex);
 
-        private void ApplyZoom(bool lite = false) => Viewer.ApplyZoom(lite);
-        private void StartRerenderTimer() => Viewer.StartRerenderTimer();
-        private void SetZoom(double level) => Viewer.SetZoom(level);
-        private void SetTrueZoom(double trueZoom) => Viewer.SetTrueZoom(trueZoom);
-        private void GridZoomStep(bool zoomOut) => Viewer.GridZoomStep(zoomOut);
-        private double GridZoomForN(int n) => Viewer.GridZoomForN(n);
-        private double DisplayZoomPct() => Viewer.DisplayZoomPct();
-        private void SyncZoomBox() => Viewer.SyncZoomBox();
-        private void FitToWidth(bool lite = false) => Viewer.FitToWidth(lite);
-        private void FitToPage(bool lite = false) => Viewer.FitToPage(lite);
-        private void ReapplyGridOrFit() => Viewer.ReapplyGridOrFit();
+        private void ApplyZoom(bool lite = false) => ActiveViewer.ApplyZoom(lite);
+        private void StartRerenderTimer() => ActiveViewer.StartRerenderTimer();
+        private void SetZoom(double level) => ActiveViewer.SetZoom(level);
+        private void SetTrueZoom(double trueZoom) => ActiveViewer.SetTrueZoom(trueZoom);
+        private void GridZoomStep(bool zoomOut) => ActiveViewer.GridZoomStep(zoomOut);
+        private double GridZoomForN(int n) => ActiveViewer.GridZoomForN(n);
+        private double DisplayZoomPct() => ActiveViewer.DisplayZoomPct();
+        private void SyncZoomBox() => ActiveViewer.SyncZoomBox();
+        private void FitToWidth(bool lite = false) => ActiveViewer.FitToWidth(lite);
+        private void FitToPage(bool lite = false) => ActiveViewer.FitToPage(lite);
+        private void ReapplyGridOrFit() => ActiveViewer.ReapplyGridOrFit();
 
-        private void SetViewMode(ViewMode mode) => Viewer.SetViewMode(mode);
-        private void SelectViewMode(ViewMode mode) => Viewer.SelectViewMode(mode);
-        private void ApplyViewMode(ViewMode mode) => Viewer.ApplyViewMode(mode);
-        private ViewMode? _pendingViewMode { get => Viewer.PendingViewMode; set => Viewer.PendingViewMode = value; }
+        private void SetViewMode(ViewMode mode) => ActiveViewer.SetViewMode(mode);
+        private void SelectViewMode(ViewMode mode) => ActiveViewer.SelectViewMode(mode);
+        private void ApplyViewMode(ViewMode mode) => ActiveViewer.ApplyViewMode(mode);
+        private ViewMode? _pendingViewMode { get => ActiveViewer.PendingViewMode; set => ActiveViewer.PendingViewMode = value; }
 
-        private bool NavigatePageStep(int direction) => Viewer.NavigatePageStep(direction);
-        private void NavigatePageByWheel(int delta) => Viewer.NavigatePageByWheel(delta);
+        private bool NavigatePageStep(int direction) => ActiveViewer.NavigatePageStep(direction);
+        private void NavigatePageByWheel(int delta) => ActiveViewer.NavigatePageByWheel(delta);
 
-        private int _gridColumns { get => Viewer.GridColumns; set => Viewer.GridColumns = value; }
+        private int _gridColumns { get => ActiveViewer.GridColumns; set => ActiveViewer.GridColumns = value; }
 
-        private void BuildPrimaryTile() => Viewer.BuildPrimaryTile();
+        private void BuildPrimaryTile() => ActiveViewer.BuildPrimaryTile();
         private void PagePreviewPanel_SizeChanged(object sender, SizeChangedEventArgs e)
-            => Viewer.PagePreviewPanel_SizeChanged(sender, e);
+            => ActiveViewer.PagePreviewPanel_SizeChanged(sender, e);
 
         // Bound from MainWindow.xaml (the zoom toolbar stays on the window) and from
         // ContextMenu.cs, so these three cannot simply live on the control.
-        private void ZoomIn_Click(object sender, RoutedEventArgs e) => Viewer.ZoomIn_Click(sender, e);
-        private void ZoomOut_Click(object sender, RoutedEventArgs e) => Viewer.ZoomOut_Click(sender, e);
+        private void ZoomIn_Click(object sender, RoutedEventArgs e) => ActiveViewer.ZoomIn_Click(sender, e);
+        private void ZoomOut_Click(object sender, RoutedEventArgs e) => ActiveViewer.ZoomOut_Click(sender, e);
 
         // NULL-CONDITIONAL, and it must stay that way. ZoomBox declares
         // <ComboBoxItem Tag="1.0" IsSelected="True"> (MainWindow.xaml), so SelectionChanged fires

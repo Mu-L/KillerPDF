@@ -24,14 +24,14 @@ namespace KillerPDF.Controls
     // Page viewport: builds the page tiles and annotation overlays for all four view modes (single,
     // continuous, two-page, grid) and handles preview scrolling.
     //
-    // Split pane stage 3: moved here from Shell/Viewport.cs, VERBATIM apart from this namespace and
-    // class line. RenderPage / SetupContinuousView / AddSecondaryTile / WirePageOverlay and the
-    // _pages / _continuousCanvases invariant had to travel together - CLAUDE.md documents why
-    // splitting them repoints every page at the hidden primary tile.
+    // Moved from Shell/Viewport.cs; this namespace and class line are the only changes. RenderPage /
+    // SetupContinuousView / AddSecondaryTile / WirePageOverlay and the _pages / _continuousCanvases
+    // invariant have to stay together - CLAUDE.md documents why splitting them repoints every page
+    // at the hidden primary tile.
     //
-    // The body still spells window things bare (PageList, _doc, Loc, RenderAllAnnotations, ...).
-    // Those resolve through PdfViewer.Bridge.cs, which forwards each one to Owner. That is what
-    // kept this file byte-identical instead of rewriting ~700 references.
+    // The body spells window things bare (PageList, _doc, Loc, RenderAllAnnotations, ...). Those
+    // resolve through PdfViewer.Bridge.cs, which forwards each one to Owner. That is what keeps this
+    // file byte-identical with its pre-move form instead of rewriting ~700 references.
     public partial class PdfViewer
     {
         // ── Dark mode: image regions excluded from the inversion (#135 follow-up) ──────────────
@@ -145,11 +145,15 @@ namespace KillerPDF.Controls
         // the index is set, matching the original Continuous sync).
         private void SyncCurrentPageTo(int nearest)
         {
+            // Everything below is window chrome that describes the FOCUSED pane - the one sidebar
+            // list, the one jump box, the one status line. An unfocused pane scrolling must not
+            // overwrite them with its own page number.
+            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
             if (PageList.SelectedIndex == nearest) return;
             _pageJumpBox.Text = (nearest + 1).ToString();
             // PageListSelHandler, NOT the method group: the -= has to remove the same delegate
-            // instance the += added, and a method group builds a new one each time. Since stage 4
-            // the handler is a real method on this class, so the cached instance lives here too
+            // instance the += added, and a method group builds a new one each time. The handler is
+            // a real method on this class, so the cached instance lives here too
             // (PdfViewer.PageSelection.cs) rather than being handed over from the window.
             PageList.SelectionChanged -= PageListSelHandler;
             PageList.SelectedIndex = nearest;
@@ -159,9 +163,9 @@ namespace KillerPDF.Controls
             // the highlight but never scrolled the sidebar, and the selection walked off the end
             // of the visible list as the document scrolled.
             PageList.ScrollIntoView(PageList.SelectedItem);
-            // Split pane stage 3a. This is the one write that detaches the handler (to avoid
-            // re-entering the render path from a scroll sync), so it is also the one that would
-            // slip past the mirror there. Set it by hand.
+            // This is the one write that detaches the handler (to avoid re-entering the render path
+            // from a scroll sync), so it is also the one that would slip past the mirror in
+            // PageList_SelectionChanged. Set it by hand.
             State.CurrentPage = nearest;
             if (_doc is not null)
                 SetStatus(string.Format(Loc("Str_PageOf"), nearest + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
@@ -1550,7 +1554,11 @@ namespace KillerPDF.Controls
 
         // Re-fit the main view after a reload. Grid keeps its column-fit (FitToWidth alone would
         // yank it out into a single-page Fit Width view); other modes honor the fit mode.
-        internal void ReapplyGridOrFit()
+        // Called for BOTH panes after a splitter drag, so like the viewport's SizeChanged it has to
+        // run against the pane it is named on rather than the focused pane. See WithOwnSession.
+        internal void ReapplyGridOrFit() => WithOwnSession(ReapplyGridOrFitCore);
+
+        private void ReapplyGridOrFitCore()
         {
             if (_viewMode == ViewMode.Grid)
             {
@@ -1593,8 +1601,29 @@ namespace KillerPDF.Controls
         private System.Windows.Threading.DispatcherTimer? _resizeRefitTimer;
         private int _gridColumns = 1;   // columns the grid is currently laid out in; held across resizes
 
-        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        // internal: PdfViewer's XAML binds this and forwards to it.
+        // Every pane raises this from its OWN ScrollViewer. It must NOT go through WithOwnSession:
+        // that swaps the shared fields mid-handler, and the fit below changes the scroll content's
+        // size, which raises this again - with the zoom being swapped underneath it the fit never
+        // converges and the app locks up before it can paint. An unfocused pane simply sits the
+        // fit out; it re-fits from ReapplyGridOrFit when the drag or the split settles.
         internal void PagePreviewPanel_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this))
+            {
+                // Unfocused pane: it still has to re-fit, or it keeps the zoom from its old width
+                // and the page ends up cut off - which is what opening a file in the other pane
+                // did to this one. Just not INLINE: the shared fields describe the other pane right
+                // now, and fitting from inside a layout event is what looped. The settle timer runs
+                // ReapplyGridOrFit through WithOwnSession, after the pass, against this pane's own
+                // document.
+                StartResizeSettleTimer();
+                return;
+            }
+            PagePreviewPanelSizeChangedCore(e);
+        }
+
+        private void PagePreviewPanelSizeChangedCore(SizeChangedEventArgs e)
         {
             RepositionAnnotationBars();   // cheap; keep the draw/text bar tracking its anchored edge
             if (_cropPreviewRect is not null || _cropConfirmBar is not null) return;
@@ -1628,7 +1657,15 @@ namespace KillerPDF.Controls
             {
                 _resizeRefitTimer = new System.Windows.Threading.DispatcherTimer
                     { Interval = TimeSpan.FromMilliseconds(110) };
-                _resizeRefitTimer.Tick += (_, _) => { _resizeRefitTimer!.Stop(); OnResizeSettled(); };
+                // This pane's own timer, so the work runs against this pane's document. An
+                // unfocused pane wants the full re-fit (it skipped the inline one); the focused
+                // pane already fitted live and only needs the crisp re-render.
+                _resizeRefitTimer.Tick += (_, _) =>
+                {
+                    _resizeRefitTimer!.Stop();
+                    if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) ReapplyGridOrFit();
+                    else WithOwnSession(OnResizeSettled);
+                };
             }
             _resizeRefitTimer.Stop();
             _resizeRefitTimer.Start();
@@ -1678,10 +1715,10 @@ namespace KillerPDF.Controls
 
         // Target mode while a fade-out is in flight. Non-null means a switch is mid-fade; a new
         // SetViewMode during that window just retargets it (rapid F5-F8 presses land on the last).
-        // Forwarding property onto the per-view state (split pane stage 1) - it belongs to a view,
-        // not to the window, since two panes fade independently.
-        // _pendingViewMode's definition moved to PdfViewer.Bridge.cs with the rest of the state
-        // accessors; PendingViewMode below is how the window's flyout code still reaches it.
+        // Forwarding property onto the per-view state - it belongs to a view, not to the window,
+        // since two panes fade independently. _pendingViewMode is defined in PdfViewer.Bridge.cs
+        // with the rest of the state accessors; PendingViewMode below is how the window's flyout
+        // code reaches it.
         internal ViewMode? PendingViewMode { get => _pendingViewMode; set => _pendingViewMode = value; }
         internal int GridColumns { get => _gridColumns; set => _gridColumns = value; }
 

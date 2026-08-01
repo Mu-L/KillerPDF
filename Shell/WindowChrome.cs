@@ -243,7 +243,8 @@ namespace KillerPDF
         // Window chrome
         // ============================================================
 
-        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        // internal: each pane's tab strip forwards its empty-space drag here.
+        internal void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
             {
@@ -524,8 +525,12 @@ namespace KillerPDF
 
             // Fold the live (active-tab) dirty flag back into its session, then prompt once if
             // any open tab has unsaved changes.
-            if (_active != null) CaptureSessionState(_active);
-            bool anyDirty = _isDirty || _sessions.Any(s => s.IsDirty);
+            // Capture BOTH panes' live state, then ask across BOTH. `_sessions` is only the focused
+            // pane, so testing it alone quits without a word while the other pane holds unsaved
+            // edits - a data-loss bug.
+            Viewer.CaptureActiveIfAny();
+            ViewerB.CaptureActiveIfAny();
+            bool anyDirty = _isDirty || AllSessions().Any(s => s.IsDirty);
             if (anyDirty)
             {
                 // fadeClose:false so the prompt closes instantly instead of adding its own 150ms fade
@@ -548,7 +553,7 @@ namespace KillerPDF
             // Only asked when a document is actually open (loaded, or a lazy not-yet-loaded
             // restored tab) - with nothing open there are no tabs to close or reopen, so the
             // empty window just quits.
-            bool anyOpenDoc = _sessions.Any(s =>
+            bool anyOpenDoc = AllSessions().Any(s =>
                 s.Doc != null || !string.IsNullOrEmpty(s.CurrentFile) || !string.IsNullOrEmpty(s.DeferredPath));
             // A confirmed "close without saving" already IS the quit confirmation - never stack
             // the quit prompt on top of it (one dialog max per close). The open-tabs / remember

@@ -64,7 +64,9 @@ namespace KillerPDF
 
             TitleBarBorder.Visibility     = v;
             ToolbarRowBorder.Visibility   = v;
-            TabStripBorder.Visibility     = v;
+            // BOTH panes - full screen hides every strip, not just the focused pane's.
+            Viewer.TabStripBorderCtl.Visibility  = v;
+            ViewerB.TabStripBorderCtl.Visibility = v;
             FooterBorder.Visibility       = v;
             SidebarOuterGrid.Visibility   = v;
             SidebarToggleStrip.Visibility = v;
@@ -75,8 +77,10 @@ namespace KillerPDF
             // treatment comes off entirely and goes back on exit - otherwise a rounded corner and
             // an 8px strip of window background sit inside a "full screen" view.
             // The MARGIN is on the PdfViewer control, not on the card border inside it - the
-            // control is what the layout positions. (Split pane stage 2.)
-            Viewer.Margin = entering ? new Thickness(0) : DocPaneInsetMargin();
+            // control is what the layout positions.
+            // SplitHost, not Viewer - the inset to the window edge belongs to the host that holds
+            // both panes. See the note in ApplySidebarSide.
+            SplitHost.Margin = entering ? new Thickness(0) : DocPaneInsetMargin();
             DocPaneBorder.CornerRadius = entering ? new CornerRadius(0)
                                                   : (CornerRadius)FindResource("RadCard");
             DocPaneBorder.BorderThickness = new Thickness(entering ? 0 : 1);

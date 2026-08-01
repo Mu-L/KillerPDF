@@ -699,6 +699,7 @@ namespace KillerPDF
             bool textMode = _toolbarLabelMode != ToolbarLabelMode.None;
             ApplySplitButtonChrome(textMode);
             SyncToolbarMenuChecks();
+            InvalidateToolbarReflow();   // the buttons themselves changed, so the last decision is void
             ReflowToolbar();
         }
 
@@ -828,6 +829,12 @@ namespace KillerPDF
         // reflow re-measures only the two bars instead of forcing repeated whole-tree UpdateLayout passes.
         private void ToolbarGrid_SizeChanged(object sender, SizeChangedEventArgs e) => QueueReflowToolbar();
 
+        /// <summary>Toolbar width the last completed reflow decided against. Reset to -1 by anything
+        /// that changes what the toolbar CONTAINS (appearance mode, language), which is the only
+        /// other thing that can change the answer.</summary>
+        private double _lastReflowWidth = -1;
+        internal void InvalidateToolbarReflow() => _lastReflowWidth = -1;
+
         private void QueueReflowToolbar()
         {
             if (_reflowQueued) return;
@@ -835,6 +842,14 @@ namespace KillerPDF
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, (Action)(() =>
             {
                 _reflowQueued = false;
+                // Skip when the width has not actually moved since the last decision. ReflowToolbar
+                // re-expands every group and caption at the start of each pass and then sheds to
+                // fit; that expand-then-shed is itself a layout change, which raises SizeChanged,
+                // which runs it again - at a width sitting on the shed boundary it oscillates
+                // forever. Measured at 57 reflows a second with the window pinned and nothing
+                // moving, which is what stopped the app ever painting.
+                if (ToolbarGrid != null
+                    && Math.Abs(ToolbarGrid.ActualWidth - _lastReflowWidth) < 0.5) return;
                 ReflowToolbar();
             }));
         }
@@ -874,6 +889,10 @@ namespace KillerPDF
                 {
                     (GrpPageEdit,       new UIElement[] { MiDelete, MiMoveUp, MiMoveDown }),
                     (GrpPageOps,        new UIElement[] { MiMerge, MiExtract }),
+                    // Stamp goes before signature, image and the markup tools: it is the most
+                    // occasional of them, and inserting an image or typing text is reached for far
+                    // more often (Steve, 2026-08-01).
+                    (ToolStampBtn,      new UIElement[] { MiStamp }),
                     (GrpSignature,      new UIElement[] { MiSignature }),
                     (ToolImageBtn,      new UIElement[] { MiImage }),
                     (ToolCropBtn,       new UIElement[] { MiCrop }),
@@ -953,6 +972,12 @@ namespace KillerPDF
                 bool anyCollapsed = order.Any(o => o.bar.Visibility != Visibility.Visible);
                 OverflowChevron.Visibility = anyCollapsed ? Visibility.Visible : Visibility.Collapsed;
                 if (!anyCollapsed) OverflowChevron.IsChecked = false;
+
+                _lastReflowWidth = avail;   // this width is now decided - see QueueReflowToolbar
+
+                // The toolbar does NOT get a say in how narrow the window may be. Deriving a floor
+                // from it produced a minimum unrelated to anything the user can see, and a
+                // different one in each mode. The only floor is the pane minimum (SyncSplitMinWidth).
             }
             finally { _reflowingToolbar = false; }
         }

@@ -163,7 +163,41 @@ namespace KillerPDF
         }
 
         // Cancels the previous thumbnail background load when the file changes.
-        private System.Threading.CancellationTokenSource? _thumbCts;
+        // The FOCUSED pane's thumbnail loader token. The panes keep their own (PdfViewer.ThumbCts):
+        // one window-wide token had each pane cancelling the other's decode.
+        private System.Threading.CancellationTokenSource? _thumbCts
+        {
+            get => ActiveViewer.ThumbCts;
+            set => ActiveViewer.ThumbCts = value;
+        }
+
+        /// <summary>Re-seat the newly focused pane's thumbnails instead of rebuilding them.
+        ///
+        /// Not folded into RefreshPageList as a general cache: every other caller is calling it
+        /// BECAUSE the pages changed, and a cache keyed on the file path would make those no-op and
+        /// leave stale thumbnails on screen. Only a focus switch knows nothing changed.
+        ///
+        /// Falls back to a full refresh whenever the cache cannot be proven to match.</summary>
+        internal void RestorePageListForActivePane()
+        {
+            var cached = ActiveViewer.ThumbCache;
+
+            bool usable = cached != null
+                       && _doc != null
+                       && _currentFile != null
+                       && cached.Length == _doc.PageCount
+                       && string.Equals(ActiveViewer.ThumbCacheFile, _currentFile,
+                                        System.StringComparison.OrdinalIgnoreCase);
+
+            if (!usable) { RefreshPageList(); return; }
+
+            // No cancel here. The panes own their thumbnail lists and their loader tokens
+            // separately, so the other pane's decode is writing into ITS array and should be left
+            // to finish - cancelling it was what left a pane showing page labels with no pictures
+            // after any focus change.
+            if (!ReferenceEquals(PageList.ItemsSource, cached)) PageList.ItemsSource = cached;
+            ActiveViewer.SyncPageListSelection();
+        }
 
         internal void RefreshPageList()
         {
@@ -202,6 +236,11 @@ namespace KillerPDF
                 }
             }
             PageList.ItemsSource = items;
+
+            // Hand the array to the pane it belongs to, so focusing away and back can re-seat it
+            // rather than decode the document again. RestorePageListForActivePane is the only reader.
+            ActiveViewer.ThumbCache     = items;
+            ActiveViewer.ThumbCacheFile = filePath;
 
             // Load thumbnails sequentially on a background thread via a single doc reader.
             _ = System.Threading.Tasks.Task.Run(() =>

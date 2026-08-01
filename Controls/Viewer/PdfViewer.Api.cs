@@ -8,13 +8,13 @@ using PdfSharpCore.Pdf;
 namespace KillerPDF.Controls
 {
     /// <summary>
-    /// The viewer's outward surface: what the window still calls into after stage 4.
+    /// The viewer's outward surface: what the window still calls into.
     ///
     /// WHY A FACADE RATHER THAN WIDENING. Roughly 55 of these are private members of the seven
-    /// moved files. Making them internal in place would have meant 55 edits scattered through code
-    /// that otherwise moved VERBATIM - and "verbatim" is the property that makes the move
-    /// reviewable by diff. This file is part of the same partial class, so it can see those privates
-    /// and re-expose them without touching a line of the moved code.
+    /// moved files. Making them internal in place would mean 55 edits scattered through code that
+    /// is otherwise VERBATIM - and "verbatim" is the property that makes the move reviewable by
+    /// diff. This file is part of the same partial class, so it can see those privates and
+    /// re-expose them without touching a line of the moved code.
     ///
     /// The `Ext` suffix exists only because a wrapper cannot share a name with the member it wraps
     /// inside one class. Members that were already internal (RenderAllAnnotations, ClearSelection,

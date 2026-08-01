@@ -1,29 +1,30 @@
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
 namespace KillerPDF
 {
     /// <summary>
-    /// Stage 4's half of the bridge: the editing state the annotation, text, crop, form and link
-    /// code reaches for, exposed to the viewer control. Split out from MainWindowViewerBridge.cs
-    /// only because that file is stage 3's list and mixing the two would make neither readable.
+    /// The editing state the annotation, text, crop, form and link code reaches for, exposed to the
+    /// viewer control. Kept separate from MainWindowViewerBridge.cs only because merging the two
+    /// lists would make neither readable.
     ///
-    /// WHY THESE ARE STILL ON THE WINDOW. The obvious alternative was to move ~80 field
-    /// declarations across with their code. They stayed for two reasons:
+    /// WHY THESE ARE STILL ON THE WINDOW. The obvious alternative is to move ~80 field declarations
+    /// across with their code. They stay for two reasons:
     ///
-    ///  1. A dozen of them are also touched by files that did NOT move - AnnotationBars.cs,
+    ///  1. A dozen of them are also touched by files that live on the window - AnnotationBars.cs,
     ///     TextSettingsBar.cs, ContextMenu.cs, Shapes.cs, Signing.cs, Ocr.cs, Search.cs,
-    ///     DirtyTracking.cs, Tabs.cs. Splitting the block would have meant classifying every field
-    ///     by hand and getting a silent half-move wrong.
+    ///     DirtyTracking.cs, Tabs.cs. Splitting the block would mean classifying every field by
+    ///     hand, and a silent half-move is easy to get wrong.
     ///  2. They are per-DOCUMENT state, not per-VIEW. The end state is that they ride in
     ///     DocumentSession and the viewer reads them off the session it is showing - the same
-    ///     conclusion the stage-3 audit reached for _doc and _annotations. Relocating them onto
-    ///     the control now would be a second move to undo later.
+    ///     conclusion that applies to _doc and _annotations. Relocating them onto the control now
+    ///     would be a second move to undo later.
     ///
-    /// So this file is scaffolding with a known expiry, exactly like group B in the stage-3 bridge.
+    /// So this file is scaffolding with a known expiry, exactly like group B in the other bridge.
     /// It deletes itself when the viewer owns its session.
     ///
     /// Collections are get-only on purpose: the moved code mutates them in place (Add/Clear) and
@@ -112,15 +113,18 @@ namespace KillerPDF
         internal TextBox? CropRangeBoxRef { get => _cropRangeBox; set => _cropRangeBox = value; }
         internal string CropUnitRef { get => _cropUnit; set => _cropUnit = value; }
         internal bool UpdatingCropInputsRef { get => _updatingCropInputs; set => _updatingCropInputs = value; }
-        // These two were get-only in stage 3's bridge; stage 4 brought the code that ASSIGNS them.
+        // Settable, not get-only: the moved crop code ASSIGNS both.
         internal Rectangle? CropPreviewRectSet { get => _cropPreviewRect; set => _cropPreviewRect = value; }
         internal Border? CropConfirmBarSet { get => _cropConfirmBar; set => _cropConfirmBar = value; }
 
         // ── Form filling ─────────────────────────────────────────────────────────────────────
-        internal Dictionary<int, string> FormTextValuesRef => _formTextValues;
-        internal Dictionary<int, bool> FormCheckValuesRef => _formCheckValues;
-        internal Dictionary<string, string> FormRadioValuesRef => _formRadioValues;
-        internal Dictionary<int, double> FormFontSizesRef => _formFontSizes;
+        // Settable: ApplySessionState swaps the whole dictionary by reference on a tab switch, so
+        // these cannot be get-only. Mutating in place is still what the editing code does; only the
+        // tab switch rebinds them.
+        internal Dictionary<int, string> FormTextValuesRef { get => _formTextValues; set => _formTextValues = value; }
+        internal Dictionary<int, bool> FormCheckValuesRef { get => _formCheckValues; set => _formCheckValues = value; }
+        internal Dictionary<string, string> FormRadioValuesRef { get => _formRadioValues; set => _formRadioValues = value; }
+        internal Dictionary<int, double> FormFontSizesRef { get => _formFontSizes; set => _formFontSizes = value; }
         internal Border? FormSizeBarRef { get => _formSizeBar; set => _formSizeBar = value; }
         internal TextBox? ActiveFormTbRef { get => _activeFormTb; set => _activeFormTb = value; }
         internal int ActiveFormObjRef { get => _activeFormObj; set => _activeFormObj = value; }
@@ -128,9 +132,9 @@ namespace KillerPDF
         internal const string FormOverlayTagShared = "FormFieldOverlay";
 
         // ── Undo / dirty ─────────────────────────────────────────────────────────────────────
-        // Get-only: Tabs.cs swaps these by reference per tab, so the viewer must never rebind them.
-        internal Stack<UndoEntry> UndoStackRef => _undoStack;
-        internal Stack<UndoEntry> RedoStackRef => _redoStack;
+        // Settable: the tab switch swaps these by reference so each document keeps its own history.
+        internal Stack<UndoEntry> UndoStackRef { get => _undoStack; set => _undoStack = value; }
+        internal Stack<UndoEntry> RedoStackRef { get => _redoStack; set => _redoStack = value; }
         internal bool IsDirtyRef { get => _isDirty; set => _isDirty = value; }
 
         // ── State owned by files that did not move ───────────────────────────────────────────
@@ -143,6 +147,35 @@ namespace KillerPDF
         internal bool AnnotBarMinimizedRef { get => _annotBarMinimized; set => _annotBarMinimized = value; }
         internal List<FrameworkElement> AnnotBarDragInnersRef => _annotBarDragInners;
         internal static SolidColorBrush SwatchDimBorderRef => _swatchDimBorder;
+
+        // ══ What Tabs.cs reaches for, now that it lives in the viewer ═══════════════════════
+        internal string? OriginalFileRef { get => _originalFile; set => _originalFile = value; }
+        internal bool OpenedFromProtectedRef { get => _openedFromProtected; set => _openedFromProtected = value; }
+        internal bool AsyncOpenPendingRef { get => _asyncOpenPending; set => _asyncOpenPending = value; }
+        // Kept for the window-side callers; resolves to the FOCUSED pane's token (PageOperations.cs).
+        internal System.Threading.CancellationTokenSource? ThumbCtsRef { get => _thumbCts; set => _thumbCts = value; }
+        internal bool SidebarShowingOutlinesRef => _sidebarShowingOutlines;
+        internal System.Collections.Generic.Stack<int> NavBackRef => _navBack;
+        internal System.Collections.Generic.Stack<int> NavForwardRef => _navForward;
+
+        internal TextBlock FileNameLabelCtl => FileNameLabel;
+        internal TreeView OutlineTreeCtl => OutlineTree;
+        internal Button SidebarOutlinesTabCtl => SidebarOutlinesTab;
+
+        internal ContextMenu MakeThemedMenuBridge() => MakeThemedMenu();
+        internal void CloseSearchBarBridge() => CloseSearchBar();
+        internal void HideSignaturePopupBridge() => HideSignaturePopup();
+        // Takes the calling pane: a pane's start screen is its own, not the focused pane's.
+        internal void PopulateRecentFilesListBridge(Controls.PdfViewer pane) => PopulateRecentFilesList(pane);
+        internal void SwitchSidebarToPagesTabBridge() => SwitchSidebarToPagesTab();
+        internal void SyncSidebarToDocStateBridge(bool hasDoc, bool startup) => SyncSidebarToDocState(hasDoc, startup);
+        internal void OpenFileBridge(string path) => OpenFile(path);
+        internal void UpdateFooterFadeBridge() => UpdateFooterFade();
+        internal void UpdateTabStripFadeBridge() => UpdateTabStripFade();
+        /// <summary>Empty space on a pane's tab strip drags the window - the strips moved into the
+        /// panes but dragging the window is still window chrome.</summary>
+        internal void TitleBar_MouseLeftButtonDown_Bridge(object sender, MouseButtonEventArgs e)
+            => TitleBar_MouseLeftButtonDown(sender, e);
 
         // ── Chrome the moved code touches ────────────────────────────────────────────────────
         internal TextBlock StatusTextCtl => StatusText;

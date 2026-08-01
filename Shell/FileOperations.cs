@@ -551,7 +551,7 @@ namespace KillerPDF
 
         // Start-screen "Clear list" link (#146): one click, then the box hides itself (empty list).
         // Handled = true, or the click bubbles into the surrounding DropZone and opens the file dialog.
-        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        // internal: PdfViewer's XAML binds this and forwards to it.
         internal void RecentClearAll_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             e.Handled = true;
@@ -563,13 +563,27 @@ namespace KillerPDF
         // Services/ShellIcons.cs - the same shape the KillerUI file picker uses.
 
         // Fills the empty-state "Recent" list with clickable filenames (hidden when there are none).
-        private void PopulateRecentFilesList()
+        // The start screen belongs to a PANE, so a pane filling its own list has to name itself: the
+        // bare RecentFilesBox / RecentFilesList members resolve through ActiveViewer, which meant an
+        // unfocused pane's empty state stayed blank while the focused pane's list was rebuilt.
+        private void PopulateRecentFilesList(Controls.PdfViewer? pane = null)
         {
-            if (RecentFilesList is null || RecentFilesBox is null) return;
-            RecentFilesList.Items.Clear();
+            if (pane == null)
+            {
+                // No pane named means a window-level change to the recents themselves, which both
+                // start screens show - refresh both, or the unfocused pane keeps a stale list.
+                PopulateRecentFilesList(Viewer);
+                PopulateRecentFilesList(ViewerB);
+                return;
+            }
+            var box  = pane.RecentBox;
+            var list = pane.RecentList;
+            if (list is null || box is null) return;
+            list.Items.Clear();
             var recents = App.GetRecentFiles();
-            if (recents.Count == 0) { RecentFilesBox.Visibility = Visibility.Collapsed; return; }
-            RecentFilesBox.Visibility = Visibility.Visible;
+            if (recents.Count == 0) { box.Visibility = Visibility.Collapsed; return; }
+            // Visibility and width belong to SyncRecentBoxWidth, called once the rows are in - it
+            // also has to drop the panel on a narrow pane, which this has no way of knowing.
             var fam = UiKit.UiFont;
             foreach (var p in recents)
             {
@@ -693,12 +707,17 @@ namespace KillerPDF
                 row.MouseLeftButtonDown += (_, ev) =>
                 {
                     ev.Handled = true;   // don't bubble to the DropZone "click to browse" handler
+                    // Name the pane rather than trusting focus to have followed the click: these
+                    // rows belong to a specific pane's start screen, and OpenInNewTab routes
+                    // through ActiveViewer. Clicking pane B's recents opened the file in pane A.
+                    FocusPane(pane);
                     if (System.IO.File.Exists(path)) OpenInNewTab(path);
                     else KillerDialog.Show(this, $"File not found:\n{path}", "KillerPDF",
                         MessageBoxButton.OK, MessageBoxImage.Warning);
                 };
-                RecentFilesList.Items.Add(row);
+                list.Items.Add(row);
             }
+            pane.SyncRecentBoxWidth();
         }
 
         // Dropdown next to the Save button: explicit Save / Save As.
@@ -962,6 +981,18 @@ namespace KillerPDF
             // No real path yet (repaired temp-backed open) -> go straight to Save As.
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(sender, e); return; }
             var name = System.IO.Path.GetFileName(_originalFile);
+            // The same file can be open in BOTH panes as two independent copies (Steve's call,
+            // 2026-08-01), each with its own annotations and undo stack. Overwriting from one pane
+            // therefore discards whatever the other pane has done to it, with nothing on screen to
+            // suggest that - so say so before it happens rather than after.
+            if (OtherPaneHasDirtyCopyOf(_originalFile))
+            {
+                var warn = KillerDialog.Show(this,
+                    string.Format(Loc("Str_Dlg_SaveOtherPaneDirty"), name),
+                    Loc("Str_Dlg_AppTitle"), MessageBoxButton.OKCancel, MessageBoxImage.Warning,
+                    defaultResult: MessageBoxResult.Cancel);
+                if (warn != MessageBoxResult.OK) return;
+            }
             var choice = KillerDialog.Show(this, $"Overwrite {name}?", "Save",
                                            MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
             if (choice == MessageBoxResult.Yes)      SaveInPlace();

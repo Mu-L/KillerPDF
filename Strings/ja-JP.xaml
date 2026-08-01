@@ -192,6 +192,11 @@
     <sys:String x:Key="Str_RotateFailed">回転に失敗しました : {0}</sys:String>
 
     <!-- ── ダイアログ文字列 ───────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">もう一方のペインでも「{0}」が開かれており、そちらにも未保存の変更があります。
+
+ここで保存するとファイルが上書きされ、その変更は失われます。残したい場合は先にもう一方のペインを保存してください。</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">分割表示オン - F10 で閉じる</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">分割表示オフ</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF をインストール</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF をこのコンピューターにインストールしますか？
 

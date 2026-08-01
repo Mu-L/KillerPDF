@@ -41,10 +41,10 @@
 
         <!-- Shared film-grain brush for popup menus (settings/shortcuts/language/overflow).
              ImageSource is assigned once in ApplyGrainTexture; every reference updates.
-             MUST STAY AT WINDOW SCOPE. It was briefly moved to App.xaml during split pane stage 2
-             and that threw "Cannot set a property on ImageBrush because it is in a read-only
-             state" at startup: WPF freezes Freezables in application-level dictionaries for
-             cross-thread safety, so its ImageSource can never be assigned from there.
+             MUST STAY AT WINDOW SCOPE. In App.xaml it throws "Cannot set a property on ImageBrush
+             because it is in a read-only state" at startup: WPF freezes Freezables in
+             application-level dictionaries for cross-thread safety, so its ImageSource can never
+             be assigned from there.
              PdfViewer.xaml reaches it with DynamicResource, which walks the live tree
              (control -> window -> app) and finds it here perfectly well. -->
         <ImageBrush x:Key="GrainBrushShared" TileMode="Tile"
@@ -461,8 +461,7 @@
                              Popup, it is hosted inside one WPF owns - so the fade is driven from
                              the template with an EventTrigger on Loaded. The SubPopup below already
                              sets PopupAnimation="Fade", so a menu appeared instantly while its own
-                             children faded in, which is backwards. 150ms ease-out.
-                             (Steve, 2026-07-30.) -->
+                             children faded in, which is backwards. 150ms ease-out. -->
                         <!-- Radius 6 = the family flyout card (FlyoutCard above); the grain overlay
                              takes 5, the card's 6 minus its 1px border, so the texture stops exactly
                              inside the frame. -->
@@ -568,8 +567,7 @@
                                  rendered in neutral gray - and KillerPDF is the app the others
                                  copy. Now the family's selected treatment: SelectionBg fill with
                                  SelectionFg text. The gesture and chevron are recoloured too, as
-                                 TextSecondary is unreadable on a saturated fill.
-                                 (Steve, 2026-07-30: "even killerpdf".) -->
+                                 TextSecondary is unreadable on a saturated fill. -->
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="MenuBd" Property="Background" Value="{DynamicResource SelectionBg}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
@@ -1327,6 +1325,9 @@
                                 <Button x:Name="MiCrop" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolCrop_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Crop}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
+                                <Button x:Name="MiStamp" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolStamp_Click">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE932;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Stamp}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
+                                </Button>
                                 <Button x:Name="MiUndo" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="Undo_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Undo}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
@@ -1350,8 +1351,7 @@
              in it, shadow and all. KillerShell gets its lift from PaneBrush #3a3a3a on
              BackgroundBrush #1c1c1c, thirty steps; this is the identical relationship, and it also
              matches the sidebar and footer, which already paint BackgroundBrush. The sidebar and
-             the card both paint over this, so only the exposed gutter changes.
-             (Steve, 2026-07-31: "right side is still gray no drop shadow".) -->
+             the card both paint over this, so only the exposed gutter changes. -->
         <Grid Grid.Row="2" Grid.RowSpan="2" x:Name="MainContentGrid"
               Background="{DynamicResource BackgroundBrush}">
             <Grid.ColumnDefinitions>
@@ -1373,8 +1373,7 @@
                  exposes RootBorder's flat SurfaceBrush, which was the one untextured band in the
                  window once the pane stopped running edge to edge. First child, spanning every
                  column and row, so the sidebar and the card both paint over it and only the exposed
-                 surface shows through - and the card's shadow lands on texture, not flat paint.
-                 (Steve, 2026-07-31.) -->
+                 surface shows through - and the card's shadow lands on texture, not flat paint. -->
             <Border Grid.ColumnSpan="3" Grid.RowSpan="2" IsHitTestVisible="False"
                     Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
 
@@ -1566,6 +1565,42 @@
                                 Click="SidebarToggle_Click"/>
                         <!-- Settings and help icons pinned to bottom -->
                         <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,6">
+                            <!-- E9A6 (two panes): open or close the second document pane, F10 from
+                                 the keyboard. On the rail rather than the toolbar because it acts
+                                 on the WINDOW, not on the document the toolbar is editing. Lit in
+                                 the accent while the split is open (Tag="on", set from OpenSplit /
+                                 CloseSplit). -->
+                            <Button x:Name="SplitPaneRailBtn" Click="SplitPaneRailBtn_Click"
+                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
+                                    ToolTip="{DynamicResource Str_TT_SplitPane}"
+                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <TextBlock Text="&#xE9A6;"
+                                                       FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                                                </TextBlock.Effect>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}" Value="on">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
                             <!-- Invert document colors (#135): moon toggle, lit in the accent while
                                  active (Tag="on", set from ToggleDocInvert). Ctrl+I does the same. -->
                             <Button x:Name="DocInvertBtn" Click="DocInvertBtn_Click"
@@ -2064,8 +2099,7 @@
                  It lives INSIDE the sidebar on the list's inner lip, so the order reads
                  list | grip | rail | gap | document - the rail stays glued to the document edge
                  and never moves, which is the whole point of a permanent rail.
-                 ApplySidebarSide puts it in the content column and faces it at the rail.
-                 (Steve, 2026-07-31: "the grab handle is on the wrong side of the rail".) -->
+                 ApplySidebarSide puts it in the content column and faces it at the rail. -->
             <Thumb x:Name="SidebarSplitter"
                    Grid.Column="0"
                    Panel.ZIndex="50"
@@ -2112,59 +2146,34 @@
                  the sidebar). Without it the band ran the full width while the card below stopped
                  8px short, so the band overhung the card's rounded top-right corner and that corner
                  read as square. The band already spans the splitter column, which is exactly where
-                 the card's -6 pull-back puts its other edge, so the two line up on both sides.
-                 (Steve, 2026-07-31: "when multiple tabs are open the right side doesnt round".) -->
+                 the card's -6 pull-back puts its other edge, so the two line up on both sides. -->
             <!-- ZIndex above the document card. The card's -1 top margin tucks its top border into
                  this band's row, but the card is declared later and so painted over it, leaving the
                  hairline the -1 was meant to hide. With the band on top, the active tab - which
                  carries the pane's own BgCanvas - covers that pixel and the two read as one
-                 surface, while inactive tabs cover it with the strip color. (Steve, 2026-07-31.) -->
-            <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="TabStripBorder"
-                    Margin="0,0,8,0" Panel.ZIndex="10"
-                    Background="{DynamicResource BackgroundBrush}" Visibility="Collapsed">
-                    <Grid>
-                        <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
-                        <Border x:Name="TabStripFade" IsHitTestVisible="False" Background="{DynamicResource TabStripFadeBrush}"/>
-                        <!-- TabBarRing, ported from KillerShell. Not a flat 1px strip: the card's
-                             top corners are rounded under an INACTIVE tab, and a straight line ran
-                             past the curve and stopped dead at the card's outer edge. This is the
-                             card's top border drawn again, radii and all - 7px tall with a -6
-                             bottom margin, so its 1px TOP edge lands in the band's last row and its
-                             curved sides drop out of the band and land exactly on the card's own
-                             left/right border, same brush, same pixels. SyncPaneLeadingCorner keeps
-                             the radii in step with the card's.
-                             Declared after the fade (whose dark bottom would otherwise wash it out)
-                             and before the tabs, so the tabs paint over it: the ACTIVE tab drops
-                             its 1px bottom margin and covers its own segment, which is what breaks
-                             the line exactly at the tab - the browser-tab join.
-                             Right margin 8 matches the card's inset; ApplySidebarSide flips it. -->
-                        <Border x:Name="TabBarRing" Height="7" VerticalAlignment="Bottom" Margin="0,0,0,-6"
-                                BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" IsHitTestVisible="False"
-                                BorderBrush="{DynamicResource PaneBorderBrush}"/>
-                        <ScrollViewer x:Name="TabScroll" Margin="6,0,0,0" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Hidden"
-                                      WindowChrome.IsHitTestVisibleInChrome="True" Background="Transparent"
-                                      MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                            <!-- Left margin 0, not 1: TabScroll's 6px inset already cancels the gap
-                                 column exactly, so this extra pixel put the FIRST tab 1px right of
-                                 the card's edge - enough that squaring the card's leading corner to
-                                 meet it just moved the notch instead of closing it. -->
-                            <StackPanel x:Name="TabStrip" Orientation="Horizontal" Margin="0,0,6,0"/>
-                        </ScrollViewer>
-                    </Grid>
-                </Border>
-            <!-- SplitterTopCap was here: a 1px cap across the top of the splitter column, joining
-                 the flush pane's top border into the corner so the splitter's vertical DragLine
-                 did not poke past it. The pane is a rounded inset card now and the splitter is a
-                 centered line with no border, so there is no corner to join and the cap would
-                 draw a stray rule across the gap. (2026-07-31.) -->
+                 surface, while inactive tabs cover it with the strip color. -->
+            <!-- THE TAB STRIP LIVES IN Controls/PdfViewer.xaml, not here. A single window-owned
+                 band spanning the splitter + document columns puts a document opened in the second
+                 pane's tab above the FIRST pane, because there is one strip and it belongs to the
+                 window rather than to a pane. Each pane owns its own, so it tracks that pane's
+                 width and position for free - including through a boundary drag, which a
+                 window-owned strip would have to chase by hand. SplitHost below spans rows 0-1 so
+                 both panes reach up into what would be the band's row. The 8px right margin and the
+                 WindowChrome.IsHitTestVisibleInChrome on TabScroll live in the control too; inside
+                 it the strip simply spans the pane, so the alignment that margin compensated for is
+                 structural. -->
+            <!-- NO SplitterTopCap here. A 1px cap across the top of the splitter column would join
+                 a flush pane's top border into the corner so the splitter's vertical DragLine did
+                 not poke past it. The pane is a rounded inset card and the splitter is a centered
+                 line with no border, so there is no corner to join and a cap would draw a stray
+                 rule across the gap. -->
             <!-- Document pane: row 1 of the document column.
                  A lifted card, matching KillerShell's ResultsPane and the rest of the family:
                  RadCard corners, 1px pane border, PaneShadow cast DOWN over the footer, and an
                  8px inset on the outer side (ApplySidebarSide moves the inset to whichever side
                  the document is on). No bottom margin - a DropShadowEffect draws outside the
                  element's bounds without taking layout space, so a gap there would be real
-                 padding lifting the pane off the footer, not room for the shadow.
-                 (Steve, 2026-07-31: "the entire app is squared edges, it needs modernizing".) -->
+                 padding lifting the pane off the footer, not room for the shadow. -->
             <!-- Shadow caster: same geometry, NO content, not hit-testable. The effect must NOT go
                  on DocPaneBorder itself - a WPF Effect rasterizes its whole subtree, so every glyph
                  in the pane (drop-zone labels, page text, the annotate bars) would render through a
@@ -2176,7 +2185,50 @@
                  verbatim. The MARGIN stays out here because it is the layout's business, not the
                  viewer's - ApplySidebarSide flips the 8px gutter to whichever side the document is
                  on, and the -1 top tucks the card under the tab band. -->
-            <ctrl:PdfViewer x:Name="Viewer" Grid.Row="1" Grid.Column="2" Margin="0,-1,8,0"/>
+            <!-- SPLIT HOST. Holds both document panes and the single A/B boundary between them.
+                 The margin that used to sit on the viewer lives here now, because the gutter to the
+                 window edge is the layout's business and there are two viewers to position.
+
+                 Columns: A (star) | gutter | B (zero until split). Splitting sets the gutter to 8 -
+                 the family gutter, the same one between the card and the window edge - and gives B
+                 a pixel width; A stays star so it absorbs window resizes. That is the "A in pixels /
+                 B star" arrangement from the spec, inverted: keeping A star means an un-split window
+                 needs no width bookkeeping at all.
+
+                 TWO HANDLES, not one. Whichever you grab is the pane you are sizing: the left handle
+                 sits on A's inner edge, the right on B's. Both clamp against BOTH minimums, so
+                 neither pane can be squeezed below MinPaneWidth from either side. Deliberately not
+                 KillerShell's single PaneSplitV. -->
+            <!-- RowSpan 2: each pane contains its own tab strip in its first row, so the panes have
+                 to occupy the row a window-level tab band would use. The -1 top margin lives on the
+                 card INSIDE the control, since it tucks the card under that pane's own strip. -->
+            <Grid x:Name="SplitHost" Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Margin="0,0,8,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="PaneACol" Width="*"/>
+                    <ColumnDefinition x:Name="PaneGutterCol" Width="0"/>
+                    <ColumnDefinition x:Name="PaneBCol" Width="0"/>
+                </Grid.ColumnDefinitions>
+
+                <ctrl:PdfViewer x:Name="Viewer" Grid.Column="0"/>
+
+                <!-- Both handles live in the gutter column, hugging opposite edges, so the grab
+                     targets are exactly on each pane's inner edge. Transparent: the gutter shows
+                     the window background between the two cards, same as the outer inset. -->
+                <Border x:Name="SplitHandleA" Grid.Column="1" Width="6" HorizontalAlignment="Left"
+                        Background="Transparent" Cursor="SizeWE" Visibility="Collapsed"
+                        MouseLeftButtonDown="SplitHandle_MouseDown"
+                        MouseMove="SplitHandle_MouseMove"
+                        MouseLeftButtonUp="SplitHandle_MouseUp"
+                        LostMouseCapture="SplitHandle_LostMouseCapture"/>
+                <Border x:Name="SplitHandleB" Grid.Column="1" Width="6" HorizontalAlignment="Right"
+                        Background="Transparent" Cursor="SizeWE" Visibility="Collapsed"
+                        MouseLeftButtonDown="SplitHandle_MouseDown"
+                        MouseMove="SplitHandle_MouseMove"
+                        MouseLeftButtonUp="SplitHandle_MouseUp"
+                        LostMouseCapture="SplitHandle_LostMouseCapture"/>
+
+                <ctrl:PdfViewer x:Name="ViewerB" Grid.Column="2" Visibility="Collapsed"/>
+            </Grid>
 
             <!-- DocTopAccent / DocBottomAccent were here: 1px rules at ZIndex 60 spanning the
                  splitter + document columns, bridging the splitter to the toolbar and footer
@@ -2218,8 +2270,8 @@
                     <Button x:Name="InstallBtn" Content="{DynamicResource Str_InstallBtn}"
                             Click="Install_Click"
                             FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" FontWeight="SemiBold"
-                            Foreground="White"
-                            Background="{DynamicResource InstallBtnBg}"
+                            Foreground="{DynamicResource SelectionFg}"
+                            Background="{DynamicResource SelectionBg}"
                             BorderThickness="0"
                             Padding="12,2" Cursor="Hand"
                             VerticalAlignment="Center">

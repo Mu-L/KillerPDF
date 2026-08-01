@@ -14,14 +14,23 @@ namespace KillerPDF
     {
         private void ApplySidebarSide()
         {
-            var tabStrip      = FindName("TabStripBorder") as FrameworkElement;
-            var tabScroll     = FindName("TabScroll") as FrameworkElement;
+            // SplitHost, NOT Viewer. Since the split landed, the element that sits in
+            // MainContentGrid is the SPLIT HOST - Viewer is one of its children. Setting
+            // Grid.Column on Viewer therefore moved pane A into SplitHost's column 2, which is
+            // PaneBCol and is ZERO WIDTH while unsplit, so the document rendered into a pane with
+            // no width and the whole content area went blank. Same for the margin below: the 8px
+            // gutter to the window edge belongs to the host, not to one pane.
+            //
+            // Do NOT look up TabStripBorder / TabScroll here: those elements live inside PdfViewer,
+            // so FindName cannot see them (a UserControl is its own namescope and FindName returns
+            // null SILENTLY). They would only re-span the band across the splitter column, which is
+            // meaningless when each strip lives inside its own pane and spans it exactly.
             if (FindName("SidebarCol") is not ColumnDefinition sidebarColDef ||
                 FindName("DocCol") is not ColumnDefinition docColDef ||
                 FindName("SidebarOuterGrid") is not Grid sbOuter ||
                 FindName("SidebarBorder") is not Border sbContent ||
                 FindName("SidebarToggleStrip") is not Border sbToggle ||
-                Viewer is not FrameworkElement docPane ||
+                SplitHost is not FrameworkElement docPane ||
                 FindName("SbContentCol") is not ColumnDefinition sbContentCol ||
                 FindName("SbToggleCol") is not ColumnDefinition sbToggleCol)
                 return;
@@ -41,10 +50,6 @@ namespace KillerPDF
                 docColDef.Width = new GridLength(1, GridUnitType.Star);
                 Grid.SetColumn(sbOuter, 0);
                 Grid.SetColumn(docPane, 2);
-                // Grainy tab band spans the splitter column (1) + document column (2) so it's one
-                // continuous strip; the 6px tab offset cancels the wider band so tabs don't move.
-                if (tabStrip != null) { Grid.SetColumn(tabStrip, 1); Grid.SetColumnSpan(tabStrip, 2); }
-                if (tabScroll != null) tabScroll.Margin = new Thickness(6, 0, 0, 0);
                 _sidebarCol = sidebarColDef;
                 // Toggle strip faces the document: right edge of the sidebar.
                 sbContentCol.Width = new GridLength(1, GridUnitType.Star);
@@ -60,10 +65,6 @@ namespace KillerPDF
                 sidebarColDef.Width = new GridLength(1, GridUnitType.Star);
                 Grid.SetColumn(sbOuter, 2);
                 Grid.SetColumn(docPane, 0);
-                // Band spans document column (0) + splitter column (1); tabs sit at the document edge
-                // (col 0) with no offset, and the band extends right over the gap to the sidebar.
-                if (tabStrip != null) { Grid.SetColumn(tabStrip, 0); Grid.SetColumnSpan(tabStrip, 2); }
-                if (tabScroll != null) tabScroll.Margin = new Thickness(0, 0, 0, 0);
                 _sidebarCol = docColDef;
                 // Toggle strip faces the document: left edge of the sidebar (inner column 0). The
                 // inner column defs are fixed in position, so size them by position, not by name.
@@ -95,23 +96,18 @@ namespace KillerPDF
                                                          : HorizontalAlignment.Right;
             }
 
-            // The shadow caster used to be a separate grid child that had to be moved in step with
-            // the pane. It is inside the PdfViewer control now, so moving the control moves both -
-            // one less thing that can drift out of alignment. (Split pane stage 2.)
+            // The shadow caster is inside the PdfViewer control, so moving the control moves both -
+            // one less thing that can drift out of alignment than a separate grid child that has to
+            // be moved in step with the pane.
             if (!_fullScreen)
             {
+                // docPane is SplitHost, so this one margin now insets BOTH panes from the window
+                // edge together, which is what the 8px gutter always meant.
                 docPane.Margin = DocPaneInsetMargin();
-                // The tab band has to stop where the card stops, or it overhangs the card's rounded
-                // outer top corner and squares it off. Outer inset only - the band's other edge is
-                // the splitter column, which is where the card's -6 pull-back already puts its own.
-                if (tabStrip != null)
-                    tabStrip.Margin = _sidebarRight ? new Thickness(8, 0, 0, 0)
-                                                    : new Thickness(0, 0, 8, 0);
-                // TabBarRing redraws the card's top border inside the band, so its sides have to
-                // land on the card's sides - it keeps the -6 bottom that drops its curves out of
-                // the band, and takes no left/right inset of its own (the band already carries it).
-                if (FindName("TabBarRing") is FrameworkElement ring)
-                    ring.Margin = new Thickness(0, 0, 0, -6);
+                // No tab-band or TabBarRing margins here. Those exist only to stop a window-level
+                // band overhanging the card's rounded outer corner, where the band runs the full
+                // width while the card is inset 8px. Each strip is inside its own pane and spans
+                // exactly that pane, so the band and the card share an edge by construction.
             }
 
             UpdateSidebarToggleGlyph();
@@ -126,15 +122,13 @@ namespace KillerPDF
         // bounds without taking layout space, so a bottom gap would be real padding lifting the
         // card off the footer, not room for the shadow (KillerShell's ResultsPane comment).
         //
-        // The sidebar side is 0. That 6px column is a plain gap now - KillerShell's TreeGapCol -
-        // rather than something to pull back over: the grip moved inside the sidebar, so nothing
-        // lives there and the grain layer paints it like the rest of the surface. It briefly held
-        // a -6 pull-back while the grip was still a top-level GridSplitter. (Steve, 2026-07-31.)
+        // The sidebar side is 0, not a pull-back. That 6px column is a plain gap - KillerShell's
+        // TreeGapCol - because the grip lives inside the sidebar, so nothing sits there and the
+        // grain layer paints it like the rest of the surface.
         // Top is -1, KillerShell's ResultsPane margin verbatim: the card's own top border tucks
         // UNDER the tab band, which is opaque, so the active tab and the pane read as one surface
-        // instead of being split by a hairline. With no tabs open the band is collapsed and the -1
-        // just eats a pixel against the toolbar. (Steve, 2026-07-31: "remove the horizontal line
-        // under the active tab so it blends into the pane".)
+        // instead of being split by a hairline under the active tab. With no tabs open the band is
+        // collapsed and the -1 just eats a pixel against the toolbar.
         private Thickness DocPaneInsetMargin()
             => _sidebarRight ? new Thickness(8, -1, 0, 0) : new Thickness(0, -1, 8, 0);
 
@@ -154,7 +148,7 @@ namespace KillerPDF
         // A Border with a CornerRadius does not clip its child, so the canvas, the grain and the
         // page itself all square the card's corners straight back off. Radius 5 = the card's 6
         // less its 1px border, which is where the inner edge of the curve actually falls.
-        // internal: PdfViewer's XAML binds this and forwards to it (split pane stage 2).
+        // internal: PdfViewer's XAML binds this and forwards to it.
         internal void DocPane_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (sender is not FrameworkElement el) return;
@@ -166,10 +160,11 @@ namespace KillerPDF
         // sidebar (on whichever side the sidebar sits).
         private void UpdateTabStripFade()
         {
-            // The tab-strip gradient band spans the splitter column + document column. Feather its
-            // sidebar-facing edge (the same fixed-offset OpacityMask the footer uses) so it blends into
-            // the sidebar instead of ending in a hard vertical cut. The document-facing edge keeps its
-            // hard stop - that one is the tab/window edge and is meant to be crisp.
+            // The tab-strip gradient band spans the splitter column + document column. BOTH ends are
+            // feathered. The document-facing end used to keep a hard stop on the reasoning that it
+            // was the window edge and should be crisp; with the split it is not the window edge at
+            // all, it is a seam in the middle of the window, and it read as a solid vertical line
+            // rising out of the pane. A shadow with a visible end is not a shadow.
             if (TabStripFade != null)
             {
                 TabStripFade.Margin = new Thickness(0);
@@ -180,18 +175,16 @@ namespace KillerPDF
                                                           // shadow is darker, so a 15px fade still read as a
                                                           // hard vertical edge near the sidebar corner
                     var mask = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
-                    if (_sidebarRight)
-                    {
-                        mask.GradientStops.Add(new GradientStop(Colors.White, 0));
-                        mask.GradientStops.Add(new GradientStop(Colors.White, 1 - f));
-                        mask.GradientStops.Add(new GradientStop(Colors.Transparent, 1));
-                    }
-                    else
-                    {
-                        mask.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
-                        mask.GradientStops.Add(new GradientStop(Colors.White, f));
-                        mask.GradientStops.Add(new GradientStop(Colors.White, 1));
-                    }
+                    // Same ramp at both ends. The sidebar-facing side keeps the wider feather it
+                    // already had; the document-facing side gets a shorter one, enough to kill the
+                    // hard line without eating into the strip.
+                    double fDoc = Math.Min(0.25, 14.0 / w);
+                    double fNear = _sidebarRight ? fDoc  : f;
+                    double fFar  = _sidebarRight ? f     : fDoc;
+                    mask.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
+                    mask.GradientStops.Add(new GradientStop(Colors.White, fNear));
+                    mask.GradientStops.Add(new GradientStop(Colors.White, 1 - fFar));
+                    mask.GradientStops.Add(new GradientStop(Colors.Transparent, 1));
                     TabStripFade.OpacityMask = mask;
                 }
                 else TabStripFade.OpacityMask = null;

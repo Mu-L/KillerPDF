@@ -143,6 +143,11 @@
     <sys:String x:Key="Str_RotateFailed">旋转失败：{0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">另一个窗格中也打开了“{0}”，并且有自己未保存的更改。
+
+现在保存会覆盖该文件，那些更改将会丢失。如果想保留，请先保存另一个窗格。</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">分屏已开启 - 按 F10 关闭</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">分屏已关闭</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">安装 KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">要将 KillerPDF 安装到这台电脑吗？
 

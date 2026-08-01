@@ -105,18 +105,30 @@ namespace KillerPDF.Controls
         // Guards the fade-then-close re-entry below. Without it OnClosing would cancel forever.
         private bool _fadingOut;
 
-        /// <summary>Fades the dialog out before it actually closes, so it leaves the same way it
-        /// arrived instead of blinking out. The first pass cancels the close, runs the fade, and
-        /// calls Close() again; the second pass sees the flag and lets it through. DialogResult is
-        /// already assigned by whatever asked to close, and cancelling does not disturb it, so
-        /// Accept / Cancel / the X / Escape all keep their result.</summary>
+        /// <summary>The result Accept wants, held until the window is actually allowed to close.
+        /// Null means cancel (the X, Escape, the Cancel button - none of them set it).</summary>
+        private bool? _pendingResult;
+
+        /// <summary>Fades the dialog out before it actually closes. The first pass cancels the
+        /// close and runs the fade; the second sees the flag and lets it through.
+        ///
+        /// The result CANNOT be assigned before the fade. Assigning Window.DialogResult is itself a
+        /// close request, so it lands in this handler, which cancels that close - and WPF resets
+        /// DialogResult to null whenever a close is cancelled. Accept therefore records what it
+        /// wants in _pendingResult and the assignment happens in the fade's completion callback,
+        /// where nothing will cancel it. Assigning DialogResult there also closes the window, which
+        /// is why that branch does not call Close() as well.</summary>
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             if (!_fadingOut)
             {
                 _fadingOut = true;
                 e.Cancel = true;
-                Anim.FadeOut(RootFade, Close);
+                Anim.FadeOut(RootFade, () =>
+                {
+                    if (_pendingResult.HasValue) DialogResult = _pendingResult;   // this closes it
+                    else Close();                                                 // cancel path
+                });
                 return;
             }
             base.OnClosing(e);
@@ -1024,7 +1036,7 @@ namespace KillerPDF.Controls
                 {
                     FileNames = picked;
                     FileName  = picked[0];
-                    DialogResult = true;
+                    _pendingResult = true;   // applied after the fade - see OnClosing
                     Close();
                     return;
                 }
@@ -1088,7 +1100,7 @@ namespace KillerPDF.Controls
 
             FileName = full;
             FileNames = [full];   // always populated on success, so callers can read either
-            DialogResult = true;
+            _pendingResult = true;   // applied after the fade - see OnClosing
             Close();
         }
 

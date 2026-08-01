@@ -1,22 +1,89 @@
 ﻿<UserControl x:Class="KillerPDF.Controls.PdfViewer"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- ONE document view: the lifted card and everything inside it. Split pane stage 2.
-         Lifted verbatim out of MainWindow.xaml (the DocPaneShadow / DocPaneBorder pair and their
-         contents) so a second instance can exist. Nothing here changed except the two names, which
-         lost their "Doc" prefix now that the control IS the document pane; MainWindow keeps
-         forwarding properties under the old names so its ~15 call sites are untouched.
+    <!-- One document view: this pane's tab strip and its card.
 
          The card's MARGIN lives on this control, not on the borders below - ApplySidebarSide sets
          it to flip the 8px gutter to whichever side the document is on. -->
     <Grid>
+        <!-- Row 0 is the strip, row 1 the card. Each pane carrying its own strip means the strip
+             tracks its pane's width and position for free, including through a boundary drag.
+             Row 0 is Auto and the band collapses below two tabs. -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ZIndex above the card: the card's -1 top margin tucks its top border into this band's
+             row, and the active tab - which carries the pane's own BgCanvas - covers that pixel so
+             the two read as one surface. -->
+        <Border Grid.Row="0" x:Name="TabStripBorder" Panel.ZIndex="10"
+                Background="{DynamicResource BackgroundBrush}" Visibility="Collapsed">
+            <Grid>
+                <!-- DynamicResource, NOT StaticResource. GrainBrushShared lives in
+                     MainWindow.Resources (not App.xaml: WPF freezes application-level Freezables
+                     and ApplyGrainTexture could then never assign its ImageSource). StaticResource
+                     resolves at parse time against this control's own scope, before the control is
+                     in the window's tree, and throws from InitializeComponent. DynamicResource
+                     walks the live tree at runtime and finds it. -->
+                <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{DynamicResource GrainBrushShared}"/>
+                <Border x:Name="TabStripFade" IsHitTestVisible="False" Background="{DynamicResource TabStripFadeBrush}"/>
+                <!-- TabBarRing, ported from KillerShell. The card's top border drawn again, radii
+                     and all - 7px tall with a -6 bottom margin, so its 1px top edge lands in the
+                     band's last row and its curved sides drop out of the band onto the card's own
+                     left/right border. A flat 1px strip would run past the card's rounded corners.
+                     SyncPaneLeadingCorner keeps the radii in step with the card's; SetFocusHalo
+                     drives its brush alongside the card's.
+                     Declared after the fade (whose dark bottom would wash it out) and before the
+                     tabs, so the active tab covers its own segment and breaks the line at the tab. -->
+                <Border x:Name="TabBarRing" Height="7" VerticalAlignment="Bottom" Margin="0,0,0,-6"
+                        BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" IsHitTestVisible="False"
+                        BorderBrush="{DynamicResource PaneBorderBrush}"/>
+                <!-- No side insets. The strip has to be flush with the card beneath it, or the
+                     first tab's left edge sits 6px inside the card's left border and the ring
+                     steps sideways where it should run straight up. -->
+                <ScrollViewer x:Name="TabScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Hidden"
+                              Background="Transparent"
+                              MouseLeftButtonDown="TabScroll_MouseLeftButtonDown">
+                    <StackPanel x:Name="TabStrip" Orientation="Horizontal"/>
+                </ScrollViewer>
+                <!-- The ring's two vertical ends, drawn by the BAND rather than by the tab.
+                     A first or last tab's own outer border sits on the strip's clip edge and the
+                     ScrollViewer cuts it, so whether it survived depended on the pane width -
+                     which is why the halo came out uneven and changed as the split moved. These
+                     are anchored to the band's own edges, so there is no arithmetic to land
+                     wrong. Declared after the strip so they draw over the tabs, and shown only
+                     when the tab that owns that edge is the active one in the FOCUSED pane
+                     (UpdateTabHalo) - an inactive edge tab leaves the card's corner rounded and
+                     there is nothing to continue. Top margin 7 = the tab's own 3 plus its 4px
+                     corner radius, so each strip starts where the tab's side becomes vertical. -->
+                <Border x:Name="TabEdgeLeft" Width="1" HorizontalAlignment="Left" Margin="0,7,0,0"
+                        IsHitTestVisible="False" Visibility="Collapsed"/>
+                <Border x:Name="TabEdgeRight" Width="1" HorizontalAlignment="Right" Margin="0,7,0,0"
+                        IsHitTestVisible="False" Visibility="Collapsed"/>
+            </Grid>
+        </Border>
+
+        <!-- ── This pane's card ───────────────────────────────────────────────────────────
+             Row 1. The -1 top margin tucks the card's top border up into the strip band so the
+             active tab and the card read as one surface (see TabBarRing).
+
+             Margin is set in CODE, not here: it must be -1 only while this pane HAS a strip.
+             A pane with one tab collapses its strip, and the -1 then lifts that pane a pixel above
+             the other one instead of tucking under anything. RebuildTabStrip owns both. -->
+        <Grid x:Name="CardRow" Grid.Row="1">
         <!-- Shadow caster: same geometry, NO content, not hit-testable. The effect must NOT go on
              PaneBorder itself - a WPF Effect rasterizes its whole subtree, so every glyph in the
              pane (drop-zone labels, page text, the annotate bars) would render through a bitmap
              effect and lose ClearType, and the page bitmap would be re-rasterized on every scroll
              and zoom. Family rule, and the same split RootBorder/WindowShadowBorder already use at
              the window level. -->
-        <Border x:Name="PaneShadow" IsHitTestVisible="False"
+        <!-- Margin 0,1,0,0 cancels CardRow's -1 for the SHADOW ONLY. The -1 exists to tuck the
+             card's top BORDER under the tab band; applying it to the shadow caster as well lifts
+             the caster into the band, and its blur (16px, offset 5 down, so ~11px of spill upward)
+             then rides up into the strip and pools at the rounded top corners. PaneBorder keeps
+             the -1 and stays tucked. -->
+        <Border x:Name="PaneShadow" IsHitTestVisible="False" Margin="0,1,0,0"
                 Background="{DynamicResource BgCanvas}"
                 CornerRadius="{DynamicResource RadCard}"
                 Effect="{StaticResource PaneShadow}"/>
@@ -65,8 +132,9 @@
                         </Border>
 
                         <!-- Recent files sidebar (populated in code-behind; hidden when empty).
-                             NOTE for the split: this is a fixed 340 and will swamp the drop target
-                             in a half-width pane - needs a width cap or a hide threshold. -->
+                             Width and visibility are driven by SyncRecentBoxWidth: at 340 fixed it
+                             swamped the drop target in a half-width pane, so it now scales with the
+                             pane and drops out entirely below a threshold. -->
                         <Border x:Name="RecentFilesBox" Grid.Column="1" Width="340" Visibility="Collapsed"
                                 Background="{DynamicResource BgRecentPanel}"
                                 BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1,0,0,0">
@@ -184,5 +252,6 @@
                 </ScrollViewer>
             </Grid>
         </Border>
+        </Grid><!-- /card row -->
     </Grid>
 </UserControl>

@@ -191,6 +191,11 @@
     <sys:String x:Key="Str_RotateFailed">Otočení selhalo: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">Druhý panel má soubor „{0}“ rovněž otevřený a obsahuje vlastní neuložené změny.
+
+Uložením se soubor přepíše a tyto změny budou ztraceny. Pokud si je chcete ponechat, uložte nejprve druhý panel.</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">Rozdělené zobrazení zapnuto - F10 zavře</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">Rozdělené zobrazení vypnuto</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">Nainstalovat KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">Nainstalovat KillerPDF do tohoto počítače?
 
