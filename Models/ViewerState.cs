@@ -45,6 +45,44 @@ namespace KillerPDF
             /// ~90ms and Mode lags behind it, which is what made wheel-cycling need several
             /// notches before it was fixed.</summary>
             public ViewMode? Pending;
+
+            // ── Zoom / fit ──────────────────────────────────────────────────────────────────
+            public double ZoomLevel = 1.0;
+            /// <summary>Zoom the current bitmaps were rasterized at, so the re-sharpen pass knows
+            /// whether what is on screen is still crisp enough.</summary>
+            public double LastRenderZoom = 1.0;
+            /// <summary>Primary (spread-left) page currently rasterized.</summary>
+            public int RenderedPrimaryPage = -1;
+            public FitMode Fit = FitMode.None;
+
+            // ── In-flight render work ───────────────────────────────────────────────────────
+            // Each view cancels and reschedules its own rendering, so two panes must not share
+            // these - one pane's mode switch would otherwise cancel the other's render.
+            public System.Windows.Threading.DispatcherTimer? RerenderTimer;
+            public System.Threading.CancellationTokenSource? SecondaryRenderCts;
+            public System.Threading.CancellationTokenSource? ContinuousRenderCts;
+            /// <summary>#85 visible-page re-sharpen.</summary>
+            public System.Threading.CancellationTokenSource? ContinuousSharpenCts;
+
+            // ── Continuous-view bookkeeping ─────────────────────────────────────────────────
+            /// <summary>Slots currently holding a hi-res bitmap.</summary>
+            public readonly HashSet<int> ContinuousSharpPages = [];
+            /// <summary>Budget those slots were sharpened at.</summary>
+            public int ContinuousSharpW;
+            public readonly List<double> ContinuousTops = [];
+            /// <summary>Page to scroll to once its grid tile streams in (-1 = none).</summary>
+            public int GridScrollToPage = -1;
+            /// <summary>Re-scroll here once its true height is known.</summary>
+            public int ContinuousScrollTarget = -1;
+            public double ContinuousPageW;
+
+            // ── Gesture routing ─────────────────────────────────────────────────────────────
+            /// <summary>The page surface a pointer gesture started on, captured on mouse-down.
+            /// Kept separate from the active canvas because RenderAllAnnotations reuses that as its
+            /// render target, and in Grid view tiles stream in asynchronously and re-point it
+            /// mid-gesture - which committed annotations to the wrong page.</summary>
+            public Canvas? GestureCanvas;
+            public int GesturePage = -1;
         }
     }
 }

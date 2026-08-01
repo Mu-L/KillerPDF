@@ -29,16 +29,17 @@ namespace KillerPDF
         private Point _dragStartPoint;
 
         // Zoom
-        private double _zoomLevel = 1.0;
-        private double _lastRenderZoom = 1.0;
-        private int _renderedPrimaryPage = -1;   // primary (spread-left) page currently rasterised
+        private double _zoomLevel { get => _view.ZoomLevel; set => _view.ZoomLevel = value; }
+        private double _lastRenderZoom { get => _view.LastRenderZoom; set => _view.LastRenderZoom = value; }
+        private int _renderedPrimaryPage { get => _view.RenderedPrimaryPage; set => _view.RenderedPrimaryPage = value; }
         private const double ZoomMin = 0.05;
         private const double ZoomMax = 5.0;
         private const double ZoomStep = 0.15;
-        private enum FitMode { None, Width, Page }
-        private FitMode _fitMode = FitMode.None;
-        private System.Windows.Threading.DispatcherTimer? _rerenderTimer;
-        private System.Threading.CancellationTokenSource? _secondaryRenderCts;
+        // internal for the same CS0052 reason as ViewMode below - ViewerState has a field of it.
+        internal enum FitMode { None, Width, Page }
+        private FitMode _fitMode { get => _view.Fit; set => _view.Fit = value; }
+        private System.Windows.Threading.DispatcherTimer? _rerenderTimer { get => _view.RerenderTimer; set => _view.RerenderTimer = value; }
+        private System.Threading.CancellationTokenSource? _secondaryRenderCts { get => _view.SecondaryRenderCts; set => _view.SecondaryRenderCts = value; }
         // internal, not private: ViewerState (Models/ViewerState.cs) has fields of this type, and
         // CS0052 compares DECLARED accessibility - a field cannot be more accessible than its type,
         // even when both sit inside MainWindow. Still a nested type, so nothing outside the
@@ -54,14 +55,14 @@ namespace KillerPDF
 
         private ViewMode _viewMode { get => _view.Mode; set => _view.Mode = value; }
         private readonly StackPanel _continuousPanel = null!;
-        private System.Threading.CancellationTokenSource? _continuousRenderCts;
-        private System.Threading.CancellationTokenSource? _continuousSharpenCts;   // #85 visible-page re-sharpen
-        private readonly HashSet<int> _continuousSharpPages = [];   // slots currently holding a hi-res bitmap
-        private int _continuousSharpW;                              // budget those slots were sharpened at
-        private readonly List<double> _continuousTops = [];
-        private int _gridScrollToPage = -1;   // page to scroll to once its grid tile streams in (-1 = none)
-        private int _continuousScrollTarget = -1;  // re-scroll here once its true height is known
-        private double _continuousPageW;
+        private System.Threading.CancellationTokenSource? _continuousRenderCts { get => _view.ContinuousRenderCts; set => _view.ContinuousRenderCts = value; }
+        private System.Threading.CancellationTokenSource? _continuousSharpenCts { get => _view.ContinuousSharpenCts; set => _view.ContinuousSharpenCts = value; }
+        private HashSet<int> _continuousSharpPages => _view.ContinuousSharpPages;
+        private int _continuousSharpW { get => _view.ContinuousSharpW; set => _view.ContinuousSharpW = value; }
+        private List<double> _continuousTops => _view.ContinuousTops;
+        private int _gridScrollToPage { get => _view.GridScrollToPage; set => _view.GridScrollToPage = value; }
+        private int _continuousScrollTarget { get => _view.ContinuousScrollTarget; set => _view.ContinuousScrollTarget = value; }
+        private double _continuousPageW { get => _view.ContinuousPageW; set => _view.ContinuousPageW = value; }
 
         // Editing
         private EditTool _currentTool = EditTool.Select;
@@ -260,8 +261,8 @@ namespace KillerPDF
         // target; in Grid view tiles stream in asynchronously and each one re-points _activeCanvas
         // mid-gesture, which previously committed annotations to the wrong page and broke
         // select/delete. Mouse-move/up resolve the gesture page and surface from these instead.
-        private Canvas? _gestureCanvas;
-        private int _gesturePage = -1;
+        private Canvas? _gestureCanvas { get => _view.GestureCanvas; set => _view.GestureCanvas = value; }
+        private int _gesturePage { get => _view.GesturePage; set => _view.GesturePage = value; }
         // Per-page overlay canvases for Continuous view, keyed by page index.
         private Dictionary<int, Canvas> _continuousCanvases => _view.ContinuousCanvases;
         // Unified page -> overlay map covering EVERY rendered page, the primary included (unlike
