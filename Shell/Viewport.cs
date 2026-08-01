@@ -131,6 +131,11 @@ namespace KillerPDF
             PageList.SelectionChanged -= PageList_SelectionChanged;
             PageList.SelectedIndex = nearest;
             PageList.SelectionChanged += PageList_SelectionChanged;
+            // Keep the selected thumbnail in view. ScrollIntoView lives in
+            // PageList_SelectionChanged, which is detached above - so the scroll-driven path moved
+            // the highlight but never scrolled the sidebar, and the selection walked off the end
+            // of the visible list as the document scrolled.
+            PageList.ScrollIntoView(PageList.SelectedItem);
             // Split pane stage 3a. This is the one write that detaches the handler (to avoid
             // re-entering the render path from a scroll sync), so it is also the one that would
             // slip past the mirror there. Set it by hand.
