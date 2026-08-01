@@ -617,6 +617,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_DocInvertSetting">Inverser les couleurs du document</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Inverser les couleurs du document (N)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Inverser aussi les images</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">Aucune police de ce PC ne peut afficher ces caractères ; ils apparaîtront sous forme de carrés dans le PDF enregistré :&#10;&#10;{0}&#10;&#10;Installez une police qui les contient ou choisissez une autre police pour ce texte.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application (Ctrl+Maj+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Taille de l'application {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoomer toute l'application (accessibilité)</sys:String>

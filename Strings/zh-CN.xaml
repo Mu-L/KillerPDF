@@ -603,6 +603,7 @@
     <sys:String x:Key="Str_DocInvertSetting">反转文档颜色</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">反转文档颜色 (N)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">也反转图像</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">此电脑上没有字体可以显示这些字符，因此它们在保存的 PDF 中将显示为方框：&#10;&#10;{0}&#10;&#10;请安装包含这些字符的字体，或为此文本选择其他字体。</sys:String>
     <sys:String x:Key="Str_TT_AppSize">滚动以调整整个应用的大小 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">应用大小 {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">缩放整个应用（无障碍）</sys:String>

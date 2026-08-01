@@ -180,6 +180,7 @@
     <sys:String x:Key="Str_DocInvertSetting">文書の色を反転</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">文書の色を反転 (N)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">画像も反転</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">この PC のどのフォントにもこれらの文字がないため、保存した PDF では四角形として表示されます:&#10;&#10;{0}&#10;&#10;対応するフォントをインストールするか、このテキストに別のフォントを選んでください。</sys:String>
     <sys:String x:Key="Str_TT_AppSize">スクロールでアプリ全体のサイズを変更 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">アプリのサイズ {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">アプリ全体をズーム (アクセシビリティ)</sys:String>

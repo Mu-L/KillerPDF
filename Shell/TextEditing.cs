@@ -715,6 +715,7 @@ namespace KillerPDF
                     AddAnnotation(ta);
                 }
                 RenderAllAnnotations(pageIdx);   // redraw on the correct page's canvas
+                WarnIfGlyphsWillBeLost(ta);      // #168: say so NOW, not after saving and reopening
             }
             else if (_pendingCover is not null)
             {
@@ -722,6 +723,31 @@ namespace KillerPDF
                 DiscardPendingCover();
             }
             if (_currentTool != EditTool.Text) HideTextSettings();
+        }
+
+        /// <summary>
+        /// #168: the editor borrows glyphs from any installed font, so text ALWAYS looks right while
+        /// being typed - but a save can only embed fonts, and a character no installed font carries
+        /// becomes a box in the file. That used to be invisible until the user saved, closed and
+        /// reopened. Now it is said at the moment the text is placed, while it can still be fixed.
+        ///
+        /// Only fires when the whole fallback chain comes up short (a box mixing two non-Latin
+        /// scripts, or a script with no font installed at all), so it does not nag: ordinary
+        /// Japanese, Chinese, Korean or Bengali text resolves silently.
+        /// </summary>
+        private void WarnIfGlyphsWillBeLost(TextAnnotation ta)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ta.Content)) return;
+                string want = string.IsNullOrEmpty(ta.FontName) ? "Segoe UI" : ta.FontName;
+                string family = Services.FontCoverage.PickFamily(want, ta.Content);
+                string missing = Services.FontCoverage.UncoveredChars(family, ta.Content);
+                if (missing.Length == 0) return;
+                KillerDialog.Show(this, string.Format(Loc("Str_Font_NoGlyphs"), missing), "KillerPDF",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch { /* the warning must never be the thing that breaks placing text */ }
         }
 
         // Remove the not-yet-committed cover when an existing-text edit is cancelled or left empty. The

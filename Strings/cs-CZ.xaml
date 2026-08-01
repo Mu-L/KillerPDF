@@ -179,6 +179,7 @@
     <sys:String x:Key="Str_DocInvertSetting">Invertovat barvy dokumentu</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invertovat barvy dokumentu (N)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invertovat i obrázky</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">Žádné písmo v tomto počítači neumí vykreslit tyto znaky, takže se v uloženém PDF zobrazí jako rámečky:&#10;&#10;{0}&#10;&#10;Nainstalujte písmo, které je obsahuje, nebo pro tento text zvolte jiné písmo.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Rolováním změníte velikost celé aplikace (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Velikost aplikace {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zvětšení celé aplikace (usnadnění přístupu)</sys:String>

@@ -276,6 +276,14 @@ namespace KillerPDF
                 if (ctrl is null) continue;
                 Canvas.SetLeft(ctrl, f.Cx);
                 Canvas.SetTop(ctrl, f.Cy);
+                // #156: field overlays sit BELOW the annotation layer. RenderAllAnnotations paints
+                // the annotations and then restores these, and a Canvas paints later children on
+                // top - so a signature dropped on a fill-in field disappeared behind the field's
+                // own control. Annotations render at the default ZIndex 0, so -1 puts the fields
+                // under them without touching the annotation paths. Clicking a covered field still
+                // works: every annotation visual is IsHitTestVisible=false, so it never swallows
+                // the click that reaches the field beneath it.
+                Panel.SetZIndex(ctrl, -1);
                 canvas.Children.Add(ctrl);
                 anyField = true;
             }

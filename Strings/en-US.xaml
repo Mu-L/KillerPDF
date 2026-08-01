@@ -179,6 +179,7 @@
     <sys:String x:Key="Str_DocInvertSetting">Invert document colors</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invert document colors (N)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invert images too</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">No font on this PC can draw these characters, so they will appear as boxes in the saved PDF:&#10;&#10;{0}&#10;&#10;Install a font that covers them, or pick a different font for this text.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App size {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom the whole app (accessibility)</sys:String>

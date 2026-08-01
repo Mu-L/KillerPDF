@@ -599,6 +599,7 @@
     <sys:String x:Key="Str_DocInvertSetting">ডকুমেন্টের রং উল্টে দিন</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">ডকুমেন্টের রং উল্টে দিন (N)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">ছবিও উল্টে দিন</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">এই পিসির কোনো ফন্ট এই অক্ষরগুলি আঁকতে পারে না, তাই সংরক্ষিত PDF-এ সেগুলি বাক্স হিসেবে দেখাবে:&#10;&#10;{0}&#10;&#10;এগুলি সমর্থন করে এমন ফন্ট ইনস্টল করুন, অথবা এই লেখার জন্য অন্য ফন্ট বেছে নিন।</sys:String>
     <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">অ্যাপের আকার {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">পুরো অ্যাপ জুম করুন (অ্যাক্সেসযোগ্যতা)</sys:String>

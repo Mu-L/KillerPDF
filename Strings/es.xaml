@@ -599,6 +599,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_DocInvertSetting">Invertir colores del documento</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invertir colores del documento (N)</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invertir también las imágenes</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">Ninguna fuente de este PC puede dibujar estos caracteres, por lo que aparecerán como recuadros en el PDF guardado:&#10;&#10;{0}&#10;&#10;Instala una fuente que los incluya o elige otra fuente para este texto.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Desplácese para cambiar el tamaño de toda la aplicación (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Tamaño de la aplicación {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom de toda la aplicación (accesibilidad)</sys:String>
