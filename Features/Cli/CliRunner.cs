@@ -518,9 +518,11 @@ namespace KillerPDF.Features
                 byte[] raw; int w, h;
                 using (var pr = dr.GetPageReader(idx))
                 {
+                    // #141: WithAnnotations on both paths - an exported image shows the file's markup.
                     raw = transparent
-                        ? pr.GetImage()
-                        : pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
+                        ? pr.GetImage(KillerPDF.Services.PdfRender.WithAnnotations)
+                        : pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover(),
+                                      KillerPDF.Services.PdfRender.WithAnnotations);
                     w = pr.GetPageWidth();
                     h = pr.GetPageHeight();
                 }
@@ -565,7 +567,9 @@ namespace KillerPDF.Features
                 {
                     // Composite over white (#148): keeps the /SMask alpha channel out
                     // of the rebuilt page images entirely.
-                    raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
+                    // #141: WithAnnotations, or the rebuild drops the file's own markup.
+                    raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover(),
+                                      KillerPDF.Services.PdfRender.WithAnnotations);
                     w = pr.GetPageWidth();
                     h = pr.GetPageHeight();
                 }
@@ -671,7 +675,7 @@ namespace KillerPDF.Features
                     byte[] raw; int w, h;
                     using (var pr = dr.GetPageReader(idx))
                     {
-                        raw = pr.GetImage();
+                        raw = pr.GetImage(KillerPDF.Services.PdfRender.WithAnnotations);   // #141
                         w = pr.GetPageWidth();
                         h = pr.GetPageHeight();
                     }

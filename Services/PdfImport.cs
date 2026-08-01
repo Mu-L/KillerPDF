@@ -410,7 +410,7 @@ namespace KillerPDF.Services
                     int bh = pr.GetPageHeight();
                     if (bw <= 0 || bh <= 0) continue;
 
-                    var raw = pr.GetImage();
+                    var raw = pr.GetImage(PdfRender.WithAnnotations);   // #141
                     if (raw is null || raw.Length == 0) continue;
 
                     var wb = new WriteableBitmap(bw, bh, 96, 96, PixelFormats.Bgra32, null);

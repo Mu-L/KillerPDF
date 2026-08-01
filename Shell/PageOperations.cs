@@ -216,7 +216,7 @@ namespace KillerPDF
                             using var pr  = docReader.GetPageReader(i);
                             int tw  = pr.GetPageWidth();
                             int th  = pr.GetPageHeight();
-                            var raw = pr.GetImage();
+                            var raw = pr.GetImage(Services.PdfRender.WithAnnotations);   // #141
                             if (tw <= 0 || th <= 0 || raw == null || raw.Length < tw * th * 4)
                                 continue;
                             rotSnap.TryGetValue(i, out int rot);

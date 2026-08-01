@@ -88,7 +88,7 @@ namespace KillerPDF
                 using var pr = docReader.GetPageReader(pageIndex);
                 int tw  = pr.GetPageWidth();
                 int th  = pr.GetPageHeight();
-                var raw = pr.GetImage();
+                var raw = pr.GetImage(KillerPDF.Services.PdfRender.WithAnnotations);   // #141
                 if (tw <= 0 || th <= 0 || raw == null || raw.Length < tw * th * 4)
                     return null;
                 // Apply in-memory rotation (temp file stores /Rotate=0; _pageRotations holds true angle)

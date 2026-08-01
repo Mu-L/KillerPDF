@@ -195,7 +195,9 @@ namespace KillerPDF
                 using var pr = docReader.GetPageReader(pageIdx);
                 int w = pr.GetPageWidth();
                 int h = pr.GetPageHeight();
-                byte[] bgra = pr.GetImage();
+                // #141: WithAnnotations - Transform rasterizes the page and REPLACES it, so
+                // without this the file's own markup would be dropped by transforming a page.
+                byte[] bgra = pr.GetImage(PdfRender.WithAnnotations);
                 if (_pageRotations.TryGetValue(pageIdx, out int prot) && prot != 0)
                     (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, prot);
                 if (bgra == null || bgra.Length == 0 || w <= 0 || h <= 0) return null;

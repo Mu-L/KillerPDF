@@ -50,7 +50,9 @@ namespace KillerPDF.Services
                     // Composite over white (#148, Ryokoxx): PDFium leaves unpainted
                     // background as BGRA 0,0,0,0, which used to embed a full-page
                     // /SMask alpha channel in the flattened output.
-                    bgra = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
+                    // #141: WithAnnotations, or flattening an annotated PDF silently dropped the
+                    // markup the file carried - this path builds a NEW document from the pixels.
+                    bgra = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover(), PdfRender.WithAnnotations);
                     rw   = pr.GetPageWidth();
                     rh   = pr.GetPageHeight();
                 }
@@ -106,7 +108,9 @@ namespace KillerPDF.Services
                     // Composite over white (#148, Ryokoxx): bare GetImage leaves the
                     // unpainted background at BGRA 0,0,0,0 - JPEG export dropped the
                     // alpha and produced black pages, PNG came out transparent.
-                    raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
+                    // #141: WithAnnotations - an exported image should show the markup the file
+                    // carries, the same as the page does on screen.
+                    raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover(), PdfRender.WithAnnotations);
                     w   = pr.GetPageWidth();
                     h   = pr.GetPageHeight();
                 }

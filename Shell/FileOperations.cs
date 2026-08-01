@@ -1411,7 +1411,7 @@ namespace KillerPDF
                         using var pr = docReader.GetPageReader(i);
                         int w = pr.GetPageWidth();
                         int h = pr.GetPageHeight();
-                        byte[] png = BitmapHelpers.RenderToPng(pr.GetImage(), w, h);
+                        byte[] png = BitmapHelpers.RenderToPng(pr.GetImage(PdfRender.WithAnnotations), w, h);   // #141
                         BitmapSource src;
                         using (var ms = new MemoryStream(png))
                             src = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);

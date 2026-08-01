@@ -404,7 +404,7 @@ namespace KillerPDF
                         using var pr = docReader.GetPageReader(i);
                         int w = pr.GetPageWidth();
                         int h = pr.GetPageHeight();
-                        var raw = pr.GetImage();
+                        var raw = pr.GetImage(PdfRender.WithAnnotations);   // #141: draw the file's own markup
                         if (w <= 0 || h <= 0 || raw is null) continue;
                         // #135: display-only dark mode, pictures excluded. Invert BEFORE the
                         // pixel-buffer rotation (the ops commute for the full page) so the image
@@ -623,7 +623,7 @@ namespace KillerPDF
                         docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(hiW, hiW * 2));
                         using var pr = docReader.GetPageReader(p);
                         int w = pr.GetPageWidth(), h = pr.GetPageHeight();
-                        var raw = pr.GetImage();
+                        var raw = pr.GetImage(PdfRender.WithAnnotations);   // #141: draw the file's own markup
                         if (w <= 0 || h <= 0 || raw is null) continue;
                         int rot = rotations.TryGetValue(p, out int rr) ? rr : 0;
                         // #135: dark mode with pictures excluded; invert before the rotation so
@@ -707,7 +707,7 @@ namespace KillerPDF
                     using var pageReader = docReader.GetPageReader(pageIndex);
                     width  = pageReader.GetPageWidth();
                     height = pageReader.GetPageHeight();
-                    var rawBytes = pageReader.GetImage();
+                    var rawBytes = pageReader.GetImage(PdfRender.WithAnnotations);   // #141
                     // #135: display-only dark mode, pictures excluded. Before the rotation so the
                     // carve-out rects stay in unrotated page space; the one-shot PdfPig open is
                     // paid only on this page's first inverted render (the rects cache after).
@@ -962,7 +962,7 @@ namespace KillerPDF
                             using var pageReader = docReader.GetPageReader(i);
                             int w = pageReader.GetPageWidth();
                             int h = pageReader.GetPageHeight();
-                            var rawBytes = pageReader.GetImage();
+                            var rawBytes = pageReader.GetImage(PdfRender.WithAnnotations);   // #141
                             if (w <= 0 || h <= 0 || rawBytes is null) continue;
                             // #135: dark mode with pictures excluded; invert before the rotation
                             // so the carve-out rects stay in unrotated page space.
