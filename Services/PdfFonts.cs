@@ -183,6 +183,28 @@ namespace KillerPDF.Services
             catch { return null!; }
         }
 
+        /// <summary>The regular face of a family as standalone font bytes, or null when the family
+        /// is not installed. Used by FontCoverage to read the 'cmap' - the collection split has
+        /// already happened here, so callers never have to know a face came out of a .ttc.</summary>
+        internal static byte[]? RegularFaceBytes(string family)
+        {
+            EnsureIndexed();
+            if (string.IsNullOrWhiteSpace(family)) return null;
+            if (!Families.TryGetValue(family, out var byStyle)) return null;
+            if (!byStyle.TryGetValue(XFontStyle.Regular, out var key))
+            {
+                key = byStyle.Values.FirstOrDefault();
+                if (key is null) return null;
+            }
+            if (!Faces.TryGetValue(key, out var face)) return null;
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(face.Path);
+                return IsCollection(bytes) ? ExtractTtcFace(bytes, face.FaceIndex) : bytes;
+            }
+            catch { return null; }
+        }
+
         // ── TrueType Collection -> standalone face ────────────────────────────────────────────
         // A .ttc is one file holding several faces that SHARE table data: a 'ttcf' header, then one
         // offset table per face, whose directory entries point at tables anywhere in the file. So a

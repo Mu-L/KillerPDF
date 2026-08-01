@@ -150,7 +150,13 @@ namespace KillerPDF.Services
                             if (ta.Strike) xstyle |= XFontStyle.Strikeout;
                             if (ta.Underline) xstyle |= XFontStyle.Underline;
                             XFont font;
-                            try { font = new XFont(string.IsNullOrEmpty(ta.FontName) ? "Segoe UI" : ta.FontName, ta.FontSize * sy, xstyle); }
+                            // #168: the editor is WPF and falls back per character, so anything
+                            // typed looks right on screen; PdfSharpCore resolves one face and
+                            // boxes whatever it lacks. Pick a family that actually covers this
+                            // text - the user's own font whenever it can carry it.
+                            string wantFamily = string.IsNullOrEmpty(ta.FontName) ? "Segoe UI" : ta.FontName;
+                            string useFamily = FontCoverage.PickFamily(wantFamily, ta.Content);
+                            try { font = new XFont(useFamily, ta.FontSize * sy, xstyle); }
                             catch { font = new XFont("Segoe UI", ta.FontSize * sy, xstyle); }
                             var taColor = ta.GetColor();
                             var taBrush = new XSolidBrush(XColor.FromArgb(taColor.A, taColor.R, taColor.G, taColor.B));
@@ -184,7 +190,10 @@ namespace KillerPDF.Services
                                     try
                                     {
                                         var tf2 = new PdfSharpCore.Drawing.Layout.XTextFormatter(gfx);
-                                        tf2.DrawString(ta.Content, new XFont("Segoe UI", ta.FontSize * sy, xstyle), taBrush, layoutRect, taAlign);
+                                        // Retry with the same COVERING family (#168) - this catch is
+                                        // for the formatter's null-LineBreak crash (#142), not a font
+                                        // problem, so dropping to Segoe UI here would only add boxes.
+                                        tf2.DrawString(ta.Content, new XFont(useFamily, ta.FontSize * sy, xstyle), taBrush, layoutRect, taAlign);
                                     }
                                     catch { /* skip this annotation rather than fail the whole save (#142) */ }
                                 }
@@ -377,7 +386,9 @@ namespace KillerPDF.Services
                 .Replace("{n}", number.ToString()).Replace("{N}", total.ToString());
             if (text.Length == 0) return;
 
-            var font = new XFont("Segoe UI", Math.Max(1, spec.NumFontPt), XFontStyle.Regular);
+            // #168: the format string is user text - a "Page {n}" written in Japanese or Bengali
+            // has to survive the save the same as an annotation does.
+            var font = new XFont(FontCoverage.PickFamily("Segoe UI", text), Math.Max(1, spec.NumFontPt), XFontStyle.Regular);
             var c = spec.NumColor;
             var brush = new XSolidBrush(XColor.FromArgb(255, c.R, c.G, c.B));
             var size = gfx.MeasureString(text, font);
@@ -413,7 +424,9 @@ namespace KillerPDF.Services
             else
             {
                 if (string.IsNullOrEmpty(spec.WmText)) return;
-                try { font = new XFont(string.IsNullOrWhiteSpace(spec.WmFont) ? "Segoe UI" : spec.WmFont, Math.Max(1, spec.WmFontPt), XFontStyle.Bold); }
+                // #168: same as the page numbers - a watermark is user text in any script.
+                string wmWant = string.IsNullOrWhiteSpace(spec.WmFont) ? "Segoe UI" : spec.WmFont;
+                try { font = new XFont(FontCoverage.PickFamily(wmWant, spec.WmText), Math.Max(1, spec.WmFontPt), XFontStyle.Bold); }
                 catch { font = new XFont("Segoe UI", Math.Max(1, spec.WmFontPt), XFontStyle.Bold); }
                 var size = gfx.MeasureString(spec.WmText, font);
                 w = size.Width; h = size.Height;
