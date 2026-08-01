@@ -383,6 +383,56 @@
             </Setter>
         </Style>
 
+        <!-- ============================================================
+             Family flyout standard (from KillerUI Controls.xaml): the rail's theme and language
+             flyouts are ContextMenus whose chrome comes ONLY from FlyoutCard + FlyoutGrain, with
+             PanelMenuItem stripping the MenuItem container for panel content. The grain tile's
+             ImageSource is wired in code beside GrainBrush/ToggleGrainBrush (Shell/ContextMenu.cs).
+             ============================================================ -->
+        <ImageBrush x:Key="GrainTileBrush" TileMode="Tile" ViewportUnits="Absolute"
+                    Viewport="0,0,256,256" Stretch="None"/>
+
+        <!-- The card: fill, frame, radius, shadow-room margin and the shadow itself. -->
+        <Style x:Key="FlyoutCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <!-- Margin is the room the drop shadow renders into: a Popup clips to its own bounds,
+                 so without it the shadow is cut off square. -->
+            <Setter Property="Margin" Value="6"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="4" Direction="270" Opacity="0.55"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The grain overlay. LAST child of the card, so it lies OVER the items - including a
+             highlighted row's solid SelectionBg fill. Radius 5 = the card's 6 minus its 1px
+             border, so the texture stops exactly inside the frame. -->
+        <Style x:Key="FlyoutGrain" TargetType="Border">
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Background" Value="{DynamicResource GrainTileBrush}"/>
+            <Setter Property="Opacity" Value="{DynamicResource GrainOpacity}"/>
+        </Style>
+
+        <!-- ItemContainerStyle for a flyout whose content is a PANEL (swatches, radio lists)
+             rather than rows you click. Strips the MenuItem container down to its content: no
+             hover highlight bleeding across the card, no icon gutter. -->
+        <Style x:Key="PanelMenuItem" TargetType="MenuItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <ContentPresenter ContentSource="Header"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="ContextMenu">
             <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>

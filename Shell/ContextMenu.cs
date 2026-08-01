@@ -52,6 +52,8 @@ namespace KillerPDF
             if (SidebarGrainBrush != null) SidebarGrainBrush.ImageSource = bmp;
             if (ToggleGrainBrush != null) ToggleGrainBrush.ImageSource = bmp;
             if (Resources["GrainBrushShared"] is ImageBrush sharedGrain) sharedGrain.ImageSource = bmp;
+            // The family flyout standard's grain tile (FlyoutGrain style) shares the same texture.
+            if (Resources["GrainTileBrush"] is ImageBrush flyoutGrain) flyoutGrain.ImageSource = bmp;
         }
 
         /// <summary>Generated film-grain tile, exposed so secondary windows (e.g. the
