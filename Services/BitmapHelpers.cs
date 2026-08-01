@@ -1,5 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace KillerPDF.Services
 {
@@ -93,6 +95,21 @@ namespace KillerPDF.Services
                 return ms.ToArray();
             }
             finally { pin.Free(); }
+        }
+
+        /// <summary>
+        /// Encodes raw BGRA pixel data to JPEG (quality 90) via WPF's encoder. Born as the CLI's
+        /// CliEncodeJpeg (no JPEG encoder existed before --to-image); homed here beside RenderToPng
+        /// in the KillerUI refactor, shared by the CLI and the GUI image export.
+        /// </summary>
+        internal static byte[] EncodeJpeg(byte[] bgra, int width, int height)
+        {
+            var bmp = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, bgra, width * 4);
+            var encoder = new JpegBitmapEncoder { QualityLevel = 90 };
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            using var ms = new MemoryStream();
+            encoder.Save(ms);
+            return ms.ToArray();
         }
     }
 }

@@ -450,17 +450,8 @@ namespace KillerPDF.Features
             }
         }
 
-        // PNG encoding reuses the app's RenderToPng (Services/BitmapHelpers.cs). The
-        // JPEG variant is CLI-only - no JPEG encoder existed before.
-        internal static byte[] CliEncodeJpeg(byte[] bgra, int width, int height)
-        {
-            var bmp = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, bgra, width * 4);
-            var encoder = new JpegBitmapEncoder { QualityLevel = 90 };
-            encoder.Frames.Add(BitmapFrame.Create(bmp));
-            using var ms = new MemoryStream();
-            encoder.Save(ms);
-            return ms.ToArray();
-        }
+        // Both encoders live in Services/BitmapHelpers.cs (RenderToPng, and EncodeJpeg - which
+        // was born here as CliEncodeJpeg when --to-image needed a JPEG encoder).
 
         private static void CliEnsureParentDir(string path)
         {
@@ -535,7 +526,7 @@ namespace KillerPDF.Features
                 }
                 int rot = rotations != null && idx < rotations.Length ? rotations[idx] : 0;
                 if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
-                var bytes = fmt == "png" ? BitmapHelpers.RenderToPng(raw, w, h) : CliEncodeJpeg(raw, w, h);
+                var bytes = fmt == "png" ? BitmapHelpers.RenderToPng(raw, w, h) : BitmapHelpers.EncodeJpeg(raw, w, h);
                 var name = $"{baseName}-page-{(idx + 1).ToString().PadLeft(digits, '0')}.{fmt}";
                 File.WriteAllBytes(Path.Combine(outDir, name), bytes);
             }

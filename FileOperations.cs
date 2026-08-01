@@ -17,8 +17,8 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
-// CliParsePageRange and CliEncodeJpeg moved out with the CLI runner but are used here too -
-// neither is really CLI-specific and both want a home in Services/ eventually.
+// CliParsePageRange moved out with the CLI runner but is used here too (Export Images'
+// range box); its encoder sibling is now Services/BitmapHelpers.EncodeJpeg.
 using static KillerPDF.Features.CliRunner;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -1123,66 +1123,11 @@ namespace KillerPDF
             try
             {
                 var ct = BeginCancellableOp("flatten");
-                // Rasterize on a background thread - keeps the UI responsive
-                await Task.Run(() =>
-                {
-                    // Rasterize pages across CPU cores. Docnet/PDFium is not thread-safe, so the
-                    // pdfium render is serialized behind a lock; the PNG encode (GDI+) runs in
-                    // parallel. Pages are assembled into the PDF afterwards, in order.
-                    //
-                    // The source document is opened ONCE here. The old code re-opened it inside
-                    // the per-page loop, re-parsing the whole file on every page (O(pages) full
-                    // document parses) - the dominant cost on large files. A single scaling
-                    // factor renders each page at its own size at 150 DPI (150/72), so the doc
-                    // no longer needs reopening to apply per-page pixel dimensions.
-                    var pngPages = new byte[pageCount][];
-                    var docGate  = new object();
-                    int done     = 0;
-                    var po = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount) };
-                    using var flattenReader = DocLib.Instance.GetDocReader(sourcePath, new PageDimensions(150.0 / 72.0));
-                    Parallel.For(0, pageCount, po, i =>
-                    {
-                        if (ct.IsCancellationRequested) return;   // cooperative: skip remaining pages' work
-                        byte[] bgra; int rw, rh;
-                        lock (docGate)
-                        {
-                            using var pr = flattenReader.GetPageReader(i);
-                            // Composite over white (#148, Ryokoxx): PDFium leaves unpainted
-                            // background as BGRA 0,0,0,0, which used to embed a full-page
-                            // /SMask alpha channel in the flattened output.
-                            bgra = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
-                            rw   = pr.GetPageWidth();
-                            rh   = pr.GetPageHeight();
-                        }
-                        // Encode BGRA to PNG (GDI+) outside the lock so it parallelizes.
-                        pngPages[i] = BitmapHelpers.RenderToPng(bgra, rw, rh);
-
-                        int n = System.Threading.Interlocked.Increment(ref done);
-                        Dispatcher.BeginInvoke(new Action(() => UpdateFlattenProgress(overlay, n, pageCount)));
-                    });
-
-                    if (ct.IsCancellationRequested) return;   // cancelled during render: assemble/save nothing
-
-                    // Assemble the output PDF in page order (PdfSharp is single-threaded).
-                    var outDoc = new PdfDocument();
-                    try
-                    {
-                        for (int i = 0; i < pageCount; i++)
-                        {
-                            var newPage = outDoc.AddPage();
-                            newPage.Width  = XUnit.FromPoint(pageDims[i].widthPt);
-                            newPage.Height = XUnit.FromPoint(pageDims[i].heightPt);
-                            using var xi  = XImage.FromStream(() => new MemoryStream(pngPages[i]));
-                            using var gfx = XGraphics.FromPdfPage(newPage);
-                            gfx.DrawImage(xi, 0, 0, newPage.Width.Point, newPage.Height.Point);
-                        }
-                        outDoc.Save(outputPath);
-                    }
-                    finally
-                    {
-                        outDoc.Dispose();
-                    }
-                });
+                // Rasterize on a background thread - keeps the UI responsive. The core lives in
+                // Services/PdfRasterize.cs; progress marshals back to the overlay here.
+                await Task.Run(() => PdfRasterize.FlattenToPdf(sourcePath, pageCount, pageDims, outputPath,
+                    (n, total) => Dispatcher.BeginInvoke(new Action(() => UpdateFlattenProgress(overlay, n, total))),
+                    ct));
 
                 if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_FlattenCancelled")); return; }
                 MarkDirty(false);
@@ -1288,34 +1233,12 @@ namespace KillerPDF
             try
             {
                 var ct = BeginCancellableOp("export");
-                int written = 0;
-                await Task.Run(() =>
-                {
-                    using var dr = DocLib.Instance.GetDocReader(sourcePath, new PageDimensions(dpi / 72.0));
-                    int done = 0;
-                    foreach (var idx in pages)
-                    {
-                        if (ct.IsCancellationRequested) return;
-                        byte[] raw; int w, h;
-                        using (var pr = dr.GetPageReader(idx))
-                        {
-                            // Composite over white (#148, Ryokoxx): bare GetImage leaves the
-                            // unpainted background at BGRA 0,0,0,0 - JPEG export dropped the
-                            // alpha and produced black pages, PNG came out transparent.
-                            raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
-                            w   = pr.GetPageWidth();
-                            h   = pr.GetPageHeight();
-                        }
-                        int rot = idx < rotSnapshot.Length ? rotSnapshot[idx] : 0;
-                        if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
-                        var bytes = jpeg ? CliEncodeJpeg(raw, w, h) : BitmapHelpers.RenderToPng(raw, w, h);
-                        var name  = $"{baseName}-page-{(idx + 1).ToString().PadLeft(digits, '0')}.{(jpeg ? "jpg" : "png")}";
-                        System.IO.File.WriteAllBytes(System.IO.Path.Combine(outDir, name), bytes);
-                        written++;
-                        int n = ++done;
-                        Dispatcher.BeginInvoke(new Action(() => UpdateFlattenProgress(overlay, n, pages.Count)));
-                    }
-                });
+                // The per-page render/encode/write core lives in Services/PdfRasterize.cs;
+                // progress marshals back to the overlay here.
+                int written = await Task.Run(() => PdfRasterize.ExportPageImages(sourcePath, pages,
+                    rotSnapshot, dpi, jpeg, outDir, baseName, digits,
+                    (n, total) => Dispatcher.BeginInvoke(new Action(() => UpdateFlattenProgress(overlay, n, total))),
+                    ct));
                 SetStatus(string.Format(Loc("Str_ExportImg_Done"), written, outDir));
             }
             catch (Exception ex)
