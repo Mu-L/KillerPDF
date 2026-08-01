@@ -78,6 +78,14 @@ namespace KillerPDF
 
         private void PageList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Split pane stage 3a: mirror the sidebar into the view's own current page. Set
+            // BEFORE the >= 0 guard on purpose - clearing the list (tab close, document close)
+            // drops SelectedIndex to -1 and that has to be mirrored too, or a closed document
+            // leaves a stale page number behind. Assigns _view.CurrentPage directly rather than
+            // going through _currentPage, whose setter would write back into PageList and re-enter
+            // this handler.
+            _view.CurrentPage = PageList.SelectedIndex;
+
             if (PageList.SelectedIndex >= 0)
             {
                 CommitActiveTextBox();

@@ -37,6 +37,28 @@ namespace KillerPDF
             /// by the tile-recycling machinery.</summary>
             public readonly Dictionary<int, Canvas> ContinuousCanvases = [];
 
+            /// <summary>The page this view is showing (0-based; -1 = no document).
+            ///
+            /// Split pane stage 3a. Until now the app had no current-page variable at all: it read
+            /// the SIDEBAR's selected thumbnail, `PageList.SelectedIndex`, 118 times across 24
+            /// files. That works with one pane and cannot work with two - there is one sidebar and
+            /// two current pages, so a viewer inside the control has nothing to ask.
+            ///
+            /// This is now the storage; the sidebar FOLLOWS it. Kept in sync in exactly two places,
+            /// which between them cover every write:
+            ///   - PageList_SelectionChanged (PageSelection.cs) mirrors the sidebar back into here,
+            ///     unconditionally and before its own >= 0 guard, so clearing the list to -1 (tab
+            ///     close, document close) is mirrored too.
+            ///   - SyncCurrentPageTo (Viewport.cs), which detaches that handler to avoid re-entry
+            ///     and so would otherwise slip past the mirror.
+            /// Everything that sets PageList.SelectedIndex directly still routes through the
+            /// handler, so those need no change.
+            ///
+            /// The 118 call sites are deliberately NOT repointed here - same discipline as stage 1.
+            /// This commit introduces the storage and proves it stays in sync; the render pipeline
+            /// switches over to reading it as it moves into the control.</summary>
+            public int CurrentPage = -1;
+
             /// <summary>Current view mode for this view.</summary>
             public ViewMode Mode = ViewMode.Continuous;
 

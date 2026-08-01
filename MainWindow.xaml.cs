@@ -271,6 +271,16 @@ namespace KillerPDF
         // primary stops being a special case in routing/search/links.
         private Dictionary<int, Canvas> _pages => _view.Pages;
         private Grid _pageContentGrid { get => _view.PageContentGrid; set => _view.PageContentGrid = value; }
+        // The page this view is showing. Split pane stage 3a - see ViewerState.CurrentPage for why
+        // this exists at all (the app read the sidebar's SelectedIndex as its current page, which
+        // cannot survive a second pane). The setter drives the sidebar, which is what actually
+        // triggers navigation today via PageList_SelectionChanged; the handler mirrors the value
+        // straight back, so the two never disagree.
+        private int _currentPage
+        {
+            get => _view.CurrentPage;
+            set { _view.CurrentPage = value; if (PageList.SelectedIndex != value) PageList.SelectedIndex = value; }
+        }
         private readonly Button _toolSelectBtn = null!;
         private readonly Button _toolTextBtn = null!;
         private readonly Button _toolHighlightBtn = null!;

@@ -131,6 +131,10 @@ namespace KillerPDF
             PageList.SelectionChanged -= PageList_SelectionChanged;
             PageList.SelectedIndex = nearest;
             PageList.SelectionChanged += PageList_SelectionChanged;
+            // Split pane stage 3a. This is the one write that detaches the handler (to avoid
+            // re-entering the render path from a scroll sync), so it is also the one that would
+            // slip past the mirror there. Set it by hand.
+            _view.CurrentPage = nearest;
             if (_doc is not null)
                 SetStatus(string.Format(Loc("Str_PageOf"), nearest + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
         }
