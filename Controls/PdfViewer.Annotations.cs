@@ -19,13 +19,15 @@ using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
-namespace KillerPDF
+namespace KillerPDF.Controls
 {
     // Annotation rendering - draws the per-page annotation overlays (text, cover, highlight, ink,
     // signature, image). First slice of the annotations extraction out of MainWindow.xaml.cs. Pure
     // behavior-preserving move (same partial class); selection, hit-testing, and pointer input still
     // live in MainWindow for now and move here in later slices.
-    public partial class MainWindow
+    // Split pane stage 4: moved from Shell/Annotations.cs, verbatim apart from the namespace and
+    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    public partial class PdfViewer
     {
         private static double MeasureTextBoxHeight(string text, double width, double fontSize)
         {

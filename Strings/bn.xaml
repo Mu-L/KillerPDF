@@ -144,10 +144,16 @@
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF ইনস্টল করুন</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">আপনার ব্যবহারকারী প্রোফাইলে KillerPDF ইনস্টল করবেন?
+    <sys:String x:Key="Str_Dlg_InstallMsg">এই কম্পিউটারে KillerPDF ইনস্টল করবেন?
 
-এটি অ্যাপটি %LocalAppData%\KillerPDF-এ কপি করবে এবং স্টার্ট মেনু শর্টকাট তৈরি করবে।
-যেকোনো সময় Add/Remove Programs-এর মাধ্যমে আনইনস্টল করা যাবে।</sys:String>
+KillerPDF আপনার প্রোগ্রাম ফোল্ডারে কপি করা হবে এবং একটি স্টার্ট মেনু এন্ট্রি যোগ করা হবে। EXE-র এই কপিটি যেখানে আছে সেখানেই থাকবে, এবং যেকোনো সময় Add/Remove Programs-এর মাধ্যমে আনইনস্টল করা যাবে।</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">ইনস্টল করুন</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">ডেস্কটপ শর্টকাট যোগ করুন</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">এই কম্পিউটারের সব ব্যবহারকারীর জন্য ইনস্টল করুন (অ্যাডমিন লাগবে)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">ইনস্টল সম্পূর্ণ হয়নি - KillerPDF এখনও পোর্টেবল হিসেবে চলছে।</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">KillerPDF-কে আপনার ডিফল্ট PDF ভিউয়ার হিসেবে সেট করতে চান?
+
+Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে।</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">আপনার অসংরক্ষিত পরিবর্তন রয়েছে। সংরক্ষণ না করে এই ফাইলটি বন্ধ করবেন?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">আপনার অসংরক্ষিত পরিবর্তন রয়েছে। সংরক্ষণ না করে KillerPDF বন্ধ করবেন?</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">এই ডকুমেন্টে {0}টি পৃষ্ঠার আকার Adobe Reader-এর সমর্থিত সীমার (প্রতি পাশে 3 থেকে 14,400 পয়েন্ট) বাইরে - Adobe এই পৃষ্ঠাগুলিকে ফাঁকা দেখায়।

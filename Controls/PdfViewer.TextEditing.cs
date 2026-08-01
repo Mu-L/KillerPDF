@@ -19,9 +19,11 @@ using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
-namespace KillerPDF
+namespace KillerPDF.Controls
 {
-    public partial class MainWindow
+    // Split pane stage 4: moved from Shell/TextEditing.cs, verbatim apart from the namespace and
+    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    public partial class PdfViewer
     {
         // ============================================================
         // Inline text editing (double-click)
@@ -744,7 +746,9 @@ namespace KillerPDF
                 string family = Services.FontCoverage.PickFamily(want, ta.Content);
                 string missing = Services.FontCoverage.UncoveredChars(family, ta.Content);
                 if (missing.Length == 0) return;
-                KillerDialog.Show(this, string.Format(Loc("Str_Font_NoGlyphs"), missing), "KillerPDF",
+                // W, not `this`: KillerDialog.Show takes a Window? owner and this class is a
+                // UserControl since stage 4. W is the owning MainWindow.
+                KillerDialog.Show(W, string.Format(Loc("Str_Font_NoGlyphs"), missing), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch { /* the warning must never be the thing that breaks placing text */ }

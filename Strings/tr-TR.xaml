@@ -144,10 +144,16 @@
 
     <!-- ── İletişim kutusu metinleri ────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF'i Yükle</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF kullanıcı profilinize yüklensin mi?
+    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF bu bilgisayara yüklensin mi?
 
-Bu işlem uygulamayı %LocalAppData%\KillerPDF konumuna kopyalar ve bir Başlat Menüsü kısayolu oluşturur.
-İstediğiniz zaman Program Ekle/Kaldır üzerinden kaldırabilirsiniz.</sys:String>
+KillerPDF programlar klasörünüze kopyalanır ve bir Başlat Menüsü girdisi eklenir. EXE dosyasının bu kopyası olduğu yerde kalır ve istediğiniz zaman Program Ekle/Kaldır üzerinden kaldırabilirsiniz.</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">Yükle</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">Masaüstü kısayolu ekle</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">Bu bilgisayardaki herkes için yükle (yönetici gerekir)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">Yükleme tamamlanmadı - KillerPDF hâlâ taşınabilir olarak çalışıyor.</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">KillerPDF varsayılan PDF görüntüleyiciniz olarak ayarlansın mı?
+
+Windows Ayarları - Varsayılan Uygulamalar bölümünü açar.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Kaydedilmemiş değişiklikleriniz var. Bu dosya kaydedilmeden kapatılsın mı?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Kaydedilmemiş değişiklikleriniz var. KillerPDF kaydedilmeden kapatılsın mı?</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">Bu belgede Adobe Reader'ın desteklediği aralığın (kenar başına 3 - 14.400 punto) dışında boyutlandırılmış {0} sayfa var - Adobe bu sayfaları boş gösterir.

@@ -144,10 +144,16 @@
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">Instalar KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">¿Instalar KillerPDF en su perfil de usuario?
+    <sys:String x:Key="Str_Dlg_InstallMsg">¿Instalar KillerPDF en este equipo?
 
-Esto copiará la aplicación a %LocalAppData%\KillerPDF y creará un acceso directo en el menú Inicio.
-Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:String>
+KillerPDF se copiará a su carpeta de programas y se añadirá una entrada en el menú Inicio. Esta copia del ejecutable se queda donde está, y puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">Instalar</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">Añadir un acceso directo en el escritorio</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">Instalar para todos los usuarios de este equipo (requiere administrador)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">La instalación no se completó - KillerPDF sigue ejecutándose en modo portátil.</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">¿Desea establecer KillerPDF como su visor de PDF predeterminado?
+
+Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Tiene cambios sin guardar. ¿Cerrar este archivo sin guardar?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Tiene cambios sin guardar. ¿Cerrar KillerPDF sin guardar?</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">Este documento tiene {0} página(s) con un tamaño fuera del rango que admite Adobe Reader (3 a 14.400 puntos por lado) - Adobe las muestra como páginas en blanco.

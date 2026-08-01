@@ -144,10 +144,16 @@
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">安装 KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">要将 KillerPDF 安装到您的用户设置档吗？
+    <sys:String x:Key="Str_Dlg_InstallMsg">要将 KillerPDF 安装到这台电脑吗？
 
-这将把应用程序复制到 %LocalAppData%\KillerPDF 并创建开始功能表捷径。
-您可以随时通过添加或移除程序来卸载。</sys:String>
+KillerPDF 将被复制到您的程序文件夹，并添加开始菜单项。此 EXE 副本会保留在原处，您可以随时通过添加或删除程序来卸载。</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">安装</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">添加桌面快捷方式</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">为这台电脑上的所有用户安装（需要管理员）</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">安装未完成 - KillerPDF 仍以便携方式运行。</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">要将 KillerPDF 设为默认 PDF 查看器吗？
+
+将打开 Windows 设置 - 默认应用。</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">您有未保存的变更。要在不保存的情况下关闭此文件吗？</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">您有未保存的变更。要在不保存的情况下关闭 KillerPDF 吗？</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">此文档有 {0} 个页面的尺寸超出 Adobe Reader 支持的范围（每边 3 到 14400 点），Adobe 会将这些页面显示为空白。

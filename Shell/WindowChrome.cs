@@ -271,15 +271,27 @@ namespace KillerPDF
 
         private void Install_Click(object sender, RoutedEventArgs e)
         {
-            var res = KillerDialog.Show(this,
+            // Two checkboxes, matching Killendar and KillerShell: the desktop shortcut (on by
+            // default, as it always was) and the all-users install (off by default - it needs a
+            // UAC prompt, so it has to be something the user deliberately asks for).
+            var (confirmed, wantDesktop, allUsers) = KillerDialog.ShowTwoCheckPrompt(this,
                 Loc("Str_Dlg_InstallMsg"),
-                Loc("Str_Dlg_InstallTitle"), MessageBoxButton.OKCancel);
-            if (res != MessageBoxResult.OK) return;
+                Loc("Str_Chk_Desktop"),  check1Initial: true,
+                Loc("Str_Chk_AllUsers"), check2Initial: false,
+                Loc("Str_Btn_DoInstall"),
+                Loc("Str_Btn_Cancel"));
+            if (!confirmed) return;
 
             // Hide the badge immediately so it doesn't flash if relaunch is slow
             _portableBadge.Visibility = Visibility.Collapsed;
 
-            App.InstallAndRelaunch(_currentFile, wantDesktop: true);
+            if (!App.InstallAndRelaunch(_currentFile, wantDesktop, allUsers))
+            {
+                // Elevation refused, or the copy failed - both already reported. Put the badge back
+                // so the session carries on rather than silently looking installed.
+                _portableBadge.Visibility = App.IsPortable() ? Visibility.Visible : Visibility.Collapsed;
+                SetStatus(Loc("Str_Status_InstallFailed"));
+            }
         }
 
         private void MinimizeBtn_Click(object sender, RoutedEventArgs e) =>

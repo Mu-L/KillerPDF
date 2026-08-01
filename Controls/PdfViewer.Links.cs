@@ -19,22 +19,34 @@ using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
-namespace KillerPDF
+namespace KillerPDF.Controls
 {
-    public partial class MainWindow
+    // Split pane stage 4: moved from Shell/Links.cs, verbatim apart from the namespace and
+    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    public partial class PdfViewer
     {
         // ============================================================
         // PDF Link Annotation Overlays
         // ============================================================
 
-        // internal: PdfViewer.Bridge.cs types _continuousLinks with it (split pane stage 3).
-        internal readonly record struct LinkInfo(double Cx, double Cy, double Cw, double Ch, object Tag, string Tip, int AnnotIndex);
+        // LinkInfo moved to Models/LinkTypes.cs in split pane stage 4 - ContextMenu.cs stays on the
+        // window and still reads the link rects, so the type cannot be nested in whichever class
+        // owns them.
 
         // Per-page link rects for the tiled views (continuous / grid / two-page), keyed by page index.
         // Clicks and the hover cursor are resolved by bounds-testing these in Canvas_MouseLeftButtonDown
         // and Canvas_MouseMove: a per-link overlay swallows the click in the tiled layout but its own
         // handler never fires, so no visual overlay is created - these rects are the source of truth.
         private readonly Dictionary<int, List<LinkInfo>> _continuousLinks = [];
+
+        /// <summary>The link-rect map, for the window side. ContextMenu.cs bounds-tests it to build
+        /// the right-click menu and FileOperations.cs clears it on document change; both stayed on
+        /// the window when Links.cs moved here in stage 4.</summary>
+        internal Dictionary<int, List<LinkInfo>> ContinuousLinks => _continuousLinks;
+
+        /// <summary>Hit-slop around a link rect, shared with ContextMenu.cs so the menu targets the
+        /// same links the click and hover paths do.</summary>
+        internal const double LinkHitPadShared = LinkHitPad;
 
         // Small hit-slop (render-dim units) added around a link rect for click / hover / right-click
         // hit-testing so thin one-line link strips are easy to hit without over-reaching neighbours.
@@ -58,7 +70,8 @@ namespace KillerPDF
         {
             if (App.GetSetting(ConfirmLinksSetting) != "1") return true;
             var (result, dontAsk) = KillerDialog.ShowWithCheckbox(
-                this,
+                // W, not `this`: the dialog takes a Window? owner and this is a UserControl now.
+                W,
                 $"{Loc("Str_LinkConfirmBody")}\n\n{url}",
                 Loc("Str_LinkDontAsk"),
                 Loc("Str_LinkConfirmTitle"),
@@ -517,7 +530,8 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"{Loc("Str_LinkRemoveFailed")}\n{ex.Message}", "KillerPDF",
+                // W, not `this` - Window? owner, UserControl since stage 4.
+                KillerDialog.Show(W, $"{Loc("Str_LinkRemoveFailed")}\n{ex.Message}", "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

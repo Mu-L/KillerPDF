@@ -144,10 +144,16 @@
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF installieren</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF in Ihrem Benutzerprofil installieren?
+    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF auf diesem Computer installieren?
 
-Die Anwendung wird nach %LocalAppData%\KillerPDF kopiert und eine Verknüpfung im Startmenü erstellt.
-Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen“ deinstallieren.</sys:String>
+KillerPDF wird in Ihren Programmordner kopiert und eine Verknüpfung im Startmenü erstellt. Diese Kopie der EXE bleibt, wo sie ist, und Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen“ deinstallieren.</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">Installieren</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">Desktopverknüpfung hinzufügen</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">Für alle Benutzer dieses Computers installieren (erfordert Administrator)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">Installation nicht abgeschlossen - KillerPDF läuft weiterhin portabel.</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Möchten Sie KillerPDF als Standard-PDF-Betrachter festlegen?
+
+Öffnet die Windows-Einstellungen - Standard-Apps.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Es gibt ungespeicherte Änderungen. Diese Datei ohne Speichern schließen?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Es gibt ungespeicherte Änderungen. KillerPDF ohne Speichern beenden?</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">Dieses Dokument enthält {0} Seite(n) außerhalb des von Adobe Reader unterstützten Größenbereichs (3 bis 14.400 Punkte je Seite) - Adobe zeigt diese als leere Seiten an.

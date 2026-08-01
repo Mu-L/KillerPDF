@@ -55,14 +55,19 @@ namespace KillerPDF
         private SelectionChangedEventHandler? _pageListSelectionHandler;
 
         // ══ INWARD: per-document state (group B - goes when the viewer owns its session) ═════
-        internal PdfDocument? DocRef => _doc;
-        internal string? CurrentFileRef => _currentFile;
+        // Settable: the xref-repair path in Annotations.cs reopens the document and re-points the
+        // temp file, and that code moved into the viewer in stage 4.
+        internal PdfDocument? DocRef { get => _doc; set => _doc = value; }
+        internal string? CurrentFileRef { get => _currentFile; set => _currentFile = value; }
         internal Dictionary<int, List<PageAnnotation>> AnnotationsRef => _annotations;
         internal Dictionary<int, (int w, int h)> RenderDimsRef => _renderDims;
         internal Dictionary<int, int> PageRotationsRef => _pageRotations;
         internal DocumentSession? ActiveSession => _active;
         internal List<Canvas> LinkOverlaysRef => _linkOverlays;
-        internal Dictionary<int, List<LinkInfo>> ContinuousLinksRef => _continuousLinks;
+        // Direction REVERSED in stage 4: the link-rect map moved into the viewer with Links.cs, so
+        // this now reads OUT of the control rather than exposing a window field. ContextMenu.cs and
+        // FileOperations.cs still call it by the old name and were not touched.
+        private Dictionary<int, List<LinkInfo>> _continuousLinks => Viewer.ContinuousLinks;
 
         // Live gesture state, shared with the annotation and crop tools that have not moved yet.
         internal bool   IsPanning     { get => _isPanning;     set => _isPanning = value; }

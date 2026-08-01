@@ -19,9 +19,11 @@ using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
-namespace KillerPDF
+namespace KillerPDF.Controls
 {
-    public partial class MainWindow
+    // Split pane stage 4: moved from Shell/Forms.cs, verbatim apart from the namespace and
+    // class line. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
+    public partial class PdfViewer
     {
         private readonly record struct FormFieldInfo(
             int    ObjNum,        // widget annotation object number (used as key)

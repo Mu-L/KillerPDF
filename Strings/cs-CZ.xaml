@@ -192,10 +192,16 @@
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">Nainstalovat KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">Nainstalovat KillerPDF do vašeho uživatelského profilu?
+    <sys:String x:Key="Str_Dlg_InstallMsg">Nainstalovat KillerPDF do tohoto počítače?
 
-Aplikace se zkopíruje do %LocalAppData%\KillerPDF a v nabídce Start se vytvoří zástupce.
-Odinstalovat ji můžete kdykoli přes Přidat/odebrat programy.</sys:String>
+KillerPDF se zkopíruje do vaší složky programů a v nabídce Start se vytvoří zástupce. Tato kopie souboru EXE zůstane tam, kde je, a odinstalovat ji můžete kdykoli přes Přidat/odebrat programy.</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">Nainstalovat</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">Přidat zástupce na plochu</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">Nainstalovat pro všechny uživatele tohoto počítače (vyžaduje správce)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">Instalace nebyla dokončena - KillerPDF stále běží přenosně.</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Chcete nastavit KillerPDF jako výchozí prohlížeč PDF?
+
+Otevře Nastavení Windows - Výchozí aplikace.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Máte neuložené změny. Zavřít tento soubor bez uložení?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Máte neuložené změny. Zavřít KillerPDF bez uložení?</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">Tento dokument obsahuje stránky (počet: {0}) s rozměry mimo rozsah podporovaný aplikací Adobe Reader (3 až 14 400 bodů na stranu) - Adobe je zobrazuje jako prázdné.

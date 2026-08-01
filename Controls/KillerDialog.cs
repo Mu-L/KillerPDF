@@ -323,6 +323,10 @@ namespace KillerPDF
         /// (unchecked = session reopens next launch) and "Remember my choice" - plus
         /// Cancel / Quit buttons where Quit is the accent + Enter default and Esc cancels.
         /// Returns (confirmed, closeTabsChecked, rememberChecked).
+        ///
+        /// A thin wrapper over <see cref="ShowTwoCheckPrompt"/> since the install prompt needed the
+        /// same two-checkbox shape. Passing check2Initial:false keeps this behaviour identical to
+        /// what it was when the body lived here.
         /// </summary>
         public static (bool confirmed, bool closeTabs, bool remember) ShowQuitPrompt(
             Window? owner,
@@ -332,10 +336,28 @@ namespace KillerPDF
             string rememberText,
             string quitLabel,
             string cancelLabel)
+            => ShowTwoCheckPrompt(owner, message, closeTabsText, closeTabsInitial,
+                                  rememberText, false, quitLabel, cancelLabel);
+
+        /// <summary>
+        /// The family two-checkbox confirm: a short question, two checkboxes stacked between the
+        /// message and the buttons, and Cancel / confirm buttons where confirm is the accent +
+        /// Enter default and Esc cancels. Used by the quit prompt and by the install prompt
+        /// (desktop shortcut + install for all users).
+        /// </summary>
+        public static (bool confirmed, bool check1, bool check2) ShowTwoCheckPrompt(
+            Window? owner,
+            string message,
+            string check1Text,
+            bool check1Initial,
+            string check2Text,
+            bool check2Initial,
+            string confirmLabel,
+            string cancelLabel)
         {
             bool confirmed = false;
-            bool closeTabs = closeTabsInitial;
-            bool remember  = false;
+            bool closeTabs = check1Initial;
+            bool remember  = check2Initial;
 
             var win = new Window { Title = "KillerPDF", Width = 380, SizeToContent = SizeToContent.Height };
             // fade:false - the app's own fade-out follows immediately on confirm; two fades
@@ -389,15 +411,16 @@ namespace KillerPDF
                 }
             });
 
-            var chk1 = UiKit.CheckBox(closeTabsText);
+            var chk1 = UiKit.CheckBox(check1Text);
             chk1.Margin = new Thickness(20, 10, 20, 0);
-            chk1.IsChecked = closeTabsInitial;
+            chk1.IsChecked = check1Initial;
             chk1.Checked   += (_, _2) => closeTabs = true;
             chk1.Unchecked += (_, _2) => closeTabs = false;
             root.Children.Add(chk1);
 
-            var chk2 = UiKit.CheckBox(rememberText);
+            var chk2 = UiKit.CheckBox(check2Text);
             chk2.Margin = new Thickness(20, 8, 20, 4);
+            chk2.IsChecked = check2Initial;
             chk2.Checked   += (_, _2) => remember = true;
             chk2.Unchecked += (_, _2) => remember = false;
             root.Children.Add(chk2);
@@ -411,7 +434,7 @@ namespace KillerPDF
             cancelBtn.Margin   = new Thickness(8, 0, 0, 0);
             cancelBtn.IsCancel = true;
             cancelBtn.Click   += (_, _2) => win.Close();
-            var quitBtn = UiKit.Make(quitLabel, true);
+            var quitBtn = UiKit.Make(confirmLabel, true);
             quitBtn.Margin    = new Thickness(8, 0, 0, 0);
             quitBtn.IsDefault = true;
             quitBtn.Click    += (_, _2) => { confirmed = true; win.Close(); };

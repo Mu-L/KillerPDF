@@ -84,13 +84,8 @@ namespace KillerPDF
 
         // Undo stack - each entry is either an annotation removal or a full document snapshot.
         // AnnotationGroup removes a specific set of annotations in one step (a text edit = cover + text).
-        // internal, both of them, for the CS0052 reason stage 1 already hit twice: DocumentSession
-        // became internal so the viewer could pass a session to the render cache, and its UndoStack
-        // field is typed Stack<UndoEntry> - a field cannot be more accessible than its type, and
-        // UndoEntry's own signature drags UndoKind along with it. Still nested in MainWindow, so
-        // nothing outside the assembly gains reach.
-        internal enum UndoKind { Annotation, Document, StampBatch, ClearAnnotations, AnnotationGroup, PageSnapshot }
-        internal readonly record struct UndoEntry(UndoKind Kind, int PageIdx = -1, byte[]? DocBytes = null, bool WasDirty = false, int[]? Pages = null, PageAnnotation? Annot = null, Dictionary<int, List<PageAnnotation>>? AnnotSnapshot = null, List<PageAnnotation>? AnnotGroup = null);
+        // UndoKind / UndoEntry moved to Models/UndoTypes.cs in split pane stage 4 - the undo stack
+        // is pushed from Annotations.cs and TextEditing.cs, which now live in the viewer control.
         private Stack<UndoEntry> _undoStack = new();
         // Redo: inverses captured by Undo_Click land here; any NEW edit clears it (PushUndo).
         // Swapped per tab alongside _undoStack (Tabs.cs) so redo can never replay another document.

@@ -193,10 +193,16 @@
 
     <!-- ── ダイアログ文字列 ───────────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF をインストール</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF をユーザープロファイルにインストールしますか？
+    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF をこのコンピューターにインストールしますか？
 
-アプリは %LocalAppData%\KillerPDF にコピーされ、スタートメニューにショートカットが作成されます。
-いつでも「プログラムの追加と削除」からアンインストールできます。</sys:String>
+KillerPDF はプログラムフォルダーにコピーされ、スタートメニューに項目が追加されます。この EXE のコピーはそのままの場所に残り、いつでも「プログラムの追加と削除」からアンインストールできます。</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">インストール</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">デスクトップにショートカットを追加</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">このコンピューターのすべてのユーザーにインストール（管理者権限が必要）</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">インストールは完了しませんでした - KillerPDF はポータブルのまま実行中です。</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">KillerPDF を既定の PDF ビューアーに設定しますか？
+
+Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">保存されていない変更があります。保存せずにこのファイルを閉じますか？</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">保存されていない変更があります。保存せずに KillerPDF を終了しますか？</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">この文書には、Adobe Reader が対応する範囲（1 辺あたり 3～14,400 ポイント）外のサイズのページが {0} ページあります。Adobe ではこれらのページは白紙で表示されます。

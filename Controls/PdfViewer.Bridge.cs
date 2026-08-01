@@ -92,14 +92,16 @@ namespace KillerPDF.Controls
         // NOT host services. Every one of these already rides in DocumentSession, which tab
         // switching swaps by reference. They forward for now because the window still owns the
         // active session; when the viewer holds its own, this whole block goes.
-        private PdfDocument? _doc => W.DocRef;
-        private string? _currentFile => W.CurrentFileRef;
+        private PdfDocument? _doc { get => W.DocRef; set => W.DocRef = value; }
+        private string? _currentFile { get => W.CurrentFileRef; set => W.CurrentFileRef = value; }
         private Dictionary<int, List<PageAnnotation>> _annotations => W.AnnotationsRef;
         private Dictionary<int, (int w, int h)> _renderDims => W.RenderDimsRef;
         private Dictionary<int, int> _pageRotations => W.PageRotationsRef;
         private MainWindow.DocumentSession? _active => W.ActiveSession;
         private List<Canvas> _linkOverlays => W.LinkOverlaysRef;
-        private Dictionary<int, List<MainWindow.LinkInfo>> _continuousLinks => W.ContinuousLinksRef;
+        // _continuousLinks is no longer forwarded - the field itself arrived with Links.cs and the
+        // viewer owns it now. ContextMenu.cs and FileOperations.cs read it from the window side
+        // through MainWindowViewerBridge's ContinuousLinksRef, which points back here.
 
         // Live gesture state shared with the annotation and crop tools, which have not moved yet.
         private bool _isPanning { get => W.IsPanning; set => W.IsPanning = value; }
@@ -113,40 +115,21 @@ namespace KillerPDF.Controls
         private Point _selectStart { get => W.SelectStart; set => W.SelectStart = value; }
         private Rectangle? _selectRect { get => W.SelectRect; set => W.SelectRect = value; }
         private int _cropPageIndex { get => W.CropPageIndex; set => W.CropPageIndex = value; }
-        private Rectangle? _cropPreviewRect => W.CropPreviewRect;
-        private Border? _cropConfirmBar => W.CropConfirmBar;
+        // Get-only in stage 3; stage 4 brought Crop.cs and Annotations.cs, which ASSIGN both, so
+        // these now go through the settable pair on the window side.
+        private Rectangle? _cropPreviewRect { get => W.CropPreviewRectSet; set => W.CropPreviewRectSet = value; }
+        private Border? _cropConfirmBar { get => W.CropConfirmBarSet; set => W.CropConfirmBarSet = value; }
 
-        // ── Group C: methods in partials that move in stage 4 ────────────────────────────────
-        // Each deletes itself when its defining file arrives; the file is named against each one,
-        // so the stage-4 order is readable straight off this list.
-        private void RenderAllAnnotations(int page) => W.RenderAllAnnotations(page);        // Annotations.cs
-        private void ClearSelection() => W.ClearSelection();                                // Annotations.cs
-        private void UpdateMarquee(Point a, Point b) => W.UpdateMarquee(a, b);              // Annotations.cs
-        private static bool IsDescendantOf(DependencyObject c, DependencyObject p)          // Annotations.cs
-            => MainWindow.IsDescendantOf(c, p);
-        private void ClearTextSelection() => W.ClearTextSelection();                        // Selection.cs
-        private SolidColorBrush AccentBrush(byte alpha = 255) => W.AccentBrush(alpha);      // Selection.cs
-        private void RenderPageLinks(int page, int bmpW, int bmpH)                          // Links.cs
-            => W.RenderPageLinks(page, bmpW, bmpH);
-        private void AddSecondaryPageLinks(int page, int bmpW, int bmpH)                    // Links.cs
-            => W.AddSecondaryPageLinks(page, bmpW, bmpH);
+        // ── Group C: methods in partials that have NOT moved yet ─────────────────────────────
+        // Stage 4 emptied most of this block: RenderAllAnnotations, ClearSelection, UpdateMarquee,
+        // IsDescendantOf, the four Canvas_Mouse* handlers, ClearTextSelection, AccentBrush,
+        // RenderPageLinks, AddSecondaryPageLinks and the PageList_SelectionChanged delegate all
+        // arrived with their defining files and are now real members of this class. What is left is
+        // the four whose files stay on the window.
         private void PopulateContextMenu(Point pt, int page) => W.PopulateContextMenu(pt, page); // ContextMenu.cs
         private void RefreshPageList() => W.RefreshPageList();                              // PageOperations.cs
         private void LoadOutlines() => W.LoadOutlines();                                    // SidebarOutline.cs
         private static Cursor CursorForTool(EditTool t) => MainWindow.CursorForTool(t);     // ToolSelection.cs
-
-        // The four page-overlay gesture handlers are attached BY NAME in WirePageOverlay, so they
-        // need real methods of the right delegate shape here, not bare call forwards.
-        private void Canvas_MouseMove(object s, MouseEventArgs e) => W.Canvas_MouseMove(s, e);
-        private void Canvas_MouseLeave(object s, MouseEventArgs e) => W.Canvas_MouseLeave(s, e);
-        private void Canvas_MouseLeftButtonUp(object s, MouseButtonEventArgs e) => W.Canvas_MouseLeftButtonUp(s, e);
-        private void Canvas_MouseLeftButtonDown(object s, MouseButtonEventArgs e) => W.Canvas_MouseLeftButtonDown(s, e);
-
-        // SyncCurrentPageTo detaches and reattaches this around the scroll-driven page sync, so the
-        // -= must match the +=. A method group would produce a NEW delegate each time and the -=
-        // would silently remove nothing, leaving the handler attached and every scroll re-rendering.
-        // Hand back the window's ONE cached delegate instead.
-        private SelectionChangedEventHandler PageList_SelectionChanged => W.PageListSelectionHandler;
 
         // ── Render cache, still on Tabs.cs ───────────────────────────────────────────────────
         private static System.Windows.Media.Imaging.BitmapSource? TryGetCachedRender(

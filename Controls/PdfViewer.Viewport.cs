@@ -147,9 +147,13 @@ namespace KillerPDF.Controls
         {
             if (PageList.SelectedIndex == nearest) return;
             _pageJumpBox.Text = (nearest + 1).ToString();
-            PageList.SelectionChanged -= PageList_SelectionChanged;
+            // PageListSelHandler, NOT the method group: the -= has to remove the same delegate
+            // instance the += added, and a method group builds a new one each time. Since stage 4
+            // the handler is a real method on this class, so the cached instance lives here too
+            // (PdfViewer.PageSelection.cs) rather than being handed over from the window.
+            PageList.SelectionChanged -= PageListSelHandler;
             PageList.SelectedIndex = nearest;
-            PageList.SelectionChanged += PageList_SelectionChanged;
+            PageList.SelectionChanged += PageListSelHandler;
             // Keep the selected thumbnail in view. ScrollIntoView lives in
             // PageList_SelectionChanged, which is detached above - so the scroll-driven path moved
             // the highlight but never scrolled the sidebar, and the selection walked off the end

@@ -193,10 +193,16 @@
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Dlg_InstallTitle">Install KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">Install KillerPDF to your user profile?
+    <sys:String x:Key="Str_Dlg_InstallMsg">Install KillerPDF on this computer?
 
-This will copy the app to %LocalAppData%\KillerPDF and create a Start Menu shortcut.
-You can uninstall via Add/Remove Programs at any time.</sys:String>
+KillerPDF is copied to your programs folder and a Start menu entry is added. This copy of the exe is left where it is, and you can uninstall via Add/Remove Programs at any time.</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">Install</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">Add a desktop shortcut</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">Install for everyone on this computer (needs admin)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">Install did not complete - KillerPDF is still running portable.</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Would you like to set KillerPDF as your default PDF viewer?
+
+Opens Windows Settings - Default Apps.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">You have unsaved changes. Close this file without saving?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">You have unsaved changes. Close KillerPDF without saving?</sys:String>
     <sys:String x:Key="Str_Dlg_PageOutOfRange">This document has {0} page(s) sized outside what Adobe Reader supports (3 to 14,400 points per side) - Adobe shows these as blank pages.
