@@ -300,7 +300,7 @@ namespace KillerPDF
             // layout has settled and quietly reopen it in place if that happened.
             if (wasOpen)
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
-                    (Action)(() => { if (!ThemeFlyout.IsOpen) ThemeFlyout.IsOpen = true; }));
+                    (Action)(() => { if (ThemeFlyout is not null && !ThemeFlyout.IsOpen) ThemeFlyout.IsOpen = true; }));
         }
 
         // Each theme family has its own picker row beneath its radio. Clicking a swatch sets that

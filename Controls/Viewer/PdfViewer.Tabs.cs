@@ -4,8 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
 using PdfSharpCore.Pdf;
 
 namespace KillerPDF.Controls
@@ -24,6 +22,9 @@ namespace KillerPDF.Controls
     // second viewer to disagree with it. Opening the same file in both panes gives two independent
     // copies, which is what makes that true - see the duplicate-file save guard, because two copies
     // can otherwise save over each other.
+    //
+    // The tab STRIP - the band, the drag physics and the focus ring - lives in
+    // PdfViewer.TabStrip.cs. This file is the session model and its lifecycle.
     public partial class PdfViewer
     {
         // One open document. Holds the per-document state that the rest of MainWindow reads
@@ -32,7 +33,7 @@ namespace KillerPDF.Controls
         // internal, not private: PdfViewer.Bridge.cs types the active session as
         // MainWindow.DocumentSession so the moved render pipeline can pass it to the render cache
         // unchanged. Still nested, so it is only reachable as MainWindow.DocumentSession.
-        internal sealed class DocumentSession
+        internal sealed class DocumentSession : System.ComponentModel.INotifyPropertyChanged
         {
             public PdfDocument? Doc;
             public string? CurrentFile;
@@ -75,9 +76,79 @@ namespace KillerPDF.Controls
                 string.IsNullOrEmpty(OriginalFile)
                     ? "Untitled"
                     : System.IO.Path.GetFileNameWithoutExtension(OriginalFile);
+
+            // ── Tab-strip presentation state ─────────────────────────────────────────────────
+            // Everything below is bound by the tab template (PdfViewer.xaml) and nothing else
+            // reads it. It has to NOTIFY: a strip row is only rebuilt when the collection itself
+            // changes, so a property edited in place on a live row would otherwise never repaint.
+            // (The same trap as KillerNotes issue #13.)
+
+            private string _tabLabel = "Untitled";
+            /// <summary>Title with the dirty dot, as the tab shows it.</summary>
+            public string TabLabel { get => _tabLabel; private set { if (_tabLabel != value) { _tabLabel = value; Notify(); } } }
+
+            private string _tabTip = "Untitled";
+            /// <summary>The tab's tooltip: the full path this document came from.</summary>
+            public string TabTip { get => _tabTip; private set { if (_tabTip != value) { _tabTip = value; Notify(); } } }
+
+            /// <summary>Re-read the label and tooltip off the document. Called from RebuildTabStrip,
+            /// which is the one funnel every add, close, save and load already goes through, so
+            /// there is no second place that has to remember to keep the strip current.</summary>
+            internal void RefreshTabLabel()
+            {
+                TabLabel = (IsDirty ? "• " : "") + Title;
+                TabTip   = OriginalFile ?? "Untitled";
+            }
+
+            private bool _isActive;
+            /// <summary>The front tab of its pane.</summary>
+            public bool IsActive { get => _isActive; set { if (_isActive != value) { _isActive = value; Notify(); } } }
+
+            // Leftmost tab in the strip. Only the focus ring reads this: the band draws the ring's
+            // outermost verticals itself (TabEdgeLeft / TabEdgeRight), because a tab's own outer
+            // border sits on the ScrollViewer's clip edge and survives or vanishes depending on how
+            // the UniformGrid divided a fractional band width. Without it the first and last tab
+            // drew that side TOO, so the outer edge of the ring came out 2px wherever the clip
+            // spared it and 1px everywhere else.
+            private bool _isFirst;
+            public bool IsFirst { get => _isFirst; set { if (_isFirst != value) { _isFirst = value; Notify(); } } }
+
+            // Sitting on the strip's right EDGE - the last visible tab, but only while the overflow
+            // chevron is hidden. The tab's 1px right border is a divider BETWEEN tabs, so a tab on
+            // the edge drops it, where it would read as a stray rule; a tab with the chevron beside
+            // it still wants it. It also decides who owns the ring's right vertical.
+            private bool _isLast;
+            public bool IsLast { get => _isLast; set { if (_isLast != value) { _isLast = value; Notify(); } } }
+
+            // True only for the ACTIVE tab of the FOCUSED pane, and only while split. The focus ring
+            // has to continue around the active tab - the tab and the card are one surface, so a
+            // ring that stops at the strip reads as broken.
+            private bool _paneFocused;
+            public bool PaneFocused { get => _paneFocused; set { if (_paneFocused != value) { _paneFocused = value; Notify(); } } }
+
+            // Active tab of the pane that does NOT have focus. Not simply !PaneFocused: with one
+            // pane open there is no focused/unfocused distinction to draw, and the single pane's lip
+            // stays bright.
+            private bool _paneDimmed;
+            public bool PaneDimmed { get => _paneDimmed; set { if (_paneDimmed != value) { _paneDimmed = value; Notify(); } } }
+
+            // In the strip right now, as opposed to behind the chevron. The strip caps the NUMBER of
+            // tabs rather than letting them shrink without limit (ApplyTabWindow), and a tab outside
+            // the window collapses - UniformGrid ignores a collapsed child when it divides the band,
+            // so the ones left still fill it edge to edge. True by default: a tab is in the strip
+            // until something works out that it does not fit.
+            private bool _isStripVisible = true;
+            public bool IsStripVisible { get => _isStripVisible; set { if (_isStripVisible != value) { _isStripVisible = value; Notify(); } } }
+
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            private void Notify([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+                => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
         }
 
-        private readonly List<DocumentSession> _sessions = [];
+        // ObservableCollection, not List: the strip is an ItemsControl bound straight to this, so an
+        // add, a close or a drag-reorder repaints on its own. That binding is the whole point of the
+        // port - the strip used to be code-built Borders kept in step by hand.
+        private readonly System.Collections.ObjectModel.ObservableCollection<DocumentSession> _sessions = [];
         private DocumentSession? _active;
 
         // ============================================================
@@ -409,7 +480,7 @@ namespace KillerPDF.Controls
                 _sessions.Add(target);
                 createdNew = true;
             }
-            _active = target;
+            SetActiveSession(target);
             ApplySessionState(target);     // blank live fields (target has no document yet)
             return target;
         }
@@ -418,7 +489,7 @@ namespace KillerPDF.Controls
         private void AbortTabLoad(DocumentSession target, DocumentSession? prev, bool createdNew)
         {
             if (createdNew) _sessions.Remove(target);
-            _active = prev;
+            SetActiveSession(prev);
             if (prev != null) { ApplySessionState(prev); RenderActiveSession(); }
             else { EnsureInitialSession(); RenderActiveSession(); }
             RebuildTabStrip();
@@ -483,14 +554,33 @@ namespace KillerPDF.Controls
             SwitchToTab(docTabs[next]);
         }
 
+        /// <summary>Make <paramref name="s"/> this pane's active session and mark its tab.
+        ///
+        /// The IsActive flags are what the strip template triggers on, so every write to _active
+        /// goes through here - a raw assignment leaves the old tab drawn as the front one.</summary>
+        private void SetActiveSession(DocumentSession? s)
+        {
+            _active = s;
+            foreach (var t in _sessions) t.IsActive = ReferenceEquals(t, s);
+        }
+
         // Switch the active tab to an already-loaded session.
         private void SwitchToTab(DocumentSession target)
         {
             if (target == _active) return;
+            // _doc, _annotations and the rest of the "live working set" are window fields shared by
+            // BOTH panes (see PdfViewer.Bridge.cs) - they describe whichever pane is ActiveViewer,
+            // not this pane specifically. Clicking a tab in a pane that is not (yet) focused must
+            // claim that ownership FIRST, or CaptureSessionState/ApplySessionState below read and
+            // write the OTHER pane's fields: this pane's tab strip ends up showing the right tab
+            // while its canvas gets repainted with whatever the actually-focused pane rendered next.
+            // FocusPane no-ops when this pane already owns focus. (#161 - "clicking a tab on one
+            // pane is making it show up in the other one again", 2026-08-01.)
+            Owner?.FocusPane(this);
             CommitActiveTextBox();
             CancelTransientForSwitch();
             if (_active != null) CaptureSessionState(_active);
-            _active = target;
+            SetActiveSession(target);
             ApplySessionState(target);
             // Hide the document content while the new tab renders and restores its scroll position, then fade
             // it in. This masks the rebuild and the "loads at the top then snaps to my place" jump - the user
@@ -499,15 +589,13 @@ namespace KillerPDF.Controls
             PageContentGrid.BeginAnimation(UIElement.OpacityProperty, null);
             PageContentGrid.Opacity = 0;
             if (target.Doc == null && target.DeferredPath != null)
-            {
                 MaterializeDeferred(target);
-                RebuildTabStrip();      // first load of a deferred tab: title/dirty may change, so rebuild
-            }
             else
-            {
                 RenderActiveSession();
-                RestyleActiveTab();     // already loaded: restyle in place, no strip rebuild (no flicker)
-            }
+            // The switch can move the overflow window (the incoming tab may have been behind the
+            // chevron), which changes which tab sits on each edge - and that is the card's corner
+            // rounding and the ring's outer verticals, not just the strip.
+            RebuildTabStrip();
             FadeInDocContent();
         }
 
@@ -564,13 +652,19 @@ namespace KillerPDF.Controls
             EnsureInitialSession();
             if (s == null) return;
 
+            // Same reason as the top of SwitchToTab: claim the shared fields for this pane before
+            // touching them below, in case this pane is not (yet) ActiveViewer - e.g. the tab
+            // context menu's Close Tab / Close Other Tabs, invoked directly on this pane's own
+            // instance. No-ops when already focused.
+            Owner?.FocusPane(this);
+
             // Make the target the live working set so its dirty flag / document are current.
             if (s != _active)
             {
                 CommitActiveTextBox();
                 CancelTransientForSwitch();
                 if (_active != null) CaptureSessionState(_active);
-                _active = s;
+                SetActiveSession(s);
                 ApplySessionState(s);
                 RenderActiveSession();
             }
@@ -602,14 +696,14 @@ namespace KillerPDF.Controls
                 App.RemoveSetting("LastFile");   // a manually emptied window won't reopen on launch
                 var blank = new DocumentSession();
                 _sessions.Add(blank);
-                _active = blank;
+                SetActiveSession(blank);
                 ApplySessionState(blank);
                 ShowEmptyState();
             }
             else
             {
                 var next = _sessions[Math.Min(idx, _sessions.Count - 1)];
-                _active = next;
+                SetActiveSession(next);
                 ApplySessionState(next);
                 if (next.Doc == null && next.DeferredPath != null) MaterializeDeferred(next);
                 else RenderActiveSession();
@@ -641,10 +735,10 @@ namespace KillerPDF.Controls
 
             _sessions.Clear();
             App.RemoveSetting("LastFile");   // a manually emptied window won't reopen on launch
-            var blank = new DocumentSession();
-            _sessions.Add(blank);
-            _active = blank;
-            ApplySessionState(blank);
+            var blank2 = new DocumentSession();
+            _sessions.Add(blank2);
+            SetActiveSession(blank2);
+            ApplySessionState(blank2);
             ShowEmptyState();
             RebuildTabStrip();
         }
@@ -654,779 +748,5 @@ namespace KillerPDF.Controls
         // Activate() and Topmost, none of which exist on a UserControl, and App calls both on the
         // window. Only the OpenInNewTab call inside them belongs to a pane, and that now routes
         // through ActiveViewer like every other window -> viewer call.
-
-        // ============================================================
-        // Tab strip UI (built in code so it follows the active theme)
-        // ============================================================
-
-        private readonly List<(DocumentSession s, FrameworkElement btn, double natW)> _tabButtonList = [];
-        private readonly Dictionary<DocumentSession, FrameworkElement> _tabButtonCache = [];
-        private System.Windows.Threading.DispatcherTimer? _tabReflowTimer;
-        private bool _reflowingTabs;
-
-        // Reconcile TabStrip.Children to exactly `desired` (in order) with minimal churn - never a full Clear,
-        // so existing tab buttons (and the active tab's drop shadow) are not re-parented / re-rasterized. This
-        // is what stops the strip blinking on switch / drag-release / resize.
-        private void SetTabStripChildren(IList<FrameworkElement> desired)
-        {
-            if (TabStrip is null) return;
-            for (int i = TabStrip.Children.Count - 1; i >= 0; i--)
-                if (TabStrip.Children[i] is FrameworkElement fe && !desired.Contains(fe))
-                    TabStrip.Children.RemoveAt(i);
-            for (int i = 0; i < desired.Count; i++)
-            {
-                int cur = TabStrip.Children.IndexOf(desired[i]);
-                if (cur < 0) TabStrip.Children.Insert(Math.Min(i, TabStrip.Children.Count), desired[i]);
-                else if (cur != i) { TabStrip.Children.RemoveAt(cur); TabStrip.Children.Insert(Math.Min(i, TabStrip.Children.Count), desired[i]); }
-            }
-        }
-
-        // Refresh a REUSED tab button's title / dirty dot / reserved width and active styling, in place.
-        private void RefreshTabButton(FrameworkElement btn, DocumentSession s)
-        {
-            if (btn is not Border bd) return;
-            bd.ToolTip = s.OriginalFile ?? "Untitled";
-            var label = TabLabelOf(bd);
-            if (label != null)
-            {
-                string txt = (s.IsDirty ? "• " : "") + s.Title;
-                if (!string.Equals(label.Text, txt))
-                {
-                    label.Text = txt;
-                    double dip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-                    var ft = new FormattedText(txt, System.Globalization.CultureInfo.CurrentCulture,
-                        FlowDirection.LeftToRight,
-                        new Typeface(label.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
-                        label.FontSize, Brushes.Black, dip);
-                    label.MinWidth = Math.Min(183, Math.Ceiling(ft.Width) + 1);
-                    label.Tag = label.MinWidth;
-                }
-            }
-            ApplyTabButtonState(bd, label, s == _active);
-        }
-
-        private void RebuildTabStrip()
-        {
-            if (TabStrip == null || TabStripBorder == null) return;
-
-            var docTabs = _sessions.Where(t => t.Doc != null || t.DeferredPath != null).ToList();
-            // Only show the strip once there's more than one document - a single open PDF doesn't need tabs.
-            //
-            // Except while split, where the band is a TWO-PANE decision: a pane with no strip has a
-            // zero-height row 0, so its card starts a whole band higher than its neighbour's and
-            // runs up under the toolbar. Both panes show the band so both tops line up, which is
-            // what KillerShell's OpenSecondPane does via UpdateTabBar.
-            if (docTabs.Count < 2 && Owner?.IsSplit != true)
-            {
-                TabStrip.Children.Clear();
-                _tabButtonList.Clear();
-                _tabButtonCache.Clear();
-                TabStripBorder.Visibility = Visibility.Collapsed;
-                // No strip, so nothing to tuck the card under: drop the -1. Left on, it lifts this
-                // pane one pixel above the other one, and since a strip-less pane's row 0 collapses
-                // to nothing its card already starts level with the other pane's TAB BAR - which is
-                // where the two should line up.
-                CardRow.Margin = new Thickness(0);
-                // Strip gone: the card's leading corner goes back to a full radius, since there is
-                // no longer a flat tab edge above it to line up with.
-                SyncPaneLeadingCorner();
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)UpdateFooterFade);
-                return;
-            }
-
-            TabStripBorder.Visibility = Visibility.Visible;
-            // Strip is up: tuck the card's top border a pixel into the band so the active tab and
-            // the card read as one surface. See TabBarRing.
-            CardRow.Margin = new Thickness(0, -1, 0, 0);
-
-            // Reuse one Border per session (cached) instead of recreating every tab on each rebuild. Recreating
-            // re-parented and re-rasterized the whole strip (incl. the active tab's drop shadow), which blinked.
-            foreach (var gone in _tabButtonCache.Keys.Where(k => !docTabs.Contains(k)).ToList())
-                _tabButtonCache.Remove(gone);
-
-            _tabButtonList.Clear();
-            foreach (var t in docTabs)
-            {
-                if (!_tabButtonCache.TryGetValue(t, out var btn))
-                {
-                    btn = BuildTabButton(t);
-                    _tabButtonCache[t] = btn;
-                }
-                else RefreshTabButton(btn, t);    // reused: update title / dirty / active styling in place
-
-                btn.RenderTransform = null;        // drop any leftover drag-slide offset
-                btn.Width = double.NaN;            // measure at natural width; ReflowTabs sets the final width
-                RestoreTabLabelWidth(btn);
-                btn.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                _tabButtonList.Add((t, btn, btn.DesiredSize.Width));
-            }
-
-            // Place buttons on the strip in order without a full clear, then reflow widths / overflow.
-            // Split with nothing open in this pane: the band is Visible but holds no tab, so it
-            // measures zero height and the card still starts a band higher than the other pane's -
-            // showing the band is only half the fix. A tab-shaped spacer (same margin, padding and
-            // font metrics as a real tab, drawing nothing) gives the empty band a real tab's height.
-            SetTabStripChildren(_tabButtonList.Count == 0
-                ? [BuildTabHeightSpacer()]
-                : [.. _tabButtonList.Select(t => t.btn)]);
-            UpdateTabStripFade();
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)ReflowTabs);
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)UpdateFooterFade);
-        }
-
-        // Debounced from TabStripBorder.SizeChanged so we don't reflow (two layout passes) every resize tick.
-        private void ScheduleTabReflow()
-        {
-            if (_tabReflowTimer is null)
-            {
-                _tabReflowTimer = new System.Windows.Threading.DispatcherTimer
-                    { Interval = TimeSpan.FromMilliseconds(30) };   // cheap reflow now (reconcile, no teardown), so track resize closely
-                _tabReflowTimer.Tick += (_, _) => { _tabReflowTimer!.Stop(); ReflowTabs(); };
-            }
-            _tabReflowTimer.Stop();
-            _tabReflowTimer.Start();
-        }
-
-        // Lays the tabs out to measure them, then keeps as many as fit (left to right) on the strip and
-        // moves the rest into a "N more" dropdown button at the end. The active tab is always kept visible.
-        // The title TextBlock lives at bd.Child(Grid) -> DockPanel -> TextBlock. Squishing a tab clears its
-        // reserved bold width so the title trims with an ellipsis; natural-width tabs restore the reserve.
-        private static TextBlock? TabLabelOf(FrameworkElement tabBtn)
-            => ((tabBtn as Border)?.Child as Grid)?.Children.OfType<DockPanel>().FirstOrDefault()
-                 ?.Children.OfType<TextBlock>().FirstOrDefault();
-        private static void TrimTabLabel(FrameworkElement tabBtn)
-        { if (TabLabelOf(tabBtn) is { } lb) lb.MinWidth = 0; }
-        private static void RestoreTabLabelWidth(FrameworkElement tabBtn)
-        { if (TabLabelOf(tabBtn) is { } lb && lb.Tag is double r) lb.MinWidth = r; }
-
-        // Equal-width tabs (Chrome/VS style): every tab shares the available width, clamped between a min and
-        // a max, and titles ellipsis-trim. This removes per-tab width juggling and the activation jitter, and
-        // pairs with SetTabStripChildren so resize / switch / drag-release reconcile in place without a blink.
-        private void ReflowTabs()
-        {
-            if (_reflowingTabs || TabScroll is null || TabStrip is null) return;
-            if (_tabButtonList.Count == 0) return;
-            _reflowingTabs = true;
-            try
-            {
-                double viewport = TabScroll.ViewportWidth;
-                if (viewport <= 1) return;   // not laid out yet
-
-                int n = _tabButtonList.Count;
-                const double minTab = 110;   // narrowest a tab gets before tabs roll into the overflow menu
-                const double maxTab = 220;   // widest a tab grows to (matches the Border MaxWidth)
-                const double moreW  = 40;    // the "N v" overflow button
-
-                // Everything fits at >= minTab: one shared width for all, capped at maxTab.
-                if (n * minTab <= viewport)
-                {
-                    double w = Math.Min(maxTab, viewport / n);
-                    foreach (var (_, btn, _) in _tabButtonList) { btn.Width = w; TrimTabLabel(btn); }
-                    SetTabStripChildren([.. _tabButtonList.Select(t => t.btn)]);
-                    return;
-                }
-
-                // Too many to fit at minTab: show as many equal-width tabs as fit, rest into the dropdown.
-                double budget = viewport - moreW;
-                int    nFit   = Math.Max(1, (int)(budget / minTab));
-                double tabW   = Math.Min(maxTab, budget / nFit);
-
-                var visible  = _tabButtonList.Take(nFit).ToList();
-                var overflow = _tabButtonList.Skip(nFit).ToList();
-                // Active tab must stay on the strip: if it overflowed, swap it for the last visible tab.
-                if (_active != null && overflow.Any(t => t.s == _active))
-                {
-                    var act = overflow.First(t => t.s == _active);
-                    overflow.Remove(act);
-                    if (visible.Count > 0)
-                    {
-                        var last = visible[^1];
-                        visible.RemoveAt(visible.Count - 1);
-                        overflow.Insert(0, last);
-                    }
-                    visible.Add(act);
-                }
-
-                foreach (var (_, btn, _) in visible) { btn.Width = tabW; TrimTabLabel(btn); }
-                var children = visible.Select(t => t.btn).ToList();
-                children.Add(BuildTabOverflowButton(overflow));
-                SetTabStripChildren(children);
-            }
-            // In the finally, NOT after the try. Which button is first or last on the strip changes
-            // here, so the card's corners and the tab halo have to be re-decided on EVERY exit -
-            // and the common "everything fits" path returns from inside the try, as does the
-            // not-laid-out guard. Sitting after the block, this ran only when tabs overflowed,
-            // which is why the active tab's edges came up wrong at startup and stayed wrong.
-            finally
-            {
-                _reflowingTabs = false;
-                SyncPaneLeadingCorner();
-                // And again once the widths are real. Whether the active tab REACHES the strip's
-                // right edge is measured from its ActualWidth, and on this pass the width it was
-                // just given has not been arranged yet - so a flush tab measured as not-flush, kept
-                // its own right border, and the ScrollViewer clipped that border away. That is the
-                // missing right side of the halo. The writes are all change-guarded, so a second
-                // pass that agrees with the first does nothing.
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                                       (Action)SyncPaneLeadingCorner);
-            }
-        }
-
-        // The "N v" dropdown at the end of the strip. Clicking it lists the overflowed tabs; choosing one
-        // switches to it (the next reflow then pulls it onto the strip and pushes another into the menu).
-        private FrameworkElement BuildTabOverflowButton(List<(DocumentSession s, FrameworkElement btn, double natW)> overflow)
-        {
-            var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            content.Children.Add(new TextBlock
-            {
-                Text = overflow.Count.ToString(),
-                FontFamily = UiKit.UiFont, FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 5, 0),
-            });
-            content.Children.Add(new TextBlock
-            {
-                Text = "",   // Segoe MDL2 chevron-down
-                FontFamily = UiKit.IconFont, FontSize = 10,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-
-            var btn = new Button
-            {
-                Content = content,
-                Height = 22,
-                Margin = new Thickness(2, 3, 0, 0),
-                Padding = new Thickness(6, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Cursor = Cursors.Hand,
-                ToolTip = $"{overflow.Count} more tab(s)",
-                Style = (Style)FindResource("TabNewButton"),
-            };
-
-            var menu = new ContextMenu();
-            foreach (var (s, _, _) in overflow)
-            {
-                var sess = s;
-                var item = new MenuItem { Header = (s.IsDirty ? "• " : "") + s.Title };
-                item.Click += (_, _) => SwitchToTab(sess);
-                menu.Items.Add(item);
-            }
-            btn.Click += (_, _) => { menu.PlacementTarget = btn;
-                menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom; menu.IsOpen = true; };
-            return btn;
-        }
-
-        // Active vs inactive tab visuals in one place, so a tab switch can restyle the existing buttons in
-        // place (RestyleActiveTab) rather than tearing down and rebuilding the whole strip, which flickered.
-        // Both branches set every property the other touches so the state fully toggles on a live button.
-        private void ApplyTabButtonState(Border bd, TextBlock? label, bool active)
-        {
-            if (active)
-            {
-                // Front tab: takes the document PANE background (BgCanvas) with a themed accent stripe along
-                // the TOP edge and a soft drop shadow, so it reads as raised and blends into the pane below.
-                bd.SetResourceReference(Border.BackgroundProperty, "BgCanvas");
-                bd.BorderThickness = new Thickness(0, 3, 0, 0);
-                bd.SetResourceReference(Border.BorderBrushProperty, "SelectionBg");
-                // ShadowBar - the app's own named elevation for "a panel lifted slightly off the
-                // surface", which is exactly what a raised tab is. Not invented numbers: an earlier
-                // pass had a halo here (ShadowDepth 0), which put shadow in the seam and drew the
-                // very outline TabBarRing's break exists to remove, and a second had an upward cast
-                // that was no better. ShadowBar is Direction 270 like every other elevation in the
-                // family, and the strip's ScrollViewer clips it, so it darkens the band around the
-                // tab and cannot bleed down onto the card.
-                // KillerShell's active tab has NO effect at all and reads flat because of it - the
-                // same shadow belongs there too (see BACKLOG).
-                bd.Effect = TryFindResource("ShadowBar") as System.Windows.Media.Effects.Effect;
-                // Bottom margin 0: the active tab alone drops the 1px gap and so covers its own
-                // segment of TabBarRing, breaking that line exactly at the tab. That break IS the
-                // browser-tab join - the pane's top border runs across the band, stops at the
-                // active tab, and resumes after it. (KillerShell's mechanism, ported 2026-07-31.)
-                bd.Margin = new Thickness(0, 3, 1, 0);
-                Panel.SetZIndex(bd, 2);
-            }
-            else
-            {
-                // Opaque (matches the strip) with a single beveled trailing divider, no shadow.
-                bd.SetResourceReference(Border.BackgroundProperty, "BackgroundBrush");
-                bd.BorderThickness = new Thickness(0, 0, 1, 0);
-                bd.BorderBrush = MakeTabDividerBrush();
-                bd.Effect = null;
-                // 1px bottom margin keeps an inactive tab clear of TabBarRing, so the pane's top
-                // border runs unbroken underneath it - only the active tab cuts the line.
-                bd.Margin = new Thickness(0, 3, 1, 1);
-                Panel.SetZIndex(bd, 0);
-            }
-            if (label is null) return;
-            label.SetResourceReference(TextBlock.ForegroundProperty, active ? "TextBrush" : "MutedTextBrush");
-            if (active)
-            {
-                label.FontWeight = FontWeights.Bold;
-                label.RenderTransform = new TranslateTransform(0, -2);   // active title otherwise sits a hair low
-                // Title shadow strength from the theme's HeaderShadowOpacity (heavier on Blood/Greed/Cyanotic,
-                // off in Light where a dark shadow muddies the pale tab). Re-resolved on every restyle/theme change.
-                double op = TryFindResource("HeaderShadowOpacity") is double hso ? hso : 0.5;
-                label.Effect = new System.Windows.Media.Effects.DropShadowEffect
-                { Color = Colors.Black, BlurRadius = 3, ShadowDepth = 1, Direction = 270, Opacity = op };
-            }
-            else
-            {
-                label.FontWeight = FontWeights.Normal;
-                label.RenderTransform = null;
-                label.Effect = null;
-            }
-        }
-
-        // Repaint active/inactive styling on the EXISTING tab buttons (no teardown), then pull the active tab
-        // onto the strip if it was parked in the overflow dropdown. Used on a plain switch to avoid the flicker.
-        private void RestyleActiveTab()
-        {
-            foreach (var (s, btn, _) in _tabButtonList)
-                if (btn is Border b) ApplyTabButtonState(b, TabLabelOf(b), s == _active);
-            var activeBtn = _tabButtonList.FirstOrDefault(t => t.s == _active).btn;
-            if (activeBtn != null && TabStrip != null && !TabStrip.Children.Contains(activeBtn))
-                ReflowTabs();
-            SyncPaneLeadingCorner();
-        }
-
-        // The card's LEADING top corner squares off when the first tab on the strip is the active
-        // one. That tab's outer edge is flat and flush with the pane's, so a curve underneath cuts
-        // a notch out from under a square tab. Every other case keeps the full RadCard.
-        // Both top corners are in play, not just the leading one - see the rule inline below.
-        // Skipped in full screen, where ApplyFullScreen owns the radius and squares all four.
-        private void SyncPaneLeadingCorner()
-        {
-            // PaneBorder / PaneShadow, not DocPaneBorder / DocPaneShadow: those names are the
-            // window's forwards to the FOCUSED pane, and this method runs for whichever pane owns
-            // the strip that changed. Using them here squares pane A's corners when pane B's tabs
-            // move. These are this control's own elements.
-            if (PaneBorder == null || _fullScreen) return;
-            double r = TryFindResource("RadCard") is CornerRadius rc ? rc.TopLeft : 6;
-            // Each top corner squares off only when the tab sitting on it is the ACTIVE one:
-            // the first tab owns the top-left, the last owns the top-right. An inactive tab is
-            // window-colored and so a different surface anyway, and the card keeps its rounding
-            // under it; one document collapses the strip and the card takes its full radius back.
-            // (KillerShell's rule, verbatim from its Tabs.cs comment.)
-            bool strip = TabStripBorder != null && TabStripBorder.Visibility == Visibility.Visible
-                         && TabStrip != null && TabStrip.Children.Count > 0;
-            var ab = _tabButtonList.FirstOrDefault(t => t.s == _active).btn;
-            bool firstActive = false, lastActive = false;
-            if (strip && ab != null)
-            {
-                var vis = TabStrip!.Children.OfType<UIElement>()
-                                   .Where(c => c.Visibility == Visibility.Visible).ToList();
-                firstActive = vis.Count > 0 && ReferenceEquals(vis[0], ab);
-                lastActive  = vis.Count > 0 && ReferenceEquals(vis[^1], ab);
-            }
-            // The right corner squares only when the active tab is last AND actually reaches the
-            // strip's right edge. Being last is not enough on its own: these tabs are fixed-width
-            // in a StackPanel, so with few enough tabs they stop short and leave bare strip, and
-            // squaring the corner under nothing left a notch. Whether they reach it depends on the
-            // pane width and the tab count, so it is MEASURED rather than assumed either way -
-            // assuming they always do (KillerShell's UniformGrid) and assuming they never do were
-            // both wrong, in opposite situations.
-            bool lastFlush = false;
-            if (lastActive && ab is FrameworkElement abFe && TabStripBorder != null
-                && abFe.ActualWidth > 0 && TabStripBorder.ActualWidth > 0)
-            {
-                var right = abFe.TranslatePoint(new Point(abFe.ActualWidth, 0), TabStripBorder).X;
-                lastFlush = right >= TabStripBorder.ActualWidth - 2;
-            }
-            var cr = new CornerRadius(firstActive ? 0 : r, lastFlush ? 0 : r, r, r);
-            PaneBorder.CornerRadius = cr;
-            if (PaneShadow != null) PaneShadow.CornerRadius = cr;
-            // Keep the ring's top radii in step with the card's, so its curved sides land exactly
-            // on the card's own left/right border rather than beside them.
-            if (TabBarRing != null)
-            {
-                TabBarRing.CornerRadius = new CornerRadius(cr.TopLeft, cr.TopRight, 0, 0);
-                // Sides ONLY where the card's corner is square. There the ring has to carry the
-                // border up the flush tab edge. Against a rounded corner the card already draws
-                // that curve itself, and the ring's own end stands 7px above it as a stray accent
-                // stub rising out of the card - which is the line at pane B's left edge.
-                TabBarRing.BorderThickness = new Thickness(firstActive ? 1 : 0, 1, lastFlush ? 1 : 0, 0);
-            }
-
-            SyncTabHalo(ab, firstActive, lastFlush);
-        }
-
-        // Carry the pane's focus ring up and around the ACTIVE tab, so the tab and the card read as
-        // one outlined surface instead of the ring stopping dead at the band. Only in the focused
-        // pane while split: with one pane there is nothing to disambiguate, and two lit rings would
-        // both claim to be the live pane.
-        //
-        // The tab that sits on the strip's outer edge drops that side and lets the band draw it -
-        // see the TabEdge note in the body.
-        private void SyncTabHalo(FrameworkElement? activeBtn, bool firstActive, bool lastFlush)
-        {
-            bool lit = PaneHasFocus && Owner?.IsSplit == true;
-
-            // The band draws the outermost verticals, the tab draws the inner ones. A first or last
-            // tab's own outer border lands on the ScrollViewer's clip edge and gets cut, so whether
-            // it survived depended on the pane width - that is what made the ring come out uneven.
-            // These two are anchored to the band's own edges, which are the card's edges, so there
-            // is no arithmetic to land wrong and the line runs straight up from the card border.
-            if (TabEdgeLeft != null)
-            {
-                TabEdgeLeft.Visibility = lit && firstActive ? Visibility.Visible : Visibility.Collapsed;
-                TabEdgeLeft.SetResourceReference(Border.BackgroundProperty, "SelectionAccent");
-            }
-            // The right edge is the band's ONLY when the active tab actually reaches it (lastFlush,
-            // measured in SyncPaneLeadingCorner). There, the tab's own right border sits on the
-            // ScrollViewer's clip and gets cut - which is why the ring came up open down that side.
-            // When the tab stops short, the band's edge is nowhere near it and a line there reads
-            // as a stray vertical, so the tab draws its own.
-            if (TabEdgeRight != null)
-            {
-                TabEdgeRight.Visibility = lit && lastFlush ? Visibility.Visible : Visibility.Collapsed;
-                TabEdgeRight.SetResourceReference(Border.BackgroundProperty, "SelectionAccent");
-            }
-
-            if (activeBtn is not Border ab2) return;
-
-            // Every write below changes the tab's SIZE, and this runs from ReflowTabs, which the
-            // strip's own SizeChanged schedules. Writing unconditionally re-measures the strip,
-            // which schedules another reflow, which writes again - the app span at 100% CPU and
-            // never finished laying out, so it never painted. Only assign on a real change.
-            static void SetGeom(Border b, Thickness border, Thickness pad, Thickness margin)
-            {
-                if (b.BorderThickness != border) b.BorderThickness = border;
-                if (b.Padding != pad) b.Padding = pad;
-                if (b.Margin != margin) b.Margin = margin;
-            }
-
-            if (!lit)
-            {
-                // ApplyTabButtonState's own active styling: top stripe only, no side ring.
-                SetGeom(ab2, new Thickness(0, 3, 0, 0), new Thickness(12, 4, 5, 5), new Thickness(0, 3, 1, 0));
-                ab2.SetResourceReference(Border.BorderBrushProperty, "SelectionBg");
-                return;
-            }
-            // The tab drops whichever side the band is drawing, or the two 1px borders stack at the
-            // same x and that edge comes out 2px on a ring that is 1px everywhere else.
-            double left  = firstActive ? 0 : 1;   // the band draws these two when it owns them
-            double right = lastFlush   ? 0 : 1;
-            // Padding gives back whatever the border takes, so the title does not shift. No right
-            // margin while the ring is up: ApplyTabButtonState leaves the active tab a 1px right
-            // margin, which is a fine gap between plain tabs but puts the ring's right side a pixel
-            // short of the next tab, so the outline steps in at that corner instead of closing.
-            SetGeom(ab2, new Thickness(left, 3, right, 0),
-                         new Thickness(12 - left, 4, 5 - right, 5),
-                         new Thickness(0, 3, 0, 0));
-            // One brush for the whole lip, matching the card's ring - a top stripe in one color
-            // meeting sides in another reads as two different edges rather than one ring.
-            ab2.SetResourceReference(Border.BorderBrushProperty, "SelectionAccent");
-        }
-
-        private FrameworkElement BuildTabButton(DocumentSession s)
-        {
-            bool active = s == _active;
-
-            var bd = new Border
-            {
-                CornerRadius = new CornerRadius(4, 4, 0, 0),
-                Margin = new Thickness(0, 3, 1, 0),
-                Padding = new Thickness(12, 4, 5, 5),
-                MinWidth = 0,         // ReflowTabs sets every tab's width explicitly (equal-width); don't fight it
-                MaxWidth = 220,
-                Cursor = Cursors.Hand,
-                Tag = s,
-                ToolTip = s.OriginalFile ?? "Untitled",
-            };
-            // Active vs inactive visuals (background, top accent stripe, shadow, title weight) are applied by
-            // ApplyTabButtonState at the end, so a plain tab switch can restyle the existing buttons in place
-            // instead of rebuilding the whole strip (the rebuild flickered).
-
-            // DockPanel (not StackPanel): the close button is docked right so it stays pinned and fully
-            // visible, while the label fills the remaining space and trims with an ellipsis. With a
-            // StackPanel the close button got pushed off the edge and clipped when tabs were squished.
-            var sp = new DockPanel { LastChildFill = true };
-
-            var label = new TextBlock
-            {
-                Text = (s.IsDirty ? "• " : "") + s.Title,
-                FontFamily = UiKit.UiFont,
-                FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            };
-            // (foreground / weight / title shadow are set by ApplyTabButtonState at the end.)
-            // Reserve the BOLD width on EVERY tab so activating one (which bolds its title) never widens
-            // the tab and shoves its neighbours. Inactive tabs render normal weight but still claim the
-            // bold width via MinWidth; capped so squished tabs still ellipsis-trim instead of clipping.
-            double tabDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-            var boldFt = new FormattedText(label.Text,
-                System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                new Typeface(label.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
-                label.FontSize, Brushes.Black, tabDip);
-            label.MinWidth = Math.Min(183, Math.Ceiling(boldFt.Width) + 1);
-            label.Tag = label.MinWidth;   // reserved bold width; ReflowTabs clears it when a tab is squished so the title ellipsis-trims instead of clipping
-
-            var close = new Button
-            {
-                Content = "",
-                FontFamily = UiKit.IconFont,
-                FontSize = 9,
-                Width = 16,
-                Height = 16,
-                Margin = new Thickness(6, 0, 0, 0),
-                Padding = new Thickness(0),
-                VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Close tab",
-                Style = (Style)FindResource("TabCloseButton"),
-            };
-            close.Click += (_, e) => { CloseTab(s); };
-
-            DockPanel.SetDock(close, Dock.Right);
-            sp.Children.Add(close);   // docked right first, stays pinned
-            sp.Children.Add(label);   // fills the rest, trims with ellipsis
-
-            // Every tab is opaque, so paint the strip's grain back onto it to keep the texture, while
-            // ensuring the shadow gradient behind the strip never shows ON a tab (only in empty space).
-            var content = new Grid();
-            var grain = new Border
-            {
-                IsHitTestVisible = false,
-                CornerRadius = new CornerRadius(4, 4, 0, 0),
-                Background = FindResource("GrainBrushShared") as Brush,
-                // Bleed over the tab padding (10,4,5,5) so the texture reaches the tab edges.
-                Margin = new Thickness(-10, -4, -5, -5),
-            };
-            grain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
-            content.Children.Add(grain);
-            content.Children.Add(sp);
-            bd.Child = content;
-            ApplyTabButtonState(bd, label, active);
-
-            // Middle-click closes the tab (common tabbed-UI convention). Left-click switches on mouse-UP
-            // (see the drag handlers below) so a press can begin a drag without first rebuilding the strip.
-            bd.MouseDown += (_, e) => { if (e.ChangedButton == MouseButton.Middle) { e.Handled = true; CloseTab(s); } };
-
-            // Right-click: tab actions.
-            bd.MouseRightButtonUp += (_, ev) =>
-            {
-                var menu = MakeThemedMenu();
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CloseTab"), (_, _) => CloseTab(s), "Ctrl+W"));
-                var others = MakeMenuItem(Loc("Str_Ctx_CloseOthers"), (_, _) => CloseOtherTabs(s));
-                others.IsEnabled = _sessions.Count(z => z.Doc != null || z.DeferredPath != null) > 1;
-                menu.Items.Add(others);
-                menu.PlacementTarget = bd;
-                menu.IsOpen = true;
-                ev.Handled = true;
-            };
-
-            // Live drag-reorder: arm on press, and once past the threshold slide this tab between its
-            // neighbours in real time as the cursor crosses their midpoints (a plain click still switches).
-            // The Border is moved within TabStrip.Children directly - no rebuild mid-drag - so the mouse
-            // capture survives. A clean RebuildTabStrip on release re-applies widths / overflow / styling.
-            bd.PreviewMouseLeftButtonDown += (_, e) =>
-            {
-                if (close.IsMouseOver) return;   // let the close button handle its own click
-                _tabDragSession = s;
-                _tabDragStart = e.GetPosition(TabStrip);
-                _tabGrabDX = e.GetPosition(bd).X;   // cursor offset within the tab, so it tracks under the grab point
-                _tabDragging = false;
-                bd.CaptureMouse();
-                // Own the press entirely so it can't bubble to the title-bar's window-drag handler, and so
-                // the mouse capture (not the caption hit-test) drives the drag - making it Y-independent.
-                e.Handled = true;
-            };
-            bd.PreviewMouseMove += (_, e) =>
-            {
-                if (!bd.IsMouseCaptured || _tabDragSession is null) return;
-                double x = e.GetPosition(TabStrip).X;
-                if (!_tabDragging && Math.Abs(x - _tabDragStart.X) < SystemParameters.MinimumHorizontalDragDistance) return;
-                _tabDragging = true;
-                // Keep the grabbed tab UNDER the active tab but OVER other inactive tabs, the same in both drag
-                // directions (raw child-index stacking would otherwise flip it front/back as it's reordered).
-                Panel.SetZIndex(bd, s == _active ? 3 : 1);
-                int curIdx = TabStrip.Children.IndexOf(bd);
-                if (curIdx < 0) return;
-                double slide = bd.ActualWidth + bd.Margin.Left + bd.Margin.Right;
-                double rawLeft = x - _tabGrabDX;                 // grabbed tab's content-left, following the cursor
-                // Detection uses the dragged tab's ADVANCING edge (unclamped), so even a wide tab reaches a narrow
-                // neighbour's slot at the edge. The RENDER position is clamped so it never visually leaves the strip.
-                double leftEdge  = rawLeft;                      // leading edge when dragging left
-                double rightEdge = rawLeft + bd.ActualWidth;     // leading edge when dragging right
-                double maxLeft = Math.Max(0, TabStrip.ActualWidth - slide);
-                double renderLeft = Math.Min(Math.Max(0, rawLeft), maxLeft);
-
-                // Swap when the ADVANCING edge crosses a neighbour's LAYOUT-slot midpoint: dragging right, the tab's
-                // RIGHT edge past the right neighbour's midpoint; dragging left, its LEFT edge past the left one's.
-                // Works for any width and the edge-vs-edge gap gives natural hysteresis (no bounce). Layout slots
-                // ignore any in-flight slide transform.
-                bool swapped = false;
-                if (curIdx + 1 < TabStrip.Children.Count && TabStrip.Children[curIdx + 1] is FrameworkElement right
-                    && rightEdge > LayoutMidX(right))
-                {
-                    TabStrip.Children.RemoveAt(curIdx + 1);
-                    TabStrip.Children.Insert(curIdx, right);
-                    ResyncSessionsFromTabStrip();
-                    AnimateTabSlide(right, slide);    // it jumped left over the dragged tab; glide it in from the right
-                    swapped = true;
-                }
-                else if (curIdx - 1 >= 0 && TabStrip.Children[curIdx - 1] is FrameworkElement left
-                    && leftEdge < LayoutMidX(left))
-                {
-                    TabStrip.Children.RemoveAt(curIdx - 1);
-                    TabStrip.Children.Insert(curIdx, left);
-                    ResyncSessionsFromTabStrip();
-                    AnimateTabSlide(left, -slide);    // it jumped right over the dragged tab; glide it in from the left
-                    swapped = true;
-                }
-
-                // Pin the grabbed tab at its clamped render position. After a swap its slot moves by a neighbour's
-                // width; refresh layout first so the new slot is current, then offset bd back to renderLeft.
-                if (swapped) TabStrip.UpdateLayout();
-                var bslot = System.Windows.Controls.Primitives.LayoutInformation.GetLayoutSlot(bd);
-                SetTabOffsetX(bd, renderLeft - (bslot.X + bd.Margin.Left));
-            };
-            bd.PreviewMouseLeftButtonUp += (_, _) =>
-            {
-                if (!bd.IsMouseCaptured) return;   // close-button press (we never captured) - leave it alone
-                bd.ReleaseMouseCapture();
-                bool wasDragging = _tabDragging;
-                _tabDragSession = null;
-                _tabDragging = false;
-                if (wasDragging)
-                {
-                    // Settle the grabbed tab from its dragged offset into its final slot, then rebuild cleanly
-                    // (RebuildTabStrip re-applies widths / overflow / active styling and clears the transform).
-                    if (bd.RenderTransform is TranslateTransform stt && Math.Abs(stt.X) > 0.5)
-                    {
-                        var settle = new System.Windows.Media.Animation.DoubleAnimation(0,
-                            new Duration(TimeSpan.FromMilliseconds(120)))
-                        {
-                            EasingFunction = new System.Windows.Media.Animation.CubicEase
-                            {
-                                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
-                            },
-                        };
-                        settle.Completed += (_, _) => RebuildTabStrip();
-                        stt.BeginAnimation(TranslateTransform.XProperty, settle);
-                    }
-                    else RebuildTabStrip();
-                }
-                else SwitchToTab(s);                  // it was a click, not a drag
-            };
-
-            return bd;
-        }
-
-        // Live drag-reorder state.
-        private Point _tabDragStart;
-        private double _tabGrabDX;          // cursor offset within the grabbed tab, to keep it under the grab point
-        private DocumentSession? _tabDragSession;
-        private bool _tabDragging;
-
-        // Set a tab's horizontal offset immediately (no animation) - used to glue the grabbed tab to the cursor.
-        private static void SetTabOffsetX(FrameworkElement tab, double x)
-        {
-            if (tab.RenderTransform is not TranslateTransform tt)
-            {
-                tt = new TranslateTransform();
-                tab.RenderTransform = tt;
-            }
-            tt.BeginAnimation(TranslateTransform.XProperty, null);   // drop any prior animation so the set sticks
-            tt.X = x;
-        }
-
-        // Midpoint X of a tab's LAYOUT slot in TabStrip coordinates (ignores any in-flight slide transform).
-        private static double LayoutMidX(FrameworkElement fe)
-        {
-            var slot = System.Windows.Controls.Primitives.LayoutInformation.GetLayoutSlot(fe);
-            return slot.X + slot.Width / 2;
-        }
-
-        // Slide a just-reordered tab from where it was into its new slot, so a swap reads as a smooth glide
-        // instead of an instant jump. Z-order is left to how the strip was built: the active tab stays raised
-        // and glides in front of its neighbours; an inactive dragged tab slides under them. A clean
-        // RebuildTabStrip on drop clears these transient transforms.
-        private static void AnimateTabSlide(FrameworkElement tab, double fromX)
-        {
-            if (tab.RenderTransform is not TranslateTransform tt)
-            {
-                tt = new TranslateTransform();
-                tab.RenderTransform = tt;
-            }
-            tt.BeginAnimation(TranslateTransform.XProperty, null);
-            var anim = new System.Windows.Media.Animation.DoubleAnimation(fromX, 0,
-                new Duration(TimeSpan.FromMilliseconds(140)))
-            {
-                EasingFunction = new System.Windows.Media.Animation.CubicEase
-                {
-                    EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
-                },
-            };
-            tt.BeginAnimation(TranslateTransform.XProperty, anim);
-        }
-
-        // Rebuild the session order from the tab strip's current visual order (each tab Border's Tag is its
-        // session); sessions not currently shown (overflow) keep their order after the visible ones.
-        private void ResyncSessionsFromTabStrip()
-        {
-            var vis = new List<DocumentSession>();
-            foreach (var child in TabStrip.Children)
-                if (child is FrameworkElement fe && fe.Tag is DocumentSession ds) vis.Add(ds);
-            if (vis.Count == 0) return;
-            var rest = _sessions.Where(z => !vis.Contains(z)).ToList();
-            _sessions.Clear();
-            _sessions.AddRange(vis);
-            _sessions.AddRange(rest);
-        }
-
-        // Tab divider: the document-pane border color (PaneBorder) at the bottom, fading to fully
-        // transparent at the top - a subtle separator that matches the doc-pane line on every theme.
-        // Rebuilt on theme change (OnThemeChanged).
-        private Brush MakeTabDividerBrush()
-        {
-            Color pane = (FindResource("PaneBorderBrush") as SolidColorBrush)?.Color ?? Color.FromRgb(0x2e, 0x2e, 0x2e);
-            var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
-            brush.GradientStops.Add(new GradientStop(Color.FromArgb(0, pane.R, pane.G, pane.B), 0.0));    // transparent, top
-            brush.GradientStops.Add(new GradientStop(Color.FromArgb(0, pane.R, pane.G, pane.B), 0.45));   // still transparent through the upper half
-            brush.GradientStops.Add(new GradientStop(pane, 1.0));                                         // PaneBorder, bottom
-            return brush;
-        }
-
-        // An invisible stand-in for a tab, so an empty band still measures a band tall. Metrics are
-        // copied from BuildTabButton - keep them in step if that changes.
-        private FrameworkElement? _tabHeightSpacer;
-        private FrameworkElement BuildTabHeightSpacer()
-            => _tabHeightSpacer ??= new Border
-            {
-                Margin = new Thickness(0, 3, 1, 0),
-                Padding = new Thickness(12, 4, 5, 5),
-                IsHitTestVisible = false,
-                Child = new TextBlock
-                {
-                    Text = " ",
-                    FontFamily = UiKit.UiFont,
-                    FontSize = 11,
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
-            };
-
-        private FrameworkElement BuildNewTabButton()
-        {
-            var b = new Button
-            {
-                Content = "",
-                FontFamily = UiKit.IconFont,
-                FontSize = 11,
-                Width = 24,
-                Height = 22,
-                Margin = new Thickness(2, 3, 0, 0),
-                Padding = new Thickness(0),
-                VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Open another PDF in a new tab",
-                Style = (Style)FindResource("TabNewButton"),
-            };
-            b.Click += (_, _) =>
-            {
-                var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
-                              { Filter = "PDF files|*.pdf", Title = "Open PDF" };
-                if (dlg.ShowDialog(W) == true) OpenInNewTab(dlg.FileName);
-            };
-            return b;
-        }
     }
 }

@@ -80,6 +80,7 @@
     <sys:String x:Key="Str_KS_File">ARCHIVO</sys:String>
     <sys:String x:Key="Str_KS_Open">Abrir</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Cerrar archivo</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">Cerrar otras pestañas</sys:String>
     <sys:String x:Key="Str_KS_CloseAll">Cerrar todo</sys:String>
     <sys:String x:Key="Str_KS_NewBlank">Nuevo documento en blanco</sys:String>
     <sys:String x:Key="Str_KS_SaveAs">Guardar como</sys:String>
@@ -609,11 +610,15 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Print_EvenOnly">Solo páginas pares</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invertir colores del documento</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invertir colores del documento (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">Vista dividida - dos documentos lado a lado (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">Cerrar pestaña</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">Todas las pestañas abiertas</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invertir también las imágenes</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Ninguna fuente de este PC puede dibujar estos caracteres, por lo que aparecerán como recuadros en el PDF guardado:&#10;&#10;{0}&#10;&#10;Instala una fuente que los incluya o elige otra fuente para este texto.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Desplácese para cambiar el tamaño de toda la aplicación (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Tamaño de la aplicación {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom de toda la aplicación (accesibilidad)</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">Vista dividida - dos documentos lado a lado</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirmar antes de abrir enlaces</sys:String>
 
     <!-- Themed Windows system menu (caption right-click / Alt+Space) -->

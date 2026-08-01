@@ -80,6 +80,7 @@
     <sys:String x:Key="Str_KS_File">DATEI</sys:String>
     <sys:String x:Key="Str_KS_Open">Öffnen</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Datei schließen</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">Andere Tabs schließen</sys:String>
     <sys:String x:Key="Str_KS_CloseAll">Alle schließen</sys:String>
     <sys:String x:Key="Str_KS_NewBlank">Neues leeres Dokument</sys:String>
     <sys:String x:Key="Str_KS_SaveAs">Speichern unter</sys:String>
@@ -615,11 +616,15 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Print_EvenOnly">Nur gerade Seiten</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Dokumentfarben invertieren</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Dokumentfarben invertieren (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">Geteilte Ansicht - zwei Dokumente nebeneinander (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">Tab schließen</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">Alle geöffneten Tabs</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Bilder ebenfalls invertieren</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Keine Schriftart auf diesem PC kann diese Zeichen darstellen, daher erscheinen sie im gespeicherten PDF als Kästchen:&#10;&#10;{0}&#10;&#10;Installieren Sie eine passende Schriftart oder wählen Sie eine andere Schriftart für diesen Text.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren (Strg+Umschalt+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App-Größe {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Die ganze App zoomen (Barrierefreiheit)</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">Geteilte Ansicht - zwei Dokumente nebeneinander</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Vor dem Öffnen von Links bestätigen</sys:String>
 
     <!-- Themed Windows system menu (caption right-click / Alt+Space) -->

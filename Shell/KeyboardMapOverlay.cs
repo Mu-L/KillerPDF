@@ -41,7 +41,8 @@ namespace KillerPDF
                 ["F3"] = ("Search", "Str_Kb_NextResult"), ["F4"] = ("File", "Str_KS_DocInfo"),
                 ["F5"] = ("View", "Str_View_Continuous"), ["F6"] = ("View", "Str_View_Single"),
                 ["F7"] = ("View", "Str_View_TwoPage"),  ["F8"] = ("View", "Str_View_Grid"),
-                ["F9"] = ("View", "Str_KS_CycleView"),  ["F11"] = ("View", "Str_KS_FullScreen"),
+                ["F9"] = ("View", "Str_KS_CycleView"),  ["F10"] = ("View", "Str_KS_SplitPane"),
+                ["F11"] = ("View", "Str_KS_FullScreen"),
                 ["F12"] = ("Help", "Str_KS_About"),
                 ["D1"] = ("Tools", "Str_Lbl_Text"),     ["D2"] = ("Tools", "Str_Lbl_Highlight"),
                 ["D3"] = ("Tools", "Str_Lbl_Line"),     ["D4"] = ("Tools", "Str_Lbl_Shape"),
@@ -83,6 +84,7 @@ namespace KillerPDF
             {
                 ["S"] = ("File", "Str_KS_SaveAs"),      ["O"] = ("Ocr", "Str_Ctx_OcrPage"),
                 ["I"] = ("Ocr", "Str_Ocr_Region"),      ["Z"] = ("Edit", "Str_Ctx_Redo"),
+                ["W"] = ("File", "Str_KS_CloseOthers"),
                 ["Tab"] = ("Nav", "Str_KS_PrevTab"),    ["B"] = ("Nav", "Str_KS_SidebarSide"),
                 ["Equals"] = ("View", "Str_KS_AppSize"), ["Minus"] = ("View", "Str_KS_AppSize"),
                 ["D0"] = ("View", "Str_KS_AppSize"),

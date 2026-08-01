@@ -1288,6 +1288,15 @@ namespace KillerPDF.Controls
                 _rerenderTimer.Tick += (_, _) =>
                 {
                     _rerenderTimer!.Stop();
+                    // A tick orphaned by a focus switch must not run: _doc, _renderDims and
+                    // PageList are shared fields describing the FOCUSED pane, so an unfocused
+                    // pane's re-sharpen rendered the OTHER pane's document into its own tiles at
+                    // the other document's dimensions - which is what "opening a file in pane B
+                    // zooms pane A in like crazy" was (Steve, 2026-08-01). The re-sharpen is a
+                    // crispness optimization for the pane being zoomed; a pane that lost focus
+                    // mid-debounce keeps its current render, same as the SizeChanged guard above
+                    // ("an unfocused pane simply sits the fit out").
+                    if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
                     if (_doc is null) return;
                     if (_viewMode == ViewMode.Continuous)
                     {

@@ -61,15 +61,13 @@
     <sys:String x:Key="Str_Language">LANGUE</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
-    <sys:String x:Key="Str_Lang_French">Français</sys:String>
-    <sys:String x:Key="Str_Lang_Traditional_Chinese">中文 (繁體)</sys:String>
-    <sys:String x:Key="Str_Lang_Simple_Chinese">中文 (简体)</sys:String>
 
     <!-- Keyboard shortcuts overlay -->
     <sys:String x:Key="Str_KS_Title">Raccourcis clavier</sys:String>
     <sys:String x:Key="Str_KS_File">FICHIER</sys:String>
     <sys:String x:Key="Str_KS_Open">Ouvrir</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Fermer le fichier</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">Fermer les autres onglets</sys:String>
     <sys:String x:Key="Str_KS_CloseAll">Tout fermer</sys:String>
     <sys:String x:Key="Str_KS_NewBlank">Nouveau document vierge</sys:String>
     <sys:String x:Key="Str_KS_SaveAs">Enregistrer sous</sys:String>
@@ -156,7 +154,6 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <!-- Theme names -->
     <sys:String x:Key="Str_Theme_Dark">Sombre</sys:String>
     <sys:String x:Key="Str_Theme_Light">Clair</sys:String>
-    <sys:String x:Key="Str_Theme_HighContrast">Contraste élevé</sys:String>
     <sys:String x:Key="Str_Theme_Blood">Blood</sys:String>
     <sys:String x:Key="Str_Theme_Greed">Greed</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">Cyanotique</sys:String>
@@ -628,11 +625,15 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Print_EvenOnly">Pages paires uniquement</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Inverser les couleurs du document</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Inverser les couleurs du document (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">Vue partagée - deux documents côte à côte (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">Fermer l'onglet</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">Tous les onglets ouverts</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Inverser aussi les images</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Aucune police de ce PC ne peut afficher ces caractères ; ils apparaîtront sous forme de carrés dans le PDF enregistré :&#10;&#10;{0}&#10;&#10;Installez une police qui les contient ou choisissez une autre police pour ce texte.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application (Ctrl+Maj+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Taille de l'application {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoomer toute l'application (accessibilité)</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">Vue partagée - deux documents côte à côte</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirmer avant d'ouvrir les liens</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
 

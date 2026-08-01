@@ -46,6 +46,11 @@ namespace KillerPDF
         /// window's right edge shrank the pane at the far LEFT of the window.</summary>
         private double _paneAWidth;
 
+        /// <summary>True when the currently-open split grew the window to make room for pane B (set
+        /// in OpenSplit). CloseSplit reads this to decide whether shrinking the window back is the
+        /// right undo, or whether pane A should fill the freed space instead - see CloseSplit.</summary>
+        private bool _splitOpenGrewWindow;
+
         /// <summary>Wire both panes up. Called from the constructor.</summary>
         private void InitSplitPanes()
         {
@@ -57,6 +62,11 @@ namespace KillerPDF
             // pane A twice and leave pane B with a null annotation canvas.
             Viewer.InitTiles();
             ViewerB.InitTiles();
+
+            // Each pane's strip binds to its OWN session collection. Routing this through
+            // ActiveViewer would bind pane A's strip twice and leave pane B's showing nothing.
+            Viewer.InitTabStripExt();
+            ViewerB.InitTabStripExt();
 
             // PreviewMouseDown, not MouseDown: the page overlays and annotation tools handle the
             // bubbling event and would swallow it.
@@ -134,16 +144,21 @@ namespace KillerPDF
         {
             if (App.GetSetting("SplitOpen") != "1") return;
 
+            // Seed pane A's fixed width from the saved setting BEFORE opening the split.
+            // OpenSplit's own fallback (Viewer.ActualWidth) is always 0 at this point - the window
+            // is still inside its own Loaded handler and has not laid out yet - so without this,
+            // pane A opened pinned to MinPaneWidth every launch no matter what width it was left
+            // at, which is what "the pane is always small when the app loads" was (#161).
+            var savedA = App.GetSetting("SplitPaneAWidth");
+            if (!string.IsNullOrEmpty(savedA)
+                && double.TryParse(savedA, System.Globalization.NumberStyles.Float,
+                                   System.Globalization.CultureInfo.InvariantCulture, out double aw)
+                && aw >= MinPaneWidth)
+                _paneAWidth = aw;
+
             _restoringSplit = true;
             try { OpenSplit(); }
             finally { _restoringSplit = false; }
-
-            var w = App.GetSetting("SplitPaneBWidth");
-            if (!string.IsNullOrEmpty(w)
-                && double.TryParse(w, System.Globalization.NumberStyles.Float,
-                                   System.Globalization.CultureInfo.InvariantCulture, out double bw)
-                && bw >= MinPaneWidth)
-                PaneBCol.Width = new GridLength(bw, GridUnitType.Pixel);
 
             var saved = App.GetSetting("OpenTabsB");
             if (string.IsNullOrEmpty(saved)) return;
@@ -199,7 +214,12 @@ namespace KillerPDF
             // which shrinks the window back by exactly the same amount, so F10 round-trips to where
             // it started. If there is no room left on the work area the window grows as far as it
             // can and ApplyPaneWidths takes the shortfall out of pane A, down to the minimum.
-            double aNow = Viewer.ActualWidth > 0 ? Viewer.ActualWidth : MinPaneWidth;
+            // During the startup restore, pane A's width was already seeded from the saved setting
+            // by RestorePaneBCore, above, before this ran - Viewer.ActualWidth is not usable there,
+            // see the comment on that seed. Everywhere else, pane A keeps the width it already has.
+            double aNow = _restoringSplit && _paneAWidth > 0
+                ? _paneAWidth
+                : Viewer.ActualWidth > 0 ? Viewer.ActualWidth : MinPaneWidth;
             _paneAWidth = aNow;
 
             // No window resize during the startup restore. The window is still inside its Loaded
@@ -214,6 +234,24 @@ namespace KillerPDF
             }
             // Pane B's final width is whatever the window could actually give it.
             double bTarget = Math.Max(MinPaneWidth, grow - SplitGutter);
+            // Remembered for CloseSplit: only a split that actually grew the window has a shrink to
+            // undo. One that opened even (no room to grow) or restored (never grows) must not shrink
+            // the window on close either, or a window sized to fill the screen "cuts in half" when
+            // the split closes instead of staying where it was put (Steve, 2026-08-01).
+            _splitOpenGrewWindow = grow > 0.5;
+
+            // Maximized, snapped, or already hard against the work area edge: there is no room to
+            // grow the window by pane A's full width, so keeping pane A at its size would squeeze
+            // pane B down to the bare minimum - a lopsided split nobody asked for on a window that
+            // is plainly big enough for two. When the window cannot grow that far, split what is
+            // already there evenly instead (Steve, 2026-08-01). The exact round-trip (pane A keeps
+            // its size, the window grows to match) stays the behavior whenever there IS room.
+            bool evenSplit = !_restoringSplit && grow + 0.5 < aNow + SplitGutter;
+            if (evenSplit)
+            {
+                _paneAWidth = Math.Max(MinPaneWidth, (aNow - SplitGutter) / 2);
+                bTarget     = Math.Max(MinPaneWidth, aNow - SplitGutter - _paneAWidth);
+            }
 
             // Start closed and slide open. During the restore there is nothing to slide - the panes
             // are simply there when the window paints - so the columns go straight to their places.
@@ -223,7 +261,22 @@ namespace KillerPDF
             if (_restoringSplit)
             {
                 PaneGutterCol.Width = new GridLength(SplitGutter);
-                ApplyPaneWidths();
+                // NOT called synchronously here. RestoreWindowSettings ran moments ago in the same
+                // Loaded handler, but WPF layout is asynchronous - SplitHost.ActualWidth at this
+                // point still reflects the window's PRE-restore size (or 0), not the size just
+                // assigned. Calling ApplyPaneWidths against that stale/zero width is what clamped
+                // pane A down and left pane B with whatever tiny remainder fell out - the saved
+                // split came back on every launch no matter what it was saved at (#161). Deferred to
+                // Loaded priority, same as the re-fit below and in RestorePaneBCore's tail, so it
+                // runs once the restored window size has actually been laid out. The window is still
+                // hidden behind RootClipGrid's opacity hold at this point (see ContentRendered),
+                // so there is nothing to see between the temporary zero-width column set two lines
+                // up and this correcting it.
+                // SyncSplitMinWidth reads SplitHost.ActualWidth too (via its "chrome" measurement),
+                // so it rides along in the same deferred call rather than running synchronously
+                // below against the same stale width.
+                Dispatcher.BeginInvoke(new Action(() => { ApplyPaneWidths(); SyncSplitMinWidth(); }),
+                                       System.Windows.Threading.DispatcherPriority.Loaded);
             }
 
             ViewerB.Visibility       = Visibility.Visible;
@@ -247,11 +300,16 @@ namespace KillerPDF
             {
                 // Already in place, and no animation during startup: a timer-driven slide running
                 // while the window is still being brought up left it painting nothing at all.
-                SyncSplitMinWidth();
+                // (ApplyPaneWidths/SyncSplitMinWidth already queued above, deferred past this point.)
                 return;
             }
 
-            AnimateSplitWidth(opening: true, bTarget, grow, () =>
+            // Pane A only tweens when the even-split branch above actually moved its target; the
+            // exact-round-trip path leaves it null and AnimateSplitWidth skips it, unchanged from
+            // before.
+            AnimateSplitWidth(opening: true, bTarget, grow,
+                aFrom: evenSplit ? aNow : (double?)null, aTo: evenSplit ? _paneAWidth : (double?)null,
+                done: () =>
             {
                 ApplyPaneWidths();     // hand pane B back to the star column
                 SyncSplitMinWidth();
@@ -276,9 +334,15 @@ namespace KillerPDF
 
         /// <summary>Slide the split open or shut. Pane B's column and the gutter animate between 0
         /// and <paramref name="bTarget"/>; the window's width changes by <paramref name="widthDelta"/>
-        /// in one step, so pane A never changes size - the window absorbs the whole difference.
+        /// in one step. Pane A normally never changes size - the window absorbs the whole
+        /// difference - but the even-split open (OpenSplit, when the window cannot grow) also has to
+        /// shrink pane A down to its half-share, and <paramref name="aFrom"/>/<paramref name="aTo"/>
+        /// tween it alongside B so the two panes move together instead of A sitting frozen at full
+        /// width until ApplyPaneWidths snaps it down on the final frame - which is what "the panes
+        /// slid all weird before settling" was (Steve, 2026-08-01).
         /// GridLength has no built-in animation, so the columns are stepped off a timer.</summary>
-        private void AnimateSplitWidth(bool opening, double bTarget, double widthDelta, Action done)
+        private void AnimateSplitWidth(bool opening, double bTarget, double widthDelta, Action done,
+                                       double? aFrom = null, double? aTo = null)
         {
             _splitAnim?.Stop();
             _splitAnimating = false;
@@ -299,8 +363,13 @@ namespace KillerPDF
             double bEnd   = opening ? bTarget : 0;
             double gStart = opening ? 0 : SplitGutter;
             double gEnd   = opening ? SplitGutter : 0;
+            // Only set on the even-split open; every other call leaves both null, and the tick below
+            // then never touches PaneACol at all - identical to the pre-existing behavior.
+            bool   tweenA  = aFrom.HasValue && aTo.HasValue && Math.Abs(aFrom.Value - aTo.Value) > 0.5;
+            double aStart  = aFrom ?? 0;
+            double aEnd    = aTo   ?? 0;
 
-            if (bStart <= 0 && bEnd <= 0) { done(); return; }   // nothing to slide
+            if (bStart <= 0 && bEnd <= 0 && !tweenA) { done(); return; }   // nothing to slide
 
             _splitAnimating = true;
             var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -315,6 +384,7 @@ namespace KillerPDF
                 double e = 1 - Math.Pow(1 - t, 3);   // ease out, so it settles rather than stopping dead
                 PaneGutterCol.Width = new GridLength(gStart + (gEnd - gStart) * e);
                 PaneBCol.Width      = new GridLength(bStart + (bEnd - bStart) * e, GridUnitType.Pixel);
+                if (tweenA) PaneACol.Width = new GridLength(aStart + (aEnd - aStart) * e, GridUnitType.Pixel);
                 if (t >= 1)
                 {
                     _splitAnim!.Stop();
@@ -354,11 +424,28 @@ namespace KillerPDF
 
             if (aStart <= 0 || bStart <= 0) { FinishCloseSplit(); return; }   // never laid out
 
-            _paneAWidth    = aStart;
             PaneACol.Width = new GridLength(aStart, GridUnitType.Pixel);
             PaneBCol.Width = new GridLength(bStart, GridUnitType.Pixel);
 
-            AnimateSplitWidth(opening: false, 0, bStart + SplitGutter, FinishCloseSplit);
+            // The window shrinks back to undo the split ONLY when opening it actually grew the
+            // window in the first place (_splitOpenGrewWindow) - that is the case the exact
+            // round-trip logic was written for. Two other cases must let pane A fill the freed space
+            // instead, or the window ends up smaller than the user left it:
+            //  - Maximized (or otherwise not WindowState.Normal): AnimateSplitWidth's window-shrink
+            //    step only runs in Normal, so the window is not going to shrink back regardless.
+            //  - A window sized (not maximized) to fill the available screen space, where OpenSplit
+            //    had no room to grow and split what was already there evenly instead: closing must
+            //    not then shrink the window by pane B's half, or a window the user sized to fill the
+            //    screen "cuts in half" on close instead of staying where it was put (Steve,
+            //    2026-08-01 - two related reports the same day: "its okay if pane 1 expands to fill
+            //    the width [when maximized]" and, for the plain-wide-window case, "it cuts the
+            //    window in half instead of it staying where I set the window").
+            bool fillA = !_splitOpenGrewWindow || WindowState != WindowState.Normal;
+            double aTarget = fillA ? aStart + bStart + SplitGutter : aStart;
+            _paneAWidth = aTarget;
+
+            AnimateSplitWidth(opening: false, 0, bStart + SplitGutter, FinishCloseSplit,
+                aFrom: fillA ? aStart : (double?)null, aTo: fillA ? aTarget : (double?)null);
         }
 
         /// <summary>Tail of CloseSplit: everything that must be true once the slide has finished.
@@ -382,8 +469,10 @@ namespace KillerPDF
         }
 
         /// <summary>Point the window's chrome at a pane and move the halo. Cheap and idempotent, so
-        /// it is safe to call from every mouse-down.</summary>
-        private void FocusPane(PdfViewer pane)
+        /// it is safe to call from every mouse-down. Internal (not private): PdfViewer's own
+        /// SwitchToTab calls this too, to re-assert ownership of the shared fields before a tab
+        /// switch inside a pane that is not (yet) ActiveViewer - see the comment there.</summary>
+        internal void FocusPane(PdfViewer pane)
         {
             if (ReferenceEquals(ActiveViewer, pane)) return;
 

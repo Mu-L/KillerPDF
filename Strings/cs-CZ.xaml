@@ -84,6 +84,7 @@
     <sys:String x:Key="Str_KS_File">SOUBOR</sys:String>
     <sys:String x:Key="Str_KS_Open">Otevřít</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Zavřít soubor</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">Zavřít ostatní karty</sys:String>
     <sys:String x:Key="Str_KS_CloseAll">Zavřít vše</sys:String>
     <sys:String x:Key="Str_KS_NewBlank">Nový prázdný dokument</sys:String>
     <sys:String x:Key="Str_KS_SaveAs">Uložit jako</sys:String>
@@ -178,11 +179,15 @@
     <sys:String x:Key="Str_Print_EvenOnly">Pouze sudé stránky</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invertovat barvy dokumentu</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invertovat barvy dokumentu (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">Rozdělené zobrazení - dva dokumenty vedle sebe (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">Zavřít kartu</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">Všechny otevřené karty</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invertovat i obrázky</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Žádné písmo v tomto počítači neumí vykreslit tyto znaky, takže se v uloženém PDF zobrazí jako rámečky:&#10;&#10;{0}&#10;&#10;Nainstalujte písmo, které je obsahuje, nebo pro tento text zvolte jiné písmo.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Rolováním změníte velikost celé aplikace (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Velikost aplikace {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zvětšení celé aplikace (usnadnění přístupu)</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">Rozdělené zobrazení - dva dokumenty vedle sebe</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Před otevřením odkazů se zeptat</sys:String>
     <sys:String x:Key="Str_InvalidRange">Neplatný rozsah - použijte např. 1-3,5,7</sys:String>
     <sys:String x:Key="Str_CropNoDoc">Ořez: není otevřen žádný dokument</sys:String>

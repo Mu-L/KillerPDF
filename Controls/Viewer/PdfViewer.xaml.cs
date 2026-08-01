@@ -67,8 +67,10 @@ namespace KillerPDF.Controls
             string key = focused ? "SelectionAccent" : "PaneBorderBrush";
             PaneBorder.SetResourceReference(Border.BorderBrushProperty, key);
             TabBarRing.SetResourceReference(Border.BorderBrushProperty, key);
-            // The ring runs on around the active tab, so it moves with the pane border.
-            SyncPaneLeadingCorner();
+            // The ring runs on around the active tab, so it moves with the pane border. The tab's own
+            // share of that is a template trigger on PaneFocused / PaneDimmed, which this sets, plus
+            // the band-drawn outer verticals.
+            UpdatePaneFocusRing();
         }
 
         // ---- Element access for the window --------------------------------------------------
@@ -124,7 +126,10 @@ namespace KillerPDF.Controls
             finally { _syncingRecentBox = false; }
         }
 
-        private void DropZone_Drop(object s, DragEventArgs e) => Owner?.DropZone_Drop(s, e);
+        // Focus THIS pane before forwarding: the open path routes through ActiveViewer, and a
+        // drag-drop raises no PreviewMouseDown (the focus trigger), so a drop on the unfocused
+        // pane opened the file in the OTHER pane. FocusPane is cheap and idempotent.
+        private void DropZone_Drop(object s, DragEventArgs e) { Owner?.FocusPane(this); Owner?.DropZone_Drop(s, e); }
         private void DropZone_DragOver(object s, DragEventArgs e) => Owner?.DropZone_DragOver(s, e);
         private void DropZone_Click(object s, MouseButtonEventArgs e) => Owner?.DropZone_Click(s, e);
 
@@ -146,6 +151,6 @@ namespace KillerPDF.Controls
 
         /// <summary>Every open document in THIS pane. The quit prompt has to union both panes to
         /// decide whether anything is unsaved, and the settings writer needs each pane's list.</summary>
-        internal System.Collections.Generic.List<DocumentSession> SessionsRef => _sessions;
+        internal System.Collections.ObjectModel.ObservableCollection<DocumentSession> SessionsRef => _sessions;
     }
 }

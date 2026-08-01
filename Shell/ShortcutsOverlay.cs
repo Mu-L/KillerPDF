@@ -37,6 +37,7 @@ namespace KillerPDF
                 new("Ctrl+S",       "Str_Lbl_Save"),
                 new("Ctrl+Shift+S", "Str_KS_SaveAs"),
                 new("Ctrl+W",       "Str_KS_CloseFile"),
+                new("Ctrl+Shift+W", "Str_KS_CloseOthers"),
                 new("Ctrl+Q",       "Str_KS_CloseAll"),
                 new("Ctrl+N",       "Str_KS_NewBlank"),
                 new("Ctrl+P",       "Str_KS_Print"),
@@ -106,6 +107,7 @@ namespace KillerPDF
                 new("F9",        "Str_KS_CycleView"),
                 // Untranslated gesture literals, same convention as "Middle drag" below Navigation.
                 new("Wheel on view", "Str_KS_CycleView"),
+                new("F10",       "Str_KS_SplitPane"),
                 new("F11 / Esc", "Str_KS_FullScreen"),
                 new("N",         "Str_DocInvertSetting"),
                 new("Shift+N",   "Str_InvertImagesToo"),

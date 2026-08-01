@@ -80,6 +80,7 @@
     <sys:String x:Key="Str_KS_File">DOSYA</sys:String>
     <sys:String x:Key="Str_KS_Open">Aç</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Dosyayı kapat</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">Diğer sekmeleri kapat</sys:String>
     <sys:String x:Key="Str_KS_CloseAll">Tümünü kapat</sys:String>
     <sys:String x:Key="Str_KS_NewBlank">Yeni boş belge</sys:String>
     <sys:String x:Key="Str_KS_SaveAs">Farklı Kaydet</sys:String>
@@ -609,11 +610,15 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Print_EvenOnly">Yalnızca çift sayfalar</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Belge renklerini ters çevir</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Belge renklerini ters çevir (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">Bölünmüş görünüm - iki belge yan yana (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">Sekmeyi kapat</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">Açık tüm sekmeler</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Görselleri de ters çevir</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Bu bilgisayardaki hiçbir yazı tipi bu karakterleri çizemiyor, bu nedenle kaydedilen PDF'de kutu olarak görünecekler:&#10;&#10;{0}&#10;&#10;Bunları içeren bir yazı tipi yükleyin veya bu metin için başka bir yazı tipi seçin.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Uygulama boyutu %{0}</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Tüm uygulamayı yakınlaştır (erişilebilirlik)</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">Bölünmüş görünüm - iki belge yan yana</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Bağlantıları açmadan önce sor</sys:String>
 
     <!-- Themed Windows system menu (caption right-click / Alt+Space) -->

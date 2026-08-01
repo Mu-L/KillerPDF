@@ -80,7 +80,7 @@ Each command reuses the exact pipeline its GUI equivalent runs - merges rewrite 
 
 - Six themes - Dark, Light, Black, Blood, Greed, Cyanotic - with per-theme accent colors, switchable live
 - Toolbar style (icon size, text placement) and a resizable sidebar that docks left or right
-- Localized UI in 9 languages (English, Spanish, Traditional and Simplified Chinese, German, French, Turkish, Bengali, Japanese); contribute via `Strings/TRANSLATING.md`
+- Localized UI in 9 languages (English, Spanish, Traditional and Simplified Chinese, German, French, Turkish, Bengali, Japanese); contribute via `TRANSLATING.md`
 - Full keyboard shortcut overlay (F1 or Ctrl+?) with a list view and a visual keyboard view, color-coded by category, plus a link to the online guide
 
 ### App & files

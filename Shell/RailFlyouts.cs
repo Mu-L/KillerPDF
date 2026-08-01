@@ -58,8 +58,12 @@ namespace KillerPDF
             SyncPickerState();
 
             // The pane the document sits on bounds the window, the footer and the rail at once -
-            // the one corner a flyout can hug without covering any of them.
-            if (PagePreviewPanel.Parent is FrameworkElement pane)
+            // the one corner a flyout can hug without covering any of them. ALWAYS pane A's panel,
+            // never through the PagePreviewPanel accessor: that resolves via ActiveViewer, so with
+            // the split open and the RIGHT pane focused the flyout anchored to pane B and opened
+            // mid-window instead of at the window's bottom-left content corner (Steve, 2026-08-01).
+            // Pane A is the leftmost pane and never collapses, so its corner is the rail-adjacent one.
+            if (Viewer.PreviewScroller.Parent is FrameworkElement pane)
                 FlyoutPlacement.UsePane(pane);
             FlyoutPlacement.Attach(menu, this);
 

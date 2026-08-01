@@ -570,11 +570,15 @@ namespace KillerPDF
                     if (IsSplit)
                     {
                         App.SetSetting("SplitOpen", "1");
-                        // The pixel width of pane B - pane A is star-sized and takes the remainder,
-                        // so one number describes the divider whatever the window is resized to.
-                        double bw = ViewerB.ActualWidth;
-                        if (bw > 0) App.SetSetting("SplitPaneBWidth",
-                            bw.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                        // The pixel width of pane A - the fixed column; pane B is star-sized and
+                        // takes the remainder, so one number describes the divider whatever the
+                        // window is resized to. (Used to save pane B's width instead, which is the
+                        // derived/remainder side and not what the restore path needs to seed pane A
+                        // with before the window has laid out - #161, split pane not remembering
+                        // its size across a restart.)
+                        double aw = Viewer.ActualWidth;
+                        if (aw > 0) App.SetSetting("SplitPaneAWidth",
+                            aw.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     }
                     else
                     {

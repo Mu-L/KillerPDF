@@ -2,7 +2,7 @@
 
 ## File format
 
-Each language is a single XAML `ResourceDictionary` file in this folder. The filename must be the BCP 47 language tag for the locale:
+Each language is a single XAML `ResourceDictionary` file in the `Strings/` folder. The filename must be the BCP 47 language tag for the locale:
 
 - `en-US.xaml` - English (US)
 - `bn.xaml` - Bengali
@@ -24,7 +24,7 @@ Each language is a single XAML `ResourceDictionary` file in this folder. The fil
 
 ### Adding a new language
 
-1. Copy `en-US.xaml` and rename it to the BCP 47 tag for your language
+1. Copy `Strings/en-US.xaml` and rename it to the BCP 47 tag for your language
 2. Translate the values - leave the `x:Key` attributes untouched. You don't have to do all of them: any key you leave out (or delete) automatically falls back to the English text, so a partial translation is fine and can be filled in over time.
 3. Open a pull request with the new file. New languages also need the maintainer to wire them into the app (the language picker and loader), so mention in your PR that it's a new locale.
 

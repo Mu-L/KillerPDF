@@ -82,6 +82,7 @@
     <sys:String x:Key="Str_KS_File">檔案</sys:String>
     <sys:String x:Key="Str_KS_Open">開啟</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">關閉檔案</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">關閉其他分頁</sys:String>
     <sys:String x:Key="Str_KS_CloseAll">全部關閉</sys:String>
     <sys:String x:Key="Str_KS_NewBlank">新增空白文件</sys:String>
     <sys:String x:Key="Str_KS_SaveAs">另存新檔</sys:String>
@@ -611,11 +612,15 @@ KillerPDF 將被複製到您的程式資料夾，並新增開始功能表項目�
     <sys:String x:Key="Str_Print_EvenOnly">僅偶數頁</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">反轉文件顏色</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">反轉文件顏色 (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">分割視窗 - 兩份文件並排顯示 (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">關閉分頁</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">所有開啟的分頁</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">也反轉圖像</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">此電腦上沒有字型可以顯示這些字元，因此它們在儲存的 PDF 中將顯示為方框：&#10;&#10;{0}&#10;&#10;請安裝包含這些字元的字型，或為此文字選擇其他字型。</sys:String>
     <sys:String x:Key="Str_TT_AppSize">捲動以調整整個應用程式大小 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">應用程式大小 {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">縮放整個應用程式（無障礙）</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">分割視窗 - 兩份文件並排顯示</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">開啟連結前確認</sys:String>
 
     <!-- Themed Windows system menu (caption right-click / Alt+Space) -->

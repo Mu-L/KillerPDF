@@ -32,6 +32,13 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <!-- OutlineButton (accent outline at rest, fills solid on hover - the family standard):
+                 the footer's Install button uses it below. Already used by the file dialog; merged
+                 here too rather than duplicating the style, so the two never drift apart. -->
+            <ResourceDictionary Source="pack://application:,,,/Controls/PickerStyles.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
         <!-- Brush keys come from Application.Resources (theme dicts) via DynamicResource.
              Only non-color styles live here. -->
 
@@ -480,7 +487,11 @@
                                     <!-- Film grain on the menu surface, matching the settings panel. -->
                                     <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
                                             CornerRadius="5" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
-                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                    <!-- IsSharedSizeScope so every MenuItem's Header/Gesture columns in THIS
+                                         popup align as real columns (see the MenuItem template's SharedSizeGroup
+                                         names) instead of each row sizing its shortcut text independently. -->
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"
+                                                Grid.IsSharedSizeScope="True"/>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -514,8 +525,11 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="16"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <!-- Header and Gesture are Auto + SharedSizeGroup, not Header="*", so the
+                                         shortcut text starts at the SAME x-offset in every sibling row (a real
+                                         column) instead of hugging the right edge of whichever row is widest. -->
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MenuHeaderCol"/>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MenuGestureCol"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <!-- Icon slot: MenuItem.Icon renders in the same 16px gutter the check
@@ -554,7 +568,9 @@
                                             <Grid>
                                                 <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
                                                         CornerRadius="5" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
-                                                <ItemsPresenter/>
+                                                <!-- Own scope, so a submenu's columns align among its own
+                                                     siblings rather than the unrelated parent popup's rows. -->
+                                                <ItemsPresenter Grid.IsSharedSizeScope="True"/>
                                             </Grid>
                                         </Border>
                                     </Grid>
@@ -1102,6 +1118,7 @@
             </Setter>
         </Style>
 
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid x:Name="WindowRootGrid">
@@ -2267,36 +2284,14 @@
                     <TextBlock Text="{DynamicResource Str_Portable}" Foreground="{DynamicResource MutedTextBrush}"
                                FontFamily="Consolas" FontSize="9"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <!-- OutlineButton (Controls/PickerStyles.xaml): accent outline at rest, fills
+                         solid on hover - the family standard for this button (Steve, 2026-08-01;
+                         it was a flat solid fill at rest before, which is the wrong state). -->
                     <Button x:Name="InstallBtn" Content="{DynamicResource Str_InstallBtn}"
-                            Click="Install_Click"
+                            Click="Install_Click" Style="{StaticResource OutlineButton}"
                             FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" FontWeight="SemiBold"
-                            Foreground="{DynamicResource SelectionFg}"
-                            Background="{DynamicResource SelectionBg}"
-                            BorderThickness="0"
-                            Padding="12,2" Cursor="Hand"
-                            VerticalAlignment="Center">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Grid>
-                                    <!-- Separate shadow element keeps the button label crisp -->
-                                    <Border Background="{TemplateBinding Background}" CornerRadius="3" IsHitTestVisible="False">
-                                        <Border.Effect>
-                                            <DropShadowEffect Color="Black" BlurRadius="8" ShadowDepth="2" Direction="270" Opacity="0.45"/>
-                                        </Border.Effect>
-                                    </Border>
-                                    <Border x:Name="ib" Background="{TemplateBinding Background}"
-                                            CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </Grid>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="ib" Property="Opacity" Value="0.85"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
+                            Padding="12,2"
+                            VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock x:Name="VersionLabel" Text="v1.6.3"
@@ -2334,6 +2329,30 @@
             <Rectangle Canvas.Left="10" Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
         </Canvas>
 
+
+        <!-- Tab drag layer (Shell/PaneDrag.cs). Lives at the WINDOW level, not inside a pane,
+             because a tab being dragged between panes is over neither of them for most of the
+             journey - parented to a pane it would be clipped at that pane's edge.
+             Hit-test transparent throughout, or the ghost would sit under the cursor and stop the
+             drop from ever finding the pane beneath it. -->
+        <Canvas x:Name="DragLayer" Grid.RowSpan="5" Panel.ZIndex="9000"
+                IsHitTestVisible="False" Visibility="Collapsed">
+            <!-- A half-real copy of the tab, carrying the same accent lip and title weight so it is
+                 obviously THE tab rather than a generic drag box. -->
+            <Border x:Name="TabDragGhost" Opacity="0.72" CornerRadius="6,6,0,0" Padding="12,2,10,5"
+                    Background="{DynamicResource BgCanvas}"
+                    BorderThickness="0,3,0,0" BorderBrush="{DynamicResource SelectionAccent}"
+                    Effect="{StaticResource ShadowBar}">
+                <TextBlock x:Name="TabDragGhostText" FontFamily="{DynamicResource UiFont}" FontSize="11"
+                           FontWeight="Bold" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextBrush}"/>
+            </Border>
+
+            <!-- Where it would land. Only shown over the target strip, because anywhere else in the
+                 pane means "append" and there is no gap to point at. -->
+            <Border x:Name="TabDropCaret" Width="2" Visibility="Collapsed"
+                    Background="{DynamicResource SelectionAccent}"/>
+        </Canvas>
 
         <!-- Keyboard shortcut overlay — neutral dark dim regardless of theme -->
         <Grid x:Name="ShortcutOverlay"

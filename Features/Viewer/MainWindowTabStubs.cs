@@ -16,6 +16,7 @@ namespace KillerPDF
         private void OpenInNewTab(string path) => ActiveViewer.OpenInNewTabExt(path);
         private void CloseTab(Controls.PdfViewer.DocumentSession? s) => ActiveViewer.CloseTabExt(s);
         private void CloseAllTabs() => ActiveViewer.CloseAllTabsExt();
+        private void CloseOtherTabs(Controls.PdfViewer.DocumentSession? s) => ActiveViewer.CloseOtherTabsExt(s);
         private void CycleTab(int dir) => ActiveViewer.CycleTabExt(dir);
         private void EnsureInitialSession() => ActiveViewer.EnsureInitialSessionExt();
         private void MaterializeDeferred(Controls.PdfViewer.DocumentSession target)
@@ -63,7 +64,8 @@ namespace KillerPDF
 
         /// <summary>The focused pane's open documents. Callers that mean "this pane" - the tab
         /// context menu's Close Others, the reorder resync - want this rather than AllSessions.</summary>
-        private List<Controls.PdfViewer.DocumentSession> _sessions => ActiveViewer.SessionsRef;
+        private System.Collections.ObjectModel.ObservableCollection<Controls.PdfViewer.DocumentSession> _sessions
+            => ActiveViewer.SessionsRef;
 
         /// <summary>The focused pane's tab strip, for the chrome that positions or hides it.
         /// AppScale and FullScreen act on both panes at their own call sites; SidebarLayout's fade

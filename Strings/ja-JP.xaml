@@ -78,13 +78,13 @@
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
-    <sys:String x:Key="Str_Lang_Japanese">日本語</sys:String>
 
     <!-- ── キーボードショートカットオーバーレイ ─────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">キーボードショートカット</sys:String>
     <sys:String x:Key="Str_KS_File">ファイル</sys:String>
     <sys:String x:Key="Str_KS_Open">開く</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">ファイルを閉じる</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">他のタブを閉じる</sys:String>
     <sys:String x:Key="Str_KS_CloseAll">すべて閉じる</sys:String>
     <sys:String x:Key="Str_KS_NewBlank">新規空白ドキュメント</sys:String>
     <sys:String x:Key="Str_KS_SaveAs">名前を付けて保存</sys:String>
@@ -179,11 +179,15 @@
     <sys:String x:Key="Str_Print_EvenOnly">偶数ページのみ</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">文書の色を反転</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">文書の色を反転 (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">分割ビュー - 2つの文書を左右に並べて表示 (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">タブを閉じる</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">開いているすべてのタブ</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">画像も反転</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">この PC のどのフォントにもこれらの文字がないため、保存した PDF では四角形として表示されます:&#10;&#10;{0}&#10;&#10;対応するフォントをインストールするか、このテキストに別のフォントを選んでください。</sys:String>
     <sys:String x:Key="Str_TT_AppSize">スクロールでアプリ全体のサイズを変更 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">アプリのサイズ {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">アプリ全体をズーム (アクセシビリティ)</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">分割ビュー - 2つの文書を左右に並べて表示</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">リンクを開く前に確認する</sys:String>
     <sys:String x:Key="Str_InvalidRange">無効な範囲です - 例 : 1-3,5,7</sys:String>
     <sys:String x:Key="Str_CropNoDoc">トリミング : 開かれているドキュメントがありません</sys:String>

@@ -16,6 +16,11 @@ namespace KillerPDF.Controls
         internal void OpenInNewTabExt(string path) => OpenInNewTab(path);
         internal void CloseTabExt(DocumentSession? s) => CloseTab(s);
         internal void CloseAllTabsExt() => CloseAllTabs();
+        internal void CloseOtherTabsExt(DocumentSession? keep = null)
+        {
+            var target = keep ?? _active;
+            if (target != null) CloseOtherTabs(target);
+        }
         internal void CycleTabExt(int dir) => CycleTab(dir);
         internal void EnsureInitialSessionExt() => EnsureInitialSession();
         internal void MaterializeDeferredExt(DocumentSession target) => MaterializeDeferred(target);
@@ -53,7 +58,7 @@ namespace KillerPDF.Controls
 
             var blank = new DocumentSession();   // every collection field has its own initializer
             _sessions.Add(blank);
-            _active = blank;
+            SetActiveSession(blank);
             ApplySessionState(blank);
             ShowEmptyState();
         }
@@ -147,8 +152,12 @@ namespace KillerPDF.Controls
             => TryGetDocState(path, out fit, out zoom, out view, out page);
 
         // ── Strip and render ─────────────────────────────────────────────────────────────────
+        internal void InitTabStripExt() => InitTabStrip();
         internal void RebuildTabStripExt() => RebuildTabStrip();
-        internal void ScheduleTabReflowExt() => ScheduleTabReflow();
+        /// <summary>The band changed width. Kept under the old name because the window still wires
+        /// the focused pane's SizeChanged to it; each pane also raises its own now, and the call is
+        /// guarded and idempotent, so the two agreeing costs nothing.</summary>
+        internal void ScheduleTabReflowExt() => TabBarResized();
         internal void RenderActiveSessionExt() => RenderActiveSession();
         internal void ShowEmptyStateExt() => ShowEmptyState();
         internal void FlushAllRenderCachesExt() => FlushAllRenderCaches();
@@ -160,8 +169,8 @@ namespace KillerPDF.Controls
         internal void SetSessionsExt(IEnumerable<DocumentSession> sessions, DocumentSession? active)
         {
             _sessions.Clear();
-            _sessions.AddRange(sessions);
-            _active = active;
+            foreach (var s in sessions) _sessions.Add(s);   // ObservableCollection has no AddRange
+            SetActiveSession(active);
         }
 
         /// <summary>Build a deferred (lazy) session for the restore path - a tab that shows its
