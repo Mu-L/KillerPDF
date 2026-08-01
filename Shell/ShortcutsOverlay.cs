@@ -72,7 +72,6 @@ namespace KillerPDF
             new KsSection { TitleKey = "Str_KS_Help", Rows =
             [
                 new("F1 / Ctrl+?", "Str_KS_ThisList"),
-                new("F9 / Ctrl+,", "Str_KS_Settings"),
                 new("F12",         "Str_KS_About"),
             ]},
         ];
@@ -94,6 +93,7 @@ namespace KillerPDF
                 new("Middle drag",    "Str_KS_PanView"),
                 new("Space + drag",   "Str_KS_PanView"),
                 new("Ctrl+B",         "Str_KS_ToggleSidebar"),
+                new("Ctrl+Shift+B",   "Str_KS_SidebarSide"),
                 new("Ctrl+Tab",       "Str_KS_NextTab"),
                 new("Ctrl+Shift+Tab", "Str_KS_PrevTab"),
             ]},
@@ -103,9 +103,12 @@ namespace KillerPDF
                 new("F6",        "Str_View_Single"),
                 new("F7",        "Str_View_TwoPage"),
                 new("F8",        "Str_View_Grid"),
+                new("F9",        "Str_KS_CycleView"),
                 new("F11 / Esc", "Str_KS_FullScreen"),
                 new("N",         "Str_DocInvertSetting"),
+                new("Shift+N",   "Str_InvertImagesToo"),
                 new("Ctrl+Shift+= / - / 0", "Str_KS_AppSize"),
+                new("Ctrl+Shift+1..6", "Str_KS_ToolbarStyle"),
             ]},
             new KsSection { TitleKey = "Str_KS_Ocr", Rows =
             [

@@ -41,7 +41,7 @@ namespace KillerPDF
                 ["F3"] = ("Search", "Str_Kb_NextResult"), ["F4"] = ("File", "Str_KS_DocInfo"),
                 ["F5"] = ("View", "Str_View_Continuous"), ["F6"] = ("View", "Str_View_Single"),
                 ["F7"] = ("View", "Str_View_TwoPage"),  ["F8"] = ("View", "Str_View_Grid"),
-                ["F9"] = ("Help", "Str_KS_Settings"),   ["F11"] = ("View", "Str_KS_FullScreen"),
+                ["F9"] = ("View", "Str_KS_CycleView"),  ["F11"] = ("View", "Str_KS_FullScreen"),
                 ["F12"] = ("Help", "Str_KS_About"),
                 ["D1"] = ("Tools", "Str_Lbl_Text"),     ["D2"] = ("Tools", "Str_Lbl_Highlight"),
                 ["D3"] = ("Tools", "Str_Lbl_Line"),     ["D4"] = ("Tools", "Str_Lbl_Shape"),
@@ -68,7 +68,7 @@ namespace KillerPDF
                 ["O"] = ("File", "Str_KS_Open"),        ["S"] = ("File", "Str_Lbl_Save"),
                 ["W"] = ("File", "Str_KS_CloseFile"),   ["Q"] = ("File", "Str_KS_CloseAll"),
                 ["N"] = ("File", "Str_KS_NewBlank"),    ["P"] = ("File", "Str_KS_Print"),
-                ["D"] = ("File", "Str_KS_DocInfo"),     ["Comma"] = ("Help", "Str_KS_Settings"),
+                ["D"] = ("File", "Str_KS_DocInfo"),
                 ["F"] = ("Search", "Str_KS_Find"),      ["Z"] = ("Edit", "Str_KS_Undo"),
                 ["Y"] = ("Edit", "Str_Ctx_Redo"),       ["C"] = ("Edit", "Str_KS_CopyText"),
                 ["V"] = ("Edit", "Str_KS_Paste"),       ["A"] = ("Search", "Str_KS_SelectAll"),
@@ -83,14 +83,19 @@ namespace KillerPDF
             {
                 ["S"] = ("File", "Str_KS_SaveAs"),      ["O"] = ("Ocr", "Str_Ctx_OcrPage"),
                 ["I"] = ("Ocr", "Str_Ocr_Region"),      ["Z"] = ("Edit", "Str_Ctx_Redo"),
-                ["Tab"] = ("Nav", "Str_KS_PrevTab"),
+                ["Tab"] = ("Nav", "Str_KS_PrevTab"),    ["B"] = ("Nav", "Str_KS_SidebarSide"),
                 ["Equals"] = ("View", "Str_KS_AppSize"), ["Minus"] = ("View", "Str_KS_AppSize"),
                 ["D0"] = ("View", "Str_KS_AppSize"),
+                // The toolbar appearance six, mirroring the bar's right-click menu top to bottom.
+                ["D1"] = ("View", "Str_Toolbar_SmallIcons"), ["D2"] = ("View", "Str_Toolbar_LargeIcons"),
+                ["D3"] = ("View", "Str_Toolbar_TextNone"),   ["D4"] = ("View", "Str_Toolbar_TextBeside"),
+                ["D5"] = ("View", "Str_Toolbar_TextUnder"),  ["D6"] = ("View", "Str_Toolbar_TextOnly"),
             },
             [KbLayer.Shift] = new()
             {
                 ["F3"] = ("Search", "Str_Kb_PrevResult"), ["F10"] = ("Edit", "Str_KS_ContextMenu"),
                 ["Enter"] = ("Search", "Str_Kb_PrevResult"),
+                ["N"] = ("View", "Str_InvertImagesToo"),
             },
             [KbLayer.Alt] = new()
             {

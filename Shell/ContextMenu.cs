@@ -530,13 +530,14 @@ namespace KillerPDF
 
         private void PageList_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (_doc is null) return;
             // Did the click land on a thumbnail, or the empty area below the list? Page-specific actions
             // (rotate, move, delete) only make sense on a thumbnail; the empty area gets the page-agnostic
-            // menu (same one the gray area around the page uses).
+            // menu (same one the gray area around the page uses). With no document open the menu still
+            // opens, carrying only the sidebar-side section appended at the bottom.
             bool onThumb = false;
-            for (var d = e.OriginalSource as DependencyObject; d != null; d = VisualTreeHelper.GetParent(d))
-                if (d is ListBoxItem) { onThumb = true; break; }
+            if (_doc is not null)
+                for (var d = e.OriginalSource as DependencyObject; d != null; d = VisualTreeHelper.GetParent(d))
+                    if (d is ListBoxItem) { onThumb = true; break; }
 
             var menu = MakeThemedMenu();
             if (onThumb)
@@ -555,13 +556,50 @@ namespace KillerPDF
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, ev) => OpenStampTool(), glyph: ""));
             }
-            else
+            else if (_doc is not null)
             {
                 FillPageAgnosticMenu(menu);
             }
+            AppendSidebarSideSection(menu);
             menu.PlacementTarget = PageList;
             menu.IsOpen = true;
             e.Handled = true;
+        }
+
+        // Right-click on any other part of the sidebar - the PAGES/OUTLINES header, the page
+        // controls row, the outline panel's empty space, the toggle strip - reaches this handler
+        // on the two container Borders (SidebarBorder, SidebarToggleStrip). The page list's own
+        // handler above marks its clicks handled, so they never double up; the outline TREE is
+        // ceded entirely, because its bookmark menu opens on Preview mouse DOWN and does not mark
+        // the Up handled - without the guard this would open a second menu over it.
+        private void SidebarArea_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource is DependencyObject d)
+                for (var n = d; n != null; n = VisualTreeHelper.GetParent(n))
+                    if (ReferenceEquals(n, OutlineTree)) return;
+            var menu = MakeThemedMenu();
+            if (_doc is not null) FillPageAgnosticMenu(menu);
+            AppendSidebarSideSection(menu);
+            menu.PlacementTarget = (UIElement)sender;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        // The sidebar-side picker rides the bottom of the sidebar's own right-click menu (it moved
+        // out of the Settings panel, like the toolbar picker moved onto the toolbar). The keyboard
+        // gesture is shown on the side Ctrl+Shift+B would switch TO - it is a toggle, so putting it
+        // on the checked row would advertise a press that does nothing.
+        private void AppendSidebarSideSection(ContextMenu menu)
+        {
+            if (menu.Items.Count > 0) menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem { Header = Loc("Str_Sidebar"), IsEnabled = false });
+            var left  = new MenuItem { Header = Loc("Str_Sidebar_Left"),  IsCheckable = true, IsChecked = !_sidebarRight };
+            var right = new MenuItem { Header = Loc("Str_Sidebar_Right"), IsCheckable = true, IsChecked = _sidebarRight };
+            (_sidebarRight ? left : right).InputGestureText = "Ctrl+Shift+B";
+            left.Click  += (_, _2) => SelectSidebarSide(false);
+            right.Click += (_, _2) => SelectSidebarSide(true);
+            menu.Items.Add(left);
+            menu.Items.Add(right);
         }
 
         private ContextMenu MakeThemedMenu()

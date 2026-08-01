@@ -107,7 +107,6 @@ namespace KillerPDF
                 topAccent.Margin = _sidebarRight ? new Thickness(0, 0, 1, 0) : new Thickness(1, 0, 0, 0);
 
             UpdateSidebarToggleGlyph();
-            ApplySettingsPanelSide();
             UpdateTabStripFade();
             // The column swap repositions the document pane; re-anchor the footer shadow once layout
             // settles (TransformToVisual needs the final positions).
@@ -199,47 +198,15 @@ namespace KillerPDF
             _sidebarToggleBtn.Content = pointLeft ? "" : "";   // ChevronLeft / ChevronRight
         }
 
-        // Mirror the settings slide-out panel so it opens toward the document on whichever side the
-        // sidebar sits. PositionSettingsPanel sets the matching margin when the panel is shown.
-        private void ApplySettingsPanelSide()
-        {
-            var ha      = _sidebarRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-            var corners = _sidebarRight ? new CornerRadius(6, 0, 0, 6) : new CornerRadius(0, 6, 6, 0);
-
-            if (SettingsPanel != null) SettingsPanel.HorizontalAlignment = ha;
-
-            foreach (var name in new[] { "SettingsCardShadow", "SettingsCardGrain", "SettingsCardBorder" })
-            {
-                if (FindName(name) is Border b)
-                {
-                    b.HorizontalAlignment = ha;
-                    b.CornerRadius = corners;
-                }
-            }
-            // The bordered card omits its border on the edge that sits against the sidebar.
-            if (FindName("SettingsCardBorder") is Border card)
-                card.BorderThickness = _sidebarRight ? new Thickness(1, 1, 0, 1) : new Thickness(0, 1, 1, 1);
-            // Shadow falls away from the sidebar (toward the document).
-            if (FindName("SettingsCardShadow") is Border shadow &&
-                shadow.Effect is System.Windows.Media.Effects.DropShadowEffect ds)
-                ds.Direction = _sidebarRight ? 180 : 0;
-        }
-
         private void SelectSidebarSide(bool right)
         {
-            if (SidebarCurrentLabel != null) SidebarCurrentLabel.Text = right ? "Right" : "Left";
-            if (right == _sidebarRight) return;   // no change (e.g. radio sync on panel open)
+            if (right == _sidebarRight) return;   // no change (e.g. picking the side it's already on)
             _sidebarRight = right;
             App.SetSetting("SidebarSide", right ? "Right" : "Left");
             ApplySidebarSide();
-            // Re-anchor the open panel AFTER the flipped layout has measured, so the new sidebar
-            // column's ActualWidth (used for the margin) is current.
-            if (SettingsOverlay != null && SettingsOverlay.Visibility == Visibility.Visible)
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                    (Action)(() => { ApplySettingsPanelSide(); PositionSettingsPanel(); }));
         }
 
-        private void SidebarLeftRadio_Checked(object sender, RoutedEventArgs e)  => SelectSidebarSide(false);
-        private void SidebarRightRadio_Checked(object sender, RoutedEventArgs e) => SelectSidebarSide(true);
+        // Ctrl+Shift+B (pairs with Ctrl+B, the sidebar collapse toggle).
+        private void ToggleSidebarSide() => SelectSidebarSide(!_sidebarRight);
     }
 }

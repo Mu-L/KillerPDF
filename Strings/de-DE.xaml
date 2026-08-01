@@ -64,6 +64,8 @@
     <sys:String x:Key="Str_Theme">DESIGN</sys:String>
     <sys:String x:Key="Str_Language">SPRACHE</sys:String>
     <sys:String x:Key="Str_Toolbar">SYMBOLLEISTE</sys:String>
+    <sys:String x:Key="Str_Toolbar_Header">Symbolleiste</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextNone">Kein Text</sys:String>
     <sys:String x:Key="Str_Toolbar_SmallIcons">Kleine Symbole</sys:String>
     <sys:String x:Key="Str_Toolbar_LargeIcons">Große Symbole</sys:String>
     <sys:String x:Key="Str_Toolbar_TextBeside">Text neben Symbol</sys:String>
@@ -393,6 +395,10 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Sidebar_Left">Links</sys:String>
     <sys:String x:Key="Str_Sidebar_Right">Rechts</sys:String>
     <sys:String x:Key="Str_KS_ToggleSidebar">Seitenleiste umschalten</sys:String>
+    <sys:String x:Key="Str_KS_ToolbarStyle">Darstellung der Symbolleiste</sys:String>
+    <sys:String x:Key="Str_KS_SidebarSide">Seitenleiste links / rechts</sys:String>
+    <sys:String x:Key="Str_KS_CycleView">Nächster Ansichtsmodus</sys:String>
+    <sys:String x:Key="Str_TT_ViewMode">Ansichtsmodus</sys:String>
     <sys:String x:Key="Str_KS_NextTab">Nächster Tab (Umschalt: vorheriger)</sys:String>
     <sys:String x:Key="Str_Lbl_Search">Suchen</sys:String>
     <sys:String x:Key="Str_TT_Search">Suchen (Strg+F)</sys:String>
@@ -598,6 +604,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Print_EvenOnly">Nur gerade Seiten</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Dokumentfarben invertieren</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Dokumentfarben invertieren (N)</sys:String>
+    <sys:String x:Key="Str_InvertImagesToo">Bilder ebenfalls invertieren</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren (Strg+Umschalt+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App-Größe {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Die ganze App zoomen (Barrierefreiheit)</sys:String>

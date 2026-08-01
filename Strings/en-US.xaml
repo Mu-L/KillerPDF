@@ -68,6 +68,8 @@
     <sys:String x:Key="Str_Theme">THEME</sys:String>
     <sys:String x:Key="Str_Language">LANGUAGE</sys:String>
     <sys:String x:Key="Str_Toolbar">TOOLBAR</sys:String>
+    <sys:String x:Key="Str_Toolbar_Header">Toolbar</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextNone">No text</sys:String>
     <sys:String x:Key="Str_Toolbar_SmallIcons">Small icons</sys:String>
     <sys:String x:Key="Str_Toolbar_LargeIcons">Large icons</sys:String>
     <sys:String x:Key="Str_Toolbar_TextBeside">Text beside icons</sys:String>
@@ -176,6 +178,7 @@
     <sys:String x:Key="Str_Print_EvenOnly">Even pages only</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invert document colors</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invert document colors (N)</sys:String>
+    <sys:String x:Key="Str_InvertImagesToo">Invert images too</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App size {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom the whole app (accessibility)</sys:String>
@@ -451,6 +454,10 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Sidebar_Left">Left</sys:String>
     <sys:String x:Key="Str_Sidebar_Right">Right</sys:String>
     <sys:String x:Key="Str_KS_ToggleSidebar">Toggle sidebar</sys:String>
+    <sys:String x:Key="Str_KS_ToolbarStyle">Toolbar appearance</sys:String>
+    <sys:String x:Key="Str_KS_SidebarSide">Move sidebar left / right</sys:String>
+    <sys:String x:Key="Str_KS_CycleView">Cycle view modes</sys:String>
+    <sys:String x:Key="Str_TT_ViewMode">View mode</sys:String>
     <sys:String x:Key="Str_KS_NextTab">Next tab (Shift: previous)</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePage">Delete Page</sys:String>
     <sys:String x:Key="Str_Ctx_DuplicatePage">Duplicate Page</sys:String>

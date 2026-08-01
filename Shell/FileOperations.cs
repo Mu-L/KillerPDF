@@ -1307,21 +1307,10 @@ namespace KillerPDF
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
 
-            // The print prep (annotation burn + doc reopen) runs synchronously on the UI thread and freezes
-            // it for a moment. If Settings is open, close it and wait for the slide to finish before that
-            // freeze, so the animation stays smooth; otherwise just yield one render cycle to keep the click
-            // responsive. (Deeper fix - backgrounding the burn - is tracked separately.)
-            if (SettingsOverlay?.Visibility == Visibility.Visible)
-            {
-                SlideSettingsClosed();
-                var settleTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(190) };
-                settleTimer.Tick += (_, _2) => { settleTimer.Stop(); RunPrintFlow(); };
-                settleTimer.Start();
-            }
-            else
-            {
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(RunPrintFlow));
-            }
+            // The print prep (annotation burn + doc reopen) runs synchronously on the UI thread and
+            // freezes it for a moment; yield one render cycle first to keep the click responsive.
+            // (Deeper fix - backgrounding the burn - is tracked separately.)
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(RunPrintFlow));
         }
 
         private async void RunPrintFlow()

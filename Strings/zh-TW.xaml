@@ -66,6 +66,8 @@
     <sys:String x:Key="Str_Theme">佈景主題</sys:String>
     <sys:String x:Key="Str_Language">語言</sys:String>
     <sys:String x:Key="Str_Toolbar">工具列</sys:String>
+    <sys:String x:Key="Str_Toolbar_Header">工具列</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextNone">無文字</sys:String>
     <sys:String x:Key="Str_Toolbar_SmallIcons">小圖示</sys:String>
     <sys:String x:Key="Str_Toolbar_LargeIcons">大圖示</sys:String>
     <sys:String x:Key="Str_Toolbar_TextBeside">圖示加文字</sys:String>
@@ -395,6 +397,10 @@
     <sys:String x:Key="Str_Sidebar_Left">左側</sys:String>
     <sys:String x:Key="Str_Sidebar_Right">右側</sys:String>
     <sys:String x:Key="Str_KS_ToggleSidebar">切換側邊欄</sys:String>
+    <sys:String x:Key="Str_KS_ToolbarStyle">工具列外觀</sys:String>
+    <sys:String x:Key="Str_KS_SidebarSide">側邊欄移到左 / 右側</sys:String>
+    <sys:String x:Key="Str_KS_CycleView">下一個檢視模式</sys:String>
+    <sys:String x:Key="Str_TT_ViewMode">檢視模式</sys:String>
     <sys:String x:Key="Str_KS_NextTab">下一個分頁（Shift：上一個）</sys:String>
     <sys:String x:Key="Str_Lbl_Search">搜尋</sys:String>
     <sys:String x:Key="Str_TT_Search">搜尋 (Ctrl+F)</sys:String>
@@ -594,6 +600,7 @@
     <sys:String x:Key="Str_Print_EvenOnly">僅偶數頁</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">反轉文件顏色</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">反轉文件顏色 (N)</sys:String>
+    <sys:String x:Key="Str_InvertImagesToo">也反轉圖像</sys:String>
     <sys:String x:Key="Str_TT_AppSize">捲動以調整整個應用程式大小 (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">應用程式大小 {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">縮放整個應用程式（無障礙）</sys:String>

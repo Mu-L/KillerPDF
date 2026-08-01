@@ -231,10 +231,12 @@ namespace KillerPDF
         }
 
         // #135: the invert state is baked into cached pixels - drop every cached tab's page
-        // bitmaps when it flips so no stale-colored bitmap survives the toggle.
+        // bitmaps when it flips so no stale-colored bitmap survives the toggle. The image-rect
+        // cache (the carve-out that keeps pictures uninverted) goes with it; it re-fills lazily.
         private void FlushAllRenderCaches()
         {
             foreach (var s in _renderLru) s.RenderCache.Clear();
+            _pageImageRects.Clear();
         }
 
         // Mark a tab most-recently-used; drop the bitmap caches of tabs that fall outside the LRU window.

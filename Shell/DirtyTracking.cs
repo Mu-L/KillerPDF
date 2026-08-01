@@ -125,7 +125,7 @@ namespace KillerPDF
             {
                 if (e.ButtonState == MouseButtonState.Pressed) { try { DragMove(); } catch { } }
             };
-            if (SettingsOverlay?.Parent is Grid host)
+            if (ShortcutOverlay?.Parent is Grid host)
             {
                 if (host.RowDefinitions.Count > 0) Grid.SetRowSpan(overlay, host.RowDefinitions.Count);
                 host.Children.Add(overlay);

@@ -303,21 +303,11 @@ namespace KillerPDF
         {
             base.OnRenderSizeChanged(sizeInfo);
             UpdateWindowChrome();
-            KeepSettingsPanelInWindow();
             RepositionAnnotationBars();
         }
 
-        // Keeps the (draggable) Settings panel fully inside the window when the window is resized,
-        // so shrinking the window can't leave it clipped or stranded off-edge.
-        private void KeepSettingsPanelInWindow()
-        {
-            if (SettingsOverlay is null || SettingsPanel is null) return;
-            if (SettingsOverlay.Visibility != Visibility.Visible) return;
-            PositionSettingsPanel();   // re-anchor bottom-left (handles sidebar collapse / resize)
-        }
-
         // Re-applies the saved placement to every visible annotation bar. Called synchronously from the
-        // same window events that keep the Settings panel in-window (resize, maximize/restore, move), so
+        // window events that resize/move the content area (resize, maximize/restore, move), so
         // the bar tracks its anchored edge and stays fully on-screen through all of them.
         private void RepositionAnnotationBars()
         {
@@ -394,7 +384,6 @@ namespace KillerPDF
         private void OnWindowLocationChanged(object? sender, EventArgs e)
         {
             UpdateWindowChrome();
-            KeepSettingsPanelInWindow();
             RepositionAnnotationBars();
         }
 

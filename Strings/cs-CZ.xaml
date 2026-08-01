@@ -68,6 +68,8 @@
     <sys:String x:Key="Str_Theme">MOTIV</sys:String>
     <sys:String x:Key="Str_Language">JAZYK</sys:String>
     <sys:String x:Key="Str_Toolbar">PANEL NÁSTROJŮ</sys:String>
+    <sys:String x:Key="Str_Toolbar_Header">Panel nástrojů</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextNone">Bez textu</sys:String>
     <sys:String x:Key="Str_Toolbar_SmallIcons">Malé ikony</sys:String>
     <sys:String x:Key="Str_Toolbar_LargeIcons">Velké ikony</sys:String>
     <sys:String x:Key="Str_Toolbar_TextBeside">Text vedle ikon</sys:String>
@@ -176,6 +178,7 @@
     <sys:String x:Key="Str_Print_EvenOnly">Pouze sudé stránky</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invertovat barvy dokumentu</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invertovat barvy dokumentu (N)</sys:String>
+    <sys:String x:Key="Str_InvertImagesToo">Invertovat i obrázky</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Rolováním změníte velikost celé aplikace (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Velikost aplikace {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zvětšení celé aplikace (usnadnění přístupu)</sys:String>
@@ -451,6 +454,10 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Sidebar_Left">Vlevo</sys:String>
     <sys:String x:Key="Str_Sidebar_Right">Vpravo</sys:String>
     <sys:String x:Key="Str_KS_ToggleSidebar">Přepnout postranní panel</sys:String>
+    <sys:String x:Key="Str_KS_ToolbarStyle">Vzhled panelu nástrojů</sys:String>
+    <sys:String x:Key="Str_KS_SidebarSide">Postranní panel vlevo / vpravo</sys:String>
+    <sys:String x:Key="Str_KS_CycleView">Další režim zobrazení</sys:String>
+    <sys:String x:Key="Str_TT_ViewMode">Režim zobrazení</sys:String>
     <sys:String x:Key="Str_KS_NextTab">Další karta (Shift: předchozí)</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePage">Smazat stránku</sys:String>
     <sys:String x:Key="Str_Ctx_DuplicatePage">Duplikovat stránku</sys:String>

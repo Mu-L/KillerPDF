@@ -327,15 +327,8 @@ namespace KillerPDF
             _pageTotalLabel = (TextBlock)FindName("PageTotalLabel")!;
             _continuousPanel = (StackPanel)FindName("ContinuousPanel")!;
             PagePreviewPanel.ScrollChanged += PagePreviewPanel_ScrollChanged;
-            PreviewMouseDown += SettingsDismiss_PreviewMouseDown;   // non-modal Settings: close on outside click
             PreviewMouseDown += NavHistory_PreviewMouseDown;        // mouse back/forward buttons retrace jumps
-            // Keep the (bottom-anchored) Settings panel sized to the document area while the window
-            // resizes, so it tracks smoothly instead of snapping on the next open.
-            MainContentGrid.SizeChanged += (_, _) =>
-            {
-                if (SettingsOverlay.Visibility == Visibility.Visible) PositionSettingsPanel();
-                ScheduleFadeRefresh();
-            };
+            MainContentGrid.SizeChanged += (_, _) => ScheduleFadeRefresh();
             // The sidebar column resizes via the splitter / collapse; track its width so the tab-strip
             // shadow gradient stays clipped to the document column.
             if (FindName("SidebarOuterGrid") is FrameworkElement sidebarOuter)
@@ -355,10 +348,10 @@ namespace KillerPDF
             SidebarSplitter.LostMouseCapture += (_, _) => OnSidebarResized();
             if (Enum.TryParse<ViewMode>(App.GetSetting("ViewMode"), out var savedVm))
                 _viewMode = savedVm;
-            if (Enum.TryParse<ToolbarStyle>(App.GetSetting("ToolbarStyle"), out var savedTb))
-                _toolbarStyle = savedTb;
+            InitToolbarStyle();   // two-axis toolbar appearance (+ migration from the old five-way key)
             InitAppScale();   // AppScale.cs: restore the app-wide size (scroll the logo to change it)
             BitmapHelpers.DocInvert = App.GetSetting("DocInvert") == "1";   // #135: document dark mode
+            BitmapHelpers.DocInvertImages = App.GetSetting("DocInvertImages") == "1";   // moon right-click opt-in
             DocInvertBtn.Tag = BitmapHelpers.DocInvert ? "on" : null;       // rail moon lit while active
             // #146: the privacy toggle lives in the About window; init once - only its own
             // handler changes it afterwards (change-guarded, so this init is a no-op there).
@@ -409,7 +402,10 @@ namespace KillerPDF
             {
                 RestoreWindowSettings();
                 ApplySidebarSide();   // place the sidebar on the saved side (default left)
-                if (_toolbarStyle != ToolbarStyle.SmallIcons) ApplyToolbarAppearance();
+                BuildToolbarMenu();   // right-click appearance picker on the toolbar
+                // Unconditional: the XAML default is small icons / no text, but the family default
+                // is Large/Under, so a first run needs the apply pass too.
+                ApplyToolbarAppearance();
 
                 var args = Environment.GetCommandLineArgs();
                 if (args.Length > 1 && System.IO.File.Exists(args[1]))

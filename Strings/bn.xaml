@@ -64,6 +64,8 @@
     <sys:String x:Key="Str_Theme">থিম</sys:String>
     <sys:String x:Key="Str_Language">ভাষা</sys:String>
     <sys:String x:Key="Str_Toolbar">টুলবার</sys:String>
+    <sys:String x:Key="Str_Toolbar_Header">টুলবার</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextNone">লেখা নেই</sys:String>
     <sys:String x:Key="Str_Toolbar_SmallIcons">ছোট আইকন</sys:String>
     <sys:String x:Key="Str_Toolbar_LargeIcons">বড় আইকন</sys:String>
     <sys:String x:Key="Str_Toolbar_TextBeside">আইকনের পাশে লেখা</sys:String>
@@ -393,6 +395,10 @@
     <sys:String x:Key="Str_Sidebar_Left">বাঁ দিকে</sys:String>
     <sys:String x:Key="Str_Sidebar_Right">ডান দিকে</sys:String>
     <sys:String x:Key="Str_KS_ToggleSidebar">সাইডবার টগল করুন</sys:String>
+    <sys:String x:Key="Str_KS_ToolbarStyle">টুলবারের চেহারা</sys:String>
+    <sys:String x:Key="Str_KS_SidebarSide">সাইডবার বাঁয়ে / ডানে</sys:String>
+    <sys:String x:Key="Str_KS_CycleView">পরবর্তী ভিউ মোড</sys:String>
+    <sys:String x:Key="Str_TT_ViewMode">ভিউ মোড</sys:String>
     <sys:String x:Key="Str_KS_NextTab">পরবর্তী ট্যাব (Shift: পূর্ববর্তী)</sys:String>
     <sys:String x:Key="Str_Lbl_Search">অনুসন্ধান</sys:String>
     <sys:String x:Key="Str_TT_Search">অনুসন্ধান (Ctrl+F)</sys:String>
@@ -592,6 +598,7 @@
     <sys:String x:Key="Str_Print_EvenOnly">শুধু জোড় পৃষ্ঠা</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">ডকুমেন্টের রং উল্টে দিন</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">ডকুমেন্টের রং উল্টে দিন (N)</sys:String>
+    <sys:String x:Key="Str_InvertImagesToo">ছবিও উল্টে দিন</sys:String>
     <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">অ্যাপের আকার {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">পুরো অ্যাপ জুম করুন (অ্যাক্সেসযোগ্যতা)</sys:String>

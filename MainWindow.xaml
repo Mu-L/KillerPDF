@@ -424,6 +424,11 @@
              hover highlight bleeding across the card, no icon gutter. -->
         <Style x:Key="PanelMenuItem" TargetType="MenuItem">
             <Setter Property="Padding" Value="0"/>
+            <!-- A click inside the panel that bubbles up to this container (the accent dots are
+                 plain Borders, so theirs do) counts as a MenuItem click and closes the flyout
+                 without this. The theme flyout must survive a pick so themes can be compared;
+                 the language flyout closes itself explicitly in SelectLocale either way. -->
+            <Setter Property="StaysOpenOnClick" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
@@ -1167,7 +1172,15 @@
         <Border Grid.Row="1" x:Name="ToolbarRowBorder" Background="{DynamicResource BackgroundBrush}">
             <Grid>
             <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
-            <Grid x:Name="ToolbarGrid" SizeChanged="ToolbarGrid_SizeChanged" Margin="4,2">
+            <!-- Background=Transparent is load-bearing: without it the grid's empty stretches have no
+                 hit surface and the right-click appearance picker only opens over the buttons. -->
+            <Grid x:Name="ToolbarGrid" SizeChanged="ToolbarGrid_SizeChanged" Margin="4,2" Background="Transparent">
+                <Grid.ContextMenu>
+                    <!-- Items are built in code (BuildToolbarMenu, SettingsPanel.cs) so captions re-Loc on
+                         language switch; attached here so WPF supplies the inheritance context that lets
+                         the window-level menu styles reach it. -->
+                    <ContextMenu x:Name="ToolbarMenu"/>
+                </Grid.ContextMenu>
                 <!-- File operations -->
                 <StackPanel x:Name="LeftBar" Orientation="Horizontal" HorizontalAlignment="Left">
                     <!-- File: New / Open / Close / Save / Print -->
@@ -1348,7 +1361,8 @@
                 <!-- Page list content (hidden when collapsed) -->
                 <Border x:Name="SidebarBorder" Grid.Column="0"
                         Background="{DynamicResource BackgroundBrush}"
-                        BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,0">
+                        BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,0"
+                        MouseRightButtonUp="SidebarArea_MouseRightButtonUp">
                     <Grid>
                     <!-- Film grain - sits on the sidebar background, behind the thumbnails -->
                     <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}">
@@ -1501,7 +1515,8 @@
                 <!-- Toggle strip — 24px wide vertical icon bar -->
                 <Border x:Name="SidebarToggleStrip" Grid.Column="1"
                         Background="{DynamicResource BackgroundBrush}"
-                        BorderThickness="0">
+                        BorderThickness="0"
+                        MouseRightButtonUp="SidebarArea_MouseRightButtonUp">
                     <Grid>
                         <!-- Film grain - matches the sidebar so the strip blends in -->
                         <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}">
@@ -1525,6 +1540,7 @@
                             <!-- Invert document colors (#135): moon toggle, lit in the accent while
                                  active (Tag="on", set from ToggleDocInvert). Ctrl+I does the same. -->
                             <Button x:Name="DocInvertBtn" Click="DocInvertBtn_Click"
+                                    MouseRightButtonUp="DocInvertBtn_RightClick"
                                     Cursor="Hand" FocusVisualStyle="{x:Null}"
                                     ToolTip="{DynamicResource Str_TT_DocInvert}"
                                     Width="24" Height="24" Padding="0" Margin="0,0,0,6">
@@ -1555,20 +1571,47 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
-                            <!-- Family rail order (locked 2026-07-30): app-specific toggles above, then
-                                 ? / language / theme - the three universal buttons, theme bottom-most, so
-                                 muscle memory carries across the apps. Flyouts follow the family standard:
-                                 ContextMenus with FlyoutCard/FlyoutGrain chrome, opened against the content
-                                 pane's bottom-left corner by FlyoutPlacement (Shell/RailFlyouts.cs). -->
-                            <Button x:Name="RailShortcutsBtn" Click="RailShortcuts_Click"
+                            <Button Click="DocInfo_Click"
                                     Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                    ToolTip="{DynamicResource Str_TT_KeyboardShortcuts}"
+                                    ToolTip="{DynamicResource Str_TT_DocInfo}"
+                                    Width="24" Height="24" Padding="0" Margin="1,0,0,6">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <TextBlock Text="&#xE946;"
+                                                       FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                       Foreground="{DynamicResource TextBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                                                </TextBlock.Effect>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <!-- View mode: click opens the picker flyout, rolling the WHEEL over the
+                                 button cycles Single -> Continuous -> TwoPage -> Grid directly (F9
+                                 does the same from the keyboard; F5-F8 still jump straight to one). -->
+                            <Button x:Name="ViewModeBtn" Click="RailView_Click"
+                                    PreviewMouseWheel="RailView_Wheel"
+                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
+                                    ToolTip="{DynamicResource Str_TT_ViewMode}"
                                     Width="24" Height="24" Padding="0" Margin="0,0,0,6">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="Transparent">
-                                            <TextBlock Text="?"
-                                                       FontFamily="Consolas" FontSize="18"
+                                            <TextBlock Text="&#xE890;"
+                                                       FontFamily="Segoe MDL2 Assets" FontSize="15"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <TextBlock.Effect>
                                                     <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
@@ -1576,6 +1619,114 @@
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="ViewFlyout">
+                                        <!-- Family flyout standard: chrome ONLY from FlyoutCard/FlyoutGrain, grain LAST. -->
+                                        <ContextMenu.Template>
+                                            <ControlTemplate TargetType="ContextMenu">
+                                                <Border Style="{StaticResource FlyoutCard}">
+                                                    <Grid>
+                                                        <ItemsPresenter/>
+                                                        <Border Style="{StaticResource FlyoutGrain}"/>
+                                                    </Grid>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </ContextMenu.Template>
+                                        <ContextMenu.ItemContainerStyle>
+                                            <Style TargetType="MenuItem" BasedOn="{StaticResource PanelMenuItem}"/>
+                                        </ContextMenu.ItemContainerStyle>
+                                        <!-- Same shape as the locale flyout: label left, key hint right.
+                                             Stays open on a pick so modes can be compared (PanelMenuItem). -->
+                                        <StackPanel x:Name="ViewSubmenu" Margin="12,10,14,10">
+                                            <RadioButton x:Name="ViewContinuousRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
+                                                         Checked="ViewContinuousRadio_Checked">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_Continuous}" VerticalAlignment="Center"
+                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                                    <TextBlock Grid.Column="1" Text="F5" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </Grid>
+                                            </RadioButton>
+                                            <RadioButton x:Name="ViewSingleRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
+                                                         Checked="ViewSingleRadio_Checked">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_Single}" VerticalAlignment="Center"
+                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                                    <TextBlock Grid.Column="1" Text="F6" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </Grid>
+                                            </RadioButton>
+                                            <RadioButton x:Name="ViewTwoPageRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
+                                                         Checked="ViewTwoPageRadio_Checked">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_TwoPage}" VerticalAlignment="Center"
+                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                                    <TextBlock Grid.Column="1" Text="F7" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </Grid>
+                                            </RadioButton>
+                                            <RadioButton x:Name="ViewGridRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
+                                                         Checked="ViewGridRadio_Checked">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_Grid}" VerticalAlignment="Center"
+                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                                    <TextBlock Grid.Column="1" Text="F8" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </Grid>
+                                            </RadioButton>
+                                        </StackPanel>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <!-- Family rail order (locked 2026-07-30): app-specific toggles above, then
+                                 ? / language / theme - the three universal buttons, theme bottom-most, so
+                                 muscle memory carries across the apps. Flyouts follow the family standard:
+                                 ContextMenus with FlyoutCard/FlyoutGrain chrome, opened against the content
+                                 pane's bottom-left corner by FlyoutPlacement (Shell/RailFlyouts.cs). -->
+                            <Button Click="ShortcutHelp_Click"
+                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
+                                    ToolTip="{DynamicResource Str_TT_KeyboardShortcuts}"
+                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <TextBlock Text="?"
+                                                       Foreground="{DynamicResource TextBrush}"
+                                                       FontFamily="Consolas" FontSize="18"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Effect>
+                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
+                                                </TextBlock.Effect>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
                                                                 <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
@@ -1871,94 +2022,6 @@
                         </StackPanel>
                                     </ContextMenu>
                                 </Button.ContextMenu>
-                            </Button>
-                            <Button Click="DocInfo_Click"
-                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                    ToolTip="{DynamicResource Str_TT_DocInfo}"
-                                    Width="24" Height="24" Padding="0" Margin="1,0,0,6">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="Transparent">
-                                            <TextBlock Text="&#xE946;"
-                                                       FontFamily="Segoe MDL2 Assets" FontSize="15"
-                                                       Foreground="{DynamicResource TextBrush}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock.Effect>
-                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
-                                                </TextBlock.Effect>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                            <Button Click="ShortcutHelp_Click"
-                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                    ToolTip="{DynamicResource Str_TT_KeyboardShortcuts}"
-                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="Transparent">
-                                            <TextBlock Text="?"
-                                                       Foreground="{DynamicResource TextBrush}"
-                                                       FontFamily="Consolas" FontSize="18"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center">
-                                                <TextBlock.Effect>
-                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
-                                                </TextBlock.Effect>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                            <Button x:Name="SettingsBtn"
-                                    Click="SettingsBtn_Click"
-                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                    ToolTip="{DynamicResource Str_TT_Settings}"
-                                    Width="24" Height="24" Padding="0">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="Transparent">
-                                            <TextBlock Text="&#xE713;"
-                                                       FontFamily="Segoe MDL2 Assets"
-                                                       Foreground="{DynamicResource TextBrush}"
-                                                       FontSize="16"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center">
-                                                <TextBlock.Effect>
-                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
-                                                </TextBlock.Effect>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -2312,270 +2375,6 @@
             <Rectangle Canvas.Left="10" Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
         </Canvas>
 
-        <!-- Settings overlay. No Background, so it doesn't catch clicks - the panel is non-modal and the
-             window stays interactive while it's open (a click elsewhere is dismissed by a window-level
-             handler that lets the click through). -->
-        <Grid x:Name="SettingsOverlay"
-              Grid.RowSpan="5"
-              Panel.ZIndex="9999"
-              Visibility="Collapsed">
-            <Grid x:Name="SettingsPanel" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="186,0,0,24" Width="228"
-                  MaxHeight="{Binding ActualHeight, ElementName=DocPaneBorder}">
-                <!-- Left edge stays flush against the sidebar's right edge; the panel expands rightward
-                     out of the sidebar (its Width animates) and shrinks back into it on close. The inner
-                     borders keep a fixed width so the content doesn't reflow while the Grid is clipped. -->
-                <!-- Opaque body + shadow, using the same BgPanel + film grain as the annotate bar. No
-                     left border / left corners - that edge sits against the sidebar. -->
-                <Border x:Name="SettingsCardShadow" Background="{DynamicResource BgFlyout}" CornerRadius="0,6,6,0" IsHitTestVisible="False"
-                        Width="228" HorizontalAlignment="Left">
-                    <Border.Effect>
-                        <!-- Offset right (Direction 0) with depth >= blur so the shadow falls to the
-                             right/below and never bleeds left over the sidebar. ApplySidebarSide flips
-                             Direction to 180 when the sidebar (and panel) move to the right. -->
-                        <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="14" Direction="0" Opacity="0.5"/>
-                    </Border.Effect>
-                </Border>
-                <Border x:Name="SettingsCardGrain" Background="{DynamicResource GrainBrushShared}" Opacity="0.035"
-                        CornerRadius="0,6,6,0" Width="228" HorizontalAlignment="Left" IsHitTestVisible="False"/>
-                <Border x:Name="SettingsCardBorder" Background="Transparent"
-                        BorderBrush="{DynamicResource MenuBorderBrush}"
-                        BorderThickness="0,1,1,1"
-                        CornerRadius="0,6,6,0"
-                        Width="228" HorizontalAlignment="Left"
-                        Padding="20,16,6,20"
-                        MouseLeftButtonDown="SettingsOverlayCard_MouseLeftButtonDown"
-                        MouseRightButtonDown="SettingsOverlayCard_MouseLeftButtonDown">
-                <Grid>
-                <Border CornerRadius="6" Margin="-20,-16,-6,-20" IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
-                <!-- Bleed the scroll viewer's left edge outward (negative margin) so its clip region
-                     starts ~12px left of the content. The content is indented with a StackPanel margin
-                     instead of ScrollViewer padding (ScrollViewer padding clips its content), so the row
-                     highlights can extend left of the words with their rounded corner intact. -->
-                <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                              Margin="-12,0,0,0">
-                <StackPanel Margin="12,0,0,0">
-                    <Grid x:Name="SettingsHeader" Background="Transparent" Margin="0,0,0,12">
-                        <TextBlock Text="{DynamicResource Str_Settings}"
-                                   FontFamily="Consolas" FontSize="16" FontWeight="Bold"
-                                   Foreground="{DynamicResource HeaderLineBrush}"
-                                   HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <TextBlock.Effect>
-                                <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.55"/>
-                            </TextBlock.Effect>
-                        </TextBlock>
-                        <Button Click="SettingsOverlayClose_Click"
-                                HorizontalAlignment="Right" VerticalAlignment="Center"
-                                Width="24" Height="24" Content="&#xE711;"
-                                Style="{StaticResource DangerCloseButton}"/>
-                    </Grid>
-                    <TextBlock Text="{DynamicResource Str_Toolbar}" Style="{StaticResource SettingsSubheader}"
-                               Margin="0,12,0,8"/>
-                    <!-- Toolbar style picker: a flyout submenu mirroring Theme/Language. -->
-                    <Grid Margin="0,0,0,4">
-                        <ToggleButton x:Name="ToolbarMenuButton"
-                                      Checked="SettingsMenu_Toggled" Unchecked="SettingsMenu_Toggled"
-                                      Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
-                            <ToggleButton.Template>
-                                <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="RowBd" Background="Transparent" Margin="-10,0,2,0" Padding="10,4,10,4" CornerRadius="3">
-                                        <ContentPresenter/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </ToggleButton.Template>
-                            <DockPanel LastChildFill="True">
-                                <TextBlock DockPanel.Dock="Right"
-                                           FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                           VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource MutedTextBrush}">
-                                    <!-- Up chevron when the section is collapsed, down when expanded. -->
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="&#xE70E;"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
-                                                    <Setter Property="Text" Value="&#xE70D;"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock x:Name="ToolbarCurrentLabel" Text="Text beside icons" Style="{StaticResource SettingsAccentValue}"/>
-                            </DockPanel>
-                        </ToggleButton>
-                        </Grid>
-                        <StackPanel x:Name="ToolbarSubmenu" Visibility="Collapsed" Margin="10,2,0,6">
-                                    <RadioButton x:Name="ToolbarSmallRadio"
-                                                 Content="{DynamicResource Str_Toolbar_SmallIcons}"
-                                                 GroupName="ToolbarGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ToolbarSmallRadio_Checked"/>
-                                    <RadioButton x:Name="ToolbarLargeRadio"
-                                                 Content="{DynamicResource Str_Toolbar_LargeIcons}"
-                                                 GroupName="ToolbarGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ToolbarLargeRadio_Checked"/>
-                                    <RadioButton x:Name="ToolbarBesideRadio"
-                                                 Content="{DynamicResource Str_Toolbar_TextBeside}"
-                                                 GroupName="ToolbarGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ToolbarBesideRadio_Checked"/>
-                                    <RadioButton x:Name="ToolbarUnderRadio"
-                                                 Content="{DynamicResource Str_Toolbar_TextUnder}"
-                                                 GroupName="ToolbarGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ToolbarUnderRadio_Checked"/>
-                                    <RadioButton x:Name="ToolbarOnlyRadio"
-                                                 Content="{DynamicResource Str_Toolbar_TextOnly}"
-                                                 GroupName="ToolbarGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ToolbarOnlyRadio_Checked"/>
-                        </StackPanel>
-                    <!-- Sidebar position picker (Left / Right) -->
-                    <TextBlock Text="{DynamicResource Str_Sidebar}" Style="{StaticResource SettingsSubheader}"
-                               Margin="0,12,0,8"/>
-                    <Grid Margin="0,0,0,4">
-                        <ToggleButton x:Name="SidebarMenuButton"
-                                      Checked="SettingsMenu_Toggled" Unchecked="SettingsMenu_Toggled"
-                                      Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
-                            <ToggleButton.Template>
-                                <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="RowBd" Background="Transparent" Margin="-10,0,2,0" Padding="10,4,10,4" CornerRadius="3">
-                                        <ContentPresenter/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </ToggleButton.Template>
-                            <DockPanel LastChildFill="True">
-                                <TextBlock DockPanel.Dock="Right"
-                                           FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                           VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource MutedTextBrush}">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="&#xE70E;"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
-                                                    <Setter Property="Text" Value="&#xE70D;"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock x:Name="SidebarCurrentLabel" Text="Left" Style="{StaticResource SettingsAccentValue}"/>
-                            </DockPanel>
-                        </ToggleButton>
-                    </Grid>
-                    <StackPanel x:Name="SidebarSubmenu" Visibility="Collapsed" Margin="10,2,0,6">
-                        <RadioButton x:Name="SidebarLeftRadio" Content="{DynamicResource Str_Sidebar_Left}"
-                                     GroupName="SidebarGroup" Style="{StaticResource ThemeRadio}"
-                                     Checked="SidebarLeftRadio_Checked"/>
-                        <RadioButton x:Name="SidebarRightRadio" Content="{DynamicResource Str_Sidebar_Right}"
-                                     GroupName="SidebarGroup" Style="{StaticResource ThemeRadio}"
-                                     Checked="SidebarRightRadio_Checked"/>
-                    </StackPanel>
-
-                    <TextBlock Text="{DynamicResource Str_ViewMode}" Style="{StaticResource SettingsSubheader}"
-                               Margin="0,12,0,8"/>
-                    <!-- View Mode picker: a flyout submenu, consistent with Theme/Language/Toolbar.
-                         Stays open on selection so the user can try view modes back to back. -->
-                    <Grid Margin="0,0,0,4">
-                        <ToggleButton x:Name="ViewMenuButton"
-                                      Checked="SettingsMenu_Toggled" Unchecked="SettingsMenu_Toggled"
-                                      Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
-                            <ToggleButton.Template>
-                                <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="RowBd" Background="Transparent" Margin="-10,0,2,0" Padding="10,4,10,4" CornerRadius="3">
-                                        <ContentPresenter/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </ToggleButton.Template>
-                            <DockPanel LastChildFill="True">
-                                <TextBlock DockPanel.Dock="Right"
-                                           FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                           VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource MutedTextBrush}">
-                                    <!-- Up chevron when the section is collapsed, down when expanded. -->
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="&#xE70E;"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
-                                                    <Setter Property="Text" Value="&#xE70D;"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock x:Name="ViewCurrentLabel" Text="Continuous" Style="{StaticResource SettingsAccentValue}"/>
-                            </DockPanel>
-                        </ToggleButton>
-                        </Grid>
-                        <StackPanel x:Name="ViewSubmenu" Visibility="Collapsed" Margin="10,2,0,6">
-                                    <RadioButton x:Name="ViewContinuousRadio"
-                                                 Content="{DynamicResource Str_View_Continuous}"
-                                                 GroupName="ViewGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ViewContinuousRadio_Checked"/>
-                                    <RadioButton x:Name="ViewSingleRadio"
-                                                 Content="{DynamicResource Str_View_Single}"
-                                                 GroupName="ViewGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ViewSingleRadio_Checked"/>
-                                    <RadioButton x:Name="ViewTwoPageRadio"
-                                                 Content="{DynamicResource Str_View_TwoPage}"
-                                                 GroupName="ViewGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ViewTwoPageRadio_Checked"/>
-                                    <RadioButton x:Name="ViewGridRadio"
-                                                 Content="{DynamicResource Str_View_Grid}"
-                                                 GroupName="ViewGroup"
-                                                 Style="{StaticResource ThemeRadio}"
-                                                 Checked="ViewGridRadio_Checked"/>
-                        </StackPanel>
-
-                    <!-- Links: behaviour toggles for PDF hyperlinks. HIDDEN for now - links open
-                         directly (the confirm prompt is off, see LinkConfirmEnabled in Links.cs);
-                         the section can come back when the settings menu grows. Plain checkboxes
-                         (not the picker accordion) since these are independent on/off switches. -->
-                    <TextBlock Text="{DynamicResource Str_LinksSection}" Style="{StaticResource SettingsSubheader}" Margin="0,12,0,8" Visibility="Collapsed"/>
-                    <CheckBox x:Name="LinkConfirmCheck" Content="{DynamicResource Str_LinkConfirmSetting}"
-                              Style="{StaticResource ThemeCheck}" Visibility="Collapsed"
-                              Checked="LinkConfirmCheck_Toggled" Unchecked="LinkConfirmCheck_Toggled"/>
-                </StackPanel>
-                </ScrollViewer>
-                </Grid>
-                </Border>
-            </Grid>
-        </Grid>
 
         <!-- Keyboard shortcut overlay — neutral dark dim regardless of theme -->
         <Grid x:Name="ShortcutOverlay"

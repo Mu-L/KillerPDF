@@ -24,22 +24,13 @@ namespace KillerPDF
     public partial class MainWindow
     {
         // ============================================================
-        // Settings panel
+        // Picker state sync + appearance handlers. (The Settings panel itself retired 2026-07-31:
+        // every section moved to where the thing it configures lives - theme/language/view onto
+        // rail flyouts, toolbar onto the bar's right-click menu, sidebar side onto the sidebar's.)
         // ============================================================
 
-        private void SettingsBtn_Click(object sender, RoutedEventArgs e)
-        {
-            // Toggle: clicking the gear while the panel is open closes it.
-            if (SettingsOverlay.Visibility == Visibility.Visible) { SlideSettingsClosed(); return; }
-            SyncPickerState();
-            PositionSettingsPanel();
-            SettingsOverlay.Visibility = Visibility.Visible;
-            SlideSettingsOpen();
-        }
-
-        // Syncs every picker's radios, accent dots and labels to live state. Shared by the
-        // Settings panel (on open) and the rail's theme/language flyouts (Shell/RailFlyouts.cs),
-        // so there is exactly ONE sync implementation - the family flyout rule.
+        // Syncs every picker's radios and accent dots to live state before a flyout shows -
+        // exactly ONE sync implementation, shared by all the rail flyouts (Shell/RailFlyouts.cs).
         private void SyncPickerState()
         {
             var cur = ThemeManager.Current;
@@ -63,144 +54,19 @@ namespace KillerPDF
             LangTrRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.TrTR;
             LangDeRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.De;
             LangJaRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.JaJP;
-            // Sync view mode radios
-            ViewSingleRadio.IsChecked     = _viewMode == ViewMode.Single;
-            ViewContinuousRadio.IsChecked = _viewMode == ViewMode.Continuous;
-            ViewTwoPageRadio.IsChecked    = _viewMode == ViewMode.TwoPage;
-            ViewGridRadio.IsChecked       = _viewMode == ViewMode.Grid;
-            ViewCurrentLabel.Text         = ViewModeDisplayName(_viewMode);
-            // Sync toolbar style picker
-            ToolbarSmallRadio.IsChecked  = _toolbarStyle == ToolbarStyle.SmallIcons;
-            ToolbarLargeRadio.IsChecked  = _toolbarStyle == ToolbarStyle.LargeIcons;
-            ToolbarBesideRadio.IsChecked = _toolbarStyle == ToolbarStyle.TextBeside;
-            ToolbarUnderRadio.IsChecked  = _toolbarStyle == ToolbarStyle.TextUnder;
-            ToolbarOnlyRadio.IsChecked   = _toolbarStyle == ToolbarStyle.TextOnly;
-            ToolbarCurrentLabel.Text     = ToolbarStyleName(_toolbarStyle);
-            // Sync sidebar-side picker
-            SidebarLeftRadio.IsChecked   = !_sidebarRight;
-            SidebarRightRadio.IsChecked  = _sidebarRight;
-            SidebarCurrentLabel.Text     = Loc(_sidebarRight ? "Str_Sidebar_Right" : "Str_Sidebar_Left");
-            // Sync the Links section: confirm is ON unless the user has opted out ("Don't ask again").
-            LinkConfirmCheck.IsChecked = App.GetSetting(SkipLinkConfirmSetting) != "1";
+            // Sync view mode radios. Against the PENDING mode while a fade-wrapped switch is in
+            // flight (_viewMode lags until the fade-out lands), so wheel-cycling with the flyout
+            // open moves the checkmark in step instead of one notch behind.
+            var vm = _pendingViewMode ?? _viewMode;
+            ViewSingleRadio.IsChecked     = vm == ViewMode.Single;
+            ViewContinuousRadio.IsChecked = vm == ViewMode.Continuous;
+            ViewTwoPageRadio.IsChecked    = vm == ViewMode.TwoPage;
+            ViewGridRadio.IsChecked       = vm == ViewMode.Grid;
+            // (The toolbar picker lives on the toolbar's own right-click menu, and the sidebar
+            // side on the sidebar's - both build their checks fresh on open, nothing to sync here.)
         }
 
-        private const double SettingsPanelWidth = 228;
-
-        // Expands the panel out of the sidebar (Width grows from the flush left edge). Clipped while
-        // animating so it reveals left-to-right; clip is dropped at the end so the drop shadow shows.
-        private void SlideSettingsOpen()
-        {
-            SettingsPanel.ClipToBounds = true;
-            var anim = new DoubleAnimation(0, SettingsPanelWidth, new Duration(TimeSpan.FromMilliseconds(160)))
-            { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } };
-            anim.Completed += (_, _) =>
-            {
-                SettingsPanel.BeginAnimation(FrameworkElement.WidthProperty, null);
-                SettingsPanel.Width = SettingsPanelWidth;
-                SettingsPanel.ClipToBounds = false;   // reveal the right/bottom drop shadow
-            };
-            SettingsPanel.BeginAnimation(FrameworkElement.WidthProperty, anim);
-        }
-
-        // Shrinks it back into the sidebar, then hides the overlay.
-        private void SlideSettingsClosed()
-        {
-            if (SettingsOverlay.Visibility != Visibility.Visible) return;
-            SettingsPanel.ClipToBounds = true;
-            double from = SettingsPanel.ActualWidth > 0 ? SettingsPanel.ActualWidth : SettingsPanelWidth;
-            var anim = new DoubleAnimation(from, 0, new Duration(TimeSpan.FromMilliseconds(140)))
-            { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } };
-            anim.Completed += (_, _) =>
-            {
-                SettingsOverlay.Visibility = Visibility.Collapsed;
-                SettingsPanel.BeginAnimation(FrameworkElement.WidthProperty, null);
-                SettingsPanel.Width = SettingsPanelWidth;
-                SettingsPanel.ClipToBounds = false;
-            };
-            SettingsPanel.BeginAnimation(FrameworkElement.WidthProperty, anim);
-        }
-
-        // ── Settings submenus: inline accordion sections that expand in place below their row.
-        // Sections are independent: opening one does NOT collapse the others, so the user can keep
-        // several expanded at once. Their open/closed state persists while the app runs.
-        private void SettingsMenu_Toggled(object sender, RoutedEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.Primitives.ToggleButton btn) return;
-            var panel = SubmenuFor(btn);
-            if (panel != null)
-                panel.Visibility = btn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            // Expanding/collapsing a section changes the content height, so re-run the shock absorber once
-            // layout has updated ExtentHeight (deferred to Render priority so the new height is in).
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render,
-                (Action)(() => { if (SettingsOverlay.Visibility == Visibility.Visible) PositionSettingsPanel(); }));
-        }
-
-        private System.Windows.Controls.StackPanel? SubmenuFor(System.Windows.Controls.Primitives.ToggleButton btn)
-        {
-            if (btn == ToolbarMenuButton) return ToolbarSubmenu;
-            if (btn == ViewMenuButton)    return ViewSubmenu;
-            if (btn == SidebarMenuButton) return SidebarSubmenu;
-            return null;
-        }
-
-        // Non-modal Settings: a mouse-down anywhere outside the panel dismisses it WITHOUT swallowing the
-        // click (it still reaches its target). The title bar is excluded so dragging the window keeps the
-        // panel open; the gear is excluded so it can toggle itself closed.
-        private void SettingsDismiss_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (SettingsOverlay.Visibility != Visibility.Visible) return;
-            if (e.OriginalSource is not DependencyObject src) return;
-            if (IsDescendantOf(src, SettingsPanel)) return;
-            if (TitleBarBorder != null && IsDescendantOf(src, TitleBarBorder)) return;
-            if (SettingsBtn != null && IsDescendantOf(src, SettingsBtn)) return;
-            SlideSettingsClosed();
-        }
-
-        /// <summary>
-        /// Pins the Settings panel's left edge flush against the sidebar's right edge (just past the
-        /// splitter), bottom-anchored above the footer. Not draggable; tracks the sidebar's collapsed
-        /// width and window resizes automatically.
-        /// </summary>
-        private void PositionSettingsPanel()
-        {
-            double edge = (_sidebarCol?.ActualWidth ?? 180) + 6;   // sidebar column + 6px splitter
-
-            // Vertical "shock absorber". The panel's top can rise to just under the tab bar (the document
-            // pane top); it normally keeps a small gap above the footer. As the window shrinks and the top
-            // reaches the tab bar, that bottom gap collapses FIRST, and only once it's gone does the inner
-            // ScrollViewer start scrolling. Growing the window reverses the order. Setting MaxHeight to
-            // (avail - bottomGap) guarantees the top never climbs above the tab bar even if the content
-            // estimate is a hair off - worst case the scrollbar shows a pixel early, never a broken layout.
-            const double footer  = 24;   // footer band; the panel bottom can descend to the footer top
-            const double gapPref = 8;    // preferred gap between the panel bottom and the footer
-            const double chrome  = 37;   // card vertical chrome: 16 top pad + 20 bottom pad + 1 bottom border
-            const double safety  = 8;    // px of slack added to MaxHeight WHILE a gap exists, so a sub-pixel
-                                         // rounding can't trip the scrollbar before the bottom gap is gone
-            double avail = Math.Max(160, DocPaneBorder.ActualHeight);   // tab bar -> footer
-
-            // Full (unscrolled) height the content wants. ExtentHeight is the scroll content's real height
-            // regardless of the viewport, so it tells us whether scrolling would be needed.
-            double content = (SettingsScroll?.ExtentHeight ?? 0) > 0
-                ? SettingsScroll!.ExtentHeight + chrome
-                : 0;
-
-            // bottomGap collapses accurately, so the top stays pinned to the tab bar through the squeeze.
-            // maxHeight gets the safety slack ONLY while a gap remains: that stops a rounding-induced
-            // scrollbar from showing with a gap still visible. Once the gap is 0, maxHeight = avail, so the
-            // scrollbar engages exactly when content truly exceeds the space and the top never overshoots.
-            double bottomGap = content <= 0
-                ? gapPref
-                : Math.Max(0, Math.Min(gapPref, avail - content));
-            double maxHeight = bottomGap > 0 ? (avail - bottomGap + safety) : avail;
-
-            double bottomMargin = footer + bottomGap;
-            SettingsPanel.Margin = _sidebarRight
-                ? new Thickness(0, 0, edge, bottomMargin)
-                : new Thickness(edge, 0, 0, bottomMargin);
-            SettingsPanel.MaxHeight = Math.Max(160, maxHeight);
-        }
-
-        // ── Quick fade in/out for the full-window overlay panels (Settings/Shortcuts/About) ──
+        // ── Quick fade in/out for the full-window overlay panels (Shortcuts/About) ──
         private static void FadeOverlayIn(UIElement el)
         {
             el.BeginAnimation(UIElement.OpacityProperty, null);
@@ -288,44 +154,6 @@ namespace KillerPDF
             }
         }
 
-        private void SettingsOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-            => SlideSettingsClosed();
-
-        // While Settings is open the full-window overlay catches input. Let the wheel pass through to
-        // the content behind it (document or sidebar under the cursor) so the user can keep reading
-        // without the panel closing - only a click closes it.
-        private void SettingsOverlay_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            e.Handled = true;
-            var fwd = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
-            {
-                RoutedEvent = UIElement.MouseWheelEvent,
-                Source = this
-            };
-            Point sp = e.GetPosition(_sidebarBorder);
-            bool overSidebar = _sidebarBorder is { IsVisible: true }
-                               && sp.X >= 0 && sp.X <= _sidebarBorder.ActualWidth
-                               && sp.Y >= 0 && sp.Y <= _sidebarBorder.ActualHeight;
-            if (overSidebar) PageList.RaiseEvent(fwd);
-            else            PagePreviewPanel.RaiseEvent(fwd);
-        }
-
-        private void SettingsOverlayCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-            => e.Handled = true;
-
-        private void SettingsOverlayClose_Click(object sender, RoutedEventArgs e)
-            => SlideSettingsClosed();
-
-        // Links section. The checkbox is the re-armable inverse of the "Don't ask again" opt-out from the
-        // open-link confirmation dialog: checked = confirm before opening (default), unchecked = skip it.
-        // Reads/writes the same SkipLinkConfirm setting ConfirmOpenLink checks, so it takes effect on the
-        // next link click with no restart.
-        private void LinkConfirmCheck_Toggled(object sender, RoutedEventArgs e)
-        {
-            if (LinkConfirmCheck.IsChecked == true) App.RemoveSetting(SkipLinkConfirmSetting);
-            else                                    App.SetSetting(SkipLinkConfirmSetting, "1");
-        }
-
         // Privacy section (#146): don't remember recently opened files. Turning it ON also clears
         // the existing list (matching the user's privacy expectation on a shared machine); the
         // guard makes the settings-open sync a no-op so opening the panel never wipes anything.
@@ -357,6 +185,45 @@ namespace KillerPDF
             BitmapHelpers.DocInvert = on;
             App.SetSetting("DocInvert", on ? "1" : "0");
             DocInvertBtn.Tag = on ? "on" : null;   // lights the rail icon in the accent while active
+            RepaintForInvertChange();
+        }
+
+        // Right-click on the moon: night-mode options. One checkable item - "Invert images too"
+        // (default off since the #135 carve-out; some scanned documents ARE one full-page image,
+        // where the carve-out makes night mode a no-op, so the old full inversion stays reachable).
+        // Built fresh on each open so the caption follows the active language.
+        private void DocInvertBtn_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            var menu = MakeThemedMenu();
+            var mi = new System.Windows.Controls.MenuItem
+            {
+                Header = Loc("Str_InvertImagesToo"),
+                IsCheckable = true,
+                IsChecked = BitmapHelpers.DocInvertImages,
+                InputGestureText = "Shift+N",   // right-aligned in the family MenuItem template
+            };
+            mi.Click += (_, _2) => ToggleInvertImages(!BitmapHelpers.DocInvertImages);
+            menu.Items.Add(mi);
+            menu.PlacementTarget = (UIElement)sender;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        private void ToggleInvertImages(bool on)
+        {
+            if (BitmapHelpers.DocInvertImages == on) return;
+            BitmapHelpers.DocInvertImages = on;
+            App.SetSetting("DocInvertImages", on ? "1" : "0");
+            // Only repaint when night mode is actually showing; otherwise it just takes effect
+            // the next time the moon is toggled on.
+            if (BitmapHelpers.DocInvert) RepaintForInvertChange();
+        }
+
+        // Shared by the moon toggle and its right-click option: the invert state is baked into
+        // rendered pixels, so flush the render caches and repaint IN PLACE - never through
+        // ApplyViewMode (see the comment above ToggleDocInvert).
+        private void RepaintForInvertChange()
+        {
             FlushAllRenderCaches();
             if (_doc is null) return;
             if (_viewMode == ViewMode.Continuous)
@@ -417,11 +284,17 @@ namespace KillerPDF
 
         private void SelectTheme(Theme theme)
         {
+            bool wasOpen = ThemeFlyout is not null && ThemeFlyout.IsOpen;
             ThemeManager.Apply(theme);
             UpdateAccentDotSelection();
             UpdateAccentRowsVisibility(animate: true);
             // Intentionally leave the flyout open so the user can try another theme right away
-            // without reopening the submenu.
+            // without reopening the submenu. The theme swap's side effects (tab strip rebuild,
+            // tool re-select) can still knock the popup closed behind our back, so check once
+            // layout has settled and quietly reopen it in place if that happened.
+            if (wasOpen)
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
+                    (Action)(() => { if (!ThemeFlyout.IsOpen) ThemeFlyout.IsOpen = true; }));
         }
 
         // Each theme family has its own picker row beneath its radio. Clicking a swatch sets that
@@ -531,10 +404,7 @@ namespace KillerPDF
         {
             KillerPDF.Services.LocaleManager.Apply(loc);
             ApplyToolNumberTooltips();   // re-append the numbers to the now-localized tool tooltips
-            // The Toolbar and View picker labels are set imperatively (not DynamicResource), so the
-            // language switch happening while the panel is open would leave them in the old language.
-            if (ToolbarCurrentLabel is not null) ToolbarCurrentLabel.Text = ToolbarStyleName(_toolbarStyle);
-            if (ViewCurrentLabel is not null)    ViewCurrentLabel.Text    = ViewModeDisplayName(_viewMode);
+            BuildToolbarMenu();   // the toolbar right-click picker's items carry Loc() captions
             LangFlyout.IsOpen = false;   // a pick closes the rail flyout, like the accordion used to collapse
 
             // The status bar text is a formatted string (not a DynamicResource), so it keeps the
@@ -627,11 +497,20 @@ namespace KillerPDF
         private void ViewTwoPageRadio_Checked(object sender, RoutedEventArgs e)    => SelectViewMode(ViewMode.TwoPage);
         private void ViewGridRadio_Checked(object sender, RoutedEventArgs e)       => SelectViewMode(ViewMode.Grid);
 
-        // ── Toolbar appearance (display-mode picker) ──────────────────────
-        // Icon size and whether captions show, picked as one exclusive mode. Hover tooltips stay on
-        // in every mode, so the text modes are about preference, not discoverability.
+        // ── Toolbar appearance (right-click picker on the bar) ────────────
+        // Hover tooltips stay on in every mode, so the text modes are about preference, not
+        // discoverability.
+        // TWO AXES, NOT ONE (family standard, Steve 2026-07-30; KillerUI/Shell/ToolbarStyle.cs is
+        // the reference). The old five-way ToolbarStyle could not express "large icons WITH text" -
+        // icon size and text placement were never one axis, they only looked like one. The old
+        // enum survives solely so an existing install's saved setting migrates (InitToolbarStyle).
         private enum ToolbarStyle { SmallIcons, LargeIcons, TextBeside, TextUnder, TextOnly }
-        private ToolbarStyle _toolbarStyle = ToolbarStyle.SmallIcons;   // default for new installs
+        private enum ToolbarIconSize { Small, Large }
+        private enum ToolbarLabelMode { None, Beside, Under, Only }
+        // Large icons with the text underneath is the family default for new installs; migration
+        // keeps whatever an existing install was on.
+        private ToolbarIconSize  _toolbarIconSize  = ToolbarIconSize.Large;
+        private ToolbarLabelMode _toolbarLabelMode = ToolbarLabelMode.Under;
 
         // Each toolbar icon button paired with its glyph and label-resource key, built once so the
         // appearance can be rebuilt without re-walking the tree.
@@ -706,12 +585,13 @@ namespace KillerPDF
         // the template's drop shadow).
         private void SetToolbarButton(Button btn, string glyph, string key, bool withLabel)
         {
-            var mode = _toolbarStyle;
-            bool large = mode == ToolbarStyle.LargeIcons;
-            bool beside = mode == ToolbarStyle.TextBeside;
-            bool under = mode == ToolbarStyle.TextUnder;
-            bool textOnly = mode == ToolbarStyle.TextOnly;
-            double glyphSize = (large || under) ? 20 : (beside ? 16 : 14);
+            bool large = _toolbarIconSize == ToolbarIconSize.Large;
+            bool beside = _toolbarLabelMode == ToolbarLabelMode.Beside;
+            bool under = _toolbarLabelMode == ToolbarLabelMode.Under;
+            bool textOnly = _toolbarLabelMode == ToolbarLabelMode.Only;
+            // The size axis ALONE decides the glyph - the old engine let the text mode force
+            // 16/20, which is exactly the coupling the two-axis split removes.
+            double glyphSize = large ? 20 : 14;
             btn.FontSize = glyphSize;
 
             // Text only: caption, no icon (nothing to shed - there'd be nothing left).
@@ -752,10 +632,10 @@ namespace KillerPDF
                 return;
             }
 
-            // Text under the icon: a large icon stacked over a small caption, while it still fits.
+            // Text under the icon: the icon stacked over a small caption, while it still fits.
             if (under && withLabel)
             {
-                btn.Width = double.NaN; btn.MinWidth = 0; btn.Height = 52; btn.Padding = new Thickness(6, 4, 6, 4);
+                btn.Width = double.NaN; btn.MinWidth = 0; btn.Height = large ? 56 : 52; btn.Padding = new Thickness(6, 4, 6, 4);
                 var col = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
                 col.Children.Add(new TextBlock
                 {
@@ -777,11 +657,12 @@ namespace KillerPDF
                 return;
             }
 
-            // Icon only: the icon modes, or Text-beside / Text-under after a caption was shed.
-            btn.Width = (large || under) ? 46 : (beside ? 40 : 36);
+            // Icon only: the None mode, or Beside/Under after a caption was shed. The box is the
+            // size axis's alone (family numbers).
+            btn.Width = large ? 46 : 36;
             btn.MinWidth = 0;
-            btn.Height = under ? 52 : (beside ? 34 : (large ? 42 : 32));
-            btn.Padding = (beside || under) ? new Thickness(8, 5, 8, 5) : new Thickness(10, 6, 10, 6);
+            btn.Height = large ? 42 : 32;
+            btn.Padding = new Thickness(10, 6, 10, 6);
             btn.Content = glyph;
         }
 
@@ -809,8 +690,9 @@ namespace KillerPDF
                 SetToolbarButton(btn, glyph, key, withLabel: true);
             // Open / Save / OCR are split buttons (main half + overlapping dropdown chevron). Their chrome
             // is applied from one place (ApplySplitButtonChrome) so the three never drift apart again.
-            bool textMode = _toolbarStyle is ToolbarStyle.TextBeside or ToolbarStyle.TextUnder or ToolbarStyle.TextOnly;
+            bool textMode = _toolbarLabelMode != ToolbarLabelMode.None;
             ApplySplitButtonChrome(textMode);
+            SyncToolbarMenuChecks();
             ReflowToolbar();
         }
 
@@ -834,29 +716,101 @@ namespace KillerPDF
             }
         }
 
-        private void ToolbarSmallRadio_Checked(object sender, RoutedEventArgs e)  => SelectToolbarStyle(ToolbarStyle.SmallIcons);
-        private void ToolbarLargeRadio_Checked(object sender, RoutedEventArgs e)  => SelectToolbarStyle(ToolbarStyle.LargeIcons);
-        private void ToolbarBesideRadio_Checked(object sender, RoutedEventArgs e) => SelectToolbarStyle(ToolbarStyle.TextBeside);
-        private void ToolbarUnderRadio_Checked(object sender, RoutedEventArgs e)  => SelectToolbarStyle(ToolbarStyle.TextUnder);
-        private void ToolbarOnlyRadio_Checked(object sender, RoutedEventArgs e)   => SelectToolbarStyle(ToolbarStyle.TextOnly);
-
-        private void SelectToolbarStyle(ToolbarStyle style)
+        /// <summary>Restores the saved axes, migrating the retired five-way "ToolbarStyle" key so
+        /// an existing install keeps the bar it was left on instead of silently resetting. Only
+        /// falls back to migration when the new keys are absent. Called once from the ctor.</summary>
+        private void InitToolbarStyle()
         {
-            _toolbarStyle = style;
-            App.SetSetting("ToolbarStyle", style.ToString());
-            if (ToolbarCurrentLabel is not null) ToolbarCurrentLabel.Text = ToolbarStyleName(style);
-            ApplyToolbarAppearance();
-            // Leave the flyout open so the user can compare modes without reopening it.
+            bool haveNew = false;
+            if (Enum.TryParse<ToolbarIconSize>(App.GetSetting("ToolbarIconSize"), out var s)) { _toolbarIconSize = s; haveNew = true; }
+            if (Enum.TryParse<ToolbarLabelMode>(App.GetSetting("ToolbarLabels"), out var l)) { _toolbarLabelMode = l; haveNew = true; }
+            if (!haveNew && Enum.TryParse<ToolbarStyle>(App.GetSetting("ToolbarStyle"), out var old))
+            {
+                switch (old)
+                {
+                    case ToolbarStyle.SmallIcons: _toolbarIconSize = ToolbarIconSize.Small; _toolbarLabelMode = ToolbarLabelMode.None; break;
+                    case ToolbarStyle.LargeIcons: _toolbarIconSize = ToolbarIconSize.Large; _toolbarLabelMode = ToolbarLabelMode.None; break;
+                    // The old text modes never said what size the icon was, so they keep the default size.
+                    case ToolbarStyle.TextBeside: _toolbarLabelMode = ToolbarLabelMode.Beside; break;
+                    case ToolbarStyle.TextUnder:  _toolbarLabelMode = ToolbarLabelMode.Under;  break;
+                    case ToolbarStyle.TextOnly:   _toolbarLabelMode = ToolbarLabelMode.Only;   break;
+                }
+            }
         }
 
-        private string ToolbarStyleName(ToolbarStyle style) => style switch
+        private void SetToolbarIconSize(ToolbarIconSize size)
         {
-            ToolbarStyle.LargeIcons => Loc("Str_Toolbar_LargeIcons"),
-            ToolbarStyle.TextBeside => Loc("Str_Toolbar_TextBeside"),
-            ToolbarStyle.TextUnder  => Loc("Str_Toolbar_TextUnder"),
-            ToolbarStyle.TextOnly   => Loc("Str_Toolbar_TextOnly"),
-            _                       => Loc("Str_Toolbar_SmallIcons"),
-        };
+            _toolbarIconSize = size;
+            App.SetSetting("ToolbarIconSize", size.ToString());
+            ApplyToolbarAppearance();
+        }
+
+        private void SetToolbarLabelMode(ToolbarLabelMode mode)
+        {
+            _toolbarLabelMode = mode;
+            App.SetSetting("ToolbarLabels", mode.ToString());
+            ApplyToolbarAppearance();
+        }
+
+        /// <summary>
+        /// The right-click picker on the toolbar: TWO radio groups, separated - icon size, then
+        /// where the text goes. One flat list of five could not express "large icons WITH text",
+        /// which is the whole reason for the split. Items stay open on click so modes can be
+        /// compared without reopening (the behavior the old Settings flyout had).
+        /// </summary>
+        private void BuildToolbarMenu()
+        {
+            ToolbarMenu.Items.Clear();
+            ToolbarMenu.Items.Add(new MenuItem { Header = Loc("Str_Toolbar_Header"), IsEnabled = false });
+            ToolbarMenu.Items.Add(new Separator());
+
+            foreach (var (size, key, gesture) in new[]
+                     { (ToolbarIconSize.Small, "Str_Toolbar_SmallIcons", "Ctrl+Shift+1"),
+                       (ToolbarIconSize.Large, "Str_Toolbar_LargeIcons", "Ctrl+Shift+2") })
+            {
+                var mi = new MenuItem { Header = Loc(key), Tag = size, IsCheckable = true,
+                                        IsChecked = size == _toolbarIconSize, StaysOpenOnClick = true,
+                                        InputGestureText = gesture };
+                var v = size;
+                // Checking one unchecks the rest through SyncToolbarMenuChecks, so this behaves as
+                // a radio group without needing RadioButton plumbing inside a menu.
+                mi.Click += (_, _2) => SetToolbarIconSize(v);
+                ToolbarMenu.Items.Add(mi);
+            }
+
+            ToolbarMenu.Items.Add(new Separator());
+
+            foreach (var (mode, key, gesture) in new[]
+                     { (ToolbarLabelMode.None,   "Str_Toolbar_TextNone",   "Ctrl+Shift+3"),
+                       (ToolbarLabelMode.Beside, "Str_Toolbar_TextBeside", "Ctrl+Shift+4"),
+                       (ToolbarLabelMode.Under,  "Str_Toolbar_TextUnder",  "Ctrl+Shift+5"),
+                       (ToolbarLabelMode.Only,   "Str_Toolbar_TextOnly",   "Ctrl+Shift+6") })
+            {
+                var mi = new MenuItem { Header = Loc(key), Tag = mode, IsCheckable = true,
+                                        IsChecked = mode == _toolbarLabelMode, StaysOpenOnClick = true,
+                                        InputGestureText = gesture };
+                var v = mode;
+                mi.Click += (_, _2) => SetToolbarLabelMode(v);
+                ToolbarMenu.Items.Add(mi);
+            }
+        }
+
+        private void SyncToolbarMenuChecks()
+        {
+            if (ToolbarMenu is null) return;
+            foreach (var item in ToolbarMenu.Items)
+            {
+                if (item is not MenuItem mi) continue;
+                if (mi.Tag is ToolbarIconSize sz)
+                {
+                    mi.IsChecked = sz == _toolbarIconSize;
+                    // Text-only has no icon to size. Grey the choice rather than hiding it, so the
+                    // setting stays visible and comes back when text moves off Only.
+                    mi.IsEnabled = _toolbarLabelMode != ToolbarLabelMode.Only;
+                }
+                else if (mi.Tag is ToolbarLabelMode lb) mi.IsChecked = lb == _toolbarLabelMode;
+            }
+        }
 
         // ── Responsive toolbar overflow ───────────────────────────────────
         private bool _reflowingToolbar;
@@ -937,7 +891,7 @@ namespace KillerPDF
 
                 // Text-beside / Text-under: each pass starts with ALL captions on, so widening the
                 // window always restores them. Captions are only shed much later, as a last resort.
-                bool textCaptions = _toolbarStyle is ToolbarStyle.TextBeside or ToolbarStyle.TextUnder;
+                bool textCaptions = _toolbarLabelMode is ToolbarLabelMode.Beside or ToolbarLabelMode.Under;
                 if (textCaptions && _toolbarButtons.Count > 0)
                 {
                     foreach (var (btn, glyph, key) in _toolbarButtons)

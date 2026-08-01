@@ -60,8 +60,14 @@ namespace KillerPDF.Services
         // the Settings panel, which flushes the render caches (the state is baked into pixels).
         internal static bool DocInvert;
 
-        /// <summary>In-place inversion for the display dark mode, called at the Viewport render
-        /// sites right after rotation. PDF pages usually paint NO background - the "paper" is
+        // True = night mode inverts pictures along with everything else (the pre-carve-out
+        // behavior, now opt-in from the moon button's right-click menu; default off). Loaded
+        // from the "DocInvertImages" setting at startup.
+        internal static bool DocInvertImages;
+
+        /// <summary>In-place inversion for the display dark mode, applied at the Viewport render
+        /// sites BEFORE the pixel-buffer rotation (via InvertBgraInPlaceExcept, which carves the
+        /// image regions back out). PDF pages usually paint NO background - the "paper" is
         /// transparent pixels compositing over the white page slot - so a plain RGB flip left
         /// the page white and merely faded the ink. Composite over white and invert in one
         /// step: out = a*(255-c)/255 with alpha forced opaque. White (or unpainted) paper
@@ -75,6 +81,68 @@ namespace KillerPDF.Services
                 bgra[i + 1] = (byte)(a * (255 - bgra[i + 1]) / 255);
                 bgra[i + 2] = (byte)(a * (255 - bgra[i + 2]) / 255);
                 bgra[i + 3] = 255;
+            }
+        }
+
+        /// <summary>An image's bounding box as FRACTIONS of the unrotated page (top-left origin),
+        /// so one cached set serves every render resolution. Produced by PdfImages.GetFracRects.</summary>
+        internal readonly record struct FracRect(double L, double T, double R, double B);
+
+        /// <summary>
+        /// #135 follow-up: dark mode that does NOT invert pictures. Inverts the whole page with
+        /// the operator above, then applies the SAME operator once more over the image regions.
+        /// That second pass is exact, not approximate: for an already-inverted opaque pixel,
+        /// out = 255 - (a*(255-c)/255) = (a*c + (255-a)*255)/255 - the ORIGINAL pixel composited
+        /// over white, which is precisely what the image looked like on the normal white page.
+        /// Overlapping image boxes are merged per scanline so no pixel gets the operator twice.
+        /// </summary>
+        internal static void InvertBgraInPlaceExcept(byte[] bgra, int width, int height, FracRect[] keep)
+        {
+            InvertBgraInPlace(bgra);
+            if (keep is null || keep.Length == 0 || width <= 0 || height <= 0) return;
+
+            // Fractions -> pixel boxes, clamped. Floor/ceiling so a box never leaves a 1px
+            // inverted sliver of the image at its edge.
+            var px = new List<(int x0, int y0, int x1, int y1)>(keep.Length);
+            foreach (var r in keep)
+            {
+                int x0 = Math.Max(0, (int)Math.Floor(r.L * width));
+                int x1 = Math.Min(width, (int)Math.Ceiling(r.R * width));
+                int y0 = Math.Max(0, (int)Math.Floor(r.T * height));
+                int y1 = Math.Min(height, (int)Math.Ceiling(r.B * height));
+                if (x1 > x0 && y1 > y0) px.Add((x0, y0, x1, y1));
+            }
+            if (px.Count == 0) return;
+
+            var spans = new List<(int x0, int x1)>(px.Count);
+            for (int y = 0; y < height; y++)
+            {
+                spans.Clear();
+                foreach (var b in px)
+                    if (y >= b.y0 && y < b.y1) spans.Add((b.x0, b.x1));
+                if (spans.Count == 0) continue;
+                spans.Sort((a, b) => a.x0.CompareTo(b.x0));
+
+                int row = y * width * 4;
+                int curStart = spans[0].x0, curEnd = spans[0].x1;
+                for (int s = 1; s <= spans.Count; s++)
+                {
+                    if (s < spans.Count && spans[s].x0 <= curEnd)
+                    {
+                        if (spans[s].x1 > curEnd) curEnd = spans[s].x1;
+                        continue;
+                    }
+                    for (int x = curStart; x < curEnd; x++)
+                    {
+                        int i = row + x * 4;
+                        int a = bgra[i + 3];
+                        bgra[i]     = (byte)(a * (255 - bgra[i])     / 255);
+                        bgra[i + 1] = (byte)(a * (255 - bgra[i + 1]) / 255);
+                        bgra[i + 2] = (byte)(a * (255 - bgra[i + 2]) / 255);
+                        bgra[i + 3] = 255;
+                    }
+                    if (s < spans.Count) { curStart = spans[s].x0; curEnd = spans[s].x1; }
+                }
             }
         }
 

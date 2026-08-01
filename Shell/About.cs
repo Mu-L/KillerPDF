@@ -84,7 +84,6 @@ namespace KillerPDF
         void IAboutHost.ShowCard()
         {
             if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
-            if (SettingsOverlay.Visibility == Visibility.Visible) SlideSettingsClosed();
 
             BuildAboutStaticContent();
             FadeOverlayIn(AboutOverlay);

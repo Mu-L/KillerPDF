@@ -64,6 +64,8 @@
     <sys:String x:Key="Str_Theme">TEMA</sys:String>
     <sys:String x:Key="Str_Language">IDIOMA</sys:String>
     <sys:String x:Key="Str_Toolbar">BARRA DE HERRAMIENTAS</sys:String>
+    <sys:String x:Key="Str_Toolbar_Header">Barra de herramientas</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextNone">Sin texto</sys:String>
     <sys:String x:Key="Str_Toolbar_SmallIcons">Iconos pequeños</sys:String>
     <sys:String x:Key="Str_Toolbar_LargeIcons">Iconos grandes</sys:String>
     <sys:String x:Key="Str_Toolbar_TextBeside">Texto junto a iconos</sys:String>
@@ -393,6 +395,10 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Sidebar_Left">Izquierda</sys:String>
     <sys:String x:Key="Str_Sidebar_Right">Derecha</sys:String>
     <sys:String x:Key="Str_KS_ToggleSidebar">Mostrar/ocultar barra lateral</sys:String>
+    <sys:String x:Key="Str_KS_ToolbarStyle">Apariencia de la barra de herramientas</sys:String>
+    <sys:String x:Key="Str_KS_SidebarSide">Barra lateral a la izquierda / derecha</sys:String>
+    <sys:String x:Key="Str_KS_CycleView">Cambiar al siguiente modo de vista</sys:String>
+    <sys:String x:Key="Str_TT_ViewMode">Modo de vista</sys:String>
     <sys:String x:Key="Str_KS_NextTab">Pestaña siguiente (Mayús: anterior)</sys:String>
     <sys:String x:Key="Str_Lbl_Search">Buscar</sys:String>
     <sys:String x:Key="Str_TT_Search">Buscar (Ctrl+F)</sys:String>
@@ -592,6 +598,7 @@ Puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:
     <sys:String x:Key="Str_Print_EvenOnly">Solo páginas pares</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Invertir colores del documento</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Invertir colores del documento (N)</sys:String>
+    <sys:String x:Key="Str_InvertImagesToo">Invertir también las imágenes</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Desplácese para cambiar el tamaño de toda la aplicación (Ctrl+Shift+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Tamaño de la aplicación {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom de toda la aplicación (accesibilidad)</sys:String>
