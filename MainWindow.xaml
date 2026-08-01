@@ -1594,8 +1594,13 @@
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="Transparent">
-                                            <TextBlock Text="&#xE9A6;"
-                                                       FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                            <!-- Glyph swaps with the split state via the same Tag="on" the accent
+                                                 tint rides: E89F (pane pushed out) while CLOSED - the action is
+                                                 "open one" - and E8A0 (pane pulled in) while OPEN. Deliberately
+                                                 opposite the MDL2 catalog names (Steve, 2026-08-01). Text lives in
+                                                 the Style, not on the element: a local Text= would override the
+                                                 trigger and the glyph would never swap. -->
+                                            <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <TextBlock.Effect>
                                                     <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
@@ -1603,12 +1608,14 @@
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                        <Setter Property="Text" Value="&#xE89F;"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
                                                                 <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}" Value="on">
                                                                 <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                                <Setter Property="Text" Value="&#xE8A0;"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1691,7 +1698,7 @@
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="Transparent">
-                                            <TextBlock Text="&#xE890;"
+                                            <TextBlock Text="&#xF0E2;"
                                                        FontFamily="Segoe MDL2 Assets" FontSize="15"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <TextBlock.Effect>

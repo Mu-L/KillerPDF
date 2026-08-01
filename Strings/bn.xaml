@@ -44,7 +44,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">সাইডবার সংকুচিত করুন (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">সাইডবার প্রসারিত করুন (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">কীবোর্ড শর্টকাট (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">সেটিংস (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">KillerPDF সম্পর্কে (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
@@ -60,7 +59,6 @@
     <sys:String x:Key="Str_TabOutlines">আউটলাইন</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Settings">সেটিংস</sys:String>
     <sys:String x:Key="Str_Theme">থিম</sys:String>
     <sys:String x:Key="Str_Language">ভাষা</sys:String>
     <sys:String x:Key="Str_Toolbar">টুলবার</sys:String>
@@ -104,7 +102,6 @@
     <sys:String x:Key="Str_KS_Help">সহায়তা</sys:String>
     <sys:String x:Key="Str_KS_ThisList">এই শর্টকাট তালিকা</sys:String>
     <sys:String x:Key="Str_KS_About">সম্পর্কে ডায়ালগ</sys:String>
-    <sys:String x:Key="Str_KS_Settings">সেটিংস</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">ডকুমেন্টের তথ্য</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">সম্পূর্ণ গাইড ও অনলাইন নির্দেশিকা</sys:String>
     <sys:String x:Key="Str_KS_Tools">টুল</sys:String>

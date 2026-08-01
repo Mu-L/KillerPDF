@@ -41,7 +41,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">Réduire le panneau latéral (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Développer le panneau latéral (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Raccourcis clavier (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Paramètres (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">À propos de KillerPDF (F12)</sys:String>
 
     <!-- About overlay -->
@@ -56,7 +55,6 @@
     <sys:String x:Key="Str_TabOutlines">PLAN</sys:String>
 
     <!-- Settings panel -->
-    <sys:String x:Key="Str_Settings">Paramètres</sys:String>
     <sys:String x:Key="Str_Theme">THÈME</sys:String>
     <sys:String x:Key="Str_Language">LANGUE</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
@@ -197,7 +195,6 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
 
     <!-- Keyboard shortcuts (remainder) -->
     <sys:String x:Key="Str_KS_About">Boîte de dialogue À propos</sys:String>
-    <sys:String x:Key="Str_KS_Settings">Paramètres</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">Informations du document</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Guide complet et tutoriels en ligne</sys:String>
     <sys:String x:Key="Str_KS_Tools">OUTILS</sys:String>

@@ -44,7 +44,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">折叠侧边栏 (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">展开侧边栏 (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">键盘快速键 (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">设置 (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">关于 KillerPDF (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
@@ -60,7 +59,6 @@
     <sys:String x:Key="Str_TabOutlines">大纲</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Settings">设置</sys:String>
     <sys:String x:Key="Str_Theme">主题</sys:String>
     <sys:String x:Key="Str_Language">语言</sys:String>
     <sys:String x:Key="Str_Toolbar">工具栏</sys:String>
@@ -104,7 +102,6 @@
     <sys:String x:Key="Str_KS_Help">说明</sys:String>
     <sys:String x:Key="Str_KS_ThisList">此快速键清单</sys:String>
     <sys:String x:Key="Str_KS_About">关于对话框</sys:String>
-    <sys:String x:Key="Str_KS_Settings">设置</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">文档信息</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">完整指南和在线教程</sys:String>
     <sys:String x:Key="Str_KS_Tools">工具</sys:String>

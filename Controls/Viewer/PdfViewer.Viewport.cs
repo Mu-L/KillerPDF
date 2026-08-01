@@ -1255,7 +1255,15 @@ namespace KillerPDF.Controls
             // Recalculate how many pages fit after zoom changes.
             // Use RefreshPageView so link overlays are re-added after RenderAdditionalPages
             // calls ClearSecondaryPages (which wipes them).
-            int applyIdx = PageList.SelectedIndex;
+            // State.CurrentPage, NEVER PageList.SelectedIndex, in every fit/zoom/render path in
+            // this file: the sidebar is a window singleton that follows the FOCUSED pane, so an
+            // unfocused pane's re-fit (settle timer -> ReapplyGridOrFit under WithOwnSession) read
+            // the OTHER pane's page number here. That index is usually absent from this pane's
+            // _renderDims, GetPageDipSize then returns a degenerate size, and the fit slams the
+            // zoom to the clamp - "pane A zooms in like crazy when a file opens in pane B"
+            // (Steve, 2026-08-01, repeatedly). For the focused pane the two values are identical
+            // by the stage-3a sync, so this changes nothing single-pane.
+            int applyIdx = State.CurrentPage;
             if (applyIdx >= 0)
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                     () => RefreshPageView(applyIdx));
@@ -1306,8 +1314,8 @@ namespace KillerPDF.Controls
                     }
                     // Never re-render the primary in Grid (it would shift page 0's width basis and
                     // desync the column math); guards a timer started just before a switch into grid.
-                    if (_viewMode != ViewMode.Grid && PageList.SelectedIndex >= 0)
-                        RenderPage(PageList.SelectedIndex);
+                    if (_viewMode != ViewMode.Grid && State.CurrentPage >= 0)
+                        RenderPage(State.CurrentPage);
                 };
             }
             _rerenderTimer.Stop();
@@ -1372,7 +1380,7 @@ namespace KillerPDF.Controls
         private double DisplayZoomFactor()
         {
             if (_viewMode == ViewMode.Continuous || _doc is null) return 1.0;
-            int idx = _viewMode == ViewMode.Grid ? 0 : Math.Max(0, PageList.SelectedIndex);
+            int idx = _viewMode == ViewMode.Grid ? 0 : Math.Max(0, State.CurrentPage);   // never the shared sidebar's index (see ApplyZoom)
             if (idx < 0 || idx >= _doc.PageCount) return 1.0;
             if (!_renderDims.TryGetValue(idx, out var d) || d.w <= 0) return 1.0;
             double wpt = _doc.Pages[idx].Width.Point, hpt = _doc.Pages[idx].Height.Point;
@@ -1505,14 +1513,14 @@ namespace KillerPDF.Controls
                 _fitMode   = FitMode.Width;
                 _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, viewW / _continuousPageW));
                 ApplyZoom(lite);
-                int ci = PageList.SelectedIndex;
+                int ci = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
                 if (ci >= 0 && _doc != null)
                     SetStatus(string.Format(Loc("Str_FitWidth"), ci + 1, _doc.PageCount, $"{DisplayZoomPct():F0}"));
                 return;
             }
 
             if (PageImage.Source is null) return;
-            int idx = PageList.SelectedIndex;
+            int idx = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
             double dipW = GetPageDipSize(idx).w;
             if (dipW <= 0) return;
             // Two Page mode shows two pages side by side - each page gets roughly half
@@ -1536,8 +1544,8 @@ namespace KillerPDF.Controls
             if (_viewMode == ViewMode.Continuous)
             {
                 if (_continuousPageW <= 0 || _doc is null) return;
-                int ci = PageList.SelectedIndex;
-                if (ci < 0) return;
+                int ci = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
+                if (ci < 0 || ci >= _doc.PageCount) return;
                 var pdfPage = _doc.Pages[ci];
                 double ratio = Math.Max(0.1, pdfPage.Height.Point / Math.Max(1.0, pdfPage.Width.Point));
                 double dipH  = _continuousPageW * ratio;
@@ -1550,7 +1558,7 @@ namespace KillerPDF.Controls
             }
 
             if (PageImage.Source is null) return;
-            int idx = PageList.SelectedIndex;
+            int idx = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
             var (dipW, dipH2) = GetPageDipSize(idx);
             if (dipW <= 0 || dipH2 <= 0) return;
             double slotW2 = _viewMode == ViewMode.TwoPage ? (viewW - 12) / 2 : viewW;

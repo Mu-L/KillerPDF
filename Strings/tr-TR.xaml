@@ -44,7 +44,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">Kenar çubuğunu daralt (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Kenar çubuğunu genişlet (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Klavye kısayolları (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Ayarlar (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">KillerPDF Hakkında (F12)</sys:String>
 
     <!-- ── Hakkında katmanı ──────────────────────────────────────────── -->
@@ -60,7 +59,6 @@
     <sys:String x:Key="Str_TabOutlines">ANA HATLAR</sys:String>
 
     <!-- ── Ayarlar paneli ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Settings">Ayarlar</sys:String>
     <sys:String x:Key="Str_Theme">TEMA</sys:String>
     <sys:String x:Key="Str_Language">DİL</sys:String>
     <sys:String x:Key="Str_Toolbar">ARAÇ ÇUBUĞU</sys:String>
@@ -104,7 +102,6 @@
     <sys:String x:Key="Str_KS_Help">YARDIM</sys:String>
     <sys:String x:Key="Str_KS_ThisList">Bu kısayol listesi</sys:String>
     <sys:String x:Key="Str_KS_About">Hakkında penceresi</sys:String>
-    <sys:String x:Key="Str_KS_Settings">Ayarlar</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">Belge bilgisi</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Tam kılavuz ve çevrimiçi rehber</sys:String>
     <sys:String x:Key="Str_KS_Tools">ARAÇLAR</sys:String>

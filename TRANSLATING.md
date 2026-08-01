@@ -6,11 +6,13 @@ Each language is a single XAML `ResourceDictionary` file in the `Strings/` folde
 
 - `en-US.xaml` - English (US)
 - `bn.xaml` - Bengali
+- `cs-CZ.xaml` - Czech
 - `zh-CN.xaml` - Simplified Chinese
 - `zh-TW.xaml` - Traditional Chinese
 - `de-DE.xaml` - German
 - `es.xaml` - Spanish
 - `fr-FR.xaml` - French
+- `ja-JP.xaml` - Japanese
 - `tr-TR.xaml` - Turkish
 
 ## How to contribute
@@ -51,7 +53,7 @@ Each language is a single XAML `ResourceDictionary` file in the `Strings/` folde
 
 ## Testing your translation
 
-If you want to see your strings in the app before submitting, build from source and change the language in Settings. Otherwise, submit the PR and the maintainer will test it.
+If you want to see your strings in the app before submitting, build from source and change the language from the language button on the sidebar rail. Otherwise, submit the PR and the maintainer will test it.
 
 ## Questions
 

@@ -186,7 +186,27 @@ namespace KillerPDF.Controls
             s.AllSearchRects   = Search.AllSearchRects;
             s.SearchResultPages = Search.ResultPages;
             // Persist this document's fit/zoom/view/page so reopening it (even after a restart) restores it.
-            SaveDocState(s.OriginalFile, s.Fit, s.ZoomLevel, s.View, s.PageIndex);
+            // Two-pane guard: DocStates is keyed by file path, so the SAME file open in BOTH panes
+            // (two independent copies) is two writers on one entry - whichever pane captured last
+            // silently overwrote the state the user actually left the file in, and on quit that was
+            // just the close path's fixed A-then-B capture order. Only the focused pane writes when
+            // the other pane also holds the file. FocusPane captures the outgoing pane BEFORE the
+            // swap, so the pane being LEFT still counts as focused here - the rule this yields is
+            // "the most recently used pane wins". A pane holding the only copy always writes.
+            if (Owner == null || ReferenceEquals(Owner.ActiveViewer, this) || !OtherPaneHasCopyOf(s.OriginalFile))
+                SaveDocState(s.OriginalFile, s.Fit, s.ZoomLevel, s.View, s.PageIndex);
+        }
+
+        /// <summary>True when the other pane has a session holding the same file (loaded or
+        /// deferred). Compares OriginalFile, not CurrentFile, for the same reason
+        /// OtherPaneHasDirtyCopyOf does: crop and rotate swap the working file to a temp path.
+        /// Read-only - it must NOT capture the other pane (this runs inside a capture).</summary>
+        private bool OtherPaneHasCopyOf(string? originalFile)
+        {
+            if (string.IsNullOrEmpty(originalFile) || Owner == null) return false;
+            var other = ReferenceEquals(Owner.Viewer, this) ? Owner.ViewerB : Owner.Viewer;
+            return other.SessionsRef.Any(x => (x.Doc != null || x.DeferredPath != null)
+                && string.Equals(x.OriginalFile, originalFile, StringComparison.OrdinalIgnoreCase));
         }
 
         // ── Per-document view state (persisted across restarts, keyed by file path) ──────────────────

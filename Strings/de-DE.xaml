@@ -44,7 +44,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">Seitenleiste einklappen (Strg+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Seitenleiste ausklappen (Strg+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Tastenkürzel (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Einstellungen (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">Über KillerPDF (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
@@ -60,7 +59,6 @@
     <sys:String x:Key="Str_TabOutlines">GLIEDERUNG</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Settings">Einstellungen</sys:String>
     <sys:String x:Key="Str_Theme">DESIGN</sys:String>
     <sys:String x:Key="Str_Language">SPRACHE</sys:String>
     <sys:String x:Key="Str_Toolbar">SYMBOLLEISTE</sys:String>
@@ -104,7 +102,6 @@
     <sys:String x:Key="Str_KS_Help">HILFE</sys:String>
     <sys:String x:Key="Str_KS_ThisList">Diese Liste der Tastenkürzel</sys:String>
     <sys:String x:Key="Str_KS_About">Info-Dialog</sys:String>
-    <sys:String x:Key="Str_KS_Settings">Einstellungen</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">Dokumentinformationen</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Vollständige Anleitung &amp; Tutorials online</sys:String>
     <sys:String x:Key="Str_KS_Tools">WERKZEUGE</sys:String>

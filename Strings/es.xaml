@@ -44,7 +44,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">Contraer barra lateral (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Expandir barra lateral (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Atajos de teclado (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Configuración (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">Acerca de KillerPDF (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
@@ -60,7 +59,6 @@
     <sys:String x:Key="Str_TabOutlines">ESQUEMA</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Settings">Configuración</sys:String>
     <sys:String x:Key="Str_Theme">TEMA</sys:String>
     <sys:String x:Key="Str_Language">IDIOMA</sys:String>
     <sys:String x:Key="Str_Toolbar">BARRA DE HERRAMIENTAS</sys:String>
@@ -104,7 +102,6 @@
     <sys:String x:Key="Str_KS_Help">AYUDA</sys:String>
     <sys:String x:Key="Str_KS_ThisList">Esta lista de atajos</sys:String>
     <sys:String x:Key="Str_KS_About">Cuadro Acerca de</sys:String>
-    <sys:String x:Key="Str_KS_Settings">Configuración</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">Información del documento</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Guía completa y tutoriales en línea</sys:String>
     <sys:String x:Key="Str_KS_Tools">HERRAMIENTAS</sys:String>

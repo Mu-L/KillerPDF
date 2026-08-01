@@ -275,8 +275,13 @@ namespace KillerPDF
                 // SyncSplitMinWidth reads SplitHost.ActualWidth too (via its "chrome" measurement),
                 // so it rides along in the same deferred call rather than running synchronously
                 // below against the same stale width.
-                Dispatcher.BeginInvoke(new Action(() => { ApplyPaneWidths(); SyncSplitMinWidth(); }),
-                                       System.Windows.Threading.DispatcherPriority.Loaded);
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ApplyPaneWidths(); SyncSplitMinWidth();
+                    // Same width-gate re-run as OpenSplit's done callback: on restore the panes
+                    // reach their real widths only after this deferred layout pass.
+                    Viewer.SyncRecentBoxWidth(); ViewerB.SyncRecentBoxWidth();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
 
             ViewerB.Visibility       = Visibility.Visible;
@@ -321,6 +326,13 @@ namespace KillerPDF
                 {
                     Viewer.ReapplyGridOrFit();
                     if (_isSplit) ViewerB.ReapplyGridOrFit();
+                    // Re-gate the start screens' Recent boxes against the SETTLED widths. The
+                    // populate above ran while pane B's column was still 0 (the slide had not
+                    // started), so SyncRecentBoxWidth's width gate collapsed B's box and nothing
+                    // re-ran it - pane B showed an empty start screen until the next open action
+                    // repopulated the list (Steve, 2026-08-01).
+                    Viewer.SyncRecentBoxWidth();
+                    ViewerB.SyncRecentBoxWidth();
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
             });
         }
@@ -462,6 +474,7 @@ namespace KillerPDF
             SplitHandleB.Visibility = Visibility.Collapsed;
 
             Viewer.RebuildTabStripExt();   // back to the single-pane rule: hide the band under two tabs
+            Viewer.SyncRecentBoxWidth();   // pane A may have just widened past the Recent box's gate
 
             ApplyFocusHalo();
             SyncSplitRailButton();
@@ -631,6 +644,10 @@ namespace KillerPDF
             // on a large document.
             Viewer.ReapplyGridOrFit();
             if (_isSplit) ViewerB.ReapplyGridOrFit();
+            // The drag changed both panes' widths; re-gate their Recent boxes (an empty pane
+            // dragged wide enough should gain the list, one squeezed narrow should shed it).
+            Viewer.SyncRecentBoxWidth();
+            if (_isSplit) ViewerB.SyncRecentBoxWidth();
         }
     }
 }

@@ -46,7 +46,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">Sbalit postranní panel (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Rozbalit postranní panel (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Klávesové zkratky (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">Nastavení (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">O aplikaci KillerPDF (F12)</sys:String>
 
     <!-- ── About overlay ─────────────────────────────────────────────── -->
@@ -64,7 +63,6 @@
     <sys:String x:Key="Str_Outline_Untitled">(bez názvu)</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Settings">Nastavení</sys:String>
     <sys:String x:Key="Str_Theme">MOTIV</sys:String>
     <sys:String x:Key="Str_Language">JAZYK</sys:String>
     <sys:String x:Key="Str_Toolbar">PANEL NÁSTROJŮ</sys:String>
@@ -120,7 +118,6 @@
     <sys:String x:Key="Str_KS_Help">NÁPOVĚDA</sys:String>
     <sys:String x:Key="Str_KS_ThisList">Tento seznam zkratek</sys:String>
     <sys:String x:Key="Str_KS_About">Dialog O aplikaci</sys:String>
-    <sys:String x:Key="Str_KS_Settings">Nastavení</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">Informace o dokumentu</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Kompletní příručka &amp; návody online</sys:String>
     <sys:String x:Key="Str_KS_Tools">NÁSTROJE</sys:String>

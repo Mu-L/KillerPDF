@@ -46,7 +46,6 @@
     <sys:String x:Key="Str_TT_CollapseSidebar">サイドバーを折りたたむ (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">サイドバーを展開 (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">キーボードショートカット (F1)</sys:String>
-    <sys:String x:Key="Str_TT_Settings">設定 (F9)</sys:String>
     <sys:String x:Key="Str_TT_About">KillerPDF について (F12)</sys:String>
 
     <!-- ── バージョン情報オーバーレイ ──────────────────────────────────── -->
@@ -64,7 +63,6 @@
     <sys:String x:Key="Str_Outline_Untitled">(無題)</sys:String>
 
     <!-- ── 設定パネル ──────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Settings">設定</sys:String>
     <sys:String x:Key="Str_Theme">テーマ</sys:String>
     <sys:String x:Key="Str_Language">言語</sys:String>
     <sys:String x:Key="Str_Toolbar">ツールバー</sys:String>
@@ -120,7 +118,6 @@
     <sys:String x:Key="Str_KS_Help">ヘルプ</sys:String>
     <sys:String x:Key="Str_KS_ThisList">このショートカット一覧</sys:String>
     <sys:String x:Key="Str_KS_About">バージョン情報</sys:String>
-    <sys:String x:Key="Str_KS_Settings">設定</sys:String>
     <sys:String x:Key="Str_KS_DocInfo">ドキュメント情報</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">完全ガイド &amp; 使い方 (オンライン)</sys:String>
     <sys:String x:Key="Str_KS_Tools">ツール</sys:String>
