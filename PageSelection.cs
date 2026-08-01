@@ -136,7 +136,7 @@ namespace KillerPDF
                 _pageJumpBox.Text = (PageList.SelectedIndex + 1).ToString();
                 // Re-highlight search results on this page if a search is active
                 if (_searchBar is not null && _searchBar.Visibility == Visibility.Visible
-                    && _allSearchRects.Count > 0)
+                    && Search.HasResults)
                     HighlightSearchResultsOnCurrentPage();
             }
         }

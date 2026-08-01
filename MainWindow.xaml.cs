@@ -276,10 +276,8 @@ namespace KillerPDF
         // Dirty / unsaved-change tracking
         private bool _isDirty = false;
 
-        // Whole-document search results (PDF-space rects per page)
-        private Dictionary<int, List<(double left, double bottom, double right, double top)>> _allSearchRects = [];
-        private List<int> _searchResultPages = [];
-        private int _searchPageCursor = -1;
+        // Whole-document search results now live on SearchController (Features/Search); Tabs.cs
+        // parks and restores them per tab through its AllSearchRects/ResultPages/PageCursor.
 
         public MainWindow()
         {

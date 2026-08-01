@@ -85,7 +85,7 @@ namespace KillerPDF
             s.Tool           = _currentTool;
             s.IsDirty        = _isDirty;
             s.ProtectedSource = _openedFromProtected;
-            s.SearchPageCursor = _searchPageCursor;
+            s.SearchPageCursor = Search.PageCursor;
             s.PageIndex      = PageList.SelectedIndex >= 0 ? PageList.SelectedIndex : s.PageIndex;
             s.ScrollH        = PagePreviewPanel?.HorizontalOffset ?? 0;
             s.ScrollV        = PagePreviewPanel?.VerticalOffset ?? 0;
@@ -99,8 +99,8 @@ namespace KillerPDF
             s.FormFontSizes    = _formFontSizes;
             s.UndoStack        = _undoStack;
             s.RedoStack        = _redoStack;
-            s.AllSearchRects   = _allSearchRects;
-            s.SearchResultPages = _searchResultPages;
+            s.AllSearchRects   = Search.AllSearchRects;
+            s.SearchResultPages = Search.ResultPages;
             // Persist this document's fit/zoom/view/page so reopening it (even after a restart) restores it.
             SaveDocState(s.OriginalFile, s.Fit, s.ZoomLevel, s.View, s.PageIndex);
         }
@@ -174,7 +174,7 @@ namespace KillerPDF
             _currentTool    = s.Tool;
             _isDirty        = s.IsDirty;
             _openedFromProtected = s.ProtectedSource;
-            _searchPageCursor = s.SearchPageCursor;
+            Search.PageCursor = s.SearchPageCursor;
 
             _annotations      = s.Annotations;
             _renderDims       = s.RenderDims;
@@ -187,8 +187,8 @@ namespace KillerPDF
             _redoStack        = s.RedoStack;
             _navBack.Clear();      // jump history is per-view-session: a tab switch starts fresh
             _navForward.Clear();
-            _allSearchRects   = s.AllSearchRects;
-            _searchResultPages = s.SearchResultPages;
+            Search.AllSearchRects = s.AllSearchRects;
+            Search.ResultPages    = s.SearchResultPages;
             TouchRenderLru(s);   // this tab is now active: keep its render cache, evict tabs beyond the window
         }
 

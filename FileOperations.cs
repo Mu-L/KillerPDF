@@ -236,9 +236,7 @@ namespace KillerPDF
             _formCheckValues.Clear();
             _formFontSizes.Clear();
             _formRadioValues.Clear();
-            _allSearchRects.Clear();
-            _searchResultPages.Clear();
-            _searchPageCursor = -1;
+            Search.ClearPageResults();
             _gridScrollToPage = -1;
             MarkDirty(false);
             _openedFromProtected = false;   // #149: set true by the two protected-open paths after this returns
@@ -754,9 +752,7 @@ namespace KillerPDF
             _formCheckValues.Clear();
             _formFontSizes.Clear();
             _formRadioValues.Clear();
-            _allSearchRects.Clear();
-            _searchResultPages.Clear();
-            _searchPageCursor = -1;
+            Search.ClearPageResults();
             _thumbCts?.Cancel();
             PageList.ItemsSource = null;
             PageImage.Source = null;

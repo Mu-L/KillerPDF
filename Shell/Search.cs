@@ -16,13 +16,46 @@ using Microsoft.Win32;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using KillerPDF.Features;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF
 {
-    public partial class MainWindow
+    public partial class MainWindow : ISearchHost
     {
+        // The search state machine (match list, cursor, next/prev) lives in
+        // Features/Search/SearchController.cs; the bar UI, debounce, and highlight painting stay
+        // here. Forwarders keep the bar buttons' and KeyboardShortcuts' call sites unchanged.
+        private SearchController? _searchController;
+        private SearchController Search => _searchController ??= new SearchController(this);
+
+        private void SearchNextResult() => Search.Next();
+        private void SearchPrevResult() => Search.Prev();
+
+        // ---- ISearchHost -----------------------------------------------------------------------
+        // (IShellServices - Window, Loc, SetStatus - is implemented once for the class in
+        // Shell/About.cs.)
+
+        string? ISearchHost.CurrentFile => _currentFile;
+        int ISearchHost.CurrentPageIndex => PageList.SelectedIndex;
+        void ISearchHost.GoToPage(int pageIdx) => PageList.SelectedIndex = pageIdx;
+
+        void ISearchHost.SetResultText(string text)
+        {
+            if (_searchStatus is not null) _searchStatus.Text = text;
+        }
+
+        void ISearchHost.SetResultCount(string text, string? tooltip)
+        {
+            if (_searchStatus is null) return;
+            _searchStatus.Text = text;
+            _searchStatus.ToolTip = tooltip;
+        }
+
+        void ISearchHost.ClearHighlights() => ClearSearchHighlights();
+        void ISearchHost.RepaintHighlights() => HighlightSearchResultsOnCurrentPage();
+
         private void Search_Click(object sender, RoutedEventArgs e) => ToggleSearchBar();
 
         private void ToggleSearchBar()
@@ -272,11 +305,7 @@ namespace KillerPDF
             {
                 _searchDebounce?.Stop();
                 ClearSearchHighlights();
-                _allSearchRects.Clear();
-                _searchResultPages.Clear();
-                _searchMatches.Clear();
-                _searchMatchCursor = -1;
-                _searchPageCursor = -1;
+                Search.ClearMatches();
                 if (_searchStatus is not null) _searchStatus.Text = "";
                 return;
             }
@@ -290,81 +319,11 @@ namespace KillerPDF
                 {
                     _searchDebounce!.Stop();
                     var q = _searchBox?.Text ?? "";
-                    if (q.Length >= 2) RunSearch(q);
+                    if (q.Length >= 2) Search.Run(q);
                 };
             }
             _searchDebounce.Stop();
             _searchDebounce.Start();
-        }
-
-        private readonly SearchService _searchService = new();
-
-        // Flat, reading-ordered list of every match (page + rect) so Enter steps word-by-word rather
-        // than page-by-page; _searchMatchCursor indexes it and that match is drawn with extra emphasis.
-        private readonly List<(int page, double left, double bottom, double right, double top)> _searchMatches = [];
-        private int _searchMatchCursor = -1;
-
-        private void RunSearch(string query)
-        {
-            ClearSearchHighlights();
-            _allSearchRects.Clear();
-            _searchResultPages.Clear();
-            _searchMatches.Clear();
-            _searchMatchCursor = -1;
-            _searchPageCursor = -1;
-
-            if (string.IsNullOrWhiteSpace(query) || _currentFile is null)
-            {
-                if (_searchStatus != null) _searchStatus.Text = "";
-                return;
-            }
-
-            try
-            {
-                var sr = _searchService.Search(_currentFile, query);
-
-                foreach (var kvp in sr.PageRects)
-                    _allSearchRects[kvp.Key] = kvp.Value;
-                _searchResultPages.AddRange(sr.ResultPages);
-
-                // Flatten every match into one reading-ordered list (page asc, then top-to-bottom,
-                // then left-to-right) so navigation steps word-by-word across the whole document.
-                foreach (var page in _searchResultPages)
-                    foreach (var (left, bottom, right, top) in _allSearchRects[page].OrderByDescending(r => r.top).ThenBy(r => r.left))
-                        _searchMatches.Add((page, left, bottom, right, top));
-
-                if (_searchMatches.Count == 0)
-                {
-                    if (_searchStatus != null) _searchStatus.Text = "No matches";
-                    return;
-                }
-
-                _searchTotalHits = sr.TotalHits;
-
-                // Start at the first match on or after the current page.
-                int startPage = PageList.SelectedIndex;
-                _searchMatchCursor = _searchMatches.FindIndex(m => m.page >= startPage);
-                if (_searchMatchCursor < 0) _searchMatchCursor = 0;
-
-                GoToCurrentMatch();
-            }
-            catch
-            {
-                if (_searchStatus != null) _searchStatus.Text = "Search error";
-            }
-        }
-
-        // Navigates to the current match's page (if needed), updates the counter, and repaints
-        // highlights with the current match emphasised. Shared by RunSearch and next/prev.
-        private void GoToCurrentMatch()
-        {
-            if (_searchMatchCursor < 0 || _searchMatchCursor >= _searchMatches.Count) return;
-            int targetPage = _searchMatches[_searchMatchCursor].page;
-            _searchPageCursor = _searchResultPages.IndexOf(targetPage);   // keep the persisted page-cursor sane
-            UpdateSearchStatus();
-            if (PageList.SelectedIndex != targetPage)
-                PageList.SelectedIndex = targetPage;
-            HighlightSearchResultsOnCurrentPage();
         }
 
         // Paints match highlights onto EVERY page that's currently on screen and has results -
@@ -377,7 +336,7 @@ namespace KillerPDF
         {
             if (_searchBar is null || _searchBar.Visibility != Visibility.Visible) return;
             if (_doc is null || page < 0 || page >= _doc.PageCount) return;
-            if (!_allSearchRects.TryGetValue(page, out var rects)) return;
+            if (!Search.TryGetPageRects(page, out var rects)) return;
             if (!_renderDims.TryGetValue(page, out var rd)) return;
 
             var (renderW, renderH) = rd;
@@ -387,13 +346,12 @@ namespace KillerPDF
             double sx = renderW / pdfW;
             double sy = renderH / pdfH;
 
-            bool hasCur = _searchMatchCursor >= 0 && _searchMatchCursor < _searchMatches.Count;
-            var cur = hasCur ? _searchMatches[_searchMatchCursor] : default;
+            var cur = Search.CurrentMatch;
 
             foreach (var (left, bottom, right, top) in rects)
             {
-                bool isCurrent = hasCur && cur.page == page
-                    && cur.left == left && cur.bottom == bottom && cur.right == right && cur.top == top;
+                bool isCurrent = cur is { } c && c.page == page
+                    && c.left == left && c.bottom == bottom && c.right == right && c.top == top;
                 AddSearchHighlight(canvas, left, bottom, right, top, sx, sy, renderH, isCurrent);
             }
         }
@@ -403,42 +361,11 @@ namespace KillerPDF
         private void HighlightSearchResultsOnCurrentPage()
         {
             ClearSearchHighlights();
-            foreach (var kv in _allSearchRects)
+            foreach (var page in Search.PagesWithResults)
             {
-                var canvas = VisibleCanvasForPage(kv.Key);
-                if (canvas is not null) ApplySearchHighlights(kv.Key, canvas);
+                var canvas = VisibleCanvasForPage(page);
+                if (canvas is not null) ApplySearchHighlights(page, canvas);
             }
-        }
-
-        private int _searchTotalHits;
-
-        // Compact count ("12 / 73" = current match / total matches); page breakdown in the tooltip.
-        private void UpdateSearchStatus()
-        {
-            if (_searchStatus is null) return;
-            if (_searchMatches.Count == 0)
-            {
-                _searchStatus.Text = "No matches";
-                _searchStatus.ToolTip = null;
-                return;
-            }
-            int pages = _searchResultPages.Count;
-            _searchStatus.Text = $"{_searchMatchCursor + 1} / {_searchMatches.Count}";
-            _searchStatus.ToolTip = $"{_searchMatches.Count} match{(_searchMatches.Count != 1 ? "es" : "")} on {pages} page{(pages != 1 ? "s" : "")}";
-        }
-
-        private void SearchNextResult()
-        {
-            if (_searchMatches.Count == 0) return;
-            _searchMatchCursor = (_searchMatchCursor + 1) % _searchMatches.Count;
-            GoToCurrentMatch();
-        }
-
-        private void SearchPrevResult()
-        {
-            if (_searchMatches.Count == 0) return;
-            _searchMatchCursor = (_searchMatchCursor - 1 + _searchMatches.Count) % _searchMatches.Count;
-            GoToCurrentMatch();
         }
 
         private void AddSearchHighlight(Canvas canvas, double left, double bottom, double right, double top,
@@ -478,7 +405,7 @@ namespace KillerPDF
         }
 
         // Removes only the highlight rectangles from every page overlay. Deliberately does NOT touch
-        // the result counter - that's owned by UpdateSearchStatus and the empty-query path - so a
+        // the result counter - that's owned by SearchController's status updates and the empty-query path - so a
         // repaint (which clears then re-adds highlights) can't wipe the "3 / 14" count.
         private void ClearSearchHighlights()
         {

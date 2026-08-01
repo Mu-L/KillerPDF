@@ -72,7 +72,7 @@ namespace KillerPDF
                 // Sumatra do the same). With the search bar closed, F3 opens it like Ctrl+F.
                 if (_searchBar is null || _searchBar.Visibility != Visibility.Visible)
                     ToggleSearchBar();
-                else if (_allSearchRects.Count > 0)
+                else if (Search.HasResults)
                 {
                     if (Keyboard.Modifiers == ModifierKeys.Shift) SearchPrevResult();
                     else SearchNextResult();
