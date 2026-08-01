@@ -185,35 +185,12 @@ namespace KillerPDF
             }
         }
 
-        /// <summary>
-        /// #133: PdfSharpCore's lexer decodes UTF-16 bookmark titles by their BOM, but strings it
-        /// decrypts AFTER parsing (owner-password protected files) never get that BOM re-check, so
-        /// the title arrives as raw bytes widened to chars: a U+00FE U+00FF prefix (the BOM bytes)
-        /// followed by one char per byte (mojibake).
-        /// Detect the widened BOM, re-pack the chars into bytes, and decode as UTF-16. Titles that
-        /// parsed correctly don't start with those two chars and pass through untouched.
-        /// </summary>
-        private static string FixRawUnicodeTitle(string s)
-        {
-            if (s.Length < 2) return s;
-            bool be = s[0] == '\u00FE' && s[1] == '\u00FF';   // UTF-16BE BOM as raw chars
-            bool le = s[0] == '\u00FF' && s[1] == '\u00FE';   // UTF-16LE (Adobe tolerance)
-            if (!be && !le) return s;
-            foreach (char c in s)
-                if (c > '\u00FF') return s;   // not byte-widened data - a real (odd) title, leave it
-            var sb = new System.Text.StringBuilder((s.Length - 2) / 2);
-            for (int i = 2; i + 1 < s.Length; i += 2)   // a trailing odd byte is dropped rather than corrupting the pairs
-                sb.Append(be ? (char)((s[i] << 8) | s[i + 1])
-                             : (char)((s[i + 1] << 8) | s[i]));
-            return sb.ToString();
-        }
-
         private void AddOutlineItems(ItemCollection target, PdfSharpCore.Pdf.PdfOutlineCollection outlines)
         {
             foreach (PdfSharpCore.Pdf.PdfOutline outline in outlines)
             {
                 int pageIdx = GetOutlinePageIndex(outline);
-                string title = FixRawUnicodeTitle(outline.Title ?? string.Empty);
+                string title = PdfOutlines.FixRawUnicodeTitle(outline.Title ?? string.Empty);
                 var item = new TreeViewItem
                 {
                     Header = string.IsNullOrEmpty(title) ? Loc("Str_Outline_Untitled") : title,
@@ -440,7 +417,7 @@ namespace KillerPDF
             PushDocUndo();   // bookmark ops ride the document-snapshot undo like crop/page ops do
             var col = parent is null ? _doc.Outlines : parent.Outline.Outlines;
             var added = col.Add(string.Format(Loc("Str_Bm_DefaultTitle"), page + 1), _doc.Pages[page], true);
-            ScrubStaleOutlineLinkKeys();
+            PdfOutlines.ScrubStaleOutlineLinkKeys(_doc);
             MarkDirty(true);
             RefreshOutlines();
             if (FindOutlineItem(OutlineTree.Items, added) is { } tvi && tvi.Tag is OutlineNodeRef nref)
@@ -456,7 +433,7 @@ namespace KillerPDF
         {
             if (!CanEditBookmarks) return;
             if (!ReferenceEquals(nref.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
-            string current = FixRawUnicodeTitle(nref.Outline.Title ?? string.Empty);
+            string current = PdfOutlines.FixRawUnicodeTitle(nref.Outline.Title ?? string.Empty);
             // UiKit.Field: self-templated, so the OS-default white box / blue focus chrome never shows.
             var box = UiKit.Field();
             box.Text = current;
@@ -542,7 +519,7 @@ namespace KillerPDF
             }
             targets = targets.Where(t => !Covered(t.Outline)).ToList();
 
-            int total = targets.Sum(t => 1 + CountOutlines(t.Outline.Outlines));
+            int total = targets.Sum(t => 1 + PdfOutlines.CountOutlines(t.Outline.Outlines));
             if (total > 1)
             {
                 string msg = targets.Count == 1
@@ -554,8 +531,8 @@ namespace KillerPDF
             }
             PushDocUndo();   // one Ctrl+Z restores the whole set
             foreach (var t in targets)
-                RemoveOutlineRecursive(t.Parent, t.Outline);
-            ScrubStaleOutlineLinkKeys();
+                PdfOutlines.RemoveOutlineRecursive(t.Parent, t.Outline);
+            PdfOutlines.ScrubStaleOutlineLinkKeys(_doc);
             MarkDirty(true);
             RefreshOutlines();   // also clears _bmExtraSel via LoadOutlines
         }
@@ -573,7 +550,7 @@ namespace KillerPDF
             nref.Parent.RemoveAt(i);
             if (j >= nref.Parent.Count) nref.Parent.Add(nref.Outline);
             else nref.Parent.Insert(j, nref.Outline);
-            ScrubStaleOutlineLinkKeys();
+            PdfOutlines.ScrubStaleOutlineLinkKeys(_doc);
             MarkDirty(true);
             RefreshOutlines();
             // Keep the moved item selected, without the page-jump side effect.
@@ -615,67 +592,14 @@ namespace KillerPDF
             if (r != MessageBoxResult.Yes) return;
             PushDocUndo();
             while (_doc.Outlines.Count > 0)
-                RemoveOutlineRecursive(_doc.Outlines, _doc.Outlines[_doc.Outlines.Count - 1]);
-            ScrubStaleOutlineLinkKeys();
+                PdfOutlines.RemoveOutlineRecursive(_doc.Outlines, _doc.Outlines[_doc.Outlines.Count - 1]);
+            PdfOutlines.ScrubStaleOutlineLinkKeys(_doc);
             MarkDirty(true);
             RefreshOutlines();
         }
 
-        private static int CountOutlines(PdfSharpCore.Pdf.PdfOutlineCollection col)
-        {
-            int n = 0;
-            foreach (PdfSharpCore.Pdf.PdfOutline o in col) n += 1 + CountOutlines(o.Outlines);
-            return n;
-        }
-
-        // Bottom-up: Collection.Remove() drops the removed object from the document's reference
-        // table, so deleting the whole branch leaf-first leaves no orphaned outline objects (with
-        // dangling /Parent refs) behind in the saved file.
-        private static void RemoveOutlineRecursive(PdfSharpCore.Pdf.PdfOutlineCollection parent,
-                                                   PdfSharpCore.Pdf.PdfOutline outline)
-        {
-            while (outline.Outlines.Count > 0)
-                RemoveOutlineRecursive(outline.Outlines, outline.Outlines[outline.Outlines.Count - 1]);
-            parent.Remove(outline);
-        }
-
-        // PdfSharpCore's PrepareForSave rewrites outline linkage keys (/First /Last /Next /Prev
-        // /Parent /Count) from the in-memory collections but never REMOVES entries that no longer
-        // apply: an item that became last keeps its old /Next, a parent whose children were all
-        // deleted keeps /First /Last, and an emptied root would dangle (ScrubEmptyOutlines only
-        // drops the catalog entry when /First is gone). After any bookmark edit, strip the linkage
-        // keys everywhere - the writer rebuilds all of them from the collections on save.
-        private void ScrubStaleOutlineLinkKeys()
-        {
-            if (_doc is null) return;
-            try
-            {
-                var item = _doc.Internals.Catalog.Elements["/Outlines"];
-                if (item is null) return;
-                if (DerefItemStatic(item) is PdfDictionary root)
-                {
-                    root.Elements.Remove("/First");
-                    root.Elements.Remove("/Last");
-                    root.Elements.Remove("/Count");
-                }
-                ScrubOutlineLinkKeys(_doc.Outlines);
-            }
-            catch { /* malformed outline tree - the save-time scrubs are the backstop */ }
-        }
-
-        private static void ScrubOutlineLinkKeys(PdfSharpCore.Pdf.PdfOutlineCollection col)
-        {
-            foreach (PdfSharpCore.Pdf.PdfOutline o in col)
-            {
-                o.Elements.Remove("/First");
-                o.Elements.Remove("/Last");
-                o.Elements.Remove("/Next");
-                o.Elements.Remove("/Prev");
-                o.Elements.Remove("/Parent");
-                o.Elements.Remove("/Count");
-                ScrubOutlineLinkKeys(o.Outlines);
-            }
-        }
+        // CountOutlines, RemoveOutlineRecursive and the stale-link-key scrubs live in
+        // Services/PdfOutlines.cs (KillerUI refactor) - pure functions over the outline tree.
 
         /// <summary>Rebuilds the outline panel after an edit, keeping collapsed branches collapsed
         /// (the PdfOutline objects survive the rebuild, so they key the state).</summary>

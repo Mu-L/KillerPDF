@@ -1370,8 +1370,11 @@ namespace KillerPDF
             return arr;
         }
 
-        // Static version of DerefItem for use in static helpers.
-        private static PdfItem? DerefItemStatic(PdfItem? item)
+        // Static version of DerefItem for use in static helpers. Internal, not private:
+        // Services/PdfOutlines.cs reaches it too (KillerUI refactor) - a Services-to-Shell reach
+        // in the same debt bucket as the scrubs, all of which folds into Services/PdfScrub.cs
+        // when the Document extraction moves them.
+        internal static PdfItem? DerefItemStatic(PdfItem? item)
         {
             // Absent dictionary keys arrive here as null (Elements["/X"] on a fresh document is
             // null for /AcroForm, /Kids, ...). The scrubs' pattern matches treat null as "not
