@@ -78,7 +78,7 @@ namespace KillerPDF
                 doc.Close();
                 _doc = null;
                 if (!TryPdfiumSaveWithZeroRotations(_currentFile!, tempPath) &&
-                    !TryImportRepairToPath(_currentFile!, tempPath, stripRotations: true))
+                    !PdfImport.TryImportRepairToPath(_currentFile!, tempPath, stripRotations: true))
                     throw; // re-throw original if both fallbacks fail
             }
             // PdfSharpCore sometimes saves a file where one object's xref offset points at the

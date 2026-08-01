@@ -487,7 +487,7 @@ namespace KillerPDF
                     }
                     catch { }
 
-                    int objNum = GetObjectNumber(elem);
+                    int objNum = PdfScrub.GetObjectNumber(elem);
                     if (objNum < 0)
                         objNum = -(pageIndex * 10000 + i); // synthetic key for inline dicts
 
@@ -547,7 +547,7 @@ namespace KillerPDF
                         var subtype = ann.Elements["/Subtype"]?.ToString() ?? "";
                         if (!subtype.Contains("Widget")) continue;
 
-                        int objNum = GetObjectNumber(elem);
+                        int objNum = PdfScrub.GetObjectNumber(elem);
                         if (objNum < 0) objNum = -(p * 10000 + i);
 
                         // Walk parent chain to find the canonical field dict (owns /FT)

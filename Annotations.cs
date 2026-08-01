@@ -2590,7 +2590,7 @@ namespace KillerPDF
                 catch (Exception undoOpenEx) when (IsXRefException(undoOpenEx))
                 {
                     var fixedPath = App.MakeTempFile("undofixed");
-                    if (!TryImportRepairToPath(tempPath, fixedPath)
+                    if (!PdfImport.TryImportRepairToPath(tempPath, fixedPath)
                         && !TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))
                         throw;
                     tempPath = fixedPath;

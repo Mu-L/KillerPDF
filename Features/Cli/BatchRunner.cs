@@ -6,10 +6,6 @@ using System.Text;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
-// Pre-save scrubs moved to Services/PdfScrub.cs (KillerUI refactor, 2026-07-31). This static
-// import remains ONLY for PdfFileHasEncryption, still on MainWindow - see the note in
-// CliRunner.cs; that debt clears with the Document extraction.
-using static KillerPDF.MainWindow;
 
 namespace KillerPDF.Features
 {
@@ -193,7 +189,7 @@ namespace KillerPDF.Features
             // and reporting it as one would poison the conformance comparison.
             try
             {
-                if (PdfFileHasEncryption(src))
+                if (PdfImport.PdfFileHasEncryption(src))
                 {
                     detail = "encrypted - batch mode does not strip encryption";
                     return "SKIP";

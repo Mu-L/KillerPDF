@@ -10,6 +10,7 @@ using Microsoft.Win32;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
+using KillerPDF.Services;
 
 namespace KillerPDF
 {
@@ -59,7 +60,7 @@ namespace KillerPDF
         private static string BuildPdfFromImages(string[] imagePaths)
         {
             using var pdf = new PdfDocument();
-            foreach (var path in imagePaths) AddImagePagesFromFile(pdf, path);
+            foreach (var path in imagePaths) PdfImport.AddImagePagesFromFile(pdf, path);
 
             if (pdf.PageCount == 0)
                 throw new InvalidOperationException(
@@ -71,68 +72,13 @@ namespace KillerPDF
             return outPath;
         }
 
-        // Appends one page per image frame (multi-frame TIFF/GIF expand to one page per frame). Page
-        // size matches the image's physical size at its own DPI (96 if it declares none).
-        internal static void AddImagePagesFromFile(PdfDocument pdf, string path)
-        {
-            using var img = System.Drawing.Image.FromFile(path);
-            var dim = new System.Drawing.Imaging.FrameDimension(img.FrameDimensionsList[0]);
-            int frameCount = Math.Max(1, img.GetFrameCount(dim));
-
-            for (int f = 0; f < frameCount; f++)
-            {
-                img.SelectActiveFrame(dim, f);
-
-                int wpx = img.Width, hpx = img.Height;
-                // Broken resolution metadata is common (WhatsApp and some scanners tag ~1 DPI,
-                // screenshots 0); trusting it makes pages Adobe Reader refuses to display
-                // ("dimensions out-of-range", limit 3-14400 pt per side). PDFium renders any
-                // size, so the file looks fine here and only fails in other viewers. Outside a
-                // plausible DPI range, fall back to 96.
-                double dpiX = img.HorizontalResolution;
-                double dpiY = img.VerticalResolution;
-                if (!(dpiX >= 24 && dpiX <= 4800)) dpiX = 96.0;
-                if (!(dpiY >= 24 && dpiY <= 4800)) dpiY = 96.0;
-                double wPt = wpx * 72.0 / dpiX;
-                double hPt = hpx * 72.0 / dpiY;
-
-                // Even with a sane DPI, clamp into Adobe's supported range, preserving aspect.
-                double shrink = Math.Min(1.0, MaxAdobePageDim / Math.Max(wPt, hPt));
-                wPt *= shrink; hPt *= shrink;
-                double grow = Math.Max(1.0, MinAdobePageDim / Math.Min(wPt, hPt));
-                wPt *= grow; hPt *= grow;
-
-                // Copy the active frame to a fresh 32bpp bitmap, then encode PNG (XImage reads that).
-                byte[] png;
-                using (var frame = new System.Drawing.Bitmap(wpx, hpx,
-                           System.Drawing.Imaging.PixelFormat.Format32bppArgb))
-                {
-                    using (var g = System.Drawing.Graphics.FromImage(frame))
-                    {
-                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                        g.DrawImage(img, 0, 0, wpx, hpx);
-                    }
-                    using var ms = new MemoryStream();
-                    frame.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    png = ms.ToArray();
-                }
-
-                var page = pdf.AddPage();
-                page.Width  = wPt;   // XUnit implicitly treats a double as points
-                page.Height = hPt;
-
-                using var gfx  = XGraphics.FromPdfPage(page);
-                using var xImg = XImage.FromStream(() => new MemoryStream(png));
-                gfx.DrawImage(xImg, 0, 0, wPt, hPt);
-            }
-        }
+        // AddImagePagesFromFile and IsPdfPath live in Services/PdfImport.cs (KillerUI refactor).
 
         // ----- Drag/drop of folders, archives, and multiple files ----------------------------
 
         private static readonly string[] DropImageExt = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff"];
-        internal static bool IsPdfPath(string p)     => p.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
         private static bool IsImagePath(string p)    => DropImageExt.Any(e => p.EndsWith(e, StringComparison.OrdinalIgnoreCase));
-        private static bool IsOpenablePath(string p) => IsPdfPath(p) || IsImagePath(p);
+        private static bool IsOpenablePath(string p) => PdfImport.IsPdfPath(p) || IsImagePath(p);
 
         // Entry point for any file/folder/archive drop. Expands dropped folders (recursively) and .zip
         // archives, then opens the collected PDFs/images - asking merge-vs-separate when there's >1.
@@ -208,7 +154,7 @@ namespace KillerPDF
 
         private void OpenDropped(string path)
         {
-            if (IsPdfPath(path)) OpenInNewTab(path);
+            if (PdfImport.IsPdfPath(path)) OpenInNewTab(path);
             else OpenImagesAsImportedTab([path], Path.GetFileName(path));
         }
 
@@ -222,7 +168,7 @@ namespace KillerPDF
             }
             foreach (var f in found)
             {
-                if (IsPdfPath(f)) OpenInNewTab(f);
+                if (PdfImport.IsPdfPath(f)) OpenInNewTab(f);
                 else OpenImagesAsImportedTab([f], Path.GetFileName(f));
             }
         }
@@ -300,7 +246,7 @@ namespace KillerPDF
             foreach (var f in files)
             {
                 if (ct.IsCancellationRequested) return null;
-                if (IsPdfPath(f))
+                if (PdfImport.IsPdfPath(f))
                 {
                     try
                     {
@@ -311,7 +257,7 @@ namespace KillerPDF
                 }
                 else
                 {
-                    try { AddImagePagesFromFile(outPdf, f); } catch { /* skip an unreadable image */ }
+                    try { PdfImport.AddImagePagesFromFile(outPdf, f); } catch { /* skip an unreadable image */ }
                 }
             }
 

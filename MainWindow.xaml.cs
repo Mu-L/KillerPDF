@@ -703,17 +703,8 @@ namespace KillerPDF
             return item;
         }
 
-        /// <summary>
-        /// Returns the PDF object number of a PdfItem that is an indirect reference, or -1.
-        /// Handles the internal PdfReference type via reflection.
-        /// </summary>
-        private static int GetObjectNumber(PdfItem? item)
-        {
-            if (item is null) return -1;
-            var prop = item.GetType().GetProperty("ObjectNumber",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            return prop?.GetValue(item) is int n ? n : -1;
-        }
+        // GetObjectNumber lives in Services/PdfScrub.cs (KillerUI refactor), beside
+        // DerefItemStatic - the same reflection-over-PdfReference family.
 
         // ============================================================
         // Search (Ctrl+F)

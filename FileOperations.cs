@@ -64,7 +64,7 @@ namespace KillerPDF
                 // PdfSharp cannot save modified encrypted PDFs - it copies unmodified encrypted
                 // stream bytes verbatim but fails when it has to re-serialize a dirty object.
                 // Strip encryption silently at open time via Import so all edits work correctly.
-                if (PdfFileHasEncryption(srcPath))
+                if (PdfImport.PdfFileHasEncryption(srcPath))
                 {
                     // PdfSharp can read encrypted PDFs but cannot re-save them once modified, so the
                     // encryption is stripped (PDFium, lossless; Import fallback). That strip is CPU-heavy,
@@ -337,26 +337,11 @@ namespace KillerPDF
         private static bool FPDFPage_GenerateContent(IntPtr page)
         { lock (PdfiumLock) return FPDFPage_GenerateContentRaw(page); }
 
-        /// <summary>
-        /// Returns true if the PDF file has an /Encrypt entry in its trailer.
-        /// Scans the last 2 KB so it's fast; works regardless of how PdfSharp
-        /// reports security state after authenticating with an empty password.
-        /// </summary>
-        internal static bool PdfFileHasEncryption(string path)
-        {
-            try
-            {
-                using var fs = File.OpenRead(path);
-                long scan = Math.Min(2048, fs.Length);
-                fs.Seek(-scan, SeekOrigin.End);
-                var buf = new byte[scan];
-                _ = fs.Read(buf, 0, buf.Length);
-                // Look for /Encrypt in the raw bytes (Latin-1 safe)
-                var text = System.Text.Encoding.GetEncoding(1252).GetString(buf);
-                return text.Contains("/Encrypt");
-            }
-            catch { return false; }
-        }
+        // PdfFileHasEncryption and TryImportRepairToPath live in Services/PdfImport.cs (KillerUI
+        // refactor). The PDFium interop block below stays here whole: its DllImports, the shared
+        // PdfiumLock, TryPdfiumStripEncryption and TryPdfiumSaveWithZeroRotations all ride the
+        // same lock discipline as Links.cs' link enumeration, and split homes would mean split
+        // locks. It gets its own Services home as a deliberate step, not a side effect.
 
         /// <summary>
         /// Uses PDFium to save a copy of <paramref name="sourcePath"/> with all security/encryption
@@ -477,28 +462,6 @@ namespace KillerPDF
             }
         }
 
-        /// <param name="stripRotations">
-        /// Pass true when called from SaveTempAndReload (rotations already stripped in source).
-        /// Pass false for open-time repair so original page rotations are preserved.
-        /// </param>
-        internal static bool TryImportRepairToPath(string sourcePath, string destPath, bool stripRotations = false)
-        {
-            try
-            {
-                using var importDoc = PdfReader.Open(sourcePath, PdfDocumentOpenMode.Import);
-                var cleanDoc = new PdfDocument();
-                for (int i = 0; i < importDoc.PageCount; i++)
-                    cleanDoc.Pages.Add(importDoc.Pages[i]);
-                if (stripRotations)
-                    for (int i = 0; i < cleanDoc.PageCount; i++)
-                        cleanDoc.Pages[i].Rotate = 0;
-                cleanDoc.Save(destPath);
-                cleanDoc.Close();
-                return true;
-            }
-            catch { return false; }
-        }
-
         private async void TryRepairAndOpen(string path)
         {
             // Repair is CPU/IO heavy, so it runs on a background thread behind a spinner overlay -
@@ -593,7 +556,7 @@ namespace KillerPDF
                 if (_doc is not null) { _doc.Close(); _doc = null; }
                 var repairedPath = App.MakeTempFile("repaired");
                 bool ok = await System.Threading.Tasks.Task.Run(() =>
-                    TryPdfiumStripEncryption(srcPath, repairedPath) || TryImportRepairToPath(srcPath, repairedPath));
+                    TryPdfiumStripEncryption(srcPath, repairedPath) || PdfImport.TryImportRepairToPath(srcPath, repairedPath));
                 if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_Cancelled")); EndCancellableOp(); return; }
                 if (!ok)
                 {
@@ -1178,7 +1141,7 @@ namespace KillerPDF
 
                     // Open twice: Import mode for AddPage, ReadOnly for catalog access.
                     using var srcRead = PdfReader.Open(file, PdfDocumentOpenMode.ReadOnly);
-                    var namedDestMap = BuildNamedDestMap(srcRead);
+                    var namedDestMap = PdfImport.BuildNamedDestMap(srcRead);
 
                     using var src = PdfReader.Open(file, PdfDocumentOpenMode.Import);
                     for (int i = 0; i < src.PageCount; i++)
@@ -1187,7 +1150,7 @@ namespace KillerPDF
                     // Rewrite named-destination links in the newly added pages so they
                     // resolve correctly after the catalog is not imported.
                     if (namedDestMap.Count > 0)
-                        RewriteNamedDestLinks(doc, pageOffset, namedDestMap);
+                        PdfImport.RewriteNamedDestLinks(doc, pageOffset, namedDestMap);
                 }
                 SaveTempAndReload();
                 SetStatus($"Merged {dlg.FileNames.Length} file(s) - {_doc?.PageCount} total pages");
@@ -1198,173 +1161,8 @@ namespace KillerPDF
             }
         }
 
-        /// <summary>
-        /// Builds a map of named destination string -> 0-based page index from a source document's
-        /// /Dests dictionary and /Names /Dests name tree.
-        /// </summary>
-        // Static (since the CLI merge): touches no instance state, only the passed document.
-        internal static Dictionary<string, int> BuildNamedDestMap(PdfDocument src)
-        {
-            var map = new Dictionary<string, int>(StringComparer.Ordinal);
-            try
-            {
-                var catalog = src.Internals.Catalog;
-
-                // Legacy flat /Dests dictionary
-                var destsDict = catalog.Elements.GetDictionary("/Dests");
-                if (destsDict != null)
-                {
-                    foreach (var key in destsDict.Elements.Keys)
-                    {
-                        PdfItem? val = DerefItem(destsDict.Elements[key] ?? new PdfInteger(-1));
-                        int? idx = ResolveDestPageIndexInDoc(src, val);
-                        if (idx.HasValue) map[key.TrimStart('/')] = idx.Value;
-                    }
-                }
-
-                // Modern /Names /Dests name tree
-                var namesDict = catalog.Elements.GetDictionary("/Names");
-                var destTree  = namesDict?.Elements.GetDictionary("/Dests");
-                if (destTree != null)
-                    WalkNameTree(src, destTree, map);
-            }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"BuildNamedDestMap: {ex}"); }
-            return map;
-        }
-
-        // Static (since the CLI merge): pure recursion over the passed document.
-        private static void WalkNameTree(PdfDocument src, PdfDictionary node, Dictionary<string, int> map)
-        {
-            var namesArr = node.Elements.GetArray("/Names");
-            if (namesArr != null)
-            {
-                for (int i = 0; i + 1 < namesArr.Elements.Count; i += 2)
-                {
-                    var keyItem = namesArr.Elements[i];
-                    string key  = keyItem is PdfString ks ? ks.Value : keyItem?.ToString()?.TrimStart('/') ?? "";
-                    if (string.IsNullOrEmpty(key)) continue;
-                    PdfItem? val = DerefItem(namesArr.Elements[i + 1]);
-                    int? idx = ResolveDestPageIndexInDoc(src, val);
-                    if (idx.HasValue) map[key] = idx.Value;
-                }
-            }
-
-            var kids = node.Elements.GetArray("/Kids");
-            if (kids != null)
-            {
-                for (int i = 0; i < kids.Elements.Count; i++)
-                {
-                    if (DerefItem(kids.Elements[i]) is PdfDictionary kid)
-                        WalkNameTree(src, kid, map);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Resolves a destination value (PdfArray or PdfDictionary with /D) to a page index
-        /// within the given source document by matching the page object number.
-        /// </summary>
-        private static int? ResolveDestPageIndexInDoc(PdfDocument src, PdfItem? val)
-        {
-            PdfArray? arr = val as PdfArray;
-            if (arr is null && val is PdfDictionary vd)
-                arr = vd.Elements.GetArray("/D");
-            if (arr is null || arr.Elements.Count == 0) return null;
-
-            var first = arr.Elements[0];
-            int objNum = GetObjectNumber(first);
-            if (objNum > 0)
-            {
-                for (int i = 0; i < src.PageCount; i++)
-                {
-                    var pgRef = src.Pages[i].Reference;
-                    if (pgRef != null && pgRef.ObjectNumber == objNum) return i;
-                }
-            }
-            else if (first is PdfInteger pi && pi.Value >= 0 && pi.Value < src.PageCount)
-            {
-                return pi.Value;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Walks all link annotations in pages [pageOffset, doc.PageCount) and rewrites any
-        /// named-destination /D values to explicit [pageRef /Fit] arrays using the merged
-        /// document's page references. This is needed because PdfSharpCore's import does not
-        /// copy the source document's /Names /Dests catalog entries.
-        /// </summary>
-        internal static void RewriteNamedDestLinks(PdfDocument doc, int pageOffset,
-            Dictionary<string, int> namedDestMap)
-        {
-            for (int pi = pageOffset; pi < doc.PageCount; pi++)
-            {
-                try
-                {
-                    var page    = doc.Pages[pi];
-                    var annotsArr = page.Elements.GetArray("/Annots");
-                    if (annotsArr is null) continue;
-
-                    for (int ai = 0; ai < annotsArr.Elements.Count; ai++)
-                    {
-                        PdfItem? elem = annotsArr.Elements[ai];
-                        PdfDictionary? ann = elem as PdfDictionary
-                            ?? (PdfScrub.DerefItemStatic(elem) as PdfDictionary);
-                        if (ann is null) continue;
-
-                        var subtype = ann.Elements["/Subtype"]?.ToString() ?? "";
-                        if (!subtype.Contains("Link")) continue;
-
-                        // Check /A /D (GoTo action)
-                        var actionDict = ann.Elements.GetDictionary("/A");
-                        if (actionDict != null)
-                        {
-                            var s = actionDict.Elements["/S"]?.ToString() ?? "";
-                            if (s.Contains("GoTo"))
-                            {
-                                var destItem = actionDict.Elements["/D"];
-                                string? name = ExtractDestName(destItem);
-                                if (name != null && namedDestMap.TryGetValue(name, out int srcIdx))
-                                {
-                                    int targetIdx = pageOffset + srcIdx;
-                                    if (targetIdx < doc.PageCount)
-                                        actionDict.Elements["/D"] = MakeExplicitDest(doc, targetIdx);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Bare /Dest on annotation
-                            var destItem = ann.Elements["/Dest"];
-                            string? name = ExtractDestName(destItem);
-                            if (name != null && namedDestMap.TryGetValue(name, out int srcIdx))
-                            {
-                                int targetIdx = pageOffset + srcIdx;
-                                if (targetIdx < doc.PageCount)
-                                    ann.Elements["/Dest"] = MakeExplicitDest(doc, targetIdx);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"RewriteNamedDestLinks p{pi}: {ex}"); }
-            }
-        }
-
-        private static string? ExtractDestName(PdfItem? item)
-        {
-            if (item is null) return null;
-            if (item is PdfString ps) return ps.Value;
-            if (item is PdfName   pn) return pn.Value.TrimStart('/');
-            return null;
-        }
-
-        private static PdfArray MakeExplicitDest(PdfDocument doc, int pageIndex)
-        {
-            var arr = new PdfArray(doc);
-            arr.Elements.Add(doc.Pages[pageIndex].Reference);
-            arr.Elements.Add(new PdfName("/Fit"));
-            return arr;
-        }
+        // The named-destination helpers (BuildNamedDestMap, RewriteNamedDestLinks and their
+        // private walkers) live in Services/PdfImport.cs (KillerUI refactor).
 
         // DerefItemStatic, RectNum and the pre-save scrubs live in Services/PdfScrub.cs
         // (KillerUI refactor) - pure functions shared by the GUI saves, TempReload and the CLI.
@@ -1378,13 +1176,12 @@ namespace KillerPDF
         // Such pages usually come from images with broken DPI metadata turned into a PDF (by
         // KillerPDF 1.6.1 and earlier, or by other tools). PDFium renders any size, so the
         // file looks normal in KillerPDF and only fails in Adobe.
-        internal const double MinAdobePageDim = 3.0;
-        internal const double MaxAdobePageDim = 14400.0;
+        // Min/MaxAdobePageDim live in Services/PdfImport.cs (shared with the image importer).
 
         private static bool PageOutOfAdobeRange(PdfPage p)
         {
             double w = p.Width.Point, h = p.Height.Point;
-            return w < MinAdobePageDim || w > MaxAdobePageDim || h < MinAdobePageDim || h > MaxAdobePageDim;
+            return w < PdfImport.MinAdobePageDim || w > PdfImport.MaxAdobePageDim || h < PdfImport.MinAdobePageDim || h > PdfImport.MaxAdobePageDim;
         }
 
         // Called at the top of every user-facing save. If any page is outside Adobe's supported
@@ -1412,10 +1209,10 @@ namespace KillerPDF
         {
             double w = page.Width.Point, h = page.Height.Point;
             double s = 1.0;
-            if (w > MaxAdobePageDim || h > MaxAdobePageDim)
-                s = Math.Min(MaxAdobePageDim / w, MaxAdobePageDim / h);
-            else if (w < MinAdobePageDim || h < MinAdobePageDim)
-                s = Math.Max(MinAdobePageDim / w, MinAdobePageDim / h);
+            if (w > PdfImport.MaxAdobePageDim || h > PdfImport.MaxAdobePageDim)
+                s = Math.Min(PdfImport.MaxAdobePageDim / w, PdfImport.MaxAdobePageDim / h);
+            else if (w < PdfImport.MinAdobePageDim || h < PdfImport.MinAdobePageDim)
+                s = Math.Max(PdfImport.MinAdobePageDim / w, PdfImport.MinAdobePageDim / h);
             if (s == 1.0) return;
 
             string inv = s.ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
@@ -1505,7 +1302,7 @@ namespace KillerPDF
                     catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
                     {
                         var fixedPath = App.MakeTempFile("savefixed");
-                        if (!TryImportRepairToPath(tempClean, fixedPath)
+                        if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
                             && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                             throw;
                         tempClean = fixedPath;
@@ -1598,7 +1395,7 @@ namespace KillerPDF
                     catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
                     {
                         var fixedPath = App.MakeTempFile("savefixed");
-                        if (!TryImportRepairToPath(tempClean, fixedPath)
+                        if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
                             && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                             throw;
                         tempClean = fixedPath;
@@ -1672,7 +1469,7 @@ namespace KillerPDF
                 catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
                 {
                     var fixedPath = App.MakeTempFile("savefixed");
-                    if (!TryImportRepairToPath(tempClean, fixedPath)
+                    if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
                         && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                         throw;
                     tempClean = fixedPath;
@@ -1840,7 +1637,7 @@ namespace KillerPDF
                 catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
                 {
                     var fixedPath = App.MakeTempFile("savefixed");
-                    if (!TryImportRepairToPath(tempClean, fixedPath)
+                    if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
                         && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                         throw;
                     tempClean = fixedPath;
@@ -2015,7 +1812,7 @@ namespace KillerPDF
                             // PdfSharpCore can write a snapshot its own reader then chokes on; repair via
                             // Import then PDFium, same as the save/undo paths.
                             var fixedPath = App.MakeTempFile("printfixed");
-                            if (!TryImportRepairToPath(tempClean, fixedPath) && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
+                            if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath) && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                                 return false;
                             burnDoc = PdfReader.Open(fixedPath, PdfDocumentOpenMode.Modify);
                         }

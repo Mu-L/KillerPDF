@@ -165,7 +165,7 @@ namespace KillerPDF
             catch (Exception xrefEx) when (IsXRefException(xrefEx))
             {
                 var fixedPath = App.MakeTempFile("xffixed");
-                if (!TryImportRepairToPath(tempClean, fixedPath)
+                if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
                     && !TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                     throw;
                 tempClean = fixedPath;

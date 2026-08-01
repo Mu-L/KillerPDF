@@ -19,13 +19,11 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
-// The pre-save scrubs and bitmap helpers moved to Services (PdfScrub.cs, BitmapHelpers.cs;
-// KillerUI refactor, 2026-07-31) and are called qualified below. This static import remains
-// ONLY for the import helpers still on MainWindow (IsPdfPath, AddImagePagesFromFile,
-// BuildNamedDestMap, RewriteNamedDestLinks, PdfFileHasEncryption, TryPdfiumStripEncryption,
-// TryImportRepairToPath) - a Features-to-Shell dependency that clears with the Document
-// extraction.
-using static KillerPDF.MainWindow;
+// The scrubs, bitmap helpers and import helpers all live in Services now (PdfScrub.cs,
+// BitmapHelpers.cs, PdfImport.cs; KillerUI refactor, 2026-07-31), called qualified below. The
+// ONE remaining Features-to-Shell reach is the explicit MainWindow.TryPdfiumStripEncryption
+// calls - it rides the shared PDFium interop block (and its lock) on MainWindow, which gets
+// its own Services home as a deliberate step.
 // OpenBatchConsole and FlattenBatchDetail are shared with the batch runner.
 using static KillerPDF.Features.BatchRunner;
 
@@ -266,21 +264,21 @@ namespace KillerPDF.Features
             using var outPdf = new PdfDocument();
             foreach (var f in inputs)
             {
-                if (IsPdfPath(f))
+                if (PdfImport.IsPdfPath(f))
                 {
                     int pageOffset = outPdf.PageCount;
                     Dictionary<string, int> namedDestMap;
                     using (var srcRead = PdfReader.Open(f, PdfDocumentOpenMode.ReadOnly))
-                        namedDestMap = BuildNamedDestMap(srcRead);
+                        namedDestMap = PdfImport.BuildNamedDestMap(srcRead);
                     using var src = PdfReader.Open(f, PdfDocumentOpenMode.Import);
                     for (int i = 0; i < src.PageCount; i++)
                         outPdf.AddPage(src.Pages[i]);
                     if (namedDestMap.Count > 0)
-                        RewriteNamedDestLinks(outPdf, pageOffset, namedDestMap);
+                        PdfImport.RewriteNamedDestLinks(outPdf, pageOffset, namedDestMap);
                 }
                 else
                 {
-                    AddImagePagesFromFile(outPdf, f);
+                    PdfImport.AddImagePagesFromFile(outPdf, f);
                 }
             }
 
@@ -380,12 +378,12 @@ namespace KillerPDF.Features
                 return 0;
             }
 
-            if (TryPdfiumStripEncryption(inPath, outPath))
+            if (MainWindow.TryPdfiumStripEncryption(inPath, outPath))
             {
                 con.WriteLine($"Decrypted (lossless) -> {outPath}");
                 return 0;
             }
-            if (TryImportRepairToPath(inPath, outPath))
+            if (PdfImport.TryImportRepairToPath(inPath, outPath))
             {
                 con.WriteLine($"Decrypted via page rebuild -> {outPath} (bookmarks/forms may be dropped)");
                 return 0;
@@ -409,7 +407,7 @@ namespace KillerPDF.Features
             CliPrepareRenderSource(string inPath, string? password, TextWriter con)
         {
             string workPath = inPath;
-            if (PdfFileHasEncryption(inPath))
+            if (PdfImport.PdfFileHasEncryption(inPath))
             {
                 var dec = App.MakeTempFile("clidec");
                 if (!string.IsNullOrEmpty(password))
@@ -417,7 +415,7 @@ namespace KillerPDF.Features
                     using var pdoc = PdfReader.Open(inPath, password!, PdfDocumentOpenMode.Modify);
                     pdoc.Save(dec);
                 }
-                else if (!TryPdfiumStripEncryption(inPath, dec) && !TryImportRepairToPath(inPath, dec))
+                else if (!MainWindow.TryPdfiumStripEncryption(inPath, dec) && !PdfImport.TryImportRepairToPath(inPath, dec))
                 {
                     throw new InvalidOperationException(
                         "File is encrypted and could not be unlocked - pass --password if it needs one.");

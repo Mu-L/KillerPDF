@@ -614,7 +614,7 @@ namespace KillerPDF
             // First element of the destination array is an indirect page reference.
             // PdfReference.ObjectNumber is public but its type is internal; use reflection.
             var pageRefItem = arr.Elements[0];
-            int elemObjNum = GetObjectNumber(pageRefItem);
+            int elemObjNum = PdfScrub.GetObjectNumber(pageRefItem);
             if (elemObjNum > 0)
             {
                 for (int i = 0; i < _doc.PageCount; i++)

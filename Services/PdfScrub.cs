@@ -31,6 +31,18 @@ namespace KillerPDF.Services
         internal static double RectNum(PdfItem item) =>
             item is PdfReal r ? r.Value : item is PdfInteger n ? n.Value : 0;
 
+        /// <summary>
+        /// Returns the PDF object number of a PdfItem that is an indirect reference, or -1.
+        /// Handles the internal PdfReference type via reflection, like DerefItemStatic above.
+        /// </summary>
+        internal static int GetObjectNumber(PdfItem? item)
+        {
+            if (item is null) return -1;
+            var prop = item.GetType().GetProperty("ObjectNumber",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            return prop?.GetValue(item) is int n2 ? n2 : -1;
+        }
+
         // #103: PdfSharpCore's writer can emit the catalog's /Outlines reference without ever
         // writing the (empty, lazily created) outlines object itself - a dangling xref entry
         // that strict parsers, including PdfSharpCore on reopen, refuse. An outlines dictionary
