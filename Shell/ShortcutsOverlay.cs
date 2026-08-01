@@ -87,7 +87,7 @@ namespace KillerPDF
                 new("Alt+← / Alt+→",  "Str_KS_BackForward"),
                 new("↑ / ↓",          "Str_KS_ScrollView"),
                 new("Ctrl+Scroll",    "Str_KS_ZoomCursor"),
-                new("Ctrl+= / Ctrl+-","Str_KS_ZoomInOut"),
+                new("Ctrl+%zin% / Ctrl+%zout%", "Str_KS_ZoomInOut"),
                 new("Ctrl+0",         "Str_KS_ResetZoom"),
                 new("Ctrl+1/2/3",     "Str_KS_ZoomPresets"),
                 new("Middle drag",    "Str_KS_PanView"),
@@ -109,7 +109,7 @@ namespace KillerPDF
                 new("F11 / Esc", "Str_KS_FullScreen"),
                 new("N",         "Str_DocInvertSetting"),
                 new("Shift+N",   "Str_InvertImagesToo"),
-                new("Ctrl+Shift+= / - / 0", "Str_KS_AppSize"),
+                new("Ctrl+Shift+%zin% / %zout% / 0", "Str_KS_AppSize"),
                 new("Wheel on logo",   "Str_KS_AppSize"),
                 new("Ctrl+Shift+1..6", "Str_KS_ToolbarStyle"),
             ]},
@@ -127,6 +127,19 @@ namespace KillerPDF
                 new("Shift+Click",         "Str_KS_MultiSelect"),
             ]},
         ];
+
+        // #153: the zoom keys are spelled differently per keyboard layout - "=" is a plain keypress
+        // on US but needs Shift on German, where "+" is the unshifted one instead. The bindings
+        // accept whichever key TYPES the character (Services/KeyLayout.cs), so these labels have to
+        // follow suit, or the overlay advertises a chord that does not work on that machine.
+        // %zin% / %zout% are substituted here; everything else passes through untouched. The token
+        // markers avoid braces on purpose - a brace in a char or string literal makes a plain
+        // brace-balance check on this file report a false mismatch.
+        private static string ResolveKeyLabel(string keys)
+            => keys.IndexOf('%') < 0
+                ? keys
+                : keys.Replace("%zin%", Services.KeyLayout.ZoomInChar())
+                      .Replace("%zout%", Services.KeyLayout.ZoomOutChar());
 
         // Fill the two overlay columns from the tables above. Called once from the constructor; the
         // SetResourceReference calls keep every string and colour live across theme + language changes.
@@ -164,7 +177,7 @@ namespace KillerPDF
                     // Keys: fixed 120px column, Consolas, dim.
                     var keys = new TextBlock
                     {
-                        Text       = row.Keys,
+                        Text       = ResolveKeyLabel(row.Keys),
                         FontFamily = new FontFamily("Consolas"),
                         FontSize   = 11,
                         Width      = 120,

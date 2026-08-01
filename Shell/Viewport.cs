@@ -708,10 +708,19 @@ namespace KillerPDF
                     width  = pageReader.GetPageWidth();
                     height = pageReader.GetPageHeight();
                     var rawBytes = pageReader.GetImage(PdfRender.WithAnnotations);   // #141
+                    // Bail on an unusable render BEFORE touching the buffer. This check used to sit
+                    // after the rotate; moving the invert ahead of the rotate (#135) meant the
+                    // buffer was read while still only maybe-non-null, so validate first instead.
+                    if (width <= 0 || height <= 0 || rawBytes == null || rawBytes.Length == 0)
+                    {
+                        PageImage.Source = null;
+                        SetStatus(string.Format(Loc("Str_PageRenderError"), pageIndex + 1));
+                        return;
+                    }
                     // #135: display-only dark mode, pictures excluded. Before the rotation so the
                     // carve-out rects stay in unrotated page space; the one-shot PdfPig open is
                     // paid only on this page's first inverted render (the rects cache after).
-                    if (BitmapHelpers.DocInvert && rawBytes != null)
+                    if (BitmapHelpers.DocInvert)
                     {
                         PdfPigDoc? pig = null;
                         try { BitmapHelpers.InvertBgraInPlaceExcept(rawBytes, width, height, ImageRectsFor(_currentFile, pageIndex, ref pig)); }
@@ -721,12 +730,6 @@ namespace KillerPDF
                     // the pixel buffer to match the visual.
                     if (pgRot != 0)
                         (rawBytes, width, height) = BitmapHelpers.RotateBitmap(rawBytes, width, height, pgRot);
-                    if (width <= 0 || height <= 0 || rawBytes == null || rawBytes.Length == 0)
-                    {
-                        PageImage.Source = null;
-                        SetStatus(string.Format(Loc("Str_PageRenderError"), pageIndex + 1));
-                        return;
-                    }
                     // Bake the bitmap DPI from the canonical render-dim size (longest side -> 2048 DIP, the
                     // SAME zoom-independent basis continuous and the secondary tiles use) so the extra pixels
                     // display within a fixed DIP area regardless of zoom. LayoutTransform supplies the zoom.

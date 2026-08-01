@@ -131,7 +131,12 @@ namespace KillerPDF
                     _busyCts?.Cancel();
                 e.Handled = true;
             }
-            else if (e.Key == Key.OemQuestion && Keyboard.Modifiers == ModifierKeys.Control)
+            // #153: matched by the character the key TYPES, not its position. On a German layout
+            // "?" is Shift+ss, so the US-positional OemQuestion check never fired (and the exact
+            // modifier equality failed too, since typing "?" holds Shift). The VK test stays as a
+            // fast path for layouts where it already worked.
+            else if (Services.KeyLayout.IsCtrlChar(e.Key, '?')
+                     || (e.Key == Key.OemQuestion && Keyboard.Modifiers == ModifierKeys.Control))
             {
                 if (ShortcutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(ShortcutOverlay);
                 else ShowShortcutsOverlayExclusive();
@@ -415,12 +420,17 @@ namespace KillerPDF
                     e.Handled = true;
                 }
             }
-            else if ((e.Key == Key.OemPlus || e.Key == Key.Add) && Keyboard.Modifiers == ModifierKeys.Control)
+            // #153: "the key that types + or =", whatever position that is on this layout. The
+            // Ctrl+Shift app-scale chords above are tested FIRST, so ignoring Shift here cannot
+            // swallow them - which is why this ordering matters and must not be rearranged.
+            else if (Services.KeyLayout.IsCtrlChar(e.Key, '+', '=')
+                     || ((e.Key == Key.OemPlus || e.Key == Key.Add) && Keyboard.Modifiers == ModifierKeys.Control))
             {
                 if (_viewMode == ViewMode.Grid) GridZoomStep(false); else SetZoom(_zoomLevel + ZoomStep);
                 e.Handled = true;
             }
-            else if ((e.Key == Key.OemMinus || e.Key == Key.Subtract) && Keyboard.Modifiers == ModifierKeys.Control)
+            else if (Services.KeyLayout.IsCtrlChar(e.Key, '-')
+                     || ((e.Key == Key.OemMinus || e.Key == Key.Subtract) && Keyboard.Modifiers == ModifierKeys.Control))
             {
                 if (_viewMode == ViewMode.Grid) GridZoomStep(true); else SetZoom(_zoomLevel - ZoomStep);
                 e.Handled = true;
