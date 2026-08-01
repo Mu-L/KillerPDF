@@ -456,9 +456,12 @@
                              sets PopupAnimation="Fade", so a menu appeared instantly while its own
                              children faded in, which is backwards. 150ms ease-out.
                              (Steve, 2026-07-30.) -->
+                        <!-- Radius 6 = the family flyout card (FlyoutCard above); the grain overlay
+                             takes 5, the card's 6 minus its 1px border, so the texture stops exactly
+                             inside the frame. -->
                         <Grid x:Name="MenuRoot" Opacity="0" Margin="5">
                             <!-- Shadow-only layer behind, so the menu text stays crisp. -->
-                            <Border Background="{TemplateBinding Background}" CornerRadius="4" IsHitTestVisible="False">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="6" IsHitTestVisible="False">
                                 <Border.Effect>
                                     <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.5"/>
                                 </Border.Effect>
@@ -466,11 +469,11 @@
                             <Border Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="4" Padding="4">
+                                    CornerRadius="6" Padding="4">
                                 <Grid>
                                     <!-- Film grain on the menu surface, matching the settings panel. -->
                                     <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
-                                            CornerRadius="4" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
+                                            CornerRadius="5" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
                                     <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
                                 </Grid>
                             </Border>
@@ -534,17 +537,17 @@
                                        IsOpen="{TemplateBinding IsSubmenuOpen}">
                                     <!-- Mirrors the ContextMenu template surface so submenus match the parent menu. -->
                                     <Grid Margin="5">
-                                        <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="4" IsHitTestVisible="False">
+                                        <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="6" IsHitTestVisible="False">
                                             <Border.Effect>
                                                 <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.5"/>
                                             </Border.Effect>
                                         </Border>
                                         <Border Background="{DynamicResource MenuBackgroundBrush}"
                                                 BorderBrush="{DynamicResource MenuBorderBrush}"
-                                                BorderThickness="1" CornerRadius="4" Padding="4">
+                                                BorderThickness="1" CornerRadius="6" Padding="4">
                                             <Grid>
                                                 <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
-                                                        CornerRadius="4" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
+                                                        CornerRadius="5" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
                                                 <ItemsPresenter/>
                                             </Grid>
                                         </Border>

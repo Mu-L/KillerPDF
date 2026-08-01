@@ -27,7 +27,7 @@ namespace KillerPDF.Services
             var list = new List<BitmapHelpers.FracRect>();
             foreach (var img in page.GetImages())
             {
-                var b = img.Bounds;
+                var b = img.BoundingBox;   // Bounds is obsolete in current PdfPig
                 double l = b.Left / pw, r = b.Right / pw;
                 double t = (ph - b.Top) / ph, bo = (ph - b.Bottom) / ph;
                 if (r < l) { var tmp = l; l = r; r = tmp; }

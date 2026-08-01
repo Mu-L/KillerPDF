@@ -98,6 +98,13 @@ namespace KillerPDF
 
                 var oldPage = _doc.Pages[pageIdx];
                 var (epw, eph) = EffectivePageSize(oldPage);   // honor CropBox so a cropped page keeps its size
+                // #167: the bitmap is in VISUAL orientation - RenderPageBitmap applies the page's
+                // in-app rotation - but MediaBox/CropBox are always unrotated (the working file has
+                // /Rotate stripped into _pageRotations). On a quarter-turned page the two disagreed,
+                // so sx and sy came out different: the transformed page was squeezed back to portrait
+                // and stretched vertically. Swap the point dimensions to match what was rendered.
+                int visRot = _pageRotations.TryGetValue(pageIdx, out int vr) ? ((vr % 360) + 360) % 360 : 0;
+                if (visRot == 90 || visRot == 270) (epw, eph) = (eph, epw);
                 double sx = epw / src.PixelWidth;
                 double sy = eph / src.PixelHeight;
                 double newWpt = composed.PixelWidth * sx;

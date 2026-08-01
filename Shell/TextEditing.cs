@@ -280,14 +280,12 @@ namespace KillerPDF
                         if (pdfFontPts > 0)
                             canvasFontSize = pdfFontPts * syInv;
 
-                        // Try to get font name from letter
-                        string? rawFont = null;
-                        try { rawFont = letter.FontName; } catch { }
-                        if (string.IsNullOrEmpty(rawFont))
-                        {
-                            // Some PdfPig versions use different property paths
-                            try { rawFont = firstWord.FontName; } catch { }
-                        }
+                        // Font family from the LETTER, never the word (#166, thanks Ryokoxx):
+                        // Word.FontName joins its letters' names ("Helvetica Helvetica Helvetica
+                        // ..."), which FontFamily cannot resolve - so that fallback landed on the
+                        // default font, exactly where no fallback at all would have. The outer
+                        // catch already covers a read that throws, so this needs no inner one.
+                        string? rawFont = letter.FontName;
                         if (!string.IsNullOrEmpty(rawFont))
                         {
                             string fontStr = rawFont!;
