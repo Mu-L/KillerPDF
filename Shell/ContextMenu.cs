@@ -51,9 +51,14 @@ namespace KillerPDF
             GrainBrush.ImageSource = bmp;
             if (SidebarGrainBrush != null) SidebarGrainBrush.ImageSource = bmp;
             if (ToggleGrainBrush != null) ToggleGrainBrush.ImageSource = bmp;
-            if (Resources["GrainBrushShared"] is ImageBrush sharedGrain) sharedGrain.ImageSource = bmp;
+            // TryFindResource, NOT the Resources indexer: the indexer looks ONLY in this window's
+            // own dictionary and returns null without complaint if the key lives higher up.
+            // GrainBrushShared moved to App.xaml in split pane stage 2, so the indexer stopped
+            // finding it - and the failure is silent, the grain simply never gets its texture.
+            // TryFindResource walks window -> app, so it works wherever the key is defined.
+            if (TryFindResource("GrainBrushShared") is ImageBrush sharedGrain) sharedGrain.ImageSource = bmp;
             // The family flyout standard's grain tile (FlyoutGrain style) shares the same texture.
-            if (Resources["GrainTileBrush"] is ImageBrush flyoutGrain) flyoutGrain.ImageSource = bmp;
+            if (TryFindResource("GrainTileBrush") is ImageBrush flyoutGrain) flyoutGrain.ImageSource = bmp;
         }
 
         /// <summary>Generated film-grain tile, exposed so secondary windows (e.g. the

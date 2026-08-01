@@ -157,6 +157,12 @@
             <DropShadowEffect x:Key="PaneShadow"   Color="Black" BlurRadius="16" ShadowDepth="0" Direction="270" Opacity="0.78"
                               RenderingBias="Quality"/>
 
+            <!-- GrainBrushShared deliberately does NOT live here - see MainWindow.Resources.
+                 WPF freezes Freezables in APPLICATION-level dictionaries for cross-thread safety,
+                 so an ImageBrush declared here throws "Cannot set a property ... it is in a
+                 read-only state" the moment ApplyGrainTexture assigns its ImageSource. Any brush
+                 whose properties are written at runtime must stay at window scope. -->
+
             <!-- Global themed tooltip (replaces the plain white system box) -->
             <Style TargetType="ToolTip">
                 <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>

@@ -40,7 +40,13 @@
         <CornerRadius x:Key="ChromeCloseCorner">0,7,0,0</CornerRadius>
 
         <!-- Shared film-grain brush for popup menus (settings/shortcuts/language/overflow).
-             ImageSource is assigned once in ApplyGrainTexture; every reference updates. -->
+             ImageSource is assigned once in ApplyGrainTexture; every reference updates.
+             MUST STAY AT WINDOW SCOPE. It was briefly moved to App.xaml during split pane stage 2
+             and that threw "Cannot set a property on ImageBrush because it is in a read-only
+             state" at startup: WPF freezes Freezables in application-level dictionaries for
+             cross-thread safety, so its ImageSource can never be assigned from there.
+             PdfViewer.xaml reaches it with DynamicResource, which walks the live tree
+             (control -> window -> app) and finds it here perfectly well. -->
         <ImageBrush x:Key="GrainBrushShared" TileMode="Tile"
                     ViewportUnits="Absolute" Viewport="0,0,256,256" Stretch="None"/>
 
