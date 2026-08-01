@@ -67,7 +67,7 @@ namespace KillerPDF
                 doc.Save(tempPath);
                 doc.Close();
             }
-            catch (Exception saveEx) when (IsXRefException(saveEx))
+            catch (Exception saveEx) when (PdfImport.IsXRefException(saveEx))
             {
                 // PdfSharpCore fails to re-save encrypted PDFs (e.g. owner-restricted RC4 files)
                 // because it encounters cross-reference tokens while serialising dirty objects.
@@ -91,7 +91,7 @@ namespace KillerPDF
             {
                 _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
             }
-            catch (Exception openEx) when (IsXRefException(openEx))
+            catch (Exception openEx) when (PdfImport.IsXRefException(openEx))
             {
                 var fixedPath = App.MakeTempFile("fixed");
                 if (!PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))

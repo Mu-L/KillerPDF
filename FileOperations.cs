@@ -46,7 +46,7 @@ namespace KillerPDF
             // Copy such files to a local temp via File.ReadAllBytes (which reads to EOF) and open
             // from there. `path` stays the user's real path for display and Save.
             string srcPath = path;
-            if (IsNetworkPath(path))
+            if (PdfImport.IsNetworkPath(path))
             {
                 try
                 {
@@ -78,7 +78,7 @@ namespace KillerPDF
                 _currentFile = srcPath;
                 FinishOpenFile(path, srcPath);
             }
-            catch (Exception ex) when (IsOwnerPasswordException(ex))
+            catch (Exception ex) when (PdfImport.IsOwnerPasswordException(ex))
             {
                 // PDF has owner/permissions restrictions but no open password -
                 // open read-only so the user can still view and print it.
@@ -95,7 +95,7 @@ namespace KillerPDF
                     KillerDialog.Show(this, string.Format(Loc("Str_Dlg_FailedOpen"), ex2.Message), Loc("Str_Dlg_AppTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-            catch (Exception ex) when (IsPasswordException(ex))
+            catch (Exception ex) when (PdfImport.IsPasswordException(ex))
             {
                 string? pw = PromptForPassword(path);
                 if (pw is null) return;
@@ -117,7 +117,7 @@ namespace KillerPDF
                     KillerDialog.Show(this, string.Format(Loc("Str_Dlg_FailedOpen"), ex2.Message), Loc("Str_Dlg_AppTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-            catch (Exception ex) when (IsXRefException(ex))
+            catch (Exception ex) when (PdfImport.IsXRefException(ex))
             {
                 // Some PDFs have malformed or non-standard XRef tables that PdfSharp can't
                 // open in Modify mode. Fall back to ReadOnly; if that also fails, offer repair.
@@ -142,7 +142,7 @@ namespace KillerPDF
                         TryRepairAndOpen(srcPath);
                 }
             }
-            catch (Exception ex) when (IsEofParseException(ex))
+            catch (Exception ex) when (PdfImport.IsEofParseException(ex))
             {
                 // PdfSharpCore rejects some structurally-valid PDFs with "Unexpected EOF" even though
                 // PDFium (and every common viewer) reads them fine. Re-save losslessly through PDFium on
@@ -164,60 +164,8 @@ namespace KillerPDF
             }
         }
 
-        // PdfSharpCore throws on some structurally-valid PDFs that PDFium opens fine - most
-        // often "Unexpected EOF" from SharpZipLib's Flate inflater while reading a FlateDecode
-        // cross-reference stream (multi-revision PDFs with incremental updates / dangling xref
-        // entries that tolerant parsers ignore). Match by message AND exception type across the
-        // whole inner-exception chain so a wrapped SharpZipBaseException is still recovered.
-        private static bool IsEofParseException(Exception ex)
-        {
-            for (Exception? e = ex; e != null; e = e.InnerException)
-            {
-                string msg  = e.Message ?? string.Empty;
-                string type = e.GetType().FullName ?? string.Empty;
-                if (msg.IndexOf("EOF", StringComparison.OrdinalIgnoreCase) >= 0
-                    || msg.IndexOf("end of file", StringComparison.OrdinalIgnoreCase) >= 0
-                    || msg.IndexOf("Inflater", StringComparison.OrdinalIgnoreCase) >= 0
-                    || msg.IndexOf("FlateDecode", StringComparison.OrdinalIgnoreCase) >= 0
-                    || type.IndexOf("SharpZip", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return true;
-            }
-            return false;
-        }
-
-        // True for recoverable PdfSharpCore read/parse failures that our repair path
-        // (import-rebuild / PDFium round-trip) can usually fix. Named for the original xref case,
-        // but now also covers other parser-level errors surfaced when reopening a saved temp.
-        private static bool IsXRefException(Exception ex) =>
-            ex.Message.IndexOf("XRef", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("cross-reference", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("trailer", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("Invalid PDF file", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("startxref", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("Unexpected token", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            // #106: "Cannot retrieve stream length." - a stream whose /Length is indirect or broken.
-            ex.Message.IndexOf("stream length", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("File streams are not yet implemented", StringComparison.OrdinalIgnoreCase) >= 0;
-
-        // True for UNC paths (\\server\share, \\wsl$\..., \\wsl.localhost\...) and mapped
-        // network drives. Such files are copied locally before opening to avoid 9P short reads.
-        private static bool IsNetworkPath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return false;
-            if (path.StartsWith(@"\\", StringComparison.Ordinal)) return true;
-            try
-            {
-                var root = System.IO.Path.GetPathRoot(path);
-                if (!string.IsNullOrEmpty(root) && root!.Length >= 2 && root[1] == ':')
-                    return new DriveInfo(root).DriveType == DriveType.Network;
-            }
-            catch { }
-            return false;
-        }
-
-        private static bool IsOwnerPasswordException(Exception ex) =>
-            ex.Message.IndexOf("owner", StringComparison.OrdinalIgnoreCase) >= 0 &&
-            ex.Message.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0;
+        // The open-failure classifiers (IsEofParseException, IsXRefException, IsNetworkPath,
+        // IsOwnerPasswordException, IsPasswordException) live in Services/PdfImport.cs.
 
         private void FinishOpenFile(string displayPath, string workingPath)
         {
@@ -258,11 +206,6 @@ namespace KillerPDF
             SyncSidebarToDocState(hasDoc: true, startup: false);   // a document is up: open the rail, show page controls
         }
 
-        private static bool IsPasswordException(Exception ex) =>
-            ex.Message.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("protected", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("encrypted", StringComparison.OrdinalIgnoreCase) >= 0;
-
         // Themed "Password Required" prompt (KillerDialog): family dialog chrome + themed PasswordBox.
         private string? PromptForPassword(string filename) => KillerDialog.PromptPassword(this, filename);
 
@@ -301,7 +244,7 @@ namespace KillerPDF
                 // Strategy 1: PdfSharpCore Import mode - page-copy, more lenient than Modify/ReadOnly.
                 // Works when the XRef is partially corrupt but the object data is intact. (Returns
                 // null on failure rather than throwing.)
-                repairedPath ??= await System.Threading.Tasks.Task.Run(() => RepairViaImportToFile(path));
+                repairedPath ??= await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaImportToFile(path));
                 if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 1
 
                 // Strategy 2: PDFium rasterize. PDFium's internal XRef recovery handles damage
@@ -309,7 +252,7 @@ namespace KillerPDF
                 // Text won't be selectable in the result, but the file will open and print.
                 if (repairedPath is null)
                 {
-                    repairedPath = await System.Threading.Tasks.Task.Run(() => RepairViaDocnetRasterizeToFile(path));
+                    repairedPath = await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaDocnetRasterizeToFile(path));
                     raster = repairedPath is not null;
                 }
                 if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 2
@@ -402,95 +345,8 @@ namespace KillerPDF
             RebuildTabStrip();
         }
 
-        /// <summary>
-        /// Strategy 1 worker (background-safe, no UI/_doc access): page-copies the source through
-        /// PdfSharpCore Import mode into a clean temp PDF and returns its path.
-        /// </summary>
-        private static string? RepairViaImportToFile(string path)
-        {
-            // Returns null (never throws) so a failed strategy falls through cleanly to the next one
-            // and doesn't surface as a debugger "user-unhandled" break during the awaited Task.
-            try
-            {
-                PdfDocument repairedDoc;
-                using (var importDoc = PdfReader.Open(path, PdfDocumentOpenMode.Import))
-                {
-                    repairedDoc = new PdfDocument();
-                    for (int i = 0; i < importDoc.PageCount; i++)
-                        repairedDoc.Pages.Add(importDoc.Pages[i]);
-                }
-                var repairedPath = App.MakeTempFile("repaired");
-                repairedDoc.Save(repairedPath);
-                repairedDoc.Close();
-                return repairedPath;
-            }
-            catch { return null; }
-        }
-
-        /// <summary>
-        /// Strategy 2 worker (background-safe, no UI/_doc access): uses PDFium (Docnet) to render
-        /// each page to a bitmap, rebuilds a clean PdfSharpCore document from those bitmaps, and
-        /// returns its temp path. Mirrors the flatten path, which also encodes off the UI thread.
-        /// </summary>
-        private static string? RepairViaDocnetRasterizeToFile(string path)
-        {
-            // Returns null (never throws) so the caller can show a clean "repair failed" message
-            // without a debugger break on the awaited Task.
-            try
-            {
-                const int RenderPx = 2048;
-
-                using var docReader = DocLib.Instance.GetDocReader(path, new PageDimensions(RenderPx, RenderPx));
-                int pageCount = docReader.GetPageCount();
-                if (pageCount <= 0) return null;
-
-                var newDoc = new PdfDocument();
-
-                for (int i = 0; i < pageCount; i++)
-                {
-                    using var pr = docReader.GetPageReader(i);
-                    int bw = pr.GetPageWidth();
-                    int bh = pr.GetPageHeight();
-                    if (bw <= 0 || bh <= 0) continue;
-
-                    var raw = pr.GetImage();
-                    if (raw is null || raw.Length == 0) continue;
-
-                    var wb = new WriteableBitmap(bw, bh, 96, 96, PixelFormats.Bgra32, null);
-                    wb.WritePixels(new Int32Rect(0, 0, bw, bh), raw, bw * 4, 0);
-                    wb.Freeze();
-
-                    byte[] pngBytes;
-                    using (var ms = new System.IO.MemoryStream())
-                    {
-                        var enc = new PngBitmapEncoder();
-                        enc.Frames.Add(BitmapFrame.Create(wb));
-                        enc.Save(ms);
-                        pngBytes = ms.ToArray();
-                    }
-
-                    // Build the page at correct aspect ratio scaled to A4-ish width.
-                    double pageW = 595.28;
-                    double pageH = pageW * bh / bw;
-
-                    var page = newDoc.AddPage();
-                    page.Width  = XUnit.FromPoint(pageW);
-                    page.Height = XUnit.FromPoint(pageH);
-
-                    using var gfx = XGraphics.FromPdfPage(page);
-                    var xImg = XImage.FromStream(() => new System.IO.MemoryStream(pngBytes));
-                    gfx.DrawImage(xImg, 0, 0, pageW, pageH);
-                }
-
-                if (newDoc.PageCount == 0) return null;
-
-                var repairedPath = App.MakeTempFile("repaired");
-                newDoc.Save(repairedPath);
-                newDoc.Close();
-                return repairedPath;
-            }
-            catch { return null; }
-        }
+        // The background-safe repair strategy workers (RepairViaImportToFile,
+        // RepairViaDocnetRasterizeToFile) live in Services/PdfImport.cs.
 
         // ============================================================
         // Close file (Ctrl+W) - returns to drop-zone state
@@ -656,7 +512,7 @@ namespace KillerPDF
                     // Real file-type icon (left), filename (fills), X (right).
                     var fileIcon = new Image
                     {
-                        Source              = GetShellIcon(path),
+                        Source              = ShellIcons.GetShellIcon(path),
                         Width               = 18,
                         Height              = 18,
                         VerticalAlignment   = VerticalAlignment.Center,
@@ -701,51 +557,8 @@ namespace KillerPDF
             PopulateRecentFilesList();
         }
 
-        // ---- File-type (shell) icons for the Recent list ----
-        // Cached per extension. Uses SHGFI_USEFILEATTRIBUTES so the icon resolves from the extension alone -
-        // works even when the file is missing, and never touches the file on disk.
-        private static readonly Dictionary<string, ImageSource?> _shellIconCache = new(System.StringComparer.OrdinalIgnoreCase);
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private struct SHFILEINFO
-        {
-            public IntPtr hIcon;
-            public int iIcon;
-            public uint dwAttributes;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string szDisplayName;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]  public string szTypeName;
-        }
-
-        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-        private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbSizeFileInfo, uint uFlags);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool DestroyIcon(IntPtr hIcon);
-
-        private static ImageSource? GetShellIcon(string path)
-        {
-            string ext = System.IO.Path.GetExtension(path) ?? "";
-            if (_shellIconCache.TryGetValue(ext, out var hit)) return hit;
-
-            const uint SHGFI_ICON = 0x000000100, SHGFI_LARGEICON = 0x000000000, SHGFI_USEFILEATTRIBUTES = 0x000000010;
-            const uint FILE_ATTRIBUTE_NORMAL = 0x80;
-            ImageSource? src = null;
-            try
-            {
-                var info = new SHFILEINFO();
-                IntPtr res = SHGetFileInfo("file" + ext, FILE_ATTRIBUTE_NORMAL, ref info,
-                    (uint)Marshal.SizeOf<SHFILEINFO>(), SHGFI_ICON | SHGFI_LARGEICON | SHGFI_USEFILEATTRIBUTES);
-                if (res != IntPtr.Zero && info.hIcon != IntPtr.Zero)
-                {
-                    src = Imaging.CreateBitmapSourceFromHIcon(info.hIcon, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-                    src.Freeze();
-                    DestroyIcon(info.hIcon);
-                }
-            }
-            catch { /* no icon available - the row simply shows none */ }
-            _shellIconCache[ext] = src;
-            return src;
-        }
+        // The file-type icon lookup (per-extension cache + SHGetFileInfo) lives in
+        // Services/ShellIcons.cs - the same shape the KillerUI file picker uses.
 
         // Fills the empty-state "Recent" list with clickable filenames (hidden when there are none).
         private void PopulateRecentFilesList()
@@ -839,7 +652,7 @@ namespace KillerPDF
                 // Real Windows file-type icon for this extension (left of the text).
                 var icon = new Image
                 {
-                    Source              = GetShellIcon(path),
+                    Source              = ShellIcons.GetShellIcon(path),
                     Width               = 32,
                     Height              = 32,
                     VerticalAlignment   = VerticalAlignment.Center,
@@ -1107,7 +920,7 @@ namespace KillerPDF
                     {
                         _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
                     }
-                    catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
+                    catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                     {
                         var fixedPath = App.MakeTempFile("savefixed");
                         if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
@@ -1200,7 +1013,7 @@ namespace KillerPDF
                     {
                         _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
                     }
-                    catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
+                    catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                     {
                         var fixedPath = App.MakeTempFile("savefixed");
                         if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
@@ -1274,7 +1087,7 @@ namespace KillerPDF
                 {
                     _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
                 }
-                catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
+                catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                 {
                     var fixedPath = App.MakeTempFile("savefixed");
                     if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
@@ -1442,7 +1255,7 @@ namespace KillerPDF
                 {
                     _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
                 }
-                catch (Exception saveOpenEx) when (IsXRefException(saveOpenEx))
+                catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                 {
                     var fixedPath = App.MakeTempFile("savefixed");
                     if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)
@@ -1615,7 +1428,7 @@ namespace KillerPDF
                     {
                         PdfDocument burnDoc;
                         try { burnDoc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify); }
-                        catch (Exception ex) when (IsXRefException(ex))
+                        catch (Exception ex) when (PdfImport.IsXRefException(ex))
                         {
                             // PdfSharpCore can write a snapshot its own reader then chokes on; repair via
                             // Import then PDFium, same as the save/undo paths.

@@ -162,7 +162,7 @@ namespace KillerPDF
             {
                 _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
             }
-            catch (Exception xrefEx) when (IsXRefException(xrefEx))
+            catch (Exception xrefEx) when (PdfImport.IsXRefException(xrefEx))
             {
                 var fixedPath = App.MakeTempFile("xffixed");
                 if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath)

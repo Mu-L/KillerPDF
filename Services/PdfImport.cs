@@ -1,4 +1,9 @@
 using System.IO;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Docnet.Core;
+using Docnet.Core.Models;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
@@ -287,6 +292,161 @@ namespace KillerPDF.Services
             arr.Elements.Add(doc.Pages[pageIndex].Reference);
             arr.Elements.Add(new PdfName("/Fit"));
             return arr;
+        }
+
+        // ---- Open-failure classifiers --------------------------------------------------------
+        // Pattern-match PdfSharpCore's exception messages to pick the right repair strategy.
+
+        // PdfSharpCore throws on some structurally-valid PDFs that PDFium opens fine - most
+        // often "Unexpected EOF" from SharpZipLib's Flate inflater while reading a FlateDecode
+        // cross-reference stream (multi-revision PDFs with incremental updates / dangling xref
+        // entries that tolerant parsers ignore). Match by message AND exception type across the
+        // whole inner-exception chain so a wrapped SharpZipBaseException is still recovered.
+        internal static bool IsEofParseException(Exception ex)
+        {
+            for (Exception? e = ex; e != null; e = e.InnerException)
+            {
+                string msg  = e.Message ?? string.Empty;
+                string type = e.GetType().FullName ?? string.Empty;
+                if (msg.IndexOf("EOF", StringComparison.OrdinalIgnoreCase) >= 0
+                    || msg.IndexOf("end of file", StringComparison.OrdinalIgnoreCase) >= 0
+                    || msg.IndexOf("Inflater", StringComparison.OrdinalIgnoreCase) >= 0
+                    || msg.IndexOf("FlateDecode", StringComparison.OrdinalIgnoreCase) >= 0
+                    || type.IndexOf("SharpZip", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        // True for recoverable PdfSharpCore read/parse failures that our repair path
+        // (import-rebuild / PDFium round-trip) can usually fix. Named for the original xref case,
+        // but now also covers other parser-level errors surfaced when reopening a saved temp.
+        internal static bool IsXRefException(Exception ex) =>
+            ex.Message.IndexOf("XRef", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("cross-reference", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("trailer", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("Invalid PDF file", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("startxref", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("Unexpected token", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            // #106: "Cannot retrieve stream length." - a stream whose /Length is indirect or broken.
+            ex.Message.IndexOf("stream length", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("File streams are not yet implemented", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        // True for UNC paths (\\server\share, \\wsl$\..., \\wsl.localhost\...) and mapped
+        // network drives. Such files are copied locally before opening to avoid 9P short reads.
+        internal static bool IsNetworkPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            if (path.StartsWith(@"\\", StringComparison.Ordinal)) return true;
+            try
+            {
+                var root = System.IO.Path.GetPathRoot(path);
+                if (!string.IsNullOrEmpty(root) && root!.Length >= 2 && root[1] == ':')
+                    return new DriveInfo(root).DriveType == DriveType.Network;
+            }
+            catch { }
+            return false;
+        }
+
+        internal static bool IsOwnerPasswordException(Exception ex) =>
+            ex.Message.IndexOf("owner", StringComparison.OrdinalIgnoreCase) >= 0 &&
+            ex.Message.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        internal static bool IsPasswordException(Exception ex) =>
+            ex.Message.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("protected", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.IndexOf("encrypted", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        // ---- Background-safe repair strategies -----------------------------------------------
+
+        /// <summary>
+        /// Strategy 1 worker (background-safe, no UI/_doc access): page-copies the source through
+        /// PdfSharpCore Import mode into a clean temp PDF and returns its path.
+        /// </summary>
+        internal static string? RepairViaImportToFile(string path)
+        {
+            // Returns null (never throws) so a failed strategy falls through cleanly to the next one
+            // and doesn't surface as a debugger "user-unhandled" break during the awaited Task.
+            try
+            {
+                PdfDocument repairedDoc;
+                using (var importDoc = PdfReader.Open(path, PdfDocumentOpenMode.Import))
+                {
+                    repairedDoc = new PdfDocument();
+                    for (int i = 0; i < importDoc.PageCount; i++)
+                        repairedDoc.Pages.Add(importDoc.Pages[i]);
+                }
+                var repairedPath = App.MakeTempFile("repaired");
+                repairedDoc.Save(repairedPath);
+                repairedDoc.Close();
+                return repairedPath;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Strategy 2 worker (background-safe, no UI/_doc access): uses PDFium (Docnet) to render
+        /// each page to a bitmap, rebuilds a clean PdfSharpCore document from those bitmaps, and
+        /// returns its temp path. Mirrors the flatten path, which also encodes off the UI thread.
+        /// </summary>
+        internal static string? RepairViaDocnetRasterizeToFile(string path)
+        {
+            // Returns null (never throws) so the caller can show a clean "repair failed" message
+            // without a debugger break on the awaited Task.
+            try
+            {
+                const int RenderPx = 2048;
+
+                using var docReader = DocLib.Instance.GetDocReader(path, new PageDimensions(RenderPx, RenderPx));
+                int pageCount = docReader.GetPageCount();
+                if (pageCount <= 0) return null;
+
+                var newDoc = new PdfDocument();
+
+                for (int i = 0; i < pageCount; i++)
+                {
+                    using var pr = docReader.GetPageReader(i);
+                    int bw = pr.GetPageWidth();
+                    int bh = pr.GetPageHeight();
+                    if (bw <= 0 || bh <= 0) continue;
+
+                    var raw = pr.GetImage();
+                    if (raw is null || raw.Length == 0) continue;
+
+                    var wb = new WriteableBitmap(bw, bh, 96, 96, PixelFormats.Bgra32, null);
+                    wb.WritePixels(new Int32Rect(0, 0, bw, bh), raw, bw * 4, 0);
+                    wb.Freeze();
+
+                    byte[] pngBytes;
+                    using (var ms = new System.IO.MemoryStream())
+                    {
+                        var enc = new PngBitmapEncoder();
+                        enc.Frames.Add(BitmapFrame.Create(wb));
+                        enc.Save(ms);
+                        pngBytes = ms.ToArray();
+                    }
+
+                    // Build the page at correct aspect ratio scaled to A4-ish width.
+                    double pageW = 595.28;
+                    double pageH = pageW * bh / bw;
+
+                    var page = newDoc.AddPage();
+                    page.Width  = XUnit.FromPoint(pageW);
+                    page.Height = XUnit.FromPoint(pageH);
+
+                    using var gfx = XGraphics.FromPdfPage(page);
+                    var xImg = XImage.FromStream(() => new System.IO.MemoryStream(pngBytes));
+                    gfx.DrawImage(xImg, 0, 0, pageW, pageH);
+                }
+
+                if (newDoc.PageCount == 0) return null;
+
+                var repairedPath = App.MakeTempFile("repaired");
+                newDoc.Save(repairedPath);
+                newDoc.Close();
+                return repairedPath;
+            }
+            catch { return null; }
         }
     }
 }

@@ -2587,7 +2587,7 @@ namespace KillerPDF
                 {
                     _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
                 }
-                catch (Exception undoOpenEx) when (IsXRefException(undoOpenEx))
+                catch (Exception undoOpenEx) when (PdfImport.IsXRefException(undoOpenEx))
                 {
                     var fixedPath = App.MakeTempFile("undofixed");
                     if (!PdfImport.TryImportRepairToPath(tempPath, fixedPath)
