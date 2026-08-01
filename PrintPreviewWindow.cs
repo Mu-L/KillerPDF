@@ -148,9 +148,9 @@ namespace KillerPDF
         private static void StyleTextBox(TextBox tb)
         {
             tb.BorderThickness     = new Thickness(1);
-            tb.CaretBrush          = R("TextPrimary");
-            tb.SelectionBrush      = R("AccentDim");
-            tb.SelectionTextBrush  = R("TextPrimary");
+            tb.CaretBrush          = R("TextBrush");
+            tb.SelectionBrush      = R("RowSelectedBrush");
+            tb.SelectionTextBrush  = R("TextBrush");
             tb.Template            = MakeTextBoxTemplate();
         }
 
@@ -195,9 +195,9 @@ namespace KillerPDF
                     Content         = glyph,
                     Padding         = new Thickness(0),
                     FontSize        = 7,
-                    Foreground      = R("TextPrimary"),
+                    Foreground      = R("TextBrush"),
                     Background      = R("BgCanvas"),
-                    BorderBrush     = R("BorderDim"),
+                    BorderBrush     = R("CardBorderBrush"),
                     BorderThickness = new Thickness(1),
                     Cursor          = Cursors.Hand,
                     Focusable       = false
@@ -242,8 +242,8 @@ namespace KillerPDF
             }
             else
             {
-                combo.Foreground  = R("TextPrimary");
-                combo.BorderBrush = R("BorderDim");
+                combo.Foreground  = R("TextBrush");
+                combo.BorderBrush = R("CardBorderBrush");
             }
             // Match the dropdown background to the document/preview area.
             combo.Background = R("BgCanvas");
@@ -400,8 +400,8 @@ namespace KillerPDF
         {
             var outer = new Border
             {
-                Background      = R("BgSidebar"),
-                BorderBrush     = R("BorderDim"),
+                Background      = R("BackgroundBrush"),
+                BorderBrush     = R("CardBorderBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius    = new CornerRadius(7),
                 // Halo must be >= BlurRadius + ShadowDepth or the window edge clips the shadow into a
@@ -561,8 +561,8 @@ namespace KillerPDF
             {
                 Text         = "100",
                 Background    = R("BgCanvas"),
-                Foreground    = R("TextPrimary"),
-                BorderBrush   = R("BorderDim"),
+                Foreground    = R("TextBrush"),
+                BorderBrush   = R("CardBorderBrush"),
                 Padding       = new Thickness(6, 4, 6, 4),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 ToolTip       = S("Str_Print_ScaleHint")
@@ -589,7 +589,7 @@ namespace KillerPDF
             };
             var scalePct = new TextBlock
             {
-                Text = "%", Foreground = R("TextSecondary"),
+                Text = "%", Foreground = R("MutedTextBrush"),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0)
             };
             DockPanel.SetDock(scalePct, Dock.Right);
@@ -631,8 +631,8 @@ namespace KillerPDF
             {
                 Text        = "1",
                 Background   = R("BgCanvas"),
-                Foreground   = R("TextPrimary"),
-                BorderBrush  = R("BorderDim"),
+                Foreground   = R("TextBrush"),
+                BorderBrush  = R("CardBorderBrush"),
                 Padding      = new Thickness(6, 4, 6, 4),
                 VerticalContentAlignment = VerticalAlignment.Center
             };
@@ -655,8 +655,8 @@ namespace KillerPDF
                 Text        = "",
                 Margin      = new Thickness(0, 4, 0, 2),
                 Background   = R("BgCanvas"),
-                Foreground   = R("TextPrimary"),
-                BorderBrush  = R("BorderDim"),
+                Foreground   = R("TextBrush"),
+                BorderBrush  = R("CardBorderBrush"),
                 Padding      = new Thickness(6, 4, 6, 4)
             };
             StyleTextBox(_pagesBox);
@@ -666,7 +666,7 @@ namespace KillerPDF
             panel.Children.Add(new TextBlock
             {
                 Text         = S("Str_Print_PagesHint"),
-                Foreground   = R("TextSecondary"),
+                Foreground   = R("MutedTextBrush"),
                 FontSize     = 11,
                 Margin       = new Thickness(0, 0, 0, 8),
                 TextWrapping = TextWrapping.Wrap
@@ -732,7 +732,7 @@ namespace KillerPDF
             var wrap = new Border
             {
                 Background       = R("BgCanvas"),
-                BorderBrush      = R("PaneBorder"),   // 1px frame, matching the main document pane
+                BorderBrush      = R("PaneBorderBrush"),   // 1px frame, matching the main document pane
                 BorderThickness  = new Thickness(1),
                 Margin           = new Thickness(0, 4, 8, 12),
                 CornerRadius     = new CornerRadius(4)
@@ -755,7 +755,7 @@ namespace KillerPDF
             prev.Click += (_, _) => { if (_previewIndex > 0) { _previewIndex--; UpdatePreview(); } };
             var next = MakeButton("▶", false);   // right triangle
             next.Click += (_, _) => { if (_previewIndex < SheetCount() - 1) { _previewIndex++; UpdatePreview(); } };
-            _pageLabel.Foreground = R("TextPrimary");
+            _pageLabel.Foreground = R("TextBrush");
             _pageLabel.VerticalAlignment = VerticalAlignment.Center;
             _pageLabel.Margin = new Thickness(12, 0, 12, 0);
             _pageLabel.FontSize = 12;
@@ -764,7 +764,7 @@ namespace KillerPDF
             nav.Children.Add(next);
 
             // "Rendering X / Y" gets its own line above the page nav while pages stream in.
-            _renderLabel.Foreground = R("TextSecondary");
+            _renderLabel.Foreground = R("MutedTextBrush");
             _renderLabel.HorizontalAlignment = HorizontalAlignment.Center;
             _renderLabel.FontSize = 11;
             _renderLabel.Margin = new Thickness(0, 0, 0, 2);
@@ -796,7 +796,7 @@ namespace KillerPDF
         private static TextBlock Label(string text) => new()
         {
             Text       = text,
-            Foreground = R("TextPrimary"),
+            Foreground = R("TextBrush"),
             FontSize   = 12,
             FontWeight = FontWeights.SemiBold
         };
@@ -981,7 +981,7 @@ namespace KillerPDF
             _previewHost.Children.Add(new TextBlock
             {
                 Text                = "Could not render preview:\n" + message,
-                Foreground          = R("TextSecondary"),
+                Foreground          = R("MutedTextBrush"),
                 TextWrapping        = TextWrapping.Wrap,
                 TextAlignment       = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -997,7 +997,7 @@ namespace KillerPDF
             var ring = new System.Windows.Shapes.Ellipse
             {
                 Width = 36, Height = 36, StrokeThickness = 3,
-                Stroke = R("TextSecondary"),
+                Stroke = R("MutedTextBrush"),
                 StrokeDashArray = [22, 200],
                 StrokeDashCap = PenLineCap.Round,
                 RenderTransformOrigin = new Point(0.5, 0.5)
@@ -1011,7 +1011,7 @@ namespace KillerPDF
             sp.Children.Add(new TextBlock
             {
                 Text                = $"Rendering {_loadedCount} / {_pages.Length}",
-                Foreground          = R("TextSecondary"),
+                Foreground          = R("MutedTextBrush"),
                 FontSize            = 12,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin              = new Thickness(0, 12, 0, 0)
@@ -1212,7 +1212,7 @@ namespace KillerPDF
             var ring = new System.Windows.Shapes.Ellipse
             {
                 Width = 40, Height = 40, StrokeThickness = 3,
-                Stroke = R("TextSecondary"),
+                Stroke = R("MutedTextBrush"),
                 StrokeDashArray = [24, 200],
                 StrokeDashCap = PenLineCap.Round,
                 RenderTransformOrigin = new Point(0.5, 0.5)
@@ -1226,7 +1226,7 @@ namespace KillerPDF
             status = new TextBlock
             {
                 Text                = "Preparing to print…",
-                Foreground          = R("TextPrimary"),
+                Foreground          = R("TextBrush"),
                 FontSize            = 13,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin              = new Thickness(0, 14, 0, 0)
@@ -1237,7 +1237,7 @@ namespace KillerPDF
             stack.Children.Add(status);
 
             // Veil in the card's own colour at high opacity, so the scrim reads on either theme.
-            var veil = R("BgSidebar").Color;
+            var veil = R("BackgroundBrush").Color;
             var overlay = new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(232, veil.R, veil.G, veil.B)),

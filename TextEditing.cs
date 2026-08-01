@@ -125,7 +125,7 @@ namespace KillerPDF
                         Text = placed.Content,
                         Background = TextEditBackground(),
                         Foreground = new SolidColorBrush(pcol),
-                        BorderBrush = (SolidColorBrush)FindResource("Accent"),
+                        BorderBrush = (SolidColorBrush)FindResource("PrimaryBrush"),
                         SelectionBrush = AccentBrush(),
                         CaretBrush = new SolidColorBrush(pcol),
                         Template = FlatTextBoxTemplate(),
@@ -356,7 +356,7 @@ namespace KillerPDF
                 Text = text,
                 Background = Brushes.Transparent,   // the opaque cover behind supplies the backdrop
                 Foreground = new SolidColorBrush(inkColor),
-                BorderBrush = (SolidColorBrush)FindResource("Accent"),
+                BorderBrush = (SolidColorBrush)FindResource("PrimaryBrush"),
                 SelectionBrush = AccentBrush(),
                 CaretBrush = new SolidColorBrush(inkColor),
                 Template = FlatTextBoxTemplate(),
@@ -440,7 +440,7 @@ namespace KillerPDF
             {
                 Background = TextEditBackground(),
                 Foreground = new SolidColorBrush(_textColor),
-                BorderBrush = (SolidColorBrush)FindResource("Accent"),
+                BorderBrush = (SolidColorBrush)FindResource("PrimaryBrush"),
                 SelectionBrush = AccentBrush(),
                 CaretBrush = new SolidColorBrush(_textColor),
                 Template = FlatTextBoxTemplate(),

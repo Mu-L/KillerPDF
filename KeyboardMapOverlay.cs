@@ -154,8 +154,8 @@ namespace KillerPDF
             ShortcutListHost.Visibility     = keyboard ? Visibility.Collapsed : Visibility.Visible;
             ShortcutKeyboardHost.Visibility = keyboard ? Visibility.Visible : Visibility.Collapsed;
             ShortcutCardGrid.MaxWidth       = keyboard ? 1080 : 640;
-            KsViewListBtn.SetResourceReference(ForegroundProperty, keyboard ? "TextSecondary" : "Accent");
-            KsViewKeyboardBtn.SetResourceReference(ForegroundProperty, keyboard ? "Accent" : "TextSecondary");
+            KsViewListBtn.SetResourceReference(ForegroundProperty, keyboard ? "MutedTextBrush" : "PrimaryBrush");
+            KsViewKeyboardBtn.SetResourceReference(ForegroundProperty, keyboard ? "PrimaryBrush" : "MutedTextBrush");
             if (keyboard) SetKbLayer(KbLayer.Base);
             if (persist) App.SetSetting(KsViewSetting, keyboard ? "keyboard" : "list");
         }
@@ -184,9 +184,9 @@ namespace KillerPDF
                     BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
                     FocusVisualStyle = null, Template = UiKit.ButtonTemplate(),   // no stock hover chrome
                 };
-                b.SetResourceReference(BackgroundProperty, "BgPanel");
-                b.SetResourceReference(ForegroundProperty, "TextSecondary");
-                b.SetResourceReference(BorderBrushProperty, "BorderDim");
+                b.SetResourceReference(BackgroundProperty, "PaneBrush");
+                b.SetResourceReference(ForegroundProperty, "MutedTextBrush");
+                b.SetResourceReference(BorderBrushProperty, "CardBorderBrush");
                 var l = layer;
                 b.Click += (_, _2) => SetKbLayer(l);
                 _kbLayerBtns[layer] = b;
@@ -197,7 +197,7 @@ namespace KillerPDF
                 FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0),
             };
             hint.SetResourceReference(TextBlock.TextProperty, "Str_KS_HoldHint");
-            hint.SetResourceReference(TextBlock.ForegroundProperty, "TextDim");
+            hint.SetResourceReference(TextBlock.ForegroundProperty, "DimTextBrush");
             layerRow.Children.Add(hint);
             host.Children.Add(layerRow);
 
@@ -216,7 +216,7 @@ namespace KillerPDF
                         FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 5, 0, 0),
                     };
-                    capText.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
+                    capText.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                     var act = new TextBlock
                     {
                         FontSize = 8.5, HorizontalAlignment = HorizontalAlignment.Center,
@@ -243,8 +243,8 @@ namespace KillerPDF
                         BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 4, 0),
                         Child = inner,
                     };
-                    key.SetResourceReference(Border.BackgroundProperty, "BgPanel");
-                    key.SetResourceReference(Border.BorderBrushProperty, "BorderDim");
+                    key.SetResourceReference(Border.BackgroundProperty, "PaneBrush");
+                    key.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
                     // Hover: the keycap lifts a few pixels, like the cards on the killertools.net front page.
                     var lift = new TranslateTransform();
                     key.RenderTransform = lift;
@@ -282,7 +282,7 @@ namespace KillerPDF
                 Text = " ", FontFamily = UiKit.MonoFont, FontSize = 12.5,
                 Margin = new Thickness(2, 10, 0, 0), Height = 18,
             };
-            _kbDetail.SetResourceReference(TextBlock.ForegroundProperty, "Accent");
+            _kbDetail.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryBrush");
             host.Children.Add(_kbDetail);
         }
 
@@ -371,7 +371,7 @@ namespace KillerPDF
                 }
                 else
                 {
-                    vis.Cap.SetResourceReference(Border.BorderBrushProperty, "BorderDim");
+                    vis.Cap.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
                     vis.Bar.Visibility = Visibility.Collapsed;
                     vis.Act.Visibility = Visibility.Collapsed;
                 }
@@ -381,11 +381,11 @@ namespace KillerPDF
             foreach (var m in allMods)
                 if (_kbKeys.TryGetValue(m, out var vis))
                     vis.Cap.SetResourceReference(Border.BorderBrushProperty,
-                        System.Array.IndexOf(KbLayerMods[layer], m) >= 0 ? "Accent" : "BorderDim");
+                        System.Array.IndexOf(KbLayerMods[layer], m) >= 0 ? "PrimaryBrush" : "CardBorderBrush");
             foreach (var kv in _kbLayerBtns)   // no KeyValuePair deconstruction on net48
             {
-                kv.Value.SetResourceReference(ForegroundProperty, kv.Key == layer ? "Accent" : "TextSecondary");
-                kv.Value.SetResourceReference(BorderBrushProperty, kv.Key == layer ? "Accent" : "BorderDim");
+                kv.Value.SetResourceReference(ForegroundProperty, kv.Key == layer ? "PrimaryBrush" : "MutedTextBrush");
+                kv.Value.SetResourceReference(BorderBrushProperty, kv.Key == layer ? "PrimaryBrush" : "CardBorderBrush");
             }
             // Layer changed while a key is hovered (holding Ctrl / Shift / Alt): restart that key's
             // marquee for its NEW caption - MouseEnter alone never re-fires. Deferred one layout

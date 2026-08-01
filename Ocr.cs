@@ -149,7 +149,7 @@ namespace KillerPDF
                 var codeTb = new TextBlock
                 {
                     Text = code, FontFamily = UiKit.MonoFont, FontSize = 11,
-                    Foreground = (Brush)FindResource("TextSecondary"),
+                    Foreground = (Brush)FindResource("MutedTextBrush"),
                     Margin = new Thickness(20, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center
                 };
                 DockPanel.SetDock(codeTb, Dock.Right);

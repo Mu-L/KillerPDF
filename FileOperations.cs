@@ -1004,7 +1004,7 @@ namespace KillerPDF
                 };
                 // DynamicResource so the color tracks theme switches (FindResource would freeze
                 // whatever theme was active when the list was built).
-                name.SetResourceReference(TextBlock.ForegroundProperty, exists ? "TextPrimary" : "TextDim");
+                name.SetResourceReference(TextBlock.ForegroundProperty, exists ? "TextBrush" : "DimTextBrush");
 
                 // File path line (slightly brighter) sits above the date line (slightly dimmer).
                 var pathTb = new TextBlock
@@ -1015,7 +1015,7 @@ namespace KillerPDF
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin       = new Thickness(0, 2, 0, 0)
                 };
-                pathTb.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                pathTb.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
 
                 var dateTb = new TextBlock
                 {
@@ -1026,7 +1026,7 @@ namespace KillerPDF
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin       = new Thickness(0, 1, 0, 0)
                 };
-                dateTb.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                dateTb.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
 
                 var stack = new StackPanel();
                 stack.Children.Add(name);
@@ -1043,7 +1043,7 @@ namespace KillerPDF
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
-                delIcon.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                delIcon.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
                 delIcon.Text = "";   // Segoe MDL2 ChromeClose (X)
                 var del = new Border
                 {
@@ -1058,7 +1058,7 @@ namespace KillerPDF
                     ToolTip           = Loc("Str_Menu_RemoveFromRecents")
                 };
                 del.MouseEnter += (_, _) => { delIcon.SetResourceReference(TextBlock.ForegroundProperty, "DangerRed"); delIcon.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = System.Windows.Media.Colors.Black, BlurRadius = 4, ShadowDepth = 1, Direction = 270, Opacity = 0.5 }; };
-                del.MouseLeave += (_, _) => { delIcon.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary"); delIcon.Effect = null; };
+                del.MouseLeave += (_, _) => { delIcon.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush"); delIcon.Effect = null; };
                 del.MouseLeftButtonDown += (_, ev) =>
                 {
                     ev.Handled = true;   // don't open the file
@@ -1103,7 +1103,7 @@ namespace KillerPDF
                     Child         = rowGrid,
                     ToolTip       = path
                 };
-                row.MouseEnter += (_, _) => { row.Background = (SolidColorBrush)FindResource("BgHover"); del.Opacity = 1; };
+                row.MouseEnter += (_, _) => { row.Background = (SolidColorBrush)FindResource("RowHoverBrush"); del.Opacity = 1; };
                 row.MouseLeave += (_, _) => { row.Background = System.Windows.Media.Brushes.Transparent; del.Opacity = 0; };
                 row.MouseLeftButtonDown += (_, ev) =>
                 {

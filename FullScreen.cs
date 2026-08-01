@@ -124,7 +124,7 @@ namespace KillerPDF
                 _sidebarCol.Width = _fsSidebarCol;
                 MainContentGrid.ColumnDefinitions[1].Width = _fsSplitterCol;
                 DocPaneBorder.SetResourceReference(Border.BackgroundProperty, "BgCanvas");
-                SetResourceReference(BackgroundProperty, "BgDark");   // undo the black grow-backdrop
+                SetResourceReference(BackgroundProperty, "SurfaceBrush");   // undo the black grow-backdrop
 
                 // Drop topmost and restore the pre-full-screen window placement. Restore the normal bounds
                 // first (so WPF's remembered restore rect is correct) then re-maximize if it was maximized.

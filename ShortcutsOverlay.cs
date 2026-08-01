@@ -146,7 +146,7 @@ namespace KillerPDF
                     Margin     = new Thickness(0, s == 0 ? 0 : 12, 0, 4),
                 };
                 header.SetResourceReference(TextBlock.TextProperty, section.TitleKey);
-                header.SetResourceReference(TextBlock.ForegroundProperty, "Accent");
+                header.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryBrush");
                 host.Children.Add(header);
 
                 for (int r = 0; r < section.Rows.Length; r++)
@@ -163,13 +163,13 @@ namespace KillerPDF
                         FontSize   = 11,
                         Width      = 120,
                     };
-                    keys.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                    keys.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
                     dock.Children.Add(keys);
 
                     // Description: fills the rest, localized, primary colour, shared KS font size.
                     var label = new TextBlock();
                     label.SetResourceReference(TextBlock.TextProperty, row.LabelKey);
-                    label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
+                    label.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                     label.SetResourceReference(TextBlock.FontSizeProperty, "Str_KS_FontSize");
                     dock.Children.Add(label);
 

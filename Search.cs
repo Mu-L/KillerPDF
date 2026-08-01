@@ -54,10 +54,10 @@ namespace KillerPDF
                 // Live (DynamicResource-style) brushes so the box recolors on a theme switch while the
                 // bar is open, instead of baking colors in at build time. Background uses the dark
                 // toolbar/titlebar tone (BgSidebar).
-                _searchBox.SetResourceReference(Control.BackgroundProperty, "BgSidebar");
-                _searchBox.SetResourceReference(Control.ForegroundProperty, "TextPrimary");
-                _searchBox.SetResourceReference(System.Windows.Controls.Primitives.TextBoxBase.CaretBrushProperty, "TextPrimary");
-                _searchBox.SetResourceReference(Control.BorderBrushProperty, "BorderDim");
+                _searchBox.SetResourceReference(Control.BackgroundProperty, "BackgroundBrush");
+                _searchBox.SetResourceReference(Control.ForegroundProperty, "TextBrush");
+                _searchBox.SetResourceReference(System.Windows.Controls.Primitives.TextBoxBase.CaretBrushProperty, "TextBrush");
+                _searchBox.SetResourceReference(Control.BorderBrushProperty, "CardBorderBrush");
                 _searchBox.KeyDown += SearchBox_KeyDown;
                 _searchBox.TextChanged += SearchBox_TextChanged;
 
@@ -87,7 +87,7 @@ namespace KillerPDF
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin = new Thickness(2, 0, 2, 0)
                 };
-                _searchStatus.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                _searchStatus.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
 
                 // Small VSCode-style prev / next / close buttons. Hover tooltips carry the shortcuts.
                 Button SearchNavBtn(string glyph, string tip, Action onClick, bool danger = false)
@@ -120,11 +120,11 @@ namespace KillerPDF
                     Margin = new Thickness(0, 0, 6, 0),
                     IsHitTestVisible = false
                 };
-                searchIcon.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                searchIcon.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
 
                 // Drag grip: two columns of three dots on the left (same look as the sidebar splitter and
                 // the annotate bars). Grabbing it moves the whole bar anywhere in the document area.
-                var gripBrush = TryFindResource("TextSecondary") as Brush ?? Brushes.Gray;
+                var gripBrush = TryFindResource("MutedTextBrush") as Brush ?? Brushes.Gray;
                 var gripDots = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
@@ -175,7 +175,7 @@ namespace KillerPDF
                     Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 16, ShadowDepth = 3, Direction = 270, Opacity = 0.55 }
                 };
                 _searchBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
-                _searchBar.SetResourceReference(Border.BorderBrushProperty, "AccentBorder");
+                _searchBar.SetResourceReference(Border.BorderBrushProperty, "MenuBorderBrush");
 
                 // Add to the preview area grid (parent of ScrollViewer)
                 var previewGrid = PagePreviewPanel.Parent as Grid;

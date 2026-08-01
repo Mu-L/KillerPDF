@@ -9,7 +9,7 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
-        Background="{DynamicResource BgDark}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
@@ -49,7 +49,7 @@
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Effect">
                 <Setter.Value>
                     <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="{DynamicResource HeaderShadowOpacity}"/>
@@ -62,7 +62,7 @@
         <Style x:Key="SettingsAccentValue" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{DynamicResource HeaderAccent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource HeaderLineBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Effect">
                 <Setter.Value>
@@ -85,7 +85,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{DynamicResource BgPanel}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource PaneBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -96,7 +96,7 @@
         <!-- Toolbar button -->
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
@@ -123,7 +123,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -156,7 +156,7 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bg" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="bg" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -174,7 +174,7 @@
         </Style>
         <Style x:Key="ToolbarToggleButton" TargetType="ToggleButton">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="Padding" Value="10,6"/>
@@ -206,7 +206,7 @@
                                 <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -219,7 +219,7 @@
 
         <Style x:Key="ChromeButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Width" Value="46"/>
             <Setter Property="Height" Value="36"/>
@@ -234,7 +234,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -263,7 +263,7 @@
         <!-- Tab close button: themed so hover is the danger red (not WPF's default blue chrome). -->
         <Style x:Key="TabCloseButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -287,7 +287,7 @@
              Centralised so every close X behaves identically. -->
         <Style x:Key="DangerCloseButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -325,7 +325,7 @@
         <!-- New-tab "+" button: subtle hover, no default chrome. -->
         <Style x:Key="TabNewButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -336,8 +336,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHover}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -352,12 +352,12 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ResizeGrip">
                         <Grid Background="Transparent" SnapsToDevicePixels="True" Margin="0,0,5,5">
-                            <Rectangle Width="2" Height="2" Fill="{DynamicResource TextDim}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,0"/>
-                            <Rectangle Width="2" Height="2" Fill="{DynamicResource TextDim}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,0"/>
-                            <Rectangle Width="2" Height="2" Fill="{DynamicResource TextDim}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,0"/>
-                            <Rectangle Width="2" Height="2" Fill="{DynamicResource TextDim}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
-                            <Rectangle Width="2" Height="2" Fill="{DynamicResource TextDim}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"/>
-                            <Rectangle Width="2" Height="2" Fill="{DynamicResource TextDim}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+                            <Rectangle Width="2" Height="2" Fill="{DynamicResource DimTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,0"/>
+                            <Rectangle Width="2" Height="2" Fill="{DynamicResource DimTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                            <Rectangle Width="2" Height="2" Fill="{DynamicResource DimTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,0"/>
+                            <Rectangle Width="2" Height="2" Fill="{DynamicResource DimTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                            <Rectangle Width="2" Height="2" Fill="{DynamicResource DimTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"/>
+                            <Rectangle Width="2" Height="2" Fill="{DynamicResource DimTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
@@ -377,17 +377,17 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Separator">
-                        <Border Height="1" Margin="8,4" Background="{DynamicResource BorderDim}"/>
+                        <Border Height="1" Margin="8,4" Background="{DynamicResource CardBorderBrush}"/>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
         <Style TargetType="ContextMenu">
-            <Setter Property="Background" Value="{DynamicResource BgModal}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="HasDropShadow" Value="False"/>
@@ -438,7 +438,7 @@
         </Style>
         <Style TargetType="MenuItem">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Padding" Value="8,6,10,6"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
@@ -461,17 +461,17 @@
                                 <!-- check glyph for checkable items (e.g. OCR language multi-select) -->
                                 <TextBlock x:Name="Check" Grid.Column="0" Text="&#xE73E;"
                                            FontFamily="Segoe MDL2 Assets" FontSize="11"
-                                           Foreground="{DynamicResource Accent}"
+                                           Foreground="{DynamicResource PrimaryBrush}"
                                            VerticalAlignment="Center" HorizontalAlignment="Left"
                                            Visibility="Collapsed"/>
                                 <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="Gesture" Grid.Column="2" Text="{TemplateBinding InputGestureText}"
-                                           Foreground="{DynamicResource TextSecondary}" FontSize="11"
+                                           Foreground="{DynamicResource MutedTextBrush}" FontSize="11"
                                            VerticalAlignment="Center" Margin="24,0,0,0"/>
                                 <!-- submenu arrow for items that have children -->
                                 <TextBlock x:Name="SubArrow" Grid.Column="3" Text="&#xE76C;"
                                            FontFamily="Segoe MDL2 Assets" FontSize="8"
-                                           Foreground="{DynamicResource TextSecondary}"
+                                           Foreground="{DynamicResource MutedTextBrush}"
                                            VerticalAlignment="Center" Margin="12,0,0,0"
                                            Visibility="Collapsed"/>
                                 <Popup x:Name="SubPopup" AllowsTransparency="True" Placement="Right"
@@ -479,13 +479,13 @@
                                        IsOpen="{TemplateBinding IsSubmenuOpen}">
                                     <!-- Mirrors the ContextMenu template surface so submenus match the parent menu. -->
                                     <Grid Margin="5">
-                                        <Border Background="{DynamicResource BgModal}" CornerRadius="4" IsHitTestVisible="False">
+                                        <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="4" IsHitTestVisible="False">
                                             <Border.Effect>
                                                 <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.5"/>
                                             </Border.Effect>
                                         </Border>
-                                        <Border Background="{DynamicResource BgModal}"
-                                                BorderBrush="{DynamicResource AccentBorder}"
+                                        <Border Background="{DynamicResource MenuBackgroundBrush}"
+                                                BorderBrush="{DynamicResource MenuBorderBrush}"
                                                 BorderThickness="1" CornerRadius="4" Padding="4">
                                             <Grid>
                                                 <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
@@ -535,7 +535,7 @@
             </Setter>
         </Style>
         <Style TargetType="Separator">
-            <Setter Property="Background" Value="{DynamicResource BorderDim}"/>
+            <Setter Property="Background" Value="{DynamicResource CardBorderBrush}"/>
             <Setter Property="Height" Value="1"/>
             <Setter Property="Margin" Value="4,4"/>
         </Style>
@@ -564,7 +564,7 @@
         <Style x:Key="DarkComboItem" TargetType="ComboBoxItem">
             <Setter Property="OverridesDefaultStyle" Value="True"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Padding" Value="8,5"/>
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="11"/>
@@ -579,7 +579,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="ItemBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="ItemBd" Property="Background" Value="{DynamicResource SelectionBg}"/>
@@ -594,9 +594,9 @@
         <!-- The ComboBox itself -->
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
             <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Background" Value="{DynamicResource BgPanel}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource PaneBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="11"/>
@@ -632,22 +632,22 @@
                                              Margin="5,0,0,0"
                                              Background="Transparent"
                                              BorderThickness="0"
-                                             Foreground="{DynamicResource TextPrimary}"
+                                             Foreground="{DynamicResource TextBrush}"
                                              FontFamily="Consolas"
                                              FontSize="11"
                                              VerticalAlignment="Center"
                                              IsReadOnly="{TemplateBinding IsReadOnly}"
                                              Visibility="Hidden"
                                              Focusable="True"
-                                             SelectionBrush="{DynamicResource AccentDim}"
-                                             SelectionTextBrush="{DynamicResource Accent}"
-                                             CaretBrush="{DynamicResource Accent}"/>
+                                             SelectionBrush="{DynamicResource RowSelectedBrush}"
+                                             SelectionTextBrush="{DynamicResource PrimaryBrush}"
+                                             CaretBrush="{DynamicResource PrimaryBrush}"/>
                                     <!-- Chevron arrow -->
                                     <TextBlock Grid.Column="1"
                                                Text="&#xE70D;"
                                                FontFamily="Segoe MDL2 Assets"
                                                FontSize="8"
-                                               Foreground="{DynamicResource TextSecondary}"
+                                               Foreground="{DynamicResource MutedTextBrush}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center"
                                                IsHitTestVisible="False"/>
@@ -665,8 +665,8 @@
                                    Focusable="False"
                                    PopupAnimation="Fade"
                                    Placement="Bottom">
-                                <Border Background="{DynamicResource BgPanel}"
-                                        BorderBrush="{DynamicResource BorderDim}"
+                                <Border Background="{DynamicResource PaneBrush}"
+                                        BorderBrush="{DynamicResource CardBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="3"
                                         Padding="2"
@@ -690,10 +690,10 @@
                                 <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -707,8 +707,8 @@
         <!-- Page list styles -->
         <Style x:Key="PageListBox" TargetType="ListBox">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderDim}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="13"/>
             <!-- Set on the ItemsControl so the ListBoxItem default FindAncestor binding resolves; silences the benign "Data Error 4 ... HorizontalContentAlignment" spam during virtualization. -->
@@ -717,7 +717,7 @@
         </Style>
         <Style TargetType="ListBoxItem">
             <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
@@ -732,7 +732,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionBg}"/>
@@ -748,7 +748,7 @@
         <Style x:Key="SidebarTabBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -760,7 +760,7 @@
                         <ContentPresenter/>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.35"/>
@@ -775,7 +775,7 @@
         <Style x:Key="OutlineTreeStyle" TargetType="TreeView">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
@@ -794,7 +794,7 @@
                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                   RenderTransformOrigin="0.5,0.5"
                                   Data="M0,0 L5,4.5 L0,9 Z"
-                                  Fill="{DynamicResource TextDim}"/>
+                                  Fill="{DynamicResource DimTextBrush}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
@@ -805,7 +805,7 @@
                                 </Setter>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Arrow" Property="Fill" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="Arrow" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -815,7 +815,7 @@
 
         <!-- Outline tree row: website-style accent left-bar + tinted selection, themed hover, no WPF blue. -->
         <Style x:Key="OutlineItemStyle" TargetType="TreeViewItem">
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="IsExpanded" Value="False"/>
@@ -866,11 +866,11 @@
                                 <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
                             </Trigger>
                             <Trigger SourceName="Bd" Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionBg}"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -881,9 +881,9 @@
 
         <!-- General-purpose themed text button -->
         <Style x:Key="DarkButton" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource BgPanel}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderDim}"/>
+            <Setter Property="Background" Value="{DynamicResource PaneBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -926,7 +926,7 @@
         </Style>
 
         <Style x:Key="ThemeRadio" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
@@ -944,7 +944,7 @@
                             <DockPanel LastChildFill="True" Background="Transparent">
                                 <Grid Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left">
                                     <Ellipse x:Name="ring" Width="14" Height="14"
-                                             Stroke="{DynamicResource TextDim}" StrokeThickness="1.5"
+                                             Stroke="{DynamicResource DimTextBrush}" StrokeThickness="1.5"
                                              Fill="Transparent"/>
                                     <Ellipse x:Name="dot" Width="7" Height="7"
                                              Fill="{DynamicResource RadioAccent}" Visibility="Collapsed"/>
@@ -965,7 +965,7 @@
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource RadioAccent}"/>
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -976,7 +976,7 @@
         <!-- Settings toggle checkbox: mirrors ThemeRadio (same ring/accent language) but square with a
              checkmark, for independent on/off switches rather than exclusive picks. -->
         <Style x:Key="ThemeCheck" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
@@ -991,7 +991,7 @@
                             <DockPanel LastChildFill="True" Background="Transparent">
                                 <Grid Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left">
                                     <Border x:Name="box" Width="14" Height="14" CornerRadius="3"
-                                            BorderBrush="{DynamicResource TextDim}" BorderThickness="1.5"
+                                            BorderBrush="{DynamicResource DimTextBrush}" BorderThickness="1.5"
                                             Background="Transparent"/>
                                     <TextBlock x:Name="tick" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
                                                FontSize="10" Foreground="{DynamicResource RadioAccent}"
@@ -1009,7 +1009,7 @@
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource RadioAccent}"/>
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -1022,7 +1022,7 @@
         <Style x:Key="FormFieldTextBox" TargetType="TextBox">
             <!-- Themed text selection / caret so focused fields never show WPF's default blue highlight. -->
             <Setter Property="SelectionBrush" Value="{DynamicResource SelectionAccent}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -1046,8 +1046,8 @@
          Effect on RootBorder, so animating content inside the window (e.g. the Settings slide) doesn't
          force the whole surface to re-blur every frame. Margin / corner radius / visibility / effect are
          managed in UpdateWindowChrome. -->
-    <Border x:Name="WindowShadowBorder" Background="{DynamicResource BgDark}" CornerRadius="7" IsHitTestVisible="False"/>
-    <Border x:Name="RootBorder" BorderBrush="{DynamicResource PaneBorder}" BorderThickness="1" Background="{DynamicResource BgDark}" CornerRadius="7">
+    <Border x:Name="WindowShadowBorder" Background="{DynamicResource SurfaceBrush}" CornerRadius="7" IsHitTestVisible="False"/>
+    <Border x:Name="RootBorder" BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="7">
     <!-- Starts invisible; revealed (fade-in) only after the final shadow/fade positioning pass in
          ContentRendered, so the unpositioned first frame (the "load deform") is never shown. -->
     <Grid x:Name="RootClipGrid" Opacity="0">
@@ -1062,7 +1062,7 @@
         <!-- Title bar -->
         <!-- WindowChrome.CaptionHeight makes this row the draggable caption (native drag + double-click
              maximize), so the explicit MouseLeftButtonDown drag handler is no longer wired. -->
-        <Border Grid.Row="0" x:Name="TitleBarBorder" Background="{DynamicResource BgSidebar}" BorderThickness="0"
+        <Border Grid.Row="0" x:Name="TitleBarBorder" Background="{DynamicResource BackgroundBrush}" BorderThickness="0"
                 CornerRadius="7,7,0,0">
             <Grid>
             <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
@@ -1095,7 +1095,7 @@
                             <TextBlock><Run Text="Killer" FontFamily="{DynamicResource WordmarkFont}" FontSize="16.5" Foreground="#D8000000"/><Run Text="PDF" FontFamily="{DynamicResource WordmarkFontPdf}" FontWeight="Bold" FontSize="21.45" Foreground="#D8000000"/></TextBlock>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock><Run Text="Killer" FontFamily="{DynamicResource WordmarkFont}" FontSize="16.5" Foreground="{DynamicResource TextPrimary}"/><Run Text="PDF" FontFamily="{DynamicResource WordmarkFontPdf}" FontWeight="Bold" FontSize="21.45" Foreground="{DynamicResource AccentLogo}"/></TextBlock>
+                            <TextBlock><Run Text="Killer" FontFamily="{DynamicResource WordmarkFont}" FontSize="16.5" Foreground="{DynamicResource TextBrush}"/><Run Text="PDF" FontFamily="{DynamicResource WordmarkFontPdf}" FontWeight="Bold" FontSize="21.45" Foreground="{DynamicResource AccentLogo}"/></TextBlock>
                         </StackPanel>
                     </Grid>
                 </StackPanel>
@@ -1114,7 +1114,7 @@
         </Border>
 
         <!-- Toolbar -->
-        <Border Grid.Row="1" x:Name="ToolbarRowBorder" Background="{DynamicResource BgSidebar}">
+        <Border Grid.Row="1" x:Name="ToolbarRowBorder" Background="{DynamicResource BackgroundBrush}">
             <Grid>
             <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
             <Grid x:Name="ToolbarGrid" SizeChanged="ToolbarGrid_SizeChanged" Margin="4,2">
@@ -1132,12 +1132,12 @@
                     <Button Content="&#xE8B9;" Style="{StaticResource ToolbarButton}" Click="SaveFlattened_Click" ToolTip="{DynamicResource Str_TT_SaveFlattened}"/>
                     <Button Content="&#xE749;" Style="{StaticResource ToolbarButton}" Click="Print_Click" ToolTip="{DynamicResource Str_TT_Print}"/>
                     <StackPanel x:Name="GrpPageOps" Orientation="Horizontal">
-                        <Rectangle Width="1" Fill="{DynamicResource BorderDim}" Margin="4,6"/>
+                        <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
                         <Button Content="&#xE710;" Style="{StaticResource ToolbarButton}" Click="Merge_Click" ToolTip="{DynamicResource Str_TT_MergePDFs}"/>
                         <Button Content="&#xE8B1;" Style="{StaticResource ToolbarButton}" Click="Split_Click" ToolTip="{DynamicResource Str_TT_ExtractPages}"/>
                     </StackPanel>
                     <StackPanel x:Name="GrpPageEdit" Orientation="Horizontal">
-                        <Rectangle Width="1" Fill="{DynamicResource BorderDim}" Margin="4,6"/>
+                        <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
                         <Button Content="&#xE8C6;" Style="{StaticResource ToolbarButton}" Click="Delete_Click" ToolTip="{DynamicResource Str_TT_DeletePages}"/>
                         <Button Content="&#xE74A;" Style="{StaticResource ToolbarButton}" Click="MoveUp_Click" ToolTip="{DynamicResource Str_TT_MovePageUp}"/>
                         <Button Content="&#xE74B;" Style="{StaticResource ToolbarButton}" Click="MoveDown_Click" ToolTip="{DynamicResource Str_TT_MovePageDown}"/>
@@ -1160,10 +1160,10 @@
                     <Button x:Name="ToolRotateBtn" Content="&#xE7AD;" Style="{StaticResource ToolbarButton}" Click="ToolRotate_Click" ToolTip="{DynamicResource Str_TT_RotateTool}"/>
                     <Button x:Name="ToolStampBtn" Content="&#xE932;" Style="{StaticResource ToolbarButton}" Click="ToolStamp_Click" ToolTip="{DynamicResource Str_TT_StampTool}"/>
                     <StackPanel x:Name="GrpUndo" Orientation="Horizontal">
-                        <Rectangle Width="1" Fill="{DynamicResource BorderDim}" Margin="4,6"/>
+                        <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
                         <Button Content="&#xE7A7;" Style="{StaticResource ToolbarButton}" Click="Undo_Click" ToolTip="{DynamicResource Str_TT_UndoLast}"/>
                         <Button Content="&#xED62;" Style="{StaticResource ToolbarButtonDanger}" Click="ClearAllAnnotations_Click" ToolTip="{DynamicResource Str_TT_ClearAnnotations}"/>
-                        <Rectangle Width="1" Fill="{DynamicResource BorderDim}" Margin="4,6"/>
+                        <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
                         <Button x:Name="SearchBtn" Content="&#xE721;" Style="{StaticResource ToolbarButton}" Click="Search_Click" ToolTip="{DynamicResource Str_TT_Search}"/>
                     </StackPanel>
                     <!-- 10px left gap so the zoom cluster reads as separate from the Search button. -->
@@ -1194,12 +1194,12 @@
                             <ControlTemplate TargetType="ToggleButton">
                                 <Border x:Name="cb" Background="Transparent" CornerRadius="3" Padding="2">
                                     <TextBlock Text="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                               Foreground="{DynamicResource TextSecondary}"
+                                               Foreground="{DynamicResource MutedTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="cb" Property="Background" Value="{DynamicResource BgPanel}"/>
+                                        <Setter TargetName="cb" Property="Background" Value="{DynamicResource PaneBrush}"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -1207,7 +1207,7 @@
                     </ToggleButton>
                     <Popup x:Name="OverflowPopup" PlacementTarget="{Binding ElementName=OverflowChevron}"
                            Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
-                        <Border Background="{DynamicResource BgModal}" BorderBrush="{DynamicResource AccentBorder}"
+                        <Border Background="{DynamicResource MenuBackgroundBrush}" BorderBrush="{DynamicResource MenuBorderBrush}"
                                 BorderThickness="1" CornerRadius="4" Padding="4" Margin="0,2,6,6">
                             <Border.Effect>
                                 <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.5"/>
@@ -1216,49 +1216,49 @@
                             <Border CornerRadius="4" IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
                             <StackPanel x:Name="OverflowMenuPanel" ButtonBase.Click="OverflowItem_Click" MinWidth="180">
                                 <Button x:Name="MiMerge" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="Merge_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Merge}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Merge}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiExtract" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="Split_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B1;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Extract}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B1;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Extract}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiDelete" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="Delete_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C6;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Delete}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C6;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Delete}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiMoveUp" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="MoveUp_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74A;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_MoveUp}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74A;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_MoveUp}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiMoveDown" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="MoveDown_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74B;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_MoveDown}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74B;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_MoveDown}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiText" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolText_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8D2;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Text}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8D2;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Text}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiUnderline" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolLine_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE738;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Line}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE738;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Line}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiHighlight" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolHighlight_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7E6;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Highlight}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7E6;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Highlight}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiDraw" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolDraw_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED63;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Draw}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED63;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Draw}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiShape" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolShape_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE739;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Shape}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE739;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Shape}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiImage" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolImage_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEB9F;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Image}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEB9F;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Image}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiSignature" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolSignature_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEE56;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Signature}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEE56;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Signature}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiCrop" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolCrop_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Crop}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Crop}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiUndo" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="Undo_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Undo}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Undo}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                                 <Button x:Name="MiClear" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ClearAllAnnotations_Click">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED62;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextPrimary}"/><TextBlock Text="{DynamicResource Str_Lbl_Clear}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED62;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Clear}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
                             </StackPanel>
                             </Grid>
@@ -1297,8 +1297,8 @@
 
                 <!-- Page list content (hidden when collapsed) -->
                 <Border x:Name="SidebarBorder" Grid.Column="0"
-                        Background="{DynamicResource BgSidebar}"
-                        BorderBrush="{DynamicResource BorderDim}" BorderThickness="0,0,0,0">
+                        Background="{DynamicResource BackgroundBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,0">
                     <Grid>
                     <!-- Film grain - sits on the sidebar background, behind the thumbnails -->
                     <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}">
@@ -1317,7 +1317,7 @@
                             <Button x:Name="SidebarPagesTab" Content="{DynamicResource Str_TabPages}"
                                     DockPanel.Dock="Left"
                                     Style="{StaticResource SidebarTabBtn}"
-                                    Foreground="{DynamicResource Accent}"
+                                    Foreground="{DynamicResource PrimaryBrush}"
                                     Click="SidebarPagesTab_Click"/>
                             <Button x:Name="SidebarOutlinesTab" Content="{DynamicResource Str_TabOutlines}"
                                     DockPanel.Dock="Right"
@@ -1331,11 +1331,11 @@
                                      Width="30" Height="20" VerticalAlignment="Center"
                                      TextAlignment="Center" VerticalContentAlignment="Center"
                                      FontFamily="Consolas" FontSize="11"
-                                     Background="{DynamicResource BgPanel}"
-                                     Foreground="{DynamicResource TextPrimary}"
-                                     BorderBrush="{DynamicResource BorderDim}" BorderThickness="1"
-                                     CaretBrush="{DynamicResource Accent}"
-                                     SelectionBrush="{DynamicResource AccentDim}"
+                                     Background="{DynamicResource PaneBrush}"
+                                     Foreground="{DynamicResource TextBrush}"
+                                     BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+                                     CaretBrush="{DynamicResource PrimaryBrush}"
+                                     SelectionBrush="{DynamicResource RowSelectedBrush}"
                                      IsEnabled="False"
                                      FocusVisualStyle="{x:Null}"
                                      KeyDown="PageJumpBox_KeyDown"
@@ -1344,7 +1344,7 @@
                                      Margin="0,0,2,0">
                                     <TextBox.Style>
                                         <Style TargetType="TextBox">
-                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderDim}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
                                             <!-- Custom template so the default WPF TextBox focus/hover
                                                  border (light blue) doesn't override the themed border. -->
                                             <Setter Property="Template">
@@ -1361,7 +1361,7 @@
                                             </Setter>
                                             <Style.Triggers>
                                                 <Trigger Property="IsFocused" Value="True">
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -1370,7 +1370,7 @@
                             <TextBlock x:Name="PageTotalLabel" DockPanel.Dock="Left"
                                        Text="/ –" VerticalAlignment="Center"
                                        FontFamily="Consolas" FontSize="11"
-                                       Foreground="{DynamicResource TextSecondary}"
+                                       Foreground="{DynamicResource MutedTextBrush}"
                                        Margin="2,0,0,0"/>
                         </DockPanel><!-- /PageControlsRow -->
                         <!-- Scrollable page list (virtualized) -->
@@ -1394,7 +1394,7 @@
                                     <StackPanel Margin="8,2,8,2">
                                         <Border x:Name="ThumbBorder"
                                                 Background="White"
-                                                BorderBrush="{DynamicResource BgDark}"
+                                                BorderBrush="{DynamicResource SurfaceBrush}"
                                                 BorderThickness="1"
                                                 MaxWidth="200"
                                                 HorizontalAlignment="Center">
@@ -1409,7 +1409,7 @@
                                                    Margin="0,2,0,0">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
                                                     <Style.Triggers>
                                                         <!-- Selected page label uses the theme's selection foreground. -->
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
@@ -1450,7 +1450,7 @@
 
                 <!-- Toggle strip — 24px wide vertical icon bar -->
                 <Border x:Name="SidebarToggleStrip" Grid.Column="1"
-                        Background="{DynamicResource BgSidebar}"
+                        Background="{DynamicResource BackgroundBrush}"
                         BorderThickness="0">
                     <Grid>
                         <!-- Film grain - matches the sidebar so the strip blends in -->
@@ -1489,13 +1489,13 @@
                                                 </TextBlock.Effect>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}" Value="on">
-                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1514,7 +1514,7 @@
                                         <Border Background="Transparent">
                                             <TextBlock Text="&#xE946;"
                                                        FontFamily="Segoe MDL2 Assets" FontSize="15"
-                                                       Foreground="{DynamicResource TextPrimary}"
+                                                       Foreground="{DynamicResource TextBrush}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <TextBlock.Effect>
                                                     <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
@@ -1523,7 +1523,7 @@
                                                     <Style TargetType="TextBlock">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1541,7 +1541,7 @@
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="Transparent">
                                             <TextBlock Text="?"
-                                                       Foreground="{DynamicResource TextPrimary}"
+                                                       Foreground="{DynamicResource TextBrush}"
                                                        FontFamily="Consolas" FontSize="18"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center">
@@ -1552,7 +1552,7 @@
                                                     <Style TargetType="TextBlock">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1572,7 +1572,7 @@
                                         <Border Background="Transparent">
                                             <TextBlock Text="&#xE713;"
                                                        FontFamily="Segoe MDL2 Assets"
-                                                       Foreground="{DynamicResource TextPrimary}"
+                                                       Foreground="{DynamicResource TextBrush}"
                                                        FontSize="16"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center">
@@ -1583,7 +1583,7 @@
                                                     <Style TargetType="TextBlock">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1671,7 +1671,7 @@
                  bare splitter column). The tabs sit on top, offset by TabScroll's margin to start at the
                  document edge. ApplySidebarSide sets the start column / span / tab offset per side. -->
             <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="TabStripBorder"
-                    Background="{DynamicResource BgSidebar}" Visibility="Collapsed">
+                    Background="{DynamicResource BackgroundBrush}" Visibility="Collapsed">
                     <Grid>
                         <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
                         <Border x:Name="TabStripFade" IsHitTestVisible="False" Background="{DynamicResource TabStripFadeBrush}"/>
@@ -1686,10 +1686,10 @@
                  as one continuous line into the corner; the splitter's vertical DragLine otherwise pokes
                  up past the pane's top border at that corner. High ZIndex so it paints over the splitter. -->
             <Border Grid.Row="1" Grid.Column="1" x:Name="SplitterTopCap" VerticalAlignment="Top" Height="1"
-                    Background="{DynamicResource PaneBorder}" Panel.ZIndex="60" IsHitTestVisible="False"/>
+                    Background="{DynamicResource PaneBorderBrush}" Panel.ZIndex="60" IsHitTestVisible="False"/>
             <!-- Document pane: row 1 of the document column. -->
             <Border Grid.Row="1" Grid.Column="2" x:Name="DocPaneBorder" Background="{DynamicResource BgCanvas}"
-                    BorderBrush="{DynamicResource PaneBorder}" BorderThickness="1">
+                    BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1">
                 <Grid>
                     <!-- Film grain - sits on the canvas background, behind the document -->
                     <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}">
@@ -1719,16 +1719,16 @@
                                     Background="Transparent" Style="{x:Null}">
                                 <StackPanel HorizontalAlignment="Center">
                                     <TextBlock Text="{DynamicResource Str_Drop_Title}" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="20"
-                                               Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+                                               Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center"/>
                                     <TextBlock Text="{DynamicResource Str_Drop_Sub}" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="13"
-                                               Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                               Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- Recent files sidebar (populated in code-behind; hidden when empty) -->
                             <Border x:Name="RecentFilesBox" Grid.Column="1" Width="340" Visibility="Collapsed"
                                     Background="{DynamicResource BgRecentPanel}"
-                                    BorderBrush="{DynamicResource PaneBorder}" BorderThickness="1,0,0,0">
+                                    BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1,0,0,0">
                                 <Grid>
                                     <Border Background="{DynamicResource GrainBrushShared}" IsHitTestVisible="False"
                                             Opacity="{DynamicResource GrainOpacity}"/>
@@ -1743,10 +1743,10 @@
                                                        MouseLeftButtonDown="RecentClearAll_Click">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
                                                         <Style.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                                                                 <Setter Property="TextDecorations" Value="Underline"/>
                                                             </Trigger>
                                                         </Style.Triggers>
@@ -1755,7 +1755,7 @@
                                             </TextBlock>
                                             <TextBlock Text="RECENT" FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
                                                        FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource Accent}"/>
+                                                       Foreground="{DynamicResource PrimaryBrush}"/>
                                         </DockPanel>
                                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                             <ItemsControl x:Name="RecentFilesList"/>
@@ -1848,14 +1848,14 @@
                  color; bottom = slider accent, which continues into the sidebar-facing stripe. -->
             <Border x:Name="DocTopAccent" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1"
                     Height="1" VerticalAlignment="Top" IsHitTestVisible="False" Panel.ZIndex="60"
-                    Background="{DynamicResource PaneBorder}"/>
+                    Background="{DynamicResource PaneBorderBrush}"/>
             <Border x:Name="DocBottomAccent" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1"
                     Height="1" VerticalAlignment="Bottom" IsHitTestVisible="False" Panel.ZIndex="60"
                     Background="{DynamicResource DragLine}"/>
         </Grid>
 
         <!-- Status bar -->
-        <Border Grid.Row="4" x:Name="FooterBorder" Background="{DynamicResource BgSidebar}" CornerRadius="0,0,7,7">
+        <Border Grid.Row="4" x:Name="FooterBorder" Background="{DynamicResource BackgroundBrush}" CornerRadius="0,0,7,7">
             <Grid>
             <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
             <!-- Mirror of the tab-strip shadow gradient, flipped so it darkens at the TOP (toward the
@@ -1875,7 +1875,7 @@
                 <StackPanel x:Name="PortableBadge" Orientation="Horizontal"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource Str_Portable}" Foreground="{DynamicResource TextSecondary}"
+                    <TextBlock Text="{DynamicResource Str_Portable}" Foreground="{DynamicResource MutedTextBrush}"
                                FontFamily="Consolas" FontSize="9"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <Button x:Name="InstallBtn" Content="{DynamicResource Str_InstallBtn}"
@@ -1937,12 +1937,12 @@
                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"
                 Background="Transparent" Cursor="SizeNWSE"
                 MouseLeftButtonDown="ResizeGrip_MouseDown">
-            <Rectangle Canvas.Left="10" Canvas.Top="2"  Width="2" Height="2" Fill="{DynamicResource TextDim}"/>
-            <Rectangle Canvas.Left="6"  Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource TextDim}"/>
-            <Rectangle Canvas.Left="10" Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource TextDim}"/>
-            <Rectangle Canvas.Left="2"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource TextDim}"/>
-            <Rectangle Canvas.Left="6"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource TextDim}"/>
-            <Rectangle Canvas.Left="10" Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource TextDim}"/>
+            <Rectangle Canvas.Left="10" Canvas.Top="2"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+            <Rectangle Canvas.Left="6"  Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+            <Rectangle Canvas.Left="10" Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+            <Rectangle Canvas.Left="2"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+            <Rectangle Canvas.Left="6"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+            <Rectangle Canvas.Left="10" Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
         </Canvas>
 
         <!-- Settings overlay. No Background, so it doesn't catch clicks - the panel is non-modal and the
@@ -1971,7 +1971,7 @@
                 <Border x:Name="SettingsCardGrain" Background="{DynamicResource GrainBrushShared}" Opacity="0.035"
                         CornerRadius="0,6,6,0" Width="228" HorizontalAlignment="Left" IsHitTestVisible="False"/>
                 <Border x:Name="SettingsCardBorder" Background="Transparent"
-                        BorderBrush="{DynamicResource AccentBorder}"
+                        BorderBrush="{DynamicResource MenuBorderBrush}"
                         BorderThickness="0,1,1,1"
                         CornerRadius="0,6,6,0"
                         Width="228" HorizontalAlignment="Left"
@@ -1990,7 +1990,7 @@
                     <Grid x:Name="SettingsHeader" Background="Transparent" Margin="0,0,0,12">
                         <TextBlock Text="{DynamicResource Str_Settings}"
                                    FontFamily="Consolas" FontSize="16" FontWeight="Bold"
-                                   Foreground="{DynamicResource HeaderAccent}"
+                                   Foreground="{DynamicResource HeaderLineBrush}"
                                    HorizontalAlignment="Left" VerticalAlignment="Center">
                             <TextBlock.Effect>
                                 <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.55"/>
@@ -2019,7 +2019,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsChecked" Value="True">
                                             <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
@@ -2031,7 +2031,7 @@
                                 <TextBlock DockPanel.Dock="Right"
                                            FontFamily="Segoe MDL2 Assets" FontSize="10"
                                            VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource TextSecondary}">
+                                           Foreground="{DynamicResource MutedTextBrush}">
                                     <!-- Up chevron when the section is collapsed, down when expanded. -->
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -2060,7 +2060,7 @@
                                             <TextBlock Grid.Column="0" Text="English" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="en-US" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangBnRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2073,7 +2073,7 @@
                                             <TextBlock Grid.Column="0" Text="বাংলা" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="bn" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangCsRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2086,7 +2086,7 @@
                                             <TextBlock Grid.Column="0" Text="Čeština" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="cs-CZ" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangDeRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2099,7 +2099,7 @@
                                             <TextBlock Grid.Column="0" Text="Deutsch" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="de-DE" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangEsRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2112,7 +2112,7 @@
                                             <TextBlock Grid.Column="0" Text="Español" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="es" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangFrRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2125,7 +2125,7 @@
                                             <TextBlock Grid.Column="0" Text="Français" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="fr-FR" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangJaRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2138,7 +2138,7 @@
                                             <TextBlock Grid.Column="0" Text="日本語" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Yu Gothic UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="ja-JP" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangTrRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2151,7 +2151,7 @@
                                             <TextBlock Grid.Column="0" Text="Türkçe" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="tr-TR" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangZhCNRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2164,7 +2164,7 @@
                                             <TextBlock Grid.Column="0" Text="中文 (简体)" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="zh-CN" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                                     <RadioButton x:Name="LangZhTWRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
@@ -2177,7 +2177,7 @@
                                             <TextBlock Grid.Column="0" Text="中文 (繁體)" VerticalAlignment="Center"
                                                        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
                                             <TextBlock Grid.Column="1" Text="zh-TW" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
                         </StackPanel>
@@ -2198,7 +2198,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsChecked" Value="True">
                                             <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
@@ -2210,7 +2210,7 @@
                                 <TextBlock DockPanel.Dock="Right"
                                            FontFamily="Segoe MDL2 Assets" FontSize="10"
                                            VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource TextSecondary}">
+                                           Foreground="{DynamicResource MutedTextBrush}">
                                     <!-- Up chevron when the section is collapsed, down when expanded. -->
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -2303,7 +2303,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsChecked" Value="True">
                                             <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
@@ -2315,7 +2315,7 @@
                                 <TextBlock DockPanel.Dock="Right"
                                            FontFamily="Segoe MDL2 Assets" FontSize="10"
                                            VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource TextSecondary}">
+                                           Foreground="{DynamicResource MutedTextBrush}">
                                     <!-- Up chevron when the section is collapsed, down when expanded. -->
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -2375,7 +2375,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsChecked" Value="True">
                                             <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
@@ -2387,7 +2387,7 @@
                                 <TextBlock DockPanel.Dock="Right"
                                            FontFamily="Segoe MDL2 Assets" FontSize="10"
                                            VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource TextSecondary}">
+                                           Foreground="{DynamicResource MutedTextBrush}">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Text" Value="&#xE70E;"/>
@@ -2429,7 +2429,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource BgHover}"/>
+                                            <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsChecked" Value="True">
                                             <Setter TargetName="RowBd" Property="Background" Value="{DynamicResource SettingsOpenRowBg}"/>
@@ -2441,7 +2441,7 @@
                                 <TextBlock DockPanel.Dock="Right"
                                            FontFamily="Segoe MDL2 Assets" FontSize="10"
                                            VerticalAlignment="Center" Margin="6,0,0,0"
-                                           Foreground="{DynamicResource TextSecondary}">
+                                           Foreground="{DynamicResource MutedTextBrush}">
                                     <!-- Up chevron when the section is collapsed, down when expanded. -->
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -2506,13 +2506,13 @@
               MouseRightButtonDown="ShortcutOverlay_MouseLeftButtonDown">
             <Grid x:Name="ShortcutCardGrid" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="480" MaxWidth="640">
                 <!-- Shadow cast by a separate element so the card content stays crisp. -->
-                <Border Background="{DynamicResource BgModal}" CornerRadius="6" IsHitTestVisible="False">
+                <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="6" IsHitTestVisible="False">
                     <Border.Effect>
                         <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="3" Direction="270" Opacity="0.55"/>
                     </Border.Effect>
                 </Border>
-                <Border Background="{DynamicResource BgModal}"
-                        BorderBrush="{DynamicResource AccentBorder}"
+                <Border Background="{DynamicResource MenuBackgroundBrush}"
+                        BorderBrush="{DynamicResource MenuBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="28,16,28,22"
@@ -2524,7 +2524,7 @@
                     <Grid Margin="0,0,0,12">
                         <TextBlock Text="{DynamicResource Str_KS_Title}"
                                    FontFamily="Consolas" FontSize="16" FontWeight="Bold"
-                                   Foreground="{DynamicResource HeaderAccent}"
+                                   Foreground="{DynamicResource HeaderLineBrush}"
                                    HorizontalAlignment="Left" VerticalAlignment="Center">
                             <TextBlock.Effect>
                                 <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.55"/>
@@ -2561,7 +2561,7 @@
                     <!-- KEYBOARD view - generated by KeyboardMapOverlay.cs, hidden until toggled -->
                     <StackPanel x:Name="ShortcutKeyboardHost" Visibility="Collapsed"/>
                     <TextBlock HorizontalAlignment="Right" Margin="0,14,0,0" FontFamily="Consolas" FontSize="11">
-                        <Hyperlink Click="OnlineHelp_Click" Foreground="{DynamicResource Accent}"
+                        <Hyperlink Click="OnlineHelp_Click" Foreground="{DynamicResource PrimaryBrush}"
                                    ToolTip="https://killerpdf.net/help.html"><Run Text="{DynamicResource Str_KS_OnlineHelp}"/></Hyperlink>
                     </TextBlock>
                 </StackPanel>
@@ -2580,13 +2580,13 @@
             <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                 <!-- Shadow is cast by a separate element so the card content stays crisp; a
                      DropShadowEffect rasterizes whatever it is applied to, which softens text. -->
-                <Border Background="{DynamicResource BgModal}" CornerRadius="6" IsHitTestVisible="False">
+                <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="6" IsHitTestVisible="False">
                     <Border.Effect>
                         <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="3" Direction="270" Opacity="0.55"/>
                     </Border.Effect>
                 </Border>
-                <Border Background="{DynamicResource BgModal}"
-                        BorderBrush="{DynamicResource AccentBorder}"
+                <Border Background="{DynamicResource MenuBackgroundBrush}"
+                        BorderBrush="{DynamicResource MenuBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         MouseLeftButtonDown="AboutOverlayCard_MouseLeftButtonDown"
@@ -2640,17 +2640,17 @@
                          Named: the header binds its Width to this panel so the tagline wraps
                          instead of widening the card - the SHA256 line stays the width driver. -->
                     <Grid x:Name="AboutInfoGrid">
-                    <Border Background="{DynamicResource BgPanel}" CornerRadius="4" IsHitTestVisible="False">
+                    <Border Background="{DynamicResource PaneBrush}" CornerRadius="4" IsHitTestVisible="False">
                         <Border.Effect>
                             <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.5"/>
                         </Border.Effect>
                     </Border>
-                    <Border Background="{DynamicResource BgPanel}"
+                    <Border Background="{DynamicResource PaneBrush}"
                             CornerRadius="4"
                             Padding="14,12,14,4">
                         <StackPanel>
                             <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{DynamicResource Str_About_Version}" Foreground="{DynamicResource TextSecondary}"
+                                <TextBlock Text="{DynamicResource Str_About_Version}" Foreground="{DynamicResource MutedTextBrush}"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" Margin="0,0,0,2"/>
                                 <!-- One row, two ends: version accent left, release date dim and
                                      italic hard right, so a user can tell how old their build is.
@@ -2659,43 +2659,43 @@
                                 <Grid>
                                     <TextBlock x:Name="AboutVersionBlock"
                                                FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12"
-                                               Foreground="{DynamicResource Accent}"
+                                               Foreground="{DynamicResource PrimaryBrush}"
                                                HorizontalAlignment="Left" VerticalAlignment="Bottom"
                                                Cursor="Hand"/>
                                     <TextBlock x:Name="AboutReleaseDateBlock"
                                                FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11"
                                                FontStyle="Italic"
-                                               Foreground="{DynamicResource TextSecondary}"
+                                               Foreground="{DynamicResource MutedTextBrush}"
                                                HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
                                 </Grid>
                             </StackPanel>
                             <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{DynamicResource Str_About_Publisher}" Foreground="{DynamicResource TextSecondary}"
+                                <TextBlock Text="{DynamicResource Str_About_Publisher}" Foreground="{DynamicResource MutedTextBrush}"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" Margin="0,0,0,2"/>
                                 <TextBlock x:Name="AboutPublisherBlock"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12"
-                                           Foreground="{DynamicResource TextPrimary}"/>
+                                           Foreground="{DynamicResource TextBrush}"/>
                                 <!-- Shown only on an exe signed by Steve; the certificate subject is
                                      the legal name, this ties it back to the name people know.
                                      Inlines are built in About.cs like the tagline and version. -->
                                 <TextBlock x:Name="AboutAkaBlock" Visibility="Collapsed"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11"
-                                           Foreground="{DynamicResource TextSecondary}" Margin="0,3,0,0"/>
+                                           Foreground="{DynamicResource MutedTextBrush}" Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{DynamicResource Str_About_Thumbprint}" Foreground="{DynamicResource TextSecondary}"
+                                <TextBlock Text="{DynamicResource Str_About_Thumbprint}" Foreground="{DynamicResource MutedTextBrush}"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" Margin="0,0,0,2"/>
                                 <TextBlock x:Name="AboutThumbprintBlock"
                                            FontFamily="Consolas" FontSize="11"
-                                           Foreground="{DynamicResource TextPrimary}"
+                                           Foreground="{DynamicResource TextBrush}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{DynamicResource Str_About_ExeSha}" Foreground="{DynamicResource TextSecondary}"
+                                <TextBlock Text="{DynamicResource Str_About_ExeSha}" Foreground="{DynamicResource MutedTextBrush}"
                                            FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" Margin="0,0,0,2"/>
                                 <TextBlock x:Name="AboutSha256Block"
                                            FontFamily="Consolas" FontSize="11"
-                                           Foreground="{DynamicResource TextPrimary}"
+                                           Foreground="{DynamicResource TextBrush}"
                                            TextWrapping="NoWrap"/>
                             </StackPanel>
                         </StackPanel>
@@ -2709,20 +2709,20 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="UpdBd" Background="Transparent"
-                                        BorderBrush="{DynamicResource Accent}" BorderThickness="1"
+                                        BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="1"
                                         CornerRadius="4" Padding="14,7">
                                     <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="UpdBd" Property="Background" Value="{DynamicResource AccentDim}"/>
+                                        <Setter TargetName="UpdBd" Property="Background" Value="{DynamicResource RowSelectedBrush}"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
                         </Button.Template>
                         <TextBlock x:Name="AboutUpdateText" Text="Update available"
                                    FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource Accent}"/>
+                                   Foreground="{DynamicResource PrimaryBrush}"/>
                     </Button>
                     <!-- Footer row: the recent-files privacy toggle (#146) sits left, the tiny
                          destructive Clear-all-Data link bottom-right (red on hover) - the About

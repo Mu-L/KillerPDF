@@ -41,7 +41,7 @@ namespace KillerPDF
             {
                 Text = BuildSummary(filePath),
                 FontFamily = UiKit.MonoFont, FontSize = 11,
-                Foreground = UiKit.Brush("TextSecondary"),
+                Foreground = UiKit.Brush("MutedTextBrush"),
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 12, 0, 0)
             });

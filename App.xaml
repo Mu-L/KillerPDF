@@ -44,13 +44,13 @@
                         <ControlTemplate TargetType="Thumb">
                             <!-- Solid at rest (the scrollbar's active color) so it's always visible,
                                  brightening to the accent while hovered/dragged. -->
-                            <Border x:Name="tb" Background="{DynamicResource ScrollThumbHover}" CornerRadius="3"/>
+                            <Border x:Name="tb" Background="{DynamicResource ScrollThumbHoverBrush}" CornerRadius="3"/>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="tb" Property="Background" Value="{DynamicResource Accent}"/>
+                                    <Setter TargetName="tb" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
                                 </Trigger>
                                 <Trigger Property="IsDragging" Value="True">
-                                    <Setter TargetName="tb" Property="Background" Value="{DynamicResource Accent}"/>
+                                    <Setter TargetName="tb" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -113,9 +113,9 @@
 
             <!-- Global themed tooltip (replaces the plain white system box) -->
             <Style TargetType="ToolTip">
-                <Setter Property="Background" Value="{DynamicResource BgModal}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
+                <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="8,4"/>
                 <Setter Property="FontFamily" Value="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
@@ -190,7 +190,7 @@
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Thumb">
                                                                 <Border x:Name="thumbBorder"
-                                                                        Background="{DynamicResource BgScrollThumb}"
+                                                                        Background="{DynamicResource ScrollThumbBrush}"
                                                                         CornerRadius="3"
                                                                         Margin="4,0"/>
                                                                 <ControlTemplate.Triggers>
@@ -202,7 +202,7 @@
                                                                          binding this to the whole bar's IsMouseOver made the thumb shrink on mouse-down and
                                                                          dropped the grab). -->
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="thumbBorder" Property="Background" Value="{DynamicResource ScrollThumbHover}"/>
+                                                                        <Setter TargetName="thumbBorder" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
                                                                         <Setter TargetName="thumbBorder" Property="Margin" Value="2,2"/>
                                                                         <Setter TargetName="thumbBorder" Property="Effect">
                                                                             <Setter.Value>

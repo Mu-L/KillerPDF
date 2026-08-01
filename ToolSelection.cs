@@ -155,7 +155,7 @@ namespace KillerPDF
                 if (mi.Content is Panel sp)
                     foreach (var ch in sp.Children)
                         if (ch is TextBlock tb)
-                            tb.SetResourceReference(TextBlock.ForegroundProperty, active ? "SelectionFg" : "TextPrimary");
+                            tb.SetResourceReference(TextBlock.ForegroundProperty, active ? "SelectionFg" : "TextBrush");
             }
         }
 

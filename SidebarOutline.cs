@@ -40,8 +40,8 @@ namespace KillerPDF
             PageList.Visibility = Visibility.Visible;
             OutlineScrollViewer.Visibility = Visibility.Collapsed;
             PageControlsRow.Visibility = _doc != null ? Visibility.Visible : Visibility.Collapsed;   // no empty box when nothing is open
-            SidebarPagesTab.Foreground = (Brush)FindResource("Accent");
-            SidebarOutlinesTab.Foreground = (Brush)FindResource("TextSecondary");
+            SidebarPagesTab.Foreground = (Brush)FindResource("PrimaryBrush");
+            SidebarOutlinesTab.Foreground = (Brush)FindResource("MutedTextBrush");
             // Save current outlines width before snapping back to pages.
             if (!_sidebarCollapsed && _sidebarCol.ActualWidth > 0)
                 _savedOutlinesWidth = Math.Min(_sidebarCol.ActualWidth, SbPx(SidebarMaxOutlines));
@@ -67,8 +67,8 @@ namespace KillerPDF
             PageList.Visibility = Visibility.Collapsed;
             OutlineScrollViewer.Visibility = Visibility.Visible;
             PageControlsRow.Visibility = Visibility.Collapsed;
-            SidebarPagesTab.Foreground = (Brush)FindResource("TextSecondary");
-            SidebarOutlinesTab.Foreground = (Brush)FindResource("Accent");
+            SidebarPagesTab.Foreground = (Brush)FindResource("MutedTextBrush");
+            SidebarOutlinesTab.Foreground = (Brush)FindResource("PrimaryBrush");
             SidebarSplitter.IsEnabled = true;
             _sidebarCol.MaxWidth = SbPx(SidebarMaxOutlines);
             if (!_sidebarCollapsed)
@@ -308,7 +308,7 @@ namespace KillerPDF
                     if (bd is not null)
                     {
                         bd.Background = UiKit.Brush("SelectionBg");
-                        bd.BorderBrush = UiKit.Brush("Accent");
+                        bd.BorderBrush = UiKit.Brush("PrimaryBrush");
                     }
                     it.Foreground = Brushes.White;   // matches the IsSelected trigger
                 }
@@ -463,8 +463,8 @@ namespace KillerPDF
             box.MinWidth = 110;
             box.FontSize = OutlineTree.FontSize;
             box.Padding = new Thickness(3, 1, 3, 1);
-            box.BorderBrush = UiKit.Brush("Accent");   // accent border = active in-place edit
-            box.CaretBrush = UiKit.Brush("Accent");
+            box.BorderBrush = UiKit.Brush("PrimaryBrush");   // accent border = active in-place edit
+            box.CaretBrush = UiKit.Brush("PrimaryBrush");
             bool done = false;
             void Commit()
             {

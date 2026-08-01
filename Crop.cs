@@ -325,7 +325,7 @@ namespace KillerPDF
                 {
                     Text = lbl, FontFamily = UiKit.UiFont, FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0),
-                    Foreground = Res("TextSecondary")
+                    Foreground = Res("MutedTextBrush")
                 });
                 var tb = new TextBox
                 {
@@ -334,9 +334,9 @@ namespace KillerPDF
                     VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(0, 0, 8, 0), Style = (Style)FindResource("FormFieldTextBox")
                 };
-                tb.SetResourceReference(TextBox.BackgroundProperty,  "BgPanel");
-                tb.SetResourceReference(TextBox.ForegroundProperty,  "TextPrimary");
-                tb.SetResourceReference(TextBox.BorderBrushProperty, "BorderDim");
+                tb.SetResourceReference(TextBox.BackgroundProperty,  "PaneBrush");
+                tb.SetResourceReference(TextBox.ForegroundProperty,  "TextBrush");
+                tb.SetResourceReference(TextBox.BorderBrushProperty, "CardBorderBrush");
                 tb.KeyDown   += (_, e) => { if (e.Key == Key.Enter) { CommitCropBoxInput(); ApplyCrop([currentPage]); e.Handled = true; } };
                 tb.LostFocus += (_, _) => CommitCropBoxInput();
                 outer.Children.Add(tb);
@@ -347,7 +347,7 @@ namespace KillerPDF
             void GroupLabel(string t, double leftPad) => outer.Children.Add(new TextBlock
             {
                 Text = t, FontFamily = UiKit.UiFont, FontSize = 11, FontWeight = FontWeights.SemiBold,
-                Foreground = Res("TextSecondary"), VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Res("MutedTextBrush"), VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(leftPad, 0, 6, 0)
             });
 
@@ -372,7 +372,7 @@ namespace KillerPDF
 
             // Divider before the action buttons.
             var divider = new Border { Width = 1, Margin = new Thickness(2, 0, 8, 0), VerticalAlignment = VerticalAlignment.Stretch };
-            divider.SetResourceReference(Border.BackgroundProperty, "BorderDim");
+            divider.SetResourceReference(Border.BackgroundProperty, "CardBorderBrush");
             outer.Children.Add(divider);
 
             // Pages range + "All" checkbox, then a single Crop button on the far right. Crop logic:
@@ -381,7 +381,7 @@ namespace KillerPDF
             {
                 Text = Loc("Str_Crop_Pages"), FontFamily = UiKit.UiFont, FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0),
-                Foreground = Res("TextSecondary")
+                Foreground = Res("MutedTextBrush")
             });
             _cropRangeBox = new TextBox
             {
@@ -391,9 +391,9 @@ namespace KillerPDF
                 Margin = new Thickness(0, 0, 8, 0), ToolTip = Loc("Str_Crop_RangeTip"),
                 Style = (Style)FindResource("FormFieldTextBox")
             };
-            _cropRangeBox.SetResourceReference(TextBox.BackgroundProperty,  "BgPanel");
-            _cropRangeBox.SetResourceReference(TextBox.ForegroundProperty,  "TextPrimary");
-            _cropRangeBox.SetResourceReference(TextBox.BorderBrushProperty, "BorderDim");
+            _cropRangeBox.SetResourceReference(TextBox.BackgroundProperty,  "PaneBrush");
+            _cropRangeBox.SetResourceReference(TextBox.ForegroundProperty,  "TextBrush");
+            _cropRangeBox.SetResourceReference(TextBox.BorderBrushProperty, "CardBorderBrush");
             outer.Children.Add(_cropRangeBox);
 
             // "All" checkbox - the same compact look as the annotate-bar toggles (no WPF CheckBox chrome).
@@ -402,7 +402,7 @@ namespace KillerPDF
             var allBox = new Border { Width = 15, Height = 15, CornerRadius = new CornerRadius(3), BorderThickness = new Thickness(1), BorderBrush = _swatchDimBorder, Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0), Child = allTick };
             var allRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 10, 0), ToolTip = Loc("Str_Crop_AllTip") };
             allRow.Children.Add(allBox);
-            allRow.Children.Add(new TextBlock { Text = Loc("Str_Crop_All"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Foreground = Res("TextSecondary") });
+            allRow.Children.Add(new TextBlock { Text = Loc("Str_Crop_All"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Foreground = Res("MutedTextBrush") });
             allRow.MouseLeftButtonDown += (_, _) =>
             {
                 cropAll = !cropAll;
@@ -443,7 +443,7 @@ namespace KillerPDF
                 Child               = BuildBarHost(outer)
             };
             bar.SetResourceReference(Border.BackgroundProperty,  "BgFlyout");
-            bar.SetResourceReference(Border.BorderBrushProperty, "PaneBorder");
+            bar.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
             _cropConfirmBar = bar;
 
             var previewArea = PagePreviewPanel.Parent as Grid;

@@ -140,7 +140,7 @@ namespace KillerPDF
         public static CheckBox CheckBox(string label) => new()
         {
             Content                  = label,
-            Foreground               = Brush("TextPrimary"),
+            Foreground               = Brush("TextBrush"),
             FontFamily               = UiFont,
             FontSize                 = 12,
             Cursor                   = Cursors.Hand,
@@ -158,7 +158,7 @@ namespace KillerPDF
             box.SetValue(Border.HeightProperty, 16.0);
             box.SetValue(Border.CornerRadiusProperty, RadControl);
             box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-            box.SetValue(Border.BorderBrushProperty, Brush("BorderDim"));
+            box.SetValue(Border.BorderBrushProperty, Brush("CardBorderBrush"));
             box.SetValue(Border.BackgroundProperty, Brush("BgCanvas"));
             box.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
             box.SetValue(Border.MarginProperty, new Thickness(0, 0, 8, 0));
@@ -197,7 +197,7 @@ namespace KillerPDF
         public static RadioButton Radio(string text) => new()
         {
             Content                  = text,
-            Foreground               = Brush("TextPrimary"),
+            Foreground               = Brush("TextBrush"),
             FontFamily               = UiFont,
             FontSize                 = 12,
             Cursor                   = Cursors.Hand,
@@ -216,7 +216,7 @@ namespace KillerPDF
             ring.SetValue(Border.HeightProperty, 15.0);
             ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(7.5));
             ring.SetValue(Border.BorderThicknessProperty, new Thickness(1.5));
-            ring.SetValue(Border.BorderBrushProperty, Brush("TextDim"));
+            ring.SetValue(Border.BorderBrushProperty, Brush("DimTextBrush"));
             ring.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
             ring.SetValue(Border.MarginProperty, new Thickness(0, 1, 7, 0));   // +1 top settles it against the text optical center
 
@@ -257,13 +257,13 @@ namespace KillerPDF
                 FontFamily         = UiFont,
                 FontSize           = 12,
                 Background         = Brush("BgCanvas"),
-                Foreground         = Brush("TextPrimary"),
-                BorderBrush        = Brush("BorderDim"),
+                Foreground         = Brush("TextBrush"),
+                BorderBrush        = Brush("CardBorderBrush"),
                 BorderThickness    = new Thickness(1),
                 Padding            = new Thickness(6, 4, 6, 4),
-                CaretBrush         = Brush("TextPrimary"),
-                SelectionBrush     = Brush("AccentDim"),
-                SelectionTextBrush = Brush("TextPrimary"),
+                CaretBrush         = Brush("TextBrush"),
+                SelectionBrush     = Brush("RowSelectedBrush"),
+                SelectionTextBrush = Brush("TextBrush"),
                 Template           = FieldTemplate()
             };
             if (!double.IsNaN(width)) tb.Width = width;
@@ -291,11 +291,11 @@ namespace KillerPDF
                 FontFamily      = UiFont,
                 FontSize        = 12,
                 Background      = Brush("BgCanvas"),
-                Foreground      = Brush("TextPrimary"),
-                BorderBrush     = Brush("BorderDim"),
+                Foreground      = Brush("TextBrush"),
+                BorderBrush     = Brush("CardBorderBrush"),
                 BorderThickness = new Thickness(1),
                 Padding         = new Thickness(6, 5, 6, 5),
-                CaretBrush      = Brush("TextPrimary"),
+                CaretBrush      = Brush("TextBrush"),
                 Template        = PasswordFieldTemplate()
             };
             if (!double.IsNaN(width)) pb.Width = width;
@@ -322,7 +322,7 @@ namespace KillerPDF
             FontFamily = MonoFont,
             FontSize   = 12,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Brush("TextPrimary"),
+            Foreground = Brush("TextBrush"),
             Margin     = new Thickness(0, 0, 0, 6),
             Effect     = ShadowText()
         };
@@ -333,7 +333,7 @@ namespace KillerPDF
             Text       = text,
             FontFamily = UiFont,
             FontSize   = 11,
-            Foreground = Brush("TextSecondary"),
+            Foreground = Brush("MutedTextBrush"),
             Margin     = new Thickness(0, 0, 0, 2)
         };
 
@@ -357,12 +357,12 @@ namespace KillerPDF
                 Text       = text,
                 FontFamily = UiFont,
                 FontSize   = 12,
-                Foreground = Brush("TextSecondary"),
+                Foreground = Brush("MutedTextBrush"),
                 Cursor     = Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            link.MouseEnter += (_, _2) => link.Foreground = Brush("Accent");
-            link.MouseLeave += (_, _2) => link.Foreground = Brush("TextSecondary");
+            link.MouseEnter += (_, _2) => link.Foreground = Brush("PrimaryBrush");
+            link.MouseLeave += (_, _2) => link.Foreground = Brush("MutedTextBrush");
             link.MouseLeftButtonUp += (_, _2) => onClick();
             return link;
         }
@@ -370,12 +370,12 @@ namespace KillerPDF
         // Dialog/popup buttons. accent==true is the primary (fills solid accent on hover); false is secondary.
         public static Button Make(object content, bool accent)
             => accent
-                ? Make(content, Brush("AccentDim"), Brush("Accent"),  Brush("Accent"),      AccentHoverFg(),      Brush("Accent"))
-                : Make(content, Brush("BgPanel"),   Brush("BgHover"), Brush("TextPrimary"), Brush("TextPrimary"), Brush("BorderDim"));
+                ? Make(content, Brush("RowSelectedBrush"), Brush("PrimaryBrush"),  Brush("PrimaryBrush"),      AccentHoverFg(),      Brush("PrimaryBrush"))
+                : Make(content, Brush("PaneBrush"),   Brush("RowHoverBrush"), Brush("TextBrush"), Brush("TextBrush"), Brush("CardBorderBrush"));
 
         private static Brush AccentHoverFg()
             => Services.ThemeManager.Current is Services.Theme.Dark or Services.Theme.Black
-                ? Brushes.White : Brush("BgModal");
+                ? Brushes.White : Brush("MenuBackgroundBrush");
 
         // Explicit-color overload for pre-theme windows (startup/crash/About). border==null = borderless.
         public static Button Make(object content, Brush normalBg, Brush hoverBg, Brush normalFg, Brush hoverFg, Brush? border = null)

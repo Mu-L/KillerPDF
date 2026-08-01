@@ -57,8 +57,8 @@ namespace KillerPDF
         {
             var card = new Border
             {
-                Background = R("BgModal"),
-                BorderBrush = R("AccentBorder"),
+                Background = R("MenuBackgroundBrush"),
+                BorderBrush = R("MenuBorderBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
                 Margin = new Thickness(14),
@@ -80,7 +80,7 @@ namespace KillerPDF
             // Accent heading with a 1px drop shadow - the shared style for these secondary-window titles.
             var title = new TextBlock
             {
-                Text = "Pick a color", Foreground = R("Accent"),
+                Text = "Pick a color", Foreground = R("PrimaryBrush"),
                 FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 12),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 2, ShadowDepth = 1, Direction = 270, Opacity = 0.7 },
                 Cursor = Cursors.SizeAll
@@ -102,7 +102,7 @@ namespace KillerPDF
             svGrid.Children.Add(_svHue); svGrid.Children.Add(svWhite); svGrid.Children.Add(svBlack); svGrid.Children.Add(_svThumb);
             // ClipToBounds off so the indicator dot shows fully when it sits at an edge/corner.
             _svArea = new Border { Width = SvW, Height = SvH, CornerRadius = new CornerRadius(3), ClipToBounds = false,
-                BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1), Child = svGrid, Cursor = Cursors.Cross };
+                BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1), Child = svGrid, Cursor = Cursors.Cross };
             _svArea.MouseLeftButtonDown += (s, e) => { _svArea.CaptureMouse(); SvPick(e.GetPosition(svGrid)); };
             _svArea.MouseMove += (s, e) => { if (e.LeftButton == MouseButtonState.Pressed) SvPick(e.GetPosition(svGrid)); };
             _svArea.MouseLeftButtonUp += (s, e) => _svArea.ReleaseMouseCapture();
@@ -110,14 +110,14 @@ namespace KillerPDF
             var hueRect = new Rectangle { Width = HueW, Height = SvH, Fill = HueStripBrush() };
             // Themed handle, matching the annotate-bar slider thumbs (accent fill, light outline).
             _hueThumb = new Border { Width = HueW + 6, Height = 6, BorderBrush = Brushes.White, BorderThickness = new Thickness(1.5),
-                Background = R("Accent"), CornerRadius = new CornerRadius(2), IsHitTestVisible = false };
+                Background = R("PrimaryBrush"), CornerRadius = new CornerRadius(2), IsHitTestVisible = false };
             var hueCanvas = new Canvas { Width = HueW + 6, Height = SvH };
             Canvas.SetLeft(_hueThumb, -3);
             hueCanvas.Children.Add(_hueThumb);
             var hueGrid = new Grid { Margin = new Thickness(8, 0, 0, 0) };
             hueGrid.Children.Add(hueRect); hueGrid.Children.Add(hueCanvas);
             var hueArea = new Border { Child = hueGrid, Cursor = Cursors.SizeNS, CornerRadius = new CornerRadius(3),
-                BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1) };
+                BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1) };
             hueArea.MouseLeftButtonDown += (s, e) => { hueArea.CaptureMouse(); HuePick(e.GetPosition(hueRect)); };
             hueArea.MouseMove += (s, e) => { if (e.LeftButton == MouseButtonState.Pressed) HuePick(e.GetPosition(hueRect)); };
             hueArea.MouseLeftButtonUp += (s, e) => hueArea.ReleaseMouseCapture();
@@ -126,7 +126,7 @@ namespace KillerPDF
             // RGB + hex + preview + eyedropper
             var inputRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
             _newSwatch = new Border { Width = 34, Height = 34, CornerRadius = new CornerRadius(3),
-                BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 10, 0) };
+                BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 10, 0) };
             inputRow.Children.Add(_newSwatch);
             _rBox = NumBox(); _gBox = NumBox(); _bBox = NumBox();
             inputRow.Children.Add(FieldGroup("R", _rBox));
@@ -135,7 +135,7 @@ namespace KillerPDF
             var eyedrop = new Button
             {
                 Width = 28, Height = 22, Margin = new Thickness(8, 14, 0, 0),
-                Background = R("BgCanvas"), BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1),
+                Background = R("BgCanvas"), BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
                 Content = CrosshairIcon(), ToolTip = "Pick a color from anywhere on screen", Cursor = Cursors.Cross,
                 Template = MakeBtnTemplate()
             };
@@ -143,7 +143,7 @@ namespace KillerPDF
             inputRow.Children.Add(eyedrop);
             panel.Children.Add(inputRow);
             var hexRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-            hexRow.Children.Add(new TextBlock { Text = "Hex", Foreground = R("TextSecondary"), FontSize = 11,
+            hexRow.Children.Add(new TextBlock { Text = "Hex", Foreground = R("MutedTextBrush"), FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
             _hexBox = MakeTextBox(96);
             _hexBox.MaxLength = 7;
@@ -243,8 +243,8 @@ namespace KillerPDF
         private void UpdateReplaceChip()
         {
             if (_replaceBtn is null) return;
-            _replaceBtn.Background = _replaceArmed ? R("AccentDim") : R("BgPanel");
-            _replaceBtn.SetResourceReference(Border.BorderBrushProperty, _replaceArmed ? "Accent" : "BorderDim");
+            _replaceBtn.Background = _replaceArmed ? R("RowSelectedBrush") : R("PaneBrush");
+            _replaceBtn.SetResourceReference(Border.BorderBrushProperty, _replaceArmed ? "PrimaryBrush" : "CardBorderBrush");
         }
         private void RebuildSavedRow()
         {
@@ -257,7 +257,7 @@ namespace KillerPDF
                 var sw = new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 4, 4),
                     Background = new SolidColorBrush(c), BorderThickness = new Thickness(_replaceArmed ? 2 : 1), Cursor = Cursors.Hand,
                     ToolTip = _replaceArmed ? "Click to set this swatch to the current color" : "Click to use this color" };
-                if (_replaceArmed) sw.SetResourceReference(Border.BorderBrushProperty, "Accent"); else sw.BorderBrush = R("BorderDim");
+                if (_replaceArmed) sw.SetResourceReference(Border.BorderBrushProperty, "PrimaryBrush"); else sw.BorderBrush = R("CardBorderBrush");
                 sw.MouseLeftButtonUp += (_, _) =>
                 {
                     if (_replaceArmed)
@@ -275,7 +275,7 @@ namespace KillerPDF
         private StackPanel FieldGroup(string label, TextBox box)
         {
             var sp = new StackPanel { Margin = new Thickness(0, 0, 6, 0) };
-            sp.Children.Add(new TextBlock { Text = label, Foreground = R("TextSecondary"), FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center });
+            sp.Children.Add(new TextBlock { Text = label, Foreground = R("MutedTextBrush"), FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center });
             sp.Children.Add(box);
             return sp;
         }
@@ -291,16 +291,16 @@ namespace KillerPDF
         private TextBox MakeTextBox(double width) => new()
         {
             Width = width, Height = 22, VerticalContentAlignment = VerticalAlignment.Center,
-            Background = R("BgCanvas"), Foreground = R("TextPrimary"),
-            BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1),
-            CaretBrush = R("TextPrimary"), SelectionBrush = R("AccentDim"),
+            Background = R("BgCanvas"), Foreground = R("TextBrush"),
+            BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
+            CaretBrush = R("TextBrush"), SelectionBrush = R("RowSelectedBrush"),
             Padding = new Thickness(4, 0, 4, 0), Template = MakeTextBoxTemplate()
         };
         // A crosshair/target glyph drawn in vectors, to match the KillerPDF look.
         private UIElement CrosshairIcon()
         {
             var g = new Grid { Width = 14, Height = 14 };
-            var fg = R("TextPrimary");
+            var fg = R("TextBrush");
             g.Children.Add(new Rectangle { Width = 1.4, Fill = fg, HorizontalAlignment = HorizontalAlignment.Center });
             g.Children.Add(new Rectangle { Height = 1.4, Fill = fg, VerticalAlignment = VerticalAlignment.Center });
             g.Children.Add(new Ellipse { Width = 8, Height = 8, Stroke = fg, StrokeThickness = 1.4,
@@ -311,13 +311,13 @@ namespace KillerPDF
         private Border Chip(string text, string tip)
         {
             var b = new Border { Height = 20, MinWidth = 22, CornerRadius = new CornerRadius(3), Cursor = Cursors.Hand,
-                BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1), Background = R("BgPanel"),
+                BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1), Background = R("PaneBrush"),
                 Padding = new Thickness(6, 0, 6, 0), ToolTip = tip,
-                Child = new TextBlock { Text = text, Foreground = R("TextPrimary"), FontSize = 11,
+                Child = new TextBlock { Text = text, Foreground = R("TextBrush"), FontSize = 11,
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
             // Unified hover with the Cancel button (greyer fill), respecting Replace's armed highlight.
-            b.MouseEnter += (_, _) => { if (b != _replaceBtn || !_replaceArmed) b.Background = R("BorderDim"); };
-            b.MouseLeave += (_, _) => { b.Background = (b == _replaceBtn && _replaceArmed) ? R("AccentDim") : R("BgPanel"); };
+            b.MouseEnter += (_, _) => { if (b != _replaceBtn || !_replaceArmed) b.Background = R("CardBorderBrush"); };
+            b.MouseLeave += (_, _) => { b.Background = (b == _replaceBtn && _replaceArmed) ? R("RowSelectedBrush") : R("PaneBrush"); };
             return b;
         }
         private static ControlTemplate MakeTextBoxTemplate()
@@ -337,19 +337,19 @@ namespace KillerPDF
                 BorderThickness = new Thickness(1), Cursor = Cursors.Hand };
             var style = new Style(typeof(Button));
             style.Setters.Add(new Setter(Control.TemplateProperty, MakeBtnTemplate()));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, primary ? R("Accent") : R("TextPrimary")));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, primary ? R("AccentDim") : R("BgPanel")));
-            style.Setters.Add(new Setter(Control.BorderBrushProperty, primary ? R("Accent") : R("BorderDim")));
+            style.Setters.Add(new Setter(Control.ForegroundProperty, primary ? R("PrimaryBrush") : R("TextBrush")));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, primary ? R("RowSelectedBrush") : R("PaneBrush")));
+            style.Setters.Add(new Setter(Control.BorderBrushProperty, primary ? R("PrimaryBrush") : R("CardBorderBrush")));
             // Hover: OK fills solid accent (white text for contrast); Cancel goes a shade greyer.
             var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             if (primary)
             {
-                hover.Setters.Add(new Setter(Control.BackgroundProperty, R("Accent")));
+                hover.Setters.Add(new Setter(Control.BackgroundProperty, R("PrimaryBrush")));
                 hover.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
             }
             else
             {
-                hover.Setters.Add(new Setter(Control.BackgroundProperty, R("BorderDim")));
+                hover.Setters.Add(new Setter(Control.BackgroundProperty, R("CardBorderBrush")));
             }
             style.Triggers.Add(hover);
             btn.Style = style;

@@ -618,7 +618,7 @@ namespace KillerPDF
                     FontSize = 12,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
-                icon.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                icon.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
                 item.Icon = icon;
             }
             return item;

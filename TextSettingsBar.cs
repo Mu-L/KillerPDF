@@ -209,7 +209,7 @@ namespace KillerPDF
                     HorizontalAlignment = rightAlign ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                     Margin = new Thickness(0, top, 6, 0)
                 };
-                t.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                t.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
                 return t;
             }
             Border ColorSwatch(Color c, bool isActive, MouseButtonEventHandler onClick)
@@ -224,7 +224,7 @@ namespace KillerPDF
                     Margin = new Thickness(1),
                     Cursor = Cursors.Hand
                 };
-                if (isActive) sw.SetResourceReference(Border.BorderBrushProperty, "Accent");
+                if (isActive) sw.SetResourceReference(Border.BorderBrushProperty, "PrimaryBrush");
                 else sw.BorderBrush = _swatchDimBorder;
                 sw.MouseLeftButtonDown += onClick;
                 return sw;
@@ -242,7 +242,7 @@ namespace KillerPDF
                         ? (Brush)new SolidColorBrush(Color.FromRgb(current.R, current.G, current.B))
                         : RainbowBrush()
                 };
-                if (customActive) bg.SetResourceReference(Border.BorderBrushProperty, "Accent"); else bg.BorderBrush = _swatchDimBorder;
+                if (customActive) bg.SetResourceReference(Border.BorderBrushProperty, "PrimaryBrush"); else bg.BorderBrush = _swatchDimBorder;
                 grid.Children.Add(bg);
                 if (customActive)
                     grid.Children.Add(new System.Windows.Shapes.Polygon
@@ -293,7 +293,7 @@ namespace KillerPDF
             bool noneActive = _textFillColor.A == 0;
             var noneGrid = new Grid { Width = 18, Height = 18, Margin = new Thickness(1), Cursor = Cursors.Hand };
             var noneBg = new Border { CornerRadius = new CornerRadius(3), Background = Brushes.White, BorderThickness = new Thickness(noneActive ? 2 : 1) };
-            if (noneActive) noneBg.SetResourceReference(Border.BorderBrushProperty, "Accent"); else noneBg.BorderBrush = _swatchDimBorder;
+            if (noneActive) noneBg.SetResourceReference(Border.BorderBrushProperty, "PrimaryBrush"); else noneBg.BorderBrush = _swatchDimBorder;
             noneGrid.Children.Add(noneBg);
             noneGrid.Children.Add(new System.Windows.Shapes.Line { X1 = 3, Y1 = 15, X2 = 15, Y2 = 3, Stroke = Brushes.Red, StrokeThickness = 1.5 });
             noneGrid.MouseLeftButtonDown += (_, _) =>
@@ -363,11 +363,11 @@ namespace KillerPDF
                 BorderThickness = new Thickness(1),
                 Template = FlatTextBoxTemplate()
             };
-            sizeBox.SetResourceReference(TextBox.BackgroundProperty, "BgPanel");
-            sizeBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimary");
-            sizeBox.SetResourceReference(TextBox.BorderBrushProperty, "BorderDim");
-            sizeBox.SetResourceReference(TextBox.CaretBrushProperty, "Accent");
-            sizeBox.SetResourceReference(TextBox.SelectionBrushProperty, "AccentDim");   // no WPF-default blue
+            sizeBox.SetResourceReference(TextBox.BackgroundProperty, "PaneBrush");
+            sizeBox.SetResourceReference(TextBox.ForegroundProperty, "TextBrush");
+            sizeBox.SetResourceReference(TextBox.BorderBrushProperty, "CardBorderBrush");
+            sizeBox.SetResourceReference(TextBox.CaretBrushProperty, "PrimaryBrush");
+            sizeBox.SetResourceReference(TextBox.SelectionBrushProperty, "RowSelectedBrush");   // no WPF-default blue
             var ptLabel = new TextBlock
             {
                 Text = "pt",
@@ -376,7 +376,7 @@ namespace KillerPDF
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(2, 0, 0, 0)
             };
-            ptLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+            ptLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
             // Slider drives the box; the box drives the slider. _suppressSizeSync breaks the feedback loop.
             sizeSlider.ValueChanged += (s, e) =>
             {
@@ -418,7 +418,7 @@ namespace KillerPDF
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
-                st.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
+                st.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                 var sb = new Border
                 {
                     Width = 18,
@@ -463,7 +463,7 @@ namespace KillerPDF
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
-                gt.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
+                gt.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                 var b = new Border
                 {
                     Width = 22,
@@ -476,7 +476,7 @@ namespace KillerPDF
                     Background = active ? AccentBrush(40) : Brushes.Transparent,
                     Child = gt
                 };
-                if (active) b.SetResourceReference(Border.BorderBrushProperty, "Accent"); else b.BorderBrush = _swatchDimBorder;
+                if (active) b.SetResourceReference(Border.BorderBrushProperty, "PrimaryBrush"); else b.BorderBrush = _swatchDimBorder;
                 b.MouseLeftButtonDown += (_, _) => onClick();
                 return b;
             }
@@ -534,7 +534,7 @@ namespace KillerPDF
                 Width = 40,
                 TextAlignment = TextAlignment.Right
             };
-            opacityLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+            opacityLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
             Place(gOpacity, opacityLabel, 0, 2);
             opacitySlider.ValueChanged += (s, e) =>
             {
@@ -568,7 +568,7 @@ namespace KillerPDF
                 Width = 40,
                 TextAlignment = TextAlignment.Right
             };
-            fillOpLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+            fillOpLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
             Place(gOpacity, fillOpLabel, 1, 2);
             fillOpSlider.ValueChanged += (s, e) =>
             {
@@ -617,7 +617,7 @@ namespace KillerPDF
                 Margin = new Thickness(0, 0, 0, 0)
             };
             _textSettingsBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
-            _textSettingsBar.SetResourceReference(Border.BorderBrushProperty, "PaneBorder");
+            _textSettingsBar.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
 
             var previewArea = PagePreviewPanel.Parent as Grid;
             if (previewArea is not null)

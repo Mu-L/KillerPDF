@@ -175,7 +175,7 @@ namespace KillerPDF
                 ClipToBounds = true
             };
             previewWrap.SetResourceReference(Border.BackgroundProperty, "BgCanvas");
-            previewWrap.SetResourceReference(Border.BorderBrushProperty, "PaneBorder");
+            previewWrap.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
 
             // The page image (row 0) and the stepper (row 1) live in separate rows so the stepper sits
             // BELOW the page instead of overlapping it - same row layout as the print preview.
@@ -251,8 +251,8 @@ namespace KillerPDF
             _numFormat.Text = _spec.Format;
             _numFormat.TextChanged += (_, _2) => Schedule();
             _numBody.Children.Add(_numFormat);
-            _numBody.Children.Add(new TextBlock { Text = S("Str_Stamp_Hint"), Foreground = R("TextSecondary"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
-            _numBody.Children.Add(new TextBlock { Text = S("Str_Stamp_Hint2"), Foreground = R("TextSecondary"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
+            _numBody.Children.Add(new TextBlock { Text = S("Str_Stamp_Hint"), Foreground = R("MutedTextBrush"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
+            _numBody.Children.Add(new TextBlock { Text = S("Str_Stamp_Hint2"), Foreground = R("MutedTextBrush"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
 
             _numBody.Children.Add(SliderBoxRow(S("Str_Stamp_FontSize"), 6, 96, _spec.NumFontPt, out _, out _numSize));
 
@@ -315,9 +315,9 @@ namespace KillerPDF
             _wmTextPanel.Children.Add(_wmText);
 
             var wmFontRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 8) };
-            wmFontRow.Children.Add(new TextBlock { Text = S("Str_Bar_Font"), Foreground = R("TextSecondary"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+            wmFontRow.Children.Add(new TextBlock { Text = S("Str_Bar_Font"), Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
             _wmFont = new ComboBox { Width = 188, Height = 26, MaxDropDownHeight = 320, VerticalAlignment = VerticalAlignment.Center };
-            if (_darkCombo != null) _wmFont.Style = _darkCombo; else { _wmFont.Background = R("BgCanvas"); _wmFont.Foreground = R("TextPrimary"); }
+            if (_darkCombo != null) _wmFont.Style = _darkCombo; else { _wmFont.Background = R("BgCanvas"); _wmFont.Foreground = R("TextBrush"); }
             foreach (var fn in MainWindow.SystemFontNames) _wmFont.Items.Add(fn);
             _wmFont.SelectedItem = _spec.WmFont;
             _wmFont.SelectionChanged += (_, _2) => Schedule();
@@ -334,7 +334,7 @@ namespace KillerPDF
             chooseBtn.Click += (_, _2) => ChooseImage();
             DockPanel.SetDock(chooseBtn, Dock.Right);
             imgRow.Children.Add(chooseBtn);
-            _wmImageLabel = new TextBlock { Text = System.IO.Path.GetFileName(_wmImagePath ?? ""), Foreground = R("TextSecondary"), FontSize = 11, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            _wmImageLabel = new TextBlock { Text = System.IO.Path.GetFileName(_wmImagePath ?? ""), Foreground = R("MutedTextBrush"), FontSize = 11, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
             imgRow.Children.Add(_wmImageLabel);
             _wmImagePanel.Children.Add(imgRow);
             _wmImagePanel.Children.Add(SliderBoxRow(S("Str_Stamp_Scale"), 10, 200, _spec.WmScale * 100, out _wmScale, out _));
@@ -378,7 +378,7 @@ namespace KillerPDF
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
             var chevron = new TextBlock
             {
-                FontSize = 12, Foreground = R("TextSecondary"),
+                FontSize = 12, Foreground = R("MutedTextBrush"),
                 Width = 14, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
             };
             void Sync()
@@ -421,7 +421,7 @@ namespace KillerPDF
         private ComboBox MakePosCombo(int h, int v)
         {
             var combo = new ComboBox { Margin = new Thickness(0, 0, 0, 8), Height = 26 };
-            if (_darkCombo != null) combo.Style = _darkCombo; else { combo.Background = R("BgCanvas"); combo.Foreground = R("TextPrimary"); }
+            if (_darkCombo != null) combo.Style = _darkCombo; else { combo.Background = R("BgCanvas"); combo.Foreground = R("TextBrush"); }
             int sel = 0;
             for (int i = 0; i < Positions.Length; i++)
             {
@@ -442,12 +442,12 @@ namespace KillerPDF
         private FrameworkElement ColorRow(string label, Color initial, out Border swatch, Action<Color> onPick)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8), VerticalAlignment = VerticalAlignment.Center };
-            row.Children.Add(new TextBlock { Text = label, Foreground = R("TextSecondary"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+            row.Children.Add(new TextBlock { Text = label, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
 
             var sw = new Border
             {
                 Width = 44, Height = 22, CornerRadius = UiKit.RadControl,
-                BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1),
+                BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
                 Background = new SolidColorBrush(initial), SnapsToDevicePixels = true
             };
 
@@ -477,7 +477,7 @@ namespace KillerPDF
             return row;
         }
 
-        private FrameworkElement Divider() => new Border { Height = 1, Background = R("BorderDim"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
+        private FrameworkElement Divider() => new Border { Height = 1, Background = R("CardBorderBrush"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
 
         private void UpdateEnabledStates()
         {
@@ -536,7 +536,7 @@ namespace KillerPDF
                 FontFamily = UiKit.UiFont, FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0)
             };
-            _pageNavLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimary");
+            _pageNavLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
             var row = new StackPanel
             {
                 Orientation = Orientation.Horizontal,

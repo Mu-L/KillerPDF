@@ -80,7 +80,7 @@ namespace KillerPDF
         {
             if (ToolStampBtn is null) return;
             if (_docStampSpec is not null)
-                ToolStampBtn.SetResourceReference(Control.BackgroundProperty, "BgHover");
+                ToolStampBtn.SetResourceReference(Control.BackgroundProperty, "RowHoverBrush");
             else
                 ToolStampBtn.ClearValue(Control.BackgroundProperty);
         }

@@ -42,9 +42,9 @@ namespace KillerPDF
             StackPanel BuildWordmark(bool shadow)
             {
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                Brush primary   = shadow ? Brushes.Black : Brush(owner, "TextPrimary", Brushes.White);
+                Brush primary   = shadow ? Brushes.Black : Brush(owner, "TextBrush", Brushes.White);
                 Brush logo      = shadow ? Brushes.Black : Brush(owner, "AccentLogo", Brushes.LimeGreen);
-                Brush secondary = shadow ? Brushes.Black : Brush(owner, "TextSecondary", Brushes.Gray);
+                Brush secondary = shadow ? Brushes.Black : Brush(owner, "MutedTextBrush", Brushes.Gray);
                 int kp = fullTitle?.IndexOf("KillerPDF", StringComparison.Ordinal) ?? -1;
                 if (kp >= 0)
                 {
@@ -120,8 +120,8 @@ namespace KillerPDF
 
             var card = new Border
             {
-                Background = UiKit.Brush("BgModal"),
-                BorderBrush = UiKit.Brush("AccentBorder"),
+                Background = UiKit.Brush("MenuBackgroundBrush"),
+                BorderBrush = UiKit.Brush("MenuBorderBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = UiKit.RadWindow,
                 Margin = new Thickness(12),

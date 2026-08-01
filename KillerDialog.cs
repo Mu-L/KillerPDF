@@ -52,8 +52,8 @@ namespace KillerPDF
 
             var outerBorder = new Border
             {
-                Background = R("BgModal"),
-                BorderBrush = R("AccentBorder"),   // match the app window / Settings card border, not the bright accent
+                Background = R("MenuBackgroundBrush"),
+                BorderBrush = R("MenuBorderBrush"),   // match the app window / Settings card border, not the bright accent
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
                 Margin = new Thickness(10),    // transparent halo so the drop shadow can render
@@ -85,7 +85,7 @@ namespace KillerPDF
             {
                 var wm = new StackPanel { Orientation = Orientation.Horizontal };
                 var wmTb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-                wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextPrimary") });
+                wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextBrush") });
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 19.5, Foreground = R("AccentLogo") });
                 wm.Children.Add(wmTb);
                 // No DropShadowEffect on the text - it rasterizes and blurs the wordmark. Kept crisp.
@@ -96,7 +96,7 @@ namespace KillerPDF
                 titleBar.Child = new TextBlock
                 {
                     Text = title,
-                    Foreground = R("Accent"),
+                    Foreground = R("PrimaryBrush"),
                     FontWeight = FontWeights.Bold,   // blue title -> bold
                     FontSize = 14,
                     FontFamily = UiKit.MonoFont
@@ -111,7 +111,7 @@ namespace KillerPDF
                 Child = new TextBlock
                 {
                     Text = message,
-                    Foreground = R("TextPrimary"),
+                    Foreground = R("TextBrush"),
                     FontSize = 13,
                     TextWrapping = TextWrapping.Wrap
                 }
@@ -227,8 +227,8 @@ namespace KillerPDF
 
             var outerBorder = new Border
             {
-                Background = R("BgModal"),
-                BorderBrush = R("AccentBorder"),
+                Background = R("MenuBackgroundBrush"),
+                BorderBrush = R("MenuBorderBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
                 Margin = new Thickness(10),
@@ -243,20 +243,20 @@ namespace KillerPDF
             if (title == "KillerPDF")
             {
                 var wmTb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-                wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextPrimary") });
+                wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextBrush") });
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 19.5, Foreground = R("AccentLogo") });
                 titleBar.Child = wmTb;
             }
             else
             {
-                titleBar.Child = new TextBlock { Text = title, Foreground = R("Accent"), FontWeight = FontWeights.Bold, FontSize = 14, FontFamily = UiKit.MonoFont };
+                titleBar.Child = new TextBlock { Text = title, Foreground = R("PrimaryBrush"), FontWeight = FontWeights.Bold, FontSize = 14, FontFamily = UiKit.MonoFont };
             }
             root.Children.Add(titleBar);
 
             root.Children.Add(new Border
             {
                 Padding = new Thickness(20, 16, 20, 8),
-                Child = new TextBlock { Text = message, Foreground = R("TextPrimary"), FontSize = 13, TextWrapping = TextWrapping.Wrap, MaxWidth = 560 }
+                Child = new TextBlock { Text = message, Foreground = R("TextBrush"), FontSize = 13, TextWrapping = TextWrapping.Wrap, MaxWidth = 560 }
             });
 
             var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -344,8 +344,8 @@ namespace KillerPDF
 
             var outerBorder = new Border
             {
-                Background = R("BgModal"),
-                BorderBrush = R("AccentBorder"),
+                Background = R("MenuBackgroundBrush"),
+                BorderBrush = R("MenuBorderBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
                 Margin = new Thickness(10),
@@ -371,7 +371,7 @@ namespace KillerPDF
             titleBar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
             var wm = new StackPanel { Orientation = Orientation.Horizontal };
             var wmTb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-            wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextPrimary") });
+            wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextBrush") });
             wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 18, Foreground = R("AccentLogo") });
             wm.Children.Add(wmTb);
             titleBar.Child = wm;
@@ -383,7 +383,7 @@ namespace KillerPDF
                 Child = new TextBlock
                 {
                     Text = message,
-                    Foreground = R("TextPrimary"),
+                    Foreground = R("TextBrush"),
                     FontSize = 13,
                     TextWrapping = TextWrapping.Wrap
                 }
@@ -468,7 +468,7 @@ namespace KillerPDF
             var body = new StackPanel();
 
             // Message: "<file>" is password protected.
-            var msg = new TextBlock { Foreground = R("TextPrimary"), FontSize = 13, TextWrapping = TextWrapping.Wrap };
+            var msg = new TextBlock { Foreground = R("TextBrush"), FontSize = 13, TextWrapping = TextWrapping.Wrap };
             msg.Inlines.Add(new System.Windows.Documents.Run($"“{System.IO.Path.GetFileName(filename)}” ") { FontWeight = FontWeights.SemiBold });
             msg.Inlines.Add(new System.Windows.Documents.Run("is password protected."));
             body.Children.Add(new Border { Padding = new Thickness(20, 4, 20, 10), Child = msg });

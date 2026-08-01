@@ -60,7 +60,7 @@ namespace KillerPDF
             body.Children.Add(new TextBlock
             {
                 Text = string.Format(L("Str_Sign_Desc"), Path.GetFileName(_sourcePdf)),
-                Foreground = R("TextSecondary"), FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Foreground = R("MutedTextBrush"), FontSize = 11, TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 14)
             });
 
@@ -86,13 +86,13 @@ namespace KillerPDF
             fileRow.Children.Add(_browsePfx);
             body.Children.Add(fileRow);
 
-            body.Children.Add(new TextBlock { Text = L("Str_Sign_Password"), Foreground = R("TextSecondary"), FontSize = 11, Margin = new Thickness(20, 4, 0, 2) });
+            body.Children.Add(new TextBlock { Text = L("Str_Sign_Password"), Foreground = R("MutedTextBrush"), FontSize = 11, Margin = new Thickness(20, 4, 0, 2) });
             _pwBox = new PasswordBox
             {
                 Margin = new Thickness(20, 0, 0, 10),
-                Background = R("BgCanvas"), Foreground = R("TextPrimary"),
-                BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1),
-                CaretBrush = R("TextPrimary"), Template = MakePasswordTemplate()
+                Background = R("BgCanvas"), Foreground = R("TextBrush"),
+                BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
+                CaretBrush = R("TextBrush"), Template = MakePasswordTemplate()
             };
             body.Children.Add(_pwBox);
 
@@ -232,19 +232,19 @@ namespace KillerPDF
         private Style? FindOwnerStyle(string key) => Owner?.TryFindResource(key) as Style;
 
         private static TextBlock Label(string text) => new()
-        { Text = text, Foreground = R("TextPrimary"), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
+        { Text = text, Foreground = R("TextBrush"), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
 
         private RadioButton Radio(string text, bool isChecked)
         {
             var r = new RadioButton { Content = text, IsChecked = isChecked, GroupName = "CertSource", FontSize = 12, Margin = new Thickness(0, 4, 0, 2) };
-            if (FindOwnerStyle("ThemeRadio") is Style s) r.Style = s; else r.Foreground = R("TextPrimary");
+            if (FindOwnerStyle("ThemeRadio") is Style s) r.Style = s; else r.Foreground = R("TextBrush");
             return r;
         }
 
         private void ApplyComboStyle(ComboBox combo)
         {
             if (FindOwnerStyle("DarkComboBox") is Style s) combo.Style = s;
-            else { combo.Foreground = R("TextPrimary"); combo.BorderBrush = R("BorderDim"); }
+            else { combo.Foreground = R("TextBrush"); combo.BorderBrush = R("CardBorderBrush"); }
             combo.Background = R("BgCanvas");
         }
 
@@ -253,10 +253,10 @@ namespace KillerPDF
             var tb = new TextBox
             {
                 Text = text, Margin = new Thickness(0, 0, 0, 4),
-                Background = R("BgCanvas"), Foreground = R("TextPrimary"),
-                BorderBrush = R("BorderDim"), BorderThickness = new Thickness(1),
-                Padding = new Thickness(6, 4, 6, 4), CaretBrush = R("TextPrimary"),
-                SelectionBrush = R("AccentDim"), SelectionTextBrush = R("TextPrimary"),
+                Background = R("BgCanvas"), Foreground = R("TextBrush"),
+                BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
+                Padding = new Thickness(6, 4, 6, 4), CaretBrush = R("TextBrush"),
+                SelectionBrush = R("RowSelectedBrush"), SelectionTextBrush = R("TextBrush"),
                 Template = MakeTextBoxTemplate()
             };
             return tb;

@@ -112,7 +112,7 @@ namespace KillerPDF
                         Background       = fieldBg,
                         Foreground       = Brushes.Black,
                         CaretBrush       = Brushes.Black,
-                        SelectionBrush   = (System.Windows.Media.Brush)FindResource("HeaderAccent"),
+                        SelectionBrush   = (System.Windows.Media.Brush)FindResource("HeaderLineBrush"),
                         Style            = (Style)FindResource("FormFieldTextBox"),
                         BorderBrush      = Brushes.Transparent,
                         BorderThickness  = new Thickness(1),
@@ -126,7 +126,7 @@ namespace KillerPDF
                     // Focus also raises the per-field font-size stepper (and hides it on blur).
                     int    capturedKey   = f.ObjNum;
                     double capturedScale = f.Scale;
-                    tb.GotFocus  += (_, _) => { tb.SetResourceReference(Control.BorderBrushProperty, "HeaderAccent"); ShowFormSizeBar(tb, capturedKey, capturedScale); };
+                    tb.GotFocus  += (_, _) => { tb.SetResourceReference(Control.BorderBrushProperty, "HeaderLineBrush"); ShowFormSizeBar(tb, capturedKey, capturedScale); };
                     tb.LostFocus += (_, _) => { tb.BorderBrush = Brushes.Transparent; HideFormSizeBar(); };
                     tb.TextChanged += (_, _) => { _formTextValues[capturedKey] = tb.Text; MarkDirty(true); };
                     ctrl = tb;

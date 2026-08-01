@@ -441,7 +441,7 @@ namespace KillerPDF
         private void UpdateAccentDotSelection()
         {
             if (DarkAccentRow is null) return;
-            var ring = (System.Windows.Media.Brush)FindResource("TextPrimary");
+            var ring = (System.Windows.Media.Brush)FindResource("TextBrush");
             void RingRow(Border[] dots, DarkAccent chosen)
             {
                 foreach (var dot in dots)

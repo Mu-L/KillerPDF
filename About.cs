@@ -84,14 +84,14 @@ namespace KillerPDF
                 AboutAkaBlock.Inlines.Clear();
                 AboutAkaBlock.Inlines.Add(new System.Windows.Documents.Run("AKA ")
                 {
-                    Foreground = (System.Windows.Media.Brush)FindResource("TextSecondary")
+                    Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush")
                 });
                 // 0x201C / 0x201D are the curly quotes, built from codepoints so this file
                 // stays ASCII on disk.
                 var akaHl = new System.Windows.Documents.Hyperlink(
                     new System.Windows.Documents.Run((char)0x201C + AkaName + (char)0x201D))
                 {
-                    Foreground      = (System.Windows.Media.Brush)FindResource("Accent"),
+                    Foreground      = (System.Windows.Media.Brush)FindResource("PrimaryBrush"),
                     TextDecorations = null,
                     ToolTip         = "thekiller.net"
                 };
@@ -110,7 +110,7 @@ namespace KillerPDF
             {
                 FontSize = 21,
                 FontWeight = System.Windows.FontWeights.Normal,
-                Foreground = (System.Windows.Media.Brush)FindResource("TextPrimary")
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush")
             });
             logoHl.Inlines.Add(new System.Windows.Documents.Run("PDF")
             {
@@ -127,7 +127,7 @@ namespace KillerPDF
             // Localized tagline. {0} is the (untranslated) brand, so splitting on the placeholder
             // keeps "Killer Tools" a styled, clickable link while the rest translates and the brand
             // can sit anywhere in the sentence the language needs it.
-            var taglineDim = (System.Windows.Media.Brush)FindResource("TextSecondary");
+            var taglineDim = (System.Windows.Media.Brush)FindResource("MutedTextBrush");
             var taglineText = Loc("Str_Tagline");
             int taglineBrand = taglineText.IndexOf("{0}", StringComparison.Ordinal);
             string taglinePre = taglineBrand >= 0 ? taglineText[..taglineBrand] : taglineText;
@@ -146,7 +146,7 @@ namespace KillerPDF
             AddTaglineText(taglinePre);
             var ktHl = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Killer Tools"))
             {
-                Foreground      = (System.Windows.Media.Brush)FindResource("Accent"),
+                Foreground      = (System.Windows.Media.Brush)FindResource("PrimaryBrush"),
                 TextDecorations = null
             };
             ktHl.Click += (_, _) =>
@@ -158,7 +158,7 @@ namespace KillerPDF
             AboutVersionBlock.Inlines.Clear();
             var verHl = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run($"v{version}"))
             {
-                Foreground      = (System.Windows.Media.Brush)FindResource("Accent"),
+                Foreground      = (System.Windows.Media.Brush)FindResource("PrimaryBrush"),
                 TextDecorations = null
             };
             verHl.Click += (_, _) =>

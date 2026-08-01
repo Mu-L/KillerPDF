@@ -101,11 +101,11 @@ namespace KillerPDF
             var resetAll = new TextBlock
             {
                 Text = S("Str_Tf_ResetAll"), FontFamily = UiKit.UiFont, FontSize = 12,
-                Foreground = R("TextSecondary"), Cursor = Cursors.Hand,
+                Foreground = R("MutedTextBrush"), Cursor = Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left
             };
-            resetAll.MouseEnter += (_, _2) => resetAll.Foreground = R("Accent");
-            resetAll.MouseLeave += (_, _2) => resetAll.Foreground = R("TextSecondary");
+            resetAll.MouseEnter += (_, _2) => resetAll.Foreground = R("PrimaryBrush");
+            resetAll.MouseLeave += (_, _2) => resetAll.Foreground = R("MutedTextBrush");
             resetAll.MouseLeftButtonUp += (_, _2) => { _quarter = 0; _rotSlider.Value = 0; _scaleSlider.Value = 100; _resizeRadio.IsChecked = true; _flipHCheck.IsChecked = false; _flipVCheck.IsChecked = false; };
             bottom.Children.Add(resetAll);
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
@@ -153,7 +153,7 @@ namespace KillerPDF
             stack.Children.Add(ValueRow(S("Str_Tf_Size"), "100%", out _scaleReadout, out var scaleReset));
             scaleReset.Click += (_, _2) => _scaleSlider.Value = 100;
 
-            stack.Children.Add(new TextBlock { Text = S("Str_Tf_WhenScaling"), Foreground = R("TextSecondary"), FontFamily = UiKit.UiFont, FontSize = 11, Margin = new Thickness(0, 10, 0, 4) });
+            stack.Children.Add(new TextBlock { Text = S("Str_Tf_WhenScaling"), Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont, FontSize = 11, Margin = new Thickness(0, 10, 0, 4) });
             _resizeRadio = MakeRadio(S("Str_Tf_ResizePage"), true, themeRadio);
             var fixedRadio = MakeRadio(S("Str_Tf_KeepSize"), false, themeRadio);
             _resizeRadio.Checked += (_, _2) => { _fixedPage = false; UpdatePreview(); };
@@ -163,7 +163,7 @@ namespace KillerPDF
 
             // Live output dimensions, so scale changes (including above 100%, where the preview clamps to
             // fit) are always legible as a number even when the page can't grow on screen.
-            _sizeReadout = new TextBlock { Foreground = R("TextSecondary"), FontFamily = UiKit.MonoFont, FontSize = 11, Margin = new Thickness(0, 8, 0, 0) };
+            _sizeReadout = new TextBlock { Foreground = R("MutedTextBrush"), FontFamily = UiKit.MonoFont, FontSize = 11, Margin = new Thickness(0, 8, 0, 0) };
             stack.Children.Add(_sizeReadout);
 
             stack.Children.Add(Divider());
@@ -186,14 +186,14 @@ namespace KillerPDF
             stack.Children.Add(new TextBlock
             {
                 Text = S("Str_Tf_SkewHint"),
-                Foreground = R("TextSecondary"), FontFamily = UiKit.UiFont, FontSize = 10,
+                Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont, FontSize = 10,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
             });
             // Live cursor coordinates (page points), so the user can place the line precisely on the small
             // preview. Start point on press, end point as they drag.
             _lineCoords = new TextBlock
             {
-                Text = "", Foreground = R("TextSecondary"), FontFamily = UiKit.MonoFont,
+                Text = "", Foreground = R("MutedTextBrush"), FontFamily = UiKit.MonoFont,
                 FontSize = 11, LineHeight = 16, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(3)
             };
             stack.Children.Add(_lineCoords);
@@ -212,7 +212,7 @@ namespace KillerPDF
                 ClipToBounds = true
             };
             previewWrap.SetResourceReference(Border.BackgroundProperty, "BgCanvas");
-            previewWrap.SetResourceReference(Border.BorderBrushProperty, "PaneBorder");
+            previewWrap.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
 
             var previewGrid = new Grid();
             var pgGrain = (owner as MainWindow)?.GrainTexture;
@@ -235,7 +235,7 @@ namespace KillerPDF
             _lineCanvas = new Canvas { Background = Brushes.Transparent, IsHitTestVisible = false, Cursor = Cursors.Cross };
             _alignLine = new Line
             {
-                Stroke = R("Accent"), StrokeThickness = 2, StrokeDashArray = [4, 3],
+                Stroke = R("PrimaryBrush"), StrokeThickness = 2, StrokeDashArray = [4, 3],
                 Visibility = Visibility.Collapsed,
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.White, BlurRadius = 3, ShadowDepth = 0, Opacity = 0.8 }
             };
@@ -370,14 +370,14 @@ namespace KillerPDF
 
         private TextBlock SectionHeader(string text) => new()
         {
-            Text = text, Foreground = R("TextSecondary"), FontFamily = UiKit.UiFont,
+            Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
             FontSize = 10, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 4)
         };
 
         private Border Divider()
         {
             var b = new Border { Height = 1, Margin = new Thickness(0, 14, 0, 12) };
-            b.SetResourceReference(Border.BackgroundProperty, "BorderDim");
+            b.SetResourceReference(Border.BackgroundProperty, "CardBorderBrush");
             return b;
         }
 
@@ -391,7 +391,7 @@ namespace KillerPDF
             row.Children.Add(reset);
             valueBlock = new TextBlock
             {
-                Text = value, Foreground = R("TextPrimary"), FontFamily = UiKit.MonoFont,
+                Text = value, Foreground = R("TextBrush"), FontFamily = UiKit.MonoFont,
                 FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Right, Margin = new Thickness(0, 0, 8, 0)
             };
@@ -399,7 +399,7 @@ namespace KillerPDF
             row.Children.Add(valueBlock);
             row.Children.Add(new TextBlock
             {
-                Text = label, Foreground = R("TextSecondary"), FontFamily = UiKit.UiFont,
+                Text = label, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
                 FontSize = 11, VerticalAlignment = VerticalAlignment.Center
             });
             return row;
@@ -410,7 +410,7 @@ namespace KillerPDF
             var rb = new RadioButton
             {
                 Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center },
-                IsChecked = isChecked, Foreground = R("TextPrimary"),
+                IsChecked = isChecked, Foreground = R("TextBrush"),
                 FontFamily = UiKit.UiFont, FontSize = 12, Margin = new Thickness(0, 3, 0, 0)
             };
             if (style != null) rb.Style = style;

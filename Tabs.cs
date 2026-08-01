@@ -883,14 +883,14 @@ namespace KillerPDF
             else
             {
                 // Opaque (matches the strip) with a single beveled trailing divider, no shadow.
-                bd.SetResourceReference(Border.BackgroundProperty, "BgSidebar");
+                bd.SetResourceReference(Border.BackgroundProperty, "BackgroundBrush");
                 bd.BorderThickness = new Thickness(0, 0, 1, 0);
                 bd.BorderBrush = MakeTabDividerBrush();
                 bd.Effect = null;
                 Panel.SetZIndex(bd, 0);
             }
             if (label is null) return;
-            label.SetResourceReference(TextBlock.ForegroundProperty, active ? "TextPrimary" : "TextSecondary");
+            label.SetResourceReference(TextBlock.ForegroundProperty, active ? "TextBrush" : "MutedTextBrush");
             if (active)
             {
                 label.FontWeight = FontWeights.Bold;
@@ -1182,7 +1182,7 @@ namespace KillerPDF
         // Rebuilt on theme change (OnThemeChanged).
         private Brush MakeTabDividerBrush()
         {
-            Color pane = (FindResource("PaneBorder") as SolidColorBrush)?.Color ?? Color.FromRgb(0x2e, 0x2e, 0x2e);
+            Color pane = (FindResource("PaneBorderBrush") as SolidColorBrush)?.Color ?? Color.FromRgb(0x2e, 0x2e, 0x2e);
             var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
             brush.GradientStops.Add(new GradientStop(Color.FromArgb(0, pane.R, pane.G, pane.B), 0.0));    // transparent, top
             brush.GradientStops.Add(new GradientStop(Color.FromArgb(0, pane.R, pane.G, pane.B), 0.45));   // still transparent through the upper half
