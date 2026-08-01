@@ -1,4 +1,0 @@
-'C:\Users\steve\pdf-corpus-resaved-170\' is not recognized as an internal or external command,
-operable program or batch file.
-Error: Could not find or load main class org.verapdf.apps.GreenfieldCliWrapper
-Caused by: java.lang.ClassNotFoundException: org.verapdf.apps.GreenfieldCliWrapper
