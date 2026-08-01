@@ -83,6 +83,23 @@ namespace KillerPDF
             /// mid-gesture - which committed annotations to the wrong page.</summary>
             public Canvas? GestureCanvas;
             public int GesturePage = -1;
+
+            // ── Visual hosts ────────────────────────────────────────────────────────────────
+            // References only - the window still creates and owns the actual elements. Today
+            // ContinuousPanel / PageContentPanel / PageContentGrid come from FindName in the
+            // window ctor and are the ONE window's XAML; AnnotationCanvas / PageImage are the
+            // code-built primary tile (Viewport.BuildPrimaryTile) and ActiveCanvas is re-pointed
+            // on mouse-down. Holding them here is what lets the next stage hand each viewer its
+            // own tile tree without touching any of the ~250 call sites that use them.
+            public StackPanel ContinuousPanel = null!;
+            public WrapPanel PageContentPanel = null!;
+            public Grid PageContentGrid = null!;
+            /// <summary>The hardcoded primary tile's overlay, shown in Single/Grid/TwoPage.</summary>
+            public Canvas AnnotationCanvas = null!;
+            public Image PageImage = null!;
+            /// <summary>Active annotation surface. Single view: always AnnotationCanvas.
+            /// Continuous: set on mouse-down to the clicked page's overlay.</summary>
+            public Canvas ActiveCanvas = null!;
         }
     }
 }

@@ -54,7 +54,7 @@ namespace KillerPDF
         private readonly ViewerState _view = new();
 
         private ViewMode _viewMode { get => _view.Mode; set => _view.Mode = value; }
-        private readonly StackPanel _continuousPanel = null!;
+        private StackPanel _continuousPanel { get => _view.ContinuousPanel; set => _view.ContinuousPanel = value; }
         private System.Threading.CancellationTokenSource? _continuousRenderCts { get => _view.ContinuousRenderCts; set => _view.ContinuousRenderCts = value; }
         private System.Threading.CancellationTokenSource? _continuousSharpenCts { get => _view.ContinuousSharpenCts; set => _view.ContinuousSharpenCts = value; }
         private HashSet<int> _continuousSharpPages => _view.ContinuousSharpPages;
@@ -220,7 +220,7 @@ namespace KillerPDF
         private readonly Button _sidebarToggleBtn = null!;
         private readonly Border _sidebarBorder = null!;
         private ColumnDefinition _sidebarCol = null!;   // sized column (left or right per _sidebarRight)
-        private readonly WrapPanel _pageContentPanel = null!;
+        private WrapPanel _pageContentPanel { get => _view.PageContentPanel; set => _view.PageContentPanel = value; }
 
         // Text selection
         private bool _isSelecting;
@@ -251,11 +251,11 @@ namespace KillerPDF
 
         // Manual element refs. Tile-0's Image + overlay are built in code (BuildPrimaryTile) now that the
         // primary page is no longer a hardcoded XAML singleton - both are reassignable.
-        private Canvas _annotationCanvas = null!;
-        private Image PageImage = null!;
+        private Canvas _annotationCanvas { get => _view.AnnotationCanvas; set => _view.AnnotationCanvas = value; }
+        private Image PageImage { get => _view.PageImage; set => _view.PageImage = value; }
         // Active annotation surface. Single view: always _annotationCanvas. Continuous view:
         // set on mouse-down to the clicked page's overlay. Shared handlers target this.
-        private Canvas _activeCanvas = null!;
+        private Canvas _activeCanvas { get => _view.ActiveCanvas; set => _view.ActiveCanvas = value; }
         // The page surface a pointer gesture started on, captured on mouse-down. Kept separate
         // from _activeCanvas because RenderAllAnnotations reuses _activeCanvas as its render
         // target; in Grid view tiles stream in asynchronously and each one re-points _activeCanvas
@@ -270,7 +270,7 @@ namespace KillerPDF
         // machinery). This is the single source of truth the canvas accessors read from, so the
         // primary stops being a special case in routing/search/links.
         private Dictionary<int, Canvas> _pages => _view.Pages;
-        private readonly Grid _pageContentGrid = null!;
+        private Grid _pageContentGrid { get => _view.PageContentGrid; set => _view.PageContentGrid = value; }
         private readonly Button _toolSelectBtn = null!;
         private readonly Button _toolTextBtn = null!;
         private readonly Button _toolHighlightBtn = null!;
