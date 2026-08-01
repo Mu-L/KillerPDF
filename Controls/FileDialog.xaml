@@ -60,7 +60,11 @@
         <Border Margin="10" CornerRadius="6" Background="{DynamicResource BackgroundBrush}"
                 IsHitTestVisible="False">
             <Border.Effect>
-                <DropShadowEffect Color="Black" BlurRadius="18" ShadowDepth="3" Direction="270" Opacity="0.6"/>
+                <!-- RenderingBias Quality: at radius 18 the default Performance bias renders the
+                     blur at reduced resolution and scales it up, which blocks up into stair-steps
+                     on this card's rounded corners. Same fix as App.xaml's PaneShadow. -->
+                <DropShadowEffect Color="Black" BlurRadius="18" ShadowDepth="3" Direction="270" Opacity="0.6"
+                                  RenderingBias="Quality"/>
             </Border.Effect>
         </Border>
 

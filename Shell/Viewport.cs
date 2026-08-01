@@ -1645,7 +1645,9 @@ namespace KillerPDF
 
         // Target mode while a fade-out is in flight. Non-null means a switch is mid-fade; a new
         // SetViewMode during that window just retargets it (rapid F5-F8 presses land on the last).
-        private ViewMode? _pendingViewMode;
+        // Forwarding property onto the per-view state (split pane stage 1) - it belongs to a view,
+        // not to the window, since two panes fade independently.
+        private ViewMode? _pendingViewMode { get => _view.Pending; set => _view.Pending = value; }
 
         // Fade wrapper around the actual mode switch (ApplyViewMode). The switch itself swaps panel
         // visibility instantly and defers its layout/scroll setup through the dispatcher, so doing

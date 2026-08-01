@@ -39,8 +39,20 @@ namespace KillerPDF
         private FitMode _fitMode = FitMode.None;
         private System.Windows.Threading.DispatcherTimer? _rerenderTimer;
         private System.Threading.CancellationTokenSource? _secondaryRenderCts;
-        private enum ViewMode { Single, Continuous, TwoPage, Grid }
-        private ViewMode _viewMode = ViewMode.Continuous;
+        // internal, not private: ViewerState (Models/ViewerState.cs) has fields of this type, and
+        // CS0052 compares DECLARED accessibility - a field cannot be more accessible than its type,
+        // even when both sit inside MainWindow. Still a nested type, so nothing outside the
+        // assembly gains anything by this; it is only reachable as MainWindow.ViewMode.
+        internal enum ViewMode { Single, Continuous, TwoPage, Grid }
+
+        // ── Split pane, stage 1 ────────────────────────────────────────────────────────────
+        // The per-view state now lives in one object (Models/ViewerState.cs) so a second pane can
+        // have its own. The window still holds exactly ONE, and the fields below are forwarding
+        // properties onto it, so every existing call site is untouched and behavior is identical.
+        // Later stages repoint call sites at a viewer instance; see BACKLOG.md "Split pane (F10)".
+        private readonly ViewerState _view = new();
+
+        private ViewMode _viewMode { get => _view.Mode; set => _view.Mode = value; }
         private readonly StackPanel _continuousPanel = null!;
         private System.Threading.CancellationTokenSource? _continuousRenderCts;
         private System.Threading.CancellationTokenSource? _continuousSharpenCts;   // #85 visible-page re-sharpen
@@ -251,12 +263,12 @@ namespace KillerPDF
         private Canvas? _gestureCanvas;
         private int _gesturePage = -1;
         // Per-page overlay canvases for Continuous view, keyed by page index.
-        private readonly Dictionary<int, Canvas> _continuousCanvases = [];
+        private Dictionary<int, Canvas> _continuousCanvases => _view.ContinuousCanvases;
         // Unified page -> overlay map covering EVERY rendered page, the primary included (unlike
         // _continuousCanvases, which holds only secondary tiles and is driven by the tile-recycling
         // machinery). This is the single source of truth the canvas accessors read from, so the
         // primary stops being a special case in routing/search/links.
-        private readonly Dictionary<int, Canvas> _pages = [];
+        private Dictionary<int, Canvas> _pages => _view.Pages;
         private readonly Grid _pageContentGrid = null!;
         private readonly Button _toolSelectBtn = null!;
         private readonly Button _toolTextBtn = null!;
