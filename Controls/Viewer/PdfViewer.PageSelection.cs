@@ -78,17 +78,16 @@ namespace KillerPDF.Controls
             _pageJumpBox.SelectAll();
         }
 
-        /// <summary>The viewer's ONE PageList selection delegate. SyncCurrentPageTo detaches and
-        /// reattaches this around the scroll-driven page sync, so the -= must match the +=; a method
-        /// group would build a new delegate per call and the -= would silently remove nothing,
-        /// leaving the handler attached and every scroll re-rendering. Held as one cached instance
-        /// for that reason.</summary>
-        private SelectionChangedEventHandler PageListSelHandler
-            => _pageListSelHandler ??= PageList_SelectionChanged;
-        private SelectionChangedEventHandler? _pageListSelHandler;
+        /// <summary>Set by SyncCurrentPageTo (and only it) around its programmatic SelectedIndex
+        /// write, so the scroll-driven sync does not re-enter the render path through the window's
+        /// XAML-bound handler. Replaces the old detach/attach of a cached delegate, which never
+        /// worked: the list's real subscription is the WINDOW stub, so the -= removed nothing and
+        /// the += accumulated direct subscriptions (2026-08-01).</summary>
+        private bool _syncingPageList;
 
         private void PageList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_syncingPageList) return;   // programmatic sync, not a user selection
             // The sidebar page list is WINDOW chrome - there is one of it, and BOTH panes attach
             // their own handler to it. It describes the focused pane only, so the other pane has
             // to sit this out. Scrolling a pane calls SyncCurrentPageTo, which detaches its OWN

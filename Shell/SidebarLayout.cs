@@ -249,5 +249,53 @@ namespace KillerPDF
 
         // Ctrl+Shift+B (pairs with Ctrl+B, the sidebar collapse toggle).
         private void ToggleSidebarSide() => SelectSidebarSide(!_sidebarRight);
+
+        // ── Page-list edge fades - KillerShell's TreePanel.SyncTreeEdgeFades, ported verbatim ──
+        // (family standard, same behavior as the landing pages' sb-fade). Each edge fades only
+        // while there is a row PAST it, ramped over the fade's own height: none at the very top,
+        // none at the very bottom, full in between - a hard on/off would pop the moment the wheel
+        // moved. PageList disables horizontal scrolling, so KillerShell's scrollbar-lift half of
+        // the pattern (SyncTreeFade) is deliberately not ported.
+
+        /// <summary>Called once from the window ctor, beside InitSplitPanes.</summary>
+        private void WirePageListEdgeFades()
+        {
+            // ScrollChanged bubbles, so the ListBox's inner ScrollViewer is reached without
+            // having to dig it out of the template first. Loaded and SizeChanged cover the
+            // passes where nothing scrolled but the extent moved (reseat, thumbnail load).
+            PageList.AddHandler(ScrollViewer.ScrollChangedEvent,
+                new ScrollChangedEventHandler((_, _) => SyncPageListEdgeFades()));
+            PageList.SizeChanged += (_, _) => SyncPageListEdgeFades();
+            PageList.Loaded      += (_, _) => SyncPageListEdgeFades();
+        }
+
+        private void SyncPageListEdgeFades()
+        {
+            var sv = FindSidebarDescendant<ScrollViewer>(PageList);
+            if (sv == null || PageListFadeTop == null || PageListFadeBottom == null) return;
+
+            PageListFadeTop.Opacity    = EdgeFadeRamp(sv.VerticalOffset, PageListFadeTop.Height, 18);
+            PageListFadeBottom.Opacity = EdgeFadeRamp(sv.ExtentHeight - sv.ViewportHeight - sv.VerticalOffset,
+                                                      PageListFadeBottom.Height, 22);
+        }
+
+        // Height is NaN until the border has been laid out, hence the fallback.
+        private static double EdgeFadeRamp(double distance, double height, double fallback)
+        {
+            double h = double.IsNaN(height) || height <= 0 ? fallback : height;
+            return Math.Min(1, Math.Max(0, distance) / h);
+        }
+
+        private static T? FindSidebarDescendant<T>(DependencyObject root) where T : DependencyObject
+        {
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var c = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+                if (c is T t) return t;
+                var deeper = FindSidebarDescendant<T>(c);
+                if (deeper != null) return deeper;
+            }
+            return null;
+        }
     }
 }

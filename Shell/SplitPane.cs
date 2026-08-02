@@ -46,11 +46,6 @@ namespace KillerPDF
         /// window's right edge shrank the pane at the far LEFT of the window.</summary>
         private double _paneAWidth;
 
-        /// <summary>True when the currently-open split grew the window to make room for pane B (set
-        /// in OpenSplit). CloseSplit reads this to decide whether shrinking the window back is the
-        /// right undo, or whether pane A should fill the freed space instead - see CloseSplit.</summary>
-        private bool _splitOpenGrewWindow;
-
         /// <summary>Wire both panes up. Called from the constructor.</summary>
         private void InitSplitPanes()
         {
@@ -234,11 +229,6 @@ namespace KillerPDF
             }
             // Pane B's final width is whatever the window could actually give it.
             double bTarget = Math.Max(MinPaneWidth, grow - SplitGutter);
-            // Remembered for CloseSplit: only a split that actually grew the window has a shrink to
-            // undo. One that opened even (no room to grow) or restored (never grows) must not shrink
-            // the window on close either, or a window sized to fill the screen "cuts in half" when
-            // the split closes instead of staying where it was put (Steve, 2026-08-01).
-            _splitOpenGrewWindow = grow > 0.5;
 
             // Maximized, snapped, or already hard against the work area edge: there is no room to
             // grow the window by pane A's full width, so keeping pane A at its size would squeeze
@@ -439,24 +429,22 @@ namespace KillerPDF
             PaneACol.Width = new GridLength(aStart, GridUnitType.Pixel);
             PaneBCol.Width = new GridLength(bStart, GridUnitType.Pixel);
 
-            // The window shrinks back to undo the split ONLY when opening it actually grew the
-            // window in the first place (_splitOpenGrewWindow) - that is the case the exact
-            // round-trip logic was written for. Two other cases must let pane A fill the freed space
-            // instead, or the window ends up smaller than the user left it:
-            //  - Maximized (or otherwise not WindowState.Normal): AnimateSplitWidth's window-shrink
-            //    step only runs in Normal, so the window is not going to shrink back regardless.
-            //  - A window sized (not maximized) to fill the available screen space, where OpenSplit
-            //    had no room to grow and split what was already there evenly instead: closing must
-            //    not then shrink the window by pane B's half, or a window the user sized to fill the
-            //    screen "cuts in half" on close instead of staying where it was put (Steve,
-            //    2026-08-01 - two related reports the same day: "its okay if pane 1 expands to fill
-            //    the width [when maximized]" and, for the plain-wide-window case, "it cuts the
-            //    window in half instead of it staying where I set the window").
-            bool fillA = !_splitOpenGrewWindow || WindowState != WindowState.Normal;
+            // THE RULE IS THE CORNERS (Steve, 2026-08-01, after several rounds of narrower
+            // conditions each missing a case):
+            //  - SQUARED corners (_chromeSquared: maximized OR snapped) - the window is pinned to
+            //    screen edges and must not move, so pane A expands to fill the space pane B gives
+            //    up. WindowState alone is NOT this test: a snapped window stays WindowState.Normal
+            //    (see OnWindowLocationChanged), which is exactly the case every earlier version of
+            //    this condition got wrong.
+            //  - ROUNDED corners (floating) - closing the second pane closes the second pane: the
+            //    window shrinks by pane B plus the gutter and pane A keeps the size it had.
+            // The widthDelta is 0 in the squared case so AnimateSplitWidth cannot shrink a snapped
+            // window (it skips only MAXIMIZED ones on its own, since they are not Normal).
+            bool fillA = _chromeSquared;
             double aTarget = fillA ? aStart + bStart + SplitGutter : aStart;
             _paneAWidth = aTarget;
 
-            AnimateSplitWidth(opening: false, 0, bStart + SplitGutter, FinishCloseSplit,
+            AnimateSplitWidth(opening: false, 0, fillA ? 0 : bStart + SplitGutter, FinishCloseSplit,
                 aFrom: fillA ? aStart : (double?)null, aTo: fillA ? aTarget : (double?)null);
         }
 

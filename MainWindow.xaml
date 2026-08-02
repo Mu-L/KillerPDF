@@ -1482,7 +1482,15 @@
                                        Foreground="{DynamicResource MutedTextBrush}"
                                        Margin="2,0,0,0"/>
                         </DockPanel><!-- /PageControlsRow -->
-                        <!-- Scrollable page list (virtualized) -->
+                        <!-- Scrollable page list (virtualized), wrapped so the edge fades overlay it.
+                             The fades are KillerShell's TreeFadeTop/Bottom pattern verbatim (family
+                             standard, same as the landing pages' sb-fade): each shows only while
+                             there is a row PAST that edge, ramped over its own height so it arrives
+                             as it becomes true instead of popping - driven by SyncPageListEdgeFades
+                             (Shell/SidebarLayout.cs). Composition matches the sidebar behind it:
+                             BackgroundBrush plus the grain tile at GrainOpacity, or the fade would
+                             dissolve into a flat color the sidebar does not have. -->
+                        <Grid>
                         <ListBox x:Name="PageList" Style="{StaticResource PageListBox}"
                                  BorderThickness="0" SelectionMode="Extended"
                                  VirtualizingPanel.IsVirtualizing="True"
@@ -1537,6 +1545,33 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
+                        <Border x:Name="PageListFadeTop" Height="18" Opacity="0"
+                                VerticalAlignment="Top" Margin="0,0,12,0" IsHitTestVisible="False">
+                            <Border.OpacityMask>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#FF000000" Offset="0"/>
+                                    <GradientStop Color="#00000000" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.OpacityMask>
+                            <Grid>
+                                <Border Background="{DynamicResource BackgroundBrush}"/>
+                                <Border Background="{StaticResource GrainBrushShared}" Opacity="{DynamicResource GrainOpacity}"/>
+                            </Grid>
+                        </Border>
+                        <Border x:Name="PageListFadeBottom" Height="22" Opacity="0"
+                                VerticalAlignment="Bottom" Margin="0,0,12,0" IsHitTestVisible="False">
+                            <Border.OpacityMask>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00000000" Offset="0"/>
+                                    <GradientStop Color="#FF000000" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.OpacityMask>
+                            <Grid>
+                                <Border Background="{DynamicResource BackgroundBrush}"/>
+                                <Border Background="{StaticResource GrainBrushShared}" Opacity="{DynamicResource GrainOpacity}"/>
+                            </Grid>
+                        </Border>
+                        </Grid>
                         <!-- Outline/bookmark tree (visible when OUTLINES tab is active) -->
                         <ScrollViewer x:Name="OutlineScrollViewer"
                                       Visibility="Collapsed"

@@ -16,7 +16,7 @@
     <!-- Shown in the About card beside the version so a user can tell how old their build
          is. Must match the date on this version's CHANGELOG section - release.ps1 preflight
          fails the release if it does not. Bump it with the version. -->
-    <ReleaseDate>2026-07-31</ReleaseDate>
+    <ReleaseDate>2026-08-01</ReleaseDate>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
@@ -61,6 +61,12 @@
     <PackageReference Include="Tesseract" Version="5.2.0" GeneratePathProperty="true" ExcludeAssets="build;buildTransitive;native;contentFiles" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- Transitive pins only (family standard, same as Killendar/KillerNotes): Costura's graph
+         otherwise resolves 4.3.0 of both, which carry advisories (GHSA-7jgj-8wvc-jh57,
+         GHSA-cmhx-cq75-c4mj). ExcludeAssets="all" means nothing ships - the pin just forces the
+         resolver past the vulnerable versions. net48 runs the framework's own copies anyway. -->
+    <PackageReference Include="System.Net.Http" Version="4.3.4" ExcludeAssets="all" />
+    <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" ExcludeAssets="all" />
     <PackageReference Include="PolySharp" Version="1.15.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

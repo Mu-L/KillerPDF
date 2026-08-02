@@ -132,16 +132,17 @@ namespace KillerPDF
         private void ZoomIn_Click(object sender, RoutedEventArgs e) => ActiveViewer.ZoomIn_Click(sender, e);
         private void ZoomOut_Click(object sender, RoutedEventArgs e) => ActiveViewer.ZoomOut_Click(sender, e);
 
+        // ACTIVEVIEWER, like every other stub in this file - this one said `Viewer` (pane A,
+        // hardcoded) and was the split's cross-zoom bug: FocusPane(B) -> SyncZoomBox writes the
+        // shared box -> SelectionChanged -> this stub ran PANE A's handler, which FitToWidth'd
+        // pane A against pane B's document (proven by zoomtrace, 2026-08-01).
         // NULL-CONDITIONAL, and it must stay that way. ZoomBox declares
         // <ComboBoxItem Tag="1.0" IsSelected="True"> (MainWindow.xaml), so SelectionChanged fires
-        // while InitializeComponent is still walking the tree - and ZoomBox is declared at line
-        // ~1245 against Viewer's ~2179, so the generated Viewer field is still NULL when it does.
-        // The old body opened with `if (_zoomBox?.SelectedItem is not ComboBoxItem item) return;`
-        // and _zoomBox was assigned later from FindName, so it early-returned harmlessly during
-        // construction; a plain forward dereferences Viewer before that guard can run and throws
-        // NullReferenceException at startup. The `?.` restores exactly the old no-op.
-        // Click handlers do not need this - a click cannot happen mid-parse.
+        // while InitializeComponent is still walking the tree - ActiveViewer is not assigned until
+        // InitSplitPanes runs after it, so the `?.` no-ops the mid-parse fire exactly like the old
+        // `_zoomBox?.SelectedItem` guard did. Click handlers do not need this - a click cannot
+        // happen mid-parse.
         private void ZoomBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-            => Viewer?.ZoomBox_SelectionChanged(sender, e);
+            => ActiveViewer?.ZoomBox_SelectionChanged(sender, e);
     }
 }

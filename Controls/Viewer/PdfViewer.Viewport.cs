@@ -151,13 +151,14 @@ namespace KillerPDF.Controls
             if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
             if (PageList.SelectedIndex == nearest) return;
             _pageJumpBox.Text = (nearest + 1).ToString();
-            // PageListSelHandler, NOT the method group: the -= has to remove the same delegate
-            // instance the += added, and a method group builds a new one each time. The handler is
-            // a real method on this class, so the cached instance lives here too
-            // (PdfViewer.PageSelection.cs) rather than being handed over from the window.
-            PageList.SelectionChanged -= PageListSelHandler;
-            PageList.SelectedIndex = nearest;
-            PageList.SelectionChanged += PageListSelHandler;
+            // Reentrancy FLAG, not a detach/attach pair. The PageList's real subscription is the
+            // WINDOW's XAML-bound stub, so `-=` of this pane's own delegate removed NOTHING and
+            // the `+=` stacked this pane's handler onto the shared list as an EXTRA direct
+            // subscription - one more per scroll-sync, forever (found via zoomtrace, 2026-08-01,
+            // alongside the identical ZoomBox pattern).
+            _syncingPageList = true;
+            try { PageList.SelectedIndex = nearest; }
+            finally { _syncingPageList = false; }
             // Keep the selected thumbnail in view. ScrollIntoView lives in
             // PageList_SelectionChanged, which is detached above - so the scroll-driven path moved
             // the highlight but never scrolled the sidebar, and the selection walked off the end
@@ -1418,47 +1419,58 @@ namespace KillerPDF.Controls
         internal void ZoomIn_Click(object sender, RoutedEventArgs e)  { if (_viewMode == ViewMode.Grid) GridZoomStep(false); else SetZoom(_zoomLevel + ZoomStep); }
         internal void ZoomOut_Click(object sender, RoutedEventArgs e) { if (_viewMode == ViewMode.Grid) GridZoomStep(true);  else SetZoom(_zoomLevel - ZoomStep); }
 
+        /// <summary>Set by SyncZoomBox around its programmatic writes. Same story as
+        /// _syncingPageList: the box's real subscription is the WINDOW's XAML-bound stub, so the
+        /// old detach/attach of this pane's own delegate removed nothing and ADDED a direct
+        /// subscription per sync - which is how pane A's handler kept running while pane B was
+        /// focused, fitting A against B's document (the zoomtrace smoking gun, 2026-08-01).</summary>
+        private bool _syncingZoomBox;
+
         internal void SyncZoomBox()
         {
             if (_zoomBox is null) return;
-            _zoomBox.SelectionChanged -= ZoomBox_SelectionChanged;
-
-            // When a fit mode is active, show the "Fit Width"/"Fit Page" entry rather than a raw
-            // percentage so the box matches the status bar.
-            string? fitTag = _fitMode == FitMode.Width ? "fitwidth"
-                           : _fitMode == FitMode.Page  ? "fitpage"
-                           : null;
-            if (fitTag != null)
+            _syncingZoomBox = true;
+            try
             {
+                // When a fit mode is active, show the "Fit Width"/"Fit Page" entry rather than a raw
+                // percentage so the box matches the status bar.
+                string? fitTag = _fitMode == FitMode.Width ? "fitwidth"
+                               : _fitMode == FitMode.Page  ? "fitpage"
+                               : null;
+                if (fitTag != null)
+                {
+                    foreach (ComboBoxItem item in _zoomBox.Items)
+                    {
+                        if (item.Tag?.ToString() == fitTag)
+                        {
+                            _zoomBox.SelectedItem = item;
+                            return;
+                        }
+                    }
+                }
+
+                string target = $"{DisplayZoomPct():F0}%";
                 foreach (ComboBoxItem item in _zoomBox.Items)
                 {
-                    if (item.Tag?.ToString() == fitTag)
+                    if (item.Content?.ToString() == target)
                     {
                         _zoomBox.SelectedItem = item;
-                        _zoomBox.SelectionChanged += ZoomBox_SelectionChanged;
                         return;
                     }
                 }
+                // No preset match - clear dropdown selection and show free-form percentage
+                _zoomBox.SelectedItem = null;
+                _zoomBox.Text = target;
             }
-
-            string target = $"{DisplayZoomPct():F0}%";
-            foreach (ComboBoxItem item in _zoomBox.Items)
-            {
-                if (item.Content?.ToString() == target)
-                {
-                    _zoomBox.SelectedItem = item;
-                    _zoomBox.SelectionChanged += ZoomBox_SelectionChanged;
-                    return;
-                }
-            }
-            // No preset match - clear dropdown selection and show free-form percentage
-            _zoomBox.SelectedItem = null;
-            _zoomBox.Text = target;
-            _zoomBox.SelectionChanged += ZoomBox_SelectionChanged;
+            finally { _syncingZoomBox = false; }
         }
 
         internal void ZoomBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_syncingZoomBox) return;   // programmatic sync, not a user pick
+            // Belt and braces beside the routing fix in MainWindowViewerBridge: this pane's zoom
+            // box actions only ever apply to the focused pane.
+            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
             if (_zoomBox?.SelectedItem is not ComboBoxItem item) return;
             // Editable combos highlight the shown value after a pick (looks like selected text);
             // collapse that selection to just the caret once the value settles.

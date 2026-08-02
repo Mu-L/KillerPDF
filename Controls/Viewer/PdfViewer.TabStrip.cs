@@ -57,8 +57,9 @@ namespace KillerPDF.Controls
             // The -1 tucks the card's top border a pixel into the band, so the active tab and the card
             // read as one surface. ONLY while there IS a band: a collapsed element contributes no
             // height, so with no strip the -1 lifts this pane a pixel above the other one instead of
-            // tucking under anything.
-            CardRow.Margin = new Thickness(0, show ? -1 : 0, 0, 0);
+            // tucking under anything. The bandless card gets 3px of top air instead of 0 - at 0 it
+            // opened 3px too high against the chrome (Steve, 2026-08-01).
+            CardRow.Margin = new Thickness(0, show ? -1 : 3, 0, 0);
 
             // Which tabs fit at this width, before anything below asks which is on an edge.
             ApplyTabWindow();

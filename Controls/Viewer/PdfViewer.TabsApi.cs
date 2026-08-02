@@ -102,7 +102,18 @@ namespace KillerPDF.Controls
             var prevActive = owner.SwapActiveViewer(this);
             try
             {
-                if (_active != null) ApplySessionState(_active);
+                if (_active != null)
+                {
+                    ApplySessionState(_active);
+                    // ApplySessionState deliberately leaves PageIndex to RenderActiveSession,
+                    // which never runs on this path - so an unfocused pane's State.CurrentPage
+                    // sat stale (often -1) and the repointed fit math then fell back to the
+                    // pane's stale tile size and fitted to garbage ("Page 0 of 73" in the
+                    // status, pane zoomed wrong when the split opens - Steve, 2026-08-01).
+                    // Seed it from the session being swapped in; navigation cannot happen
+                    // inside the scope, so nothing needs folding back.
+                    State.CurrentPage = _active.PageIndex;
+                }
                 work();
                 if (_active != null)
                 {

@@ -71,7 +71,12 @@ namespace KillerPDF
             var dlg = new ColorPickerDialog(this, Color.FromRgb(current.R, current.G, current.B));
             // Live-update the annotate bar behind the (modal) dialog whenever the shared palette is edited.
             if (refreshBar is not null) dlg.SwatchesChanged += refreshBar;
-            if (dlg.ShowDialog() == true) apply(dlg.SelectedColor);
+            dlg.ShowDialog();
+            // dlg.Accepted, NEVER ShowDialog's return: the eyedropper's nested capture modal can
+            // corrupt the outer dialog frame so ShowDialog returns false after a real OK, and the
+            // pick was silently dropped - shapes then drew whatever color last got through
+            // (the "purple/gray rectangles" bug, trace-proven 2026-08-01).
+            if (dlg.Accepted) apply(dlg.SelectedColor);
         }
 
         // Diagonal rainbow fill for the "more colors" swatches that open the picker.

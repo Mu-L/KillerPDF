@@ -20,6 +20,14 @@ namespace KillerPDF
     internal sealed class ColorPickerDialog : Window
     {
         public Color SelectedColor { get; private set; }
+
+        /// <summary>True once OK committed. Callers must read THIS, not ShowDialog's return: the
+        /// eyedropper opens a nested modal (the capture window, owned by this dialog), and a
+        /// nested modal closing inside an outer one can corrupt the outer frame's result - OK set
+        /// DialogResult = true and ShowDialog still returned false, silently discarding the pick.
+        /// Proven by trace 2026-08-01: Accept -> #FFFEFEFE, PickerClosed(result=False), and every
+        /// "shapes draw the wrong color" report back to the purple era was this one drop.</summary>
+        public bool Accepted { get; private set; }
         private double _h, _s = 1, _v = 1;     // HSV state (h 0..360, s/v 0..1)
         private bool _updating;                // guards the field<->thumb<->preview sync from feedback loops
         private Border _svArea = null!;
@@ -132,15 +140,21 @@ namespace KillerPDF
             inputRow.Children.Add(FieldGroup("R", _rBox));
             inputRow.Children.Add(FieldGroup("G", _gBox));
             inputRow.Children.Add(FieldGroup("B", _bBox));
-            var eyedrop = new Button
+            _eyedropBtn = new Button
             {
                 Width = 28, Height = 22, Margin = new Thickness(8, 14, 0, 0),
                 Background = R("BgCanvas"), BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
-                Content = CrosshairIcon(), ToolTip = "Pick a color from anywhere on screen", Cursor = Cursors.Cross,
+                // No Cursor here: the crosshair belongs to the CAPTURE window that opens on click.
+                // On the button it appeared on hover, before the pick had started (Steve, 2026-08-01).
+                Content = CrosshairIcon(), ToolTip = "Pick a color from anywhere on screen",
                 Template = MakeBtnTemplate()
             };
-            eyedrop.Click += (_, _) => RunEyedropper();
-            inputRow.Children.Add(eyedrop);
+            // Same hover treatment as the dialog's chips (greyer fill), and RunEyedropper holds the
+            // armed tint + accent border for as long as the capture is live (Steve, 2026-08-01).
+            _eyedropBtn.MouseEnter += (_, _) => { if (!_eyedropArmed) _eyedropBtn.Background = R("CardBorderBrush"); };
+            _eyedropBtn.MouseLeave += (_, _) => { if (!_eyedropArmed) _eyedropBtn.Background = R("BgCanvas"); };
+            _eyedropBtn.Click += (_, _) => RunEyedropper();
+            inputRow.Children.Add(_eyedropBtn);
             panel.Children.Add(inputRow);
             var hexRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
             hexRow.Children.Add(new TextBlock { Text = "Hex", Foreground = R("MutedTextBrush"), FontSize = 11,
@@ -173,7 +187,15 @@ namespace KillerPDF
             btnRow.Children.Add(cancel); btnRow.Children.Add(ok);
             panel.Children.Add(btnRow);
         }
-        private void Accept() { SelectedColor = HsvToRgb(_h, _s, _v); DialogResult = true; Close(); }
+        private void Accept()
+        {
+            SelectedColor = HsvToRgb(_h, _s, _v);
+            Accepted = true;
+            // Best-effort only - see Accepted. Setting DialogResult can also throw once the
+            // nested capture modal has run, and the commit must not die with it.
+            try { DialogResult = true; } catch (InvalidOperationException) { }
+            Close();
+        }
         // ── Interaction ─────────────────────────────────────────────────────────
         private void SvPick(Point p) { _s = Clamp01(p.X / SvW); _v = Clamp01(1 - p.Y / SvH); SyncFromHsv(); }
         private void HuePick(Point p) { _h = Clamp01(p.Y / SvH) * 360; SyncFromHsv(); }
@@ -201,7 +223,32 @@ namespace KillerPDF
             _updating = false;
         }
         // ── Eyedropper (desktop-wide) ───────────────────────────────────────────
+        private Button? _eyedropBtn;
+        private bool _eyedropArmed;
+
         private void RunEyedropper()
+        {
+            // Armed look while the capture is live: accent border + selected-row tint, so the
+            // active state is visible even with the crosshair off in another corner of the screen.
+            _eyedropArmed = true;
+            if (_eyedropBtn != null)
+            {
+                _eyedropBtn.SetResourceReference(Button.BackgroundProperty,  "RowSelectedBrush");
+                _eyedropBtn.SetResourceReference(Button.BorderBrushProperty, "PrimaryBrush");
+            }
+            try { RunEyedropperCore(); }
+            finally
+            {
+                _eyedropArmed = false;
+                if (_eyedropBtn != null)
+                {
+                    _eyedropBtn.Background  = R("BgCanvas");
+                    _eyedropBtn.BorderBrush = R("CardBorderBrush");
+                }
+            }
+        }
+
+        private void RunEyedropperCore()
         {
             var capture = new Window
             {

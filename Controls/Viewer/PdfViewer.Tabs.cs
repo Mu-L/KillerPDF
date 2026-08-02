@@ -170,7 +170,11 @@ namespace KillerPDF.Controls
             s.IsDirty        = _isDirty;
             s.ProtectedSource = _openedFromProtected;
             s.SearchPageCursor = Search.PageCursor;
-            s.PageIndex      = PageList.SelectedIndex >= 0 ? PageList.SelectedIndex : s.PageIndex;
+            // State.CurrentPage, not PageList.SelectedIndex: the sidebar is a window singleton
+            // that follows the FOCUSED pane, so an unfocused pane capturing (the close path, the
+            // save path's dirty check) was parking the OTHER pane's page number into its session.
+            // Identical for the focused pane by the stage-3a sync.
+            s.PageIndex      = State.CurrentPage >= 0 ? State.CurrentPage : s.PageIndex;
             s.ScrollH        = PagePreviewPanel?.HorizontalOffset ?? 0;
             s.ScrollV        = PagePreviewPanel?.VerticalOffset ?? 0;
 
