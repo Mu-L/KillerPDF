@@ -238,7 +238,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Stamp_Title">Seitenzahlen einfügen</sys:String>
     <sys:String x:Key="Str_Stamp_StartAt">Beginnen bei</sys:String>
     <sys:String x:Key="Str_Stamp_Format">Format</sys:String>
-    <sys:String x:Key="Str_Stamp_Hint">{n} = Seitenzahl, {N} = Gesamt“</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">{n} = Seitenzahl, {N} = Gesamt</sys:String>
     <sys:String x:Key="Str_Stamp_Position">Position</sys:String>
     <sys:String x:Key="Str_Stamp_FontSize">Schriftgröße (pt)</sys:String>
     <sys:String x:Key="Str_Stamp_Hint2">Beispiel: „Seite {n} von {N}“</sys:String>
@@ -545,7 +545,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
 
     <sys:String x:Key="Str_KS_ViewList">LISTE</sys:String>
     <sys:String x:Key="Str_KS_ViewKeyboard">TASTATUR</sys:String>
-    <sys:String x:Key="Str_KS_HoldHint">Strg, Umschalt oder Alt anklicken, um die Ebene zu zeigen - Details beim Zeigen auf eine markierte Taste</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Strg, Umschalt oder Alt halten, um die Ebene zu zeigen - Details beim Zeigen auf eine markierte Taste</sys:String>
     <sys:String x:Key="Str_Zoom_ActualSize">Originalgröße</sys:String>
     <sys:String x:Key="Str_KS_PrevTab">Vorheriger Tab</sys:String>
 
@@ -590,7 +590,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_St_SavedNoPassword">Ohne Passwortschutz gespeichert - {0}</sys:String>
     <sys:String x:Key="Str_ExportImg_Suffix">Seiten als Bilder exportieren</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Format</sys:String>
-    <sys:String x:Key="Str_ExportImg_Dpi">Auflösung (dpi)</sys:String>
+    <sys:String x:Key="Str_ExportImg_Dpi">Auflösung (DPI)</sys:String>
     <sys:String x:Key="Str_ExportImg_Export">Exportieren</sys:String>
     <sys:String x:Key="Str_ExportImg_Done">{0} Seiten nach {1} exportiert</sys:String>
     <sys:String x:Key="Str_Print_AllPages">Alle Seiten</sys:String>
