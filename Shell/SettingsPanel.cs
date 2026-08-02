@@ -231,6 +231,20 @@ namespace KillerPDF
         private void RepaintForInvertChange()
         {
             FlushAllRenderCaches();
+
+            // The invert flag is GLOBAL, but everything below this block runs through the shared
+            // fields and so repaints only the FOCUSED pane - the other pane's already-painted
+            // tiles kept their old colors until any scroll or focus change forced a re-render,
+            // which read as "one pane is inverted and scrolling the other pane inverts it"
+            // (Steve, 2026-08-01). Re-render it with its own session swapped in - the same
+            // WithOwnSession idiom the cross-pane tab drag uses. BEFORE the _doc guard: the
+            // focused pane being empty must not strand the other pane's stale pixels.
+            if (IsSplit)
+            {
+                var other = ReferenceEquals(ActiveViewer, Viewer) ? ViewerB : Viewer;
+                other.WithOwnSession(other.RenderActiveSessionExt);
+            }
+
             if (_doc is null) return;
             if (_viewMode == ViewMode.Continuous)
             {

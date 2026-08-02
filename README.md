@@ -95,12 +95,12 @@ Each command reuses the exact pipeline its GUI equivalent runs - merges rewrite 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshot-02.png" width="32%" alt="KillerPDF" />
-  <img src="docs/screenshot-04.png" width="32%" alt="KillerPDF" />
-  <img src="docs/screenshot-06.png" width="32%" alt="KillerPDF" />
-  <img src="docs/screenshot-07.png" width="32%" alt="KillerPDF" />
-  <img src="docs/screenshot-12.png" width="32%" alt="KillerPDF" />
-  <img src="docs/screenshot-13.png" width="32%" alt="KillerPDF" />
+  <img src="pdf-landing/screenshots/01.png" width="32%" alt="KillerPDF - Grid view, Dark theme" />
+  <img src="pdf-landing/screenshots/02.png" width="32%" alt="KillerPDF - split pane and start screen, Black theme" />
+  <img src="pdf-landing/screenshots/05.png" width="32%" alt="KillerPDF - OCR language menu, Light theme, Traditional Chinese UI" />
+  <img src="pdf-landing/screenshots/07.png" width="32%" alt="KillerPDF - annotations and form filling, Czech UI" />
+  <img src="pdf-landing/screenshots/08.png" width="32%" alt="KillerPDF - the themed file dialog, Cyanotic theme, French UI" />
+  <img src="pdf-landing/screenshots/06.png" width="32%" alt="KillerPDF - About card with a verified signature" />
 </p>
 
 ## Requirements

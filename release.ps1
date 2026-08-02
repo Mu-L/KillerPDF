@@ -313,8 +313,8 @@ Write-Host   ""
 Write-Host   "  Signer : $actualCN"
 Write-Host   "  Thumbprint: $actualThumb"
 Write-Host   ""
-Write-Host   "  Paste EXE SHA256 into:"
-Write-Host   "    KillerPDF\pdf-landing\index.html (line ~183)"
+Write-Host   "  pdf-landing's hero (version/date/size/sha256) is updated automatically"
+Write-Host   "  in the publish preflight below - no hand-pasting."
 Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 
 # ============================================================================
@@ -357,6 +357,71 @@ try {
             git commit README.md -m "Point README source link at $Tag" --quiet
             git push origin $defaultBranch --quiet
             if ($LASTEXITCODE -ne 0) { throw "README source-link commit failed to push" }
+        }
+    }
+
+    # ── Landing page release info (pdf-landing) ──────────────────────────────
+    # Ported from Killendar's release.ps1 step 7 (the family standard - KillerNotes has it
+    # too; KillerPDF was the odd one out and its hero went stale by hand every release).
+    # killerpdf.net is a MANUAL Cloudflare Pages drop, so nothing here deploys - the hero
+    # block (version, released, size, sha256), the verEgg footer on every page, and the ten
+    # translated footers in kp-i18n.js are rewritten and committed BEFORE the tag.
+    # Two site-specific differences from Killendar's copy: the hash is stored LOWERCASE
+    # here, and the size row carries a '~' prefix. ReadAllText/WriteAllText keep the files
+    # BOM-less UTF-8 (PS 5.1 Set-Content -Encoding UTF8 adds a BOM).
+    # ONE source of truth for the release date: the csproj <ReleaseDate> the preflight
+    # already checked against the CHANGELOG - Get-Date would stamp whatever day the script
+    # happened to run.
+    if ($csprojRaw -notmatch '<ReleaseDate>([0-9]{4}-[0-9]{2}-[0-9]{2})</ReleaseDate>') {
+        throw "No <ReleaseDate>yyyy-MM-dd</ReleaseDate> found in KillerPDF.csproj"
+    }
+    $releaseDate = $Matches[1]
+    $hashLower   = $exeHash.ToLower()
+    $exeMB       = [math]::Round((Get-Item $exe).Length / 1MB, 2)
+    $siteDir     = Join-Path $PSScriptRoot 'pdf-landing'
+
+    $indexPath = Join-Path $siteDir 'index.html'
+    $indexRaw  = [System.IO.File]::ReadAllText($indexPath)
+    $indexNew  = $indexRaw
+    $indexNew  = $indexNew -replace '(<span class="k">version</span>&nbsp;<span class="v">)KillerPDF v[0-9]+\.[0-9]+\.[0-9]+', ('${1}' + "KillerPDF v$Version")
+    $indexNew  = $indexNew -replace '(<span class="k">released</span>&nbsp;<span class="v">)[0-9]{4}-[0-9]{2}-[0-9]{2}', ('${1}' + $releaseDate)
+    $indexNew  = $indexNew -replace '(<span class="k">size</span>&nbsp;<span class="v">)[^<]*', ('${1}' + "~$exeMB MB exe")
+    $indexNew  = $indexNew -replace '(<span class="v hash">)[0-9A-Fa-f]{32}<br>[0-9A-Fa-f]{32}', ('${1}' + $hashLower.Substring(0, 32) + '<br>' + $hashLower.Substring(32, 32))
+    if ($indexNew -eq $indexRaw) {
+        Write-Warning 'index.html hero block did not change - check the release-info markup still matches the patterns in this script.'
+    }
+
+    if ($DryRun) {
+        Write-Host "    DryRun: would write these release facts to pdf-landing and commit:" -ForegroundColor Yellow
+        Write-Host "      version  : KillerPDF v$Version"
+        Write-Host "      released : $releaseDate"
+        Write-Host "      size     : ~$exeMB MB exe"
+        Write-Host "      sha256   : $hashLower"
+        Write-Host "      verEgg   : v$Version on index, help, technical, about + kp-i18n.js"
+    } else {
+        if ($indexNew -ne $indexRaw) { [System.IO.File]::WriteAllText($indexPath, $indexNew) }
+
+        # Footer version on every page, plus the ten translated footer strings in kp-i18n.js
+        # (their verEgg span is spelled with escaped quotes there, hence the \\? in the
+        # pattern matching both id="verEgg" and id=\"verEgg\").
+        foreach ($page in 'index.html', 'help.html', 'technical.html', 'about.html', 'kp-i18n.js') {
+            $p = Join-Path $siteDir $page
+            if (-not (Test-Path $p)) { continue }
+            $raw = [System.IO.File]::ReadAllText($p)
+            $new = $raw -replace '(id=\\?"verEgg\\?"[^>]*>)v[0-9]+\.[0-9]+\.[0-9]+', ('${1}' + "v$Version")
+            if ($new -ne $raw) { [System.IO.File]::WriteAllText($p, $new) }
+        }
+
+        $siteDirty = git status --porcelain pdf-landing
+        if ($siteDirty) {
+            git add pdf-landing
+            git commit -m "v${Version}: landing release info" --quiet
+            git push origin $defaultBranch --quiet
+            if ($LASTEXITCODE -ne 0) { throw "Landing page commit failed to push" }
+            Write-Host "    pdf-landing updated to v$Version and pushed"
+            Write-Host "    Remember: killerpdf.net does NOT auto-deploy. Drag pdf-landing/ into Cloudflare Pages." -ForegroundColor Yellow
+        } else {
+            Write-Host "    pdf-landing already current"
         }
     }
 
