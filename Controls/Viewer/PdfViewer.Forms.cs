@@ -781,7 +781,15 @@ namespace KillerPDF.Controls
             res.Elements["/Font"] = fontDict;
             xobj.Elements["/Resources"] = res;
 
-            if (!TryAttachStreamBytes(xobj, bytes)) return null;
+            // CreateStream, not a hand-attached PdfStream: it is the only path that also writes
+            // /Length, which every PDF stream must carry. Attaching the stream object directly
+            // (the old reflection helper) left the appearance stream with no /Length, so the saved
+            // file was structurally invalid - PdfSharpCore's own parser refuses it ("Cannot
+            // retrieve stream length"), which is why KillerPDF met its own saved form with the
+            // repair prompt, and strict viewers reported a damaged structure (#179). The Debug
+            // assert that would have caught it (PdfDictionary.WriteObject) is compiled out of
+            // Release builds.
+            xobj.CreateStream(bytes);
 
             _doc!.Internals.AddObject(xobj);
             return xobj;
@@ -796,57 +804,6 @@ namespace KillerPDF.Controls
             var apDict = new PdfDictionary();
             apDict.Elements["/N"] = xobj.Reference;
             widgetAnn.Elements["/AP"] = apDict;
-        }
-
-        /// <summary>
-        /// Attaches raw content bytes to a PdfDictionary as a stream.
-        /// Accesses PdfDictionary.PdfStream via reflection because its constructor is internal.
-        /// Falls back to the backing field if the property setter is protected.
-        /// </summary>
-        private static bool TryAttachStreamBytes(PdfDictionary dict, byte[] bytes)
-        {
-            try
-            {
-                var dictType   = typeof(PdfDictionary);
-                var streamType = dictType.GetNestedType("PdfStream",
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-                if (streamType is null) return false;
-
-                // Try (byte[], PdfDictionary) ctor first, then (byte[]) only
-                System.Reflection.ConstructorInfo? ctor =
-                    streamType.GetConstructor(
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-                        null, [typeof(byte[]), typeof(PdfDictionary)], null) ??
-                    streamType.GetConstructor(
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-                        null, [typeof(byte[])], null);
-                if (ctor is null) return false;
-
-                object streamObj = ctor.GetParameters().Length == 2
-                    ? ctor.Invoke([bytes, dict])
-                    : ctor.Invoke([bytes]);
-
-                // Try public Stream property setter first
-                var prop = dictType.GetProperty("Stream",
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                if (prop?.CanWrite == true)
-                {
-                    prop.SetValue(dict, streamObj);
-                    return true;
-                }
-
-                // Fall back to the backing field
-                var field = dictType.GetField("_stream",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (field is not null)
-                {
-                    field.SetValue(dict, streamObj);
-                    return true;
-                }
-
-                return false;
-            }
-            catch { return false; }
         }
 
         /// <summary>
