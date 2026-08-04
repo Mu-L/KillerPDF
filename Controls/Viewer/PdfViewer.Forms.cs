@@ -902,6 +902,12 @@ namespace KillerPDF.Controls
             return (fontName, fontSize);
         }
 
+        // The appearance streams declare /WinAnsiEncoding, which is code page 1252. Unmappable
+        // characters fall back to '?' on their own, which is what the old Latin-1 cut did to
+        // everything - the point of going through the code page is that most of what got cut
+        // is mappable. Held static: building an Encoding per character is not free.
+        private static readonly System.Text.Encoding WinAnsi = System.Text.Encoding.GetEncoding(1252);
+
         /// <summary>
         /// Escapes a string for use in a PDF literal string (parentheses syntax).
         /// </summary>
@@ -918,8 +924,15 @@ namespace KillerPDF.Controls
                     case '\r': sb.Append("\\r");  break;
                     case '\n': sb.Append("\\n");  break;
                     default:
-                        // Keep Latin-1 range; replace anything outside with '?'
-                        sb.Append(c < 256 ? c : '?');
+                        // Anything above U+00FF used to become '?', which threw away the curly
+                        // quotes, dashes, bullets and ellipses every word processor emits - and
+                        // WinAnsi has slots for all of them at 0x80-0x9F. Map through the code
+                        // page the appearance actually uses; the byte is then written as-is by
+                        // BuildFormXObject's Latin-1 pass, and genuinely unmappable characters
+                        // (CJK and the like) still come out as '?'.
+                        if (c < 256) { sb.Append(c); break; }
+                        var mapped = WinAnsi.GetBytes(c.ToString());
+                        sb.Append(mapped.Length > 0 ? (char)mapped[0] : '?');
                         break;
                 }
             }
