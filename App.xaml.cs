@@ -602,11 +602,9 @@ namespace KillerPDF
                 // entry and a single uninstall entry. Settings are deliberately left alone.
                 RemovePerUserInstall();
 
-                // Associations are registered HERE, not in the elevated pass. Under /silent the
-                // process runs as the ADMIN, so HKEY_CURRENT_USER is the admin's hive - writing
-                // the .pdf handler there would associate PDFs for the wrong account and leave the
-                // real user with nothing. This call is unelevated and in the right hive.
-                RegisterFileHandler(MachineInstallExe, MachineFileIconPath);
+                // The elevated pass registered the handler in HKLM for every account. Remove an
+                // older per-user registration so it cannot shadow the shared Program Files paths.
+                UnregisterFileHandler(Registry.CurrentUser);
                 targetExe = MachineInstallExe;
             }
             else
@@ -663,9 +661,7 @@ namespace KillerPDF
 
         /// <summary>Remove a per-user install: files, shortcuts and its HKCU install markers.
         /// The settings are deliberately left alone so theme, accent, locale, recent files and
-        /// window placement survive the move to a machine-wide install. The .pdf ASSOCIATION keys
-        /// are left alone too - they are re-pointed at the machine exe straight afterwards, and
-        /// deleting them here would briefly leave the user with no PDF handler at all.</summary>
+        /// window placement survive the move to a machine-wide install.</summary>
         private static void RemovePerUserInstall()
         {
             try { if (File.Exists(StartMenuLnk)) File.Delete(StartMenuLnk); } catch { }
@@ -693,8 +689,8 @@ namespace KillerPDF
         /// Machine-wide install. Runs elevated with no UI by definition, so the exit code is the
         /// only signal a deployment tool - or RunElevatedSilentInstall - gets back.
         ///
-        /// Deliberately does NOT register file associations: this process is the admin, so HKCU is
-        /// the wrong hive. InstallAndRelaunch does that afterwards as the real user.
+        /// File associations are registered in HKLM so every account sees KillerPDF in Open With
+        /// and Default apps. Windows still leaves the actual default choice to each user.
         /// </summary>
         private static void DoSilentInstall()
         {
@@ -724,6 +720,8 @@ namespace KillerPDF
                 CreateShortcut(MachineStartMenuLnk, MachineInstallExe);
 
                 ExtractFileIcon(MachineFileIconPath);
+
+                RegisterFileHandler(Registry.LocalMachine, MachineInstallExe, MachineFileIconPath);
 
                 using (var key = Registry.LocalMachine.CreateSubKey(@"Software\KillerPDF"))
                 {
@@ -1575,8 +1573,8 @@ namespace KillerPDF
                 // Drop the PDF file-type icon next to the exe so DefaultIcon can point at it
                 ExtractFileIcon(FileIconPath);
 
-                // Register as PDF file handler (per-user - no admin needed)
-                RegisterFileHandler(InstallExe, FileIconPath);
+                // Register as PDF file handler for this user. No elevation is needed.
+                RegisterFileHandler(Registry.CurrentUser, InstallExe, FileIconPath);
             }
             catch (Exception ex)
             {
@@ -1605,11 +1603,10 @@ namespace KillerPDF
         }
 
         /// <summary>
-        /// Point the .pdf association at <paramref name="exePath"/>. ALWAYS writes HKCU, so it
-        /// must only ever be called from an UNELEVATED process - under /silent the current user is
-        /// the admin, and the keys would land in the wrong hive.
+        /// Register KillerPDF under either HKCU for a per-user install or HKLM for a machine-wide
+        /// install. This advertises the handler without changing any user's chosen PDF default.
         /// </summary>
-        private static void RegisterFileHandler(string exePath, string iconPath)
+        private static void RegisterFileHandler(RegistryKey root, string exePath, string iconPath)
         {
             // Prefer the dedicated PDF file icon; fall back to the app icon if extraction didn't run
             string iconRef = File.Exists(iconPath)
@@ -1617,38 +1614,56 @@ namespace KillerPDF
                 : $"{exePath},0";
 
             // ProgID definition
-            using (var k = Registry.CurrentUser.CreateSubKey(@"Software\Classes\KillerPDF.pdf"))
+            using (var k = root.CreateSubKey(@"Software\Classes\KillerPDF.pdf"))
                 k.SetValue("", "PDF Document");
 
-            using (var k = Registry.CurrentUser.CreateSubKey(
+            using (var k = root.CreateSubKey(
                 @"Software\Classes\KillerPDF.pdf\DefaultIcon"))
                 k.SetValue("", iconRef);
 
-            using (var k = Registry.CurrentUser.CreateSubKey(
+            using (var k = root.CreateSubKey(
                 @"Software\Classes\KillerPDF.pdf\shell\open\command"))
                 k.SetValue("", $"\"{exePath}\" \"%1\"");
 
             // Associate .pdf extension - adds KillerPDF to the "Open with" list
-            using (var k = Registry.CurrentUser.CreateSubKey(
+            using (var k = root.CreateSubKey(
                 @"Software\Classes\.pdf\OpenWithProgids"))
                 k.SetValue("KillerPDF.pdf", new byte[0], RegistryValueKind.None);
 
             // RegisteredApplications capability (used by Default Programs UI)
-            using (var k = Registry.CurrentUser.CreateSubKey(
+            using (var k = root.CreateSubKey(
                 @"Software\KillerPDF\Capabilities"))
             {
                 k.SetValue("ApplicationName",        AppName);
                 k.SetValue("ApplicationDescription", "Lightweight PDF viewer and editor");
             }
-            using (var k = Registry.CurrentUser.CreateSubKey(
+            using (var k = root.CreateSubKey(
                 @"Software\KillerPDF\Capabilities\FileAssociations"))
                 k.SetValue(".pdf", "KillerPDF.pdf");
 
-            using (var k = Registry.CurrentUser.CreateSubKey(@"Software\RegisteredApplications"))
+            using (var k = root.CreateSubKey(@"Software\RegisteredApplications"))
                 k.SetValue(AppName, @"Software\KillerPDF\Capabilities");
 
             // Tell the shell file associations have changed
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        private static void UnregisterFileHandler(RegistryKey root)
+        {
+            try { root.DeleteSubKeyTree(@"Software\Classes\KillerPDF.pdf", false); } catch { }
+            try { root.DeleteSubKeyTree(@"Software\KillerPDF\Capabilities", false); } catch { }
+            try
+            {
+                using var k = root.OpenSubKey(@"Software\Classes\.pdf\OpenWithProgids", writable: true);
+                k?.DeleteValue("KillerPDF.pdf", throwOnMissingValue: false);
+            }
+            catch { }
+            try
+            {
+                using var k = root.OpenSubKey(@"Software\RegisteredApplications", writable: true);
+                k?.DeleteValue(AppName, throwOnMissingValue: false);
+            }
+            catch { }
         }
 
         private static void CreateShortcut(string lnkPath, string targetPath)
@@ -1688,25 +1703,7 @@ namespace KillerPDF
             try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\KillerPDF"); } catch { }
             try { Registry.CurrentUser.DeleteSubKeyTree(
                 @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF"); } catch { }
-            try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\KillerPDF.pdf"); } catch { }
-
-            try
-            {
-                using var k = Registry.CurrentUser.OpenSubKey(
-                    @"Software\Classes\.pdf\OpenWithProgids", writable: true);
-                k?.DeleteValue("KillerPDF.pdf", throwOnMissingValue: false);
-            }
-            catch { }
-
-            try
-            {
-                using var k = Registry.CurrentUser.OpenSubKey(
-                    @"Software\RegisteredApplications", writable: true);
-                k?.DeleteValue(AppName, throwOnMissingValue: false);
-            }
-            catch { }
-
-            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, IntPtr.Zero, IntPtr.Zero);
+            UnregisterFileHandler(Registry.CurrentUser);
 
             // Machine-wide half. Only reachable when Add/Remove Programs launched the Program Files
             // copy, which Windows runs elevated from the HKLM uninstall entry - so these writes
@@ -1718,6 +1715,7 @@ namespace KillerPDF
             {
                 try { File.Delete(MachineStartMenuLnk); } catch { }
                 try { Directory.Delete(MachineStartMenuDir, recursive: false); } catch { }
+                UnregisterFileHandler(Registry.LocalMachine);
                 try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\KillerPDF"); } catch { }
                 try { Registry.LocalMachine.DeleteSubKeyTree(
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF"); } catch { }
