@@ -8,6 +8,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 1.7.1 is a bug-fix release in progress.
 
+### Added
+- Open and Save dialogs now return to the last folder successfully used for that kind of operation, unless the caller deliberately supplies another starting folder. The places rail also brings in the user's pinned Windows Explorer Quick Access folders alongside KillerPDF's own editable pins, while avoiding duplicate entries (#178, thanks sheafitzek).
+
 ### Fixed
 - Installing KillerPDF for everyone now registers its PDF handler for the whole computer instead of writing it into the elevated administrator's personal registry. Every account can now find KillerPDF in Open With and Default apps, with the shared registration pointing at the Program Files copy; each user still chooses their own PDF default (#176, thanks adeit).
 - The keyboard-shortcut list now uses the available window width instead of squeezing both halves into a narrow fixed card. Longer translated descriptions have room to remain visible, wrap cleanly on smaller windows, and sit level with the shortcut text in both columns (#177, thanks Mr-Update).

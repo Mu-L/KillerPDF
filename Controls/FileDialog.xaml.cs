@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
@@ -100,6 +101,8 @@ namespace KillerPDF.Controls
         private const string RecentsKey    = "FileDlgRecents";
         private const string PinnedKey     = "FileDlgPinned";
         private const string PlacesHKey    = "FileDlgPlacesH";
+        private const string LastOpenKey   = "FileDlgLastOpenDir";
+        private const string LastSaveKey   = "FileDlgLastSaveDir";
         private const int    RecentsMax    = 12;
 
         // Guards the fade-then-close re-entry below. Without it OnClosing would cancel forever.
@@ -241,7 +244,12 @@ namespace KillerPDF.Controls
                 else seedName = FileName;
             }
             if (string.IsNullOrWhiteSpace(startDir) || !Directory.Exists(startDir))
-                startDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            {
+                string? remembered = App.GetSetting(_mode == FileDialogMode.Open ? LastOpenKey : LastSaveKey);
+                startDir = !string.IsNullOrWhiteSpace(remembered) && Directory.Exists(remembered)
+                    ? remembered!
+                    : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
 
             _built = true;
             NavigateTo(startDir);
@@ -371,16 +379,58 @@ namespace KillerPDF.Controls
         private void BuildPlaces()
         {
             Places.Clear();
+            var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var p in PinnedPaths())
-                AddPlace(LabelFor(p), p, pinned: true);
+                if (added.Add(p.TrimEnd('\\'))) AddPlace(LabelFor(p), p, pinned: true);
+
+            foreach (var place in ExplorerQuickAccessPlaces())
+                if (added.Add(place.Path.TrimEnd('\\'))) AddPlace(place.Label, place.Path);
 
             foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady))
             {
                 string label;
                 try { label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? d.DriveType.ToString() : d.VolumeLabel.Trim(); }
                 catch { label = d.DriveType.ToString(); }
-                AddPlace($"{d.Name.TrimEnd('\\')}  {label}", d.RootDirectory.FullName);
+                if (added.Add(d.RootDirectory.FullName.TrimEnd('\\')))
+                    AddPlace($"{d.Name.TrimEnd('\\')}  {label}", d.RootDirectory.FullName);
+            }
+        }
+
+        private static IEnumerable<(string Label, string Path)> ExplorerQuickAccessPlaces()
+        {
+            const string QuickAccess = "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}";
+            object? shell = null, folder = null, items = null;
+            try
+            {
+                var type = Type.GetTypeFromProgID("Shell.Application");
+                if (type == null) yield break;
+                shell = Activator.CreateInstance(type);
+                folder = ((dynamic)shell!).NameSpace(QuickAccess);
+                if (folder == null) yield break;
+                items = ((dynamic)folder).Items();
+                int count = ((dynamic)items).Count;
+                for (int i = 0; i < count; i++)
+                {
+                    object? item = null;
+                    try
+                    {
+                        item = ((dynamic)items).Item(i);
+                        if (item == null) continue;
+                        dynamic quickItem = item;
+                        if (!Convert.ToBoolean(quickItem.IsFolder)) continue;
+                        string path = Convert.ToString(quickItem.Path) ?? "";
+                        string name = Convert.ToString(quickItem.Name) ?? "";
+                        if (Directory.Exists(path)) yield return (name.Length > 0 ? name : LabelFor(path), path);
+                    }
+                    finally { if (item != null && Marshal.IsComObject(item)) Marshal.FinalReleaseComObject(item); }
+                }
+            }
+            finally
+            {
+                if (items != null && Marshal.IsComObject(items)) Marshal.FinalReleaseComObject(items);
+                if (folder != null && Marshal.IsComObject(folder)) Marshal.FinalReleaseComObject(folder);
+                if (shell != null && Marshal.IsComObject(shell)) Marshal.FinalReleaseComObject(shell);
             }
         }
 
@@ -1069,6 +1119,7 @@ namespace KillerPDF.Controls
                 {
                     FileNames = picked;
                     FileName  = picked[0];
+                    RememberAcceptedDirectory();
                     _pendingResult = true;   // applied after the fade - see OnClosing
                     Close();
                     return;
@@ -1133,8 +1184,15 @@ namespace KillerPDF.Controls
 
             FileName = full;
             FileNames = [full];   // always populated on success, so callers can read either
+            RememberAcceptedDirectory();
             _pendingResult = true;   // applied after the fade - see OnClosing
             Close();
+        }
+
+        private void RememberAcceptedDirectory()
+        {
+            if (_currentDir.Length > 0 && Directory.Exists(_currentDir))
+                App.SetSetting(_mode == FileDialogMode.Open ? LastOpenKey : LastSaveKey, _currentDir);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
