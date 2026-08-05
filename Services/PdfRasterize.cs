@@ -52,9 +52,10 @@ namespace KillerPDF.Services
                     // /SMask alpha channel in the flattened output.
                     // #141: WithAnnotations, or flattening an annotated PDF silently dropped the
                     // markup the file carried - this path builds a NEW document from the pixels.
-                    bgra = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover(), PdfRender.WithAnnotations);
                     rw   = pr.GetPageWidth();
                     rh   = pr.GetPageHeight();
+                    bgra = PdfiumInterop.RenderPageWithAnnotations(sourcePath, i, rw, rh)
+                        ?? pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                 }
                 // Encode BGRA to PNG (GDI+) outside the lock so it parallelizes.
                 pngPages[i] = BitmapHelpers.RenderToPng(bgra, rw, rh);
@@ -110,9 +111,10 @@ namespace KillerPDF.Services
                     // alpha and produced black pages, PNG came out transparent.
                     // #141: WithAnnotations - an exported image should show the markup the file
                     // carries, the same as the page does on screen.
-                    raw = pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover(), PdfRender.WithAnnotations);
                     w   = pr.GetPageWidth();
                     h   = pr.GetPageHeight();
+                    raw = PdfiumInterop.RenderPageWithAnnotations(sourcePath, idx, w, h)
+                        ?? pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                 }
                 int rot = idx < rotSnapshot.Length ? rotSnapshot[idx] : 0;
                 if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);

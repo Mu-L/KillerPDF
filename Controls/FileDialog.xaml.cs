@@ -667,6 +667,25 @@ namespace KillerPDF.Controls
             TreeFadeBottom.Margin = new Thickness(m.Left, m.Top, m.Right, want);
         }
 
+        private void FolderTree_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            var sv = FindDescendant<ScrollViewer>(FolderTreeCtl);
+            if (sv is null) return;
+
+            bool horizontal = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+            if (horizontal)
+            {
+                if (sv.ScrollableWidth <= 0) return;
+                sv.ScrollToHorizontalOffset(sv.HorizontalOffset - e.Delta * 0.5);
+            }
+            else
+            {
+                if (sv.ScrollableHeight <= 0) return;
+                sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta * 0.5);
+            }
+            e.Handled = true;
+        }
+
         private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
         {
             int n = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
@@ -968,6 +987,20 @@ namespace KillerPDF.Controls
             ViewListBtn.Tag    = _viewMode == 0 ? "on" : null;
             ViewIconsBtn.Tag   = _viewMode == 1 ? "on" : null;
             ViewDetailsBtn.Tag = _viewMode == 2 ? "on" : null;
+        }
+
+        /// <summary>
+        /// List view wraps entries into columns and scrolls horizontally. A normal mouse wheel
+        /// only asks WPF to scroll vertically, which is disabled in this view, so translate the
+        /// wheel delta to the horizontal scrollbar. Icon and details views remain vertical.
+        /// </summary>
+        private void FileList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (_viewMode != 0) return;
+            var sv = FindDescendant<ScrollViewer>(FileList);
+            if (sv is null) return;
+            sv.ScrollToHorizontalOffset(sv.HorizontalOffset - e.Delta);
+            e.Handled = true;
         }
 
         // ── Sorting ──────────────────────────────────────────────────────────────

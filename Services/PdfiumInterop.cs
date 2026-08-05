@@ -67,6 +67,124 @@ namespace KillerPDF.Services
         private static bool FPDFPage_GenerateContent(IntPtr page)
         { lock (PdfiumLock) return FPDFPage_GenerateContentRaw(page); }
 
+        // ---- Page rendering ----------------------------------------------------------------
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFBitmap_CreateEx", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDFBitmap_CreateExRaw(
+            int width, int height, int format, IntPtr firstScan, int stride);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFBitmap_Destroy", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDFBitmap_DestroyRaw(IntPtr bitmap);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFBitmap_FillRect", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDFBitmap_FillRectRaw(
+            IntPtr bitmap, int left, int top, int width, int height, uint color);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_RenderPageBitmap", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDF_RenderPageBitmapRaw(
+            IntPtr bitmap, IntPtr page, int startX, int startY, int sizeX, int sizeY,
+            int rotate, int flags);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFDOC_InitFormFillEnvironment", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDFDOC_InitFormFillEnvironmentRaw(
+            IntPtr document, IntPtr formInfo);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFDOC_ExitFormFillEnvironment", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDFDOC_ExitFormFillEnvironmentRaw(IntPtr formHandle);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDF_FFLDraw", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDF_FFLDrawRaw(
+            IntPtr formHandle, IntPtr bitmap, IntPtr page, int startX, int startY,
+            int sizeX, int sizeY, int rotate, int flags);
+
+        private const int FPDFBitmapBgra = 4;
+        private const int FpdfAnnot = 0x01;
+        private const int FpdfLcdText = 0x02;
+
+        /// <summary>
+        /// Renders one page through PDFium with annotation appearance streams enabled, but without
+        /// Docnet's form-fill environment. This avoids the native teardown crash caused by Docnet's
+        /// annotation flag while still painting text notes, highlights, stamps, ink, and widget
+        /// appearances into viewer, print, flatten, and image-export pixels.
+        /// </summary>
+        internal static byte[]? RenderPageWithAnnotations(
+            string sourcePath, int pageIndex, int width, int height,
+            bool transparentBackground = false)
+        {
+            if (width <= 0 || height <= 0) return null;
+            try
+            {
+                try { _ = DocLib.Instance; } catch { }
+                int stride = checked(width * 4);
+                var bytes = new byte[checked(stride * height)];
+                var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+                try
+                {
+                    lock (PdfiumLock)
+                    {
+                        IntPtr doc = FPDF_LoadDocumentRaw(sourcePath, null);
+                        if (doc == IntPtr.Zero) return null;
+                        // PDFium retains this pointer until ExitFormFillEnvironment, so it must be
+                        // stable unmanaged memory, not a temporary buffer produced by the P/Invoke
+                        // marshaller. The bundled ABI is one 32-bit version plus 31 pointer slots.
+                        int formInfoSize = IntPtr.Size == 8 ? 256 : 128;
+                        IntPtr formInfo = Marshal.AllocHGlobal(formInfoSize);
+                        for (int offset = 0; offset < formInfoSize; offset += 4)
+                            Marshal.WriteInt32(formInfo, offset, 0);
+                        IntPtr form = IntPtr.Zero;
+                        for (int version = 1; version <= 2 && form == IntPtr.Zero; version++)
+                        {
+                            Marshal.WriteInt32(formInfo, 0, version);
+                            form = FPDFDOC_InitFormFillEnvironmentRaw(doc, formInfo);
+                        }
+                        try
+                        {
+                            IntPtr page = FPDF_LoadPageRaw(doc, pageIndex);
+                            if (page == IntPtr.Zero) return null;
+                            try
+                            {
+                                IntPtr bitmap = FPDFBitmap_CreateExRaw(
+                                    width, height, FPDFBitmapBgra, pinned.AddrOfPinnedObject(), stride);
+                                if (bitmap == IntPtr.Zero) return null;
+                                try
+                                {
+                                    FPDFBitmap_FillRectRaw(bitmap, 0, 0, width, height,
+                                        transparentBackground ? 0x00000000 : 0xFFFFFFFF);
+                                    FPDF_RenderPageBitmapRaw(bitmap, page, 0, 0, width, height, 0,
+                                        FpdfAnnot | FpdfLcdText);
+                                    if (form != IntPtr.Zero)
+                                        FPDF_FFLDrawRaw(form, bitmap, page, 0, 0, width, height, 0,
+                                            FpdfAnnot | FpdfLcdText);
+                                }
+                                finally { FPDFBitmap_DestroyRaw(bitmap); }
+                            }
+                            finally
+                            {
+                                // This PDFium build expects the form environment to be released while
+                                // its page is still alive. The one-shot renderer closes the page and
+                                // document immediately afterwards, so no damaged native state is reused.
+                                if (form != IntPtr.Zero)
+                                {
+                                    FPDFDOC_ExitFormFillEnvironmentRaw(form);
+                                    form = IntPtr.Zero;
+                                }
+                                FPDF_ClosePageRaw(page);
+                            }
+                        }
+                        finally
+                        {
+                            if (form != IntPtr.Zero) FPDFDOC_ExitFormFillEnvironmentRaw(form);
+                            Marshal.FreeHGlobal(formInfo);
+                            FPDF_CloseDocumentRaw(doc);
+                        }
+                    }
+                    return bytes;
+                }
+                finally { pinned.Free(); }
+            }
+            catch { return null; }
+        }
+
         // ---- Save ---------------------------------------------------------------------------
 
         [DllImport("pdfium.dll", EntryPoint = "FPDF_SaveWithVersion", CallingConvention = CallingConvention.Cdecl)]

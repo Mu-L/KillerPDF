@@ -2404,7 +2404,7 @@
               Background="#88000000"
               MouseLeftButtonDown="ShortcutOverlay_MouseLeftButtonDown"
               MouseRightButtonDown="ShortcutOverlay_MouseLeftButtonDown">
-            <Grid x:Name="ShortcutCardGrid" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="480" MaxWidth="640">
+            <Grid x:Name="ShortcutCardGrid" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="24" MaxWidth="920">
                 <!-- Shadow cast by a separate element so the card content stays crisp. -->
                 <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="6" IsHitTestVisible="False">
                     <Border.Effect>
@@ -2448,7 +2448,7 @@
                     <Grid x:Name="ShortcutListHost">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="24"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 

@@ -1450,7 +1450,9 @@ namespace KillerPDF
                         using var pr = docReader.GetPageReader(i);
                         int w = pr.GetPageWidth();
                         int h = pr.GetPageHeight();
-                        byte[] png = BitmapHelpers.RenderToPng(pr.GetImage(PdfRender.WithAnnotations), w, h);   // #141
+                        byte[] raw = PdfiumInterop.RenderPageWithAnnotations(renderPath, i, w, h)
+                            ?? pr.GetImage();
+                        byte[] png = BitmapHelpers.RenderToPng(raw, w, h);   // #141
                         BitmapSource src;
                         using (var ms = new MemoryStream(png))
                             src = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);

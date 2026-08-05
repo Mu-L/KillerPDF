@@ -174,27 +174,38 @@ namespace KillerPDF
                 {
                     var row  = section.Rows[r];
                     bool last = r == section.Rows.Length - 1;
-                    var dock = new DockPanel { Margin = new Thickness(0, 0, 0, last ? 0 : 4) };
+                    var rowGrid = new Grid { Margin = new Thickness(0, 0, 0, last ? 0 : 4) };
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(132) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                    // Keys: fixed 120px column, Consolas, dim.
+                    // Keep the shortcut and description on the same vertical centerline. The wider
+                    // key column also leaves a deliberate gap before longer translated labels.
                     var keys = new TextBlock
                     {
                         Text       = ResolveKeyLabel(row.Keys),
                         FontFamily = new FontFamily("Consolas"),
                         FontSize   = 11,
-                        Width      = 120,
+                        Margin     = new Thickness(0, 0, 12, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
                     };
                     keys.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
-                    dock.Children.Add(keys);
+                    Grid.SetColumn(keys, 0);
+                    rowGrid.Children.Add(keys);
 
-                    // Description: fills the rest, localized, primary colour, shared KS font size.
-                    var label = new TextBlock();
+                    // Description: fills the rest, wraps when the window is narrow, and stays aligned
+                    // with its shortcut regardless of the localized font's line metrics.
+                    var label = new TextBlock
+                    {
+                        TextWrapping = TextWrapping.Wrap,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    };
                     label.SetResourceReference(TextBlock.TextProperty, row.LabelKey);
                     label.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                     label.SetResourceReference(TextBlock.FontSizeProperty, "Str_KS_FontSize");
-                    dock.Children.Add(label);
+                    Grid.SetColumn(label, 1);
+                    rowGrid.Children.Add(label);
 
-                    host.Children.Add(dock);
+                    host.Children.Add(rowGrid);
                 }
             }
         }

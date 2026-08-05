@@ -197,7 +197,8 @@ namespace KillerPDF
                 int h = pr.GetPageHeight();
                 // #141: WithAnnotations - Transform rasterizes the page and REPLACES it, so
                 // without this the file's own markup would be dropped by transforming a page.
-                byte[] bgra = pr.GetImage(PdfRender.WithAnnotations);
+                byte[] bgra = PdfiumInterop.RenderPageWithAnnotations(srcPath, pageIdx, w, h)
+                    ?? pr.GetImage();
                 if (_pageRotations.TryGetValue(pageIdx, out int prot) && prot != 0)
                     (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, prot);
                 if (bgra == null || bgra.Length == 0 || w <= 0 || h <= 0) return null;

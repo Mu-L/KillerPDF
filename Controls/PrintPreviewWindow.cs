@@ -1110,7 +1110,9 @@ namespace KillerPDF
                         if (idx < 0 || idx >= _pages.Length) continue;
                         using var pr = dr.GetPageReader(idx);
                         int w = pr.GetPageWidth(), h = pr.GetPageHeight();
-                        var bs = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, pr.GetImage(KillerPDF.Services.PdfRender.WithAnnotations), w * 4);   // #141
+                        var pixels = KillerPDF.Services.PdfiumInterop.RenderPageWithAnnotations(_renderPath, idx, w, h)
+                            ?? pr.GetImage();
+                        var bs = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, pixels, w * 4);   // #141
                         bs.Freeze();
                         hiPages[idx] = bs; hiW[idx] = w; hiH[idx] = h;
                         int shown = done;
