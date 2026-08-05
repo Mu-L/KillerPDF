@@ -423,7 +423,12 @@ namespace KillerPDF.Controls
                             ch = (fy2 - fy1)     / pageH * canvasH;
                             break;
                     }
-                    if (cw < 2 || ch < 2) continue;
+                    // A malformed widget rectangle must not reach a WPF Width or Height property.
+                    // WPF throws for NaN and infinity, which previously took down the viewer when
+                    // RenderAllAnnotations rebuilt the form overlay after a page click (#181).
+                    if (!IsFinite(cx) || !IsFinite(cy)
+                        || !IsFinitePositive(cw) || !IsFinitePositive(ch)
+                        || cw < 2 || ch < 2) continue;
 
                     // Walk the parent chain to resolve inherited attributes
                     string ft     = "";

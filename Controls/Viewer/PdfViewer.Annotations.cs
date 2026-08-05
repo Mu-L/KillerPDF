@@ -39,6 +39,8 @@ namespace KillerPDF.Controls
 
         private void RenderTextAnnotation(TextAnnotation ta)
         {
+            if (!IsFinitePositive(ta.Width) || !IsFinitePositive(ta.Height)) return;
+
             // A fixed W x H box: optional fill background, text wrapped to the width and clipped to the
             // height (so a free-form-resized box behaves like an image/crop frame).
             FontFamily famsel;
@@ -97,6 +99,7 @@ namespace KillerPDF.Controls
                         RenderTextAnnotation(ta);
                         break;
                     case CoverAnnotation cov:
+                        if (!IsFinitePositive(cov.Bounds.Width) || !IsFinitePositive(cov.Bounds.Height)) continue;
                         var covRect = new Rectangle
                         {
                             Fill = new SolidColorBrush(cov.GetColor()),
@@ -126,6 +129,7 @@ namespace KillerPDF.Controls
                         else
                         {
                             var hr = ha.DrawRect();
+                            if (!IsFinitePositive(hr.Width) || !IsFinitePositive(hr.Height)) continue;
                             var rect = new Rectangle
                             {
                                 Fill = new SolidColorBrush(ha.GetColor()),
@@ -169,13 +173,13 @@ namespace KillerPDF.Controls
                         {
                             // Image-based signature (decoded once, then cached on the annotation)
                             var bmp = GetAnnotationBitmap(sa, sa.ImageData);
-                            if (bmp != null)
+                            if (bmp != null && TryGetPlacedSize(sa, out double sigWidth, out double sigHeight))
                             {
                                 var imgCtrl = new System.Windows.Controls.Image
                                 {
                                     Source = bmp,
-                                    Width = sa.SourceWidth * sa.Scale,
-                                    Height = sa.SourceHeight * sa.Scale,
+                                    Width = sigWidth,
+                                    Height = sigHeight,
                                     Stretch = System.Windows.Media.Stretch.Uniform,
                                     IsHitTestVisible = false
                                 };
@@ -208,13 +212,13 @@ namespace KillerPDF.Controls
 
                     case ImageAnnotation ia:
                         var iaBmp = GetAnnotationBitmap(ia, ia.ImageData);
-                        if (iaBmp != null)
+                        if (iaBmp != null && TryGetPlacedSize(ia, out double imageWidth, out double imageHeight))
                         {
                             var iaCtrl = new System.Windows.Controls.Image
                             {
                                 Source = iaBmp,
-                                Width = ia.SourceWidth * ia.Scale,
-                                Height = ia.SourceHeight * ia.Scale,
+                                Width = imageWidth,
+                                Height = imageHeight,
                                 Stretch = System.Windows.Media.Stretch.Uniform,
                                 IsHitTestVisible = false
                             };
@@ -236,6 +240,21 @@ namespace KillerPDF.Controls
             // Flowing text selection quads (#127) live here too - same deal, repaint last.
             ApplyTextSelectionQuads(pageIndex, _activeCanvas);
         }
+
+        // WPF rejects NaN and infinity for FrameworkElement dimensions. Keep malformed persisted
+        // annotations from taking down the whole viewer while their source data is being repaired.
+        private static bool TryGetPlacedSize(PlacedAnnotation annot, out double width, out double height)
+        {
+            width = annot.SourceWidth * annot.Scale;
+            height = annot.SourceHeight * annot.Scale;
+            return IsFinitePositive(width) && IsFinitePositive(height);
+        }
+
+        private static bool IsFinite(double value)
+            => !double.IsNaN(value) && !double.IsInfinity(value);
+
+        private static bool IsFinitePositive(double value)
+            => IsFinite(value) && value > 0;
 
         // Decode a placed annotation's Base64 image once and cache the frozen result on the annotation,
         // so repeated renders (e.g. every mousemove of a resize-drag) reuse it instead of re-decoding.

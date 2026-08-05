@@ -496,7 +496,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_St_FlattenCancelled">Reduzieren abgebrochen (keine Datei geschrieben)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">Anmerkungen konnten für den Druck nicht reduziert werden; Druck ohne sie.</sys:String>
     <sys:String x:Key="Str_St_HqDownloadCancelled">Download in hoher Qualität abgebrochen</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">Sprachen-Download abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCancelled">Sprachdownload abgebrochen</sys:String>
     <sys:String x:Key="Str_St_OcrCancelled">OCR abgebrochen</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">Rahmen über den zu erkennenden Bereich ziehen</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR-Bereich zu klein</sys:String>

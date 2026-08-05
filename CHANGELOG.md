@@ -4,9 +4,12 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.1] - 2026-08-04
+## [1.7.1] - UNRELEASED
 
 1.7.1 is a bug-fix release in progress.
+
+### Fixed
+- Clicking a page no longer crashes with "'∞' is not a valid value for property 'Height'" (#181, thanks lachlan-00). The page click rebuilds every annotation and form overlay, and malformed geometry could reach a WPF Width or Height property without being checked. WPF refuses NaN and infinity, so one bad form rectangle or a legacy saved signature with zero canvas dimensions took down the whole viewer during the redraw. Form rectangles and every sized annotation are now checked before they reach WPF; invalid form widgets are skipped, old signature dimensions fall back to the standard canvas size, and the render layer has a final guard for malformed persisted annotations.
 
 ## [1.7.0] - 2026-08-01
 

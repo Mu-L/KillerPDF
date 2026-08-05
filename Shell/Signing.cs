@@ -124,8 +124,15 @@ namespace KillerPDF
         {
             const double pad = 2;
             double sw = sig.CanvasWidth, sh = sig.CanvasHeight;
+
+            // Older or damaged signature-store entries can carry zero or non-finite canvas
+            // dimensions. Dividing the field size by those values produces an infinite scale,
+            // which later crashes WPF when the annotation is assigned an infinite Height (#181).
+            if (double.IsNaN(sw) || double.IsInfinity(sw) || sw <= 0) sw = 400;
+            if (double.IsNaN(sh) || double.IsInfinity(sh) || sh <= 0) sh = 150;
             double scale = Math.Min((w - 2 * pad) / sw, (h - 2 * pad) / sh);
             if (scale <= 0) scale = Math.Min(w / sw, h / sh);
+            if (double.IsNaN(scale) || double.IsInfinity(scale) || scale <= 0) scale = 0.5;
             double drawW = sw * scale, drawH = sh * scale;
             double px = x + (w - drawW) / 2;
             double py = y + (h - drawH) / 2;

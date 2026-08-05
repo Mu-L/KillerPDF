@@ -432,7 +432,7 @@ try {
     if (git tag --list $Tag) { throw "Tag $Tag already exists" }
     if (git ls-remote --tags origin $Tag) { throw "Tag $Tag already exists on origin" }
     $changelog = Get-Content -Path (Join-Path $PSScriptRoot 'CHANGELOG.md') -Raw
-    if ($changelog -match [regex]::Escape("## [$Version] - Unreleased")) {
+    if ($changelog -match ('(?im)^## \[' + [regex]::Escape($Version) + '\] - UNRELEASED\s*$')) {
         throw "CHANGELOG.md section [$Version] is still marked Unreleased"
     }
     if ($changelog -notmatch [regex]::Escape("## [$Version]")) {
