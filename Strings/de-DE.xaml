@@ -102,7 +102,7 @@
     <sys:String x:Key="Str_KS_Help">HILFE</sys:String>
     <sys:String x:Key="Str_KS_ThisList">Diese Liste der Tastenkürzel</sys:String>
     <sys:String x:Key="Str_KS_About">Info-Dialog</sys:String>
-    <sys:String x:Key="Str_KS_DocInfo">Dokumentinformationen</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">Dokumentinfo</sys:String>
     <sys:String x:Key="Str_KS_OnlineHelp">Vollständige Anleitung &amp; Tutorials online</sys:String>
     <sys:String x:Key="Str_KS_Tools">WERKZEUGE</sys:String>
     <sys:String x:Key="Str_KS_Paste">Bild / Text einfügen</sys:String>
@@ -181,7 +181,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Zoom_FitWidth">An Seitenbreite anpassen</sys:String>
     <sys:String x:Key="Str_Zoom_FitPage">Ganze Seite anpassen</sys:String>
-    <sys:String x:Key="Str_FitWidth">Seite {0} von {1} - An Breite anpassen ({2} %)</sys:String>
+    <sys:String x:Key="Str_FitWidth">Seite {0} von {1} - an Breite anpassen ({2} %)</sys:String>
     <sys:String x:Key="Str_FitPage">Seite {0} von {1} - Seite anpassen ({2} %)</sys:String>
 
     <!-- ── KS overlay font size (sys:Double) ──────────────────────────── -->
@@ -249,10 +249,10 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Stamp_Title">Seitenzahlen einfügen</sys:String>
     <sys:String x:Key="Str_Stamp_StartAt">Beginnen bei</sys:String>
     <sys:String x:Key="Str_Stamp_Format">Format</sys:String>
-    <sys:String x:Key="Str_Stamp_Hint">{}{n} = Seitenzahl, {N} = Gesamt, z. B. „Seite {n} von {N}“</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">{n} = Seitenzahl, {N} = Gesamt</sys:String>
     <sys:String x:Key="Str_Stamp_Position">Position</sys:String>
     <sys:String x:Key="Str_Stamp_FontSize">Schriftgröße (pt)</sys:String>
-    <sys:String x:Key="Str_Stamp_Hint2">Beispiel: &quot;Seite {n} von {N}&quot;</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint2">Beispiel: „Seite {n} von {N}“</sys:String>
     <sys:String x:Key="Str_Stamp_Suffix">Seiten stempeln</sys:String>
     <sys:String x:Key="Str_Stamp_SecNumbers">Seitenzahlen</sys:String>
     <sys:String x:Key="Str_Stamp_SecWatermark">Wasserzeichen</sys:String>
@@ -465,7 +465,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Crop_Apply">Zuschneiden</sys:String>
     <sys:String x:Key="Str_Crop_RangeTip">Seitenbereich, z. B. 1-3,5 (leer = aktuelle Seite)</sys:String>
     <sys:String x:Key="Str_Crop_AllTip">Jede Seite zuschneiden</sys:String>
-    <sys:String x:Key="Str_KS_View">Ansicht</sys:String>
+    <sys:String x:Key="Str_KS_View">ANSICHT</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Vollbild</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">F11 oder Esc drücken, um den Vollbildmodus zu beenden</sys:String>
     <!-- Quit prompt -->
@@ -496,7 +496,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_St_FlattenCancelled">Reduzieren abgebrochen (keine Datei geschrieben)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">Anmerkungen konnten für den Druck nicht reduziert werden; Druck ohne sie.</sys:String>
     <sys:String x:Key="Str_St_HqDownloadCancelled">Download in hoher Qualität abgebrochen</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">Sprachdownload abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCancelled">Sprachen-Download abgebrochen</sys:String>
     <sys:String x:Key="Str_St_OcrCancelled">OCR abgebrochen</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">Rahmen über den zu erkennenden Bereich ziehen</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR-Bereich zu klein</sys:String>
