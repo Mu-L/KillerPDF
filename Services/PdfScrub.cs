@@ -85,27 +85,73 @@ namespace KillerPDF.Services
 
                     // The box can be a parsed PdfArray (loaded from disk) or a PdfRectangle
                     // (planted in memory by the lazy getter) - handle both, like ScaleRectValue.
-                    double w = -1, h = -1;
-                    if (resolved is PdfRectangle rect)
-                    {
-                        w = Math.Abs(rect.X2 - rect.X1);
-                        h = Math.Abs(rect.Y2 - rect.Y1);
-                    }
-                    else if (resolved is PdfArray arr && arr.Elements.Count == 4 &&
-                             arr.Elements[0] is PdfReal or PdfInteger && arr.Elements[1] is PdfReal or PdfInteger &&
-                             arr.Elements[2] is PdfReal or PdfInteger && arr.Elements[3] is PdfReal or PdfInteger)
-                    {
-                        w = Math.Abs(RectNum(arr.Elements[2]) - RectNum(arr.Elements[0]));
-                        h = Math.Abs(RectNum(arr.Elements[3]) - RectNum(arr.Elements[1]));
-                    }
+                    bool cropReadable = TryReadPageBox(resolved, out double cx1, out double cy1,
+                        out double cx2, out double cy2);
+                    double w = cropReadable ? cx2 - cx1 : -1;
+                    double h = cropReadable ? cy2 - cy1 : -1;
 
                     // Remove only when we could read the box AND it is degenerate; anything we
                     // cannot interpret is left alone rather than destroyed.
                     if (w >= 0 && (w < 1 || h < 1))
+                    {
+                        elements.Remove("/CropBox");
+                        continue;
+                    }
+
+                    // PDF requires CropBox to stay inside MediaBox. A rotated page could previously
+                    // be saved with portrait MediaBox dimensions and a landscape CropBox, producing
+                    // a malformed page that strict validators reject. Removing that invalid crop is
+                    // lossless: the page falls back to its complete MediaBox instead of clipping data.
+                    if (cropReadable && TryReadInheritedPageBox(doc.Pages[i], "/MediaBox",
+                            out double mx1, out double my1, out double mx2, out double my2) &&
+                        (cx1 < mx1 - 0.01 || cy1 < my1 - 0.01 ||
+                         cx2 > mx2 + 0.01 || cy2 > my2 + 0.01))
                         elements.Remove("/CropBox");
                 }
             }
             catch { /* malformed page tree - leave the save as-is */ }
+        }
+
+        private static bool TryReadInheritedPageBox(PdfPage page, string key,
+            out double x1, out double y1, out double x2, out double y2)
+        {
+            PdfDictionary? node = page;
+            for (int depth = 0; node is not null && depth < 32; depth++)
+            {
+                var item = node.Elements[key];
+                if (item is not null && TryReadPageBox(DerefItemStatic(item), out x1, out y1, out x2, out y2))
+                    return true;
+                node = DerefItemStatic(node.Elements["/Parent"]) as PdfDictionary;
+            }
+            x1 = y1 = x2 = y2 = 0;
+            return false;
+        }
+
+        private static bool TryReadPageBox(PdfItem? item,
+            out double x1, out double y1, out double x2, out double y2)
+        {
+            if (item is PdfRectangle rect)
+            {
+                x1 = Math.Min(rect.X1, rect.X2);
+                y1 = Math.Min(rect.Y1, rect.Y2);
+                x2 = Math.Max(rect.X1, rect.X2);
+                y2 = Math.Max(rect.Y1, rect.Y2);
+                return true;
+            }
+            if (item is PdfArray arr && arr.Elements.Count == 4 &&
+                arr.Elements[0] is PdfReal or PdfInteger && arr.Elements[1] is PdfReal or PdfInteger &&
+                arr.Elements[2] is PdfReal or PdfInteger && arr.Elements[3] is PdfReal or PdfInteger)
+            {
+                double ax = RectNum(arr.Elements[0]), ay = RectNum(arr.Elements[1]);
+                double bx = RectNum(arr.Elements[2]), by = RectNum(arr.Elements[3]);
+                x1 = Math.Min(ax, bx);
+                y1 = Math.Min(ay, by);
+                x2 = Math.Max(ax, bx);
+                y2 = Math.Max(ay, by);
+                return true;
+            }
+            x1 = y1 = x2 = y2 = 0;
+            return false;
         }
 
         // A KillerPDF save fully REWRITES the file, which mathematically invalidates any existing

@@ -9,8 +9,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 1.7.1 is a bug-fix release in progress.
 
 ### Fixed
+- Annotations and stamps now save in the right position on PDFs that already carry a native page rotation when they are first opened (#169, thanks terada-d). The 1.7.0 fix read only KillerPDF's temporary rotation map, but that map is not populated until a page operation performs a temporary save and reload, so annotating an already rotated file and saving it immediately still treated the page as unrotated. Burn-in now falls back to the page's own `/Rotate` value, every newly opened document clears the previous document's temporary rotation map, and saving removes a malformed CropBox that extends outside its MediaBox instead of preserving contradictory portrait and landscape dimensions. Tests cover the reported invalid page boxes and preservation of a valid inset crop.
+- Filled form fields now generate complete appearance streams, including the required stream length, multiline layout, and WinAnsi text encoding (#180, thanks Ryokoxx). This keeps entered values visible and readable in PDF viewers that strictly validate field appearances.
 - Double-clicking bold or italic PDF text to edit it no longer turns the replacement into regular text (#182, thanks fo-bo). PDF text usually carries its face styling inside the embedded font name, such as `Helvetica-BoldOblique`, rather than as separate bold and italic properties. The detector cleaned those suffixes off to find the font family, then explicitly reset both style flags before opening the editor, so the formatting was lost before the first keystroke. Font detection now separates the family from its bold and italic face, applies both to the live edit box, and carries them into the replacement annotation when it is committed. Focused tests cover subset font names and regular, bold, italic, and combined faces.
 - Clicking a page no longer crashes with "'∞' is not a valid value for property 'Height'" (#181, thanks lachlan-00). The page click rebuilds every annotation and form overlay, and malformed geometry could reach a WPF Width or Height property without being checked. WPF refuses NaN and infinity, so one bad form rectangle or a legacy saved signature with zero canvas dimensions took down the whole viewer during the redraw. Form rectangles and every sized annotation are now checked before they reach WPF; invalid form widgets are skipped, old signature dimensions fall back to the standard canvas size, and the render layer has a final guard for malformed persisted annotations.
+
+### Changed
+- Refined six German labels and shortcut descriptions for more natural and consistent wording (#150, thanks Mr-Update).
 
 ## [1.7.0] - 2026-08-01
 

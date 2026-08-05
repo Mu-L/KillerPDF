@@ -77,8 +77,16 @@ namespace KillerPDF.Services
             _   => null,
         };
 
-        private static int NormalizeRot(IReadOnlyDictionary<int, int>? rotations, int pageIdx)
-            => rotations is not null && rotations.TryGetValue(pageIdx, out int r) ? ((r % 360) + 360) % 360 : 0;
+        private static int NormalizeRot(IReadOnlyDictionary<int, int>? rotations, int pageIdx, PdfPage page)
+        {
+            // KillerPDF-managed rotations live in the map after SaveTempAndReload strips them
+            // from the working file. A newly opened PDF still carries its native /Rotate on the
+            // page, so use that value whenever the map has no entry for this page.
+            int r = rotations is not null && rotations.TryGetValue(pageIdx, out int stored)
+                ? stored
+                : page.Rotate;
+            return ((r % 360) + 360) % 360;
+        }
 
         // Burns annotations into the given document using only the supplied annotation + render-dim data and
         // nothing from the live UI state (static, so the compiler guarantees it). This makes it safe to run on
@@ -114,7 +122,7 @@ namespace KillerPDF.Services
                 // #169: the render dims are in the VISUAL frame (that is what the user drew on),
                 // so scale against the visual page size, not the raw page box - on a quarter-turned
                 // page those are on swapped axes.
-                int rot = NormalizeRot(rotations, pageIdx);
+                int rot = NormalizeRot(rotations, pageIdx, page);
                 double pwPt = page.Width.Point, phPt = page.Height.Point;
                 var (visW, visH) = VisualPageSize(pwPt, phPt, rot);
                 double sx = visW / renderW;
@@ -367,7 +375,7 @@ namespace KillerPDF.Services
                 if (!doNum && !doWm) continue;
 
                 var page = doc.Pages[i];
-                int rot = NormalizeRot(rotations, i);
+                int rot = NormalizeRot(rotations, i, page);
                 double pwPt = page.Width.Point, phPt = page.Height.Point;
                 var (pw, ph) = VisualPageSize(pwPt, phPt, rot);   // #169: lay out on the visual page
                 double mx = pw * 0.05, my = ph * 0.04;

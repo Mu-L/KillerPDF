@@ -177,6 +177,9 @@ namespace KillerPDF
             CloseLinkPdfiumDoc();       // and release the cached PDFium link handle for the old file
             _undoStack.Clear();
             _redoStack.Clear();
+            // The map belongs to the previous document. Native rotations in a newly opened PDF
+            // remain on each page until SaveTempAndReload moves them into this map.
+            _pageRotations.Clear();
             _navBack.Clear();
             _navForward.Clear();
             _renderDims.Clear();

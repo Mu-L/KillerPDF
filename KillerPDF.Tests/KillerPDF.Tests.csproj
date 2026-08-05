@@ -29,6 +29,7 @@
     <Compile Include="..\Services\SignatureStore.cs" Link="Services\SignatureStore.cs" />
     <Compile Include="..\Services\SearchService.cs" Link="Services\SearchService.cs" />
     <Compile Include="..\Services\PdfFontStyle.cs" Link="Services\PdfFontStyle.cs" />
+    <Compile Include="..\Services\PdfScrub.cs" Link="Services\PdfScrub.cs" />
   </ItemGroup>
 
   <ItemGroup>
