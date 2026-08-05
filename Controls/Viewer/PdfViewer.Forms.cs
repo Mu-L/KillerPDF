@@ -593,6 +593,20 @@ namespace KillerPDF.Controls
                             node = pi as PdfDictionary ?? DerefItem(pi) as PdfDictionary;
                         }
 
+                        // /Ff is inheritable like /DA, and bit 13 (4096) is Multiline. The saved
+                        // appearance has to know which it is: a multiline field lays its value out
+                        // in lines from the top of the box, a single-line one draws one centred line.
+                        int fieldFlags = 0;
+                        node = ann;
+                        while (node is not null && fieldFlags == 0)
+                        {
+                            if (node.Elements["/Ff"] is PdfInteger fi) fieldFlags = fi.Value;
+                            var pi = node.Elements["/Parent"];
+                            if (pi is null) break;
+                            node = pi as PdfDictionary ?? DerefItem(pi) as PdfDictionary;
+                        }
+                        bool isMultiLine = (fieldFlags & 4096) != 0;
+
                         if (_formTextValues.TryGetValue(objNum, out var textVal) && fieldDict is not null)
                         {
                             fieldDict.Elements["/V"] = new PdfString(textVal);
@@ -603,7 +617,7 @@ namespace KillerPDF.Controls
                                 daStr = WithDaFontSize(daStr, ovPt);
                                 fieldDict.Elements["/DA"] = new PdfString(daStr);
                             }
-                            GenerateTextFieldAppearance(ann, textVal, daStr, fieldW, fieldH);
+                            GenerateTextFieldAppearance(ann, textVal, daStr, fieldW, fieldH, isMultiLine);
                         }
                         else if (_formCheckValues.TryGetValue(objNum, out var checkVal) && fieldDict is not null)
                         {
@@ -678,29 +692,86 @@ namespace KillerPDF.Controls
         /// on the widget annotation. Uses reflection to access PdfSharpCore's internal
         /// PdfDictionary.PdfStream constructor since there is no public factory method.
         /// </summary>
-        private void GenerateTextFieldAppearance(PdfDictionary widgetAnn, string text, string? da, double fieldW, double fieldH)
+        private void GenerateTextFieldAppearance(PdfDictionary widgetAnn, string text, string? da, double fieldW, double fieldH, bool isMultiLine)
         {
             try
             {
+                const double pad = 2;   // left/right inset, matching the Td origin below
+
                 var (fontName, fontSize) = ParseDaString(da);
                 if (fontSize <= 0) fontSize = Math.Max(6, Math.Min(fieldH * 0.65, 12));
-                fontSize = Math.Max(6, Math.Min(fontSize, fieldH * 0.85));
+                // The "no taller than 85% of the box" clamp is a single-line rule: a multiline
+                // field is as tall as it needs to be for several lines, so applying it there
+                // blew the text up to the height of the whole box.
+                fontSize = isMultiLine ? Math.Max(6, fontSize)
+                                       : Math.Max(6, Math.Min(fontSize, fieldH * 0.85));
 
-                // Vertical centering: PDF baseline is measured from bottom of the field rect.
-                double textY = (fieldH - fontSize) / 2 + fontSize * 0.2;
+                // Tj shows a string; it has no concept of a line break, so a value with newlines
+                // in it drew as one run with the breaks swallowed. Lay the value out into lines
+                // and show each one, moving down by the leading between them.
+                var lines = isMultiLine
+                    ? WrapFieldText(text, Math.Max(1, fieldW - pad * 2), fontSize)
+                    : [text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ')];
+
+                double leading = fontSize * 1.16;
+                // PDF baselines are measured from the bottom of the field rect. Multiline text
+                // starts at the top and runs down; a single line stays vertically centred.
+                double textY = isMultiLine ? fieldH - fontSize
+                                           : (fieldH - fontSize) / 2 + fontSize * 0.2;
                 if (textY < 1) textY = 1;
 
-                string escaped = EscapePdfString(text);
-                string content =
-                    $"/Tx BMC\nq\n0 0 {fieldW:F2} {fieldH:F2} re W n\n" +
-                    $"BT\n{fontName} {fontSize:F2} Tf\n0 g\n2 {textY:F2} Td\n({escaped}) Tj\nET\nQ\nEMC";
+                var sb = new System.Text.StringBuilder();
+                sb.Append($"/Tx BMC\nq\n0 0 {fieldW:F2} {fieldH:F2} re W n\n");
+                sb.Append($"BT\n{fontName} {fontSize:F2} Tf\n0 g\n{leading:F2} TL\n{pad:F2} {textY:F2} Td\n");
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    if (i > 0) sb.Append("T*\n");   // down one leading, back to the left inset
+                    sb.Append($"({EscapePdfString(lines[i])}) Tj\n");
+                }
+                sb.Append("ET\nQ\nEMC");
 
-                var xobj = BuildFormXObject(fontName, fieldW, fieldH, content);
+                // Lines past the bottom of the box are clipped by the "re W n" above, the same
+                // way a viewer clips an over-full field.
+                var xobj = BuildFormXObject(fontName, fieldW, fieldH, sb.ToString());
                 if (xobj is null) return;
 
                 AttachAppearance(widgetAnn, xobj);
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GenerateTextFieldAppearance: {ex}"); }
+        }
+
+        /// <summary>
+        /// Splits a multiline field's value into the lines its appearance should draw: the value's
+        /// own line breaks first, then greedy word-wrap to the field's inner width.
+        /// </summary>
+        // Measured with Arial, which is metric-compatible with the Helvetica the generated
+        // appearance stream asks for, so the wrap lands where the drawn glyphs do.
+        private static List<string> WrapFieldText(string text, double innerWidth, double fontSize)
+        {
+            var typeface = new Typeface("Arial");
+            double Width(string s) => new FormattedText(
+                s, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                typeface, fontSize, Brushes.Black, 1.0).Width;
+
+            var lines = new List<string>();
+            foreach (var para in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                string current = string.Empty;
+                foreach (var word in para.Split(' '))
+                {
+                    string candidate = current.Length == 0 ? word : current + " " + word;
+                    // A single word wider than the field can't be broken any further - let it
+                    // run on and be clipped rather than dropping it onto an empty line.
+                    if (current.Length > 0 && Width(candidate) > innerWidth)
+                    {
+                        lines.Add(current);
+                        current = word;
+                    }
+                    else current = candidate;
+                }
+                lines.Add(current);
+            }
+            return lines;
         }
 
         /// <summary>
@@ -781,7 +852,15 @@ namespace KillerPDF.Controls
             res.Elements["/Font"] = fontDict;
             xobj.Elements["/Resources"] = res;
 
-            if (!TryAttachStreamBytes(xobj, bytes)) return null;
+            // CreateStream, not a hand-attached PdfStream: it is the only path that also writes
+            // /Length, which every PDF stream must carry. Attaching the stream object directly
+            // (the old reflection helper) left the appearance stream with no /Length, so the saved
+            // file was structurally invalid - PdfSharpCore's own parser refuses it ("Cannot
+            // retrieve stream length"), which is why KillerPDF met its own saved form with the
+            // repair prompt, and strict viewers reported a damaged structure (#179). The Debug
+            // assert that would have caught it (PdfDictionary.WriteObject) is compiled out of
+            // Release builds.
+            xobj.CreateStream(bytes);
 
             _doc!.Internals.AddObject(xobj);
             return xobj;
@@ -796,57 +875,6 @@ namespace KillerPDF.Controls
             var apDict = new PdfDictionary();
             apDict.Elements["/N"] = xobj.Reference;
             widgetAnn.Elements["/AP"] = apDict;
-        }
-
-        /// <summary>
-        /// Attaches raw content bytes to a PdfDictionary as a stream.
-        /// Accesses PdfDictionary.PdfStream via reflection because its constructor is internal.
-        /// Falls back to the backing field if the property setter is protected.
-        /// </summary>
-        private static bool TryAttachStreamBytes(PdfDictionary dict, byte[] bytes)
-        {
-            try
-            {
-                var dictType   = typeof(PdfDictionary);
-                var streamType = dictType.GetNestedType("PdfStream",
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-                if (streamType is null) return false;
-
-                // Try (byte[], PdfDictionary) ctor first, then (byte[]) only
-                System.Reflection.ConstructorInfo? ctor =
-                    streamType.GetConstructor(
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-                        null, [typeof(byte[]), typeof(PdfDictionary)], null) ??
-                    streamType.GetConstructor(
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-                        null, [typeof(byte[])], null);
-                if (ctor is null) return false;
-
-                object streamObj = ctor.GetParameters().Length == 2
-                    ? ctor.Invoke([bytes, dict])
-                    : ctor.Invoke([bytes]);
-
-                // Try public Stream property setter first
-                var prop = dictType.GetProperty("Stream",
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                if (prop?.CanWrite == true)
-                {
-                    prop.SetValue(dict, streamObj);
-                    return true;
-                }
-
-                // Fall back to the backing field
-                var field = dictType.GetField("_stream",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (field is not null)
-                {
-                    field.SetValue(dict, streamObj);
-                    return true;
-                }
-
-                return false;
-            }
-            catch { return false; }
         }
 
         /// <summary>
@@ -874,6 +902,12 @@ namespace KillerPDF.Controls
             return (fontName, fontSize);
         }
 
+        // The appearance streams declare /WinAnsiEncoding, which is code page 1252. Unmappable
+        // characters fall back to '?' on their own, which is what the old Latin-1 cut did to
+        // everything - the point of going through the code page is that most of what got cut
+        // is mappable. Held static: building an Encoding per character is not free.
+        private static readonly System.Text.Encoding WinAnsi = System.Text.Encoding.GetEncoding(1252);
+
         /// <summary>
         /// Escapes a string for use in a PDF literal string (parentheses syntax).
         /// </summary>
@@ -890,8 +924,15 @@ namespace KillerPDF.Controls
                     case '\r': sb.Append("\\r");  break;
                     case '\n': sb.Append("\\n");  break;
                     default:
-                        // Keep Latin-1 range; replace anything outside with '?'
-                        sb.Append(c < 256 ? c : '?');
+                        // Anything above U+00FF used to become '?', which threw away the curly
+                        // quotes, dashes, bullets and ellipses every word processor emits - and
+                        // WinAnsi has slots for all of them at 0x80-0x9F. Map through the code
+                        // page the appearance actually uses; the byte is then written as-is by
+                        // BuildFormXObject's Latin-1 pass, and genuinely unmappable characters
+                        // (CJK and the like) still come out as '?'.
+                        if (c < 256) { sb.Append(c); break; }
+                        var mapped = WinAnsi.GetBytes(c.ToString());
+                        sb.Append(mapped.Length > 0 ? (char)mapped[0] : '?');
                         break;
                 }
             }
