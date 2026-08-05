@@ -266,6 +266,8 @@ namespace KillerPDF.Controls
                 // Get actual font info from PdfPig letter data
                 double canvasFontSize = cHeight * 0.75; // fallback
                 string fontName = "Segoe UI"; // fallback
+                bool fontBold = false;
+                bool fontItalic = false;
                 var firstWord = lineWords.First().Word;
                 try
                 {
@@ -290,16 +292,10 @@ namespace KillerPDF.Controls
                         string? rawFont = letter.FontName;
                         if (!string.IsNullOrEmpty(rawFont))
                         {
-                            string fontStr = rawFont!;
-                            // Strip PDF subset prefix (e.g. "ABCDEF+FontName" -> "FontName")
-                            if (fontStr.Contains('+'))
-                                fontStr = fontStr[(fontStr.IndexOf('+') + 1)..];
-                            // Clean common suffixes
-                            fontStr = fontStr.Replace(",Bold", "").Replace(",Italic", "")
-                                             .Replace("-Bold", "").Replace("-Italic", "")
-                                             .Replace("-Roman", "").Replace("-Regular", "");
-                            if (!string.IsNullOrWhiteSpace(fontStr))
-                                fontName = fontStr;
+                            var detected = PdfFontStyle.FromPdfName(rawFont!);
+                            fontName = detected.Family;
+                            fontBold = detected.Bold;
+                            fontItalic = detected.Italic;
                         }
                     }
                 }
@@ -312,7 +308,8 @@ namespace KillerPDF.Controls
                 // whited-out original.
                 string prefill = LooksGarbled(lineText) ? "" : lineText;
                 StartCoverTextEdit(pageIdx, new Rect(cLeft, cTop, cWidth, cHeight), prefill,
-                    Math.Max(canvasFontSize * EditTextSizeCorrection, 8), fontName, syInv);
+                    Math.Max(canvasFontSize * EditTextSizeCorrection, 8), fontName, syInv,
+                    fontBold, fontItalic);
             }
             catch (Exception ex)
             {
@@ -324,7 +321,8 @@ namespace KillerPDF.Controls
         // halves of an in-place edit. Used for a detected PDF-text line and, on a scanned page with no
         // text layer, for a manual edit at the click point. boxFontCanvas is the on-canvas font size;
         // the cover fill and text ink are sampled from the page so the edit blends in.
-        private void StartCoverTextEdit(int pageIdx, Rect lineRect, string text, double boxFontCanvas, string fontName, double syInv)
+        private void StartCoverTextEdit(int pageIdx, Rect lineRect, string text, double boxFontCanvas,
+                                        string fontName, double syInv, bool bold = false, bool italic = false)
         {
             double cLeft = lineRect.X, cTop = lineRect.Y, cWidth = lineRect.Width, cHeight = lineRect.Height;
             // Pair id shared with the replacement text - the cover renders dashed while paired.
@@ -340,10 +338,13 @@ namespace KillerPDF.Controls
             cover.SetColor(coverBg);
             _textColor = inkColor; _textOpacity = inkColor.A;
             _textFontSize = Math.Max(1, Math.Round(boxFontCanvas / syInv));   // canvas units -> points
-            // Replacing raw PDF text starts from the detected font with no extra styling; the box below
-            // already uses fontName, and the bar/commit read this state.
+            // Replacing raw PDF text starts from the detected font and its face styling. PDF fonts
+            // encode bold and italic in the font name, so resetting these flags made every detected
+            // line plain as soon as it was double-clicked (#182).
             _textFontName = string.IsNullOrEmpty(fontName) ? "Segoe UI" : fontName;
-            _textBold = _textItalic = _textStrike = _textUnderline = false;
+            _textBold = bold;
+            _textItalic = italic;
+            _textStrike = _textUnderline = false;
             _pendingEditWasDirty = _isDirty;   // capture before the cover dirties the doc
             if (!_annotations.ContainsKey(pageIdx)) _annotations[pageIdx] = [];
             _annotations[pageIdx].Add(cover);
@@ -374,6 +375,7 @@ namespace KillerPDF.Controls
             Canvas.SetTop(tb, cTop);
             _activeCanvas.Children.Add(tb);
             _activeTextBox = tb;
+            StyleEditBox(tb);
             tb.PreviewKeyDown += TextBox_PreviewKeyDown;
             tb.Loaded += (s, ev) => { tb.Focus(); Keyboard.Focus(tb); tb.SelectAll(); tb.LostFocus += TextBox_LostFocus; AttachTextEditResizeHandles(tb); };
             ShowTextSettings();
