@@ -446,6 +446,10 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Tf_FlipV">Vertikal spiegeln</sys:String>
     <sys:String x:Key="Str_Tf_LevelLine">Eine Hilfslinie ziehen</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">Ziehen Sie entlang etwas, das gerade sein sollte (eine Kante, eine Textzeile). Die Seite wird passend gedreht.</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">PERSPEKTIVE</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">Trapezverzerrung korrigieren</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">Ziehen Sie die vier Ecken auf den Umriss der fotografierten Seite. Anwenden richtet sie zu einem Rechteck aus.</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">Ecken zurücksetzen</sys:String>
     <sys:String x:Key="Str_Tf_Output">Ausgabe: {0} × {1} Zoll</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">Alles zurücksetzen</sys:String>
     <sys:String x:Key="Str_Tf_Reset">Zurücksetzen</sys:String>

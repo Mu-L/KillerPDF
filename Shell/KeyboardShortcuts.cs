@@ -114,7 +114,7 @@ namespace KillerPDF
             }
             else if (e.Key == Key.Escape && AboutOverlay.Visibility == Visibility.Visible)
             {
-                FadeOverlayOut(AboutOverlay);
+                CloseAboutOverlay();
                 e.Handled = true;
             }
             else if (e.Key == Key.Escape && _searchBar is not null && _searchBar.Visibility == Visibility.Visible)
@@ -153,7 +153,7 @@ namespace KillerPDF
             {
                 // Toggle the About dialog. (Moved off F2, which now belongs to rename-bookmark in the
                 // outline panel, #133 - Windows convention. Document Info moved to F4 / Ctrl+D below.)
-                if (AboutOverlay.Visibility == Visibility.Visible) FadeOverlayOut(AboutOverlay);
+                if (AboutOverlay.Visibility == Visibility.Visible) CloseAboutOverlay();
                 else ShowAboutOverlay();
                 e.Handled = true;
             }

@@ -494,6 +494,10 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Tf_FlipV">上下反転</sys:String>
     <sys:String x:Key="Str_Tf_LevelLine">水平線を描画</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">水平にすべきもの (端、テキスト行など)に沿ってドラッグします。ページがそれに合わせて回転します。</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">遠近補正</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">台形歪みを補正</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">4 つの角を撮影したページの輪郭にドラッグします。適用すると長方形に補正されます。</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">角をリセット</sys:String>
     <sys:String x:Key="Str_Tf_Output">出力 : {0} × {1} in</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">すべてリセット</sys:String>
     <sys:String x:Key="Str_Tf_Reset">リセット</sys:String>

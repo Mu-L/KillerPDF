@@ -444,6 +444,10 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Tf_FlipV">Voltear verticalmente</sys:String>
     <sys:String x:Key="Str_Tf_LevelLine">Dibujar una línea de nivel</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">Arrastra a lo largo de algo que deba quedar nivelado (un borde, una línea de texto). La página rota para coincidir.</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">PERSPECTIVA</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">Corregir distorsión trapezoidal</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">Arrastra las cuatro esquinas al contorno de la página fotografiada. Aplicar la endereza en un rectángulo.</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">Restablecer esquinas</sys:String>
     <sys:String x:Key="Str_Tf_Output">Salida: {0} × {1} pulg</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">Restablecer todo</sys:String>
     <sys:String x:Key="Str_Tf_Reset">Restablecer</sys:String>

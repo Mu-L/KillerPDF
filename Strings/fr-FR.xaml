@@ -456,6 +456,10 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Tf_FlipV">Retourner verticalement</sys:String>
     <sys:String x:Key="Str_Tf_LevelLine">Tracer une ligne de niveau</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">Glissez le long de tout ce qui devrait être de niveau (un bord, une ligne de texte). La page pivote pour correspondre.</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">PERSPECTIVE</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">Corriger la distorsion trapézoïdale</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">Placez les quatre coins sur le contour de la page photographiée. Appliquer la redresse en rectangle.</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">Réinitialiser les coins</sys:String>
     <sys:String x:Key="Str_Tf_Output">Sortie : {0} × {1} po</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">Tout réinitialiser</sys:String>
     <sys:String x:Key="Str_Tf_Reset">Réinitialiser</sys:String>

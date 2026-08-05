@@ -30,6 +30,7 @@
     <Compile Include="..\Services\SearchService.cs" Link="Services\SearchService.cs" />
     <Compile Include="..\Services\TextRunService.cs" Link="Services\TextRunService.cs" />
     <Compile Include="..\Services\ProtocolRegistrar.cs" Link="Services\ProtocolRegistrar.cs" />
+    <Compile Include="..\Services\PerspectiveWarp.cs" Link="Services\PerspectiveWarp.cs" />
     <Compile Include="..\Services\PdfFontStyle.cs" Link="Services\PdfFontStyle.cs" />
     <Compile Include="..\Services\PdfScrub.cs" Link="Services\PdfScrub.cs" />
   </ItemGroup>

@@ -33,6 +33,12 @@ namespace KillerPDF
             // We're about to replace the working file with a fresh temp; release the cached PDFium link
             // handle for the outgoing file now (it reopens for the new temp on the post-reload re-render).
             CloseLinkPdfiumDoc();
+            // Stop render workers tied to the outgoing file before clearing the cache. Without this,
+            // an already-running Grid or Continuous task can finish after the clear and put an old
+            // page bitmap straight back into the active session.
+            _secondaryRenderCts?.Cancel();
+            _continuousRenderCts?.Cancel();
+            _continuousSharpenCts?.Cancel();
             // Overlay annotations are unsaved, still-editable user work. Callers that don't change
             // page identity (crop) pass keepAnnotations:true so annotations on other pages survive
             // the reload and stay selectable/movable; they are re-rendered after the doc reopens.
@@ -101,6 +107,11 @@ namespace KillerPDF
             }
             _currentFile = tempPath;
 
+            // Clear once more after the old workers have observed cancellation. This closes the race
+            // where a worker was already inside PDFium when the first clear happened and published its
+            // stale result while the edited document was being saved and reopened.
+            InvalidateRenderCache(_active);
+
             // Restore rotations in the reopened in-memory doc so saves, form fields,
             // and all other operations see the correct rotation values.
             foreach (var kv in _pageRotations)
@@ -134,6 +145,12 @@ namespace KillerPDF
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
             {
                 PagePreviewPanel.ScrollToHorizontalOffset(0);
+                // RefreshPageView only manages secondary tiles and links. It does not repaint the
+                // primary Image, which is why the thumbnail changed after an edit while the document
+                // stayed stale until a view-mode switch called RenderPage. Render the primary first,
+                // then fit the new page dimensions.
+                int refreshPage = _viewMode == ViewMode.Grid ? 0 : _currentPage;
+                if (refreshPage >= 0) RenderPage(refreshPage);
                 if (preserveZoom) ApplyZoom();
                 else ReapplyGridOrFit();
             }));

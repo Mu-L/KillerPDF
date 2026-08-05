@@ -444,6 +444,10 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Tf_FlipV">উল্লম্বভাবে উল্টান</sys:String>
     <sys:String x:Key="Str_Tf_LevelLine">একটি সমতল রেখা আঁকুন</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">যা সমতল হওয়া উচিত তার বরাবর টানুন (একটি প্রান্ত, একটি লেখার লাইন)। পৃষ্ঠাটি সেই অনুযায়ী ঘুরবে।</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">পার্সপেক্টিভ</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">ট্র্যাপিজয়েড বিকৃতি ঠিক করুন</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">চারটি কোণ ছবিতে তোলা পৃষ্ঠার সীমানায় টানুন। প্রয়োগ করলে এটি সোজা আয়তক্ষেত্র হবে।</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">কোণ রিসেট করুন</sys:String>
     <sys:String x:Key="Str_Tf_Output">আউটপুট: {0} × {1} ইঞ্চি</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">সব রিসেট করুন</sys:String>
     <sys:String x:Key="Str_Tf_Reset">রিসেট</sys:String>

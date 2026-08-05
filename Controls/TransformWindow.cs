@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using KillerPDF.Services;
 
 namespace KillerPDF
 {
@@ -23,6 +24,8 @@ namespace KillerPDF
         public bool FixedPage { get; private set; }    // true = keep page size (margins); false = resize page
         public bool FlipH { get; private set; }
         public bool FlipV { get; private set; }
+        public Point[] PerspectiveCorners { get; private set; } =
+            [new(0, 0), new(1, 0), new(1, 1), new(0, 1)];
 
         private readonly BitmapSource _src;
         private readonly Image _preview = new()
@@ -60,6 +63,11 @@ namespace KillerPDF
         private Point _lineStart;
         private Point _startPagePt;
         private readonly DispatcherTimer _previewTimer = null!;
+        private readonly Canvas _perspectiveCanvas = null!;
+        private readonly Polygon _perspectiveOutline = null!;
+        private readonly Ellipse[] _perspectiveHandles = new Ellipse[4];
+        private readonly CheckBox _perspectiveCheck = null!;
+        private int _dragPerspective = -1;
 
         private static SolidColorBrush R(string key) => (SolidColorBrush)Application.Current.Resources[key];
         private static string S(string key) => Application.Current.TryFindResource(key) as string ?? key;
@@ -106,7 +114,12 @@ namespace KillerPDF
             };
             resetAll.MouseEnter += (_, _2) => resetAll.Foreground = R("PrimaryBrush");
             resetAll.MouseLeave += (_, _2) => resetAll.Foreground = R("MutedTextBrush");
-            resetAll.MouseLeftButtonUp += (_, _2) => { _quarter = 0; _rotSlider.Value = 0; _scaleSlider.Value = 100; _resizeRadio.IsChecked = true; _flipHCheck.IsChecked = false; _flipVCheck.IsChecked = false; };
+            resetAll.MouseLeftButtonUp += (_, _2) =>
+            {
+                _quarter = 0; _rotSlider.Value = 0; _scaleSlider.Value = 100;
+                _resizeRadio.IsChecked = true; _flipHCheck.IsChecked = false; _flipVCheck.IsChecked = false;
+                ResetPerspective();
+            };
             bottom.Children.Add(resetAll);
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
             var cancelBtn = UiKit.Make(S("Str_Tf_Cancel"), false);
@@ -124,7 +137,7 @@ namespace KillerPDF
 
             var stack = new StackPanel();
 
-            stack.Children.Add(SectionHeader(S("Str_Tf_Rotate")));
+            int rotateStart = stack.Children.Count;
             // Quarter-turn buttons.
             var turnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
             var turnL = UiKit.Make("↺ 90°", false);
@@ -143,9 +156,10 @@ namespace KillerPDF
             stack.Children.Add(ValueRow(S("Str_Tf_Angle"), "0.0°", out _rotReadout, out var rotReset));
             rotReset.Click += (_, _2) => { _quarter = 0; _rotSlider.Value = 0; UpdatePreview(); };
 
+            WrapSection(stack, rotateStart, S("Str_Tf_Rotate"), expanded: true);
             stack.Children.Add(Divider());
 
-            stack.Children.Add(SectionHeader(S("Str_Tf_Scale")));
+            int scaleStart = stack.Children.Count;
             _scaleSlider = new Slider { Minimum = 25, Maximum = 200, Value = 100, TickFrequency = 5, SmallChange = 1, LargeChange = 10, Margin = new Thickness(0, 2, 0, 2) };
             if (darkSlider != null) _scaleSlider.Style = darkSlider;
             _scaleSlider.ValueChanged += (_, ev) => { _scale = Math.Round(ev.NewValue) / 100.0; _scaleReadout.Text = $"{ev.NewValue:0}%"; SchedulePreview(); };
@@ -166,8 +180,9 @@ namespace KillerPDF
             _sizeReadout = new TextBlock { Foreground = R("MutedTextBrush"), FontFamily = UiKit.MonoFont, FontSize = 11, Margin = new Thickness(0, 8, 0, 0) };
             stack.Children.Add(_sizeReadout);
 
+            WrapSection(stack, scaleStart, S("Str_Tf_Scale"), expanded: false);
             stack.Children.Add(Divider());
-            stack.Children.Add(SectionHeader(S("Str_Tf_Flip")));
+            int flipStart = stack.Children.Count;
             _flipHCheck = MakeCheck(S("Str_Tf_FlipH"));
             _flipHCheck.Checked   += (_, _2) => { _flipH = true;  UpdatePreview(); };
             _flipHCheck.Unchecked += (_, _2) => { _flipH = false; UpdatePreview(); };
@@ -177,8 +192,9 @@ namespace KillerPDF
             _flipVCheck.Unchecked += (_, _2) => { _flipV = false; UpdatePreview(); };
             stack.Children.Add(_flipVCheck);
 
+            WrapSection(stack, flipStart, S("Str_Tf_Flip"), expanded: false);
             stack.Children.Add(Divider());
-            stack.Children.Add(SectionHeader(S("Str_Tf_Skew")));
+            int skewStart = stack.Children.Count;
             _deskewCheck = MakeCheck(S("Str_Tf_LevelLine"));
             _deskewCheck.Checked   += (_, _2) => { _lineCanvas.IsHitTestVisible = true; };
             _deskewCheck.Unchecked += (_, _2) => { _lineCanvas.IsHitTestVisible = false; _alignLine.Visibility = Visibility.Collapsed; _lineCoords.Text = ""; };
@@ -198,7 +214,42 @@ namespace KillerPDF
             };
             stack.Children.Add(_lineCoords);
 
-            side.Children.Add(stack);
+            WrapSection(stack, skewStart, S("Str_Tf_Skew"), expanded: false);
+            stack.Children.Add(Divider());
+            int perspectiveStart = stack.Children.Count;
+            _perspectiveCheck = MakeCheck(S("Str_Tf_CorrectPerspective"));
+            _perspectiveCheck.Checked += (_, _2) =>
+            {
+                _deskewCheck.IsChecked = false;
+                _perspectiveCanvas.Visibility = Visibility.Visible;
+                _perspectiveCanvas.IsHitTestVisible = true;
+                UpdatePerspectiveOverlay();
+            };
+            _perspectiveCheck.Unchecked += (_, _2) =>
+            {
+                _perspectiveCanvas.Visibility = Visibility.Collapsed;
+                _perspectiveCanvas.IsHitTestVisible = false;
+            };
+            stack.Children.Add(_perspectiveCheck);
+            stack.Children.Add(new TextBlock
+            {
+                Text = S("Str_Tf_PerspectiveHint"),
+                Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont, FontSize = 10,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
+            });
+            var resetPerspective = UiKit.Make(S("Str_Tf_ResetCorners"), false);
+            resetPerspective.Margin = new Thickness(0, 7, 0, 0);
+            resetPerspective.HorizontalAlignment = HorizontalAlignment.Left;
+            resetPerspective.Click += (_, _2) => ResetPerspective();
+            stack.Children.Add(resetPerspective);
+            WrapSection(stack, perspectiveStart, S("Str_Tf_Perspective"), expanded: false);
+
+            side.Children.Add(new ScrollViewer
+            {
+                Content = stack,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            });
             sidebar.Child = side;
             root.Children.Add(sidebar);
 
@@ -245,6 +296,37 @@ namespace KillerPDF
             _lineCanvas.MouseLeftButtonUp += LineCanvas_Up;
             previewGrid.Children.Add(_lineCanvas);
 
+            _perspectiveCanvas = new Canvas
+            {
+                Background = Brushes.Transparent,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false,
+                Cursor = Cursors.Cross,
+            };
+            _perspectiveOutline = new Polygon
+            {
+                Stroke = R("PrimaryBrush"), StrokeThickness = 2, StrokeDashArray = [5, 3],
+                Fill = new SolidColorBrush(Color.FromArgb(24, 30, 165, 76)), IsHitTestVisible = false,
+            };
+            _perspectiveCanvas.Children.Add(_perspectiveOutline);
+            for (int i = 0; i < 4; i++)
+            {
+                var handle = new Ellipse
+                {
+                    Width = 18, Height = 18, Fill = R("PrimaryBrush"), Stroke = Brushes.White,
+                    StrokeThickness = 2, Cursor = Cursors.SizeAll, Tag = i,
+                };
+                handle.PreviewMouseLeftButtonDown += PerspectiveHandle_Down;
+                _perspectiveHandles[i] = handle;
+                _perspectiveCanvas.Children.Add(handle);
+            }
+            _perspectiveCanvas.AddHandler(Mouse.PreviewMouseMoveEvent,
+                new MouseEventHandler(PerspectiveCanvas_Move), true);
+            _perspectiveCanvas.AddHandler(Mouse.PreviewMouseUpEvent,
+                new MouseButtonEventHandler(PerspectiveCanvas_Up), true);
+            _perspectiveCanvas.LostMouseCapture += (_, _2) => _dragPerspective = -1;
+            previewGrid.Children.Add(_perspectiveCanvas);
+
             previewWrap.Child = previewGrid;
             _previewArea = previewWrap;
             previewWrap.SizeChanged += (_, _2) => SizePreviewImage();
@@ -267,7 +349,65 @@ namespace KillerPDF
             FixedPage = _fixedPage;
             FlipH = _flipH;
             FlipV = _flipV;
+            PerspectiveCorners = PerspectiveCorners.ToArray();
             Close();
+        }
+
+        private void ResetPerspective()
+        {
+            PerspectiveCorners = [new(0, 0), new(1, 0), new(1, 1), new(0, 1)];
+            UpdatePerspectiveOverlay();
+        }
+
+        private Rect PreviewBoundsOnPerspectiveCanvas()
+        {
+            if (_preview.ActualWidth <= 0 || _preview.ActualHeight <= 0) return Rect.Empty;
+            Point origin = _preview.TranslatePoint(new Point(0, 0), _perspectiveCanvas);
+            return new Rect(origin.X, origin.Y, _preview.ActualWidth, _preview.ActualHeight);
+        }
+
+        private void UpdatePerspectiveOverlay()
+        {
+            if (_perspectiveCanvas == null || _perspectiveOutline == null) return;
+            Rect bounds = PreviewBoundsOnPerspectiveCanvas();
+            if (bounds.IsEmpty) return;
+            var points = new PointCollection();
+            for (int i = 0; i < 4; i++)
+            {
+                Point p = new(bounds.Left + PerspectiveCorners[i].X * bounds.Width,
+                              bounds.Top + PerspectiveCorners[i].Y * bounds.Height);
+                points.Add(p);
+                Canvas.SetLeft(_perspectiveHandles[i], p.X - 9);
+                Canvas.SetTop(_perspectiveHandles[i], p.Y - 9);
+            }
+            _perspectiveOutline.Points = points;
+        }
+
+        private void PerspectiveHandle_Down(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not Ellipse { Tag: int index }) return;
+            _dragPerspective = index;
+            Mouse.Capture(_perspectiveCanvas, CaptureMode.SubTree);
+            e.Handled = true;
+        }
+
+        private void PerspectiveCanvas_Move(object sender, MouseEventArgs e)
+        {
+            if (_dragPerspective < 0 || e.LeftButton != MouseButtonState.Pressed) return;
+            Rect bounds = PreviewBoundsOnPerspectiveCanvas();
+            if (bounds.IsEmpty) return;
+            Point p = e.GetPosition(_perspectiveCanvas);
+            PerspectiveCorners[_dragPerspective] = new Point(
+                Math.Max(0, Math.Min(1, (p.X - bounds.Left) / bounds.Width)),
+                Math.Max(0, Math.Min(1, (p.Y - bounds.Top) / bounds.Height)));
+            UpdatePerspectiveOverlay();
+        }
+
+        private void PerspectiveCanvas_Up(object sender, MouseButtonEventArgs e)
+        {
+            _dragPerspective = -1;
+            if (ReferenceEquals(Mouse.Captured, _perspectiveCanvas)) Mouse.Capture(null);
+            e.Handled = true;
         }
 
         // ---- Alignment-line deskew: drag a line, release, and the page rotates to make that line level. ----
@@ -366,6 +506,7 @@ namespace KillerPDF
             double clamp = Math.Min(1.0, Math.Min(areaW / dispW, areaH / dispH));   // never overflow the box
             _preview.Width = dispW * clamp;
             _preview.Height = dispH * clamp;
+            Dispatcher.BeginInvoke(new Action(UpdatePerspectiveOverlay), DispatcherPriority.Loaded);
         }
 
         private TextBlock SectionHeader(string text) => new()
@@ -373,6 +514,37 @@ namespace KillerPDF
             Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
             FontSize = 10, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 4)
         };
+
+        private void WrapSection(StackPanel host, int start, string title, bool expanded)
+        {
+            var children = host.Children.Cast<UIElement>().Skip(start).ToList();
+            while (host.Children.Count > start) host.Children.RemoveAt(start);
+            var body = new StackPanel { Visibility = expanded ? Visibility.Visible : Visibility.Collapsed };
+            foreach (var child in children) body.Children.Add(child);
+            var chevron = new TextBlock
+            {
+                Text = expanded ? "▾" : "▸", Width = 16, FontSize = 12,
+                Foreground = R("MutedTextBrush"), VerticalAlignment = VerticalAlignment.Center,
+            };
+            var label = SectionHeader(title);
+            label.Margin = new Thickness(0);
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(chevron);
+            row.Children.Add(label);
+            var header = new Border
+            {
+                Background = Brushes.Transparent, Cursor = Cursors.Hand,
+                Padding = new Thickness(0, 5, 0, 5), Child = row,
+            };
+            header.MouseLeftButtonUp += (_, _2) =>
+            {
+                bool open = body.Visibility != Visibility.Visible;
+                body.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+                chevron.Text = open ? "▾" : "▸";
+            };
+            host.Children.Add(header);
+            host.Children.Add(body);
+        }
 
         private Border Divider()
         {

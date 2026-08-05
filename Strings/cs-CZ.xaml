@@ -494,6 +494,10 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Tf_FlipV">Převrátit svisle</sys:String>
     <sys:String x:Key="Str_Tf_LevelLine">Nakreslit vodorovnou linii</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">Táhněte podél čehokoli, co má být vodorovně (hrana, řádek textu). Stránka se podle toho natočí.</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">PERSPEKTIVA</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">Opravit lichoběžníkové zkreslení</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">Přetáhněte čtyři rohy na obrys vyfotografované stránky. Použít ji narovná do obdélníku.</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">Obnovit rohy</sys:String>
     <sys:String x:Key="Str_Tf_Output">Výstup: {0} × {1} palců</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">Obnovit vše</sys:String>
     <sys:String x:Key="Str_Tf_Reset">Obnovit</sys:String>

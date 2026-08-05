@@ -53,8 +53,10 @@ namespace KillerPDF
             var (pwpt, phpt) = EffectivePageSize(page);   // CropBox-aware, so the readout matches the visible page
             var win = new TransformWindow(this, src, pwpt, phpt);
             win.ShowDialog();
-            if (win.Applied && (Math.Abs(win.Angle) > 0.01 || Math.Abs(win.Scale - 1.0) > 0.001 || win.FlipH || win.FlipV))
-                ApplyPageTransform(pageIdx, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV);
+            if (win.Applied && (Math.Abs(win.Angle) > 0.01 || Math.Abs(win.Scale - 1.0) > 0.001 ||
+                win.FlipH || win.FlipV || !PerspectiveWarp.IsIdentity(win.PerspectiveCorners)))
+                ApplyPageTransform(pageIdx, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV,
+                    win.PerspectiveCorners);
         }
 
         // The page's visible size in points: the CropBox if one is set (so a cropped page reports its real,
@@ -73,7 +75,8 @@ namespace KillerPDF
         }
 
         // Rasterizes one page with the chosen rotate + scale and swaps it in for the original (undoable).
-        private void ApplyPageTransform(int pageIdx, double angleDeg, double scale, bool fixedPage, bool flipH, bool flipV)
+        private void ApplyPageTransform(int pageIdx, double angleDeg, double scale, bool fixedPage,
+            bool flipH, bool flipV, Point[] perspectiveCorners)
         {
             if (_doc is null || _currentFile is null) return;
             if (pageIdx < 0 || pageIdx >= _doc.PageCount) return;
@@ -93,7 +96,9 @@ namespace KillerPDF
                 var src = RenderPageBitmap(pageIdx, 2200, burned);
                 if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
 
-                var composed = ComposeTransform(src, angleDeg, scale, fixedPage, flipH, flipV);
+                var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
+                    ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
+                var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
                 byte[] png = EncodePng(composed);
 
                 var oldPage = _doc.Pages[pageIdx];

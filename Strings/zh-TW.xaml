@@ -446,6 +446,10 @@ KillerPDF 將被複製到您的程式資料夾，並新增開始功能表項目�
     <sys:String x:Key="Str_Tf_FlipV">垂直翻轉</sys:String>
     <sys:String x:Key="Str_Tf_LevelLine">繪製一條水平線</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">沿著任何應該保持水平的物件拖曳（邊緣、一行文字）。頁面會旋轉以對齊。</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">透視校正</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">校正梯形失真</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">將四個角拖到拍攝頁面的輪廓上。套用後會將其校正為矩形。</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">重設角點</sys:String>
     <sys:String x:Key="Str_Tf_Output">輸出：{0} × {1} 英吋</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">全部重設</sys:String>
     <sys:String x:Key="Str_Tf_Reset">重設</sys:String>

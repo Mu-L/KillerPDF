@@ -30,6 +30,11 @@ namespace KillerPDF
 
         private void ShowAboutOverlay() => About.Show();
 
+        private void CloseAboutOverlay()
+        {
+            FadeOverlayOut(AboutOverlay);
+        }
+
         // ---- IShellServices ------------------------------------------------------------------
 
         Window IShellServices.Window => this;
@@ -174,13 +179,13 @@ namespace KillerPDF
 
         // Click the dim backdrop to dismiss; a click on the card itself is swallowed.
         private void AboutOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-            => FadeOverlayOut(AboutOverlay);
+            => CloseAboutOverlay();
 
         private void AboutOverlayCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
             => e.Handled = true;
 
         private void AboutOverlayClose_Click(object sender, RoutedEventArgs e)
-            => FadeOverlayOut(AboutOverlay);
+            => CloseAboutOverlay();
 
         private void AboutUpdateButton_Click(object sender, RoutedEventArgs e) => About.Update();
 

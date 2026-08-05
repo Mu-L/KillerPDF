@@ -9,10 +9,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 1.7.1 is a bug-fix release in progress.
 
 ### Added
+- Transform can now correct trapezoidal perspective distortion in pages photographed at an angle. Turn on perspective correction, drag four corner handles onto the photographed page outline, and Apply converts that quadrilateral into a straight rectangular page at the full transform resolution. The correction composes with rotation, deskew, scaling, and flipping in the same operation (#175, thanks 1mk3r).
 - KillerPDF now registers a `killerpdf://` link handler for the current user, laying the app-side foundation for the planned Chrome extension. A `killerpdf://open?url=...` link can hand a public HTTPS PDF to KillerPDF whether the app is closed or already running; downloads are size-limited and rejected unless their contents begin as a PDF. The registration refreshes itself when the executable moves.
 - Open and Save dialogs now return to the last folder successfully used for that kind of operation, unless the caller deliberately supplies another starting folder. The places rail also brings in the user's pinned Windows Explorer Quick Access folders alongside KillerPDF's own editable pins, while avoiding duplicate entries (#178, thanks sheafitzek).
 
 ### Fixed
+- Reopening a PDF no longer reapplies a raw zoom saved for a different window or monitor size, which could make the document appear enormous or tiny. KillerPDF keeps the saved page and view mode but fits the document to the current window, with Grid returning to a predictable three-column layout. Perspective correction's corner handles now retain their drag capture across child controls and release reliably, and applying the correction immediately redraws the edited page even when the current zoom does not change.
 - Multi-line highlights now follow the reading direction of Persian, Arabic, Hebrew, and other right-to-left text. The first selected line extends left from the starting point and the last line extends right to the ending point, while left-to-right documents keep their existing behavior. Direction is detected per line, so mixed-language pages work without a document-wide setting (#170, thanks playerbhr).
 - Installing KillerPDF for everyone now registers its PDF handler for the whole computer instead of writing it into the elevated administrator's personal registry. Every account can now find KillerPDF in Open With and Default apps, with the shared registration pointing at the Program Files copy; each user still chooses their own PDF default (#176, thanks adeit).
 - The keyboard-shortcut list now uses the available window width instead of squeezing both halves into a narrow fixed card. Longer translated descriptions have room to remain visible, wrap cleanly on smaller windows, and sit level with the shortcut text in both columns (#177, thanks Mr-Update).
@@ -24,6 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Clicking a page no longer crashes with "'∞' is not a valid value for property 'Height'" (#181, thanks lachlan-00). The page click rebuilds every annotation and form overlay, and malformed geometry could reach a WPF Width or Height property without being checked. WPF refuses NaN and infinity, so one bad form rectangle or a legacy saved signature with zero canvas dimensions took down the whole viewer during the redraw. Form rectangles and every sized annotation are now checked before they reach WPF; invalid form widgets are skipped, old signature dimensions fall back to the standard canvas size, and the render layer has a final guard for malformed persisted annotations.
 
 ### Changed
+- Transform's Rotate, Scale, Flip, Skew, and Perspective sections now collapse like the Stamp dialog, keeping the sidebar compact while still allowing every control to remain in one window. Rotate opens initially and the less frequently used sections stay folded until needed.
 - Refined six German labels and shortcut descriptions for more natural and consistent wording (#150, thanks Mr-Update).
 
 ## [1.7.0] - 2026-08-01

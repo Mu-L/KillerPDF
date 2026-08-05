@@ -36,7 +36,7 @@ param(
     [string]$CertThumbprint = "",
     [string]$CertName       = "Open Source Developer Stephen Riley",
     [switch]$SkipSign,
-    # Everything except tag push, gh release, and winget submit.
+    # Everything except tag push and GitHub release creation.
     [switch]$DryRun,
     # Skip build + sign and publish the artifacts already in the publish folder
     # (use after a completed normal run, so the signed exe is not rebuilt).
@@ -319,7 +319,8 @@ Write-Host "╚═════════════════════�
 
 # ============================================================================
 # Publish phases (ported from the KillerNotes release script): notes from the
-# CHANGELOG, git preflight, tag + push, GitHub release, winget submit.
+# CHANGELOG, git preflight, tag + push, and GitHub release. Publishing the release triggers
+# .github/workflows/winget-release.yml, the single WinGet submission path.
 # ============================================================================
 
 # ── 8. Version + publish preflight ───────────────────────────────────────────
@@ -493,18 +494,8 @@ try {
     gh release create $Tag @assets --title "KillerPDF $Tag" --notes-file $notesFile --verify-tag
     if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
 
-    # ── 12. Submit to winget-pkgs (komac) ────────────────────────────────────
-    # Non-fatal: the GitHub release is already out, so a winget hiccup must not
-    # fail the run. Requires the previous version's winget PR to be merged.
-    Write-Host "`n==> Submitting to winget-pkgs (komac)..." -ForegroundColor Cyan
-    $exeUrl = "https://github.com/SteveTheKiller/KillerPDF/releases/download/$Tag/KillerPDF.exe"
-    komac update SteveTheKiller.KillerPDF --version $Version --urls $exeUrl --submit
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warning "winget submit failed. Run it by hand once the previous version's PR is merged:"
-        Write-Warning "  komac update SteveTheKiller.KillerPDF --version $Version --urls $exeUrl --submit"
-    }
-
     Write-Host "`n==> Release $Tag published:" -ForegroundColor Green
+    Write-Host "    The WinGet Release workflow will submit this version once from GitHub Actions."
     gh release view $Tag --json url --jq '.url'
 } finally {
     Pop-Location

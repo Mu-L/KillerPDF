@@ -1175,12 +1175,17 @@ namespace KillerPDF.Controls
                         }
                         else if (restoreFitMode)
                         {
-                            // Reopened document: re-fit to the current window if it was in a fit mode,
-                            // else apply its exact saved zoom. (Grid's zoom encodes its column count.)
-                            if (_viewMode == ViewMode.Grid)       SetZoom(_zoomLevel);
+                            // Reopened document: keep its last page and view mode, but fit it to the
+                            // current window. Replaying a raw zoom saved on a different monitor or at a
+                            // different window size can make the document open enormous or microscopic.
+                            if (_viewMode == ViewMode.Grid)
+                            {
+                                _gridColumns = Math.Min(_doc?.PageCount ?? 1, 3);
+                                SetZoom(GridZoomForN(_gridColumns));
+                            }
                             else if (_fitMode == FitMode.Width)   FitToWidth();
                             else if (_fitMode == FitMode.Page)    FitToPage();
-                            else                                  SetZoom(_zoomLevel);
+                            else                                  FitToPage();
                         }
                         else
                         {
