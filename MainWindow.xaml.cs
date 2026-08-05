@@ -444,9 +444,10 @@ namespace KillerPDF
                 ApplyToolbarAppearance();
 
                 var args = Environment.GetCommandLineArgs();
-                if (args.Length > 1 && System.IO.File.Exists(args[1]))
+                if (args.Length > 1 && (System.IO.File.Exists(args[1]) ||
+                    Services.ProtocolRegistrar.TryGetTargetUrl(args[1], out _)))
                 {
-                    OpenInNewTab(args[1]);
+                    OpenFromExternal(args[1]);
                 }
                 else
                 {

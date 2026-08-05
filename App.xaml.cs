@@ -108,6 +108,11 @@ namespace KillerPDF
                 return;
             }
 
+            // Refresh the current executable path for the browser extension handoff. This stays
+            // after silent install, uninstall, and CLI dispatch so those headless paths never
+            // register a protocol under an elevated or service account.
+            Services.ProtocolRegistrar.Register();
+
             // Single instance: a second launch (e.g. double-clicking another PDF in Explorer)
             // forwards its file path to the already-running instance, which opens it as a new
             // tab, then this process exits. Without this, every launch spawned its own window.
@@ -1701,6 +1706,7 @@ namespace KillerPDF
 
             // Registry cleanup
             try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\KillerPDF"); } catch { }
+            Services.ProtocolRegistrar.Unregister();
             try { Registry.CurrentUser.DeleteSubKeyTree(
                 @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF"); } catch { }
             UnregisterFileHandler(Registry.CurrentUser);

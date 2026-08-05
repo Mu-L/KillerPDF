@@ -249,8 +249,10 @@ namespace KillerPDF.Controls
                 var line = runs.Lines[runs.Chars[i].Line];
                 int segEnd = Math.Min(end, line.End);
 
-                double left = runs.Chars[i].Left;
-                double right = runs.Chars[segEnd - 1].Right;
+                // A selected caret slice runs left-to-right for LTR and right-to-left for RTL.
+                // Use its physical extremes rather than assuming the first glyph is on the left.
+                double left = runs.Chars.Skip(i).Take(segEnd - i).Min(c => c.Left);
+                double right = runs.Chars.Skip(i).Take(segEnd - i).Max(c => c.Right);
                 double h = (line.Top - line.Bottom) * sy;
                 double pad = h * 0.12;   // a touch of breathing room; tighter than search's 0.30
 

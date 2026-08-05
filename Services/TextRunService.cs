@@ -28,6 +28,7 @@ namespace KillerPDF.Services
         public double Bottom;
         public double Left;
         public double Right;
+        public bool RightToLeft;
         public int End => Start + Count;
     }
 
@@ -44,7 +45,8 @@ namespace KillerPDF.Services
     /// Builds and caches per-page reading-order character runs for flowing text selection (#127).
     /// Word geometry comes from PdfPig's GetWords - the same source SearchService and the region
     /// text extractor use - so selection quads land exactly where search highlights do. Words are
-    /// grouped into lines by vertical overlap and ordered top-to-bottom, left-to-right.
+    /// grouped into lines by vertical overlap and ordered top-to-bottom, then in each line's
+    /// detected reading direction.
     /// Known shared limitation: like the search highlights, boxes ignore in-memory page rotation.
     /// Column note: line grouping is by vertical band, so side-by-side columns join into one line;
     /// good enough for v1, revisit with a segmenter if multi-column PDFs bite.
@@ -111,20 +113,33 @@ namespace KillerPDF.Services
                 }
             }
 
-            // Reading order: lines top-to-bottom (PDF Y grows upward, so larger Top first),
-            // words left-to-right inside each line.
+            // Reading order: lines top-to-bottom (PDF Y grows upward, so larger Top first).
+            // Each line chooses its own horizontal direction so mixed-language pages work too.
             lineWords.Sort((a, b) => b.Top.CompareTo(a.Top));
 
             int wordOrdinal = 0;
             for (int li = 0; li < lineWords.Count; li++)
             {
                 var (ws, top, bottom) = lineWords[li];
-                ws.Sort((a, b) => a.BoundingBox.Left.CompareTo(b.BoundingBox.Left));
+                bool rtl = IsRightToLeftText(ws.Select(w => w.Text));
+                ws.Sort(rtl
+                    ? (a, b) => b.BoundingBox.Right.CompareTo(a.BoundingBox.Right)
+                    : (a, b) => a.BoundingBox.Left.CompareTo(b.BoundingBox.Left));
 
-                var line = new RunLine { Start = result.Chars.Count, Top = top, Bottom = bottom };
+                var line = new RunLine
+                {
+                    Start = result.Chars.Count,
+                    Top = top,
+                    Bottom = bottom,
+                    RightToLeft = rtl,
+                };
                 foreach (var w in ws)
                 {
-                    foreach (var letter in w.Letters)
+                    var letters = w.Letters.ToList();
+                    letters.Sort(rtl
+                        ? (a, b) => b.BoundingBox.Right.CompareTo(a.BoundingBox.Right)
+                        : (a, b) => a.BoundingBox.Left.CompareTo(b.BoundingBox.Left));
+                    foreach (var letter in letters)
                     {
                         var g = letter.BoundingBox;
                         result.Chars.Add(new RunChar(letter.Value, g.Left, g.Right, wordOrdinal, li));
@@ -133,11 +148,27 @@ namespace KillerPDF.Services
                 }
                 line.Count = result.Chars.Count - line.Start;
                 if (line.Count == 0) continue;
-                line.Left = result.Chars[line.Start].Left;
-                line.Right = result.Chars[line.End - 1].Right;
+                line.Left = result.Chars.Skip(line.Start).Take(line.Count).Min(c => c.Left);
+                line.Right = result.Chars.Skip(line.Start).Take(line.Count).Max(c => c.Right);
                 result.Lines.Add(line);
             }
             return result;
+        }
+
+        internal static bool IsRightToLeftText(IEnumerable<string> values)
+        {
+            int rtl = 0, ltr = 0;
+            foreach (string value in values)
+            {
+                foreach (char c in value)
+                {
+                    if ((c >= '\u0590' && c <= '\u08FF') ||
+                        (c >= '\uFB1D' && c <= '\uFDFF') ||
+                        (c >= '\uFE70' && c <= '\uFEFF')) rtl++;
+                    else if (char.IsLetter(c)) ltr++;
+                }
+            }
+            return rtl > ltr;
         }
 
         /// <summary>True when the point sits ON text: inside a line's vertical band and within its
@@ -174,6 +205,19 @@ namespace KillerPDF.Services
             if (y > first.Top && target == first && x < first.Left) return 0;
             if (y < last.Bottom && target == last && x > last.Right) return runs.Chars.Count;
             if (target is null) return 0;
+
+            if (target.RightToLeft)
+            {
+                if (x >= target.Right) return target.Start;
+                if (x <= target.Left) return target.End;
+                for (int i = target.Start; i < target.End; i++)
+                {
+                    var c = runs.Chars[i];
+                    double mid = (c.Left + c.Right) / 2;
+                    if (x > mid) return i;
+                }
+                return target.End;
+            }
 
             if (x <= target.Left) return target.Start;
             if (x >= target.Right) return target.End;
