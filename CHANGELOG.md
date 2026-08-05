@@ -4,6 +4,10 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-08-04
+
+1.7.1 is a bug-fix release in progress.
+
 ## [1.7.0] - 2026-08-01
 
 1.7.0 is the split-pane release - two documents side by side in one window - plus the family file dialogs replacing every stock Windows one, a themed system menu, night mode that spares pictures, and two deep text fixes: non-Latin scripts now save correctly, and annotations land where you put them on rotated pages.
@@ -430,4 +434,3 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Added
 - Post-publish MSBuild target that automatically bundles a GPL3-compliant source zip alongside the published EXE.
 - CHANGELOG.md.
-

@@ -11,17 +11,17 @@
 <meta name="description" content="About KillerPDF and its maker, Steve the Killer - a field tech who got tired of Adobe.">
 <link rel="icon" type="image/x-icon" href="kp-icon.ico">
 <script defer src="https://koya.thekiller.net/script.js" data-website-id="4036b11d-f6c0-4254-b448-933d3e38b0cb"></script>
-<link rel="stylesheet" href="kp.css?v=13">
+<link rel="stylesheet" href="kp.css?v=15">
 <style>
 .page-hero { text-align: center; padding: 44px 16px 8px; }
 .page-hero .wm-logo { height: clamp(46px, 8vw, 76px); width: auto; margin: 0 auto 8px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.55)); }
 .page-hero p { color: var(--muted); font-size: 15px; margin-top: 4px; }
 .content-inner { max-width: 880px; margin: 0 auto; padding: 0 28px 56px; }
 .sb-tabs .on { border-bottom: 0; }
-.outline { padding: 8px 0; overflow-y: auto; flex: 1; }
+.outline { padding: 8px 0; overflow-y: auto; flex: 1; min-height: 0; }
 .outline a { display: block; padding: 8px 16px 8px 18px; font-size: 13px; color: var(--text2); border-left: 2px solid transparent; }
 .outline a:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 8%, transparent); filter: none; }
-.outline a.on { color: var(--accent); border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--sidebar)); }
+.outline a.on { color: var(--accent-text); border-left-color: var(--accent); background: var(--accent); }
 @media (max-width: 900px) { .outline { display:flex; flex-direction:row; flex-wrap:wrap; padding:8px; gap:4px; } .outline a { border-left:0; border-radius:5px; padding:6px 10px; } .outline a.on { border-left:0; } }
 /* Also try (cross-promo): chrome follows the page theme, wordmark swaps light/dark */
 .also-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; margin-top: 4px; }
@@ -183,6 +183,8 @@ html[data-theme="light"] .also-wm.light { display: block; }
 <a href="#contact" data-i18n="pa_28">Contact &amp; links</a>
 <a href="#also" data-i18n="pa_29">Also try...</a>
 </nav>
+<div class="sb-fade sb-fade-top" aria-hidden="true"></div>
+<div class="sb-fade sb-fade-bottom" aria-hidden="true"></div>
 </aside>
 </div>
 <footer class="statusbar">
@@ -200,6 +202,23 @@ html[data-theme="light"] .also-wm.light { display: block; }
   function onScroll(){ var y=(sc?sc.scrollTop:window.scrollY)+100, cur=secs[0]; secs.forEach(function(s){ if(s&&s.offsetTop<=y) cur=s; });
     links.forEach(function(a){ a.classList.toggle('on', cur && a.getAttribute('href')==='#'+cur.id); }); }
   (sc||window).addEventListener('scroll',onScroll,{passive:true}); onScroll();
+})();
+</script>
+<script>
+(function(){
+  var outline=document.querySelector('.outline');
+  var fadeTop=document.querySelector('.sb-fade-top');
+  var fadeBottom=document.querySelector('.sb-fade-bottom');
+  if(!outline) return;
+  function updateFade(){
+    var scrolledDown=outline.scrollTop>2;
+    var more=outline.scrollHeight-outline.clientHeight-outline.scrollTop>2;
+    if(fadeTop) fadeTop.classList.toggle('on', scrolledDown);
+    if(fadeBottom) fadeBottom.classList.toggle('on', more);
+  }
+  outline.addEventListener('scroll',updateFade,{passive:true});
+  window.addEventListener('resize',updateFade);
+  updateFade();
 })();
 </script>
 </body>
