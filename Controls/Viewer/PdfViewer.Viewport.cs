@@ -1491,8 +1491,18 @@ namespace KillerPDF.Controls
             string? tag = item.Tag?.ToString();
             if (tag is null) return;
 
-            if (tag == "fitwidth") { FitToWidth(); return; }
-            if (tag == "fitpage")  { FitToPage();  return; }
+            if (tag == "fitwidth")
+            {
+                App.SetSetting("DefaultFitMode", FitMode.Width.ToString());
+                FitToWidth();
+                return;
+            }
+            if (tag == "fitpage")
+            {
+                App.SetSetting("DefaultFitMode", FitMode.Page.ToString());
+                FitToPage();
+                return;
+            }
 
             if (double.TryParse(tag, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out double z))

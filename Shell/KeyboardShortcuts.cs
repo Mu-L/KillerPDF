@@ -367,11 +367,13 @@ namespace KillerPDF
             }
             else if (e.Key == Key.D2 && Keyboard.Modifiers == ModifierKeys.Control && _doc is not null)
             {
+                App.SetSetting("DefaultFitMode", FitMode.Width.ToString());
                 FitToWidth();        // (Acrobat Ctrl+2)
                 e.Handled = true;
             }
             else if (e.Key == Key.D3 && Keyboard.Modifiers == ModifierKeys.Control && _doc is not null)
             {
+                App.SetSetting("DefaultFitMode", FitMode.Page.ToString());
                 FitToPage();
                 e.Handled = true;
             }

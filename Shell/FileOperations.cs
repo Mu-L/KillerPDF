@@ -80,20 +80,13 @@ namespace KillerPDF
             }
             catch (Exception ex) when (PdfImport.IsOwnerPasswordException(ex))
             {
-                // PDF has owner/permissions restrictions but no open password -
-                // open read-only so the user can still view and print it.
-                try
-                {
-                    if (_doc is not null) { _doc.Close(); _doc = null; }
-                    _doc = PdfReader.Open(srcPath, PdfDocumentOpenMode.ReadOnly);
-                    _currentFile = srcPath;
-                    FinishOpenFile(path, srcPath);
-                    SetStatus(string.Format(Loc("Str_OpenedReadOnly"), System.IO.Path.GetFileName(path), _doc.PageCount));
-                }
-                catch (Exception ex2)
-                {
-                    KillerDialog.Show(this, string.Format(Loc("Str_Dlg_FailedOpen"), ex2.Message), Loc("Str_Dlg_AppTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                // An empty user password can open the file while its owner password still forbids
+                // modification. Retrying through PdfSharp's ReadOnly parser is not safe for malformed
+                // linearized files such as the Fritzbox manual: it reaches a broken hint table and throws
+                // an array-index error. PDFium already has a tolerant, lossless rewrite path that removes
+                // the restriction and repairs those tables, so use it just as we do for other encrypted PDFs.
+                _asyncOpenPending = true;
+                StripEncryptionAndOpen(srcPath, path, busyMessage: "Opening protected PDF...");
             }
             catch (Exception ex) when (PdfImport.IsPasswordException(ex))
             {
@@ -191,19 +184,27 @@ namespace KillerPDF
             _gridScrollToPage = -1;
             MarkDirty(false);
             _openedFromProtected = false;   // #149: set true by the two protected-open paths after this returns
-            // Restore this file's last fit/zoom/view/page if we've seen it before; otherwise open at the
-            // per-view-mode default. Set the fields first, then let BootstrapDocumentView apply them.
+            // Restore this file's last view/page if we've seen it before. A user-selected Fit Width or
+            // Fit Page preference is global and wins over an older per-document fit choice, so small-screen
+            // users do not have to pick Fit Width again for every new manual they open.
+            FitMode? preferredFit = Enum.TryParse<FitMode>(App.GetSetting("DefaultFitMode"), out var savedFit)
+                && savedFit != FitMode.None ? savedFit : null;
             if (TryGetDocState(displayPath, out var sfit, out var szoom, out var sview, out var spage))
             {
                 _viewMode  = sview;
-                _fitMode   = sfit;
+                _fitMode   = preferredFit ?? sfit;
                 _zoomLevel = szoom;
                 int pg = Math.Max(0, Math.Min(spage, _doc!.PageCount - 1));
                 BootstrapDocumentView(pg, autoFit: false, restoreFitMode: true);
             }
             else
             {
-                BootstrapDocumentView(0, autoFit: true);
+                if (preferredFit.HasValue)
+                {
+                    _fitMode = preferredFit.Value;
+                    BootstrapDocumentView(0, autoFit: false, restoreFitMode: true);
+                }
+                else BootstrapDocumentView(0, autoFit: true);
             }
             SetStatus(string.Format(Loc("Str_Opened"), System.IO.Path.GetFileName(displayPath), _doc!.PageCount));
             SyncSidebarToDocState(hasDoc: true, startup: false);   // a document is up: open the rail, show page controls
