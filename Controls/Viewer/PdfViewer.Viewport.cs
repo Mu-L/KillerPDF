@@ -1340,6 +1340,20 @@ namespace KillerPDF.Controls
             _rerenderTimer.Start();
         }
 
+        // #189: the re-sharpen budget is measured in DEVICE pixels, so moving the window to a
+        // monitor at a different scale factor changes how many pixels the page needs without
+        // changing its size in DIPs. In a fit mode the monitor move also changes the window's DIP
+        // size, so the resize path re-fits and re-renders; at a manual zoom (FitMode.None) nothing
+        // else fires, and the page would sit upscaled from the old monitor's render. Queue the same
+        // debounced pass the zoom and resize settles use.
+        // This mattered less while hiW carried a 2x supersample, which happened to cover a
+        // 100% -> 200% jump; at a device-native budget there is no such headroom.
+        protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+        {
+            base.OnDpiChanged(oldDpi, newDpi);
+            if (_doc is not null) StartRerenderTimer();
+        }
+
         private void ResetZoom() => SetTrueZoom(1.0);
 
         // On-screen pixel gap between grid tiles, so adjacent pages don't visually merge - the
