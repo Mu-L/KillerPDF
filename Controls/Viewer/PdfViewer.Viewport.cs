@@ -601,7 +601,11 @@ namespace KillerPDF.Controls
             int baseW = Math.Max(800, Math.Min(2048, (int)(targetW * 2)));
             var dpiInfo = VisualTreeHelper.GetDpi(this);
             double dpiScale = Math.Max(dpiInfo.DpiScaleX, dpiInfo.DpiScaleY);
-            int hiW = (int)Math.Min(4096, targetW * 2 * dpiScale * Math.Max(1.0, _zoomLevel));
+            // #189: targetW * zoom * dpiScale already IS the page's on-screen size in device pixels,
+            // so the extra * 2 here was a 2x linear supersample on top of an already-correct budget -
+            // 4x the pixels and 4x the bytes for detail the display cannot resolve. Render at the
+            // size we actually draw at.
+            int hiW = (int)Math.Min(4096, targetW * dpiScale * Math.Max(1.0, _zoomLevel));
 
             // Visible slot range. Slot space is zoom-independent (the LayoutTransform supplies the
             // zoom), so divide the scroll offsets back down - same mapping ScrollChanged uses.
@@ -621,8 +625,12 @@ namespace KillerPDF.Controls
                 if (visible[^1] < _continuousTops.Count - 1) visible.Add(visible[^1] + 1);
             }
 
-            // Below ~1.25x the base budget the re-raster isn't visibly sharper; restore-only pass.
-            bool wantHi = hiW >= (int)(baseW * 1.25);
+            // hiW is now a true device-pixel width, so the trigger is simply "has the base render
+            // run out of pixels for the size we are drawing it at". The old 1.25x margin was
+            // calibrated against a hiW that was inflated 2x; without moving it the pass would stop
+            // firing where it is still needed and pages would be upscaled from the base render.
+            // 1.05 is hysteresis only, so a page sitting on the boundary doesn't re-raster on a nudge.
+            bool wantHi = hiW >= (int)(baseW * 1.05);
 
             _continuousSharpenCts?.Cancel();
             _continuousSharpenCts = new System.Threading.CancellationTokenSource();
