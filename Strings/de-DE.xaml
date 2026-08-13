@@ -177,6 +177,13 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Theme_Blood">Blut</sys:String>
     <sys:String x:Key="Str_Theme_Greed">Gier</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">Zyanotisch</sys:String>
+    <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>
+    <sys:String x:Key="Str_Theme_Ectoplasm">Ectoplasm</sys:String>
+    <sys:String x:Key="Str_Theme_Decay">Decay</sys:String>
+    <sys:String x:Key="Str_Theme_Mourning">Mourning</sys:String>
+    <sys:String x:Key="Str_Theme_Sepulchre">Sepulchre</sys:String>
+    <sys:String x:Key="Str_Theme_Delirium">Delirium</sys:String>
+    <sys:String x:Key="Str_Theme_Malaise">Malaise</sys:String>
 
     <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Zoom_FitWidth">An Seitenbreite anpassen</sys:String>

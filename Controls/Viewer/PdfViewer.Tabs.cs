@@ -197,20 +197,8 @@ namespace KillerPDF.Controls
             // the other pane also holds the file. FocusPane captures the outgoing pane BEFORE the
             // swap, so the pane being LEFT still counts as focused here - the rule this yields is
             // "the most recently used pane wins". A pane holding the only copy always writes.
-            if (Owner == null || ReferenceEquals(Owner.ActiveViewer, this) || !OtherPaneHasCopyOf(s.OriginalFile))
+            if (Host == null || Host.IsViewerFocused(this) || !Host.OtherViewerHasFile(this, s.OriginalFile))
                 SaveDocState(s.OriginalFile, s.Fit, s.ZoomLevel, s.View, s.PageIndex);
-        }
-
-        /// <summary>True when the other pane has a session holding the same file (loaded or
-        /// deferred). Compares OriginalFile, not CurrentFile, for the same reason
-        /// OtherPaneHasDirtyCopyOf does: crop and rotate swap the working file to a temp path.
-        /// Read-only - it must NOT capture the other pane (this runs inside a capture).</summary>
-        private bool OtherPaneHasCopyOf(string? originalFile)
-        {
-            if (string.IsNullOrEmpty(originalFile) || Owner == null) return false;
-            var other = ReferenceEquals(Owner.Viewer, this) ? Owner.ViewerB : Owner.Viewer;
-            return other.SessionsRef.Any(x => (x.Doc != null || x.DeferredPath != null)
-                && string.Equals(x.OriginalFile, originalFile, StringComparison.OrdinalIgnoreCase));
         }
 
         // ── Per-document view state (persisted across restarts, keyed by file path) ──────────────────
@@ -396,7 +384,7 @@ namespace KillerPDF.Controls
             // the shared fields still describe the other pane makes this session an alias of that
             // pane's live document - the same trap ApplyActiveSessionIfAny guards against. An
             // unfocused pane's first session stays genuinely blank instead.
-            if (Owner == null || ReferenceEquals(Owner.ActiveViewer, this)) CaptureSessionState(s);
+            if (Host == null || Host.IsViewerFocused(this)) CaptureSessionState(s);
         }
 
         // Commit / cancel any in-progress interaction so it doesn't bleed onto another document.
@@ -448,7 +436,7 @@ namespace KillerPDF.Controls
             _activeTextBox = null;
             RemoveTextEditHandles();
             _thumbCts?.Cancel();
-            PageList.ItemsSource = null;
+            Host?.ClearSidebarPages(this);
             PageImage.Source = null;
             _annotationCanvas.Children.Clear();
             FileNameLabel.Text = "";
@@ -460,13 +448,19 @@ namespace KillerPDF.Controls
             HideTextSettings();
             HideSignaturePopup();
             SetTool(EditTool.Select);
-            if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = false;
-            _pageJumpBox.IsEnabled = false;
+            if (Host != null)
+            {
+                Host.CloseFileEnabled = false;
+                Host.PageJumpEnabled = false;
+            }
             _continuousRenderCts?.Cancel();
             _continuousPanel.Children.Clear();
             _continuousTops.Clear();
-            _pageJumpBox.Text = "";
-            _pageTotalLabel.Text = "/ –";
+            if (Host != null)
+            {
+                Host.PageJumpText = "";
+                Host.PageTotalText = "/ -";
+            }
             OutlineTree.Items.Clear();
             SidebarOutlinesTab.IsEnabled = false;
             if (_sidebarShowingOutlines) SwitchSidebarToPagesTab();
@@ -509,7 +503,7 @@ namespace KillerPDF.Controls
             return target;
         }
 
-        // Roll back a failed / cancelled load started by BeginTabLoad.
+        // Roll back a failed / canceled load started by BeginTabLoad.
         private void AbortTabLoad(DocumentSession target, DocumentSession? prev, bool createdNew)
         {
             if (createdNew) _sessions.Remove(target);
@@ -558,7 +552,7 @@ namespace KillerPDF.Controls
                 // A background open (encryption strip / repair) finalizes this tab itself, so the
                 // not-yet-loaded _doc isn't a failure - leave the tab in place.
                 if (_asyncOpenPending) return;
-                // Open failed, was cancelled, or a password prompt was dismissed.
+                // Open failed, was canceled, or a password prompt was dismissed.
                 AbortTabLoad(target, prev, createdNew);
                 return;
             }
@@ -600,7 +594,7 @@ namespace KillerPDF.Controls
             // while its canvas gets repainted with whatever the actually-focused pane rendered next.
             // FocusPane no-ops when this pane already owns focus. (#161 - "clicking a tab on one
             // pane is making it show up in the other one again", 2026-08-01.)
-            Owner?.FocusPane(this);
+            Host?.FocusViewer(this);
             CommitActiveTextBox();
             CancelTransientForSwitch();
             if (_active != null) CaptureSessionState(_active);
@@ -663,7 +657,7 @@ namespace KillerPDF.Controls
         }
 
         // Close a tab. Prompts to save if that tab has unsaved changes, then switches to a
-        // neighbouring tab (or the empty state when the last tab closes).
+        // neighboring tab (or the empty state when the last tab closes).
         // Closes every open document tab except `keep` (each may prompt to save if dirty, like a manual close).
         private void CloseOtherTabs(DocumentSession keep)
         {
@@ -680,7 +674,7 @@ namespace KillerPDF.Controls
             // touching them below, in case this pane is not (yet) ActiveViewer - e.g. the tab
             // context menu's Close Tab / Close Other Tabs, invoked directly on this pane's own
             // instance. No-ops when already focused.
-            Owner?.FocusPane(this);
+            Host?.FocusViewer(this);
 
             // Make the target the live working set so its dirty flag / document are current.
             if (s != _active)
@@ -700,7 +694,7 @@ namespace KillerPDF.Controls
 
             if (_isDirty)
             {
-                var res = KillerDialog.Show(W,   // W, not `this`: the owner parameter is Window?, and this is a UserControl
+                var res = KillerDialog.Show(Host!.Window,
                     Loc("Str_Dlg_UnsavedClose"),
                     "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
@@ -748,7 +742,7 @@ namespace KillerPDF.Controls
 
             if (docTabs.Any(t => t.IsDirty))
             {
-                var res = KillerDialog.Show(W, Loc("Str_Dlg_UnsavedCloseAll"),   // W, not `this`
+                var res = KillerDialog.Show(Host!.Window, Loc("Str_Dlg_UnsavedCloseAll"),
                     "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
             }
@@ -768,7 +762,7 @@ namespace KillerPDF.Controls
         }
 
         // OpenFromExternal / RestoreAndActivate moved BACK to Shell/ExternalOpen.cs on MainWindow.
-        // They are window chrome, not pane behaviour: RestoreAndActivate drives WindowState,
+        // They are window chrome, not pane behavior: RestoreAndActivate drives WindowState,
         // Activate() and Topmost, none of which exist on a UserControl, and App calls both on the
         // window. Only the OpenInNewTab call inside them belongs to a pane, and that now routes
         // through ActiveViewer like every other window -> viewer call.

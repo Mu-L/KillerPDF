@@ -148,22 +148,28 @@ namespace KillerPDF.Controls
             // Everything below is window chrome that describes the FOCUSED pane - the one sidebar
             // list, the one jump box, the one status line. An unfocused pane scrolling must not
             // overwrite them with its own page number.
-            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
-            if (PageList.SelectedIndex == nearest) return;
-            _pageJumpBox.Text = (nearest + 1).ToString();
+            if (Host != null && !Host.IsViewerFocused(this)) return;
+            if (_currentPage == nearest)
+            {
+                Host?.ViewerPageChanged(this, nearest);
+                if (Host != null) Host.PageJumpText = (nearest + 1).ToString();
+                Host?.EnsureSidebarPageVisible(this, nearest);
+                return;
+            }
+            if (Host != null) Host.PageJumpText = (nearest + 1).ToString();
             // Reentrancy FLAG, not a detach/attach pair. The PageList's real subscription is the
             // WINDOW's XAML-bound stub, so `-=` of this pane's own delegate removed NOTHING and
             // the `+=` stacked this pane's handler onto the shared list as an EXTRA direct
             // subscription - one more per scroll-sync, forever (found via zoomtrace, 2026-08-01,
             // alongside the identical ZoomBox pattern).
             _syncingPageList = true;
-            try { PageList.SelectedIndex = nearest; }
+            try { _currentPage = nearest; }
             finally { _syncingPageList = false; }
             // Keep the selected thumbnail in view. ScrollIntoView lives in
             // PageList_SelectionChanged, which is detached above - so the scroll-driven path moved
             // the highlight but never scrolled the sidebar, and the selection walked off the end
             // of the visible list as the document scrolled.
-            PageList.ScrollIntoView(PageList.SelectedItem);
+            Host?.EnsureSidebarPageVisible(this, _currentPage);
             // This is the one write that detaches the handler (to avoid re-entering the render path
             // from a scroll sync), so it is also the one that would slip past the mirror in
             // PageList_SelectionChanged. Set it by hand.
@@ -185,7 +191,7 @@ namespace KillerPDF.Controls
             {
                 // #128: Continuous never click-selects (current page is viewport-driven); the menu
                 // below is populated for the clicked page directly. Grid keeps the click highlight.
-                if (_viewMode == ViewMode.Grid) PageList.SelectedIndex = page;
+                if (_viewMode == ViewMode.Grid) _currentPage = page;
                 if (_annotationCanvas.ContextMenu is ContextMenu cm)
                 {
                     // Selection chrome draws on _activeCanvas, so point it at this tile before populating.
@@ -471,7 +477,7 @@ namespace KillerPDF.Controls
                         });
                     }
                 }
-                catch { /* render cancelled or doc closed */ }
+                catch { /* render canceled or doc closed */ }
                 finally { docReader?.Dispose(); pig?.Dispose(); }
             }, cts.Token);
         }
@@ -684,7 +690,7 @@ namespace KillerPDF.Controls
                         });
                     }
                 }
-                catch { /* cancelled or doc closed */ }
+                catch { /* canceled or doc closed */ }
                 finally { docReader?.Dispose(); pig?.Dispose(); }
             }, cts.Token);
         }
@@ -809,9 +815,9 @@ namespace KillerPDF.Controls
                 // inside RenderAdditionalPages doesn't wipe the overlays we just added.
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
                 {
-                    // Only Grid/Two-Page lay out neighbour tiles. In Single mode RenderAdditionalPages would
+                    // Only Grid/Two-Page lay out neighbor tiles. In Single mode RenderAdditionalPages would
                     // snap the panel width to pageW + 12 (the inter-tile gap), nudging the lone page ~6px left
-                    // of centre - the shift seen a beat after a zoom-in, when the re-sharpen timer re-renders.
+                    // of center - the shift seen a beat after a zoom-in, when the re-sharpen timer re-renders.
                     // Match RefreshPageView's single-mode handling instead: no extra tiles, auto panel width.
                     if (_viewMode == ViewMode.Grid || _viewMode == ViewMode.TwoPage)
                         RenderAdditionalPages(pageIndex);
@@ -1031,7 +1037,7 @@ namespace KillerPDF.Controls
                                 });
                             }
                             // Dispatcher.Invoke throws when the dispatcher is shutting down (app closing) or
-                            // the render was cancelled; stop rendering cleanly instead of crashing.
+                            // the render was canceled; stop rendering cleanly instead of crashing.
                             catch (System.Threading.Tasks.TaskCanceledException) { break; }
                             catch (OperationCanceledException) { break; }
                         }
@@ -1138,9 +1144,12 @@ namespace KillerPDF.Controls
             LoadOutlines();
             DropZone.Visibility = Visibility.Collapsed;
             PagePreviewPanel.Visibility = Visibility.Visible;
-            if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = true;
-            _pageJumpBox.IsEnabled = true;
-            _pageTotalLabel.Text = $"/ {_doc!.PageCount}";
+            if (Host != null)
+            {
+                Host.CloseFileEnabled = true;
+                Host.PageJumpEnabled = true;
+                Host.PageTotalText = $"/ {_doc!.PageCount}";
+            }
             if (_doc!.PageCount > 0)
             {
                 int page = Math.Max(0, Math.Min(initialPage, _doc.PageCount - 1));
@@ -1151,7 +1160,7 @@ namespace KillerPDF.Controls
                 bool isContinuous = _viewMode == ViewMode.Continuous;
                 _pageContentPanel.Visibility = isContinuous ? Visibility.Collapsed : Visibility.Visible;
                 _continuousPanel.Visibility  = isContinuous ? Visibility.Visible   : Visibility.Collapsed;
-                PageList.SelectedIndex = page;
+                _currentPage = page;
                 // Continuous's SelectionChanged returns early (no RenderPage call), so build its panel here.
                 if (isContinuous)
                     Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
@@ -1270,9 +1279,9 @@ namespace KillerPDF.Controls
             // unfocused pane's re-fit (settle timer -> ReapplyGridOrFit under WithOwnSession) read
             // the OTHER pane's page number here. That index is usually absent from this pane's
             // _renderDims, GetPageDipSize then returns a degenerate size, and the fit slams the
-            // zoom to the clamp - "pane A zooms in like crazy when a file opens in pane B"
-            // (Steve, 2026-08-01, repeatedly). For the focused pane the two values are identical
-            // by the stage-3a sync, so this changes nothing single-pane.
+            // zoom to the clamp - which is what made pane A zoom in wildly whenever a file was
+            // opened in pane B (2026-08-01, repeatedly). For the focused pane the two values are
+            // identical by the stage-3a sync, so this changes nothing single-pane.
             int applyIdx = State.CurrentPage;
             if (applyIdx >= 0)
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
@@ -1309,12 +1318,12 @@ namespace KillerPDF.Controls
                     // A tick orphaned by a focus switch must not run: _doc, _renderDims and
                     // PageList are shared fields describing the FOCUSED pane, so an unfocused
                     // pane's re-sharpen rendered the OTHER pane's document into its own tiles at
-                    // the other document's dimensions - which is what "opening a file in pane B
-                    // zooms pane A in like crazy" was (Steve, 2026-08-01). The re-sharpen is a
+                    // the other document's dimensions - which is what made opening a file in
+                    // pane B zoom pane A in wildly (2026-08-01). The re-sharpen is a
                     // crispness optimization for the pane being zoomed; a pane that lost focus
                     // mid-debounce keeps its current render, same as the SizeChanged guard above
                     // ("an unfocused pane simply sits the fit out").
-                    if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
+                    if (Host != null && !Host.IsViewerFocused(this)) return;
                     if (_doc is null) return;
                     if (_viewMode == ViewMode.Continuous)
                     {
@@ -1407,8 +1416,8 @@ namespace KillerPDF.Controls
             _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, level));
             ApplyZoom();
             SyncZoomBox();
-            if (_doc != null && PageList.SelectedIndex >= 0)
-                SetStatus(string.Format(Loc("Str_PageOf"), PageList.SelectedIndex + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
+            if (_doc != null && _currentPage >= 0)
+                SetStatus(string.Format(Loc("Str_PageOf"), _currentPage + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
         }
 
         /// <summary>
@@ -1437,7 +1446,6 @@ namespace KillerPDF.Controls
 
         internal void SyncZoomBox()
         {
-            if (_zoomBox is null) return;
             _syncingZoomBox = true;
             try
             {
@@ -1446,30 +1454,8 @@ namespace KillerPDF.Controls
                 string? fitTag = _fitMode == FitMode.Width ? "fitwidth"
                                : _fitMode == FitMode.Page  ? "fitpage"
                                : null;
-                if (fitTag != null)
-                {
-                    foreach (ComboBoxItem item in _zoomBox.Items)
-                    {
-                        if (item.Tag?.ToString() == fitTag)
-                        {
-                            _zoomBox.SelectedItem = item;
-                            return;
-                        }
-                    }
-                }
-
                 string target = $"{DisplayZoomPct():F0}%";
-                foreach (ComboBoxItem item in _zoomBox.Items)
-                {
-                    if (item.Content?.ToString() == target)
-                    {
-                        _zoomBox.SelectedItem = item;
-                        return;
-                    }
-                }
-                // No preset match - clear dropdown selection and show free-form percentage
-                _zoomBox.SelectedItem = null;
-                _zoomBox.Text = target;
+                Host?.SyncZoomDisplay(fitTag, target);
             }
             finally { _syncingZoomBox = false; }
         }
@@ -1479,17 +1465,15 @@ namespace KillerPDF.Controls
             if (_syncingZoomBox) return;   // programmatic sync, not a user pick
             // Belt and braces beside the routing fix in MainWindowViewerBridge: this pane's zoom
             // box actions only ever apply to the focused pane.
-            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
-            if (_zoomBox?.SelectedItem is not ComboBoxItem item) return;
+            if (Host != null && !Host.IsViewerFocused(this)) return;
+            string? tag = Host?.SelectedZoomTag;
+            if (tag is null) return;
             // Editable combos highlight the shown value after a pick (looks like selected text);
             // collapse that selection to just the caret once the value settles.
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, (Action)(() =>
             {
-                if (_zoomBox.Template?.FindName("PART_EditableTextBox", _zoomBox) is TextBox etb)
-                    etb.Select(etb.Text.Length, 0);
+                Host?.CollapseZoomTextSelection();
             }));
-            string? tag = item.Tag?.ToString();
-            if (tag is null) return;
 
             if (tag == "fitwidth")
             {
@@ -1512,8 +1496,8 @@ namespace KillerPDF.Controls
                 double zf = DisplayZoomFactor(); if (zf <= 0) zf = 1.0;
                 _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, z / zf));
                 ApplyZoom();
-                if (PageList.SelectedIndex >= 0 && _doc != null)
-                    SetStatus(string.Format(Loc("Str_PageOf"), PageList.SelectedIndex + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
+                if (_currentPage >= 0 && _doc != null)
+                    SetStatus(string.Format(Loc("Str_PageOf"), _currentPage + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
             }
         }
 
@@ -1631,18 +1615,18 @@ namespace KillerPDF.Controls
         internal bool NavigatePageStep(int direction)
         {
             if (_doc is null) return false;
-            int cur = PageList.SelectedIndex;
+            int cur = _currentPage;
             if (_viewMode == ViewMode.TwoPage)
             {
                 int baseIdx = Math.Max(0, cur - cur % 2);   // left page of the current spread
                 int target = baseIdx + direction * 2;
                 if (target < 0 || target >= _doc.PageCount) return false;
-                PageList.SelectedIndex = target;
+                _currentPage = target;
                 return true;
             }
             int t = cur + direction;
             if (t < 0 || t >= _doc.PageCount) return false;
-            PageList.SelectedIndex = t;
+            _currentPage = t;
             return true;
         }
 
@@ -1657,7 +1641,7 @@ namespace KillerPDF.Controls
         // fit out; it re-fits from ReapplyGridOrFit when the drag or the split settles.
         internal void PagePreviewPanel_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this))
+            if (Host != null && !Host.IsViewerFocused(this))
             {
                 // Unfocused pane: it still has to re-fit, or it keeps the zoom from its old width
                 // and the page ends up cut off - which is what opening a file in the other pane
@@ -1711,7 +1695,7 @@ namespace KillerPDF.Controls
                 _resizeRefitTimer.Tick += (_, _) =>
                 {
                     _resizeRefitTimer!.Stop();
-                    if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) ReapplyGridOrFit();
+                    if (Host != null && !Host.IsViewerFocused(this)) ReapplyGridOrFit();
                     else WithOwnSession(OnResizeSettled);
                 };
             }
@@ -1832,7 +1816,7 @@ namespace KillerPDF.Controls
             }
 
             if (_doc is null) return;
-            int idx = PageList.SelectedIndex;
+            int idx = _currentPage;
             if (mode == ViewMode.Continuous)
             {
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,

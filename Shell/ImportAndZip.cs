@@ -148,7 +148,7 @@ namespace KillerPDF
             }
             else
             {
-                CleanupDirs(tempDirs);     // cancelled
+                CleanupDirs(tempDirs);     // canceled
             }
         }
 
@@ -308,7 +308,7 @@ namespace KillerPDF
                 if (ask != MessageBoxResult.OK) return;
                 SaveInPlace();
                 if (_isDirty || string.IsNullOrEmpty(_originalFile) || !File.Exists(_originalFile))
-                    return;   // save was cancelled or failed
+                    return;   // save was canceled or failed
             }
 
             string sourcePdf = _originalFile!;

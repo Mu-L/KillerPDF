@@ -613,13 +613,13 @@ namespace KillerPDF.Controls
         private void CancelActiveTextEdit()
         {
             RemoveTextEditHandles();
-            RemoveReeditCoverOutline();   // edit cancelled; drop the cover hint (repaint follows)
+            RemoveReeditCoverOutline();   // edit canceled; drop the cover hint (repaint follows)
             if (_activeTextBox is not null)
             {
                 RemoveFromParent(_activeTextBox);
                 _activeTextBox = null;
             }
-            // Cancelling an existing-text edit drops the cover too (it was placed un-undone).
+            // Canceling an existing-text edit drops the cover too (it was placed un-undone).
             if (_pendingCover is not null) DiscardPendingCover();
             if (_reeditOriginal is not null)
             {
@@ -664,7 +664,7 @@ namespace KillerPDF.Controls
             _reeditOriginal = null;   // committing replaces any annotation being re-edited
 
             string content = tb.Text.Trim();
-            int pageIdx = tb.Tag is int idx ? idx : PageList.SelectedIndex;
+            int pageIdx = tb.Tag is int idx ? idx : _currentPage;
             double x = Canvas.GetLeft(tb);
             double y = Canvas.GetTop(tb);
 
@@ -748,15 +748,13 @@ namespace KillerPDF.Controls
                 string family = Services.FontCoverage.PickFamily(want, ta.Content);
                 string missing = Services.FontCoverage.UncoveredChars(family, ta.Content);
                 if (missing.Length == 0) return;
-                // W, not `this`: KillerDialog.Show takes a Window? owner and this class is a
-                // UserControl. W is the owning MainWindow.
-                KillerDialog.Show(W, string.Format(Loc("Str_Font_NoGlyphs"), missing), "KillerPDF",
+                KillerDialog.Show(Host!.Window, string.Format(Loc("Str_Font_NoGlyphs"), missing), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch { /* the warning must never be the thing that breaks placing text */ }
         }
 
-        // Remove the not-yet-committed cover when an existing-text edit is cancelled or left empty. The
+        // Remove the not-yet-committed cover when an existing-text edit is canceled or left empty. The
         // cover was added straight to _annotations without an undo entry, so just drop it and repaint.
         private void DiscardPendingCover()
         {
@@ -779,7 +777,7 @@ namespace KillerPDF.Controls
             if (_continuousCanvases.TryGetValue(pageIdx, out var overlay) && overlay.Parent is Panel mp)
                 foreach (var ch in mp.Children)
                     if (ch is Image im && im.Source is System.Windows.Media.Imaging.BitmapSource bs) return bs;
-            if (pageIdx == PageList.SelectedIndex && PageImage.Source is System.Windows.Media.Imaging.BitmapSource pbs)
+            if (pageIdx == _currentPage && PageImage.Source is System.Windows.Media.Imaging.BitmapSource pbs)
                 return pbs;
             return null;
         }

@@ -35,7 +35,7 @@ namespace KillerPDF
         private int _loadedCount;              // pages rendered so far
         private bool _isLoading = true;        // true until every page has rendered
         private Button _printBtn = null!;      // disabled while pages are still loading
-        public volatile bool Cancelled;        // set on close so the background render stops
+        public volatile bool Canceled;        // set on close so the background render stops
 
         private readonly List<PrintQueue> _queues = [];
         private PrintQueue? _queue;
@@ -122,7 +122,7 @@ namespace KillerPDF
 
         protected override void OnClosed(EventArgs e)
         {
-            Cancelled = true;   // stop any in-flight background page rendering
+            Canceled = true;   // stop any in-flight background page rendering
             base.OnClosed(e);
             try { _server?.Dispose(); } catch { }
             // We own the flattened temp (kept alive so Print could re-rasterize at 300 DPI); clean it up.
@@ -320,7 +320,7 @@ namespace KillerPDF
 
         private int SheetCount() => _pages.Length == 0 ? 0 : (SelectedIndices().Count + _nUp - 1) / _nUp;
 
-        // Builds one sheet (aw x ah DIPs, white) holding the given source pages. 1-up honours the
+        // Builds one sheet (aw x ah DIPs, white) holding the given source pages. 1-up honors the
         // scale mode + alignment + margin; N-up fits each page into its grid cell. Shared by the
         // preview and the print path so what you see is what prints.
         private Grid ComposeSheet(System.Collections.Generic.List<int> idxs, double aw, double ah,
@@ -1238,7 +1238,7 @@ namespace KillerPDF
             stack.Children.Add(ring);
             stack.Children.Add(status);
 
-            // Veil in the card's own colour at high opacity, so the scrim reads on either theme.
+            // Veil in the card's own color at high opacity, so the scrim reads on either theme.
             var veil = R("BackgroundBrush").Color;
             var overlay = new Border
             {

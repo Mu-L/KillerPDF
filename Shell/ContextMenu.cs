@@ -170,7 +170,7 @@ namespace KillerPDF
                 _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Edit"), (s, e) => EditAnnotation(hit), glyph: ""));
 
             // Raise / Lower one visual layer. Enabled only when something actually overlaps in that
-            // direction (so they're greyed out when nothing is stacked above / below at this spot).
+            // direction (so they're grayed out when nothing is stacked above / below at this spot).
             int idx = -1;
             _annotations.TryGetValue(hit.PageIndex, out var pageList);
             if (pageList is not null) idx = pageList.IndexOf(hit);
@@ -504,7 +504,7 @@ namespace KillerPDF
 
         // Other members of a group are moved alongside the primary during a drag; this holds each one
         // with the position it had when the drag began so the whole group translates rigidly.
-        private readonly List<(PageAnnotation a, Point orig)> _dragGroupOrig = [];
+        private List<(PageAnnotation a, Point orig)> _dragGroupOrig => ActiveViewer.DragGroupOrigRef;
 
         // "Edit" menu action: inline-edit a text box. For any other annotation, selecting it (which the
         // right-click already did) opened its color/size bar, so there's nothing more to do here.

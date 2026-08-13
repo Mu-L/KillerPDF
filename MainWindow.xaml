@@ -58,7 +58,7 @@
                     ViewportUnits="Absolute" Viewport="0,0,256,256" Stretch="None"/>
 
         <!-- Settings section subheaders: white with a faint depth shadow (the "Settings" title carries the
-             accent colour instead). Margin stays inline per row. -->
+             accent color instead). Margin stays inline per row. -->
         <Style x:Key="SettingsSubheader" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="12"/>
@@ -71,7 +71,7 @@
             </Setter>
         </Style>
 
-        <!-- Settings current-value labels (English, Dark, ...): accent-coloured, with a depth shadow so the
+        <!-- Settings current-value labels (English, Dark, ...): accent-colored, with a depth shadow so the
              accent stays legible on every theme background. -->
         <Style x:Key="SettingsAccentValue" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
@@ -413,8 +413,12 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
             <!-- Margin is the room the drop shadow renders into: a Popup clips to its own bounds,
-                 so without it the shadow is cut off square. -->
-            <Setter Property="Margin" Value="6"/>
+                 so anything the shadow throws past it is cut off square. Sized to the effect below,
+                 not picked: WPF expands render bounds by the FULL BlurRadius, so a 22 blur needs 22
+                 each way, and the 4px downward depth takes 4 off the top and adds 4 to the bottom.
+                 CONSUMERS MUST COMPENSATE with HorizontalOffset/VerticalOffset - see the ContextMenu
+                 style below. -->
+            <Setter Property="Margin" Value="22,18,22,26"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Effect">
                 <Setter.Value>
@@ -460,6 +464,11 @@
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="HasDropShadow" Value="False"/>
+            <!-- Compensates the shadow halo so a menu lands where it did when that halo was 5 (this
+                 template) or 6 (FlyoutCard). Those two differ by a pixel, so the rail flyouts sit
+                 1px off their old spot; the menus are exact. -->
+            <Setter Property="HorizontalOffset" Value="-17"/>
+            <Setter Property="VerticalOffset" Value="-13"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
@@ -472,11 +481,15 @@
                         <!-- Radius 6 = the family flyout card (FlyoutCard above); the grain overlay
                              takes 5, the card's 6 minus its 1px border, so the texture stops exactly
                              inside the frame. -->
-                        <Grid x:Name="MenuRoot" Opacity="0" Margin="5">
+                        <!-- Halo sized to the 22/4 shadow below, the family flyout value: WPF expands
+                             render bounds by the FULL BlurRadius, so 22 each way, less the 4px lift
+                             off the top and plus it on the bottom. The offsets on the style above
+                             hold the card in place against the wider halo. -->
+                        <Grid x:Name="MenuRoot" Opacity="0" Margin="22,18,22,26">
                             <!-- Shadow-only layer behind, so the menu text stays crisp. -->
                             <Border Background="{TemplateBinding Background}" CornerRadius="6" IsHitTestVisible="False">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.5"/>
+                                    <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="4" Direction="270" Opacity="0.5"/>
                                 </Border.Effect>
                             </Border>
                             <Border Background="{TemplateBinding Background}"
@@ -553,13 +566,15 @@
                                            VerticalAlignment="Center" Margin="12,0,0,0"
                                            Visibility="Collapsed"/>
                                 <Popup x:Name="SubPopup" AllowsTransparency="True" Placement="Right"
-                                       HorizontalOffset="-4" Focusable="False" PopupAnimation="Fade"
+                                       HorizontalOffset="-21" VerticalOffset="-13" Focusable="False" PopupAnimation="Fade"
                                        IsOpen="{TemplateBinding IsSubmenuOpen}">
-                                    <!-- Mirrors the ContextMenu template surface so submenus match the parent menu. -->
-                                    <Grid Margin="5">
+                                    <!-- Mirrors the ContextMenu template surface so submenus match the parent menu.
+                                         Halo sized to the 22/4 shadow; the offsets above carry the
+                                         -17,-13 compensation (this halo grew from 5) on top of the -4 gap. -->
+                                    <Grid Margin="22,18,22,26">
                                         <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="6" IsHitTestVisible="False">
                                             <Border.Effect>
-                                                <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.5"/>
+                                                <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="4" Direction="270" Opacity="0.5"/>
                                             </Border.Effect>
                                         </Border>
                                         <Border Background="{DynamicResource MenuBackgroundBrush}"
@@ -582,7 +597,7 @@
                                  the menu was the one place in the product where "this is the one"
                                  rendered in neutral gray - and KillerPDF is the app the others
                                  copy. Now the family's selected treatment: SelectionBg fill with
-                                 SelectionFg text. The gesture and chevron are recoloured too, as
+                                 SelectionFg text. The gesture and chevron are recolored too, as
                                  TextSecondary is unreadable on a saturated fill. -->
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="MenuBd" Property="Background" Value="{DynamicResource SelectionBg}"/>
@@ -1377,8 +1392,15 @@
                      area, and repoints _sidebarCol accordingly. SidebarCol never collapses to 0 - it
                      shrinks to 24px (the toggle strip width). -->
                 <ColumnDefinition x:Name="SidebarCol" Width="180" MinWidth="24" MaxWidth="234"/>
-                <!-- Dedicated drag handle column — keeps the splitter independent of the sidebar content -->
-                <ColumnDefinition Width="6"/>
+                <!-- Was a 6px drag-handle column. The splitter has since moved INSIDE the sidebar
+                     (SidebarSplitter, Grid.Column 0, right-aligned, ZIndex 50 - the KillerNotes
+                     pattern), so nothing lives here any more and the 6px was pure dead space
+                     between the rail and the document card. Killendar and KillerShell butt the
+                     card straight against the rail; this made KillerPDF's rail read ~7px wider
+                     than the rest of the family. Kept as a zero column rather than deleted so
+                     DocCol stays index 2 and every Grid.Column in this grid, plus
+                     ApplySidebarSide, keeps working unchanged. -->
+                <ColumnDefinition Width="0"/>
                 <ColumnDefinition x:Name="DocCol" Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
@@ -1400,7 +1422,7 @@
             <Grid x:Name="SidebarOuterGrid" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="SbContentCol" Width="*"/>   <!-- page list content -->
-                    <ColumnDefinition x:Name="SbToggleCol" Width="24"/>   <!-- toggle strip — always visible -->
+                    <ColumnDefinition x:Name="SbToggleCol" Width="24"/>   <!-- toggle strip - always visible -->
                 </Grid.ColumnDefinitions>
 
                 <!-- Page list content (hidden when collapsed) -->
@@ -1420,7 +1442,7 @@
                         </Border.Background>
                     </Border>
                     <DockPanel x:Name="SidebarContentPanel">
-                        <!-- Sticky header — lives outside the ScrollViewer so it never scrolls away -->
+                        <!-- Sticky header - lives outside the ScrollViewer so it never scrolls away -->
                         <!-- Tab row: PAGES (left) | OUTLINES (right) -->
                         <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="10,6,8,0">
                             <Button x:Name="SidebarPagesTab" Content="{DynamicResource Str_TabPages}"
@@ -1477,7 +1499,7 @@
                                     </TextBox.Style>
                                 </TextBox>
                             <TextBlock x:Name="PageTotalLabel" DockPanel.Dock="Left"
-                                       Text="/ –" VerticalAlignment="Center"
+                                       Text="/ -" VerticalAlignment="Center"
                                        FontFamily="Consolas" FontSize="11"
                                        Foreground="{DynamicResource MutedTextBrush}"
                                        Margin="2,0,0,0"/>
@@ -1592,7 +1614,7 @@
                     </Grid>
                 </Border>
 
-                <!-- Toggle strip — 24px wide vertical icon bar -->
+                <!-- Toggle strip - 24px wide vertical icon bar -->
                 <Border x:Name="SidebarToggleStrip" Grid.Column="1"
                         Background="{DynamicResource BackgroundBrush}"
                         BorderThickness="0"
@@ -1632,7 +1654,7 @@
                                             <!-- Glyph swaps with the split state via the same Tag="on" the accent
                                                  tint rides: E89F (pane pushed out) while CLOSED - the action is
                                                  "open one" - and E8A0 (pane pulled in) while OPEN. Deliberately
-                                                 opposite the MDL2 catalog names (Steve, 2026-08-01). Text lives in
+                                                 opposite the MDL2 catalog names (2026-08-01). Text lives in
                                                  the Style, not on the element: a local Text= would override the
                                                  trigger and the glyph would never swap. -->
                                             <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14"
@@ -2127,6 +2149,7 @@
                                         <Border x:Name="AccentDotBlackBlue"   Style="{StaticResource AccentDot}" Background="#298DFF" Tag="Blue"   MouseLeftButtonUp="AccentDotBlack_Click"/>
                                         <Border x:Name="AccentDotBlackPurple" Style="{StaticResource AccentDot}" Background="#B829FF" Tag="Purple" MouseLeftButtonUp="AccentDotBlack_Click"/>
                                     </StackPanel>
+                                    <RadioButton x:Name="Theme98SERadio" Content="{DynamicResource Str_Theme_98SE}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="Theme98SERadio_Checked"/>
                                     <RadioButton x:Name="ThemeBloodRadio"
                                                  Content="{DynamicResource Str_Theme_Blood}"
                                                  GroupName="ThemeGroup"
@@ -2142,6 +2165,12 @@
                                                  GroupName="ThemeGroup"
                                                  Style="{StaticResource ThemeRadio}"
                                                  Checked="ThemeCyanoticRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeEctoplasmRadio" Content="{DynamicResource Str_Theme_Ectoplasm}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeEctoplasmRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeDecayRadio" Content="{DynamicResource Str_Theme_Decay}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeDecayRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeMourningRadio" Content="{DynamicResource Str_Theme_Mourning}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeMourningRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeSepulchreRadio" Content="{DynamicResource Str_Theme_Sepulchre}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeSepulchreRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeDeliriumRadio" Content="{DynamicResource Str_Theme_Delirium}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeDeliriumRadio_Checked"/>
+                                    <RadioButton x:Name="ThemeMalaiseRadio" Content="{DynamicResource Str_Theme_Malaise}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeMalaiseRadio_Checked"/>
                         </StackPanel>
                                     </ContextMenu>
                                 </Button.ContextMenu>
@@ -2166,9 +2195,11 @@
                    HorizontalAlignment="Right"
                    VerticalAlignment="Stretch"
                    Cursor="SizeWE"
-                   IsEnabled="True"
-                   Focusable="False"
-                   DragDelta="SidebarGrip_DragDelta">
+                     IsEnabled="True"
+                     Focusable="False"
+                     DragStarted="SidebarGrip_DragStarted"
+                     DragCompleted="SidebarGrip_DragCompleted"
+                     DragDelta="SidebarGrip_DragDelta">
                 <Thumb.Template>
                     <ControlTemplate TargetType="Thumb">
                         <!-- Transparent, not empty: a Border with no Background is not hit-testable
@@ -2327,13 +2358,20 @@
                                FontFamily="Consolas" FontSize="9"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <!-- OutlineButton (Controls/PickerStyles.xaml): accent outline at rest, fills
-                         solid on hover - the family standard for this button (Steve, 2026-08-01;
+                         solid on hover - the family standard for this button (2026-08-01;
                          it was a flat solid fill at rest before, which is the wrong state). -->
                     <Button x:Name="InstallBtn" Content="{DynamicResource Str_InstallBtn}"
                             Click="Install_Click" Style="{StaticResource OutlineButton}"
                             FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="11" FontWeight="SemiBold"
                             Padding="12,2"
-                            VerticalAlignment="Center"/>
+                            VerticalAlignment="Center">
+                        <!-- Deliberately square in the thin footer on every theme. This local token
+                             overrides OutlineButton's normal control radius without changing the
+                             rounded buttons used in dialogs and pickers. -->
+                        <Button.Resources>
+                            <CornerRadius x:Key="ControlCornerRadius">0</CornerRadius>
+                        </Button.Resources>
+                    </Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock x:Name="VersionLabel" Text="v1.6.3"
@@ -2396,7 +2434,7 @@
                     Background="{DynamicResource SelectionAccent}"/>
         </Canvas>
 
-        <!-- Keyboard shortcut overlay — neutral dark dim regardless of theme -->
+        <!-- Keyboard shortcut overlay - neutral dark dim regardless of theme -->
         <Grid x:Name="ShortcutOverlay"
               Grid.RowSpan="5"
               Panel.ZIndex="10000"

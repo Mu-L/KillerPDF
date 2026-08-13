@@ -179,6 +179,13 @@ KillerPDF 將被複製到您的程式資料夾，並新增開始功能表項目�
     <sys:String x:Key="Str_Theme_Blood">血色</sys:String>
     <sys:String x:Key="Str_Theme_Greed">貪婪</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">青色</sys:String>
+    <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>
+    <sys:String x:Key="Str_Theme_Ectoplasm">Ectoplasm</sys:String>
+    <sys:String x:Key="Str_Theme_Decay">Decay</sys:String>
+    <sys:String x:Key="Str_Theme_Mourning">Mourning</sys:String>
+    <sys:String x:Key="Str_Theme_Sepulchre">Sepulchre</sys:String>
+    <sys:String x:Key="Str_Theme_Delirium">Delirium</sys:String>
+    <sys:String x:Key="Str_Theme_Malaise">Malaise</sys:String>
 
     <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Zoom_FitWidth">適合寬度</sys:String>

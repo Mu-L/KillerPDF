@@ -119,7 +119,7 @@ namespace KillerPDF
             SetStatus(Loc("Str_St_FieldCleared"));
         }
 
-        // Places a SignatureAnnotation centred in and scaled to fit the field rectangle.
+        // Places a SignatureAnnotation centered in and scaled to fit the field rectangle.
         private void DropSignatureInField(int objNum, SavedSignature sig, int pageIndex, double x, double y, double w, double h)
         {
             const double pad = 2;
@@ -344,7 +344,7 @@ namespace KillerPDF
             };
             stack.Children.Add(sigHeader);
 
-            // Saved signatures and initials, shown as two labelled sections so the HR-style
+            // Saved signatures and initials, shown as two labeled sections so the HR-style
             // "initial here, sign there" flow can pick each independently. One tile builder is shared.
             UIElement MakeSigItem(SavedSignature sigCopy)
             {

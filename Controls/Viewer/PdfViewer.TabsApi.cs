@@ -86,56 +86,43 @@ namespace KillerPDF.Controls
         private bool _inOwnSessionScope;
         internal void WithOwnSession(System.Action work)
         {
-            var owner = Owner;
-            if (owner == null || _inOwnSessionScope || ReferenceEquals(owner.ActiveViewer, this))
+            if (Host == null || _inOwnSessionScope || Host.IsViewerFocused(this))
             {
                 work();
                 return;
             }
 
-            var focused = owner.ActiveViewer;
-            focused.CaptureActiveIfAny();
             _inOwnSessionScope = true;
             // The element accessors have to follow the fields. Swapping only the document state
             // left the render path resolving PageHost / PreviewScroller through ActiveViewer, so
             // this pane's fit measured the OTHER pane's viewport and painted into its tiles.
-            var prevActive = owner.SwapActiveViewer(this);
             try
             {
-                if (_active != null)
+                Host.RunWithViewerContext(this, () =>
                 {
-                    ApplySessionState(_active);
-                    // ApplySessionState deliberately leaves PageIndex to RenderActiveSession,
-                    // which never runs on this path - so an unfocused pane's State.CurrentPage
-                    // sat stale (often -1) and the repointed fit math then fell back to the
-                    // pane's stale tile size and fitted to garbage ("Page 0 of 73" in the
-                    // status, pane zoomed wrong when the split opens - Steve, 2026-08-01).
-                    // Seed it from the session being swapped in; navigation cannot happen
-                    // inside the scope, so nothing needs folding back.
-                    State.CurrentPage = _active.PageIndex;
-                }
-                work();
-                if (_active != null)
-                {
-                    _active.ZoomLevel      = _zoomLevel;
-                    _active.LastRenderZoom = _lastRenderZoom;
-                    _active.Fit            = _fitMode;
-                    _active.View           = _viewMode;
-                    _active.GridColumns    = _gridColumns;
-                    _active.ScrollH        = PagePreviewPanel?.HorizontalOffset ?? _active.ScrollH;
-                    _active.ScrollV        = PagePreviewPanel?.VerticalOffset   ?? _active.ScrollV;
-                }
+                    if (_active != null)
+                    {
+                        ApplySessionState(_active);
+                        // ApplySessionState deliberately leaves PageIndex to RenderActiveSession,
+                        // which never runs on this path. Seed it from this pane's session.
+                        State.CurrentPage = _active.PageIndex;
+                    }
+                    work();
+                    if (_active != null)
+                    {
+                        _active.ZoomLevel      = _zoomLevel;
+                        _active.LastRenderZoom = _lastRenderZoom;
+                        _active.Fit            = _fitMode;
+                        _active.View           = _viewMode;
+                        _active.GridColumns    = _gridColumns;
+                        _active.ScrollH        = PagePreviewPanel?.HorizontalOffset ?? _active.ScrollH;
+                        _active.ScrollV        = PagePreviewPanel?.VerticalOffset   ?? _active.ScrollV;
+                    }
+                });
             }
             finally
             {
-                owner.SwapActiveViewer(prevActive);
                 _inOwnSessionScope = false;
-                // RestoreActiveFieldsOnly, NOT ApplyActiveSessionIfAny. The latter shows the empty
-                // state when a pane has no session, which repopulates the recents panel, which
-                // resizes it, which raises the viewport's SizeChanged that called us - an infinite
-                // layout recursion that left the window painting nothing at all. This path only
-                // ever needs the fields put back; it must not touch the UI.
-                focused.RestoreActiveFieldsOnly();
             }
         }
 
@@ -145,16 +132,22 @@ namespace KillerPDF.Controls
         internal string? ThumbCacheFile { get; set; }
 
         /// <summary>This pane's thumbnail loader cancellation. PER PANE, not per window: one shared
-        /// token meant focusing either pane cancelled whatever the other was still decoding, and
+        /// token meant focusing either pane canceled whatever the other was still decoding, and
         /// since the half-filled cache still matched the page count it counted as usable - so the
         /// list re-seated with the labels and no pictures, permanently.</summary>
         internal System.Threading.CancellationTokenSource? ThumbCts { get; set; }
 
         /// <summary>Highlight this pane's current page after the list is re-seated: assigning
         /// ItemsSource clears the selection.</summary>
-        internal void SyncPageListSelection()
+        internal int CurrentPageIndex => State.CurrentPage;
+
+        internal void SyncPageListSelection(int? preservedPage = null)
         {
-            if (State.CurrentPage >= 0) SyncCurrentPageTo(State.CurrentPage);
+            if (preservedPage.HasValue) State.CurrentPage = preservedPage.Value;
+            if (State.CurrentPage < 0) return;
+            Host?.ViewerPageChanged(this, State.CurrentPage);
+            if (Host != null) Host.PageJumpText = (State.CurrentPage + 1).ToString();
+            Host?.EnsureSidebarPageVisible(this, State.CurrentPage);
         }
         internal void SaveDocStateExt(string? path, FitMode fit, double zoom, ViewMode view, int page)
             => SaveDocState(path, fit, zoom, view, page);

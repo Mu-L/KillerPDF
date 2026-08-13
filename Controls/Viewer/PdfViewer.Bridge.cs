@@ -9,7 +9,8 @@ using PdfSharpCore.Pdf;
 namespace KillerPDF.Controls
 {
     /// <summary>
-    /// Everything the moved render pipeline still reaches for on the window, forwarded to Owner.
+    /// Transitional forwards used by the moved render pipeline while the remaining bridge surface
+    /// is converted to IViewerHost and per-document state.
     ///
     /// WHY THIS FILE EXISTS. PdfViewer.Viewport.cs and PdfViewer.Zoom.cs were moved across VERBATIM -
     /// roughly 2,100 lines carrying about 700 references to window members spelled bare (PageList,
@@ -26,14 +27,12 @@ namespace KillerPDF.Controls
     ///   - Group A is the only group meant to survive, and it should end up expressed as
     ///     IViewerHost rather than as raw Owner reach.
     ///
-    /// Owner is null only between construction and the window wiring it up, which happens in the
+    /// Host is null only between construction and the window wiring it up, which happens in the
     /// MainWindow constructor before any of this can run. The null-forgiving operator is therefore
     /// deliberate: a null here is a wiring bug and should throw loudly, not render nothing.
     /// </summary>
     public partial class PdfViewer
     {
-        private MainWindow W => Owner!;
-
         // ── The view's own state ─────────────────────────────────────────────────────────────
         // Not forwards: this viewer OWNS its ViewerState (see PdfViewer.xaml.cs). These mirror the
         // window's forwarding properties one for one, so the moved code reads identically.
@@ -63,24 +62,28 @@ namespace KillerPDF.Controls
         private StackPanel _continuousPanel { get => State.ContinuousPanel; set => State.ContinuousPanel = value; }
         private WrapPanel _pageContentPanel { get => State.PageContentPanel; set => State.PageContentPanel = value; }
         private Grid _pageContentGrid { get => State.PageContentGrid; set => State.PageContentGrid = value; }
+        private int _currentPage
+        {
+            get => State.CurrentPage;
+            set
+            {
+                State.CurrentPage = value;
+                Host?.ViewerPageChanged(this, value);
+            }
+        }
 
         // ── Group A: host chrome and services ────────────────────────────────────────────────
         // One toolbar, one sidebar, one status line serving both panes. These are the forwards
-        // meant to survive, and they should become IViewerHost calls rather than raw Owner reach.
-        private ListBox PageList => W.PageList;
-        private ComboBox _zoomBox => W.ZoomBoxCtl;
-        private TextBox _pageJumpBox => W.PageJumpBoxCtl;
-        private Button _closeFileBtnRef => W.CloseFileBtnCtl;
-        private TextBlock _pageTotalLabel => W.PageTotalLabelCtl;
+        // meant to survive, and they should become direct IViewerHost calls.
 
-        private string Loc(string key) => W.LocText(key);
-        private void SetStatus(string text) => W.SetStatusText(text);
-        private void RepositionAnnotationBars() => W.RepositionAnnotationBars();
+        private string Loc(string key) => Host!.Loc(key);
+        private void SetStatus(string text) => Host!.SetStatus(text);
+        private void RepositionAnnotationBars() => Host!.RepositionAnnotationBars();
 
-        private EditTool _currentTool { get => W.CurrentToolValue; set => W.CurrentToolValue = value; }
-        private bool _fullScreen => W.FullScreenRef;
-        private bool _vScrollVisible { get => W.VScrollVisible; set => W.VScrollVisible = value; }
-        private bool _spaceHeld => W.SpaceHeld;
+        private EditTool _currentTool = EditTool.Select;
+        private bool _fullScreen => Host!.FullScreen;
+        private bool _vScrollVisible { get => Host!.VerticalScrollVisible; set => Host!.VerticalScrollVisible = value; }
+        private bool _spaceHeld => Host!.SpaceHeld;
 
         // Zoom limits stay defined on the window: MainWindow.xaml.cs and KeyboardShortcuts.cs read
         // them too, and a const aliases at no cost rather than being duplicated.
@@ -92,45 +95,45 @@ namespace KillerPDF.Controls
         // NOT host services. Every one of these already rides in DocumentSession, which tab
         // switching swaps by reference. They forward for now because the window still owns the
         // active session; when the viewer holds its own, this whole block goes.
-        private PdfDocument? _doc { get => W.DocRef; set => W.DocRef = value; }
-        private string? _currentFile { get => W.CurrentFileRef; set => W.CurrentFileRef = value; }
+        private PdfDocument? _doc;
+        private string? _currentFile;
         // Settable: the tab switch rebinds all three by reference.
-        private Dictionary<int, List<PageAnnotation>> _annotations { get => W.AnnotationsRef; set => W.AnnotationsRef = value; }
-        private Dictionary<int, (int w, int h)> _renderDims { get => W.RenderDimsRef; set => W.RenderDimsRef = value; }
-        private Dictionary<int, int> _pageRotations { get => W.PageRotationsRef; set => W.PageRotationsRef = value; }
+        private Dictionary<int, List<PageAnnotation>> _annotations = [];
+        private Dictionary<int, (int w, int h)> _renderDims = [];
+        private Dictionary<int, int> _pageRotations = [];
         // _active is NOT forwarded: the session list lives in this class, so this pane owns its own
         // active document. The window reads it back via ActiveSession.
-        private List<Canvas> _linkOverlays => W.LinkOverlaysRef;
+        private readonly List<Canvas> _linkOverlays = [];
         // _continuousLinks is no longer forwarded - the field itself arrived with Links.cs and the
         // viewer owns it now. ContextMenu.cs and FileOperations.cs read it from the window side
         // through MainWindowViewerBridge's ContinuousLinksRef, which points back here.
 
         // Live gesture state shared with the annotation and crop tools, which have not moved yet.
-        private bool _isPanning { get => W.IsPanning; set => W.IsPanning = value; }
-        private Point _panStart { get => W.PanStart; set => W.PanStart = value; }
-        private double _panScrollH { get => W.PanScrollH; set => W.PanScrollH = value; }
-        private double _panScrollV { get => W.PanScrollV; set => W.PanScrollV = value; }
-        private bool _isDrawing { get => W.IsDrawing; set => W.IsDrawing = value; }
-        private Point _drawStart { get => W.DrawStart; set => W.DrawStart = value; }
-        private UIElement? _activePreview { get => W.ActivePreview; set => W.ActivePreview = value; }
-        private bool _isSelecting { get => W.IsSelecting; set => W.IsSelecting = value; }
-        private Point _selectStart { get => W.SelectStart; set => W.SelectStart = value; }
-        private Rectangle? _selectRect { get => W.SelectRect; set => W.SelectRect = value; }
-        private int _cropPageIndex { get => W.CropPageIndex; set => W.CropPageIndex = value; }
+        private bool _isPanning;
+        private Point _panStart;
+        private double _panScrollH;
+        private double _panScrollV;
+        private bool _isDrawing;
+        private Point _drawStart;
+        private UIElement? _activePreview;
+        private bool _isSelecting;
+        private Point _selectStart;
+        private Rectangle? _selectRect;
+        private int _cropPageIndex = -1;
         // Crop.cs and Annotations.cs ASSIGN both, so these go through the settable pair on the
         // window side rather than a get-only forward.
-        private Rectangle? _cropPreviewRect { get => W.CropPreviewRectSet; set => W.CropPreviewRectSet = value; }
-        private Border? _cropConfirmBar { get => W.CropConfirmBarSet; set => W.CropConfirmBarSet = value; }
+        private Rectangle? _cropPreviewRect;
+        private Border? _cropConfirmBar;
 
         // ── Group C: methods in partials that have NOT moved yet ─────────────────────────────
         // Only four are left - the ones whose defining files stay on the window. RenderAllAnnotations,
         // ClearSelection, UpdateMarquee, IsDescendantOf, the four Canvas_Mouse* handlers,
         // ClearTextSelection, AccentBrush, RenderPageLinks, AddSecondaryPageLinks and the
         // PageList_SelectionChanged delegate are real members of this class now.
-        private void PopulateContextMenu(Point pt, int page) => W.PopulateContextMenu(pt, page); // ContextMenu.cs
-        private void RefreshPageList() => W.RefreshPageList();                              // PageOperations.cs
-        private void LoadOutlines() => W.LoadOutlines();                                    // SidebarOutline.cs
-        private static Cursor CursorForTool(EditTool t) => MainWindow.CursorForTool(t);     // ToolSelection.cs
+        private void PopulateContextMenu(Point pt, int page) => Host!.PopulateContextMenu(this, pt, page);
+        private void RefreshPageList() => Host!.RefreshPageList(this);
+        private void LoadOutlines() => Host!.LoadOutlines(this);
+        private Cursor CursorForTool(EditTool t) => Host!.CursorForTool(t);
 
         // The render cache is not forwarded either - TryGetCachedRender / CacheRender are real
         // members of this class. They work per-pane unchanged: the cache is keyed

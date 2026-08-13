@@ -24,7 +24,7 @@ namespace KillerPDF
         private bool _shapeFill = true;   // fill the inside; toggled in the shape bar
 
         // In-progress polygon state. _shapePolyPoints non-empty = a polygon is being placed.
-        private readonly List<Point> _shapePolyPoints = [];
+        private List<Point> _shapePolyPoints => ActiveViewer.ShapePolyPointsRef;
         private Polyline? _shapePolyPreview;    // committed vertices
         private Polyline? _shapePolyRubber;     // last vertex -> cursor, dashed closing preview
         private Ellipse? _shapePolySnapDot;     // lit ring over the first vertex when close enough to close
@@ -238,7 +238,7 @@ namespace KillerPDF
         {
             if (_shapePolyPoints.Count == 0) return;
             ResetShapePolyState();
-            SetStatus("Shape cancelled");
+            SetStatus("Shape canceled");
         }
 
         /// <summary>Backspace: remove the last placed vertex; removing the only one cancels.</summary>

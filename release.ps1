@@ -8,7 +8,7 @@
     2. Publishes using FolderProfile1 (net48, win-x64); bundle-source.ps1 also runs.
     3. Signs KillerPDF.exe. Prefers CertThumbprint (exact match) over CertName (CN match).
        Retries the timestamp across three TSA endpoints if the first attempt fails.
-    4. Runs "signtool verify /pa /v" as a post-sign gate — aborts if the cert chain
+    4. Runs "signtool verify /pa /v" as a post-sign gate - aborts if the cert chain
        is not trusted to an accepted root.
     5. Prints thumbprint, SHA256s, and paste targets in the summary.
 
@@ -51,7 +51,7 @@ $buildInfoPath = Join-Path $PSScriptRoot "BuildInfo.cs"
 $publishDir   = Join-Path $PSScriptRoot "bin\Release\net48\publish"
 $exe          = Join-Path $publishDir "KillerPDF.exe"
 
-# TSA endpoints — tried in order; first success wins.
+# TSA endpoints - tried in order; first success wins.
 $tsaList = @(
     "http://timestamp.digicert.com",
     "http://timestamp.sectigo.com",
@@ -115,7 +115,7 @@ if ($pdfiumNuget -and (Test-Path $pdfiumNuget)) {
     $pdfiumPath = $pdfiumBuild
     Write-Host "    Using build output: $pdfiumPath"
 } else {
-    Write-Warning "    pdfium.dll not found — BuildInfo.cs will retain all-zeros (check disabled)."
+    Write-Warning "    pdfium.dll not found - BuildInfo.cs will retain all-zeros (check disabled)."
 }
 
 $pdfiumHash = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -278,7 +278,7 @@ $srcZip = Get-ChildItem $publishDir -Filter "*-src.zip" -ErrorAction SilentlyCon
 if ($srcZip) {
     Write-Host "`n==> Source zip: $($srcZip.FullName)" -ForegroundColor Green
 } else {
-    Write-Host "`n    (No source zip found — did bundle-source.ps1 run?)" -ForegroundColor Yellow
+    Write-Host "`n    (No source zip found - did bundle-source.ps1 run?)" -ForegroundColor Yellow
 }
 
 # ── 6. Write SHA256SUMS.txt ──────────────────────────────────────────────────

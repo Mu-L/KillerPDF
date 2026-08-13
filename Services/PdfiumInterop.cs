@@ -267,13 +267,13 @@ namespace KillerPDF.Services
         /// <summary>
         /// Uses PDFium to save a copy of <paramref name="sourcePath"/> with all security/encryption
         /// removed. Returns true on success. Falls back gracefully if PDFium is unavailable.
-        /// PDFium is already initialised by Docnet; no separate init call is needed.
+        /// PDFium is already initialized by Docnet; no separate init call is needed.
         /// </summary>
         internal static bool TryPdfiumStripEncryption(string sourcePath, string destPath)
         {
             try
             {
-                // Ensure PDFium is initialised - Docnet does this lazily on first use,
+                // Ensure PDFium is initialized - Docnet does this lazily on first use,
                 // so force it now before we call PDFium P/Invoke directly.
                 try { _ = DocLib.Instance; } catch { }
 
@@ -313,7 +313,7 @@ namespace KillerPDF.Services
         /// Uses PDFium to load <paramref name="sourcePath"/>, zero-out all page /Rotate values,
         /// strip encryption, and save to <paramref name="destPath"/>. Returns true on success.
         /// Called from SaveTempAndReload's xref-error fallback - PDFium is guaranteed to be
-        /// initialised by then because the page preview has already rendered via Docnet.
+        /// initialized by then because the page preview has already rendered via Docnet.
         /// </summary>
         internal static bool TryPdfiumSaveWithZeroRotations(string sourcePath, string destPath)
         {

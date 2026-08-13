@@ -20,8 +20,8 @@ namespace KillerPDF
     /// alone the footer or the rail. "Right of the button" opened flyouts over the desktop when the
     /// rail sat near the window's right edge; "Top" opened them over the status bar. Hours went
     /// into re-tuning offsets before it was clear no built-in mode can express the requirement.
-    /// (Steve, 2026-07-30: "DONT OBSCURE ICONS, DONT OBSCURE THE STATUSBAR, PUT IT AGAINST THE
-    /// CORNER OF THE CONTENT PANE.")
+    /// The requirement: do not obscure the icons, do not obscure the status bar, and put the
+    /// flyout against the corner of the content pane. (2026-07-30)
     ///
     /// WIRING (once, before the flyouts open):
     ///     FlyoutPlacement.UsePane(pane);               // the element the document content sits on
@@ -52,6 +52,11 @@ namespace KillerPDF
         {
             menu.PlacementTarget = _pane;
             menu.Placement = PlacementMode.Custom;
+            // The shared ContextMenu style compensates ordinary pointer-anchored menus for its
+            // enlarged shadow halo. Rail flyouts use exact pane-corner coordinates instead, so
+            // clear those global offsets and account for the halo in BottomLeftOfPane.
+            menu.HorizontalOffset = 0;
+            menu.VerticalOffset = 0;
             menu.CustomPopupPlacementCallback =
                 (popupSize, targetSize, __) => BottomLeftOfPane(popupSize, targetSize);
         }
@@ -63,13 +68,17 @@ namespace KillerPDF
         /// </summary>
         private static CustomPopupPlacement[] BottomLeftOfPane(Size popupSize, Size targetSize)
         {
-            double y = targetSize.Height - popupSize.Height;
+            // ContextMenu's template now reserves 22px left, 18px top, and 26px bottom for its
+            // shadow. Position the VISIBLE card at the same 6px pane inset used before that halo
+            // grew: x = -22 + 6, y = pane - popup + 26 - 6.
+            const double x = -16;
+            double y = targetSize.Height - popupSize.Height + 20;
 
             // A flyout taller than the pane would otherwise start above it and run over the
             // toolbar; pin it to the pane's top instead and let it use the height it has.
             if (y < 0) y = 0;
 
-            return new[] { new CustomPopupPlacement(new Point(0, y), PopupPrimaryAxis.None) };
+            return new[] { new CustomPopupPlacement(new Point(x, y), PopupPrimaryAxis.None) };
         }
     }
 }

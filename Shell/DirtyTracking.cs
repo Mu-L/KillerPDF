@@ -48,7 +48,7 @@ namespace KillerPDF
                 }
                 else
                 {
-                    // Saved / clean: just a normal toolbar icon (no colour). The orange above is the only
+                    // Saved / clean: just a normal toolbar icon (no color). The orange above is the only
                     // signal, reserved for "you have unsaved changes".
                     _saveAsBtnRef.SetResourceReference(Control.ForegroundProperty, "TextBrush");
                     _saveAsBtnRef.Effect = null;

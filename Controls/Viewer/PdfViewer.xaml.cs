@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using KillerPDF.Features;
 
 namespace KillerPDF.Controls
 {
@@ -8,14 +9,15 @@ namespace KillerPDF.Controls
     /// One document view: its tab strip, its card and everything inside. Two instances make the
     /// split.
     ///
-    /// The handlers here are one-line forwards to Owner, following KillerShell's FilePane idiom -
+    /// The handlers here are one-line forwards to the host, following KillerShell's FilePane idiom -
     /// chrome that belongs to the window stays on the window.
     /// </summary>
     public partial class PdfViewer : UserControl
     {
-        /// <summary>The window that owns this viewer. Set immediately after construction; every
-        /// handler below is inert until it is.</summary>
-        internal MainWindow? Owner { get; set; }
+        /// <summary>The explicit shell boundary used by the viewer.</summary>
+        internal IViewerHost? Host { get; private set; }
+
+        internal void AttachHost(IViewerHost host) => Host = host;
 
         /// <summary>This viewer's per-view state - page maps, view mode, zoom, render cancellation,
         /// continuous bookkeeping. MainWindow's `_view` reads it back from here, so a second pane
@@ -99,7 +101,7 @@ namespace KillerPDF.Controls
         // layout, and this IS a layout event - it fed itself. The recents panel is sized when it is
         // populated and when the split opens, which is every time its width can actually change.
         private void DocPane_SizeChanged(object s, SizeChangedEventArgs e)
-            => Owner?.DocPane_SizeChanged(s, e);
+            => Host?.ViewerSizeChanged(this, s, e);
 
         /// <summary>Size the start screen's Recent panel to this pane, and drop it entirely once the
         /// pane is too narrow to carry both it and the drop target. At its old fixed 340 it took
@@ -129,21 +131,21 @@ namespace KillerPDF.Controls
         // Focus THIS pane before forwarding: the open path routes through ActiveViewer, and a
         // drag-drop raises no PreviewMouseDown (the focus trigger), so a drop on the unfocused
         // pane opened the file in the OTHER pane. FocusPane is cheap and idempotent.
-        private void DropZone_Drop(object s, DragEventArgs e) { Owner?.FocusPane(this); Owner?.DropZone_Drop(s, e); }
-        private void DropZone_DragOver(object s, DragEventArgs e) => Owner?.DropZone_DragOver(s, e);
-        private void DropZone_Click(object s, MouseButtonEventArgs e) => Owner?.DropZone_Click(s, e);
+        private void DropZone_Drop(object s, DragEventArgs e) => Host?.ViewerDrop(this, s, e);
+        private void DropZone_DragOver(object s, DragEventArgs e) => Host?.ViewerDragOver(s, e);
+        private void DropZone_Click(object s, MouseButtonEventArgs e) => Host?.ViewerDropZoneClick(s, e);
 
-        private void RecentClearAll_Click(object s, MouseButtonEventArgs e) => Owner?.RecentClearAll_Click(s, e);
+        private void RecentClearAll_Click(object s, MouseButtonEventArgs e) => Host?.ClearRecentFiles(s, e);
 
         // The five preview/scroll handlers do NOT forward from here: their bodies are in this class
         // (PdfViewer.Zoom.cs, PdfViewer.Viewport.cs), so a forward would call straight back into
         // itself. The XAML binds them directly.
-        private void DocPaneBackground_RightClick(object s, MouseButtonEventArgs e) => Owner?.DocPaneBackground_RightClick(s, e);
+        private void DocPaneBackground_RightClick(object s, MouseButtonEventArgs e) => Host?.ViewerBackgroundRightClick(s, e);
 
         /// <summary>Empty space on this pane's tab strip drags the window, the way a strip in the
         /// title-bar row would. Named apart from MainWindow's TitleBar_MouseLeftButtonDown, which
         /// keeps the body - it is window chrome, not pane behavior.</summary>
-        private void TabScroll_MouseLeftButtonDown(object s, MouseButtonEventArgs e) => Owner?.TitleBar_MouseLeftButtonDown(s, e);
+        private void TabScroll_MouseLeftButtonDown(object s, MouseButtonEventArgs e) => Host?.ViewerTabStripMouseDown(s, e);
 
         /// <summary>This pane's active document, for the window's chrome. The session list lives
         /// here, so the window asks the focused pane rather than owning one itself.</summary>

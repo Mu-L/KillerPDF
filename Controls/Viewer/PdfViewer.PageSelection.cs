@@ -29,29 +29,10 @@ namespace KillerPDF.Controls
         // Page selection handler
         // ============================================================
 
-        // Lazy accessor - resolves PageList's internal ScrollViewer on first use.
-        private ScrollViewer? _sidebarSv;
-        private ScrollViewer? SidebarScrollViewer
-            => _sidebarSv ??= FindDescendant<ScrollViewer>(PageList);
-
-        private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
-        {
-            int n = VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < n; i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T hit) return hit;
-                var result = FindDescendant<T>(child);
-                if (result != null) return result;
-            }
-            return null;
-        }
-
         private void PageList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
             // Same speed knob as the document viewport (WheelScrollFactor in Zoom.cs).
-            SidebarScrollViewer?.ScrollToVerticalOffset(
-                SidebarScrollViewer.VerticalOffset - e.Delta * (48.0 / 120.0) * Controls.PdfViewer.WheelScrollFactor);
+            Host?.ScrollSidebar(this, -e.Delta * (48.0 / 120.0) * Controls.PdfViewer.WheelScrollFactor);
             e.Handled = true;
         }
 
@@ -59,23 +40,23 @@ namespace KillerPDF.Controls
         {
             if (e.Key != Key.Enter || _doc is null) return;
             e.Handled = true;
-            if (int.TryParse(_pageJumpBox.Text, out int pg))
+            if (int.TryParse(Host?.PageJumpText, out int pg))
             {
                 int idx = Math.Max(0, Math.Min(_doc.PageCount - 1, pg - 1));
                 RecordNavJump();   // Alt+Left retraces the typed jump
-                PageList.SelectedIndex = idx;
+                _currentPage = idx;
             }
             else
             {
                 // Restore current page number if input was invalid
-                _pageJumpBox.Text = (PageList.SelectedIndex + 1).ToString();
+                if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
             }
             Keyboard.ClearFocus();
         }
 
         private void PageJumpBox_GotFocus(object sender, RoutedEventArgs e)
         {
-            _pageJumpBox.SelectAll();
+            Host?.SelectAllPageJumpText();
         }
 
         /// <summary>Set by SyncCurrentPageTo (and only it) around its programmatic SelectedIndex
@@ -94,7 +75,7 @@ namespace KillerPDF.Controls
             // handler before setting SelectedIndex to avoid re-entering the render path; the other
             // pane's handler stayed attached and navigated that pane to the page you had just
             // scrolled to in this one, which is why scrolling pane A scrolled pane B.
-            if (Owner != null && !ReferenceEquals(Owner.ActiveViewer, this)) return;
+            if (Host != null && !Host.IsViewerFocused(this)) return;
 
             // Mirror the sidebar into the view's own current page. Set
             // BEFORE the >= 0 guard on purpose - clearing the list (tab close, document close)
@@ -102,18 +83,18 @@ namespace KillerPDF.Controls
             // leaves a stale page number behind. Assigns _view.CurrentPage directly rather than
             // going through _currentPage, whose setter would write back into PageList and re-enter
             // this handler.
-            State.CurrentPage = PageList.SelectedIndex;
+            State.CurrentPage = (sender as ListBox)?.SelectedIndex ?? -1;
 
-            if (PageList.SelectedIndex >= 0)
+            if (_currentPage >= 0)
             {
                 CommitActiveTextBox();
                 ClearSelection();
                 ClearTextSelection();
-                PageList.ScrollIntoView(PageList.SelectedItem);   // keep the sidebar thumbnail in view
+                Host?.EnsureSidebarPageVisible(this, _currentPage);
                 if (_viewMode == ViewMode.Continuous)
                 {
-                    _pageJumpBox.Text = (PageList.SelectedIndex + 1).ToString();
-                    ScrollContinuousToPage(PageList.SelectedIndex);
+                    if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
+                    ScrollContinuousToPage(_currentPage);
                     return;
                 }
                 if (_viewMode == ViewMode.Grid)
@@ -121,10 +102,10 @@ namespace KillerPDF.Controls
                     // Grid is a stable overview: selecting a page highlights it but must NOT
                     // re-anchor the grid. It still needs an initial render (open / first display)
                     // when no tiles exist yet; later selections only update the highlight.
-                    _pageJumpBox.Text = (PageList.SelectedIndex + 1).ToString();
+                    if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
                     // Keep the statusbar counter honest even when the clicked tile is already in
                     // view (BringIntoView then scrolls nothing, so the scroll-sync never fires).
-                    SetStatus(string.Format(Loc("Str_PageOf"), PageList.SelectedIndex + 1, _doc!.PageCount) + $" - {DisplayZoomPct():F0}%");
+                    SetStatus(string.Format(Loc("Str_PageOf"), _currentPage + 1, _doc!.PageCount) + $" - {DisplayZoomPct():F0}%");
                     if (_pageContentPanel.Children.Count <= 1)
                     {
                         PagePreviewPanel.ScrollToTop();
@@ -136,8 +117,8 @@ namespace KillerPDF.Controls
                         Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                             (Action)(() => SetZoom(GridZoomForN(Math.Min(_doc?.PageCount ?? 1, 3)))));
                     }
-                    else if (PageList.SelectedIndex < _pageContentPanel.Children.Count
-                             && _pageContentPanel.Children[PageList.SelectedIndex] is FrameworkElement gridTile)
+                    else if (_currentPage < _pageContentPanel.Children.Count
+                             && _pageContentPanel.Children[_currentPage] is FrameworkElement gridTile)
                     {
                         // Scroll the chosen page's tile into view (BringIntoView accounts for the zoom transform).
                         gridTile.BringIntoView();
@@ -147,19 +128,19 @@ namespace KillerPDF.Controls
                 // Two-page spreads pair (0,1),(2,3),...; clicking either page of the spread that's
                 // already shown (or re-selecting the current single page) renders the exact same pixels,
                 // so skip the re-render and its flash - just move the page number.
-                int targetPrimary = PageList.SelectedIndex;
+                int targetPrimary = _currentPage;
                 if (_viewMode == ViewMode.TwoPage) targetPrimary -= targetPrimary % 2;
                 if (targetPrimary == _renderedPrimaryPage && Math.Abs(_zoomLevel - _lastRenderZoom) < 0.0001)
                 {
-                    _pageJumpBox.Text = (PageList.SelectedIndex + 1).ToString();
+                    if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
                     return;
                 }
                 PagePreviewPanel.ScrollToTop();
                 PagePreviewPanel.ScrollToHorizontalOffset(0);
-                RenderPage(PageList.SelectedIndex);
+                RenderPage(_currentPage);
                 ApplyZoom();
                 // Update page jump box
-                _pageJumpBox.Text = (PageList.SelectedIndex + 1).ToString();
+                if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
                 // Re-highlight search results on this page if a search is active
                 if (_searchBar is not null && _searchBar.Visibility == Visibility.Visible
                     && Search.HasResults)

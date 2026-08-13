@@ -370,12 +370,8 @@ namespace KillerPDF
         // Dialog/popup buttons. accent==true is the primary (fills solid accent on hover); false is secondary.
         public static Button Make(object content, bool accent)
             => accent
-                ? Make(content, Brush("RowSelectedBrush"), Brush("PrimaryBrush"),  Brush("PrimaryBrush"),      AccentHoverFg(),      Brush("PrimaryBrush"))
+                ? Make(content, Brush("RowSelectedBrush"), Brush("PrimaryBrush"),  Brush("PrimaryBrush"), Brush("OnPrimaryBrush"), Brush("PrimaryBrush"))
                 : Make(content, Brush("PaneBrush"),   Brush("RowHoverBrush"), Brush("TextBrush"), Brush("TextBrush"), Brush("CardBorderBrush"));
-
-        private static Brush AccentHoverFg()
-            => Services.ThemeManager.Current is Services.Theme.Dark or Services.Theme.Black
-                ? Brushes.White : Brush("MenuBackgroundBrush");
 
         // Explicit-color overload for pre-theme windows (startup/crash/About). border==null = borderless.
         public static Button Make(object content, Brush normalBg, Brush hoverBg, Brush normalFg, Brush hoverFg, Brush? border = null)

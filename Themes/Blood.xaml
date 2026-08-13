@@ -30,7 +30,6 @@
     <SolidColorBrush x:Key="InstallBtnBg"   Color="#1ea54c" po:Freeze="True"/>
     <SolidColorBrush x:Key="MenuBorderBrush" Color="#4a2429" po:Freeze="True"/>
     <SolidColorBrush x:Key="DropBorder"     Color="#39191c" po:Freeze="True"/>
-    <!-- Adopted Killendar's lighter pane border 2026-07-31 (was #3a1a1d). -->
     <SolidColorBrush x:Key="PaneBorderBrush" Color="#401d1d" po:Freeze="True"/>
     <SolidColorBrush x:Key="AppBorderBrush"  Color="#401d1d" po:Freeze="True"/>
     <SolidColorBrush x:Key="RowSelectedBrush"    Color="#44ffffff" po:Freeze="True"/>
@@ -60,7 +59,7 @@
     <SolidColorBrush x:Key="SliderTrack"    Color="#0c0405" po:Freeze="True"/>
     <SolidColorBrush x:Key="RadioAccent"    Color="#f8c99e" po:Freeze="True"/>
     <SolidColorBrush x:Key="BgOverlay"      Color="#CC80000c" po:Freeze="True"/>
-    <sys:Double x:Key="GrainOpacity">0.32</sys:Double>
+    <sys:Double x:Key="GrainOpacity">0.34</sys:Double>
     <sys:Double x:Key="IconShadowOpacity">1.0</sys:Double>
     <sys:Double x:Key="HeaderShadowOpacity">0.95</sys:Double>
 

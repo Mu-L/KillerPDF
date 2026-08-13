@@ -596,7 +596,7 @@ namespace KillerPDF
             if (e.Key == Key.Space && _spaceHeld)
             {
                 _spaceHeld = false;
-                if (!_isPanning)
+                if (!ActiveViewer.IsPanning)
                     PagePreviewPanel.Cursor = Cursors.Arrow;
                 e.Handled = true;
             }

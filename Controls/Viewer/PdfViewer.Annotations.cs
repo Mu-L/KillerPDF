@@ -813,7 +813,7 @@ namespace KillerPDF.Controls
                 var pp = e.GetPosition(_annotationCanvas);
                 if (pp.X >= 0 && pp.X <= _annotationCanvas.ActualWidth &&
                     pp.Y >= 0 && pp.Y <= _annotationCanvas.ActualHeight)
-                    return (_viewMode == ViewMode.Grid ? 0 : PageList.SelectedIndex, _annotationCanvas);
+                    return (_viewMode == ViewMode.Grid ? 0 : _currentPage, _annotationCanvas);
             }
             return null;
         }
@@ -845,7 +845,7 @@ namespace KillerPDF.Controls
                     };
                     _draggingTextEditHandle = true;
                     _gestureCanvas = _activeCanvas;
-                    _gesturePage   = _activeCanvas.Tag is int tp ? tp : PageList.SelectedIndex;
+                    _gesturePage   = _activeCanvas.Tag is int tp ? tp : _currentPage;
                     _activeCanvas.CaptureMouse();
                     e.Handled = true;
                     return;
@@ -873,7 +873,7 @@ namespace KillerPDF.Controls
             if (_currentTool == EditTool.Select && _linkOverlays.Count > 0)
             {
                 var clickPos = e.GetPosition(_activeCanvas);
-                int linkPage = _activeCanvas.Tag is int ltp ? ltp : PageList.SelectedIndex;
+                int linkPage = _activeCanvas.Tag is int ltp ? ltp : _currentPage;
                 bool onAnnot = _annotations.TryGetValue(linkPage, out var lal)
                                && lal.Any(a => HitTestAnnotation(a, clickPos, out _));
                 foreach (var lo in onAnnot ? Enumerable.Empty<Canvas>() : _linkOverlays)
@@ -897,7 +897,7 @@ namespace KillerPDF.Controls
             if (_currentTool == EditTool.Select && _viewMode != ViewMode.Single)
             {
                 var cpos = e.GetPosition(_activeCanvas);
-                int cpage = _activeCanvas.Tag is int cltp ? cltp : PageList.SelectedIndex;
+                int cpage = _activeCanvas.Tag is int cltp ? cltp : _currentPage;
                 bool cOnAnnot = _annotations.TryGetValue(cpage, out var clal)
                                 && clal.Any(a => HitTestAnnotation(a, cpos, out _));
                 if (!cOnAnnot && _continuousLinks.TryGetValue(cpage, out var clinks))
@@ -916,7 +916,7 @@ namespace KillerPDF.Controls
                 }
             }
             var pos = e.GetPosition(_activeCanvas);
-            int pageIdx = _activeCanvas.Tag is int tagPage ? tagPage : PageList.SelectedIndex;
+            int pageIdx = _activeCanvas.Tag is int tagPage ? tagPage : _currentPage;
             if (pageIdx < 0) return;
             // Pin the surface/page this gesture started on so async re-renders (grid tile streaming)
             // can't redirect the in-progress draw/select to another page. See _gestureCanvas.
@@ -1046,7 +1046,7 @@ namespace KillerPDF.Controls
                                 for (int i = underPress.Count - 1; i >= 0; i--)
                                     if (IsDraggable(underPress[i]) && HitTestAnnotation(underPress[i], pos, out Rect ub))
                                     { _txtSelClickAnnot = underPress[i]; _txtSelClickAnnotBounds = ub; break; }
-                            if (_viewMode == ViewMode.Grid) PageList.SelectedIndex = pageIdx;
+                            if (_viewMode == ViewMode.Grid) _currentPage = pageIdx;
                             _activeCanvas.CaptureMouse();
                             e.Handled = true;
                             break;
@@ -1101,7 +1101,7 @@ namespace KillerPDF.Controls
                             // non-draggable annotation is added on mouse-up); only a plain click clears.
                             if (!shiftSel) ClearSelection();
                             ClearTextSelection();
-                            if (_viewMode == ViewMode.Grid && !shiftSel) PageList.SelectedIndex = pageIdx;  // grid: click selects the page
+                            if (_viewMode == ViewMode.Grid && !shiftSel) _currentPage = pageIdx;  // grid: click selects the page
                             _isSelecting = true;
                             _selectStart = pos;
                             _selectRect = new Rectangle
@@ -1199,7 +1199,7 @@ namespace KillerPDF.Controls
                     _activeInk.Points.Add(pos);
                     var poly = new Polyline
                     {
-                        // Eraser brush shows a translucent grey stroke so it reads as erasing, not inking.
+                        // Eraser brush shows a translucent gray stroke so it reads as erasing, not inking.
                         Stroke = _drawErase ? new SolidColorBrush(Color.FromArgb(120, 200, 200, 200))
                                             : new SolidColorBrush(_drawColor),
                         StrokeThickness = _drawWidth,
@@ -1258,7 +1258,7 @@ namespace KillerPDF.Controls
                     ClearSelection();
                     _isDrawing = true;
                     _drawStart = pos;
-                    _cropPageIndex = _activeCanvas.Tag is int cpi ? cpi : (_viewMode == ViewMode.Grid ? 0 : PageList.SelectedIndex);
+                    _cropPageIndex = _activeCanvas.Tag is int cpi ? cpi : (_viewMode == ViewMode.Grid ? 0 : _currentPage);
                     // Draw the NEW box as a separate rect (above the existing one). The current box, its
                     // handles, and the bar all stay put until this draw is committed on mouse-up - so a
                     // mouse-down never makes the box or the bar vanish.
@@ -1285,7 +1285,7 @@ namespace KillerPDF.Controls
 
         // Ink/eraser brush cursor preview: a circle the size of the brush, shown while hovering with the
         // Draw tool so the brush footprint is visible before a stroke. Ink = color-tinted ring; eraser =
-        // grey dashed ring. Lives on the page overlay under the cursor; removed on tool change / stroke /
+        // gray dashed ring. Lives on the page overlay under the cursor; removed on tool change / stroke /
         // when the pointer is no longer hovering the Draw tool.
         private System.Windows.Shapes.Ellipse? _brushPreview;
 
@@ -1696,7 +1696,7 @@ namespace KillerPDF.Controls
             // for the single-page canvas. Prevents committing an annotation to the wrong page.
             int pageIdx = _gesturePage >= 0
                 ? _gesturePage
-                : (_activeCanvas?.Tag is int tagPage ? tagPage : PageList.SelectedIndex);
+                : (_activeCanvas?.Tag is int tagPage ? tagPage : _currentPage);
 
             // Finish a live text-edit box resize and hand focus back so typing continues.
             if (_draggingTextEditHandle)
@@ -2165,7 +2165,7 @@ namespace KillerPDF.Controls
         {
             List<int> pages = _pages.Count > 0
                 ? [.. _pages.Keys]
-                : [PageList.SelectedIndex];
+                : [_currentPage];
             ClearSelection();
             int n = 0;
             foreach (int p in pages)
@@ -2570,7 +2570,7 @@ namespace KillerPDF.Controls
             else // Document snapshot
             {
                 if (entry.DocBytes is null) return false;
-                int selectedIdx = PageList.SelectedIndex;
+                int selectedIdx = _currentPage;
                 var tempPath = App.MakeTempFile("undo");
                 System.IO.File.WriteAllBytes(tempPath, entry.DocBytes);
                 _doc?.Close();
@@ -2597,14 +2597,14 @@ namespace KillerPDF.Controls
                 MarkDirty(entry.WasDirty);
                 RefreshPageList();
                 LoadOutlines();   // #133: bookmark edits ride this undo path, and page-level undos can change the outline too
-                if (selectedIdx >= 0 && selectedIdx < PageList.Items.Count)
-                    PageList.SelectedIndex = selectedIdx;
-                else if (PageList.Items.Count > 0)
-                    PageList.SelectedIndex = 0;
+                if (selectedIdx >= 0 && selectedIdx < _doc!.PageCount)
+                    _currentPage = selectedIdx;
+                else if (_doc.PageCount > 0)
+                    _currentPage = 0;
                 // Re-render the current view so the main page(s) reflect the restored document.
                 // RefreshPageList only updates the sidebar, and re-selecting the same page does not
                 // fire SelectionChanged, so grid/two-page tiles would otherwise stay stale.
-                int reIdx = PageList.SelectedIndex;
+                int reIdx = _currentPage;
                 if (_viewMode == ViewMode.Continuous)
                     Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                         (Action)(() => SetupContinuousView(reIdx)));
@@ -2635,15 +2635,15 @@ namespace KillerPDF.Controls
             if (_continuousCanvases.Count > 0)
                 foreach (var p in _continuousCanvases.Keys.ToList())
                     RenderAllAnnotations(p);
-            else if (PageList.SelectedIndex >= 0)
-                RenderAllAnnotations(PageList.SelectedIndex);
+            else if (_currentPage >= 0)
+                RenderAllAnnotations(_currentPage);
         }
 
         // Context-menu "Clear Page Annotations": removes annotations on the current page only.
         private void ClearAnnotations_Click(object sender, RoutedEventArgs e)
         {
             if (_activeTextBox is not null) CommitActiveTextBox();
-            int pageIdx = PageList.SelectedIndex;
+            int pageIdx = _currentPage;
             if (pageIdx < 0) return;
             if (_annotations.TryGetValue(pageIdx, out var list) && list.Count > 0)
             {

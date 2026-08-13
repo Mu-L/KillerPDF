@@ -17,21 +17,32 @@
                     xmlns:kui="clr-namespace:KillerPDF.Controls">
 
     <Style x:Key="OutlineButton" TargetType="Button">
-        <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}"/>
+        <!-- Transparent at rest, NOT RowSelectedBrush. Filled with RowSelectedBrush while its text
+             was OutlineBtnBrush, both resolve to the accent on several palettes - so the confirm
+             button was a solid block of color with its caption invisible inside it. -->
+        <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource OutlineBtnBrush}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Padding" Value="14,5"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource OutlineBtnBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OutlineRestBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <!-- WPF's dotted focus rectangle draws over the caption; the template shows focus itself. -->
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
+                    <!-- Bevels are SIBLINGS of the border so they land on the button's outer edge,
+                         not inside its 1px edge and 14,5 padding. Zero-thickness off 98SE. -->
+                    <Grid>
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{DynamicResource ControlCornerRadius}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
+                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <!-- Order matters: IsPressed must come after IsMouseOver to win. -->
                         <Trigger Property="IsMouseOver" Value="True">
@@ -39,8 +50,11 @@
                             <Setter Property="Foreground" Value="{DynamicResource OnPrimaryBrush}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{DynamicResource RowSelectedBrush}"/>
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource OutlinePressedBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource OutlineBtnBrush}"/>
+                            <!-- Bevel inverts on press: sunken, the classic behavior. -->
+                            <Setter TargetName="bevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                            <Setter TargetName="bevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
@@ -57,29 +71,38 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Padding" Value="12,6"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+        <!-- ButtonEdgeBrush: a beveled theme makes it transparent so the bevel is the edge and
+             the flat outline does not draw a second line beside it. -->
+        <Setter Property="BorderBrush" Value="{DynamicResource ButtonEdgeBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
+                    <Grid>
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{DynamicResource ControlCornerRadius}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
+                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <!-- Order matters: IsPressed after IsMouseOver so it wins. -->
                         <!-- A real fill change, not an opacity fade. Opacity 0.75 on a PaneBrush
                              button over the dark panel is a ~9-step move - invisible in practice,
-                             so Cancel read as dead. (Steve, 2026-07-30: "THERE IS NO HOVER".) -->
+                             so Cancel read as dead - no hover at all. (2026-07-30) -->
                         <!-- Fill only, no accent border: the accent outline is the CONFIRM
                              button's identity (OutlineButton), and a neutral button borrowing it
-                             on hover reads as a second confirm. (Steve, 2026-07-30.) -->
+                             on hover reads as a second confirm. (2026-07-30) -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                            <Setter TargetName="bevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                            <Setter TargetName="bevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>
@@ -94,9 +117,9 @@
     <Style x:Key="DarkTextBox" TargetType="TextBox">
         <!-- SurfaceBrush (#333333 on Dark), NOT BackgroundBrush. The appointment sidebar paints
              nothing of its own and sits straight on the window's BackgroundBrush (#1c1c1c), so a
-             BackgroundBrush field was the exact same colour as the panel behind it - the only thing
+             BackgroundBrush field was the exact same color as the panel behind it - the only thing
              separating a text box from empty space was its 1px border. KillerNotes has always used
-             SurfaceBrush here; this is that. (Steve, 2026-07-30.)
+             SurfaceBrush here; this is that. (2026-07-30)
              It reads correctly on the other surfaces too: the dialog cards are PaneBrush (#3a3a3a),
              against which a SurfaceBrush field is a step darker and reads as recessed. -->
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
@@ -117,7 +140,7 @@
                 <ControlTemplate TargetType="TextBox">
                     <Border x:Name="border" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4">
+                            CornerRadius="{DynamicResource ControlCornerRadius}">
                         <!-- VerticalAlignment must follow VerticalContentAlignment. Without it the
                              content host fills the box top-down, so in a fixed-height row the text
                              line is taller than the space left by Padding and scrolls out of sight,
@@ -146,6 +169,35 @@
         <MenuItem Command="ApplicationCommands.SelectAll" Header="{DynamicResource Str_Ctx_SelectAll}"/>
     </ContextMenu>
 
+    <!-- The places / bookmarks rail. Same template as PickerRow but tight: the rail is a
+         navigation list beside a folder tree, so its rows should match the tree's line height and
+         let you see more at once. PickerRow's 8,5 padding plus 2,1 margin made each place ~28px
+         tall for a 16px icon - over half the row was air. Kept separate from PickerRow so the
+         file list, where rows carry three columns of detail, is unaffected. -->
+    <Style x:Key="PickerPlaceRow" TargetType="ListBoxItem">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="bg" Background="Transparent" CornerRadius="{DynamicResource SmallCornerRadius}" Padding="6,1" Margin="2,0">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="bg" Property="Background" Value="{DynamicResource SelectionBg}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="PickerRow" TargetType="ListBoxItem">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
@@ -153,7 +205,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="bg" Background="Transparent" CornerRadius="4" Padding="8,5" Margin="2,1">
+                    <Border x:Name="bg" Background="Transparent" CornerRadius="{DynamicResource ControlCornerRadius}" Padding="8,5" Margin="2,1">
                         <ContentPresenter/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -161,7 +213,7 @@
                             <Setter TargetName="bg" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                         </Trigger>
                         <!-- SelectionBg/SelectionFg, the family pair - never the raw accent.
-                             Same treatment as a selected menu item or tab. (Steve, 2026-07-30.) -->
+                             Same treatment as a selected menu item or tab. (2026-07-30) -->
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="bg" Property="Background" Value="{DynamicResource SelectionBg}"/>
                             <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
@@ -218,16 +270,29 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="bg" Background="Transparent" CornerRadius="3">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
+                    <!-- Bevels as siblings so the raised edge is the button's own edge. This covers
+                         the view-mode buttons AND the up-a-folder button, which share this style. -->
+                    <Grid>
+                        <Border x:Name="bg" Background="Transparent" CornerRadius="{DynamicResource SmallCornerRadius}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
+                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="bg" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                         </Trigger>
+                        <!-- SelectionBg/SelectionFg, a matched pair. It was RowSelectedBrush with a
+                             PrimaryBrush glyph - on the palettes where those are both the accent,
+                             the active view button was an accent square with an accent icon on it,
+                             so the selected view was the one you could not see. The bevel also
+                             inverts, so the active button reads as pressed in. -->
                         <Trigger Property="Tag" Value="on">
-                            <Setter TargetName="bg" Property="Background" Value="{DynamicResource RowSelectedBrush}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter TargetName="bg" Property="Background" Value="{DynamicResource SelectionBg}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
+                            <Setter TargetName="bevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                            <Setter TargetName="bevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -392,7 +457,7 @@
                                       ClickMode="Press" VerticalAlignment="Center"
                                       IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"/>
 
-                        <Border x:Name="Bd" Grid.Column="1" CornerRadius="3" Margin="2,0,0,0"
+                        <Border x:Name="Bd" Grid.Column="1" CornerRadius="{DynamicResource SmallCornerRadius}" Margin="2,0,0,0"
                                 Background="Transparent" Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter x:Name="PART_Header" ContentSource="Header"
@@ -580,7 +645,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="3">
+                                CornerRadius="{DynamicResource SmallCornerRadius}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -637,7 +702,7 @@
                             <Border Background="{DynamicResource PaneBrush}"
                                     BorderBrush="{DynamicResource CardBorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="3"
+                                    CornerRadius="{DynamicResource SmallCornerRadius}"
                                     Padding="2"
                                     Margin="0,2,6,6"
                                     MinWidth="{Binding ActualWidth,

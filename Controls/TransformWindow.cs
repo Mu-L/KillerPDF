@@ -254,7 +254,7 @@ namespace KillerPDF
             root.Children.Add(sidebar);
 
             // ---- Preview area: a documentbg box (1px frame, margin, rounded) with grain in the margins and
-            //      the page (sized to its true relative scale, with a drop shadow) centred on top. ----
+            //      the page (sized to its true relative scale, with a drop shadow) centered on top. ----
             var previewWrap = new Border
             {
                 BorderThickness = new Thickness(1),
@@ -455,7 +455,7 @@ namespace KillerPDF
             _alignLine.Visibility = Visibility.Collapsed;
             if (dx * dx + dy * dy < 100) return;   // ignore an accidental tap
 
-            // Screen angle of the line (clockwise positive, since Y is down). Normalise to an undirected
+            // Screen angle of the line (clockwise positive, since Y is down). Normalize to an undirected
             // (-90, 90], then snap to the nearest axis so a near-vertical drag deskews to vertical.
             double a = Math.Atan2(dy, dx) * 180.0 / Math.PI;
             a %= 180.0;

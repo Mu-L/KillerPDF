@@ -600,7 +600,7 @@ namespace KillerPDF.Controls
 
                         // /Ff is inheritable like /DA, and bit 13 (4096) is Multiline. The saved
                         // appearance has to know which it is: a multiline field lays its value out
-                        // in lines from the top of the box, a single-line one draws one centred line.
+                        // in lines from the top of the box, a single-line one draws one centered line.
                         int fieldFlags = 0;
                         node = ann;
                         while (node is not null && fieldFlags == 0)
@@ -720,7 +720,7 @@ namespace KillerPDF.Controls
 
                 double leading = fontSize * 1.16;
                 // PDF baselines are measured from the bottom of the field rect. Multiline text
-                // starts at the top and runs down; a single line stays vertically centred.
+                // starts at the top and runs down; a single line stays vertically centered.
                 double textY = isMultiLine ? fieldH - fontSize
                                            : (fieldH - fontSize) / 2 + fontSize * 0.2;
                 if (textY < 1) textY = 1;
@@ -792,7 +792,7 @@ namespace KillerPDF.Controls
                 double iw = fieldW - m * 2;
                 double ih = fieldH - m * 2;
 
-                // Checked: ZapfDingbats "4" = check, centred in the field
+                // Checked: ZapfDingbats "4" = check, centered in the field
                 double fs = Math.Min(iw, ih) * 0.85;
                 double tx = (fieldW - fs * 0.6) / 2;
                 double ty = (fieldH - fs) / 2 + fs * 0.15;

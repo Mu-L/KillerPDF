@@ -33,7 +33,7 @@ namespace KillerPDF.Features
         /// <summary>True while any page has result rects - the F3 and repaint-on-page-change gate.</summary>
         internal bool HasResults => AllSearchRects.Count > 0;
 
-        /// <summary>The emphasised match, or null when the cursor is not on one.</summary>
+        /// <summary>The emphasized match, or null when the cursor is not on one.</summary>
         internal (int page, double left, double bottom, double right, double top)? CurrentMatch =>
             _matchCursor >= 0 && _matchCursor < _matches.Count ? _matches[_matchCursor] : null;
 
@@ -127,7 +127,7 @@ namespace KillerPDF.Features
         }
 
         // Navigates to the current match's page (if needed), updates the counter, and repaints
-        // highlights with the current match emphasised. Shared by Run and Next/Prev.
+        // highlights with the current match emphasized. Shared by Run and Next/Prev.
         private void GoToCurrentMatch()
         {
             if (_matchCursor < 0 || _matchCursor >= _matches.Count) return;

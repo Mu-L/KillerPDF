@@ -45,11 +45,11 @@ namespace KillerPDF
             _ => Cursors.Arrow
         };
 
-        private void SetTool(EditTool tool)
+        private void SetTool(EditTool tool, bool restoringPane = false)
         {
             // Re-clicking the tool that owns the visible annotate bar tucks the bar away (or brings it
             // back) instead of rebuilding it - no flicker, and a quick way to get it out of the way.
-            bool reclickedAnnotTool = tool == _currentTool && tool == _annotBarTool
+            bool reclickedAnnotTool = !restoringPane && tool == _currentTool && tool == _annotBarTool
                 && (_textSettingsBar is not null || _drawSettingsBar is not null || _cropConfirmBar is not null);
             if (reclickedAnnotTool)
             {
@@ -339,9 +339,9 @@ namespace KillerPDF
             UpdateSidebarToggleGlyph();   // splitter stays enabled so it can be dragged back open
         }
 
-        // The rail auto-collapses when no PDF is open and re-opens when one is (Steve, 2026-07-23): with
+        // The rail auto-collapses when no PDF is open and re-opens when one is (2026-07-23): with
         // nothing loaded there are no thumbnails to show, so the strip gets out of the way. The empty
-        // page-jump box + "/ –" hide alongside. Only fires on the open/close transition (FinishOpenFile /
+        // page-jump box + "/ -" hide alongside. Only fires on the open/close transition (FinishOpenFile /
         // ShowEmptyState) and at startup - NOT on tab switches - so a manual toggle mid-session sticks.
         // startup=true collapses instantly (no glide before the first paint); runtime transitions animate.
         private void SyncSidebarToDocState(bool hasDoc, bool startup)

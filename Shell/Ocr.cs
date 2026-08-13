@@ -180,7 +180,7 @@ namespace KillerPDF
             {
                 HideBusyOverlay(busy);
                 OcrLanguages.TryDeleteFile(dest + ".part");
-                if (ct.IsCancellationRequested) SetStatus($"{name} download cancelled");
+                if (ct.IsCancellationRequested) SetStatus($"{name} download canceled");
                 else KillerDialog.Show(this, $"Downloading {name} timed out. Check your connection and try again.",
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -386,7 +386,7 @@ namespace KillerPDF
 
         // OCR Region: armed by the menu item; the next box-drag (Select tool) crops that area of the page
         // bitmap and OCRs only it to the clipboard. Works on scans that have no text layer to extract from.
-        private bool _ocrRegionMode;
+        private bool _ocrRegionMode { get => ActiveViewer.OcrRegionModeRef; set => ActiveViewer.OcrRegionModeRef = value; }
 
         private void BeginOcrRegion()
         {

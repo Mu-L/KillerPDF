@@ -129,7 +129,7 @@ namespace KillerPDF
 
         /// <summary>
         /// The actual rectangle painted for this annotation. Fill uses the whole bounds;
-        /// strikethrough is a thin band at the vertical centre; underline sits at the bottom.
+        /// strikethrough is a thin band at the vertical center; underline sits at the bottom.
         /// </summary>
         public Rect DrawRect()
         {

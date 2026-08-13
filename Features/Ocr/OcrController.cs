@@ -68,7 +68,7 @@ namespace KillerPDF.Features
 
                 _host.HideBusy();
                 // Cooperative cancel: a single page can't be interrupted mid-recognition, so we just discard
-                // the result if the user cancelled. No exceptions are thrown for cancellation anywhere.
+                // the result if the user canceled. No exceptions are thrown for cancellation anywhere.
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_OcrCancelled")); return; }
 
                 string text = result.Text.Trim();
@@ -259,7 +259,7 @@ namespace KillerPDF.Features
             int pages = outDoc.PageCount;
             for (int i = 0; i < pages; i++)
             {
-                // Cooperative cancel: bail before the next page; the caller sees the cancelled token and the
+                // Cooperative cancel: bail before the next page; the caller sees the canceled token and the
                 // file is never saved (outDoc.Save is past the loop), so no partial output is written.
                 if (ct.IsCancellationRequested) return (i, totalWords);
                 report(i, pages);
@@ -358,7 +358,7 @@ namespace KillerPDF.Features
         }
 
         // OCR each page and concatenate the text into one file. Markdown gets a "## Page N" heading per
-        // page; plain text uses a simple divider. Cancellable - nothing is written if cancelled.
+        // page; plain text uses a simple divider. Cancellable - nothing is written if canceled.
         private static int ExtractText(string src, int pageCount, string outPath, bool markdown,
             Action<int, int> report, CancellationToken ct, string language)
         {
@@ -369,7 +369,7 @@ namespace KillerPDF.Features
 
             for (int i = 0; i < pageCount; i++)
             {
-                // Cooperative cancel: stop and write nothing if the user cancelled (caller checks the token).
+                // Cooperative cancel: stop and write nothing if the user canceled (caller checks the token).
                 if (ct.IsCancellationRequested) return 0;
                 report(i, pageCount);
 

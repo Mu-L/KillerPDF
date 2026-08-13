@@ -229,6 +229,13 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Theme_Blood">Blood</sys:String>
     <sys:String x:Key="Str_Theme_Greed">Greed</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">Cyanotic</sys:String>
+    <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>
+    <sys:String x:Key="Str_Theme_Ectoplasm">Ectoplasm</sys:String>
+    <sys:String x:Key="Str_Theme_Decay">Decay</sys:String>
+    <sys:String x:Key="Str_Theme_Mourning">Mourning</sys:String>
+    <sys:String x:Key="Str_Theme_Sepulchre">Sepulchre</sys:String>
+    <sys:String x:Key="Str_Theme_Delirium">Delirium</sys:String>
+    <sys:String x:Key="Str_Theme_Malaise">Malaise</sys:String>
 
     <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Zoom_FitWidth">Fit Width</sys:String>
@@ -397,7 +404,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Drop_TooMany">This folder or archive has {0} files. KillerPDF will open only the first {1}. Continue?</sys:String>
     <sys:String x:Key="Str_Status_Merged">Merged {0} files - not yet saved</sys:String>
     <sys:String x:Key="Str_Drop_Merging">Merging files...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">Merge cancelled</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCancelled">Merge canceled</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">Close all documents? Unsaved changes will be lost.</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">Open a PDF first.</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">Save changes before compressing to ZIP?</sys:String>
@@ -531,7 +538,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
 
     <!-- Status-bar messages (extracted from code) -->
     <sys:String x:Key="Str_St_DataCleared">All KillerPDF data cleared</sys:String>
-    <sys:String x:Key="Str_St_OcrRegionCancelled">OCR region cancelled</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCancelled">OCR region canceled</sys:String>
     <sys:String x:Key="Str_St_Erased">Erased</sys:String>
     <sys:String x:Key="Str_St_Ungrouped">Ungrouped</sys:String>
     <sys:String x:Key="Str_St_RemovedFromGroup">Removed from group</sys:String>
@@ -544,19 +551,19 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_St_UndidDocChange">Undid document change</sys:String>
     <sys:String x:Key="Str_St_ClearedPageAnnotations">Cleared annotations on this page</sys:String>
     <sys:String x:Key="Str_St_NoAnnotationsToClear">No annotations to clear</sys:String>
-    <sys:String x:Key="Str_St_RepairCancelled">Repair cancelled</sys:String>
-    <sys:String x:Key="Str_St_Cancelled">Cancelled</sys:String>
+    <sys:String x:Key="Str_St_RepairCancelled">Repair canceled</sys:String>
+    <sys:String x:Key="Str_St_Cancelled">Canceled</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">Document info updated - save the file to keep the changes</sys:String>
-    <sys:String x:Key="Str_St_FlattenCancelled">Flatten cancelled (no file written)</sys:String>
+    <sys:String x:Key="Str_St_FlattenCancelled">Flatten canceled (no file written)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">Could not flatten annotations for printing; printing without them.</sys:String>
-    <sys:String x:Key="Str_St_HqDownloadCancelled">High quality download cancelled</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">Language download cancelled</sys:String>
-    <sys:String x:Key="Str_St_OcrCancelled">OCR cancelled</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCancelled">High quality download canceled</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCancelled">Language download canceled</sys:String>
+    <sys:String x:Key="Str_St_OcrCancelled">OCR canceled</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">Drag a box over the area to recognize</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR region too small</sys:String>
     <sys:String x:Key="Str_St_OcrNoText">OCR: no text found in the selected region</sys:String>
-    <sys:String x:Key="Str_St_SearchablePdfCancelled">Searchable PDF cancelled (no file written)</sys:String>
-    <sys:String x:Key="Str_St_TextExtractCancelled">Text extraction cancelled (no file written)</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCancelled">Searchable PDF canceled (no file written)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCancelled">Text extraction canceled (no file written)</sys:String>
     <sys:String x:Key="Str_St_NoTextOnPage">No text found on this page</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">No text selected - drag to select text</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">No text found in selection</sys:String>
@@ -635,6 +642,12 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Sys_Maximize">Maximize</sys:String>
     <sys:String x:Key="Str_Sys_Close">Close</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">Cancel</sys:String>
+
+    <!-- The app's own wordmark, split into the family's two runs: neutral first word, accent
+         second. The file picker reads these rather than hardcoding a name, so the same compiled
+         dialog names whichever app is hosting it. -->
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">Open</sys:String>
     <sys:String x:Key="Str_Btn_Replace">Replace</sys:String>
     <sys:String x:Key="Str_Btn_Save">Save</sys:String>

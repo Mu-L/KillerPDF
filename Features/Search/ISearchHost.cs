@@ -27,7 +27,7 @@ namespace KillerPDF.Features
         void ClearHighlights();
 
         /// <summary>Repaints highlights on every page on screen right now, with the current
-        /// match emphasised.</summary>
+        /// match emphasized.</summary>
         void RepaintHighlights();
     }
 }

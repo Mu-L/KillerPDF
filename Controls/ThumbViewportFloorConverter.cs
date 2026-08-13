@@ -24,7 +24,7 @@ namespace KillerPDF
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             double vp = AsDouble(values, 0);
-            // Anything unexpected -> hand back the real ViewportSize so behaviour is unchanged.
+            // Anything unexpected -> hand back the real ViewportSize so behavior is unchanged.
             if (double.IsNaN(vp) || vp <= 0) return vp;
 
             double max     = AsDouble(values, 1);

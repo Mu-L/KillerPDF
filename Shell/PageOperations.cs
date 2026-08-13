@@ -164,7 +164,7 @@ namespace KillerPDF
 
         // Cancels the previous thumbnail background load when the file changes.
         // The FOCUSED pane's thumbnail loader token. The panes keep their own (PdfViewer.ThumbCts):
-        // one window-wide token had each pane cancelling the other's decode.
+        // one window-wide token had each pane canceling the other's decode.
         private System.Threading.CancellationTokenSource? _thumbCts
         {
             get => ActiveViewer.ThumbCts;
@@ -181,6 +181,7 @@ namespace KillerPDF
         internal void RestorePageListForActivePane()
         {
             var cached = ActiveViewer.ThumbCache;
+            int preservedPage = ActiveViewer.CurrentPageIndex;
 
             bool usable = cached != null
                        && _doc != null
@@ -193,10 +194,10 @@ namespace KillerPDF
 
             // No cancel here. The panes own their thumbnail lists and their loader tokens
             // separately, so the other pane's decode is writing into ITS array and should be left
-            // to finish - cancelling it was what left a pane showing page labels with no pictures
+            // to finish - canceling it was what left a pane showing page labels with no pictures
             // after any focus change.
             if (!ReferenceEquals(PageList.ItemsSource, cached)) PageList.ItemsSource = cached;
-            ActiveViewer.SyncPageListSelection();
+            ActiveViewer.SyncPageListSelection(preservedPage);
         }
 
         internal void RefreshPageList()
@@ -214,6 +215,7 @@ namespace KillerPDF
 
             int    pageCount = _doc.PageCount;
             string filePath  = _currentFile;
+            int preservedPage = ActiveViewer.CurrentPageIndex;
 
             // Snapshot rotations on the UI thread before going to background.
             var rotSnap = new Dictionary<int, int>(_pageRotations);
@@ -236,6 +238,7 @@ namespace KillerPDF
                 }
             }
             PageList.ItemsSource = items;
+            ActiveViewer.SyncPageListSelection(preservedPage);
 
             // Hand the array to the pane it belongs to, so focusing away and back can re-seat it
             // rather than decode the document again. RestorePageListForActivePane is the only reader.

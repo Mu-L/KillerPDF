@@ -29,12 +29,12 @@ namespace KillerPDF
         // True while an open is finishing on a background thread (encryption strip / repair). The
         // synchronous open callers check this so they don't treat the not-yet-loaded _doc as a failure;
         // the background path finalizes the tab itself via FinalizeAsyncOpen.
-        private bool _asyncOpenPending;
+        private bool _asyncOpenPending { get => ActiveViewer.AsyncOpenPendingRef; set => ActiveViewer.AsyncOpenPendingRef = value; }
 
         // True when the open document came from a password/encryption-protected source file (#149).
         // Drives the Save menu's Remove Password entry and the saved-without-protection status note.
         // Cleared once a save writes the unprotected file; carried per tab via DocumentSession.
-        private bool _openedFromProtected;
+        private bool _openedFromProtected { get => ActiveViewer.OpenedFromProtectedRef; set => ActiveViewer.OpenedFromProtectedRef = value; }
 
         private void OpenFile(string path)
         {
@@ -243,13 +243,13 @@ namespace KillerPDF
                     var p = App.MakeTempFile("repaired");
                     return PdfiumInterop.TryPdfiumStripEncryption(path, p) ? p : null;
                 });
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 0
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // canceled during strategy 0
 
                 // Strategy 1: PdfSharpCore Import mode - page-copy, more lenient than Modify/ReadOnly.
                 // Works when the XRef is partially corrupt but the object data is intact. (Returns
                 // null on failure rather than throwing.)
                 repairedPath ??= await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaImportToFile(path));
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 1
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // canceled during strategy 1
 
                 // Strategy 2: PDFium rasterize. PDFium's internal XRef recovery handles damage
                 // PdfSharpCore cannot; each page is rendered to a bitmap and rebuilt into a clean PDF.
@@ -259,7 +259,7 @@ namespace KillerPDF
                     repairedPath = await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaDocnetRasterizeToFile(path));
                     raster = repairedPath is not null;
                 }
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // cancelled during strategy 2
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // canceled during strategy 2
 
                 if (repairedPath is null)
                 {
@@ -985,8 +985,8 @@ namespace KillerPDF
             // No real path yet (repaired temp-backed open) -> go straight to Save As.
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(sender, e); return; }
             var name = System.IO.Path.GetFileName(_originalFile);
-            // The same file can be open in BOTH panes as two independent copies (Steve's call,
-            // 2026-08-01), each with its own annotations and undo stack. Overwriting from one pane
+            // The same file can be open in BOTH panes as two independent copies (2026-08-01),
+            // each with its own annotations and undo stack. Overwriting from one pane
             // therefore discards whatever the other pane has done to it, with nothing on screen to
             // suggest that - so say so before it happens rather than after.
             if (OtherPaneHasDirtyCopyOf(_originalFile))
@@ -1447,7 +1447,7 @@ namespace KillerPDF
                     using var docReader = DocLib.Instance.GetDocReader(renderPath, new PageDimensions(previewBox, previewBox));
                     for (int i = 0; i < pageCount; i++)
                     {
-                        if (preview.Cancelled) return;
+                        if (preview.Canceled) return;
                         using var pr = docReader.GetPageReader(i);
                         int w = pr.GetPageWidth();
                         int h = pr.GetPageHeight();
@@ -1462,7 +1462,7 @@ namespace KillerPDF
                         try { preview.Dispatcher.Invoke(() => preview.SetRenderedPage(ci, src, w, h)); }
                         catch { return; }   // window closed mid-render
                     }
-                    if (!preview.Cancelled)
+                    if (!preview.Canceled)
                         try { preview.Dispatcher.Invoke(preview.FinishLoading); } catch { }
                 }
                 catch (Exception ex)

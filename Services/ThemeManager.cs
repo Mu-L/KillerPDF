@@ -8,10 +8,14 @@ using System.Windows.Threading;
 
 namespace KillerPDF.Services
 {
-    internal enum Theme { Dark, Light, Black, Blood, Greed, Cyanotic }
+    internal enum Theme
+    {
+        Dark, Light, Black, SE98, Blood, Greed, Cyanotic, Ectoplasm, Decay,
+        Mourning, Sepulchre, Delirium, Malaise
+    }
 
     // Accent-hue variants of the Dark theme. Green is the base Dark.xaml (no overlay); the
-    // others apply a small overlay dictionary that recolours only the accent-family keys.
+    // others apply a small overlay dictionary that recolors only the accent-family keys.
     internal enum DarkAccent { Green, Red, Blue, Purple, Orange, Teal }
 
     internal static class ThemeManager
@@ -95,11 +99,11 @@ namespace KillerPDF.Services
         }
 
         /// <summary>
-        /// Called from Window.SourceInitialized to set the native title bar colour.
+        /// Called from Window.SourceInitialized to set the native title bar color.
         /// </summary>
         public static void ApplyDwm(IntPtr hwnd)
         {
-            SetDwm(hwnd, _current != Theme.Light);
+            SetDwm(hwnd, !UsesLightChrome(_current));
         }
 
         // ── Internal ─────────────────────────────────────────────────────
@@ -115,7 +119,7 @@ namespace KillerPDF.Services
                 {
                     var hwnd = new WindowInteropHelper(win).Handle;
                     if (hwnd != IntPtr.Zero)
-                        SetDwm(hwnd, theme != Theme.Light);
+                        SetDwm(hwnd, !UsesLightChrome(theme));
                 }
             }
         }
@@ -126,13 +130,21 @@ namespace KillerPDF.Services
             {
                 Theme.Light        => new Uri("pack://application:,,,/Themes/Light.xaml"),
                 Theme.Black        => new Uri("pack://application:,,,/Themes/Black.xaml"),
+                Theme.SE98         => new Uri("pack://application:,,,/Themes/98SE.xaml"),
                 Theme.Blood        => new Uri("pack://application:,,,/Themes/Blood.xaml"),
                 Theme.Greed        => new Uri("pack://application:,,,/Themes/Greed.xaml"),
                 Theme.Cyanotic     => new Uri("pack://application:,,,/Themes/Cyanotic.xaml"),
+                Theme.Ectoplasm    => new Uri("pack://application:,,,/Themes/Ectoplasm.xaml"),
+                Theme.Decay        => new Uri("pack://application:,,,/Themes/Decay.xaml"),
+                Theme.Mourning     => new Uri("pack://application:,,,/Themes/Mourning.xaml"),
+                Theme.Sepulchre    => new Uri("pack://application:,,,/Themes/Sepulchre.xaml"),
+                Theme.Delirium     => new Uri("pack://application:,,,/Themes/Delirium.xaml"),
+                Theme.Malaise      => new Uri("pack://application:,,,/Themes/Malaise.xaml"),
                 _                  => new Uri("pack://application:,,,/Themes/Dark.xaml"),
             };
 
             var newDict = new ResourceDictionary { Source = uri };
+            CompleteAppPalette(newDict);
             var merged  = Application.Current.Resources.MergedDictionaries;
 
             // In-place per-key update: fires a targeted notification for each changed key without
@@ -152,7 +164,7 @@ namespace KillerPDF.Services
 
             // Dark and Light families: overlay the chosen accent hue on top of the base green keys.
             // Green is the base itself, so it needs no overlay (and re-applying the base above
-            // already restored green, so switching back from a coloured accent works automatically).
+            // already restored green, so switching back from a colored accent works automatically).
             // Each theme has its own tuned overlay (Dark = bright text on dark; Light = dark text
             // on white), loaded from Accents/<Theme>/<Accent>.xaml.
             var accent = AccentFor(theme);
@@ -169,8 +181,8 @@ namespace KillerPDF.Services
                     target[key] = accentDict[key];
             }
 
-            // "PDF" wordmark colour. In the accent-capable families (Dark/Light/Black) it tracks the chosen
-            // accent; in the bold fixed-colour themes (Blood/Greed/Cyanotic) it reads as TextSecondary so it
+            // "PDF" wordmark color. In the accent-capable families (Dark/Light/Black) it tracks the chosen
+            // accent; in the bold fixed-color themes (Blood/Greed/Cyanotic) it reads as TextSecondary so it
             // doesn't fight their loud accents. AccentLogo is the brush the wordmark (and a few other marks)
             // bind to; pointing it at the live PrimaryBrush/MutedTextBrush updates them all via DynamicResource.
             {
@@ -184,8 +196,51 @@ namespace KillerPDF.Services
             Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.SystemIdle, (Action)RefreshIcons);
         }
 
+        private static bool UsesLightChrome(Theme theme) => theme is Theme.Light or Theme.SE98;
+
+        private static void CompleteAppPalette(ResourceDictionary d)
+        {
+            object Pick(string key, string fallback) => d.Contains(key) ? d[key] : d[fallback];
+            void Alias(string key, string fallback)
+            {
+                if (!d.Contains(key)) d[key] = Pick(fallback, "PaneBrush");
+            }
+
+            Alias("BgRecentPanel", "SurfaceBrush");
+            Alias("BgFlyout", "MenuBackgroundBrush");
+            Alias("SelectionAccent", "PrimaryBrush");
+            Alias("AccentLogo", "PrimaryBrush");
+            Alias("InstallBtnBg", "PrimaryBrush");
+            Alias("DropBorder", "PaneBorderBrush");
+            Alias("SettingsOpenRowBg", "RowHoverBrush");
+            Alias("FilenameBrush", "MutedTextBrush");
+            Alias("BgDragHandle", "PaneBorderBrush");
+            Alias("DragLine", "InputBorderBrush");
+            Alias("SliderTrack", "InputBorderBrush");
+            Alias("RadioAccent", "PrimaryBrush");
+            Alias("BgCanvas", "PaneBrush");
+            if (!d.Contains("DangerRed")) d["DangerRed"] = new SolidColorBrush(Color.FromRgb(0xef, 0x44, 0x44));
+            if (!d.Contains("BgOverlay")) d["BgOverlay"] = new SolidColorBrush(Color.FromArgb(0xbb, 0, 0, 0));
+            if (!d.Contains("HeaderShadowOpacity")) d["HeaderShadowOpacity"] = 0.5;
+            if (!d.Contains("KsCatTools")) d["KsCatTools"] = new SolidColorBrush(Color.FromRgb(0xff, 0xd3, 0x19));
+            if (!d.Contains("KsCatOcr")) d["KsCatOcr"] = new SolidColorBrush(Color.FromRgb(0xff, 0x90, 0x1f));
+            if (!d.Contains("TabStripFadeBrush"))
+            {
+                var end = (Pick("PaneBrush", "SurfaceBrush") as SolidColorBrush)?.Color ?? Colors.Transparent;
+                d["TabStripFadeBrush"] = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0), EndPoint = new Point(0, 1),
+                    GradientStops = { new GradientStop(Colors.Transparent, 0), new GradientStop(end, 1) }
+                };
+            }
+            d[SystemColors.HighlightBrushKey] = Pick("SelectionBg", "PrimaryBrush");
+            d[SystemColors.HighlightTextBrushKey] = Pick("SelectionFg", "OnPrimaryBrush");
+            d[SystemColors.InactiveSelectionHighlightBrushKey] = Pick("SelectionBg", "PrimaryBrush");
+            d[SystemColors.InactiveSelectionHighlightTextBrushKey] = Pick("SelectionFg", "OnPrimaryBrush");
+        }
+
         /// <summary>
-        /// Call from MainWindow.ContentRendered to fix icon colours on initial load
+        /// Call from MainWindow.ContentRendered to fix icon colors on initial load
         /// when the theme was restored from settings (no switch event fires).
         /// </summary>
         public static void RefreshIcons()

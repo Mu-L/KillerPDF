@@ -177,6 +177,13 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Theme_Blood">Kanlı</sys:String>
     <sys:String x:Key="Str_Theme_Greed">Açgözlü</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">Siyanotik</sys:String>
+    <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>
+    <sys:String x:Key="Str_Theme_Ectoplasm">Ectoplasm</sys:String>
+    <sys:String x:Key="Str_Theme_Decay">Decay</sys:String>
+    <sys:String x:Key="Str_Theme_Mourning">Mourning</sys:String>
+    <sys:String x:Key="Str_Theme_Sepulchre">Sepulchre</sys:String>
+    <sys:String x:Key="Str_Theme_Delirium">Delirium</sys:String>
+    <sys:String x:Key="Str_Theme_Malaise">Malaise</sys:String>
 
     <!-- ── Yakınlaştırma açılır listesi ──────────────────────────────── -->
     <sys:String x:Key="Str_Zoom_FitWidth">Genişliğe Sığdır</sys:String>

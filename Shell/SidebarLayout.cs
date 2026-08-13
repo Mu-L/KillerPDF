@@ -37,9 +37,11 @@ namespace KillerPDF
 
             // Carry the sized column's current width across a flip (24px when collapsed, else the
             // user's width). A star length means it isn't the sized column yet, so fall back.
-            GridLength sized = (_sidebarCol != null && _sidebarCol.Width.GridUnitType == GridUnitType.Pixel)
-                ? _sidebarCol.Width
-                : new GridLength(SbPx(180));
+            GridLength sized = _sidebarCollapsed
+                ? new GridLength(SbPx(24))
+                : (_sidebarCol != null && _sidebarCol.Width.GridUnitType == GridUnitType.Pixel)
+                    ? _sidebarCol.Width
+                    : new GridLength(SbPx(180));
             double maxW = SbPx(_sidebarShowingOutlines ? SidebarMaxOutlines : SidebarMaxPages);
 
             if (!_sidebarRight)
@@ -136,6 +138,12 @@ namespace KillerPDF
         // document grows the sidebar when it is on the left and shrinks it when on the right, so
         // the delta is signed by side. Clamped to the column's own Min/MaxWidth, which the collapse
         // and outline/pages modes already maintain, so this cannot drag past a readable minimum.
+        private void SidebarGrip_DragStarted(object sender, DragStartedEventArgs e)
+            => OnSidebarSplitterPress();
+
+        private void SidebarGrip_DragCompleted(object sender, DragCompletedEventArgs e)
+            => OnSidebarResized();
+
         private void SidebarGrip_DragDelta(object sender, DragDeltaEventArgs e)
         {
             if (_sidebarCol == null) return;
@@ -143,6 +151,9 @@ namespace KillerPDF
             double min = _sidebarCol.MinWidth > 0 ? _sidebarCol.MinWidth : SbPx(24);
             double max = double.IsPositiveInfinity(_sidebarCol.MaxWidth) ? double.MaxValue : _sidebarCol.MaxWidth;
             _sidebarCol.Width = new GridLength(Math.Max(min, Math.Min(max, w)));
+            OnSidebarSplitterMove(sender, new System.Windows.Input.MouseEventArgs(
+                System.Windows.Input.Mouse.PrimaryDevice, Environment.TickCount)
+                { RoutedEvent = System.Windows.Input.Mouse.MouseMoveEvent });
         }
 
         // A Border with a CornerRadius does not clip its child, so the canvas, the grain and the

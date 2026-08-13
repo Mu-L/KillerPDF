@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -234,12 +234,12 @@ namespace KillerPDF
         private bool _annotBarAnchorRight = true;
         private double? _annotBarCenterFrac;   // set when parked away from both edges: hold this fraction of the width
         private bool _vScrollVisible;          // last-known document vertical scrollbar state, to reposition bars on change
-        private EditTool? _annotBarTool;       // which tool the visible annotate bar is for (so we fade only on real switches)
-        private bool _annotBarMinimized;       // annotate bar collapsed to a peek strip (toggled by re-clicking its tool)
+        private EditTool? _annotBarTool { get => ActiveViewer.AnnotBarToolRef; set => ActiveViewer.AnnotBarToolRef = value; }
+        private bool _annotBarMinimized { get => ActiveViewer.AnnotBarMinimizedRef; set => ActiveViewer.AnnotBarMinimizedRef = value; }
         private double _annotBarFullHeight;    // remembered full height to expand back to
         private FrameworkElement? _annotBarContent;   // the bar's normal content (hidden while minimized)
         private FrameworkElement? _annotBarDots;      // grip-dots strip shown while minimized
-        private readonly List<FrameworkElement> _annotBarDragInners = [];   // nested panels whose empty areas also drag the bar
+        private List<FrameworkElement> _annotBarDragInners => ActiveViewer.AnnotBarDragInnersRef;
 
         // Positions an annotation bar and wires up sliding. If we already know the X (this session or
         // saved), set it synchronously so the bar appears in place; only the very first time do we
@@ -280,7 +280,7 @@ namespace KillerPDF
             {
                 // Start the fade-in immediately so it overlaps the outgoing bar's fade-out (a true
                 // crossfade). Waiting for the deferred layout pass left a frame where neither bar was
-                // visible, which read as a blink. Final clamp/centre still happens once laid out.
+                // visible, which read as a blink. Final clamp/center still happens once laid out.
                 bar.BeginAnimation(UIElement.OpacityProperty,
                     new DoubleAnimation(0, 1, new Duration(TimeSpan.FromMilliseconds(110)))
                     { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
@@ -289,7 +289,7 @@ namespace KillerPDF
             }
             else if (_annotBarCenterFrac is not null)
             {
-                // Centre-parked needs a measured width to place, so stay hidden one layout frame so it
+                // Center-parked needs a measured width to place, so stay hidden one layout frame so it
                 // can't render at the default edge first and then jump.
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                     (Action)(() => { PositionAnnotationBar(bar, area); bar.Opacity = 1; }));

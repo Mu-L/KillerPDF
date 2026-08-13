@@ -49,8 +49,8 @@ namespace KillerPDF
         /// <summary>Wire both panes up. Called from the constructor.</summary>
         private void InitSplitPanes()
         {
-            Viewer.Owner  = this;
-            ViewerB.Owner = this;
+            Viewer.AttachHost(this);
+            ViewerB.AttachHost(this);
             ActiveViewer  = Viewer;
 
             // Each pane builds its own tile tree. Routing this through ActiveViewer would build
@@ -234,7 +234,7 @@ namespace KillerPDF
             // grow the window by pane A's full width, so keeping pane A at its size would squeeze
             // pane B down to the bare minimum - a lopsided split nobody asked for on a window that
             // is plainly big enough for two. When the window cannot grow that far, split what is
-            // already there evenly instead (Steve, 2026-08-01). The exact round-trip (pane A keeps
+            // already there evenly instead (2026-08-01). The exact round-trip (pane A keeps
             // its size, the window grows to match) stays the behavior whenever there IS room.
             bool evenSplit = !_restoringSplit && grow + 0.5 < aNow + SplitGutter;
             if (evenSplit)
@@ -320,7 +320,7 @@ namespace KillerPDF
                     // populate above ran while pane B's column was still 0 (the slide had not
                     // started), so SyncRecentBoxWidth's width gate collapsed B's box and nothing
                     // re-ran it - pane B showed an empty start screen until the next open action
-                    // repopulated the list (Steve, 2026-08-01).
+                    // repopulated the list (2026-08-01).
                     Viewer.SyncRecentBoxWidth();
                     ViewerB.SyncRecentBoxWidth();
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
@@ -340,8 +340,8 @@ namespace KillerPDF
         /// difference - but the even-split open (OpenSplit, when the window cannot grow) also has to
         /// shrink pane A down to its half-share, and <paramref name="aFrom"/>/<paramref name="aTo"/>
         /// tween it alongside B so the two panes move together instead of A sitting frozen at full
-        /// width until ApplyPaneWidths snaps it down on the final frame - which is what "the panes
-        /// slid all weird before settling" was (Steve, 2026-08-01).
+        /// width until ApplyPaneWidths snaps it down on the final frame - which is what made the
+        /// panes slide erratically before settling (2026-08-01).
         /// GridLength has no built-in animation, so the columns are stepped off a timer.</summary>
         private void AnimateSplitWidth(bool opening, double bTarget, double widthDelta, Action done,
                                        double? aFrom = null, double? aTo = null)
@@ -429,7 +429,7 @@ namespace KillerPDF
             PaneACol.Width = new GridLength(aStart, GridUnitType.Pixel);
             PaneBCol.Width = new GridLength(bStart, GridUnitType.Pixel);
 
-            // THE RULE IS THE CORNERS (Steve, 2026-08-01, after several rounds of narrower
+            // THE RULE IS THE CORNERS (2026-08-01, after several rounds of narrower
             // conditions each missing a case):
             //  - SQUARED corners (_chromeSquared: maximized OR snapped) - the window is pinned to
             //    screen edges and must not move, so pane A expands to fill the space pane B gives
@@ -494,6 +494,7 @@ namespace KillerPDF
             RestorePageListForActivePane();
             LoadOutlines();
             SyncZoomBox();
+            SetTool(_currentTool, restoringPane: true);
 
             // No render here. Each pane keeps its own tile tree, so its document stays painted
             // whether or not it has focus - focus moves the chrome, not the pixels. A

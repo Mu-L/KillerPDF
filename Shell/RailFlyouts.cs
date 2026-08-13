@@ -25,7 +25,7 @@ namespace KillerPDF
         private void RailView_Click(object sender, RoutedEventArgs e) => ToggleRailFlyout(ViewFlyout);
 
         // Rolling the wheel over the view-mode rail button steps through the modes without
-        // opening the flyout: up = next, down = previous (Steve, 2026-07-31 - down-as-next felt
+        // opening the flyout: up = next, down = previous (2026-07-31 - down-as-next felt
         // reversed). F9 jogs forward from the keyboard.
         private void RailView_Wheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
@@ -61,7 +61,7 @@ namespace KillerPDF
             // the one corner a flyout can hug without covering any of them. ALWAYS pane A's panel,
             // never through the PagePreviewPanel accessor: that resolves via ActiveViewer, so with
             // the split open and the RIGHT pane focused the flyout anchored to pane B and opened
-            // mid-window instead of at the window's bottom-left content corner (Steve, 2026-08-01).
+            // mid-window instead of at the window's bottom-left content corner (2026-08-01).
             // Pane A is the leftmost pane and never collapses, so its corner is the rail-adjacent one.
             if (Viewer.PreviewScroller.Parent is FrameworkElement pane)
                 FlyoutPlacement.UsePane(pane);

@@ -23,9 +23,9 @@ namespace KillerPDF
 {
     public partial class MainWindow : Window
     {
-        private PdfDocument? _doc;
-        private string? _currentFile;
-        private string? _originalFile;  // user's real file path; survives temp swaps from crop/rotate, used by Save
+        private PdfDocument? _doc { get => ActiveViewer?.DocumentRef; set { if (ActiveViewer != null) ActiveViewer.DocumentRef = value; } }
+        private string? _currentFile { get => ActiveViewer?.CurrentFileRef; set { if (ActiveViewer != null) ActiveViewer.CurrentFileRef = value; } }
+        private string? _originalFile { get => ActiveViewer?.OriginalFileRef; set { if (ActiveViewer != null) ActiveViewer.OriginalFileRef = value; } }
         private Point _dragStartPoint;
 
         // Zoom
@@ -63,73 +63,77 @@ namespace KillerPDF
         private double _continuousPageW { get => _view.ContinuousPageW; set => _view.ContinuousPageW = value; }
 
         // Editing
-        private EditTool _currentTool = EditTool.Select;
+        private EditTool _currentTool
+        {
+            get => ActiveViewer?.CurrentToolRef ?? EditTool.Select;
+            set { if (ActiveViewer != null) ActiveViewer.CurrentToolRef = value; }
+        }
         // Per-document state. Not readonly: tab switching swaps these by reference so each
         // open document keeps its own annotations, undo history, form values, and search hits.
-        private Dictionary<int, List<PageAnnotation>> _annotations = [];
-        private Dictionary<int, (int w, int h)> _renderDims = [];
+        private Dictionary<int, List<PageAnnotation>> _annotations { get => ActiveViewer.AnnotationsRef; set => ActiveViewer.AnnotationsRef = value; }
+        private Dictionary<int, (int w, int h)> _renderDims { get => ActiveViewer.RenderDimsRef; set => ActiveViewer.RenderDimsRef = value; }
         // Stores the PDF /Rotate value for each page.  The temp file used by Docnet has
         // rotation stripped to zero so FPDF_GetPageWidth/Height returns MediaBox dims and
         // the content isn't clipped; RotateBitmap is applied at render time instead.
-        private Dictionary<int, int> _pageRotations = [];
+        private Dictionary<int, int> _pageRotations { get => ActiveViewer.PageRotationsRef; set => ActiveViewer.PageRotationsRef = value; }
 
         // Form filling - text/check keyed by widget object number; radio keyed by field name
-        private Dictionary<int, string>    _formTextValues  = [];
-        private Dictionary<int, bool>      _formCheckValues = [];
-        private Dictionary<string, string> _formRadioValues = [];
-        private Dictionary<int, double>    _formFontSizes   = [];   // per-field user font-size override (points)
+        private Dictionary<int, string> _formTextValues { get => ActiveViewer.FormTextValuesRef; set => ActiveViewer.FormTextValuesRef = value; }
+        private Dictionary<int, bool> _formCheckValues { get => ActiveViewer.FormCheckValuesRef; set => ActiveViewer.FormCheckValuesRef = value; }
+        private Dictionary<string, string> _formRadioValues { get => ActiveViewer.FormRadioValuesRef; set => ActiveViewer.FormRadioValuesRef = value; }
+        private Dictionary<int, double> _formFontSizes { get => ActiveViewer.FormFontSizesRef; set => ActiveViewer.FormFontSizesRef = value; }
         // Floating font-size stepper shown while a form text field is focused.
-        private Border?  _formSizeBar;
-        private TextBox? _activeFormTb;
-        private int      _activeFormObj;
-        private double   _activeFormScale = 1;
+        private Border? _formSizeBar { get => ActiveViewer.FormSizeBarRef; set => ActiveViewer.FormSizeBarRef = value; }
+        private TextBox? _activeFormTb { get => ActiveViewer.ActiveFormTbRef; set => ActiveViewer.ActiveFormTbRef = value; }
+        private int _activeFormObj { get => ActiveViewer.ActiveFormObjRef; set => ActiveViewer.ActiveFormObjRef = value; }
+        private double _activeFormScale { get => ActiveViewer.ActiveFormScaleRef; set => ActiveViewer.ActiveFormScaleRef = value; }
         private const string FormOverlayTag = "FormFieldOverlay";
 
         // Undo stack - each entry is either an annotation removal or a full document snapshot.
         // AnnotationGroup removes a specific set of annotations in one step (a text edit = cover + text).
         // UndoKind / UndoEntry live in Models/UndoTypes.cs, not here - the undo stack is pushed from
         // Annotations.cs and TextEditing.cs, which live in the viewer control.
-        private Stack<UndoEntry> _undoStack = new();
+        private Stack<UndoEntry> _undoStack { get => ActiveViewer.UndoStackRef; set => ActiveViewer.UndoStackRef = value; }
         // Redo: inverses captured by Undo_Click land here; any NEW edit clears it (PushUndo).
         // Swapped per tab alongside _undoStack (Tabs.cs) so redo can never replay another document.
-        private Stack<UndoEntry> _redoStack = new();
+        private Stack<UndoEntry> _redoStack { get => ActiveViewer.RedoStackRef; set => ActiveViewer.RedoStackRef = value; }
         // Jump history for Alt+Left / Alt+Right and the mouse back/forward buttons. Page-granular,
         // recorded at the long-jump sites (bookmark, internal link, jump box, Home/End); cleared on
         // document open and tab switch.
-        private readonly Stack<int> _navBack = new();
-        private readonly Stack<int> _navForward = new();
-        private bool _isDrawing;
-        private Point _drawStart;
-        private UIElement? _activePreview;
-        private InkAnnotation? _activeInk;
-        private TextBox? _activeTextBox;
-        private PageAnnotation? _selectedAnnotation;
-        private Border? _selectionBorder;
+        private Stack<int> _navBack => ActiveViewer.NavBackRef;
+        private Stack<int> _navForward => ActiveViewer.NavForwardRef;
+        private bool _isDrawing { get => ActiveViewer.IsDrawingRef; set => ActiveViewer.IsDrawingRef = value; }
+        private Point _drawStart { get => ActiveViewer.DrawStartRef; set => ActiveViewer.DrawStartRef = value; }
+        private UIElement? _activePreview { get => ActiveViewer.ActivePreviewRef; set => ActiveViewer.ActivePreviewRef = value; }
+        private InkAnnotation? _activeInk { get => ActiveViewer.ActiveInkRef; set => ActiveViewer.ActiveInkRef = value; }
+        private TextBox? _activeTextBox { get => ActiveViewer.ActiveTextBoxRef; set => ActiveViewer.ActiveTextBoxRef = value; }
+        private PageAnnotation? _selectedAnnotation { get => ActiveViewer.SelectedAnnotationRef; set => ActiveViewer.SelectedAnnotationRef = value; }
+        private Border? _selectionBorder { get => ActiveViewer.SelectionBorderRef; set => ActiveViewer.SelectionBorderRef = value; }
         // Shift+click multi-selection (Select tool): extra annotations selected alongside the
         // primary _selectedAnnotation. Each gets its own outline. Delete removes the whole set.
-        private readonly List<PageAnnotation> _selectedSet = [];
-        private readonly List<Border> _selectionOutlines = [];
+        private List<PageAnnotation> _selectedSet => ActiveViewer.SelectedSetRef;
+        private List<Border> _selectionOutlines => ActiveViewer.SelectionOutlinesRef;
 
         // Draw/Highlight settings
-        private Color _drawColor = Colors.Red;
-        private double _drawWidth = 3;
-        private byte _drawOpacity = 255;
-        private bool _lineLevel = true;   // Line tool: keep the line perfectly horizontal (default on)
-        private bool _highlightErase;     // Highlight tool: drag a box to delete annotations inside it
-        private bool _drawErase;          // Draw tool: brush over annotations to delete them
-        private Color _highlightColor = Color.FromArgb(80, 255, 255, 0);
+        private Color _drawColor { get => ActiveViewer.DrawColorRef; set => ActiveViewer.DrawColorRef = value; }
+        private double _drawWidth { get => ActiveViewer.DrawWidthRef; set => ActiveViewer.DrawWidthRef = value; }
+        private byte _drawOpacity { get => ActiveViewer.DrawOpacityRef; set => ActiveViewer.DrawOpacityRef = value; }
+        private bool _lineLevel { get => ActiveViewer.LineLevelRef; set => ActiveViewer.LineLevelRef = value; }
+        private bool _highlightErase { get => ActiveViewer.HighlightEraseRef; set => ActiveViewer.HighlightEraseRef = value; }
+        private bool _drawErase { get => ActiveViewer.DrawEraseRef; set => ActiveViewer.DrawEraseRef = value; }
+        private Color _highlightColor { get => ActiveViewer.HighlightColorRef; set => ActiveViewer.HighlightColorRef = value; }
         // Strikethrough / underline lines: opaque red by default.
-        private Color _lineAnnotColor = Color.FromArgb(255, 220, 38, 38);
+        private Color _lineAnnotColor { get => ActiveViewer.LineAnnotColorRef; set => ActiveViewer.LineAnnotColorRef = value; }
         private Border? _drawSettingsBar;
 
         // Text (typewriter) tool settings
-        private double _textFontSize = 24;
+        private double _textFontSize { get => ActiveViewer.TextFontSizeRef; set => ActiveViewer.TextFontSizeRef = value; }
         // Current text-tool typeface and style (mirrors the text bar; carried onto each new/edited box).
-        private string _textFontName = "Segoe UI";
-        private bool _textBold;
-        private bool _textItalic;
-        private bool _textStrike;
-        private bool _textUnderline;
+        private string _textFontName { get => ActiveViewer.TextFontNameRef; set => ActiveViewer.TextFontNameRef = value; }
+        private bool _textBold { get => ActiveViewer.TextBoldRef; set => ActiveViewer.TextBoldRef = value; }
+        private bool _textItalic { get => ActiveViewer.TextItalicRef; set => ActiveViewer.TextItalicRef = value; }
+        private bool _textStrike { get => ActiveViewer.TextStrikeRef; set => ActiveViewer.TextStrikeRef = value; }
+        private bool _textUnderline { get => ActiveViewer.TextUnderlineRef; set => ActiveViewer.TextUnderlineRef = value; }
         // Installed font-family names, sorted, computed once (the text bar rebuilds often).
         private static List<string>? _systemFontNamesCache;
         internal static List<string> SystemFontNames => _systemFontNamesCache ??=
@@ -140,73 +144,70 @@ namespace KillerPDF
         // detected size down when seeding an existing-text edit. The user can still fine-tune after.
         private const double EditTextSizeCorrection = 0.8;
         private bool _suppressSizeSync;   // guards the slider<->size-box two-way binding from feedback loops
-        private TextAnnotation? _reeditOriginal;  // placed-text annotation currently being re-edited
+        private TextAnnotation? _reeditOriginal { get => ActiveViewer.ReeditOriginalRef; set => ActiveViewer.ReeditOriginalRef = value; }
         // The opaque cover dropped when starting an existing-text edit, awaiting its paired text commit.
         // Held so the text commit can group both into one undo, and so cancel/empty removes the cover.
-        private CoverAnnotation? _pendingCover;
+        private CoverAnnotation? _pendingCover { get => ActiveViewer.PendingCoverRef; set => ActiveViewer.PendingCoverRef = value; }
         // Dirty state captured before the cover was dropped, so undoing the grouped edit restores it.
-        private bool _pendingEditWasDirty;
-        private Color _textColor = Colors.Black;
-        private byte _textOpacity = 255;          // alpha applied to placed text, like the draw tool
-        private Color _textFillColor = Color.FromArgb(0, 255, 255, 255);  // text box background fill; A==0 = no fill
+        private bool _pendingEditWasDirty { get => ActiveViewer.PendingEditWasDirtyRef; set => ActiveViewer.PendingEditWasDirtyRef = value; }
+        private Color _textColor { get => ActiveViewer.TextColorRef; set => ActiveViewer.TextColorRef = value; }
+        private byte _textOpacity { get => ActiveViewer.TextOpacityRef; set => ActiveViewer.TextOpacityRef = value; }
+        private Color _textFillColor { get => ActiveViewer.TextFillColorRef; set => ActiveViewer.TextFillColorRef = value; }
         private const double TextBoxDefaultWidth = 220;  // canvas-unit width of a freshly placed text box
-        private Border? _textSettingsBar;
+        private Border? _textSettingsBar { get => ActiveViewer.TextSettingsBarRef; set => ActiveViewer.TextSettingsBarRef = value; }
 
         // Signature / image resize
-        private bool _isResizingSig;
-        private Point _resizeSigStart;
-        private double _resizeSigStartScale;
-        private PlacedAnnotation? _resizeSigAnnot;
-        private TextAnnotation? _resizeTextAnnot;               // text box being width-resized (height auto-fits)
-        private HighlightAnnotation? _resizeHlAnnot;            // highlight/line being corner-resized (Bounds)
-        private InkAnnotation? _resizeInkAnnot;                 // ink stroke being corner-resized (points scaled)
-        private List<Point>? _resizeInkOrigPoints;             // snapshot of ink points at resize start
-        private Rect _resizeInkOrigBounds;                      // ink bounding box at resize start
-        private readonly List<Rectangle> _resizeHandles = [];   // 4 corner handles for placed annotations
-        private string _resizeCorner = "SE";                    // which corner is being dragged
-        private Point _resizeAnchor;                            // opposite corner, held fixed during resize
+        private bool _isResizingSig { get => ActiveViewer.IsResizingSigRef; set => ActiveViewer.IsResizingSigRef = value; }
+        private Point _resizeSigStart { get => ActiveViewer.ResizeSigStartRef; set => ActiveViewer.ResizeSigStartRef = value; }
+        private double _resizeSigStartScale { get => ActiveViewer.ResizeSigStartScaleRef; set => ActiveViewer.ResizeSigStartScaleRef = value; }
+        private PlacedAnnotation? _resizeSigAnnot { get => ActiveViewer.ResizeSigAnnotRef; set => ActiveViewer.ResizeSigAnnotRef = value; }
+        private TextAnnotation? _resizeTextAnnot { get => ActiveViewer.ResizeTextAnnotRef; set => ActiveViewer.ResizeTextAnnotRef = value; }
+        private HighlightAnnotation? _resizeHlAnnot { get => ActiveViewer.ResizeHlAnnotRef; set => ActiveViewer.ResizeHlAnnotRef = value; }
+        private InkAnnotation? _resizeInkAnnot { get => ActiveViewer.ResizeInkAnnotRef; set => ActiveViewer.ResizeInkAnnotRef = value; }
+        private List<Point>? _resizeInkOrigPoints { get => ActiveViewer.ResizeInkOrigPointsRef; set => ActiveViewer.ResizeInkOrigPointsRef = value; }
+        private Rect _resizeInkOrigBounds { get => ActiveViewer.ResizeInkOrigBoundsRef; set => ActiveViewer.ResizeInkOrigBoundsRef = value; }
+        private List<Rectangle> _resizeHandles => ActiveViewer.ResizeHandlesRef;
+        private string _resizeCorner { get => ActiveViewer.ResizeCornerRef; set => ActiveViewer.ResizeCornerRef = value; }
+        private Point _resizeAnchor { get => ActiveViewer.ResizeAnchorRef; set => ActiveViewer.ResizeAnchorRef = value; }
 
         // Mid-edit resize handles: 4 corners shown around the live editing TextBox so the user can
         // resize the box (and continue typing) without committing and re-selecting first.
-        private readonly List<Rectangle> _textEditHandles = [];
-        private bool _draggingTextEditHandle;
-        private string _tehCorner = "SE";
-        private Point _tehAnchor;
-        private TextBox? _tehBox;
+        private List<Rectangle> _textEditHandles => ActiveViewer.TextEditHandlesRef;
+        private bool _draggingTextEditHandle { get => ActiveViewer.DraggingTextEditHandleRef; set => ActiveViewer.DraggingTextEditHandleRef = value; }
+        private string _tehCorner { get => ActiveViewer.TehCornerRef; set => ActiveViewer.TehCornerRef = value; }
+        private Point _tehAnchor { get => ActiveViewer.TehAnchorRef; set => ActiveViewer.TehAnchorRef = value; }
+        private TextBox? _tehBox { get => ActiveViewer.TehBoxRef; set => ActiveViewer.TehBoxRef = value; }
 
         // Placed annotation drag-to-move
-        private bool _isDraggingAnnot;
-        private Point _dragAnnotStart;
+        private bool _isDraggingAnnot { get => ActiveViewer.IsDraggingAnnotRef; set => ActiveViewer.IsDraggingAnnotRef = value; }
+        private Point _dragAnnotStart { get => ActiveViewer.DragAnnotStartRef; set => ActiveViewer.DragAnnotStartRef = value; }
 
         // Middle-mouse / spacebar pan
-        private bool _isPanning;
         private bool _spaceHeld;
-        private Point _panStart;
-        private double _panScrollH;
-        private double _panScrollV;
-        private Point _dragAnnotOrigPos;
-        private PageAnnotation? _dragAnnot;   // placed image/signature OR typewriter text
+        private Point _dragAnnotOrigPos { get => ActiveViewer.DragAnnotOrigPosRef; set => ActiveViewer.DragAnnotOrigPosRef = value; }
+        private PageAnnotation? _dragAnnot { get => ActiveViewer.DragAnnotRef; set => ActiveViewer.DragAnnotRef = value; }
 
         // Crop tool
-        private Rect _cropCanvasRect;
-        private Rectangle? _cropPreviewRect;
-        private Rectangle? _cropPreviewRectBorder;  // unused after refactor; kept to avoid null-ref in cleanup
-        private readonly List<System.Windows.Shapes.Path> _cropBrackets = []; // L-bracket corner visuals
-        private Border? _cropConfirmBar;
+        private Rect _cropCanvasRect { get => ActiveViewer.CropCanvasRectRef; set => ActiveViewer.CropCanvasRectRef = value; }
+        private Rectangle? _cropPreviewRect { get => ActiveViewer.CropPreviewRectRef; set => ActiveViewer.CropPreviewRectRef = value; }
+        private Rectangle? _cropPreviewRectBorder { get => ActiveViewer.CropPreviewRectBorderRef; set => ActiveViewer.CropPreviewRectBorderRef = value; }
+        private List<System.Windows.Shapes.Path> _cropBrackets => ActiveViewer.CropBracketsRef;
+        private Border? _cropConfirmBar { get => ActiveViewer.CropConfirmBarRef; set => ActiveViewer.CropConfirmBarRef = value; }
         private readonly Button _toolCropBtn = null!;
         private readonly Button _toolRotateBtn = null!;
-        private readonly List<Rectangle> _cropHandles = [];
-        private string? _activeCropHandleTag; // "NW" | "NE" | "SE" | "SW"
-        private Point _cropHandleDragStart;
-        private Rect _cropRectAtHandleDrag;
-        private int _cropPageIndex = -1;   // page the crop rect was drawn on (grid/two-page aware)
-        private TextBox? _cropXBox, _cropYBox, _cropWBox, _cropHBox;   // GIMP-style: top-left X/Y + width/height
-        private TextBox? _cropRangeBox;
-        private string   _cropUnit = "pt";   // crop coordinate display unit: "pt" | "in" | "%"
-        private bool     _updatingCropInputs;
+        private List<Rectangle> _cropHandles => ActiveViewer.CropHandlesRef;
+        private string? _activeCropHandleTag { get => ActiveViewer.ActiveCropHandleTagRef; set => ActiveViewer.ActiveCropHandleTagRef = value; }
+        private Point _cropHandleDragStart { get => ActiveViewer.CropHandleDragStartRef; set => ActiveViewer.CropHandleDragStartRef = value; }
+        private Rect _cropRectAtHandleDrag { get => ActiveViewer.CropRectAtHandleDragRef; set => ActiveViewer.CropRectAtHandleDragRef = value; }
+        private TextBox? _cropXBox { get => ActiveViewer.CropXBoxRef; set => ActiveViewer.CropXBoxRef = value; }
+        private TextBox? _cropYBox { get => ActiveViewer.CropYBoxRef; set => ActiveViewer.CropYBoxRef = value; }
+        private TextBox? _cropWBox { get => ActiveViewer.CropWBoxRef; set => ActiveViewer.CropWBoxRef = value; }
+        private TextBox? _cropHBox { get => ActiveViewer.CropHBoxRef; set => ActiveViewer.CropHBoxRef = value; }
+        private TextBox? _cropRangeBox { get => ActiveViewer.CropRangeBoxRef; set => ActiveViewer.CropRangeBoxRef = value; }
+        private string _cropUnit { get => ActiveViewer.CropUnitRef; set => ActiveViewer.CropUnitRef = value; }
+        private bool _updatingCropInputs { get => ActiveViewer.UpdatingCropInputsRef; set => ActiveViewer.UpdatingCropInputsRef = value; }
 
         // PDF link overlays (rendered on top of the annotation canvas)
-        private readonly List<Canvas> _linkOverlays = [];
 
         // Sidebar + multi-page view
         private bool _sidebarCollapsed;
@@ -221,12 +222,9 @@ namespace KillerPDF
         private WrapPanel _pageContentPanel { get => _view.PageContentPanel; set => _view.PageContentPanel = value; }
 
         // Text selection
-        private bool _isSelecting;
-        private Point _selectStart;
-        private Rectangle? _selectRect;
-        private Rectangle? _pairedCoverOutline;   // dashed hint over a cover while its paired text is selected
-        private Rectangle? _reeditCoverOutline;   // dashed hint over a cover while its paired text is being re-edited
-        private string? _selectedText;
+        private Rectangle? _pairedCoverOutline { get => ActiveViewer.PairedCoverOutlineRef; set => ActiveViewer.PairedCoverOutlineRef = value; }
+        private Rectangle? _reeditCoverOutline { get => ActiveViewer.ReeditCoverOutlineRef; set => ActiveViewer.ReeditCoverOutlineRef = value; }
+        private string? _selectedText { get => ActiveViewer.SelectedTextRef; set => ActiveViewer.SelectedTextRef = value; }
 
         // Search
         private Border? _searchBar;
@@ -236,7 +234,7 @@ namespace KillerPDF
 
         // Signatures
         private readonly SignatureStore _signatureStore = new();
-        private SavedSignature? _pendingSignature;
+        private SavedSignature? _pendingSignature { get => ActiveViewer.PendingSignatureRef; set => ActiveViewer.PendingSignatureRef = value; }
         private Border? _signaturePopup;
         // Guided AcroForm signing: "pick once, reuse" - the chosen signature/initials are remembered
         // and dropped into every matching field. _pendingSignField, when set, routes the next pick from
@@ -295,7 +293,7 @@ namespace KillerPDF
         private readonly TextBlock _pageTotalLabel = null!;
 
         // Dirty / unsaved-change tracking
-        private bool _isDirty = false;
+        private bool _isDirty { get => ActiveViewer.IsDirtyRef; set => ActiveViewer.IsDirtyRef = value; }
 
         // Whole-document search results now live on SearchController (Features/Search); Tabs.cs
         // parks and restores them per tab through its AllSearchRects/ResultPages/PageCursor.

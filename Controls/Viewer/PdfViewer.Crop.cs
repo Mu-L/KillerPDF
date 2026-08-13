@@ -149,7 +149,7 @@ namespace KillerPDF.Controls
         private void SyncCropBoxInputs()
         {
             if (_cropXBox is null || _doc is null) return;
-            int pi = PageList.SelectedIndex;
+            int pi = _currentPage;
             if (pi < 0 || !_renderDims.TryGetValue(pi, out var dims)) return;
             var (dispW, dispH, sx, sy) = CropDisplayDims(pi, dims);
 
@@ -177,7 +177,7 @@ namespace KillerPDF.Controls
         private void CommitCropBoxInput()
         {
             if (_updatingCropInputs || _cropXBox is null || _doc is null) return;
-            int pi = PageList.SelectedIndex;
+            int pi = _currentPage;
             if (pi < 0 || !_renderDims.TryGetValue(pi, out var dims)) return;
             if (!double.TryParse(_cropXBox.Text,  out double x)) return;
             if (!double.TryParse(_cropYBox!.Text, out double y)) return;
@@ -234,7 +234,7 @@ namespace KillerPDF.Controls
         private void ShowDefaultCropBox()
         {
             if (_doc is null) return;
-            int pi = PageList.SelectedIndex;
+            int pi = _currentPage;
             if (pi < 0) return;
             var canvas = VisibleCanvasForPage(pi) ?? CanvasForPage(pi);
             if (canvas is null || canvas.Width <= 0 || canvas.Height <= 0) return;
@@ -308,7 +308,7 @@ namespace KillerPDF.Controls
                 return;
             }
 
-            int currentPage = _cropPageIndex >= 0 ? _cropPageIndex : PageList.SelectedIndex;
+            int currentPage = _cropPageIndex >= 0 ? _cropPageIndex : _currentPage;
 
             // Build the bar exactly like the other annotate bars: a drag grip first, then the controls,
             // wrapped by the shared BuildBarHost and placed with PlaceAnnotationBar so it attaches to the top
@@ -595,7 +595,7 @@ namespace KillerPDF.Controls
         private void ApplyCrop(int[] pageIndices)
         {
             if (_doc is null || _currentFile is null) { SetStatus(Loc("Str_CropNoDoc")); return; }
-            int currentPage = _cropPageIndex >= 0 ? _cropPageIndex : PageList.SelectedIndex;
+            int currentPage = _cropPageIndex >= 0 ? _cropPageIndex : _currentPage;
             if (currentPage < 0) { SetStatus(Loc("Str_CropNoPage")); return; }
             if (!_renderDims.TryGetValue(currentPage, out var refDims))
             { SetStatus(Loc("Str_CropNoDims")); return; }

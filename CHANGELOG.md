@@ -4,6 +4,18 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - Unreleased
+
+1.7.2 is a Black theme repair: its cards, dialogs, keycaps, menus and find box were ringed in a light gray box, the text on a filled accent button was white on a neon fill and could not be read, and the film grain was weaker than every other Killer Tools app on every theme.
+
+### Added
+- Added 98SE, Ectoplasm, Decay, Mourning, Sepulchre, Delirium, and Malaise themes.
+
+### Fixed
+- Themes are entirely owned by the KillerPDF repository again. The project no longer imports a private sibling `KillerUI` folder or overlays its resources at runtime, so a standalone clone contains every theme resource it builds and displays.
+- Completed the PDF viewer extraction so split panes keep independent documents, tabs, pages, tools, selections, and sidebar positions.
+- Various UI and theme consistency tweaks, including clearer Black-theme surfaces and controls, consistent floating-bar borders, legible accent buttons, and balanced film grain across the themes.
+
 ## [1.7.1] - 2026-08-04
 
 1.7.1 fixes the latest reported crashes, rendering problems, installer registration, file navigation, and editing issues, while adding perspective correction and app-link support.
@@ -85,7 +97,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Invert document colors moved from Ctrl+I to the bare N key (night mode), freeing the conventional italic chord: Ctrl+B / Ctrl+I / Ctrl+U now toggle Bold / Italic / Underline while typing in a text box, matching the text bar's B/I/U buttons. Listed in the shortcuts overlay in all ten languages.
 - Esc now steps down instead of straight out: with nothing left to cancel it first returns to the Select tool, Acrobat-style, and only a second Esc exits the app as before. And the Highlight tools' hint on a page with no text layer now points at the deliberate rectangle path - "No text here - Shapes is on 4" - in all ten languages.
 - The right-click menus caught up with 1.6.5's menu polish: every item in the page, annotation, sidebar-thumbnail, and background context menus now carries its icon in the left gutter, matching the toolbar's glyph for the same action - and page rotation gets a proper mirrored CW / CCW pair.
-- The page sidebar now starts collapsed when no PDF is open and opens itself when one is - an empty workspace has no thumbnails to show - and re-collapses when the last document closes. The empty page-number box and "/ –" that used to sit in the sidebar header on an empty workspace are hidden until a document is open.
+- The page sidebar now starts collapsed when no PDF is open and opens itself when one is - an empty workspace has no thumbnails to show - and re-collapses when the last document closes. The empty page-number box and "/ -" that used to sit in the sidebar header on an empty workspace are hidden until a document is open.
 
 ### Fixed
 - Interactive form-field overlays sat in the wrong place on any document that is not A4-sized - shifted down and slightly wide, worst near the top of the page, while the page itself (and every other viewer) drew the fields correctly. PdfSharpCore's page.Width getter, which the link layer touches on every render, silently converts the parsed /MediaBox array into its internal rectangle type; the field parser's array read then came up empty and fell back to a hardcoded A4 page size, so only A4 documents lined up. The field parser now reads both representations and walks the page-tree inheritance chain for /MediaBox and /CropBox. Found through the brochure: the shipped copy is A4, so the bug was invisible until a US Letter rebuild put every field about 40 points adrift.
@@ -282,7 +294,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Two-page view mode. Displays two pages side-by-side (primary + one secondary). Editing tools are available in this mode.
 - Re-edit placed text by double-clicking it with the Select tool. The text re-opens with its current content, size, and color; the size dropdown and color swatches restyle it live while editing.
 - Per-monitor DPI v2 support. Window and page re-render correctly when dragging between monitors with different scale factors.
-- Zoom +/− toolbar buttons and keyboard shortcuts (Ctrl+=, Ctrl+−, Ctrl+0, Ctrl+Scroll).
+- Zoom +/- toolbar buttons and keyboard shortcuts (Ctrl+=, Ctrl+-, Ctrl+0, Ctrl+Scroll).
 - Crop tool improvements (Issue #15): editable CropBox coordinates, page range apply, TrimBox sync, rotation-aware coordinate conversion, draggable confirm bar.
 - Settings persistence - window size, zoom, and fit mode saved/restored on launch (Issue #69).
 - Global crash handler with structured log files and recovery dialog.

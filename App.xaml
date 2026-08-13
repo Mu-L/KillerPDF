@@ -90,7 +90,8 @@
             </Style>
 
             <!-- ============================================================================
-                 DESIGN TOKENS - the single source of truth every tool/dialog references.
+                 PRODUCT-SPECIFIC DESIGN TOKENS. Shared trademark palette tokens come from KillerUI;
+                 these local resources cover KillerPDF-only tools and dialogs.
                  Theme COLORS live in Themes/*.xaml; these are the theme-independent type,
                  shape, and elevation primitives. Code-built UI reads the same keys through
                  UiKit (UiKit.cs), so XAML and code can never drift apart.
@@ -130,8 +131,8 @@
                  the falloff inside 8px. If the gutter is ever widened, the blur can grow with it.
                  Opacity stays at 0.78 rather than the family 0.6: KillerPDF's card is usually
                  filled edge to edge by a WHITE page, so the boundary is a near-full-range value
-                 jump and the family opacity is swallowed by it. (Steve, 2026-07-31: "the right
-                 gutter can use more depth", then "theres still a hard edge on the gradient".) -->
+                 jump and the family opacity is swallowed by it - the right gutter needs more
+                 depth, and a lower opacity left a hard edge on the gradient. (2026-07-31) -->
             <!-- ShadowDepth 0, deliberately, and this is the ONE place in the family that wants it.
                  MEASURED on the running window, sampling the 8px gutter down the right edge: with
                  depth 2 the gutter was still light at 3px below the card's top border and only
@@ -143,8 +144,8 @@
                  the FOOTER cast, and no longer applies here: the footer is Panel.ZIndex -1 now, so
                  it sits under the card and takes the shadow, and the blur alone puts plenty on it
                  without an offset. Verify that still holds if the blur is reduced further.
-                 (Steve, 2026-07-31: "the drop shadow needs to be under the rounded edge smoothly",
-                 "theres still a hard edge on the gradient".) -->
+                 The requirement: the drop shadow has to run under the rounded edge smoothly, with
+                 no hard edge left in the gradient. (2026-07-31) -->
             <!-- RenderingBias Quality is REQUIRED here, not a nicety. The default (Performance)
                  renders the blur into a reduced-resolution intermediate and scales it back up, so
                  the falloff comes out as chunky stair-stepped blocks - worst exactly at a rounded
@@ -152,8 +153,7 @@
                  and showed up here while this was briefly at 22. Any large-radius shadow in the
                  family needs it; the small ones (ShadowText/Icon/Bar, radius 3-6) are under the
                  threshold where it reads, and Quality costs real render time.
-                 (Steve, 2026-07-31, caught at 491% in GIMP: "the shadows in the corners have hard
-                 edges".) -->
+                 The corner shadows showed hard edges, caught at 491% in GIMP. (2026-07-31) -->
             <DropShadowEffect x:Key="PaneShadow"   Color="Black" BlurRadius="16" ShadowDepth="0" Direction="270" Opacity="0.78"
                               RenderingBias="Quality"/>
 

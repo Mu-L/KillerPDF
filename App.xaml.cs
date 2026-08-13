@@ -956,11 +956,11 @@ namespace KillerPDF
 
         /// <summary>
         /// Shows the Install / Run dialog.
-        /// Returns (cancelled, install, wantDesktopShortcut).
+        /// Returns (canceled, install, wantDesktopShortcut).
         /// </summary>
-        private static (bool cancelled, bool install, bool desktop) ShowLauncher(bool alreadyInstalled)
+        private static (bool canceled, bool install, bool desktop) ShowLauncher(bool alreadyInstalled)
         {
-            bool cancelled = true;
+            bool canceled = true;
             bool install   = false;
             bool desktop   = true;
 
@@ -1110,12 +1110,12 @@ namespace KillerPDF
 
             runBtn.Click += (_, _) =>
             {
-                cancelled = false; install = false;
+                canceled = false; install = false;
                 win.Close();
             };
             installBtn.Click += (_, _) =>
             {
-                cancelled = false; install = true;
+                canceled = false; install = true;
                 desktop = desktopChk.IsChecked == true;
                 win.Close();
             };
@@ -1128,7 +1128,7 @@ namespace KillerPDF
             win.Content = root;
             win.ShowDialog();
 
-            return (cancelled, install, desktop);
+            return (canceled, install, desktop);
         }
 
         // ============================================================
@@ -1300,7 +1300,7 @@ namespace KillerPDF
             Grid.SetColumn(closeBtn, 1);
             titleBar.Children.Add(closeBtn);
 
-            // Helper: labelled row (onClick makes the value a clickable hyperlink)
+            // Helper: labeled row (onClick makes the value a clickable hyperlink)
             static StackPanel MakeRow(string label, string value,
                 SolidColorBrush labelBrush, SolidColorBrush valueBrush,
                 FontFamily? valueFont = null, bool wrap = false, Action? onClick = null)

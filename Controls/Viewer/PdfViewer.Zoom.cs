@@ -128,8 +128,8 @@ namespace KillerPDF.Controls
                     _zoomSettleTimer!.Stop();
                     if (_doc is null) return;
                     ApplyZoom();
-                    if (PageList.SelectedIndex >= 0)
-                        SetStatus(string.Format(Loc("Str_PageOf"), PageList.SelectedIndex + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
+                    if (_currentPage >= 0)
+                        SetStatus(string.Format(Loc("Str_PageOf"), _currentPage + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
                 };
             }
             _zoomSettleTimer.Stop();
@@ -196,7 +196,7 @@ namespace KillerPDF.Controls
                     // Pin the gesture surface/page so mouse-move/up resolve against this overlay
                     // (a margin crop start doesn't go through Canvas_MouseLeftButtonDown).
                     _gestureCanvas = target;
-                    _gesturePage = target.Tag is int gt ? gt : PageList.SelectedIndex;
+                    _gesturePage = target.Tag is int gt ? gt : _currentPage;
                     var p = e.GetPosition(target);
                     p.X = Math.Max(0, Math.Min(target.Width, p.X));
                     p.Y = Math.Max(0, Math.Min(target.Height, p.Y));
@@ -225,7 +225,7 @@ namespace KillerPDF.Controls
             if (_viewMode == ViewMode.Continuous)
             {
                 if (e.OriginalSource is DependencyObject osc && IsWithinPageOverlay(osc)) return null;
-                int pg = PageList.SelectedIndex;
+                int pg = _currentPage;
                 if (pg < 0 || !_continuousCanvases.ContainsKey(pg))
                     pg = NearestContinuousPage(e.GetPosition(_continuousPanel).Y);
                 return pg >= 0 && _continuousCanvases.TryGetValue(pg, out var c) ? c : null;
@@ -241,7 +241,7 @@ namespace KillerPDF.Controls
         {
             _activeCanvas = refCanvas;
             _gestureCanvas = refCanvas;
-            _gesturePage = refCanvas.Tag is int gt ? gt : PageList.SelectedIndex;
+            _gesturePage = refCanvas.Tag is int gt ? gt : _currentPage;
             ClearSelection();
             ClearTextSelection();
             _isSelecting = true;
@@ -262,7 +262,7 @@ namespace KillerPDF.Controls
         // Begin a crop selection on the active overlay at pos (render-dim coords).
         private void StartCropDraw(Point pos)
         {
-            _cropPageIndex = _activeCanvas.Tag is int cpi ? cpi : (_viewMode == ViewMode.Grid ? 0 : PageList.SelectedIndex);
+            _cropPageIndex = _activeCanvas.Tag is int cpi ? cpi : (_viewMode == ViewMode.Grid ? 0 : _currentPage);
             ClearSelection();
             _isDrawing = true;
             _drawStart = pos;

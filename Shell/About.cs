@@ -105,7 +105,7 @@ namespace KillerPDF
             BuildAboutTagline();
         }
 
-        /// <summary>"Killer" in the text colour, "PDF" in the brand green, the pair clickable.</summary>
+        /// <summary>"Killer" in the text color, "PDF" in the brand green, the pair clickable.</summary>
         private void BuildAboutWordmark()
         {
             AboutLogoBlock.Inlines.Clear();
@@ -162,7 +162,7 @@ namespace KillerPDF
 
         private Brush Res(string key) => (Brush)FindResource(key);
 
-        /// <summary>An accent-coloured hyperlink with no underline - the family's one treatment for
+        /// <summary>An accent-colored hyperlink with no underline - the family's one treatment for
         /// "this is clickable" on a card.</summary>
         private Hyperlink AccentLink(string text, System.Action onClick)
         {

@@ -13,7 +13,7 @@ namespace KillerPDF
     // ShortcutRightColumn are filled by BuildShortcutsOverlay(), called once from the constructor.
     //
     // Keys are literal text (shown in Consolas, like a real keycap); labels are Str_* resource keys so
-    // they stay localized. Everything is wired with SetResourceReference so both the theme colours and
+    // they stay localized. Everything is wired with SetResourceReference so both the theme colors and
     // the active locale keep updating live, exactly as the old DynamicResource markup did.
     // ============================================================
     public partial class MainWindow
@@ -144,7 +144,7 @@ namespace KillerPDF
                       .Replace("%zout%", Services.KeyLayout.ZoomOutChar());
 
         // Fill the two overlay columns from the tables above. Called once from the constructor; the
-        // SetResourceReference calls keep every string and colour live across theme + language changes.
+        // SetResourceReference calls keep every string and color live across theme + language changes.
         private void BuildShortcutsOverlay()
         {
             BuildShortcutsColumn(ShortcutLeftColumn,  KsLeftColumn);

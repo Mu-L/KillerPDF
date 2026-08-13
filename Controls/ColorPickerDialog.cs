@@ -145,12 +145,12 @@ namespace KillerPDF
                 Width = 28, Height = 22, Margin = new Thickness(8, 14, 0, 0),
                 Background = R("BgCanvas"), BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
                 // No Cursor here: the crosshair belongs to the CAPTURE window that opens on click.
-                // On the button it appeared on hover, before the pick had started (Steve, 2026-08-01).
+                // On the button it appeared on hover, before the pick had started (2026-08-01).
                 Content = CrosshairIcon(), ToolTip = "Pick a color from anywhere on screen",
                 Template = MakeBtnTemplate()
             };
-            // Same hover treatment as the dialog's chips (greyer fill), and RunEyedropper holds the
-            // armed tint + accent border for as long as the capture is live (Steve, 2026-08-01).
+            // Same hover treatment as the dialog's chips (grayer fill), and RunEyedropper holds the
+            // armed tint + accent border for as long as the capture is live (2026-08-01).
             _eyedropBtn.MouseEnter += (_, _) => { if (!_eyedropArmed) _eyedropBtn.Background = R("CardBorderBrush"); };
             _eyedropBtn.MouseLeave += (_, _) => { if (!_eyedropArmed) _eyedropBtn.Background = R("BgCanvas"); };
             _eyedropBtn.Click += (_, _) => RunEyedropper();
@@ -362,7 +362,7 @@ namespace KillerPDF
                 Padding = new Thickness(6, 0, 6, 0), ToolTip = tip,
                 Child = new TextBlock { Text = text, Foreground = R("TextBrush"), FontSize = 11,
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
-            // Unified hover with the Cancel button (greyer fill), respecting Replace's armed highlight.
+            // Unified hover with the Cancel button (grayer fill), respecting Replace's armed highlight.
             b.MouseEnter += (_, _) => { if (b != _replaceBtn || !_replaceArmed) b.Background = R("CardBorderBrush"); };
             b.MouseLeave += (_, _) => { b.Background = (b == _replaceBtn && _replaceArmed) ? R("RowSelectedBrush") : R("PaneBrush"); };
             return b;
@@ -387,7 +387,7 @@ namespace KillerPDF
             style.Setters.Add(new Setter(Control.ForegroundProperty, primary ? R("PrimaryBrush") : R("TextBrush")));
             style.Setters.Add(new Setter(Control.BackgroundProperty, primary ? R("RowSelectedBrush") : R("PaneBrush")));
             style.Setters.Add(new Setter(Control.BorderBrushProperty, primary ? R("PrimaryBrush") : R("CardBorderBrush")));
-            // Hover: OK fills solid accent (white text for contrast); Cancel goes a shade greyer.
+            // Hover: OK fills solid accent (white text for contrast); Cancel goes a shade grayer.
             var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             if (primary)
             {

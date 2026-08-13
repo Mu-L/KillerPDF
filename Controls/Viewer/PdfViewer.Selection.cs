@@ -354,7 +354,7 @@ namespace KillerPDF.Controls
         private void SelectAllText()
         {
             if (_currentFile is null) return;
-            int pageIdx = PageList.SelectedIndex;
+            int pageIdx = _currentPage;
             if (pageIdx < 0) return;
 
             try

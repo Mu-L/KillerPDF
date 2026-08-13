@@ -46,33 +46,42 @@
          content Border, and this is the only dialog with a ComboBox, whose dropdown is an
          AllowsTransparency Popup; a WPF Effect over a subtree containing one renders as a filled
          rectangle. That is fixed below and is a real bug, it just was not this one.
-         (Steve, 2026-07-30, four attempts.) -->
+         (2026-07-30, four attempts) -->
     <!-- RootFade, not RootBorder, is what the open/close animation drives - and it starts at 0,
          the same way KillerShell's RootGrid does. The fade used to run on RootBorder alone, but
          the shadow layer below is a SIBLING carrying the identical BackgroundBrush and geometry,
          with no starting opacity: it slammed in solid on the first frame and only the card faded
          on top of it, so the dialog read as blinking into existence rather than fading. Fading the
-         shared parent takes the shadow with it. (Steve, 2026-07-31: "they kind of blink in".) -->
+         shared parent takes the shadow with it. (2026-07-31) -->
     <Grid x:Name="RootFade" Opacity="0" Background="#01000000"
           MouseMove="Resize_MouseMove" MouseLeftButtonDown="Resize_MouseDown">
 
         <!-- Shadow layer: same geometry, NO content, not hit-testable. -->
-        <Border Margin="10" CornerRadius="6" Background="{DynamicResource BackgroundBrush}"
+        <Border Margin="{DynamicResource DialogHaloMargin}" CornerRadius="{DynamicResource PanelCornerRadius}" Background="{DynamicResource BackgroundBrush}"
                 IsHitTestVisible="False">
             <Border.Effect>
                 <!-- RenderingBias Quality: at radius 18 the default Performance bias renders the
                      blur at reduced resolution and scales it up, which blocks up into stair-steps
                      on this card's rounded corners. Same fix as App.xaml's PaneShadow. -->
-                <DropShadowEffect Color="Black" BlurRadius="18" ShadowDepth="3" Direction="270" Opacity="0.6"
+                <!-- Opacity follows the theme. A flat palette sets FlyoutShadowOpacity to 0, which
+                     removes the cast entirely rather than leaving a soft halo round a hard-edged
+                     window. Every other theme keeps the 0.6 it had. -->
+                <DropShadowEffect Color="Black" BlurRadius="18" ShadowDepth="3" Direction="270"
+                                  Opacity="{DynamicResource FlyoutShadowOpacity}"
                                   RenderingBias="Quality"/>
             </Border.Effect>
         </Border>
 
-        <Border x:Name="RootBorder" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
-                Background="{DynamicResource BackgroundBrush}" CornerRadius="6" Margin="10">
+        <!-- Corner radius follows the theme, not a hardcoded 6: a square-cornered palette was
+             getting a rounded card, and its square bevel then cut across the corners. -->
+        <Border x:Name="RootBorder" BorderBrush="{DynamicResource WindowEdgeBrush}" BorderThickness="1"
+                Background="{DynamicResource BackgroundBrush}"
+                CornerRadius="{DynamicResource PanelCornerRadius}" Margin="{DynamicResource DialogHaloMargin}">
             <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="40"/>    <!-- title bar -->
+                <!-- Auto, with the height on the band itself: DialogTitleBarHeight is a Double and
+                     a RowDefinition wants a GridLength, which will not convert. -->
+                <RowDefinition Height="Auto"/>  <!-- title bar -->
                 <RowDefinition Height="Auto"/>  <!-- heading -->
                 <RowDefinition Height="Auto"/>  <!-- path row -->
                 <RowDefinition Height="*"/>     <!-- places | entries -->
@@ -84,16 +93,27 @@
             <Border Grid.RowSpan="6" IsHitTestVisible="False"
                     Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
 
-            <!-- Title bar -->
-            <Border Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <!-- Title bar. TitleBarBrush, not Transparent: the row already spans the card, so this
+                 gives it a real caption band - a gradient on the themes that define one, and
+                 identical to BackgroundBrush on the themes that do not, which is why the other
+                 palettes look unchanged. -->
+            <Border Grid.Row="0" Height="{DynamicResource DialogTitleBarHeight}"
+                    Background="{DynamicResource DialogTitleBarBrush}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid Margin="16,0">
                     <Grid VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False">
+                        <!-- The wordmark is the HOST app's, not this file's. This dialog is compiled
+                             into several apps as linked source, so a hardcoded name showed
+                             "KillerPDF" inside KillerNotes. Str_Wordmark_A / _B come from whichever
+                             app is running ("Killer" + "Notes", "Killer" + "PDF"), and the family
+                             two-run split is preserved: neutral first word, accent second.
+                             There is no "The " - that is Killendar's logotype flourish, not this
+                             family's, and it read as nonsense on every other app. -->
                         <TextBlock FontFamily="{DynamicResource WordmarkFont}" FontSize="15" Margin="1,2,0,0" Opacity="{DynamicResource IconShadowOpacity}">
                             <TextBlock.Effect><BlurEffect Radius="3"/></TextBlock.Effect>
-                            <Run Text="The " Foreground="#D8000000"/><Run Text="KillerPDF" FontSize="19.5" FontWeight="Bold" Foreground="#D8000000"/>
+                            <Run Text="{DynamicResource Str_Wordmark_A}" Foreground="#D8000000"/><Run Text="{DynamicResource Str_Wordmark_B}" FontSize="19.5" FontWeight="Bold" Foreground="#D8000000"/>
                         </TextBlock>
                         <TextBlock FontFamily="{DynamicResource WordmarkFont}" FontSize="15">
-                            <Run Text="The " Foreground="{DynamicResource TextBrush}"/><Run Text="KillerPDF" FontSize="19.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}"/>
+                            <Run Text="{DynamicResource Str_Wordmark_A}" Foreground="{DynamicResource ChromeTextBrush}"/><Run Text="{DynamicResource Str_Wordmark_B}" FontSize="19.5" FontWeight="Bold" Foreground="{DynamicResource AccentLogo}"/>
                         </TextBlock>
                     </Grid>
                     <Button Content="&#xE8BB;" Click="Cancel_Click" HorizontalAlignment="Right" Width="30" Height="26" FontSize="10"
@@ -104,7 +124,7 @@
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="xb" Background="Transparent" CornerRadius="3">
+                                            <Border x:Name="xb" Background="Transparent" CornerRadius="{DynamicResource SmallCornerRadius}">
                                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
                                             <ControlTemplate.Triggers>
@@ -141,12 +161,23 @@
                         Foreground="{DynamicResource TextBrush}" Cursor="Hand">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="ub" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InputBorderBrush}"
-                                    BorderThickness="1" CornerRadius="4">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            <!-- Bevels as siblings, like the view buttons. ButtonEdgeBrush rather
+                                 than InputBorderBrush so a beveled theme drops the flat outline and
+                                 the raised edge IS the button's edge. Bevel inverts while pressed. -->
+                            <Grid>
+                                <Border x:Name="ub" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource ButtonEdgeBrush}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource ControlCornerRadius}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Border x:Name="ubBevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
+                                <Border x:Name="ubBevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                            </Grid>
                             <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ub" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/></Trigger>
+                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ub" Property="Background" Value="{DynamicResource RowHoverBrush}"/></Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="ubBevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                                    <Setter TargetName="ubBevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
+                                </Trigger>
                                 <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -189,15 +220,15 @@
                            Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
                            VerticalOffset="2" HorizontalOffset="-8">
                         <Grid Margin="8">
-                            <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="4" IsHitTestVisible="False">
+                            <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="{DynamicResource ControlCornerRadius}" IsHitTestVisible="False">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.5"/>
+                                    <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
                                 </Border.Effect>
                             </Border>
                             <Border Background="{DynamicResource BackgroundBrush}" BorderBrush="{DynamicResource MenuBorderBrush}"
-                                    BorderThickness="1" CornerRadius="4">
+                                    BorderThickness="1" CornerRadius="{DynamicResource ControlCornerRadius}">
                                 <Grid>
-                                    <Border IsHitTestVisible="False" CornerRadius="4"
+                                    <Border IsHitTestVisible="False" CornerRadius="{DynamicResource ControlCornerRadius}"
                                             Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
                                     <ListBox x:Name="RecentsList" Background="Transparent" BorderThickness="0" Padding="2,4"
                                              Width="{Binding ActualWidth, ElementName=PathBox}" MaxHeight="260"
@@ -233,7 +264,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- NOT a raised pane, deliberately (Steve, 2026-07-30): KillerShell's sidebar
+                <!-- NOT a raised pane, deliberately (2026-07-30): KillerShell's sidebar
                      sits flat on the chrome background, and this one matches - only the file
                      LIST is the lifted card. No fill, no shadow, no grain of its own; the
                      dialog card's shared grain shows through.
@@ -248,7 +279,7 @@
                         <RowDefinition x:Name="PlacesRow" Height="185" MinHeight="56"/>
                     </Grid.RowDefinitions>
                     <ListBox x:Name="PlacesList" Grid.Row="2" Background="Transparent" BorderThickness="0" Padding="2,4"
-                             ItemContainerStyle="{StaticResource PickerRow}" SelectionChanged="Places_SelectionChanged"
+                             ItemContainerStyle="{StaticResource PickerPlaceRow}" SelectionChanged="Places_SelectionChanged"
                              ContextMenuOpening="Places_ContextMenuOpening"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ContextMenu>
@@ -290,7 +321,7 @@
                     <!-- Left margin 0, not 4: the 16px expander gutter already provides the
                          inset, and the extra margin pushed the root icons visibly right of the
                          places icons below - dead space that cost horizontal room.
-                         (Steve, 2026-07-30.) -->
+                         (2026-07-30) -->
                     <TreeView x:Name="FolderTreeCtl" Grid.Row="0" Style="{StaticResource FolderTreeView}"
                               Margin="0,3,2,4"
                               PreviewMouseWheel="FolderTree_PreviewMouseWheel"
@@ -358,7 +389,7 @@
                             <Border Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
                         </Grid>
                     </Border>
-                    <!-- Same edge fades for the places list (Steve, 2026-07-30): rows dissolve
+                    <!-- Same edge fades for the places list (2026-07-30): rows dissolve
                          at both ends unless the list is flush there. Same surface, same ramp
                          (SyncPlacesEdgeFades); no scrollbar lift needed - horizontal scrolling
                          is disabled on this list. -->
@@ -391,14 +422,14 @@
                 </Grid>
 
                 <Grid Grid.Column="2">
-                  <Border Background="{DynamicResource PaneBrush}" CornerRadius="4" IsHitTestVisible="False">
+                  <Border Background="{DynamicResource PaneBrush}" CornerRadius="{DynamicResource ControlCornerRadius}" IsHitTestVisible="False">
                     <Border.Effect>
-                      <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.5"/>
+                      <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
                     </Border.Effect>
                   </Border>
-                  <Border Background="{DynamicResource PaneBrush}" CornerRadius="4">
+                  <Border Background="{DynamicResource PaneBrush}" CornerRadius="{DynamicResource ControlCornerRadius}">
                   <Grid>
-                    <Border IsHitTestVisible="False" CornerRadius="4"
+                    <Border IsHitTestVisible="False" CornerRadius="{DynamicResource ControlCornerRadius}"
                             Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
                     <DockPanel>
                         <Grid DockPanel.Dock="Top" x:Name="DetailsHeader" Visibility="Collapsed" Margin="12,4,26,0">
@@ -470,7 +501,7 @@
                 <!-- Left padding 5, not 8: a TextBox's content host carries its own ~2px inset
                      (WPF's TextBoxView), so at 8 the name started visibly right of the filter
                      combo's text directly below it (combo padding is 7 with no inherent inset).
-                     5 + 2 lines the two up. (Steve, 2026-07-31.) -->
+                     5 + 2 lines the two up. (2026-07-31) -->
                 <TextBox x:Name="FileNameBox" Grid.Row="0" Grid.Column="1" Height="28"
                          Style="{StaticResource DarkTextBox}"
                          FontFamily="Consolas" FontSize="12" Padding="5,0,8,0"
@@ -502,5 +533,13 @@
             </Grid>
             </Grid>
         </Border>
+
+        <!-- Raised edge, as SIBLINGS of the card sharing its Margin so they land on its outer
+             edge rather than inside its 1px border. Transparent and zero-thickness in every theme
+             except the beveled ones, where they are the card's edge. -->
+        <Border Margin="{DynamicResource DialogHaloMargin}" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}"
+                BorderThickness="{DynamicResource BevelLightThickness}"/>
+        <Border Margin="{DynamicResource DialogHaloMargin}" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}"
+                BorderThickness="{DynamicResource BevelDarkThickness}"/>
     </Grid>
 </Window>

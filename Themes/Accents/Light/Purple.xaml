@@ -11,7 +11,7 @@
     <SolidColorBrush x:Key="OutlineBtnBrush"     Color="#5A1690" po:Freeze="True"/>
     <SolidColorBrush x:Key="HeaderLineBrush"     Color="#5A1690" po:Freeze="True"/>
     <SolidColorBrush x:Key="SelectionAccent" Color="#5A1690" po:Freeze="True"/>
-    <SolidColorBrush x:Key="RowSelectedBrush"    Color="#EADBF5" po:Freeze="True"/>
+    <SolidColorBrush x:Key="RowSelectedBrush"    Color="#5A1690" po:Freeze="True"/>
     <SolidColorBrush x:Key="OutlinePressedBrush" Color="#EADBF5" po:Freeze="True"/>
     <SolidColorBrush x:Key="SelectionBg"     Color="#5A1690" po:Freeze="True"/>
     <SolidColorBrush x:Key="ScrollThumbBrush"      Color="#886A1DA5" po:Freeze="True"/>

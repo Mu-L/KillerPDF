@@ -271,7 +271,7 @@ namespace KillerPDF
             }
         }
 
-        // Rotates a bitmap by angleDeg about its centre into a canvas grown to the rotated bounding box, with
+        // Rotates a bitmap by angleDeg about its center into a canvas grown to the rotated bounding box, with
         // the new corners filled white.
         internal static BitmapSource RotateExpand(BitmapSource src, double angleDeg)
         {

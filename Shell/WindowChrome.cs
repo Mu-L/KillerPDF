@@ -77,13 +77,13 @@ namespace KillerPDF
                             // ALWAYS page 0 - rendering the selected page here would corrupt that basis
                             // and could collapse the grid to one column. Re-render page 0, then re-fit the
                             // columns to the new DPI/size so the grid is preserved across the monitor move.
-                            RenderPage(0);
+                            ActiveViewer.RenderPage(0);
                             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                                (Action)ReapplyGridOrFit);
+                                (Action)(() => ActiveViewer.ReapplyGridOrFit()));
                             return;
                         }
                         int idx = PageList.SelectedIndex;
-                        if (idx >= 0) RenderPage(idx);
+                        if (idx >= 0) ActiveViewer.RenderPage(idx);
                     }));
             }
             // WM_NCHITTEST is handled natively by WindowChrome.ResizeBorderThickness. The document scrollbar
@@ -331,7 +331,7 @@ namespace KillerPDF
         }
 
         // Anchors a bar to whichever edge it sits nearer and clamps it fully inside the document area:
-        // the gap from the anchored edge is honoured when there's room, otherwise reduced so the bar
+        // the gap from the anchored edge is honored when there's room, otherwise reduced so the bar
         // never crosses the opposite edge. No-op until the bar has a measured width (PlaceAnnotationBar's
         // deferred pass positions it once laid out).
         private void PositionAnnotationBar(Border bar, Grid area)
@@ -343,7 +343,7 @@ namespace KillerPDF
             double maxLeft = Math.Max(0, area.ActualWidth - w);
             if (_annotBarCenterFrac is double frac)
             {
-                // Centre-parking needs a real measured width to place; edge anchors below don't, so they
+                // Center-parking needs a real measured width to place; edge anchors below don't, so they
                 // must still run on a freshly-rebuilt (unmeasured) bar - otherwise a same-tool refresh
                 // (e.g. clicking Bold) reveals the new bar at the default right edge, over the scrollbar.
                 if (w <= 0) return;
@@ -359,7 +359,7 @@ namespace KillerPDF
             else if (_annotBarAnchorRight)
             {
                 // Sit the bar against the scrollbar's left edge when it's present (gap + scrollbar width),
-                // otherwise honour the plain gap right up to the pane edge.
+                // otherwise honor the plain gap right up to the pane edge.
                 double g = Math.Min(maxLeft, (_annotBarGap ?? 8) + sb);
                 bar.HorizontalAlignment = HorizontalAlignment.Right;
                 bar.Margin = new Thickness(0, bar.Margin.Top, g, 0);

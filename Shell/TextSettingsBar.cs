@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -260,7 +260,7 @@ namespace KillerPDF
                 return grid;
             }
 
-            // Drag grip (col 0), spanning both rows and centred vertically (not pinned to the top row).
+            // Drag grip (col 0), spanning both rows and centered vertically (not pinned to the top row).
             // 4 dots since this bar is double height.
             var textGrip = MakeBarGrip(4);
             textGrip.VerticalAlignment = VerticalAlignment.Center;
@@ -400,7 +400,7 @@ namespace KillerPDF
                     _suppressSizeSync = false;
                     ApplyTextStyleToSelection();
                 }
-                sizeBox.Text = $"{_textFontSize:F0}";   // normalise / revert invalid input
+                sizeBox.Text = $"{_textFontSize:F0}";   // normalize / revert invalid input
             }
             // Set an exact size and keep the slider + box in step (slider thumb clamps to 8-72).
             void SetSize(double v)

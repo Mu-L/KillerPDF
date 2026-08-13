@@ -325,7 +325,7 @@ namespace KillerPDF
         /// Returns (confirmed, closeTabsChecked, rememberChecked).
         ///
         /// A thin wrapper over <see cref="ShowTwoCheckPrompt"/> since the install prompt needed the
-        /// same two-checkbox shape. Passing check2Initial:false keeps this behaviour identical to
+        /// same two-checkbox shape. Passing check2Initial:false keeps this behavior identical to
         /// what it was when the body lived here.
         /// </summary>
         public static (bool confirmed, bool closeTabs, bool remember) ShowQuitPrompt(
@@ -477,7 +477,7 @@ namespace KillerPDF
         /// <summary>
         /// Themed "Password Required" prompt: the family dialog chrome (wordmark title bar, grain,
         /// red close, Esc to cancel) around a themed PasswordBox. Returns the entered password, or
-        /// null if the user cancelled / closed the dialog.
+        /// null if the user canceled / closed the dialog.
         /// </summary>
         public static string? PromptPassword(Window? owner, string filename)
         {

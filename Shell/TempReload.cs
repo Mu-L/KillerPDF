@@ -44,7 +44,7 @@ namespace KillerPDF
             // the reload and stay selectable/movable; they are re-rendered after the doc reopens.
             if (!keepAnnotations) _annotations.Clear();
             _renderDims.Clear();
-            InvalidateRenderCache(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
+            ActiveViewer.InvalidateRenderCacheExt(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
             _renderedPrimaryPage = -1;        // force a re-render after reload even if the same page stays selected (e.g. rotate)
             ClearSelection();
             MarkDirty();
@@ -76,8 +76,8 @@ namespace KillerPDF
             catch (Exception saveEx) when (PdfImport.IsXRefException(saveEx))
             {
                 // PdfSharpCore fails to re-save encrypted PDFs (e.g. owner-restricted RC4 files)
-                // because it encounters cross-reference tokens while serialising dirty objects.
-                // Primary fallback: use PDFium (already initialised for the page preview) to
+                // because it encounters cross-reference tokens while serializing dirty objects.
+                // Primary fallback: use PDFium (already initialized for the page preview) to
                 // load the source, strip all /Rotate values, remove encryption, and save.
                 // Secondary fallback: PdfSharpCore Import mode (works on some non-encrypted xref
                 // issues but fails on encrypted files; kept as a last resort).
@@ -110,7 +110,7 @@ namespace KillerPDF
             // Clear once more after the old workers have observed cancellation. This closes the race
             // where a worker was already inside PDFium when the first clear happened and published its
             // stale result while the edited document was being saved and reopened.
-            InvalidateRenderCache(_active);
+            ActiveViewer.InvalidateRenderCacheExt(_active);
 
             // Restore rotations in the reopened in-memory doc so saves, form fields,
             // and all other operations see the correct rotation values.
@@ -130,7 +130,7 @@ namespace KillerPDF
             {
                 int contIdx = PageList.SelectedIndex;
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                    (Action)(() => SetupContinuousView(contIdx)));
+                    (Action)(() => ActiveViewer.SetupContinuousView(contIdx)));
                 return;
             }
 
@@ -138,8 +138,8 @@ namespace KillerPDF
             // keep the current zoom (preserveZoom) so the page doesn't jump to fit the smaller cropped size -
             // the user just wanted the cropped-away area removed, not a zoom change.
             PagePreviewPanel.ScrollToHorizontalOffset(0);
-            if (preserveZoom) { _fitMode = FitMode.None; ApplyZoom(); }
-            else ReapplyGridOrFit();
+            if (preserveZoom) { _fitMode = FitMode.None; ActiveViewer.ApplyZoom(); }
+            else ActiveViewer.ReapplyGridOrFit();
 
             // Deferred refit after layout settles for accurate ActualWidth.
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
@@ -150,9 +150,9 @@ namespace KillerPDF
                 // stayed stale until a view-mode switch called RenderPage. Render the primary first,
                 // then fit the new page dimensions.
                 int refreshPage = _viewMode == ViewMode.Grid ? 0 : _currentPage;
-                if (refreshPage >= 0) RenderPage(refreshPage);
-                if (preserveZoom) ApplyZoom();
-                else ReapplyGridOrFit();
+                if (refreshPage >= 0) ActiveViewer.RenderPage(refreshPage);
+                if (preserveZoom) ActiveViewer.ApplyZoom();
+                else ActiveViewer.ReapplyGridOrFit();
             }));
         }
     }

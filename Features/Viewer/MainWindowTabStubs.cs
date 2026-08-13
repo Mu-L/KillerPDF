@@ -43,9 +43,6 @@ namespace KillerPDF
         private void ScheduleTabReflow() => ActiveViewer.ScheduleTabReflowExt();
         private void RenderActiveSession() => ActiveViewer.RenderActiveSessionExt();
         private void ShowEmptyState() => ActiveViewer.ShowEmptyStateExt();
-        private void InvalidateRenderCache(Controls.PdfViewer.DocumentSession? s)
-            => ActiveViewer.InvalidateRenderCacheExt(s);
-
         /// <summary>Night mode changed: flush both panes. The invert state is baked into cached
         /// pixels, so pane B's cache is as stale as pane A's.</summary>
         private void FlushAllRenderCaches()

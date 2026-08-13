@@ -489,7 +489,7 @@ namespace KillerPDF
                 || _numEnable?.IsChecked == true || _wmEnable?.IsChecked == true;
         }
 
-        // Mirroring only makes sense for a left/right position, so grey it out on a centered one.
+        // Mirroring only makes sense for a left/right position, so gray it out on a centered one.
         private void UpdateMirrorEnabled()
         {
             if (_numMirror == null || _numPos == null) return;

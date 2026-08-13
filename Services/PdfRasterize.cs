@@ -20,7 +20,7 @@ namespace KillerPDF.Services
         /// <summary>
         /// Rasterizes every page of <paramref name="sourcePath"/> at 150 DPI and assembles them
         /// into a new PDF at <paramref name="outputPath"/>, each page at its original point size.
-        /// Cancellable - nothing is saved if cancelled. Runs entirely off the UI thread.
+        /// Cancellable - nothing is saved if canceled. Runs entirely off the UI thread.
         /// </summary>
         internal static void FlattenToPdf(string sourcePath, int pageCount,
             (double widthPt, double heightPt)[] pageDims, string outputPath,
@@ -64,7 +64,7 @@ namespace KillerPDF.Services
                 progress(n, pageCount);
             });
 
-            if (ct.IsCancellationRequested) return;   // cancelled during render: assemble/save nothing
+            if (ct.IsCancellationRequested) return;   // canceled during render: assemble/save nothing
 
             // Assemble the output PDF in page order (PdfSharp is single-threaded).
             var outDoc = new PdfDocument();

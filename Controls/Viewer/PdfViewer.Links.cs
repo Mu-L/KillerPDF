@@ -48,7 +48,7 @@ namespace KillerPDF.Controls
         internal const double LinkHitPadShared = LinkHitPad;
 
         // Small hit-slop (render-dim units) added around a link rect for click / hover / right-click
-        // hit-testing so thin one-line link strips are easy to hit without over-reaching neighbours.
+        // hit-testing so thin one-line link strips are easy to hit without over-reaching neighbors.
         // Applied identically in single-page (grows the overlay in RenderPageLinks) and tiled views
         // (bounds-checks) so both feel the same.
         private const double LinkHitPad = 5;
@@ -68,8 +68,7 @@ namespace KillerPDF.Controls
         {
             if (App.GetSetting(ConfirmLinksSetting) != "1") return true;
             var (result, dontAsk) = KillerDialog.ShowWithCheckbox(
-                // W, not `this`: the dialog takes a Window? owner and this is a UserControl now.
-                W,
+                Host!.Window,
                 $"{Loc("Str_LinkConfirmBody")}\n\n{url}",
                 Loc("Str_LinkDontAsk"),
                 Loc("Str_LinkConfirmTitle"),
@@ -113,7 +112,7 @@ namespace KillerPDF.Controls
             return host.Contains('.') ? "https://" + raw : raw;         // dotted host => assume https
         }
 
-        // Maps a PDF rectangle (points, origin bottom-left, already min/max-normalised) to a canvas-space
+        // Maps a PDF rectangle (points, origin bottom-left, already min/max-normalized) to a canvas-space
         // rectangle (pixels, origin top-left) for a page rendered at bitmapW x bitmapH. Shared by the
         // PdfSharpCore and PDFium link readers so the two stay pixel-identical.
         private static (double x, double y, double w, double h) PdfRectToCanvas(
@@ -140,7 +139,7 @@ namespace KillerPDF.Controls
                 if (_doc != null && pageIndex >= 0 && pageIndex < _doc.PageCount)
                 {
                     RecordNavJump();   // Alt+Left retraces the link hop
-                    PageList.SelectedIndex = pageIndex;
+                    _currentPage = pageIndex;
                 }
                 return;
             }
@@ -389,7 +388,7 @@ namespace KillerPDF.Controls
                 {
                     if (!PdfiumInterop.FPDFLink_GetAnnotRect(link, out PdfiumInterop.FS_RECTF r)) continue;
 
-                    // PDFium may report top/bottom in either order; normalise to min/max so the
+                    // PDFium may report top/bottom in either order; normalize to min/max so the
                     // mapping matches GetPageLinks (PDF origin is bottom-left, y up).
                     double rx1 = Math.Min(r.left, r.right);
                     double rx2 = Math.Max(r.left, r.right);
@@ -521,15 +520,14 @@ namespace KillerPDF.Controls
                 MarkDirty();
                 SaveTempAndReload();
                 // Refresh the current page view so the overlay disappears.
-                int sel = PageList.SelectedIndex;
-                PageList.SelectedIndex = -1;
-                PageList.SelectedIndex = sel;
+                int sel = _currentPage;
+                _currentPage = -1;
+                _currentPage = sel;
                 SetStatus(Loc("Str_LinkRemoved"));
             }
             catch (Exception ex)
             {
-                // W, not `this`: the owner parameter is Window?, and this is a UserControl.
-                KillerDialog.Show(W, $"{Loc("Str_LinkRemoveFailed")}\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(Host!.Window, $"{Loc("Str_LinkRemoveFailed")}\n{ex.Message}", "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -648,7 +646,7 @@ namespace KillerPDF.Controls
                     string keyStr = key is PdfString ks ? ks.Value : key?.ToString() ?? "";
                     if (keyStr == name)
                     {
-                        PdfItem? val = DerefItem(namesArr.Elements[i + 1]);
+                        PdfItem? val = Services.PdfScrub.DerefItemStatic(namesArr.Elements[i + 1]);
                         if (val is PdfArray va) return va;
                         if (val is PdfDictionary vd) return vd.Elements.GetArray("/D");
                     }
@@ -661,7 +659,7 @@ namespace KillerPDF.Controls
             {
                 for (int i = 0; i < kids.Elements.Count; i++)
                 {
-                    PdfItem? kid = DerefItem(kids.Elements[i]);
+                    PdfItem? kid = Services.PdfScrub.DerefItemStatic(kids.Elements[i]);
                     if (kid is PdfDictionary kd)
                     {
                         var result = ResolveNameTree(kd, name);

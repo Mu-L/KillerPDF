@@ -37,9 +37,16 @@ namespace KillerPDF
             ThemeDarkRadio.IsChecked  = cur == Theme.Dark;
             ThemeLightRadio.IsChecked = cur == Theme.Light;
             ThemeHCRadio.IsChecked    = cur == Theme.Black;
+            Theme98SERadio.IsChecked  = cur == Theme.SE98;
             ThemeBloodRadio.IsChecked = cur == Theme.Blood;
             ThemeGreedRadio.IsChecked    = cur == Theme.Greed;
             ThemeCyanoticRadio.IsChecked = cur == Theme.Cyanotic;
+            ThemeEctoplasmRadio.IsChecked = cur == Theme.Ectoplasm;
+            ThemeDecayRadio.IsChecked = cur == Theme.Decay;
+            ThemeMourningRadio.IsChecked = cur == Theme.Mourning;
+            ThemeSepulchreRadio.IsChecked = cur == Theme.Sepulchre;
+            ThemeDeliriumRadio.IsChecked = cur == Theme.Delirium;
+            ThemeMalaiseRadio.IsChecked = cur == Theme.Malaise;
             UpdateAccentDotSelection();
             UpdateAccentRowsVisibility(animate: false);
             // Sync language picker
@@ -109,7 +116,7 @@ namespace KillerPDF
 
         // Collapses the visible annotate bar to a thin peek strip, or expands it back. Triggered by
         // re-clicking the already-active tool, so a second click tucks the bar away instead of the
-        // old behaviour of rebuilding it (which flickered).
+        // old behavior of rebuilding it (which flickered).
         private void ToggleAnnotBarMinimized()
         {
             var bar = _textSettingsBar ?? _drawSettingsBar ?? _cropConfirmBar;
@@ -235,8 +242,8 @@ namespace KillerPDF
             // The invert flag is GLOBAL, but everything below this block runs through the shared
             // fields and so repaints only the FOCUSED pane - the other pane's already-painted
             // tiles kept their old colors until any scroll or focus change forced a re-render,
-            // which read as "one pane is inverted and scrolling the other pane inverts it"
-            // (Steve, 2026-08-01). Re-render it with its own session swapped in - the same
+            // which read as one pane being inverted and scrolling the other pane inverting it
+            // (2026-08-01). Re-render it with its own session swapped in - the same
             // WithOwnSession idiom the cross-pane tab drag uses. BEFORE the _doc guard: the
             // focused pane being empty must not strand the other pane's stale pixels.
             if (IsSplit)
@@ -267,8 +274,8 @@ namespace KillerPDF
                 // secondary tiles back (grid anchors at page 0, like ApplyViewMode).
                 // keepTiles: the tile set is unchanged, so existing tiles stay put and get
                 // their bitmaps swapped in place - no clear-and-refill jitter in grid.
-                RenderPage(_viewMode == ViewMode.Grid ? 0 : Math.Max(0, PageList.SelectedIndex),
-                           keepTiles: true);
+                ActiveViewer.RenderPage(_viewMode == ViewMode.Grid ? 0 : Math.Max(0, PageList.SelectedIndex),
+                                        keepTiles: true);
             }
         }
 
@@ -298,9 +305,16 @@ namespace KillerPDF
         private void ThemeDarkRadio_Checked(object sender, RoutedEventArgs e)     => SelectTheme(Theme.Dark);
         private void ThemeLightRadio_Checked(object sender, RoutedEventArgs e)    => SelectTheme(Theme.Light);
         private void ThemeHCRadio_Checked(object sender, RoutedEventArgs e)       => SelectTheme(Theme.Black);
+        private void Theme98SERadio_Checked(object sender, RoutedEventArgs e)     => SelectTheme(Theme.SE98);
         private void ThemeBloodRadio_Checked(object sender, RoutedEventArgs e)    => SelectTheme(Theme.Blood);
         private void ThemeGreedRadio_Checked(object sender, RoutedEventArgs e)    => SelectTheme(Theme.Greed);
         private void ThemeCyanoticRadio_Checked(object sender, RoutedEventArgs e) => SelectTheme(Theme.Cyanotic);
+        private void ThemeEctoplasmRadio_Checked(object sender, RoutedEventArgs e) => SelectTheme(Theme.Ectoplasm);
+        private void ThemeDecayRadio_Checked(object sender, RoutedEventArgs e)     => SelectTheme(Theme.Decay);
+        private void ThemeMourningRadio_Checked(object sender, RoutedEventArgs e)  => SelectTheme(Theme.Mourning);
+        private void ThemeSepulchreRadio_Checked(object sender, RoutedEventArgs e) => SelectTheme(Theme.Sepulchre);
+        private void ThemeDeliriumRadio_Checked(object sender, RoutedEventArgs e)  => SelectTheme(Theme.Delirium);
+        private void ThemeMalaiseRadio_Checked(object sender, RoutedEventArgs e)   => SelectTheme(Theme.Malaise);
 
         private void SelectTheme(Theme theme)
         {
@@ -403,9 +417,16 @@ namespace KillerPDF
         {
             Theme.Light        => Loc("Str_Theme_Light"),
             Theme.Black        => Loc("Str_Theme_Black"),
+            Theme.SE98         => Loc("Str_Theme_98SE"),
             Theme.Blood        => Loc("Str_Theme_Blood"),
             Theme.Greed        => Loc("Str_Theme_Greed"),
             Theme.Cyanotic     => Loc("Str_Theme_Cyanotic"),
+            Theme.Ectoplasm    => Loc("Str_Theme_Ectoplasm"),
+            Theme.Decay        => Loc("Str_Theme_Decay"),
+            Theme.Mourning     => Loc("Str_Theme_Mourning"),
+            Theme.Sepulchre    => Loc("Str_Theme_Sepulchre"),
+            Theme.Delirium     => Loc("Str_Theme_Delirium"),
+            Theme.Malaise      => Loc("Str_Theme_Malaise"),
             _                  => Loc("Str_Theme_Dark"),
         };
 
@@ -520,7 +541,7 @@ namespace KillerPDF
         // ── Toolbar appearance (right-click picker on the bar) ────────────
         // Hover tooltips stay on in every mode, so the text modes are about preference, not
         // discoverability.
-        // TWO AXES, NOT ONE (family standard, Steve 2026-07-30; KillerUI/Shell/ToolbarStyle.cs is
+        // TWO AXES, NOT ONE (family standard, 2026-07-30; KillerUI/Shell/ToolbarStyle.cs is
         // the reference). The old five-way ToolbarStyle could not express "large icons WITH text" -
         // icon size and text placement were never one axis, they only looked like one. The old
         // enum survives solely so an existing install's saved setting migrates (InitToolbarStyle).
@@ -825,7 +846,7 @@ namespace KillerPDF
                 if (mi.Tag is ToolbarIconSize sz)
                 {
                     mi.IsChecked = sz == _toolbarIconSize;
-                    // Text-only has no icon to size. Grey the choice rather than hiding it, so the
+                    // Text-only has no icon to size. Gray the choice rather than hiding it, so the
                     // setting stays visible and comes back when text moves off Only.
                     mi.IsEnabled = _toolbarLabelMode != ToolbarLabelMode.Only;
                 }
@@ -905,7 +926,7 @@ namespace KillerPDF
                     (GrpPageOps,        new UIElement[] { MiMerge, MiExtract }),
                     // Stamp goes before signature, image and the markup tools: it is the most
                     // occasional of them, and inserting an image or typing text is reached for far
-                    // more often (Steve, 2026-08-01).
+                    // more often (2026-08-01).
                     (ToolStampBtn,      new UIElement[] { MiStamp }),
                     (GrpSignature,      new UIElement[] { MiSignature }),
                     (ToolImageBtn,      new UIElement[] { MiImage }),
@@ -953,7 +974,7 @@ namespace KillerPDF
                     _ => null
                 };
 
-                // First defence against a narrow bar (and the long-standing behavior): collapse whole
+                // First defense against a narrow bar (and the long-standing behavior): collapse whole
                 // low-priority groups into the overflow menu, KEEPING captions on whatever stays. This
                 // is what runs at normal widths - captions stay, extras move to the chevron.
                 if (LeftBar.DesiredSize.Width + RightContainer.DesiredSize.Width > avail)

@@ -49,8 +49,8 @@ namespace KillerPDF.Controls
             int docTabs = _sessions.Count(t => t.Doc != null || t.DeferredPath != null);
             // Only show the strip once THIS pane has more than one document - a single open PDF
             // doesn't need tabs, split or not. (KillerShell forces the band on in both panes whenever
-            // either one has 2+ tabs, so the two card tops always line up; Steve asked for the
-            // simpler per-pane rule instead, so a lone tab never shows a bar even while split.)
+            // either one has 2+ tabs, so the two card tops always line up; the simpler per-pane
+            // rule is used here instead, so a lone tab never shows a bar even while split.)
             bool show = docTabs > 1;
             TabStripBorder.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
 
@@ -58,7 +58,7 @@ namespace KillerPDF.Controls
             // read as one surface. ONLY while there IS a band: a collapsed element contributes no
             // height, so with no strip the -1 lifts this pane a pixel above the other one instead of
             // tucking under anything. The bandless card gets 3px of top air instead of 0 - at 0 it
-            // opened 3px too high against the chrome (Steve, 2026-08-01).
+            // opened 3px too high against the chrome (2026-08-01).
             CardRow.Margin = new Thickness(0, show ? -1 : 3, 0, 0);
 
             // Which tabs fit at this width, before anything below asks which is on an edge.
@@ -131,7 +131,7 @@ namespace KillerPDF.Controls
         /// the chevron. Called from RebuildTabStrip, before anything reads which tab is on an edge.
         /// </summary>
         /// <remarks>
-        /// The window is a contiguous RUN, not a set: tabs keep their order and their neighbours, so a
+        /// The window is a contiguous RUN, not a set: tabs keep their order and their neighbors, so a
         /// strip that has moved still reads like the tab bar it was. It shifts the least it can to
         /// keep the active tab on screen, which is the one invariant that matters - a tab you just
         /// switched to and cannot see is worse than no strip at all.
@@ -297,7 +297,7 @@ namespace KillerPDF.Controls
         /// </remarks>
         private void UpdatePaneFocusRing()
         {
-            bool split = Owner?.IsSplit == true;
+            bool split = Host?.IsSplitView == true;
             bool lit   = PaneHasFocus && split;
 
             foreach (var t in _sessions)
@@ -360,7 +360,7 @@ namespace KillerPDF.Controls
         // ════════════════════════════════════════════════════════════════════════════════════════
         //  DRAG: reorder within this pane, or hand the tab to the other one
         // ════════════════════════════════════════════════════════════════════════════════════════
-        // Arm on press; past the threshold the grabbed tab glues to the cursor and its neighbours
+        // Arm on press; past the threshold the grabbed tab glues to the cursor and its neighbors
         // glide aside as it crosses their layout-slot midpoints. A plain click still switches on
         // release.
         //
@@ -408,7 +408,7 @@ namespace KillerPDF.Controls
             tt.X = x;
         }
 
-        /// <summary>Glide a just-reordered neighbour from where it was into its new slot, so a swap
+        /// <summary>Glide a just-reordered neighbor from where it was into its new slot, so a swap
         /// reads as a movement instead of an instant jump.</summary>
         private static void AnimateTabSlide(FrameworkElement? tab, double fromX)
         {
@@ -462,10 +462,10 @@ namespace KillerPDF.Controls
             double x = e.GetPosition(TabStrip).X;
             if (!_tabDragging && Math.Abs(x - _tabDragStart.X) < SystemParameters.MinimumHorizontalDragDistance) return;
             _tabDragging = true;
-            Panel.SetZIndex(cont, 3);   // the grabbed tab rides above its neighbours
+            Panel.SetZIndex(cont, 3);   // the grabbed tab rides above its neighbors
 
-            var over = Owner?.TabDropTargetPane(this, e);
-            Owner?.UpdateTabDragFeedback(this, _tabDragSession, e, over);
+            var over = Host?.TabDropTarget(this, e);
+            Host?.UpdateTabDragFeedback(this, _tabDragSession, e, over);
             if (over != null) return;   // the ghost has it; no reorder while the pointer is away
 
             int cur = _sessions.IndexOf(_tabDragSession);
@@ -476,7 +476,7 @@ namespace KillerPDF.Controls
             double maxLeft = Math.Max(0, TabStrip.ActualWidth - slide);
             double renderLeft = Math.Min(Math.Max(0, rawLeft), maxLeft);
 
-            // Swap when the ADVANCING edge crosses a neighbour's layout-slot midpoint. Edge against
+            // Swap when the ADVANCING edge crosses a neighbor's layout-slot midpoint. Edge against
             // midpoint gives natural hysteresis, so a tab parked on a boundary does not bounce.
             bool swapped = false;
             if (cur + 1 < _sessions.Count && TabContainer(_sessions[cur + 1]) is { } right && rightEdge > LayoutMidX(right))
@@ -492,7 +492,7 @@ namespace KillerPDF.Controls
                 swapped = true;
             }
 
-            // After a swap the grabbed tab's slot has moved by a neighbour's width; refresh layout so
+            // After a swap the grabbed tab's slot has moved by a neighbor's width; refresh layout so
             // the new slot is current, then offset it back under the cursor.
             if (swapped) TabStrip.UpdateLayout();
             var dragged = TabContainer(_tabDragSession);
@@ -509,7 +509,7 @@ namespace KillerPDF.Controls
             var  s = _tabDragSession;
             _tabDragSession = null;
             _tabDragging    = false;
-            Owner?.HideTabDragFeedback();   // the ghost goes whatever the drop turns out to be
+            Host?.HideTabDragFeedback();   // the ghost goes whatever the drop turns out to be
 
             if (!wasDragging)
             {
@@ -520,9 +520,9 @@ namespace KillerPDF.Controls
             // Dropped over the OTHER pane? Then this was a move, not a reorder. Checked on RELEASE
             // rather than mid-drag on purpose: moving a tab between panes re-creates its container,
             // which would pull the mouse capture out from under the drag that is still running.
-            if (s != null && Owner?.TabDropTargetPane(this, e) is { } target)
+            if (s != null && Host?.TabDropTarget(this, e) is { } target)
             {
-                Owner.MoveTabToPane(this, target, s, e);
+                Host.MoveTabToPane(this, target, s, e);
                 return;
             }
 
