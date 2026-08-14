@@ -409,7 +409,7 @@ namespace KillerPDF
         private void UpdateWindowChrome()
         {
             bool max     = WindowState == WindowState.Maximized || _fullScreen;
-            bool squared = max || IsSnapped();
+            bool squared = max || IsSnapped() || ThemeManager.Current == Theme.SE98;
             _chromeSquared = squared;
 
             // The chrome treatment depends ONLY on the maximized/snapped state, not on the live size
@@ -424,15 +424,28 @@ namespace KillerPDF
             // so internal corners stay square to avoid dark nubs peeking past the rounded window edge.
             if (RootBorder != null)
             {
-                RootBorder.CornerRadius   = new CornerRadius(0);
+                if (squared)
+                    RootBorder.CornerRadius = new CornerRadius(0);
+                else
+                    RootBorder.SetResourceReference(Border.CornerRadiusProperty, "WindowCornerRadius");
                 RootBorder.Margin         = new Thickness(0);
                 // Only a maximized window drops the 1px frame (it's flush to every screen edge); a
                 // snapped window keeps it so it still reads against the window beside it.
-                RootBorder.BorderThickness = new Thickness(max ? 0 : 1);
+                RootBorder.BorderThickness = new Thickness(max || ThemeManager.Current == Theme.SE98 ? 0 : 1);
             }
-            if (TitleBarBorder != null) TitleBarBorder.CornerRadius = new CornerRadius(0);
-            if (FooterBorder   != null) FooterBorder.CornerRadius   = new CornerRadius(0);
-            Resources["ChromeCloseCorner"] = new CornerRadius(0);
+            if (TitleBarBorder != null)
+            {
+                if (squared) TitleBarBorder.CornerRadius = new CornerRadius(0);
+                else TitleBarBorder.SetResourceReference(Border.CornerRadiusProperty, "TitleBarCornerRadius");
+            }
+            if (FooterBorder != null)
+            {
+                if (squared) FooterBorder.CornerRadius = new CornerRadius(0);
+                else FooterBorder.SetResourceReference(Border.CornerRadiusProperty, "FooterCornerRadius");
+            }
+            Resources["ChromeCloseCorner"] = squared
+                ? new CornerRadius(0)
+                : (TryFindResource("TitleBarCornerRadius") as CornerRadius? ?? new CornerRadius(0, 7, 0, 0));
 
             // Retired: native OS shadow replaces the hand-cast one.
             if (WindowShadowBorder != null)
@@ -445,10 +458,11 @@ namespace KillerPDF
             // (caught) on Windows 10 and earlier, which simply keep square corners.
             ApplyWindowCorners(rounded: !squared);
 
-            // The grip dots stay visible in every window state, matching the site statusbar (family
-            // standard). ResizeGrip_MouseDown still no-ops unless the window is floating, so when
-            // maximized/snapped they're purely decorative.
-            if (ResizeGripDots != null) ResizeGripDots.Visibility = Visibility.Visible;
+            // The theme chooses dots or diagonal Win98 lines. Do not overwrite that resource here.
+            if (ResizeGripDots != null)
+                ResizeGripDots.SetResourceReference(UIElement.VisibilityProperty, "GripDotsVisibility");
+            if (ResizeGripLines != null)
+                ResizeGripLines.SetResourceReference(UIElement.VisibilityProperty, "GripLinesVisibility");
             UpdateRootClip(squared);
         }
 

@@ -94,7 +94,7 @@
 
     <CornerRadius x:Key="SmallCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">3</CornerRadius>
 
-    <CornerRadius x:Key="FlyoutCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">0,0,4,4</CornerRadius>
+    <CornerRadius x:Key="FlyoutCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">4</CornerRadius>
 
     <CornerRadius x:Key="AccentSwatchCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">9</CornerRadius>
 

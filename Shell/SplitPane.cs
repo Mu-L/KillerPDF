@@ -24,7 +24,7 @@ namespace KillerPDF
 
         /// <summary>Channel between the two cards, sized so the gap either side of a pane reads the
         /// same whether its neighbor is the other pane or the window edge. Zero when unsplit.</summary>
-        private const double SplitGutter = PaneEdge;
+        private double SplitGutter => TryFindResource("SplitPaneGutterWidth") is double width ? width : PaneEdge;
 
         /// <summary>The pane every window control acts on.</summary>
         internal PdfViewer ActiveViewer { get; private set; } = null!;

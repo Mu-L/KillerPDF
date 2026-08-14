@@ -66,7 +66,8 @@ namespace KillerPDF.Controls
         internal void SetFocusHalo(bool focused)
         {
             PaneHasFocus = focused;
-            string key = focused ? "SelectionAccent" : "PaneBorderBrush";
+            bool retro = Services.ThemeManager.Current == Services.Theme.SE98;
+            string key = focused && !retro ? "SelectionAccent" : "PaneBorderBrush";
             PaneBorder.SetResourceReference(Border.BorderBrushProperty, key);
             TabBarRing.SetResourceReference(Border.BorderBrushProperty, key);
             // The ring runs on around the active tab, so it moves with the pane border. The tab's own

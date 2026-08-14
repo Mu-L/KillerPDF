@@ -38,6 +38,8 @@
 
     <SolidColorBrush x:Key="PrimaryBrush" Color="#ff6f91" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
 
+    <SolidColorBrush x:Key="AccentLogo" Color="#ff6f91" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
+
     <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#ff86a2" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
 
     <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#e85e80" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
@@ -94,7 +96,7 @@
 
     <CornerRadius x:Key="SmallCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">3</CornerRadius>
 
-    <CornerRadius x:Key="FlyoutCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">0,0,4,4</CornerRadius>
+    <CornerRadius x:Key="FlyoutCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">4</CornerRadius>
 
     <CornerRadius x:Key="AccentSwatchCornerRadius" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">9</CornerRadius>
 

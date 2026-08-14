@@ -403,19 +403,12 @@ namespace KillerPDF
                 Background      = R("BackgroundBrush"),
                 BorderBrush     = R("CardBorderBrush"),
                 BorderThickness = new Thickness(1),
-                CornerRadius    = new CornerRadius(7),
+                CornerRadius    = UiKit.RadWindow,
                 // Halo must be >= BlurRadius + ShadowDepth or the window edge clips the shadow into a
                 // thin hard line (invisible as a soft halo on light backgrounds). Recipe matches the
                 // in-app card shadow so every dialog casts the same soft shadow on any background.
-                Margin          = new Thickness(20),
-                Effect          = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    Color       = Colors.Black,
-                    BlurRadius  = 16,
-                    ShadowDepth = 3,
-                    Direction   = 270,
-                    Opacity     = 0.55
-                }
+                Margin          = Application.Current.TryFindResource("DialogHaloMargin") is Thickness hm ? hm : new Thickness(20),
+                Effect          = UiKit.ShadowDialog()
             };
             var root = new DockPanel();
             // Film grain behind the whole dialog so the settings column and title bar carry
@@ -424,6 +417,7 @@ namespace KillerPDF
             _rootGrid = new Grid();
             var bgGrain = MakeGrainLayer();
             if (bgGrain != null) _rootGrid.Children.Add(bgGrain);
+            DialogChrome.AddBevels(_rootGrid, Owner);
             _rootGrid.Children.Add(root);
             outer.Child = _rootGrid;
             Content = outer;
@@ -431,6 +425,7 @@ namespace KillerPDF
             // Title bar (transparent so the dialog-wide grain shows through behind the title)
             // Shared KillerPDF dialog chrome: wordmark + courier suffix + the red ChromeCloseButton.
             var titleBar = DialogChrome.BuildTitleBar(this, Owner, S("Str_Print_Title"), () => { DialogResult = false; Close(); });
+            titleBar.Height = Application.Current.TryFindResource("DialogTitleBarHeight") is double dh ? dh : 40;
             DockPanel.SetDock(titleBar, Dock.Top);
             root.Children.Add(titleBar);
 

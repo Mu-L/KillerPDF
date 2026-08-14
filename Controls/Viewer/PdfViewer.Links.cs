@@ -477,6 +477,7 @@ namespace KillerPDF.Controls
 
                 // Right-click menu: same actions as the tiled-view canvas menu, from the shared builder.
                 var cm = new ContextMenu();
+                if (TryFindResource(typeof(ContextMenu)) is Style menuStyle) cm.Style = menuStyle;
                 TextOptions.SetTextFormattingMode(cm, TextFormattingMode.Display);
                 TextOptions.SetTextRenderingMode(cm, TextRenderingMode.Grayscale);
                 AddLinkMenuItems(cm, lnk.Tag, lnk.AnnotIndex, pageIndex);

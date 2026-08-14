@@ -11,11 +11,16 @@ namespace KillerPDF
     // title bar + grain), and BuildTitleBar (the KillerPDF wordmark + red close button).
     internal static class DialogChrome
     {
-        public const string CloseGlyph = ""; // Segoe MDL2 ChromeClose
+        // Keep generated dialog captions on the same close mark as the main window.
+        // E711 renders noticeably smaller inside the 18x16 Win98 caption face; E8BB is
+        // the shared chrome glyph used by the main title bar and fills that face correctly.
+        public const string CloseGlyph = "";
 
         // Brush from the owner (then app) resources, with a safe fallback so the helper never throws.
         private static Brush Brush(Window? owner, string key, Brush fallback)
             => (owner?.TryFindResource(key) ?? Application.Current?.TryFindResource(key)) as Brush ?? fallback;
+        private static T Value<T>(Window? owner, string key, T fallback)
+            => (owner?.TryFindResource(key) ?? Application.Current?.TryFindResource(key)) is T value ? value : fallback;
 
         // Builds the title bar.
         //   win       - the window being chromed (used for DragMove on the whole bar)
@@ -26,7 +31,8 @@ namespace KillerPDF
         public static Border BuildTitleBar(Window win, Window? owner, string? fullTitle, Action onClose)
         {
             // Transparent (not null) background so the WHOLE bar is hit-testable and acts as a drag handle.
-            var bar = new Border { Background = Brushes.Transparent };
+            bool caption = Value(owner, "UseDialogCaption", false);
+            var bar = new Border { Background = caption ? Brush(owner, "TitleBarBrush", Brushes.Navy) : Brushes.Transparent };
             bar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
 
             var grid = new Grid();
@@ -64,18 +70,38 @@ namespace KillerPDF
                 return sp;
             }
 
-            var title = new Grid { Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-            var shadowLayer = BuildWordmark(true);
-            shadowLayer.Opacity = 0.5;
-            shadowLayer.Effect = new BlurEffect { Radius = 2 };
-            shadowLayer.RenderTransform = new TranslateTransform(0.7, 1.2);
-            title.Children.Add(shadowLayer);
-            title.Children.Add(BuildWordmark(false));
+            var title = new Grid { Margin = caption ? new Thickness(5, 0, 0, 0) : new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            if (caption)
+            {
+                title.Children.Add(new TextBlock
+                {
+                    Text = fullTitle ?? "KillerPDF", FontFamily = Value(owner, "ChromeFontFamily", new FontFamily("Tahoma")),
+                    FontSize = 11, FontWeight = FontWeights.Bold,
+                    Foreground = Brush(owner, "ChromeTextBrush", Brushes.White), VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+            else
+            {
+                var shadowLayer = BuildWordmark(true);
+                shadowLayer.Opacity = 0.5;
+                shadowLayer.Effect = new BlurEffect { Radius = 2 };
+                shadowLayer.RenderTransform = new TranslateTransform(0.7, 1.2);
+                title.Children.Add(shadowLayer);
+                title.Children.Add(BuildWordmark(false));
+            }
             Grid.SetColumn(title, 0);
             grid.Children.Add(title);
 
             // Full red rounded-corner close button (ChromeCloseButton), matching the main window chrome.
-            var close = new Button { Content = CloseGlyph };
+            var close = new Button
+            {
+                Content = CloseGlyph,
+                // CaptionButtonMargin belongs to the main window's button group. On a dialog it
+                // exposes one pixel of the title-bar brush at the lower-right bevel intersection,
+                // which looks like a colored dot in the close face.
+                Margin = new Thickness(0),
+                FocusVisualStyle = null
+            };
             if (owner?.TryFindResource("ChromeCloseButton") is Style chromeClose)
             {
                 close.Style = chromeClose;
@@ -113,24 +139,69 @@ namespace KillerPDF
             if (fade) WindowFx.EnableFadeClose(win);
         }
 
-        // Standard dialog card: rounded themed border + shadow, the title bar on top, film grain, Esc-to-close.
-        public static Border Frame(Window win, Window? owner, string title, Action onClose, UIElement body)
+        private static Border FrameRing(Window? owner, string brushKey, string thicknessKey, string? marginKey = null)
+        {
+            var ring = new Border
+            {
+                IsHitTestVisible = false,
+                BorderBrush = Brush(owner, brushKey, Brushes.Transparent),
+                BorderThickness = Value(owner, thicknessKey, new Thickness(0))
+            };
+            if (marginKey != null)
+                ring.Margin = Value(owner, marginKey, new Thickness(0));
+            return ring;
+        }
+
+        private static UIElement WindowFrame(Window? owner)
+        {
+            var frame = new Grid { IsHitTestVisible = false };
+            frame.Children.Add(FrameRing(owner, "WindowFrameBrush", "DialogWindowFrameThickness", "WindowFrameMargin"));
+            frame.Children.Add(FrameRing(owner, "FrameInnerLightBrush", "FrameInnerLightThickness", "FrameInnerMargin"));
+            frame.Children.Add(FrameRing(owner, "FrameInnerDarkBrush", "FrameInnerDarkThickness", "FrameInnerMargin"));
+            frame.Children.Add(FrameRing(owner, "FrameOuterLightBrush", "FrameOuterLightThickness"));
+            frame.Children.Add(FrameRing(owner, "FrameOuterDarkBrush", "FrameOuterDarkThickness"));
+            return frame;
+        }
+
+        internal static UIElement WrapContent(Window? owner, UIElement content)
+        {
+            var host = new Grid { Margin = Value(owner, "DialogHaloMargin", new Thickness(12)) };
+            var radius = Value(owner, "WindowCornerRadius", new CornerRadius(7));
+            host.Children.Add(new Border
+            {
+                Background = Brush(owner, "WindowFrameBrush", UiKit.Brush("MenuBackgroundBrush")),
+                CornerRadius = radius,
+                IsHitTestVisible = false,
+                Effect = UiKit.ShadowDialog()
+            });
+            var card = new Grid();
+            card.Children.Add(new Border
+            {
+                Background = UiKit.Brush("MenuBackgroundBrush"),
+                CornerRadius = radius,
+                Margin = Value(owner, "DialogWindowFramePadding", new Thickness(0)),
+                Child = content
+            });
+            card.Children.Add(WindowFrame(owner));
+            host.Children.Add(card);
+            return host;
+        }
+
+        // Standard dialog: content is inset from the same five-layer frame used by KillerNotes.
+        public static UIElement Frame(Window win, Window? owner, string title, Action onClose, UIElement body)
         {
             win.KeyDown += (_, e) => { if (e.Key == Key.Escape) { e.Handled = true; onClose(); } };
 
             var card = new Border
             {
                 Background = UiKit.Brush("MenuBackgroundBrush"),
-                BorderBrush = UiKit.Brush("MenuBorderBrush"),
-                BorderThickness = new Thickness(1),
                 CornerRadius = UiKit.RadWindow,
-                Margin = new Thickness(12),
-                Effect = UiKit.ShadowDialog()
+                Margin = Value(owner, "WindowFramePadding", new Thickness(0))
             };
 
             var root = new DockPanel();
             var titleBar = BuildTitleBar(win, owner, title, onClose);
-            titleBar.Height = 40;
+            titleBar.Height = Value(owner, "DialogTitleBarHeight", 40.0);
             DockPanel.SetDock(titleBar, Dock.Top);
             root.Children.Add(titleBar);
             root.Children.Add(body);
@@ -148,8 +219,21 @@ namespace KillerPDF
                 grid.Children.Add(root);
                 card.Child = grid;
             }
-            else card.Child = root;
-            return card;
+            else
+            {
+                var grid = new Grid();
+                grid.Children.Add(root);
+                card.Child = grid;
+            }
+            var framedContent = card.Child!;
+            card.Child = null;
+            return WrapContent(owner, framedContent);
+        }
+
+        internal static void AddBevels(Grid grid, Window? owner)
+        {
+            grid.Children.Add(new Border { IsHitTestVisible = false, BorderBrush = Brush(owner, "BevelLightBrush", Brushes.Transparent), BorderThickness = Value(owner, "BevelLightThickness", new Thickness(0)) });
+            grid.Children.Add(new Border { IsHitTestVisible = false, BorderBrush = Brush(owner, "BevelDarkBrush", Brushes.Transparent), BorderThickness = Value(owner, "BevelDarkThickness", new Thickness(0)) });
         }
     }
 }

@@ -640,9 +640,7 @@ namespace KillerPDF
         {
             if (!CanEditBookmarks) return;
             var tvi = OutlineItemAt(e.OriginalSource as DependencyObject);
-            var menu = new ContextMenu();
-            TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
-            TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
+            var menu = MakeThemedMenu();
             if (tvi?.Tag is OutlineNodeRef nref)
             {
                 // Right-click outside the multi-selection collapses it to the clicked item (the

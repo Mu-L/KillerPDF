@@ -36,18 +36,21 @@ namespace KillerPDF.Services
         private static DarkAccent _darkAccent  = DarkAccent.Green;
         private static DarkAccent _lightAccent = DarkAccent.Green;
         private static DarkAccent _blackAccent = DarkAccent.Green;
+        // Match the shared KillerTools 98SE palette: classic Win98 navy is the default.
+        private static DarkAccent _se98Accent = DarkAccent.Blue;
 
         public static Theme Current => _current;
         public static DarkAccent DarkAccentChoice  => _darkAccent;
         public static DarkAccent LightAccentChoice => _lightAccent;
         public static DarkAccent BlackAccentChoice => _blackAccent;
+        public static DarkAccent SE98AccentChoice => _se98Accent;
         private static DarkAccent AccentFor(Theme t) =>
-            t == Theme.Light ? _lightAccent : t == Theme.Black ? _blackAccent : _darkAccent;
+            t == Theme.Light ? _lightAccent : t == Theme.Black ? _blackAccent : t == Theme.SE98 ? _se98Accent : _darkAccent;
         public static DarkAccent AccentChoiceFor(Theme t) => AccentFor(t);
 
         // True for the theme families that support accent variants.
         private static bool HasAccents(Theme t) =>
-            t == Theme.Dark || t == Theme.Light || t == Theme.Black;
+            t == Theme.Dark || t == Theme.Light || t == Theme.Black || t == Theme.SE98;
 
         /// <summary>Fired after the theme dictionary has been updated.</summary>
         public static event Action? ThemeChanged;
@@ -67,6 +70,7 @@ namespace KillerPDF.Services
             _darkAccent  = Enum.TryParse<DarkAccent>(App.GetSetting("DarkAccent"),  out var da) ? da : DarkAccent.Green;
             _lightAccent = Enum.TryParse<DarkAccent>(App.GetSetting("LightAccent"), out var la) ? la : DarkAccent.Green;
             _blackAccent = Enum.TryParse<DarkAccent>(App.GetSetting("BlackAccent"), out var ba) ? ba : DarkAccent.Green;
+            _se98Accent = Enum.TryParse<DarkAccent>(App.GetSetting("98SEAccent"), out var wa) ? wa : DarkAccent.Blue;
             ApplyInternal(_current, applyDwm: false);
         }
 
@@ -78,6 +82,7 @@ namespace KillerPDF.Services
         {
             if      (family == Theme.Light)        { _lightAccent = accent; App.SetSetting("LightAccent", accent.ToString()); }
             else if (family == Theme.Black)        { _blackAccent = accent; App.SetSetting("BlackAccent", accent.ToString()); }
+            else if (family == Theme.SE98)         { _se98Accent = accent; App.SetSetting("98SEAccent", accent.ToString()); }
             else                                   { _darkAccent  = accent; App.SetSetting("DarkAccent",  accent.ToString()); }
 
             if (_current == family)
@@ -171,7 +176,7 @@ namespace KillerPDF.Services
             if (HasAccents(theme) && accent != DarkAccent.Green)
             {
                 // Dark overlays live in Accents/Dark/; Light in Accents/Light/; Black in Accents/Black/.
-                string sub = theme == Theme.Light ? "Light/" : theme == Theme.Black ? "Black/" : "Dark/";
+                string sub = theme == Theme.Light ? "Light/" : theme == Theme.Black ? "Black/" : theme == Theme.SE98 ? "98SE/" : "Dark/";
                 var accentDict = new ResourceDictionary
                 {
                     Source = new Uri($"pack://application:,,,/Themes/Accents/{sub}{accent}.xaml")
@@ -181,15 +186,14 @@ namespace KillerPDF.Services
                     target[key] = accentDict[key];
             }
 
-            // "PDF" wordmark color. In the accent-capable families (Dark/Light/Black) it tracks the chosen
-            // accent; in the bold fixed-color themes (Blood/Greed/Cyanotic) it reads as TextSecondary so it
-            // doesn't fight their loud accents. AccentLogo is the brush the wordmark (and a few other marks)
-            // bind to; pointing it at the live PrimaryBrush/MutedTextBrush updates them all via DynamicResource.
-            {
-                var live = merged[0];
-                object src = HasAccents(theme) ? live["PrimaryBrush"] : live["MutedTextBrush"];
-                if (src is not null) live["AccentLogo"] = src;
-            }
+            // App.xaml owns startup fallbacks for these legacy aliases, and local application
+            // resources outrank merged dictionaries. Keep those fallbacks synchronized so 98SE's
+            // zero radius actually reaches panes, tabs, flyouts, and dialogs.
+            var appResources = Application.Current.Resources;
+            var liveResources = merged[0];
+            appResources["RadWindow"] = liveResources["WindowCornerRadius"];
+            appResources["RadCard"] = liveResources["PanelCornerRadius"];
+            appResources["RadControl"] = liveResources["ControlCornerRadius"];
 
             // One SystemIdle pass to nudge any elements whose effective value didn't auto-update
             // (e.g. ControlTemplate trigger bindings with TargetName that missed the per-key signal).
@@ -208,6 +212,8 @@ namespace KillerPDF.Services
 
             Alias("BgRecentPanel", "SurfaceBrush");
             Alias("BgFlyout", "MenuBackgroundBrush");
+            // Match KillerNotes: the inner About grouping panel uses the context-menu surface.
+            Alias("AboutPanelBrush", "MenuBackgroundBrush");
             Alias("SelectionAccent", "PrimaryBrush");
             Alias("AccentLogo", "PrimaryBrush");
             Alias("InstallBtnBg", "PrimaryBrush");
@@ -219,11 +225,182 @@ namespace KillerPDF.Services
             Alias("SliderTrack", "InputBorderBrush");
             Alias("RadioAccent", "PrimaryBrush");
             Alias("BgCanvas", "PaneBrush");
+            // Small controls cannot reuse a full-window gradient: WPF re-renders the entire
+            // gradient inside their bounds, producing an unrelated block of color. Match the
+            // solid stand-in used by the other Killer apps, then let inactive tabs use it.
+            if (!d.Contains("SolidBackgroundBrush"))
+            {
+                if (d["BackgroundBrush"] is LinearGradientBrush gradient && gradient.GradientStops.Count > 0)
+                {
+                    var solid = new SolidColorBrush(gradient.GradientStops[0].Color);
+                    solid.Freeze();
+                    d["SolidBackgroundBrush"] = solid;
+                }
+                else
+                {
+                    Alias("SolidBackgroundBrush", "BackgroundBrush");
+                }
+            }
+            Alias("TabInactiveBrush", "SolidBackgroundBrush");
+            Alias("ComboFieldBrush", "PaneBrush");
+            Alias("ComboPopupBrush", "PaneBrush");
+            Alias("ComboButtonBrush", "ComboFieldBrush");
+            Alias("ComboButtonHoverBrush", "RowHoverBrush");
+            // These must be materialized into every completed palette. Theme dictionaries are
+            // copied into the live dictionary in place, so a missing key would otherwise retain
+            // the previously selected theme's caption (most visibly 98SE green on Blood).
+            Alias("TitleBarBrush", "SurfaceBrush");
+            Alias("DialogTitleBarBrush", "TitleBarBrush");
             if (!d.Contains("DangerRed")) d["DangerRed"] = new SolidColorBrush(Color.FromRgb(0xef, 0x44, 0x44));
             if (!d.Contains("BgOverlay")) d["BgOverlay"] = new SolidColorBrush(Color.FromArgb(0xbb, 0, 0, 0));
             if (!d.Contains("HeaderShadowOpacity")) d["HeaderShadowOpacity"] = 0.5;
+            if (!d.Contains("WordmarkShadowOpacity")) d["WordmarkShadowOpacity"] = 0.45;
+            if (!d.Contains("AboutShadowOpacity")) d["AboutShadowOpacity"] = d.Contains("FlyoutShadowOpacity") ? d["FlyoutShadowOpacity"] : 0.6;
+            if (!d.Contains("AboutIconShadowOpacity")) d["AboutIconShadowOpacity"] = 0.6;
+            if (!d.Contains("AboutCaptionVisibility")) d["AboutCaptionVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("AboutModernCloseVisibility")) d["AboutModernCloseVisibility"] = Visibility.Visible;
+            if (!d.Contains("ShortcutShadowOpacity")) d["ShortcutShadowOpacity"] = d.Contains("FlyoutShadowOpacity") ? d["FlyoutShadowOpacity"] : 0.6;
+            if (!d.Contains("ShortcutHeaderShadowOpacity")) d["ShortcutHeaderShadowOpacity"] = 0.55;
+            if (!d.Contains("ShortcutCaptionVisibility")) d["ShortcutCaptionVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("ShortcutModernHeaderVisibility")) d["ShortcutModernHeaderVisibility"] = Visibility.Visible;
             if (!d.Contains("KsCatTools")) d["KsCatTools"] = new SolidColorBrush(Color.FromRgb(0xff, 0xd3, 0x19));
             if (!d.Contains("KsCatOcr")) d["KsCatOcr"] = new SolidColorBrush(Color.FromRgb(0xff, 0x90, 0x1f));
+            if (!d.Contains("WindowFramePadding")) d["WindowFramePadding"] = new Thickness(0);
+            if (!d.Contains("FrameOuterLightThickness")) d["FrameOuterLightThickness"] = new Thickness(0);
+            if (!d.Contains("FrameOuterDarkThickness")) d["FrameOuterDarkThickness"] = new Thickness(0);
+            if (!d.Contains("FrameInnerLightThickness")) d["FrameInnerLightThickness"] = new Thickness(0);
+            if (!d.Contains("FrameInnerDarkThickness")) d["FrameInnerDarkThickness"] = new Thickness(0);
+            if (!d.Contains("FrameInnerMargin")) d["FrameInnerMargin"] = new Thickness(0);
+            if (!d.Contains("FrameOuterLightBrush")) d["FrameOuterLightBrush"] = Brushes.Transparent;
+            if (!d.Contains("FrameOuterDarkBrush")) d["FrameOuterDarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("FrameInnerLightBrush")) d["FrameInnerLightBrush"] = Brushes.Transparent;
+            if (!d.Contains("FrameInnerDarkBrush")) d["FrameInnerDarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("WindowFrameBrush")) d["WindowFrameBrush"] = Pick("SurfaceBrush", "PaneBrush");
+            if (!d.Contains("DialogFrameBrush")) d["DialogFrameBrush"] = Pick("MenuBorderBrush", "CardBorderBrush");
+            if (!d.Contains("DialogFrameThickness")) d["DialogFrameThickness"] = new Thickness(1);
+            if (!d.Contains("DialogFramePadding")) d["DialogFramePadding"] = new Thickness(0);
+            if (!d.Contains("DialogWindowFrameThickness")) d["DialogWindowFrameThickness"] = new Thickness(0);
+            if (!d.Contains("DialogWindowFramePadding")) d["DialogWindowFramePadding"] = new Thickness(0);
+            // 98SE opts into the compact native-style caption and removes the shadow halo. These
+            // values must exist in every completed palette because the live dictionary is updated
+            // in place; otherwise its caption geometry survives after selecting another theme.
+            if (!d.Contains("UseDialogCaption")) d["UseDialogCaption"] = false;
+            if (!d.Contains("DialogTitleBarHeight")) d["DialogTitleBarHeight"] = 40.0;
+            if (!d.Contains("DialogHaloMargin")) d["DialogHaloMargin"] = new Thickness(12);
+            if (!d.Contains("TitleBarHeight")) d["TitleBarHeight"] = 36.0;
+            if (!d.Contains("FooterHeight")) d["FooterHeight"] = 24.0;
+            if (!d.Contains("FooterStatusPadding")) d["FooterStatusPadding"] = new Thickness(16, 0, 16, 0);
+            if (!d.Contains("FooterStatusFont")) d["FooterStatusFont"] = new FontFamily("Segoe UI");
+            if (!d.Contains("FooterMetaFont")) d["FooterMetaFont"] = new FontFamily("Consolas");
+            if (!d.Contains("FooterPadding")) d["FooterPadding"] = new Thickness(16, 0, 16, 0);
+            if (!d.Contains("FooterCellMargin")) d["FooterCellMargin"] = new Thickness(0);
+            if (!d.Contains("FooterCellPadding")) d["FooterCellPadding"] = new Thickness(0);
+            if (!d.Contains("RootBorderThickness")) d["RootBorderThickness"] = new Thickness(1);
+            if (!d.Contains("PlainTitleVisibility")) d["PlainTitleVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("WordmarkVisibility")) d["WordmarkVisibility"] = Visibility.Visible;
+            if (!d.Contains("GripDotsVisibility")) d["GripDotsVisibility"] = Visibility.Visible;
+            if (!d.Contains("GripLinesVisibility")) d["GripLinesVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("RetroTabJoinVisibility")) d["RetroTabJoinVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("RetroActiveTabOutlineVisibility")) d["RetroActiveTabOutlineVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("CaptionButtonWidth")) d["CaptionButtonWidth"] = 46.0;
+            if (!d.Contains("CaptionButtonHeight")) d["CaptionButtonHeight"] = 36.0;
+            if (!d.Contains("CaptionButtonMargin")) d["CaptionButtonMargin"] = new Thickness(0);
+            if (!d.Contains("CaptionButtonsMargin")) d["CaptionButtonsMargin"] = new Thickness(0);
+            if (!d.Contains("CaptionButtonBrush")) d["CaptionButtonBrush"] = Brushes.Transparent;
+            if (!d.Contains("CaptionGlyphBrush")) d["CaptionGlyphBrush"] = Pick("TextBrush", "PaneBrush");
+            if (!d.Contains("CaptionHoverBrush")) d["CaptionHoverBrush"] = Pick("RowHoverBrush", "PaneBrush");
+            if (!d.Contains("CaptionCloseBrush")) d["CaptionCloseBrush"] = Pick("DangerRed", "TextBrush");
+            if (!d.Contains("CaptionCloseHoverBrush")) d["CaptionCloseHoverBrush"] = Pick("DangerRed", "TextBrush");
+            if (!d.Contains("CaptionCloseHoverFgBrush")) d["CaptionCloseHoverFgBrush"] = Brushes.White;
+            if (!d.Contains("ChromeFontFamily")) d["ChromeFontFamily"] = new FontFamily("Tahoma");
+            if (!d.Contains("TitleIconSize")) d["TitleIconSize"] = 25.0;
+            if (!d.Contains("TitleIconMargin")) d["TitleIconMargin"] = new Thickness(0, 0, 7, 0);
+            if (!d.Contains("TitleBarPadding")) d["TitleBarPadding"] = new Thickness(12, 0, 0, 0);
+            if (!d.Contains("FooterBevelDarkBrush")) d["FooterBevelDarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("FooterBevelLightBrush")) d["FooterBevelLightBrush"] = Brushes.Transparent;
+            if (!d.Contains("FooterCellLightThickness")) d["FooterCellLightThickness"] = new Thickness(0);
+            if (!d.Contains("FooterCellDarkThickness")) d["FooterCellDarkThickness"] = new Thickness(0);
+            if (!d.Contains("BevelLightBrush")) d["BevelLightBrush"] = Brushes.Transparent;
+            if (!d.Contains("BevelDarkBrush")) d["BevelDarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("BevelLightThickness")) d["BevelLightThickness"] = new Thickness(0);
+            if (!d.Contains("BevelDarkThickness")) d["BevelDarkThickness"] = new Thickness(0);
+            if (!d.Contains("PaneBevelLightBrush")) d["PaneBevelLightBrush"] = Brushes.Transparent;
+            if (!d.Contains("PaneBevelDarkBrush")) d["PaneBevelDarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("PaneBevelLightThickness")) d["PaneBevelLightThickness"] = new Thickness(0);
+            if (!d.Contains("PaneBevelDarkThickness")) d["PaneBevelDarkThickness"] = new Thickness(0);
+            if (!d.Contains("PaneBevelDark2Brush")) d["PaneBevelDark2Brush"] = Brushes.Transparent;
+            if (!d.Contains("PaneBevelLight2Brush")) d["PaneBevelLight2Brush"] = Brushes.Transparent;
+            if (!d.Contains("PaneBevel2LightThickness")) d["PaneBevel2LightThickness"] = new Thickness(0);
+            if (!d.Contains("PaneBevel2DarkThickness")) d["PaneBevel2DarkThickness"] = new Thickness(0);
+            if (!d.Contains("PaneBevelInnerMargin")) d["PaneBevelInnerMargin"] = new Thickness(0);
+            if (!d.Contains("SidebarPanelMargin")) d["SidebarPanelMargin"] = new Thickness(0);
+            if (!d.Contains("SidebarInnerDarkThickness")) d["SidebarInnerDarkThickness"] = new Thickness(0);
+            if (!d.Contains("SidebarInnerDarkVisibility")) d["SidebarInnerDarkVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("SplitHostMargin")) d["SplitHostMargin"] = new Thickness(0, 0, 8, 0);
+            if (!d.Contains("SplitPaneGutterWidth")) d["SplitPaneGutterWidth"] = 8.0;
+            if (!d.Contains("FileDialogPaneBrush")) d["FileDialogPaneBrush"] = d.Contains("PaneBrush") ? d["PaneBrush"] : Brushes.White;
+            // Match KillerNotes and KillerShell: modern sidebars do not paint a second surface;
+            // the themed app background continues through them. 98SE explicitly overrides this
+            // with its white recessed client pane.
+            if (!d.Contains("SidebarPaneBrush")) d["SidebarPaneBrush"] = Brushes.Transparent;
+            if (!d.Contains("SidebarRailBrush")) d["SidebarRailBrush"] = Brushes.Transparent;
+            if (!d.Contains("PaneEdgeBrush")) d["PaneEdgeBrush"] = Pick("PaneBorderBrush", "CardBorderBrush");
+            if (!d.Contains("BarEdgeBrush")) d["BarEdgeBrush"] = Pick("PaneBorderBrush", "CardBorderBrush");
+            if (!d.Contains("BarEdgeThickness")) d["BarEdgeThickness"] = new Thickness(1, 0, 1, 1);
+            if (!d.Contains("BarEdgeDarkBrush")) d["BarEdgeDarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("BarEdgeDarkThickness")) d["BarEdgeDarkThickness"] = new Thickness(0);
+            if (!d.Contains("BarPadding")) d["BarPadding"] = new Thickness(4);
+            if (!d.Contains("MenuBevelLightBrush")) d["MenuBevelLightBrush"] = Brushes.Transparent;
+            if (!d.Contains("MenuBevelDarkBrush")) d["MenuBevelDarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("MenuBevel2LightBrush")) d["MenuBevel2LightBrush"] = Brushes.Transparent;
+            if (!d.Contains("MenuBevel2DarkBrush")) d["MenuBevel2DarkBrush"] = Brushes.Transparent;
+            if (!d.Contains("MenuBevelLightThickness")) d["MenuBevelLightThickness"] = new Thickness(0);
+            if (!d.Contains("MenuBevelDarkThickness")) d["MenuBevelDarkThickness"] = new Thickness(0);
+            if (!d.Contains("MenuBevel2LightThickness")) d["MenuBevel2LightThickness"] = new Thickness(0);
+            if (!d.Contains("MenuBevel2DarkThickness")) d["MenuBevel2DarkThickness"] = new Thickness(0);
+            if (!d.Contains("MenuBevelInnerMargin")) d["MenuBevelInnerMargin"] = new Thickness(0);
+            if (!d.Contains("TabInactiveBevelDarkThickness")) d["TabInactiveBevelDarkThickness"] = new Thickness(0);
+            if (!d.Contains("TabActiveBevelDarkThickness")) d["TabActiveBevelDarkThickness"] = new Thickness(0);
+            if (!d.Contains("TabBevelMargin")) d["TabBevelMargin"] = new Thickness(0);
+            if (!d.Contains("TabMargin")) d["TabMargin"] = new Thickness(0, 3, 0, 1);
+            if (!d.Contains("TabPadding")) d["TabPadding"] = new Thickness(12, 4, 5, 5);
+            if (!d.Contains("TabActiveBevelDarkMargin")) d["TabActiveBevelDarkMargin"] = d["TabBevelMargin"];
+            if (!d.Contains("TabActivePadding")) d["TabActivePadding"] = new Thickness(12, 1, 5, 5);
+            if (!d.Contains("TabStripeThickness")) d["TabStripeThickness"] = new Thickness(0, 3, 0, 0);
+            if (!d.Contains("TabSeamPatchBrush")) d["TabSeamPatchBrush"] = Brushes.Transparent;
+            if (!d.Contains("TabActiveRingBrush")) d["TabActiveRingBrush"] = Pick("SelectionAccent", "PrimaryBrush");
+            if (!d.Contains("TabFocusThickness")) d["TabFocusThickness"] = new Thickness(1, 3, 1, 0);
+            if (!d.Contains("TabFocusPadding")) d["TabFocusPadding"] = new Thickness(11, 1, 4, 5);
+            if (!d.Contains("FlyoutCornerRadius")) d["FlyoutCornerRadius"] = new CornerRadius(6);
+            if (!d.Contains("MenuFontFamily")) d["MenuFontFamily"] = new FontFamily("Segoe UI");
+            if (!d.Contains("MenuFontSize")) d["MenuFontSize"] = 12.0;
+            if (!d.Contains("MenuItemPadding")) d["MenuItemPadding"] = new Thickness(8, 6, 10, 6);
+            if (!d.Contains("ComboButtonMinWidth")) d["ComboButtonMinWidth"] = 22.0;
+            if (!d.Contains("ComboChevGlyph")) d["ComboChevGlyph"] = "\uE70D";
+            if (!d.Contains("ComboChevFont")) d["ComboChevFont"] = new FontFamily("Segoe MDL2 Assets");
+            if (!d.Contains("ComboChevMargin")) d["ComboChevMargin"] = new Thickness(0);
+            if (!d.Contains("ComboHighlightTextBrush")) d["ComboHighlightTextBrush"] = Pick("SelectionFg", "TextBrush");
+            if (!d.Contains("ScrollBarThickness")) d["ScrollBarThickness"] = 12.0;
+            if (!d.Contains("ScrollArrowSize")) d["ScrollArrowSize"] = 0.0;
+            if (!d.Contains("ScrollThumbRadius")) d["ScrollThumbRadius"] = new CornerRadius(3);
+            if (!d.Contains("ScrollThumbMargin")) d["ScrollThumbMargin"] = new Thickness(4, 0, 4, 0);
+            if (!d.Contains("ScrollTrackBrush")) d["ScrollTrackBrush"] = Brushes.Transparent;
+            if (!d.Contains("ScrollTrackBevelDark")) d["ScrollTrackBevelDark"] = Brushes.Transparent;
+            if (!d.Contains("ScrollTrackBevelLight")) d["ScrollTrackBevelLight"] = Brushes.Transparent;
+            if (!d.Contains("WindowCornerRadius")) d["WindowCornerRadius"] = new CornerRadius(7);
+            if (!d.Contains("PanelCornerRadius")) d["PanelCornerRadius"] = new CornerRadius(6);
+            if (!d.Contains("ControlCornerRadius")) d["ControlCornerRadius"] = new CornerRadius(3);
+            d["RadWindow"] = d["WindowCornerRadius"];
+            d["RadCard"] = d["PanelCornerRadius"];
+            d["RadControl"] = d["ControlCornerRadius"];
+            var windowRadius = d["WindowCornerRadius"] is CornerRadius wr ? wr.TopLeft : 7;
+            d["TitleBarCornerRadius"] = new CornerRadius(windowRadius, windowRadius, 0, 0);
+            d["FooterCornerRadius"] = new CornerRadius(0, 0, windowRadius, windowRadius);
+            if (!d.Contains("TabCornerRadius"))
+            {
+                var panelRadius = d["PanelCornerRadius"] is CornerRadius radius ? radius.TopLeft : 6;
+                d["TabCornerRadius"] = new CornerRadius(panelRadius, panelRadius, 0, 0);
+            }
             if (!d.Contains("TabStripFadeBrush"))
             {
                 var end = (Pick("PaneBrush", "SurfaceBrush") as SolidColorBrush)?.Color ?? Colors.Transparent;
@@ -290,6 +467,7 @@ namespace KillerPDF.Services
                     DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref colorref, sizeof(int));
                 }
             }
+
             catch { /* DWMWA not supported on older Windows builds */ }
         }
     }

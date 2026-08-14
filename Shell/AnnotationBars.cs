@@ -65,7 +65,7 @@ namespace KillerPDF
             var g = new Grid();
             g.Children.Add(new Border
             {
-                CornerRadius = new CornerRadius(0, 0, 4, 4),
+                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
                 Margin = new Thickness(-4),
                 IsHitTestVisible = false,
                 Opacity = (double)FindResource("GrainOpacity"),
@@ -103,10 +103,19 @@ namespace KillerPDF
         {
             var host = new Grid();
 
+            // KillerNotes ribbon contract: 98SE adds the dark right edge to the host's light
+            // top/left edge. Other themes define this as transparent/zero, so their floating
+            // annotation card remains unchanged.
+            var darkEdge = new Border { IsHitTestVisible = false };
+            darkEdge.SetResourceReference(Border.BorderBrushProperty, "BarEdgeDarkBrush");
+            darkEdge.SetResourceReference(Border.BorderThicknessProperty, "BarEdgeDarkThickness");
+            Panel.SetZIndex(darkEdge, 20);
+            host.Children.Add(darkEdge);
+
             // Grain stays put when the controls collapse, so the minimized strip keeps the texture.
             host.Children.Add(new Border
             {
-                CornerRadius = new CornerRadius(0, 0, 4, 4),
+                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
                 Margin = new Thickness(-4),
                 IsHitTestVisible = false,
                 Opacity = (double)FindResource("GrainOpacity"),
@@ -147,7 +156,11 @@ namespace KillerPDF
         // sides and bottom but never above the bar (no halo between it and the toolbar). Removed entirely
         // while minimized.
         private static System.Windows.Media.Effects.DropShadowEffect AnnotBarShadow()
-            => new() { Color = Colors.Black, BlurRadius = 6, ShadowDepth = 3, Direction = 270, Opacity = 0.38 };
+            => new() { Color = Colors.Black, BlurRadius = 6, ShadowDepth = 3, Direction = 270,
+                Opacity = Application.Current.TryFindResource("BarShadowOpacity") is double opacity ? opacity : 0.38 };
+
+        private CornerRadius ResourceCornerRadius(string key)
+            => TryFindResource(key) is CornerRadius radius ? radius : new CornerRadius(0);
 
         // Lets the annotation bars slide horizontally along the top via their grip, clamped inside
         // the document area, with the X position remembered (shared across the draw/text bars).
@@ -725,17 +738,17 @@ namespace KillerPDF
 
             _drawSettingsBar = new Border
             {
-                BorderThickness = new Thickness(1, 0, 1, 1),   // no top border - the toolbar above already separates
                 HorizontalAlignment = HorizontalAlignment.Right,  // right-anchored; slid via the grip
                 VerticalAlignment = VerticalAlignment.Top,
-                CornerRadius = new CornerRadius(0, 0, 4, 4),
-                Padding = new Thickness(4),
+                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
                 Effect = AnnotBarShadow(),
                 Child = BuildBarHost(panel),
                 Margin = new Thickness(0, 0, 0, 0)
             };
             _drawSettingsBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
-            _drawSettingsBar.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
+            _drawSettingsBar.SetResourceReference(Border.BorderBrushProperty, "BarEdgeBrush");
+            _drawSettingsBar.SetResourceReference(Border.BorderThicknessProperty, "BarEdgeThickness");
+            _drawSettingsBar.SetResourceReference(Border.PaddingProperty, "BarPadding");
 
             var previewArea = PagePreviewPanel.Parent as Grid;
             if (previewArea is not null)

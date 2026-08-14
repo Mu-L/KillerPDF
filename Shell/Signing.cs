@@ -97,7 +97,8 @@ namespace KillerPDF
         private void ShowSignedFieldMenu(bool initials, int objNum, int pageIndex, double x, double y, double w, double h)
         {
             string what = initials ? "initials" : "signature";
-            var menu = new ContextMenu { Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint };
+            var menu = MakeThemedMenu();
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
             menu.Items.Add(MakeMenuItem("Change " + what, (_, _) =>
             {
                 RemoveSignedField(objNum, pageIndex);

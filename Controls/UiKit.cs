@@ -79,8 +79,8 @@ namespace KillerPDF
         // Fresh shadow instances (cheap) matching App.xaml's Shadow* resources, for code that builds Effects.
         public static DropShadowEffect ShadowText()   => Shadow(3,  1, 0.6);
         public static DropShadowEffect ShadowIcon()   => Shadow(4,  1, 0.9);
-        public static DropShadowEffect ShadowBar()    => Shadow(6,  3, 0.38);
-        public static DropShadowEffect ShadowDialog() => Shadow(18, 3, 0.6);
+        public static DropShadowEffect ShadowBar()    => Shadow(6,  3, Opacity("BarShadowOpacity", 0.38));
+        public static DropShadowEffect ShadowDialog() => Shadow(18, 3, Opacity("FlyoutShadowOpacity", 0.6));
 
         // Active-theme brush by key, with a safe fallback so the kit never throws before the theme loads.
         public static Brush Brush(string key, Brush? fallback = null)
@@ -123,6 +123,8 @@ namespace KillerPDF
             => Application.Current?.TryFindResource(key) is CornerRadius c ? c : new CornerRadius(fb);
         private static DropShadowEffect Shadow(double blur, double depth, double opacity)
             => new() { Color = Colors.Black, BlurRadius = blur, ShadowDepth = depth, Direction = 270, Opacity = opacity };
+        private static double Opacity(string key, double fallback)
+            => Application.Current?.TryFindResource(key) is double value ? value : fallback;
 
         // The default quick-color palette, shared by the annotate bars and the color picker's swatch row
         // (the "UserSwatches" setting seeds from this). One source so the two can't drift.
@@ -369,9 +371,45 @@ namespace KillerPDF
 
         // Dialog/popup buttons. accent==true is the primary (fills solid accent on hover); false is secondary.
         public static Button Make(object content, bool accent)
-            => accent
-                ? Make(content, Brush("RowSelectedBrush"), Brush("PrimaryBrush"),  Brush("PrimaryBrush"), Brush("OnPrimaryBrush"), Brush("PrimaryBrush"))
-                : Make(content, Brush("PaneBrush"),   Brush("RowHoverBrush"), Brush("TextBrush"), Brush("TextBrush"), Brush("CardBorderBrush"));
+        {
+            if (KillerPDF.Services.ThemeManager.Current == KillerPDF.Services.Theme.SE98)
+            {
+                var button = Make(content, Brush("ChipFaceBrush"), Brush("ChipFaceBrush"),
+                                  Brush("TextBrush"), Brush("TextBrush"), Brushes.Transparent);
+                button.Template = BeveledButtonTemplate();
+                return button;
+            }
+            return accent
+                ? Make(content, Brush("SelectionBg"), Brush("PrimaryBrush"), Brush("SelectionFg"), Brush("OnPrimaryBrush"), Brush("PrimaryBrush"))
+                : Make(content, Brush("PaneBrush"), Brush("RowHoverBrush"), Brush("TextBrush"), Brush("TextBrush"), Brush("CardBorderBrush"));
+        }
+
+        private static ControlTemplate BeveledButtonTemplate()
+        {
+            var grid = new FrameworkElementFactory(typeof(Grid));
+            var face = new FrameworkElementFactory(typeof(Border)) { Name = "face" };
+            face.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
+            face.SetBinding(Border.PaddingProperty, new Binding("Padding") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
+            var cp = new FrameworkElementFactory(typeof(ContentPresenter));
+            cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            face.AppendChild(cp);
+            grid.AppendChild(face);
+            var light = new FrameworkElementFactory(typeof(Border)) { Name = "light" };
+            light.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
+            light.SetResourceReference(Border.BorderThicknessProperty, "BevelLightThickness");
+            grid.AppendChild(light);
+            var dark = new FrameworkElementFactory(typeof(Border)) { Name = "dark" };
+            dark.SetResourceReference(Border.BorderBrushProperty, "BevelDarkBrush");
+            dark.SetResourceReference(Border.BorderThicknessProperty, "BevelDarkThickness");
+            grid.AppendChild(dark);
+            var template = new ControlTemplate(typeof(Button)) { VisualTree = grid };
+            var pressed = new Trigger { Property = Button.IsPressedProperty, Value = true };
+            pressed.Setters.Add(new Setter(Border.BorderBrushProperty, Brush("BevelDarkBrush"), "light"));
+            pressed.Setters.Add(new Setter(Border.BorderBrushProperty, Brush("BevelLightBrush"), "dark"));
+            template.Triggers.Add(pressed);
+            return template;
+        }
 
         // Explicit-color overload for pre-theme windows (startup/crash/About). border==null = borderless.
         public static Button Make(object content, Brush normalBg, Brush hoverBg, Brush normalFg, Brush hoverFg, Brush? border = null)

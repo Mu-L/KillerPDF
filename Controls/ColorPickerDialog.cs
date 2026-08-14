@@ -66,12 +66,12 @@ namespace KillerPDF
             var card = new Border
             {
                 Background = R("MenuBackgroundBrush"),
-                BorderBrush = R("MenuBorderBrush"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(14),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
-                { Color = Colors.Black, BlurRadius = 18, ShadowDepth = 3, Direction = 270, Opacity = 0.55 }
+                BorderBrush = UiKit.Brush("DialogFrameBrush"),
+                BorderThickness = Application.Current.TryFindResource("DialogFrameThickness") is Thickness dft ? dft : new Thickness(1),
+                Padding = Application.Current.TryFindResource("DialogFramePadding") is Thickness dfp ? dfp : new Thickness(0),
+                CornerRadius = UiKit.RadWindow,
+                Margin = Application.Current.TryFindResource("DialogHaloMargin") is Thickness hm ? hm : new Thickness(14),
+                Effect = UiKit.ShadowDialog()
             };
             var panel = new StackPanel { Margin = new Thickness(18, 14, 18, 16) };
             // Film-grain overlay so the dialog carries the same texture as the rest of the app - dimmed
@@ -80,8 +80,9 @@ namespace KillerPDF
             if (Owner?.TryFindResource("GrainBrushShared") is Brush grain)
             {
                 double grainOp = Owner?.TryFindResource("GrainOpacity") is double go ? go : 0.12;
-                root.Children.Add(new Border { Background = grain, Opacity = grainOp, CornerRadius = new CornerRadius(6), IsHitTestVisible = false });
+                root.Children.Add(new Border { Background = grain, Opacity = grainOp, CornerRadius = UiKit.RadWindow, IsHitTestVisible = false });
             }
+            DialogChrome.AddBevels(root, Owner);
             root.Children.Add(panel);
             card.Child = root;
             Content = card;

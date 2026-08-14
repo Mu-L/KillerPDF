@@ -284,6 +284,8 @@ namespace KillerPDF
 
         private void OnThemeChanged()
         {
+            _appliedSquared = null;
+            UpdateWindowChrome();
             // Refresh snapshot FindResource calls that were set as local values.
             // SetResourceReference bindings update automatically; sidebar tabs and
             // active tool button background still need an explicit refresh.
@@ -337,6 +339,7 @@ namespace KillerPDF
         private void AccentDot_Click(object sender, MouseButtonEventArgs e)      => HandleAccentDot(sender, Theme.Dark);
         private void AccentDotLight_Click(object sender, MouseButtonEventArgs e) => HandleAccentDot(sender, Theme.Light);
         private void AccentDotBlack_Click(object sender, MouseButtonEventArgs e) => HandleAccentDot(sender, Theme.Black);
+        private void AccentDot98SE_Click(object sender, MouseButtonEventArgs e)  => HandleAccentDot(sender, Theme.SE98);
 
         private void HandleAccentDot(object sender, Theme family)
         {
@@ -362,6 +365,7 @@ namespace KillerPDF
             RingRow([AccentDotRed, AccentDotOrange, AccentDotGreen, AccentDotTeal, AccentDotBlue, AccentDotPurple], ThemeManager.DarkAccentChoice);
             RingRow([AccentDotLightRed, AccentDotLightOrange, AccentDotLightGreen, AccentDotLightTeal, AccentDotLightBlue, AccentDotLightPurple], ThemeManager.LightAccentChoice);
             RingRow([AccentDotBlackRed, AccentDotBlackOrange, AccentDotBlackGreen, AccentDotBlackTeal, AccentDotBlackBlue, AccentDotBlackPurple], ThemeManager.BlackAccentChoice);
+            RingRow([AccentDot98SEBlue, AccentDot98SETeal, AccentDot98SEGreen, AccentDot98SEOrange, AccentDot98SERed, AccentDot98SEPurple], ThemeManager.SE98AccentChoice);
         }
 
         // Slide the picker to the active theme. Each row animates its height; because the outgoing row
@@ -373,6 +377,7 @@ namespace KillerPDF
             SlideRow(DarkAccentRow,  cur == Theme.Dark,         animate);
             SlideRow(LightAccentRow, cur == Theme.Light,        animate);
             SlideRow(BlackAccentRow, cur == Theme.Black, animate);
+            SlideRow(SE98AccentRow, cur == Theme.SE98, animate);
         }
 
         private const double AccentRowHeight = 26;   // 18px swatch + 8px breathing room
@@ -511,9 +516,10 @@ namespace KillerPDF
                         typeface, emSize, System.Windows.Media.Brushes.Black, pixelsPerDip);
                     if (ft.WidthIncludingTrailingWhitespace > max) max = ft.WidthIncludingTrailingWhitespace;
                 }
-                // measured text + editable text-box left margin (5) + chevron column (18) + borders (2),
-                // plus a 3px safety margin so the longest term never clips.
-                ZoomBox.Width = System.Math.Ceiling(max) + 28;
+                // Measured text + text insets (12) + chevron column (22) + borders (2), with
+                // breathing room between the value and arrow. Keep the compact toolbar control
+                // usable even when the current locale happens to have very short labels.
+                ZoomBox.Width = System.Math.Max(88, System.Math.Ceiling(max) + 40);
             }
             catch { /* best-effort; leave the XAML default width */ }
         }

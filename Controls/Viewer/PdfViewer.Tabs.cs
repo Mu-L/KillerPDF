@@ -120,6 +120,18 @@ namespace KillerPDF.Controls
             private bool _isLast;
             public bool IsLast { get => _isLast; set { if (_isLast != value) { _isLast = value; Notify(); } } }
 
+            // Win98 tabs overlap their immediate neighbor by one pixel, like the native tab
+            // control. These flags are only enabled by RebuildTabStrip while the retro theme is
+            // active, so the modern themes retain their existing edge-to-edge geometry.
+            private bool _retroBeforeActive;
+            public bool RetroBeforeActive { get => _retroBeforeActive; set { if (_retroBeforeActive != value) { _retroBeforeActive = value; Notify(); } } }
+
+            private bool _retroAfterActive;
+            public bool RetroAfterActive { get => _retroAfterActive; set { if (_retroAfterActive != value) { _retroAfterActive = value; Notify(); } } }
+
+            private bool _retroLastInactive;
+            public bool RetroLastInactive { get => _retroLastInactive; set { if (_retroLastInactive != value) { _retroLastInactive = value; Notify(); } } }
+
             // True only for the ACTIVE tab of the FOCUSED pane, and only while split. The focus ring
             // has to continue around the active tab - the tab and the card are one surface, so a
             // ring that stops at the strip reads as broken.

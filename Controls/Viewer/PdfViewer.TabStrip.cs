@@ -61,6 +61,42 @@ namespace KillerPDF.Controls
             // opened 3px too high against the chrome (2026-08-01).
             CardRow.Margin = new Thickness(0, show ? -1 : 3, 0, 0);
 
+            // Win98 tabs sit on a raised client frame. Keep the frame's vertical sides and bottom;
+            // the one-pixel top ledge is drawn by TabBarRing so the active tab can cover its own
+            // segment while the ledge remains visible beneath the inactive tabs.
+            bool retroTheme = Services.ThemeManager.Current == Services.Theme.SE98;
+            bool retroTabs = show && retroTheme;
+            if (retroTheme)
+            {
+                PaneBevelOuterDark.SetResourceReference(Border.BorderBrushProperty, "DocumentPaneBevelTopLeftBrush");
+                PaneBevelOuterLight.SetResourceReference(Border.BorderBrushProperty, "DocumentPaneBevelBottomRightBrush");
+                PaneBevelInnerDark.SetResourceReference(Border.BorderBrushProperty, "DocumentPaneBevelInnerTopLeftBrush");
+                PaneBevelInnerLight.SetResourceReference(Border.BorderBrushProperty, "DocumentPaneBevelInnerBottomRightBrush");
+            }
+            else
+            {
+                PaneBevelOuterDark.SetResourceReference(Border.BorderBrushProperty, "PaneBevelDarkBrush");
+                PaneBevelOuterLight.SetResourceReference(Border.BorderBrushProperty, "PaneBevelLightBrush");
+                PaneBevelInnerDark.SetResourceReference(Border.BorderBrushProperty, "PaneBevelDark2Brush");
+                PaneBevelInnerLight.SetResourceReference(Border.BorderBrushProperty, "PaneBevelLight2Brush");
+            }
+            if (retroTabs)
+            {
+                PaneBorder.BorderThickness = new Thickness(1, 0, 1, 1);
+                PaneBevelOuterDark.BorderThickness = new Thickness(1, 0, 0, 0);
+                PaneBevelOuterLight.BorderThickness = new Thickness(0, 0, 1, 1);
+                PaneBevelInnerDark.BorderThickness = new Thickness(1, 0, 0, 0);
+                PaneBevelInnerLight.BorderThickness = new Thickness(0, 0, 1, 1);
+            }
+            else
+            {
+                PaneBorder.BorderThickness = new Thickness(1);
+                PaneBevelOuterDark.SetResourceReference(Border.BorderThicknessProperty, "PaneBevelLightThickness");
+                PaneBevelOuterLight.SetResourceReference(Border.BorderThicknessProperty, "PaneBevelDarkThickness");
+                PaneBevelInnerDark.SetResourceReference(Border.BorderThicknessProperty, "PaneBevel2LightThickness");
+                PaneBevelInnerLight.SetResourceReference(Border.BorderThicknessProperty, "PaneBevel2DarkThickness");
+            }
+
             // Which tabs fit at this width, before anything below asks which is on an edge.
             ApplyTabWindow();
 
@@ -78,11 +114,26 @@ namespace KillerPDF.Controls
             bool chevron = TabOverflowBtn.Visibility == Visibility.Visible;
 
             var strip = _sessions.Where(t => t.IsStripVisible).ToList();
-            foreach (var t in _sessions) { t.IsFirst = false; t.IsLast = false; }
+            foreach (var t in _sessions)
+            {
+                t.IsFirst = false;
+                t.IsLast = false;
+                t.RetroBeforeActive = false;
+                t.RetroAfterActive = false;
+                t.RetroLastInactive = false;
+            }
             if (strip.Count > 0)
             {
                 strip[0].IsFirst              = true;
                 strip[strip.Count - 1].IsLast = !chevron;
+
+                int activeIndex = strip.IndexOf(_active!);
+                if (retroTabs && activeIndex >= 0)
+                {
+                    if (activeIndex > 0) strip[activeIndex - 1].RetroBeforeActive = true;
+                    if (activeIndex + 1 < strip.Count) strip[activeIndex + 1].RetroAfterActive = true;
+                    if (!chevron && !strip[^1].IsActive) strip[^1].RetroLastInactive = true;
+                }
             }
 
             SyncPaneLeadingCorner();
@@ -273,6 +324,10 @@ namespace KillerPDF.Controls
                 // itself, and the ring's own end stands 7px above it as a stray accent stub rising out
                 // of the card.
                 TabBarRing.BorderThickness = new Thickness(firstActive ? 1 : 0, 1, lastActive ? 1 : 0, 0);
+                if (Services.ThemeManager.Current == Services.Theme.SE98)
+                    TabBarRing.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
+                else
+                    TabBarRing.SetResourceReference(Border.BorderBrushProperty, "PaneEdgeBrush");
             }
         }
 
@@ -298,7 +353,8 @@ namespace KillerPDF.Controls
         private void UpdatePaneFocusRing()
         {
             bool split = Host?.IsSplitView == true;
-            bool lit   = PaneHasFocus && split;
+            bool retro = Services.ThemeManager.Current == Services.Theme.SE98;
+            bool lit   = PaneHasFocus && split && !retro;
 
             foreach (var t in _sessions)
             {
@@ -318,13 +374,17 @@ namespace KillerPDF.Controls
             // whatever its Visibility says.
             if (TabEdgeLeft != null)
             {
-                TabEdgeLeft.Visibility = lit && firstActive ? Visibility.Visible : Visibility.Collapsed;
-                TabEdgeLeft.SetResourceReference(Border.BackgroundProperty, "SelectionAccent");
+                // The retro tab side continues through the six-pixel band/card overlap so its
+                // outer edge physically meets the pane bevel instead of stopping above it.
+                TabEdgeLeft.Margin = retro ? new Thickness(0, 3, 0, -6) : new Thickness(0, 9, 0, 0);
+                TabEdgeLeft.Visibility = (lit || retro) && firstActive ? Visibility.Visible : Visibility.Collapsed;
+                TabEdgeLeft.SetResourceReference(Border.BackgroundProperty, retro ? "BevelLightBrush" : "SelectionAccent");
             }
             if (TabEdgeRight != null)
             {
-                TabEdgeRight.Visibility = lit && lastActive ? Visibility.Visible : Visibility.Collapsed;
-                TabEdgeRight.SetResourceReference(Border.BackgroundProperty, "SelectionAccent");
+                TabEdgeRight.Margin = retro ? new Thickness(0, 3, 0, -6) : new Thickness(0, 9, 0, 0);
+                TabEdgeRight.Visibility = (lit || retro) && lastActive ? Visibility.Visible : Visibility.Collapsed;
+                TabEdgeRight.SetResourceReference(Border.BackgroundProperty, retro ? "BevelDarkBrush" : "SelectionAccent");
             }
         }
 

@@ -53,18 +53,12 @@ namespace KillerPDF
             var outerBorder = new Border
             {
                 Background = R("MenuBackgroundBrush"),
-                BorderBrush = R("MenuBorderBrush"),   // match the app window / Settings card border, not the bright accent
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(10),    // transparent halo so the drop shadow can render
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    Color = Colors.Black,
-                    BlurRadius = 18,
-                    ShadowDepth = 3,
-                    Direction = 270,
-                    Opacity = 0.6
-                }
+                BorderBrush = UiKit.Brush("DialogFrameBrush"),
+                BorderThickness = Application.Current.TryFindResource("DialogFrameThickness") is Thickness dft ? dft : new Thickness(1),
+                Padding = Application.Current.TryFindResource("DialogFramePadding") is Thickness dfp ? dfp : new Thickness(0),
+                CornerRadius = UiKit.RadWindow,
+                Margin = Application.Current.TryFindResource("DialogHaloMargin") is Thickness hm ? hm : new Thickness(10),
+                Effect = UiKit.ShadowDialog()
             };
 
             var root = new StackPanel();
@@ -74,7 +68,7 @@ namespace KillerPDF
             {
                 // Transparent so the dialog-wide film grain shows through the title bar too (it sits
                 // over the same BgModal surface, so it still reads as one continuous surface).
-                Background = Brushes.Transparent,
+                Background = Application.Current.TryFindResource("UseDialogCaption") is true ? UiKit.Brush("TitleBarBrush") : Brushes.Transparent,
                 Padding = new Thickness(16, 10, 16, 10),
                 CornerRadius = new CornerRadius(5, 5, 0, 0)
             };
@@ -102,6 +96,9 @@ namespace KillerPDF
                     FontFamily = UiKit.MonoFont
                 };
             }
+            if (Application.Current.TryFindResource("UseDialogCaption") is true)
+                titleBar = DialogChrome.BuildTitleBar(win, owner, title, () => { result = MessageBoxResult.Cancel; win.Close(); });
+            titleBar.Height = Application.Current.TryFindResource("DialogTitleBarHeight") is double titleHeight ? titleHeight : double.NaN;
             root.Children.Add(titleBar);
 
             // Message
@@ -200,9 +197,7 @@ namespace KillerPDF
                 });
             }
             contentGrid.Children.Add(root);
-            outerBorder.Child = contentGrid;
-
-            win.Content = outerBorder;
+            win.Content = DialogChrome.WrapContent(owner, contentGrid);
             win.ShowDialog();
             _lastCheckboxChecked = boxChecked;
             return result;
@@ -228,17 +223,17 @@ namespace KillerPDF
             var outerBorder = new Border
             {
                 Background = R("MenuBackgroundBrush"),
-                BorderBrush = R("MenuBorderBrush"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(10),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
-                { Color = Colors.Black, BlurRadius = 18, ShadowDepth = 3, Direction = 270, Opacity = 0.6 }
+                BorderBrush = UiKit.Brush("DialogFrameBrush"),
+                BorderThickness = Application.Current.TryFindResource("DialogFrameThickness") is Thickness dft ? dft : new Thickness(1),
+                Padding = Application.Current.TryFindResource("DialogFramePadding") is Thickness dfp ? dfp : new Thickness(0),
+                CornerRadius = UiKit.RadWindow,
+                Margin = Application.Current.TryFindResource("DialogHaloMargin") is Thickness hm ? hm : new Thickness(10),
+                Effect = UiKit.ShadowDialog()
             };
 
             var root = new StackPanel();
 
-            var titleBar = new Border { Background = Brushes.Transparent, Padding = new Thickness(16, 10, 16, 10) };
+            var titleBar = new Border { Background = Application.Current.TryFindResource("UseDialogCaption") is true ? UiKit.Brush("TitleBarBrush") : Brushes.Transparent, Padding = new Thickness(16, 10, 16, 10) };
             titleBar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
             if (title == "KillerPDF")
             {
@@ -251,6 +246,9 @@ namespace KillerPDF
             {
                 titleBar.Child = new TextBlock { Text = title, Foreground = R("PrimaryBrush"), FontWeight = FontWeights.Bold, FontSize = 14, FontFamily = UiKit.MonoFont };
             }
+            if (Application.Current.TryFindResource("UseDialogCaption") is true)
+                titleBar = DialogChrome.BuildTitleBar(win, owner, title, () => win.Close());
+            titleBar.Height = Application.Current.TryFindResource("DialogTitleBarHeight") is double titleHeight ? titleHeight : double.NaN;
             root.Children.Add(titleBar);
 
             root.Children.Add(new Border
@@ -292,9 +290,7 @@ namespace KillerPDF
                 });
             }
             contentGrid.Children.Add(root);
-            outerBorder.Child = contentGrid;
-
-            win.Content = outerBorder;
+            win.Content = DialogChrome.WrapContent(owner, contentGrid);
             win.ShowDialog();
             return result;
         }
@@ -367,18 +363,12 @@ namespace KillerPDF
             var outerBorder = new Border
             {
                 Background = R("MenuBackgroundBrush"),
-                BorderBrush = R("MenuBorderBrush"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(10),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    Color = Colors.Black,
-                    BlurRadius = 18,
-                    ShadowDepth = 3,
-                    Direction = 270,
-                    Opacity = 0.6
-                }
+                BorderBrush = UiKit.Brush("DialogFrameBrush"),
+                BorderThickness = Application.Current.TryFindResource("DialogFrameThickness") is Thickness dft ? dft : new Thickness(1),
+                Padding = Application.Current.TryFindResource("DialogFramePadding") is Thickness dfp ? dfp : new Thickness(0),
+                CornerRadius = UiKit.RadWindow,
+                Margin = Application.Current.TryFindResource("DialogHaloMargin") is Thickness hm ? hm : new Thickness(10),
+                Effect = UiKit.ShadowDialog()
             };
 
             var root = new StackPanel();
@@ -386,7 +376,7 @@ namespace KillerPDF
             // Title bar: the wordmark, exactly like Show()'s "KillerPDF" branch.
             var titleBar = new Border
             {
-                Background = Brushes.Transparent,
+                Background = Application.Current.TryFindResource("UseDialogCaption") is true ? UiKit.Brush("TitleBarBrush") : Brushes.Transparent,
                 Padding = new Thickness(16, 10, 16, 10),
                 CornerRadius = new CornerRadius(5, 5, 0, 0)
             };
@@ -397,6 +387,9 @@ namespace KillerPDF
             wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 18, Foreground = R("AccentLogo") });
             wm.Children.Add(wmTb);
             titleBar.Child = wm;
+            if (Application.Current.TryFindResource("UseDialogCaption") is true)
+                titleBar = DialogChrome.BuildTitleBar(win, owner, "KillerPDF", () => win.Close());
+            titleBar.Height = Application.Current.TryFindResource("DialogTitleBarHeight") is double titleHeight ? titleHeight : double.NaN;
             root.Children.Add(titleBar);
 
             root.Children.Add(new Border
@@ -467,9 +460,7 @@ namespace KillerPDF
                 });
             }
             contentGrid.Children.Add(root);
-            outerBorder.Child = contentGrid;
-
-            win.Content = outerBorder;
+            win.Content = DialogChrome.WrapContent(owner, contentGrid);
             win.ShowDialog();
             return (confirmed, closeTabs, remember);
         }

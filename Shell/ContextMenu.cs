@@ -52,8 +52,6 @@ namespace KillerPDF
             // only the focused pane ever got the texture and pane B rendered flat.
             Viewer.Grain.ImageSource  = bmp;
             ViewerB.Grain.ImageSource = bmp;
-            if (SidebarGrainBrush != null) SidebarGrainBrush.ImageSource = bmp;
-            if (ToggleGrainBrush != null) ToggleGrainBrush.ImageSource = bmp;
             // TryFindResource, NOT the Resources indexer: the indexer looks ONLY in this window's
             // own dictionary and returns null without complaint if the key lives higher up.
             // A key defined above this window (GrainBrushShared can be) is invisible to the
@@ -74,9 +72,7 @@ namespace KillerPDF
 
         private void BuildContextMenu()
         {
-            _ctxMenu = new ContextMenu();
-            TextOptions.SetTextFormattingMode(_ctxMenu, TextFormattingMode.Display);
-            TextOptions.SetTextRenderingMode(_ctxMenu, TextRenderingMode.Grayscale);
+            _ctxMenu = MakeThemedMenu();
             _annotationCanvas.ContextMenu = _ctxMenu;
 
             // The primary canvas opens its menu automatically on right-click; rebuild items first based
@@ -613,6 +609,10 @@ namespace KillerPDF
         private ContextMenu MakeThemedMenu()
         {
             var menu = new ContextMenu();
+            // Code-created ContextMenus are popup roots and can miss the owning Window's implicit
+            // style during construction. Attach it explicitly so every generated menu receives
+            // the square, two-stage 98SE frame instead of WPF's rounded fallback chrome.
+            if (TryFindResource(typeof(ContextMenu)) is Style style) menu.Style = style;
             TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
             TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
             return menu;
@@ -667,7 +667,6 @@ namespace KillerPDF
                     FontSize = 12,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
-                icon.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
                 item.Icon = icon;
             }
             return item;

@@ -163,7 +163,9 @@ namespace KillerPDF
         internal void DocPane_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (sender is not FrameworkElement el) return;
-            el.Clip = new RectangleGeometry(new Rect(0, 0, el.ActualWidth, el.ActualHeight), 5, 5);
+            double outer = TryFindResource("PanelCornerRadius") is CornerRadius cr ? cr.TopLeft : 6;
+            double inner = Math.Max(0, outer - 1);
+            el.Clip = new RectangleGeometry(new Rect(0, 0, el.ActualWidth, el.ActualHeight), inner, inner);
         }
 
 

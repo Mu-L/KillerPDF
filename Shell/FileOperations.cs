@@ -460,9 +460,7 @@ namespace KillerPDF
         private void OpenRecent_Click(object sender, RoutedEventArgs e)
         {
             e.Handled = true;   // also fired by right-click on the Open button; don't let it bubble
-            var menu = new ContextMenu();
-            TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
-            TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
+            var menu = MakeThemedMenu();
 
             menu.Items.Add(MakeMenuItem(Loc("Str_Menu_Import") + "...", (s2, e2) => ImportImages_Click(s2, e2), null, ""));
             menu.Items.Add(new Separator());
@@ -728,9 +726,7 @@ namespace KillerPDF
         private void SaveMenu_Click(object sender, RoutedEventArgs e)
         {
             e.Handled = true;   // also fired by right-click on the Save button; don't let it bubble
-            var menu = new ContextMenu();
-            TextOptions.SetTextFormattingMode(menu, TextFormattingMode.Display);
-            TextOptions.SetTextRenderingMode(menu, TextRenderingMode.Grayscale);
+            var menu = MakeThemedMenu();
 
             if (_doc is null)
             {

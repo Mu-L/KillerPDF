@@ -415,7 +415,7 @@ namespace KillerPDF
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (_, _) => OcrPageToClipboard(pageIdx), "Ctrl+Shift+O", ""));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_Region"), (_, _) => BeginOcrRegion(), "Ctrl+Shift+I", ""));
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_SearchablePdf"), (_, _) => MakeSearchablePdf(), null, ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_SearchablePdf"), (_, _) => MakeSearchablePdf(), null, ""));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_ExtractText"), (_, _) => ExtractAllText(), null, ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(BuildLanguageMenu());

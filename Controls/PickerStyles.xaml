@@ -122,7 +122,7 @@
              SurfaceBrush here; this is that. (2026-07-30)
              It reads correctly on the other surfaces too: the dialog cards are PaneBrush (#3a3a3a),
              against which a SurfaceBrush field is a step darker and reads as recessed. -->
-        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource TextFieldBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -628,7 +628,7 @@
     <!-- The ComboBox itself -->
     <Style x:Key="DarkComboBox" TargetType="ComboBox">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
-        <Setter Property="Background" Value="{DynamicResource PaneBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource TextFieldBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -685,6 +685,18 @@
                                            VerticalAlignment="Center"
                                            HorizontalAlignment="Center"
                                            IsHitTestVisible="False"/>
+                                <Border Grid.Column="1" IsHitTestVisible="False"
+                                        Background="{DynamicResource ChipFaceBrush}"
+                                        BorderBrush="{DynamicResource BevelLightBrush}"
+                                        BorderThickness="{DynamicResource BevelLightThickness}"/>
+                                <Border Grid.Column="1" IsHitTestVisible="False"
+                                        BorderBrush="{DynamicResource BevelDarkBrush}"
+                                        BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                                <TextBlock Grid.Column="1" Text="&#xE70D;"
+                                           FontFamily="Segoe MDL2 Assets" FontSize="8"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"
+                                           IsHitTestVisible="False"/>
                                 <!-- Invisible toggle over the whole control -->
                                 <ToggleButton Grid.Column="0" Grid.ColumnSpan="2"
                                               Style="{StaticResource DarkComboToggle}"
@@ -699,7 +711,7 @@
                                Focusable="False"
                                PopupAnimation="Fade"
                                Placement="Bottom">
-                            <Border Background="{DynamicResource PaneBrush}"
+                            <Border Background="{DynamicResource FileDialogPaneBrush}"
                                     BorderBrush="{DynamicResource CardBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="{DynamicResource SmallCornerRadius}"

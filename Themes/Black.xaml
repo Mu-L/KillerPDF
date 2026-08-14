@@ -69,6 +69,9 @@
     <sys:Double x:Key="GrainOpacity">0.24</sys:Double>
     <sys:Double x:Key="IconShadowOpacity">0.9</sys:Double>
     <sys:Double x:Key="HeaderShadowOpacity">0.5</sys:Double>
+    <sys:Double x:Key="PaneShadowOpacity">0.60</sys:Double>
+    <sys:Double x:Key="BarShadowOpacity">0.38</sys:Double>
+    <sys:Double x:Key="FlyoutShadowOpacity">0.55</sys:Double>
 
     <SolidColorBrush x:Key="BgCanvas"                                                       Color="#0d0d0d" po:Freeze="True"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"                      Color="#003322" po:Freeze="True"/>
@@ -87,5 +90,14 @@
     <SolidColorBrush x:Key="KsCatOcr"       Color="#ff901f" po:Freeze="True"/>
 
     <DropShadowEffect x:Key="TextStroke" Color="Black" BlurRadius="3" ShadowDepth="0.8" Direction="270" Opacity="0.7"/>
+
+    <!-- Keep the shared chrome geometry identical to KillerNotes. -->
+    <CornerRadius x:Key="WindowCornerRadius">7</CornerRadius>
+    <CornerRadius x:Key="PanelCornerRadius">6</CornerRadius>
+    <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+    <CornerRadius x:Key="SmallCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="FlyoutCornerRadius">0,0,4,4</CornerRadius>
+    <CornerRadius x:Key="AccentSwatchCornerRadius">9</CornerRadius>
+    <SolidColorBrush x:Key="TitleBarBrush" Color="#000000" po:Freeze="True"/>
 
 </ResourceDictionary>
