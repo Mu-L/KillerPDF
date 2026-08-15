@@ -34,7 +34,7 @@ var I18N = {
   "f_print_t": "Drukowanie i spłaszczanie",
   "f_print_d": "Prawdziwy podgląd wydruku w aplikacji z kontrolą skali, położenia, marginesów, liczby stron na arkusz, stron parzystych i nieparzystych, koloru oraz druku dwustronnego, renderowany w 300 DPI. Możesz też zapisać spłaszczoną kopię lub wyeksportować strony jako obrazy PNG/JPEG.",
   "f_themes_t": "Motywy i języki",
-  "f_themes_d": "Sześć motywów z osobnymi kolorami akcentu, przełączanych bez restartu, odwrócone kolory dokumentu do czytania w ciemnym trybie oraz regulacja rozmiaru całej aplikacji. Interfejs jest dostępny w jedenastu językach.",
+  "f_themes_d": "Dwanaście motywów — Dark, Light, Black, Blood, Greed, Cyanotic, Ectoplasm, Decay, Malaise, Sepulchre, Delirium i Mourning — przełączanych bez restartu. Trzy podstawowe motywy pozwalają również wybrać jeden z sześciu kolorów akcentu. Interfejs jest dostępny w jedenastu językach.",
   "f_look_t": "Nowy wygląd",
   "f_look_d": "Widok dokumentu jest zaokrągloną, uniesioną kartą pasującą do pozostałych aplikacji Killer Tools, z separatorem rozświetlanym kolorem akcentu. Kliknij prawym przyciskiem pasek tytułu, aby otworzyć systemowe menu dopasowane do motywu aplikacji zamiast standardowej ramki Windows.",
   "f_docinfo_t": "Informacje o dokumencie",

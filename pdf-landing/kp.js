@@ -2,7 +2,7 @@
    Page-specific behavior (sidebar thumbnails, accordions) stays inline per page. */
 (function () {
   var root = document.documentElement;
-  var THEMES = ['dark','light','hc','blood','greed','cyanotic'];
+  var THEMES = ['dark','light','hc','blood','greed','cyanotic','ectoplasm','decay','malaise','sepulchre','delirium','mourning'];
   var NEUTRAL = ['dark','light','hc'];
   // Per-family palette copied from the app: [ Accent (bright: text/links/logo/outlines), SelectionBg (darker fill: solid buttons, selected tab edges) ].
   var ACCENTS = {

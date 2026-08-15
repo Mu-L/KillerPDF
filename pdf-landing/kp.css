@@ -8,6 +8,23 @@ html[data-theme="hc"]       { --bg:#0d0d0d; --surface:#0a0a0a; --panel:#141414; 
 html[data-theme="blood"]    { --bg:#4a1f20; --surface:#321416; --panel:#321416; --sidebar:#1e0a0b; --canvas:#4a1f20; --border:#361619; --pane-border:#3a1a1d; --dragline:#3e1e21; --tab-edge:rgba(255,255,255,0.27); --accent:#ffffff; --accent-text:#450002; --text:#fffde8; --text2:#b09e9c; --muted:#f8c99e; --footer-text:#b09e9c; --danger:#ff6666; --grain:0.32; --btn:#1ea54c; --btn-text:#ffffff; --logo-pdf:#1ea54c; --chrome:#240c0d; --modal:#1e0a0b; --fade:rgba(0,0,0,0.6); }
 html[data-theme="greed"]    { --bg:#0a5234; --surface:#003824; --panel:#003824; --sidebar:#001e13; --canvas:#0a5234; --border:#07371f; --pane-border:#07371f; --dragline:#0b3b23; --tab-edge:rgba(255,255,255,0.27); --accent:#ffffff; --accent-text:#002819; --text:#fffde8; --text2:#a6a99a; --muted:#e0d49a; --footer-text:#a6a99a; --danger:#ff6666; --grain:0.26; --btn:#e6b800; --btn-text:#1a1a1a; --logo-pdf:#1ea54c; --chrome:#002115; --modal:#001e13; --fade:rgba(0,0,0,0.6); }
 html[data-theme="cyanotic"] { --bg:#0a4a6e; --surface:#002e48; --panel:#002e48; --sidebar:#001a28; --canvas:#0a4a6e; --border:#093250; --pane-border:#093250; --dragline:#0d3654; --tab-edge:rgba(255,255,255,0.27); --accent:#ffffff; --accent-text:#001e2e; --text:#fffde8; --text2:#9ba3ac; --muted:#e0d49a; --footer-text:#9ba3ac; --danger:#ff6666; --grain:0.26; --btn:#1ea54c; --btn-text:#ffffff; --logo-pdf:#1ea54c; --chrome:#001a28; --modal:#001624; --fade:rgba(0,0,0,0.6); }
+html[data-theme="ectoplasm"] { --bg:#5e1764; --surface:#314548; --panel:#293c3f; --sidebar:#314548; --canvas:#293c3f; --border:#109fa3; --pane-border:#096366; --dragline:#096366; --tab-edge:rgba(234,217,0,.42); --accent:#ead900; --accent-text:#1e1f22; --text:#f4f4f0; --text2:#d7d7cf; --muted:#b4b6b1; --footer-text:#b4b6b1; --danger:#ff5a67; --grain:0.30; --btn:#ead900; --btn-text:#1e1f22; --logo-pdf:#1ea54c; --chrome:#314548; --modal:#383838; --fade:rgba(0,0,0,0.58); }
+html[data-theme="decay"] { --bg:#3b3f46; --surface:#514e48; --panel:#403f3b; --sidebar:#514e48; --canvas:#403f3b; --border:#6b705c; --pane-border:#5c554c; --dragline:#5c554c; --tab-edge:#8a8a78; --accent:#b8aa7c; --accent-text:#202321; --text:#f2f4f3; --text2:#d8cfb5; --muted:#b5ad9e; --footer-text:#b5ad9e; --danger:#d86b68; --grain:0.32; --btn:#b8aa7c; --btn-text:#202321; --logo-pdf:#1ea54c; --chrome:#514e48; --modal:#3b3f46; --fade:rgba(0,0,0,0.58); }
+html[data-theme="malaise"] { --bg:#563343; --surface:#3f4947; --panel:#343b3d; --sidebar:#3f4947; --canvas:#343b3d; --border:#4a5154; --pane-border:#394742; --dragline:#394742; --tab-edge:#a0ffe6; --accent:#ff6f91; --accent-text:#292c31; --text:#f2f4f3; --text2:#d8cfb5; --muted:#b6ad9e; --footer-text:#b6ad9e; --danger:#ff5b67; --grain:0.30; --btn:#ff6f91; --btn-text:#292c31; --logo-pdf:#1ea54c; --chrome:#3f4947; --modal:#262b2d; --fade:rgba(0,0,0,0.58); }
+html[data-theme="sepulchre"] { --bg:#25282b; --surface:#454039; --panel:#3a352f; --sidebar:#454039; --canvas:#3a352f; --border:#835a30; --pane-border:#4d3d2b; --dragline:#4d3d2b; --tab-edge:rgba(79,170,168,.42); --accent:#4faaa8; --accent-text:#ffffff; --text:#f4f4f0; --text2:#d7d7cf; --muted:#b4b6b1; --footer-text:#b4b6b1; --danger:#dc6666; --grain:0.30; --btn:#4faaa8; --btn-text:#ffffff; --logo-pdf:#1ea54c; --chrome:#454039; --modal:#242729; --fade:rgba(0,0,0,0.62); }
+html[data-theme="delirium"] { --bg:#641d25; --surface:#3e3c50; --panel:#343344; --sidebar:#3e3c50; --canvas:#343344; --border:#8e101c; --pane-border:#5c527d; --dragline:#5c527d; --tab-edge:#cf1020; --accent:#dd8500; --accent-text:#ffffff; --text:#f4f4f0; --text2:#d7d7cf; --muted:#b4b6b1; --footer-text:#b4b6b1; --danger:#ff5360; --grain:0.30; --btn:#dd8500; --btn-text:#ffffff; --logo-pdf:#1ea54c; --chrome:#3e3c50; --modal:#24212b; --fade:rgba(0,0,0,0.62); }
+html[data-theme="mourning"] { --bg:#3b3642; --surface:#34373e; --panel:#554c5d; --sidebar:#34373e; --canvas:#554c5d; --border:#756b79; --pane-border:#756b79; --dragline:#756b79; --tab-edge:rgba(255,111,145,.42); --accent:#ff6f91; --accent-text:#292c31; --text:#f4f4f0; --text2:#d7d7cf; --muted:#b4b6b1; --footer-text:#b4b6b1; --danger:#ff5360; --grain:0.28; --btn:#ff6f91; --btn-text:#292c31; --logo-pdf:#1ea54c; --chrome:#34373e; --modal:#4f413f; --fade:rgba(0,0,0,0.62); }
+/* Match the app: the outer chrome carries the palette/gradient while the document pane stays solid. */
+html[data-theme="ectoplasm"] { --bg:#293c3f; --sidebar:linear-gradient(90deg,#5e1764 0%,#25232b 100%); }
+html[data-theme="decay"] { --bg:#403f3b; --sidebar:linear-gradient(90deg,#3b3f46 0%,#50564b 100%); }
+html[data-theme="malaise"] { --bg:#343b3d; --sidebar:linear-gradient(90deg,#563343 0%,#365b58 100%); }
+html[data-theme="sepulchre"] { --bg:#3a352f; --sidebar:linear-gradient(90deg,#25282b 0%,#2c5458 100%); }
+html[data-theme="delirium"] { --bg:#343344; --sidebar:linear-gradient(90deg,#641d25 0%,#2f2853 100%); }
+html[data-theme="mourning"] { --bg:#554c5d; --sidebar:#3b3642; }
+html[data-theme="delirium"] .tb-dl:hover,
+html[data-theme="delirium"] body .download-btn:hover { background:#ffad2f; color:#1e1f22; filter:none; }
+html[data-theme="malaise"] .tb-dl:hover,
+html[data-theme="malaise"] body .download-btn:hover { background:#ff9fba; color:#292c31; filter:none; }
 :root { --accent-dim: color-mix(in srgb, var(--accent) 16%, transparent); }
 
 html { background: var(--bg); height: 100%; }
@@ -57,6 +74,9 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 .sw-dark { background:#2b2b2b; --sw-accent:#1ea54c; } .sw-light { background:#e8e8e8; --sw-accent:#18843d; }
 .sw-hc { background:#000; --sw-accent:#00ff66; } .sw-blood { background:#73000e; --sw-accent:#f8c99e; }
 .sw-greed { background:#004d32; --sw-accent:#e0d49a; } .sw-cyanotic { background:#003450; --sw-accent:#e0d49a; }
+.sw-ectoplasm { background:#5e1764; --sw-accent:#ead900; } .sw-decay { background:#403f3b; --sw-accent:#b8aa7c; }
+.sw-malaise { background:#563343; --sw-accent:#ff6f91; } .sw-sepulchre { background:#3a352f; --sw-accent:#4faaa8; }
+.sw-delirium { background:#641d25; --sw-accent:#dd8500; } .sw-mourning { background:#554c5d; --sw-accent:#ff6f91; }
 .acc { width: 17px; height: 17px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.25); padding: 0; transition: transform 0.12s; }
 .acc:hover { transform: scale(1.18); }
 .acc[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px currentColor; }

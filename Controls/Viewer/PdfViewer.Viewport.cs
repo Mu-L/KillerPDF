@@ -81,6 +81,38 @@ namespace KillerPDF.Controls
             PagePreviewPanel.ScrollToVerticalOffset(target);
         }
 
+        // ── Current-page badge (#197, thanks Ryokoxx) ─────────────────────────────────────────
+        // One viewport-corner badge showing "page / total", replacing the per-tile tooltips that
+        // trailed the cursor. Slides up on scroll or page change, slides back down after idle.
+        private System.Windows.Threading.DispatcherTimer? _pageBadgeTimer;
+
+        private void ShowPageBadge(int page)
+        {
+            if (_doc is null || _doc.PageCount < 2) return;
+            PageBadgeText.Text = $"{page + 1} / {_doc.PageCount}";
+            PageBadgeSlide.BeginAnimation(TranslateTransform.YProperty,
+                new DoubleAnimation(0, TimeSpan.FromMilliseconds(140))
+                    { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            PageBadge.BeginAnimation(OpacityProperty,
+                new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+            if (_pageBadgeTimer is null)
+            {
+                _pageBadgeTimer = new System.Windows.Threading.DispatcherTimer
+                    { Interval = TimeSpan.FromMilliseconds(900) };
+                _pageBadgeTimer.Tick += (_, _) =>
+                {
+                    _pageBadgeTimer!.Stop();
+                    PageBadgeSlide.BeginAnimation(TranslateTransform.YProperty,
+                        new DoubleAnimation(46, TimeSpan.FromMilliseconds(220))
+                            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } });
+                    PageBadge.BeginAnimation(OpacityProperty,
+                        new DoubleAnimation(0, TimeSpan.FromMilliseconds(220)));
+                };
+            }
+            _pageBadgeTimer.Stop();
+            _pageBadgeTimer.Start();
+        }
+
         private void PagePreviewPanel_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             // The vertical scrollbar can appear/disappear without a window resize (zoom, page count
@@ -107,6 +139,10 @@ namespace KillerPDF.Controls
                     double dist   = Math.Abs(center - viewportCenter);
                     if (dist < minDist) { minDist = dist; nearest = i; }
                 }
+
+                // #197: surface the position badge on real scrolling, focused pane or not - the
+                // badge is per-pane furniture, unlike the page-jump box synced below.
+                if (e.VerticalChange != 0) ShowPageBadge(nearest);
 
                 SyncCurrentPageTo(nearest);
 
@@ -221,11 +257,8 @@ namespace KillerPDF.Controls
             if (layoutTransform != null) overlay.LayoutTransform = layoutTransform;
             overlay.PreviewMouseLeftButtonDown += Canvas_MouseLeftButtonDown;
             WirePageOverlay(overlay, page);
-            // #151: the page-number tooltip only existed on the secondary tiles, so whether it
-            // showed depended on the view mode (none in Single/Continuous, even pages only in
-            // Two-Page, from page 2 in Grid). Set here it covers every code-built overlay; the
-            // XAML primary tile gets the same line in RenderPage, where its page changes.
-            overlay.ToolTip = string.Format(Loc("Str_PageLabel"), page + 1);
+            // #197: no per-tile page tooltip anymore - it trailed the cursor and read as noise.
+            // The viewport-corner badge (ShowPageBadge) is the page indicator now.
             return overlay;
         }
 
@@ -741,9 +774,8 @@ namespace KillerPDF.Controls
 
                 int pgRot = _pageRotations.TryGetValue(pageIndex, out int pr0) ? pr0 : 0;
 
-                // #151: keep the primary tile's page tooltip in step with what it shows, matching
-                // the code-built overlays (BuildPageOverlay).
-                _annotationCanvas.ToolTip = string.Format(Loc("Str_PageLabel"), pageIndex + 1);
+                // #197: the cursor-trailing tooltip is gone; the corner badge announces the page.
+                ShowPageBadge(pageIndex);
 
                 // Reuse this tab's cached bitmap for (page, resolution, rotation) if present; otherwise
                 // rasterize once and cache it. On a switch back to a recent tab this skips pdfium entirely.

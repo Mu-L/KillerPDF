@@ -547,6 +547,28 @@
                         </Grid>
                     </Border>
                 </ScrollViewer>
+
+                <!-- #197: current-page badge. Replaces the cursor-following page tooltips: slides
+                     up from the bottom corner on scroll and page changes, slides back down when
+                     the view settles (ShowPageBadge, Viewport.cs). Never hit-testable, so it
+                     cannot eat a page click. 26px right margin clears the vertical scrollbar. -->
+                <Border x:Name="PageBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Margin="0,0,26,14" Panel.ZIndex="40" IsHitTestVisible="False" Opacity="0"
+                        Background="{DynamicResource MenuBackgroundBrush}"
+                        BorderBrush="{DynamicResource MenuBorderBrush}" BorderThickness="1"
+                        CornerRadius="{DynamicResource ControlCornerRadius}" Padding="9,3">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="PageBadgeSlide" Y="46"/>
+                    </Border.RenderTransform>
+                    <Grid>
+                        <TextBlock x:Name="PageBadgeText" FontFamily="Consolas" FontSize="12"
+                                   Foreground="{DynamicResource TextBrush}"/>
+                        <!-- Grain OVER the content, family rule -->
+                        <Border IsHitTestVisible="False" Margin="-9,-3"
+                                CornerRadius="{DynamicResource ControlCornerRadius}"
+                                Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
         </Grid><!-- /card row -->

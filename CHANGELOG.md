@@ -12,6 +12,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Added 98SE, Ectoplasm, Decay, Mourning, Sepulchre, Delirium, and Malaise themes.
 - Polish (pl-PL) localization, the eleventh interface language, in the language picker as "Polski" (#191, thanks Fresta24).
 
+### Changed
+- The page number shows in a corner badge that slides away when the view settles, replacing the tooltip that followed the cursor (#197, thanks Ryokoxx).
+
 ### Fixed
 - The re-sharpen pass renders at device resolution instead of twice it, sharply cutting memory use on large documents, and re-renders on DPI changes (#189, PR #194, thanks Ryokoxx).
 - The page bitmap cache is now budgeted in bytes (~160 MB per tab) instead of a fixed page count, cutting the other large share of memory on big documents (#189, thanks ags1234).
