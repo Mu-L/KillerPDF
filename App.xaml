@@ -154,7 +154,9 @@
                  family needs it; the small ones (ShadowText/Icon/Bar, radius 3-6) are under the
                  threshold where it reads, and Quality costs real render time.
                  The corner shadows showed hard edges, caught at 491% in GIMP. (2026-07-31) -->
-            <DropShadowEffect x:Key="PaneShadow"   Color="Black" BlurRadius="16" ShadowDepth="0" Direction="270" Opacity="{DynamicResource PaneShadowOpacity}"
+            <!-- Family standard (KillerShell reference): BlurRadius 16, ShadowDepth 5, Direction 270 -
+                 a downward cast over the footer, not an even halo. -->
+            <DropShadowEffect x:Key="PaneShadow"   Color="Black" BlurRadius="16" ShadowDepth="5" Direction="270" Opacity="{DynamicResource PaneShadowOpacity}"
                               RenderingBias="Quality"/>
 
             <!-- GrainBrushShared deliberately does NOT live here - see MainWindow.Resources.

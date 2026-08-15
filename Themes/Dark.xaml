@@ -93,4 +93,11 @@
          ClearType, so on light surfaces it is dialled back or the label reads blurry. -->
     <DropShadowEffect x:Key="TextStroke" Color="Black" BlurRadius="3" ShadowDepth="0.8" Direction="270" Opacity="0.7"/>
 
+    <!-- Corner radii. Every theme must define these (98SE is the square one); a theme missing
+         them resolves to 0 and goes square everywhere. -->
+    <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+    <CornerRadius x:Key="SmallCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="FlyoutCornerRadius">0,0,4,4</CornerRadius>
+    <CornerRadius x:Key="AccentSwatchCornerRadius">9</CornerRadius>
+
 </ResourceDictionary>

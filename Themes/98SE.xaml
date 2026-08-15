@@ -140,6 +140,11 @@
 
     <sys:Double x:Key="BarShadowOpacity" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">0</sys:Double>
 
+    <!-- Theme switches merge per-key in place, so a key missing here keeps the previous theme's
+         value. This one was missing, which is why the header shadow survived a switch into 98SE
+         and hung over the tab strip. -->
+    <sys:Double x:Key="HeaderShadowOpacity" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">0</sys:Double>
+
     <sys:Double x:Key="FlyoutShadowOpacity" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">0.45</sys:Double>
 
     <sys:Double x:Key="AboutShadowOpacity" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">0</sys:Double>

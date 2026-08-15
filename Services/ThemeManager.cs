@@ -274,6 +274,13 @@ namespace KillerPDF.Services
             if (!d.Contains("AboutModernCloseVisibility")) d["AboutModernCloseVisibility"] = Visibility.Visible;
             if (!d.Contains("ShortcutShadowOpacity")) d["ShortcutShadowOpacity"] = d.Contains("FlyoutShadowOpacity") ? d["FlyoutShadowOpacity"] : 0.6;
             if (!d.Contains("ShortcutHeaderShadowOpacity")) d["ShortcutHeaderShadowOpacity"] = 0.55;
+            // Every *ShadowOpacity key needs a materialized default: 98SE defines all ten as
+            // zeroes, and the in-place merge keeps them zeroed for any later theme that omits
+            // the key - which is how visiting 98SE once stripped the pane shadows from every
+            // theme that relied on lookup fallbacks. Defaults mirror Black.xaml.
+            if (!d.Contains("PaneShadowOpacity"))   d["PaneShadowOpacity"]   = 0.60;
+            if (!d.Contains("BarShadowOpacity"))    d["BarShadowOpacity"]    = 0.38;
+            if (!d.Contains("FlyoutShadowOpacity")) d["FlyoutShadowOpacity"] = 0.55;
             if (!d.Contains("ShortcutCaptionVisibility")) d["ShortcutCaptionVisibility"] = Visibility.Collapsed;
             if (!d.Contains("ShortcutModernHeaderVisibility")) d["ShortcutModernHeaderVisibility"] = Visibility.Visible;
             if (!d.Contains("KsCatTools")) d["KsCatTools"] = new SolidColorBrush(Color.FromRgb(0xff, 0xd3, 0x19));

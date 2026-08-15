@@ -111,7 +111,12 @@ namespace KillerPDF
             // Refresh the current executable path for the browser extension handoff. This stays
             // after silent install, uninstall, and CLI dispatch so those headless paths never
             // register a protocol under an elevated or service account.
-            Services.ProtocolRegistrar.Register();
+            // #183: skip the per-user refresh when running from the machine-wide install - the
+            // elevated installer already registered the handler in HKLM for all users, and an
+            // HKCU copy would shadow it for just this user.
+            if (!string.Equals(Process.GetCurrentProcess().MainModule?.FileName, MachineInstallExe,
+                    StringComparison.OrdinalIgnoreCase))
+                Services.ProtocolRegistrar.Register();
 
             // Single instance: a second launch (e.g. double-clicking another PDF in Explorer)
             // forwards its file path to the already-running instance, which opens it as a new
@@ -727,6 +732,11 @@ namespace KillerPDF
                 ExtractFileIcon(MachineFileIconPath);
 
                 RegisterFileHandler(Registry.LocalMachine, MachineInstallExe, MachineFileIconPath);
+
+                // #183: machine-wide install registers the killerpdf:// handler in HKLM so every
+                // user gets it. Pass the Program Files path explicitly - the running exe here is
+                // the source copy, not the installed one.
+                Services.ProtocolRegistrar.Register(Registry.LocalMachine, MachineInstallExe);
 
                 using (var key = Registry.LocalMachine.CreateSubKey(@"Software\KillerPDF"))
                 {
@@ -1646,6 +1656,13 @@ namespace KillerPDF
                 @"Software\KillerPDF\Capabilities\FileAssociations"))
                 k.SetValue(".pdf", "KillerPDF.pdf");
 
+            // #183: without this the killerpdf:// handler never appears in Windows Settings >
+            // Default apps > Choose defaults by link type. Maps the scheme to its ProgID
+            // (Software\Classes\killerpdf, written by ProtocolRegistrar).
+            using (var k = root.CreateSubKey(
+                @"Software\KillerPDF\Capabilities\UrlAssociations"))
+                k.SetValue(Services.ProtocolRegistrar.Scheme, Services.ProtocolRegistrar.Scheme);
+
             using (var k = root.CreateSubKey(@"Software\RegisteredApplications"))
                 k.SetValue(AppName, @"Software\KillerPDF\Capabilities");
 
@@ -1722,6 +1739,7 @@ namespace KillerPDF
                 try { File.Delete(MachineStartMenuLnk); } catch { }
                 try { Directory.Delete(MachineStartMenuDir, recursive: false); } catch { }
                 UnregisterFileHandler(Registry.LocalMachine);
+                Services.ProtocolRegistrar.Unregister(Registry.LocalMachine);   // #183
                 try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\KillerPDF"); } catch { }
                 try { Registry.LocalMachine.DeleteSubKeyTree(
                     @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF"); } catch { }
