@@ -543,7 +543,7 @@ namespace KillerPDF
                 }
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Menu_ClearList"),
-                    (_, _) => { App.ClearRecentFiles(); PopulateRecentFilesList(); }));   // keep the start screen in sync (#146)
+                    (_, _) => { App.ClearRecentFiles(); PopulateRecentFilesList(); }, glyph: ""));   // keep the start screen in sync (#146)
             }
 
             menu.PlacementTarget = (UIElement)sender;

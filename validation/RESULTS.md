@@ -1,13 +1,13 @@
-# Standards-conformance validation results - KillerPDF 1.7.0
+# Standards-conformance validation results - KillerPDF 1.7.2
 
-veraPDF run date: 2026-08-01, against the 1.7.0 release candidate. Numbers identical to the
-1.6.4-1.6.6 runs (2026-07-17 through 2026-07-23): the 1.7.0 refactor moved the save pipeline
-into `Services/` verbatim (verified by diff at the time), and this fresh run reproduces every
-count exactly - same 2,236 resaves, same 671 refusals matching the SKIP rows one for one, same
+veraPDF run date: 2026-08-15, against the 1.7.2 release candidate. Unlike the 1.7.0 run, this
+one covers real write-path changes: the Multiply blend ExtGState saved highlights now carry
+(#200), comb text-field appearance streams (#158), and the vendored PdfSharpCore media-box
+patch for rotated pages (#184). The run reproduces every count of the 1.6.4-1.7.0 runs
+exactly - same 2,236 resaves, same 671 refusals matching the SKIP rows one for one, same
 63 improvements, and the same single documented PDF/A-4 header case as the only flagged file.
-The qpdf sweep was also re-run fresh on 2026-08-01 (via `QpdfSweep.ps1`, new in this folder)
-and reproduces its table exactly: 2,032 clean both sides, 195 improved, 9 kept preexisting
-warnings, 0 worsened.
+The qpdf sweep was re-run fresh the same day and reproduces its table exactly: 2,032 clean
+both sides, 195 improved, 9 kept preexisting warnings, 0 worsened.
 
 Question under test: does saving a PDF through KillerPDF degrade its
 standards conformance? Every file in a 2,907-file public corpus was validated, resaved through
@@ -22,7 +22,7 @@ Result: **Zero** conformance regressions across every file KillerPDF will save, 
 |---|---|---|
 | veraPDF | 1.30.2 | PDF/A + PDF/UA validation (the industry reference validator) |
 | qpdf | 12.3.2 | Structural check (`--check` exit codes) |
-| KillerPDF | 1.7.0 | `--batch-resave` through the standard open/save pipeline |
+| KillerPDF | 1.7.2 | `--batch-resave` through the standard open/save pipeline |
 | Compare-VeraPDF.ps1 | this folder | Diffs the two veraPDF reports file by file |
 | QpdfSweep.ps1 | this folder | Structural before/after sweep (`qpdf --check` exit codes) |
 

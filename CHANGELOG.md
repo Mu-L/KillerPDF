@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.7.2] - Unreleased
 
-1.7.2 is primarily a refactor and bug-fix release: it completes the self-contained split-pane viewer, restores KillerPDF's standalone ownership of its theme resources, resolves a broad set of UI consistency issues, and adds seven new themes.
+KillerPDF 1.7.2 completes the split-pane viewer refactor and builds on it with seven new themes, Polish localization, book layout, Levels, expanded print controls, per-pane night mode, and a substantial round of rendering, memory, form, and interface fixes.
 
 ### Added
 - Added 98SE, Ectoplasm, Decay, Mourning, Sepulchre, Delirium, and Malaise themes.
@@ -21,6 +21,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Changed
 - The page number shows in a corner badge that slides away when the view settles, replacing the tooltip that followed the cursor (#197, thanks Ryokoxx).
+- The Outlines sidebar opens with top-level bookmarks visible and deeper levels folded, and expand/collapse choices now stick across tab switches and edits instead of re-expanding everything.
+- Keyboard access and context-menu hints were audited for 1.7.2: the file-size action has Shift+F4, and applicable menus now show icons and shortcuts.
 
 ### Fixed
 - The re-sharpen pass renders at device resolution instead of twice it, sharply cutting memory use on large documents, and re-renders on DPI changes (#189, PR #194, thanks Ryokoxx).
@@ -29,6 +31,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The picker radio's selected dot is centered in its ring (PR #198, thanks Ryokoxx).
 - The theme flyout no longer jumps when switching to or from a theme without accent swatches (#199, thanks Ryokoxx).
 - Reopening a file restores its last manual zoom level (#201, thanks kilasuelika).
+- Resizing split panes in grid view no longer blanks the grid and rebuilds it page by page: the stretched tiles stay visible and get their bitmaps swapped in place.
 - Exported images carry the chosen DPI in their metadata instead of always reporting 96, in both the GUI export and the CLI (#188, thanks GruNostalgia).
 - Dropping PDFs or images onto the Pages sidebar appends their pages to the open document (#172, thanks 1mk3r).
 - Form field text no longer shows a ghost "shadow" copy behind it: the viewer stopped baking field appearances into the page bitmap underneath the live field overlays, thanks Thomas. Print, flatten, export, and thumbnails still include them.

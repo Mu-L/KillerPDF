@@ -185,11 +185,11 @@
 
 <div class="tech-sec" id="arch">
 <h2 data-i18n="pt_54">Architecture</h2>
-<p data-i18n="pt_55"><b>MainWindow</b> is the application shell. It owns the shared toolbar, sidebar, dialogs and application-level workflows. Each document pane is a reusable <b>PdfViewer</b> control with its own view state, tab strip, render surfaces and document interaction code. Two viewer instances create split pane without opening a second window. Rendering, annotations, forms, links, crop, selection, text editing, tabs and zoom are divided across 16 <code>Controls/Viewer/PdfViewer.*</code> partials. Bridge files keep the remaining shell features connected while the refactor continues, and shared work lives under <code>Services/</code> and feature controllers. In total the app is about 120 C# source files and 42,000 lines, not counting tests or the vendored PdfSharpCore fork under <code>third_party/</code>.</p>
+<p data-i18n="pt_55_172"><b>MainWindow</b> is now a composed application shell rather than one giant code-behind. Its partials own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> control with its own view state, tab strip, render surfaces and document interaction code. Two viewer instances create split pane without opening a second window. Rendering, annotations, forms, links, crop, selection, text editing, tabs and zoom are divided across 16 <code>Controls/Viewer/PdfViewer.*</code> partials totaling about 10,700 lines. The completed extraction leaves thin bridge and host adapters between the shell and viewer, with shared work under <code>Services/</code> and focused controllers under <code>Features/</code>. The application is about 120 C# source files and 40,000 lines: roughly 14,000 lines of <code>MainWindow</code> partials, 17,100 under <code>Controls/</code>, 4,700 under <code>Services/</code>, and 2,600 under <code>Features/</code>, not counting tests or the vendored PdfSharpCore fork under <code>third_party/</code>.</p>
 <h3 id="two-render-pipelines" data-i18n="pt_56">Two render pipelines</h3>
 <p data-i18n="pt_57">KillerPDF draws pages in two different ways depending on the view you are in. Single, Two-Page and Grid views draw into one main tile (<b>RenderPage</b>). Continuous scrolling uses a separate path (<b>RenderContinuousPages</b>) that streams page images in the background as you scroll. RenderPage is deliberately switched off during Continuous so the two systems never fight over the same tile.</p>
 <h3 id="per-tab-sessions-an-lru-cache" data-i18n="pt_58">Per-tab sessions &amp; an LRU cache</h3>
-<p data-i18n="pt_59">Each open document is a <b>DocumentSession</b> that remembers its own zoom, fit and view mode, grid columns, current tool, page, and scroll position, along with its per-document data (annotations, page sizes, rotations, form values, and undo history). Switching tabs simply points the app back at that session. Each session also keeps a cache of already-drawn page images, so flipping back to a recent tab is instant and skips the renderer entirely. To keep memory in check, only the three most recently used tabs hold on to that cache.</p>
+<p data-i18n="pt_59_172">Each open document is a <b>DocumentSession</b> that remembers its own zoom, fit and view mode, grid columns, current tool, page, and scroll position, along with its per-document data (annotations, page sizes, rotations, form values, and undo history). Switching tabs simply points the app back at that session. Each session also keeps a cache of already-drawn page images, so flipping back to a recent tab is instant and skips the renderer entirely. To keep memory bounded, only the three most recently used tabs retain caches; each tab has an approximately 160 MB budget, keeps at least six useful pages where possible, and has a hard cap of 48 cached entries.</p>
 <h3 id="canvas-overlay-maps" data-i18n="pt_60">Canvas &amp; overlay maps</h3>
 <p data-i18n="pt_61">When KillerPDF displays a page, it stacks two things on top of each other: the page itself, drawn as a flat image, and a clear sheet sitting directly over it. That clear sheet is called an <b>overlay</b>, and it is where everything you add to a page (highlights, text boxes, drawn ink, signatures) is painted. The image underneath is never altered; your marks live on the overlay above it. A page's image-and-overlay pair is referred to as a <b>tile</b>.</p>
 <p data-i18n="pt_62">The wrinkle is that KillerPDF has four ways of showing pages: one at a time, a continuous scroll through the whole document, a grid of pages, and two pages side by side. Each of those lays pages out differently, so each page you can see needs its own overlay in its own place. There is no single fixed sheet to draw on. Instead KillerPDF keeps a <b>lookup table</b> that takes a page number and hands back that page's current overlay. In the code this table is named <code>_pages</code>, and it is the one place the app trusts: every time it repaints a page's annotations, it asks this table which overlay to use and draws there.</p>
@@ -377,7 +377,7 @@
 <p>A PDF editor has one obligation above all others: saving your file must not damage it. Starting with 1.6.4, that claim is tested rather than assumed. Every release is validated against <a href="https://verapdf.org/" target="_blank" rel="noopener">veraPDF</a>, the industry reference validator for PDF/A and PDF/UA, across a 2,907-file public conformance corpus (the veraPDF test corpus, the Isartor PDF/A-1b suite, and the TWG test files). These are deliberately hostile files, most built to violate exactly one clause of a standard, so any structural damage a save introduces shows up immediately as a newly failed rule.</p>
 <h3 id="how-the-test-works">How the test works</h3>
 <p>Every corpus file is validated pristine, resaved through KillerPDF's normal open/save pipeline (headlessly, via <code>--batch-resave</code>), and validated again. A comparison script then flags any file that fails a rule after the resave that it did not fail before. The bar for release is zero regressions. A second pass runs <code>qpdf --check</code> on every original/resave pair and flags any file whose structural health worsened.</p>
-<h3 id="the-numbers">The numbers (v1.7.0, veraPDF 1.30.2)</h3>
+<h3 id="the-numbers">The numbers (v1.7.2, veraPDF 1.30.2)</h3>
 <table class="spec-table"><tr><th>Outcome</th><th>Files</th></tr>
 <tr><td>Corpus total</td><td>2,907</td></tr>
 <tr><td>Resaved and revalidated</td><td>2,236</td></tr>
@@ -403,7 +403,7 @@
 
 <div class="tech-sec" id="i18n">
 <h2 data-i18n="pt_130">Localization</h2>
-<p data-i18n="pt_131">Every visible string lives in a per-locale <code>ResourceDictionary</code> under <code>Strings/</code> - ten locales, one XAML file each. Nothing hard-codes text; code and XAML resolve a key through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the whole UI live, no restart.</p>
+<p data-i18n="pt_131_172">Every visible string lives in a per-locale <code>ResourceDictionary</code> under <code>Strings/</code> - eleven locales, one XAML file each, including Polish. Nothing hard-codes text; code and XAML resolve a key through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the whole UI live, no restart.</p>
 <h3 id="captions-and-tooltips-are-separate-strings" data-i18n="pt_132">Captions and tooltips are separate strings</h3>
 <p data-i18n="pt_133">A toolbar button carries two independent strings: the hover <b>tooltip</b> (<code>Str_TT_*</code>) and the text <b>caption</b> under or beside the icon (<code>Str_Lbl_*</code>, mapped per glyph). Because they are localized separately, the toolbar can shed captions to save width while every tooltip stays intact.</p>
 </div>
@@ -415,12 +415,12 @@
 <tr><td data-i18n="pt_139">Bitmap resolution cap</td><td data-i18n="pt_140">6144 px</td></tr>
 <tr><td data-i18n="pt_141">Print / OCR render</td><td data-i18n="pt_142">300 DPI / 2600 px (~300 DPI on Letter)</td></tr>
 <tr><td data-i18n="pt_143">Zoom range / step</td><td data-i18n="pt_144">5% to 500%, 15% steps</td></tr>
-<tr><td data-i18n="pt_145">Render-cache tabs (LRU)</td><td data-i18n="pt_146">3 most-recently-used</td></tr>
+<tr><td data-i18n="pt_145">Render-cache tabs (LRU)</td><td data-i18n="pt_146_172">3 most-recently-used; ~160 MB per tab; 48-entry hard cap</td></tr>
 <tr><td data-i18n="pt_147">Folder / zip import cap</td><td data-i18n="pt_148">50 files</td></tr>
 <tr><td data-i18n="pt_149">Signature reservation</td><td data-i18n="pt_150">16,384 bytes, SHA-256, whole chain</td></tr>
-<tr><td data-i18n="pt_151">Languages / themes</td><td data-i18n="pt_152">10 locales / 6 themes + accent variants</td></tr>
+<tr><td data-i18n="pt_151">Languages / themes</td><td data-i18n="pt_152_172">11 locales / 13 themes + accent variants</td></tr>
 </table>
-<p style="margin-top:14px" data-i18n="pt_153">A full 47-page technical brochure (the same facts, with the interactive forms and theme gallery) ships in the repo as <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/KillerPDF.pdf" target="_blank" rel="noopener"><code style="color:inherit">KillerPDF.pdf</code></a> - open it in KillerPDF itself.</p>
+<p style="margin-top:14px" data-i18n="pt_153_172">A full 50-page technical brochure (the same facts, with the interactive forms and theme gallery) ships in the repo as <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/KillerPDF.pdf" target="_blank" rel="noopener"><code style="color:inherit">KillerPDF.pdf</code></a> - open it in KillerPDF itself.</p>
 </div>
 
 <div class="tech-sec" id="glossary">
@@ -440,7 +440,7 @@
 <tr><td data-i18n="pt_178">Form field</td><td data-i18n="pt_179">An interactive field built into a PDF, such as a text box, checkbox, or dropdown, that a person fills in.</td></tr>
 <tr><td data-i18n="pt_180">Ink</td><td data-i18n="pt_181">A freehand drawn stroke. The Line tool is stored as ink as well.</td></tr>
 <tr><td data-i18n="pt_182">Linearized PDF</td><td data-i18n="pt_183">A PDF arranged so a viewer can start showing the first page before the whole file has loaded (sometimes called "fast web view"). These files often keep their structure in object streams.</td></tr>
-<tr><td data-i18n="pt_184">LRU cache (least recently used)</td><td data-i18n="pt_185">A memory-saving rule that keeps the most recently used items and drops the oldest. KillerPDF keeps the drawn-page cache for only the three most recent tabs.</td></tr>
+<tr><td data-i18n="pt_184">LRU cache (least recently used)</td><td data-i18n="pt_185_172">A memory-saving rule that keeps the most recently used items and drops the oldest. KillerPDF retains drawn-page caches for only the three most recent tabs, with an approximately 160 MB per-tab budget and 48-entry hard cap.</td></tr>
 <tr><td data-i18n="pt_186">.NET Framework 4.8 (net48)</td><td data-i18n="pt_187">The version of Microsoft's .NET platform KillerPDF is built for. It ships with every supported version of Windows, so users install no separate runtime.</td></tr>
 <tr><td data-i18n="pt_188">Object stream</td><td data-i18n="pt_189">A compressed container inside modern PDFs (version 1.5 and later) that bundles many of the file's internal objects together. Some libraries cannot read them, which is why KillerPDF falls back to PDFium for certain jobs.</td></tr>
 <tr><td data-i18n="pt_190">OCR (optical character recognition)</td><td data-i18n="pt_191">Reading the actual text out of a scanned image so it can be searched, selected, or copied. KillerPDF uses Tesseract.</td></tr>
@@ -465,7 +465,7 @@
 </div>
 <footer class="statusbar">
 <span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener" data-i18n="pt_216">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span>
-<span class="right"><span id="verEgg" title="click me">v1.7.1</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
+<span class="right"><span id="verEgg" title="click me">v1.7.2</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
 </footer>
 <div class="egg-toast" id="eggToast"></div>
 <script src="kp-i18n.js?v=5"></script>

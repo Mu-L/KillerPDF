@@ -88,13 +88,12 @@ namespace KillerPDF
         private void BuildContextMenu()
         {
             _ctxMenu = MakeThemedMenu();
-            _annotationCanvas.ContextMenu = _ctxMenu;
-
-            // The primary canvas opens its menu automatically on right-click; rebuild items first based
-            // on the cursor position. The per-tile overlays call PopulateContextMenu themselves (they open
-            // the menu programmatically, which does not raise ContextMenuOpening).
-            _annotationCanvas.ContextMenuOpening += (s, e) =>
-                PopulateContextMenu(Mouse.GetPosition(_annotationCanvas), PageList.SelectedIndex);
+            // BOTH panes' primary canvases (2026-08-15): `_annotationCanvas` here bridged to the
+            // ACTIVE viewer, which is pane A at startup - pane B's canvas never got the menu and
+            // right-click did nothing there. One shared menu instance is fine: WPF opens it
+            // against whichever element raised it.
+            Viewer.AttachContextMenuExt(_ctxMenu);
+            ViewerB.AttachContextMenuExt(_ctxMenu);
         }
 
         // Rebuild the shared context menu for a right-click at canvas point pt on the given page. If an

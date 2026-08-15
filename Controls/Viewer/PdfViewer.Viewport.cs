@@ -948,7 +948,12 @@ namespace KillerPDF.Controls
             if (_viewMode == ViewMode.Grid) primaryPageIdx = 0;
 
             double viewportW = PagePreviewPanel.ActualWidth;
-            if (viewportW <= 0 || _doc.PageCount <= 1)
+            // A transient zero width (a split drag rewriting the pane columns mid-layout) must NOT
+            // wipe the tiles: clearing here is what blanked the grid on a two-pane resize and forced
+            // the full one-at-a-time rebuild. Skip instead - the existing tiles stay put (transform-
+            // stretched) and the resize-settle refresh swaps crisp bitmaps into them in place.
+            if (viewportW <= 0) return;
+            if (_doc.PageCount <= 1)
             {
                 ClearSecondaryPages();
                 _pageContentPanel.Width = double.NaN;
@@ -1345,7 +1350,17 @@ namespace KillerPDF.Controls
             int applyIdx = State.CurrentPage;
             if (applyIdx >= 0)
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                    () => RefreshPageView(applyIdx));
+                    () =>
+                    {
+                        // Focus check at EXECUTION time, not queue time: an unfocused pane's resize
+                        // settle queues this from inside WithOwnSession, but by the time Loaded runs
+                        // the session swap is undone - the shared fields and element accessors are
+                        // back on the FOCUSED pane, so this refresh landed on the OTHER pane,
+                        // cancelling and restarting its tile stream (the churn behind the grid's
+                        // sequential rebuild on a two-pane resize). The unfocused pane keeps its
+                        // transform-scaled tiles; its view math already ran inside the session.
+                        if (Host == null || Host.IsViewerFocused(this)) RefreshPageView(applyIdx);
+                    });
 
             // If the user has zoomed in past ~10% of the last render, queue a deferred re-render at
             // higher resolution so text re-sharpens quickly (especially on high-DPI displays, where

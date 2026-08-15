@@ -75,7 +75,17 @@ namespace KillerPDF
             var selected = GetSelectedOcrLanguages();
             bool hqPref = OcrHighQuality;
 
-            var root = new MenuItem { Header = Loc("Str_Ocr_Language") };
+            var root = new MenuItem
+            {
+                Header = Loc("Str_Ocr_Language"),
+                Icon = new TextBlock
+                {
+                    Text = "",
+                    FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            };
             // Not-yet-installed language rows, so the HQ toggle can refresh their "(download)"
             // suffixes in place while the menu stays open.
             var downloadItems = new List<(MenuItem item, string code, string name)>();

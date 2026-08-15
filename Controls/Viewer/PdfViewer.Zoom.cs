@@ -111,6 +111,21 @@ namespace KillerPDF.Controls
         // old additive step at 100% zoom but stays a constant 10% everywhere on the range.
         private const double WheelZoomFactor = 1.1;
 
+        // Wheel over the toolbar zoom dropdown: same multiplicative step as Ctrl+scroll, without
+        // the cursor anchoring (the cursor is on the toolbar, not the page). Handled is set so the
+        // ComboBox does not cycle its preset items under the wheel.
+        internal void ZoomBoxWheel(MouseWheelEventArgs e)
+        {
+            e.Handled = true;
+            if (_doc is null) return;
+            if (_viewMode == ViewMode.Grid) { GridZoomStep(e.Delta < 0); return; }
+            _fitMode   = FitMode.None;
+            _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax,
+                _zoomLevel * Math.Pow(WheelZoomFactor, e.Delta / 120.0)));
+            ApplyZoom(lite: true);   // SyncZoomBox inside keeps the shown % live per notch
+            StartZoomSettleTimer();
+        }
+
         // Debounced full zoom apply, shared by every Ctrl+scroll notch: while the wheel is moving
         // only the lite ScaleTransform runs; once it rests for a beat, do the one full ApplyZoom
         // (tile/link refresh, and the hi-res re-sharpen it queues) plus the status-bar update that

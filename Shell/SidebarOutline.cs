@@ -155,6 +155,8 @@ namespace KillerPDF
         {
             _outlinesFitted = false;   // triggers auto-fit on next tab switch
             _bmExtraSel.Clear();       // outlines may be gone after a rebuild/undo - selection resets
+            CaptureOutlineExpandState();   // remember the outgoing tree's expanded branches (per file)
+            _outlineStateFile = _originalFile ?? _currentFile;
             OutlineTree.Items.Clear();
             try
             {
@@ -177,6 +179,7 @@ namespace KillerPDF
                 SidebarOutlinesTab.IsEnabled = true;
                 if (CanEditBookmarks) OutlineTree.Items.Add(BuildAddBookmarkGhostRow());
                 AddOutlineItems(OutlineTree.Items, outlines);
+                ApplyOutlineExpandState();   // re-apply the user's expand/collapse choices for this file
             }
             catch
             {
@@ -185,7 +188,7 @@ namespace KillerPDF
             }
         }
 
-        private void AddOutlineItems(ItemCollection target, PdfSharpCore.Pdf.PdfOutlineCollection outlines)
+        private void AddOutlineItems(ItemCollection target, PdfSharpCore.Pdf.PdfOutlineCollection outlines, int depth = 0)
         {
             foreach (PdfSharpCore.Pdf.PdfOutline outline in outlines)
             {
@@ -194,15 +197,70 @@ namespace KillerPDF
                 var item = new TreeViewItem
                 {
                     Header = string.IsNullOrEmpty(title) ? Loc("Str_Outline_Untitled") : title,
-                    IsExpanded = true,
+                    // Top level starts open, deeper levels start folded (the Acrobat default) - a
+                    // deep outline is otherwise a wall on open. ApplyOutlineExpandState overrides
+                    // this with the user's own choices once the file has been seen this session.
+                    IsExpanded = depth == 0,
                     Tag = new OutlineNodeRef(outline, outlines, pageIdx),
                     ToolTip = pageIdx >= 0 ? string.Format(Loc("Str_PageLabel"), pageIdx + 1) : null,
                     Style = (Style)FindResource("OutlineItemStyle")
                 };
                 if (outline.Outlines is not null && outline.Outlines.Count > 0)
-                    AddOutlineItems(item.Items, outline.Outlines);
+                    AddOutlineItems(item.Items, outline.Outlines, depth + 1);
                 target.Add(item);
             }
+        }
+
+        // Sticky expand/collapse per file, keyed by index path ("2/0/1", ghost row excluded).
+        // LoadOutlines rebuilds the tree from scratch on every tab switch and temp-reload, which
+        // used to re-expand everything the user had folded - the tree read as force-expanded.
+        // Keyed by _originalFile (not _currentFile, which temp-reload repoints at a temp path).
+        private readonly Dictionary<string, HashSet<string>> _outlineExpandState = new();
+        private string? _outlineStateFile;
+
+        /// <summary>Records which outline nodes are expanded in the tree currently on screen,
+        /// against the file it belongs to. Runs before LoadOutlines clears the tree.</summary>
+        private void CaptureOutlineExpandState()
+        {
+            if (_outlineStateFile is null) return;
+            var expanded = new HashSet<string>();
+            bool any = false;
+            void Walk(ItemCollection items, string prefix)
+            {
+                int i = 0;
+                foreach (var o in items)
+                {
+                    if (o is not TreeViewItem it || it.Tag is not OutlineNodeRef) continue;
+                    string path = prefix.Length == 0 ? i.ToString() : prefix + "/" + i;
+                    any = true;
+                    if (it.IsExpanded) expanded.Add(path);
+                    Walk(it.Items, path);
+                    i++;
+                }
+            }
+            Walk(OutlineTree.Items, "");
+            if (any) _outlineExpandState[_outlineStateFile] = expanded;
+        }
+
+        /// <summary>Restores the recorded expand/collapse state for the freshly built tree. A file
+        /// not seen this session keeps the depth default from AddOutlineItems.</summary>
+        private void ApplyOutlineExpandState()
+        {
+            if (_outlineStateFile is null
+                || !_outlineExpandState.TryGetValue(_outlineStateFile, out var expanded)) return;
+            void Walk(ItemCollection items, string prefix)
+            {
+                int i = 0;
+                foreach (var o in items)
+                {
+                    if (o is not TreeViewItem it || it.Tag is not OutlineNodeRef) continue;
+                    string path = prefix.Length == 0 ? i.ToString() : prefix + "/" + i;
+                    it.IsExpanded = expanded.Contains(path);
+                    Walk(it.Items, path);
+                    i++;
+                }
+            }
+            Walk(OutlineTree.Items, "");
         }
 
         /// <summary>
@@ -601,16 +659,20 @@ namespace KillerPDF
         // CountOutlines, RemoveOutlineRecursive and the stale-link-key scrubs live in
         // Services/PdfOutlines.cs (KillerUI refactor) - pure functions over the outline tree.
 
-        /// <summary>Rebuilds the outline panel after an edit, keeping collapsed branches collapsed
-        /// (the PdfOutline objects survive the rebuild, so they key the state).</summary>
+        /// <summary>Rebuilds the outline panel after an edit, keeping every branch's expand/collapse
+        /// state (the PdfOutline objects survive the rebuild, so they key the state).</summary>
         private void RefreshOutlines()
         {
-            var collapsed = new HashSet<object>();
+            // BOTH states, keyed by the surviving PdfOutline objects - index paths shift when a
+            // bookmark is added or removed, so the path-keyed state LoadOutlines restores can land
+            // on the wrong siblings after an edit. This object-keyed pass corrects every node that
+            // existed before the edit; only genuinely new nodes keep the build default.
+            var expandedBy = new Dictionary<object, bool>();
             void Capture(ItemCollection items)
             {
                 foreach (TreeViewItem it in items)
                 {
-                    if (!it.IsExpanded && it.Tag is OutlineNodeRef r) collapsed.Add(r.Outline);
+                    if (it.Tag is OutlineNodeRef r) expandedBy[r.Outline] = it.IsExpanded;
                     Capture(it.Items);
                 }
             }
@@ -622,12 +684,13 @@ namespace KillerPDF
             bool fitted = _outlinesFitted;
             LoadOutlines();
             _outlinesFitted = fitted;
-            if (collapsed.Count == 0) return;
+            if (expandedBy.Count == 0) return;
             void Restore(ItemCollection items)
             {
                 foreach (TreeViewItem it in items)
                 {
-                    if (it.Tag is OutlineNodeRef r && collapsed.Contains(r.Outline)) it.IsExpanded = false;
+                    if (it.Tag is OutlineNodeRef r && expandedBy.TryGetValue(r.Outline, out bool ex))
+                        it.IsExpanded = ex;
                     Restore(it.Items);
                 }
             }

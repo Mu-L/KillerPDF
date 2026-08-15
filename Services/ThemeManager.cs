@@ -327,6 +327,10 @@ namespace KillerPDF.Services
             // Only 98SE defines these; unmaterialized they resolve to nothing and the picker's
             // footer buttons lose their borders on every other theme. Family standard: the confirm
             // button rests with the accent outline; the neutral button gets the menu hairline.
+            // Text input fill. Only 98SE defined it (classic white), so the picker's fields
+            // rendered with no background on every other theme. BgCanvas matches the Document
+            // Info dialog's fields - the reference look.
+            if (!d.Contains("TextFieldBrush")) d["TextFieldBrush"] = Pick("BgCanvas", "PaneBrush");
             if (!d.Contains("OutlineRestBrush")) d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
             if (!d.Contains("ButtonEdgeBrush")) d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
             // Circle swatches by default; 98SE's own 0 makes them squares. Materialized so 98SE's

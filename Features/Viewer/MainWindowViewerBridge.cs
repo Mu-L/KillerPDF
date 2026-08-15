@@ -102,5 +102,10 @@ namespace KillerPDF
         // happen mid-parse.
         private void ZoomBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
             => ActiveViewer?.ZoomBox_SelectionChanged(sender, e);
+
+        // Wheel over the zoom dropdown nudges the zoom like Ctrl+scroll. Null-conditional for the
+        // same mid-parse reason as SelectionChanged above.
+        private void ZoomBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+            => ActiveViewer?.ZoomBoxWheel(e);
     }
 }

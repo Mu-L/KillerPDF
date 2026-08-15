@@ -236,6 +236,20 @@ namespace KillerPDF
                 }
 
                 _portableBadge.Margin = new Thickness(Math.Round(anchor - width / 2), 0, 0, 0);
+
+                // Cap the status line so it ellipsizes before reaching the Install action - at a
+                // small window width a long status painted straight through the button.
+                if (StatusText is not null)
+                {
+                    if (_portableBadge.Visibility == Visibility.Visible)
+                    {
+                        double statusLeft = StatusText.TransformToVisual(footerGrid)
+                                                      .Transform(new Point(0, 0)).X;
+                        double badgeLeft = anchor - width / 2;
+                        StatusText.MaxWidth = Math.Max(0, badgeLeft - statusLeft - 8);
+                    }
+                    else StatusText.MaxWidth = double.PositiveInfinity;
+                }
             }
             catch (InvalidOperationException)
             {

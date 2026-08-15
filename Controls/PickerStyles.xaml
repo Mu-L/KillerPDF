@@ -162,11 +162,19 @@
     </Style>
 
     <ContextMenu x:Key="TextInputContextMenu" x:Shared="False">
-        <MenuItem Command="ApplicationCommands.Cut"   Header="{DynamicResource Str_Ctx_Cut}"/>
-        <MenuItem Command="ApplicationCommands.Copy"  Header="{DynamicResource Str_Ctx_Copy}"/>
-        <MenuItem Command="ApplicationCommands.Paste" Header="{DynamicResource Str_Ctx_Paste}"/>
+        <MenuItem Command="ApplicationCommands.Cut" Header="{DynamicResource Str_Ctx_Cut}" InputGestureText="Ctrl+X">
+            <MenuItem.Icon><TextBlock Text="&#xE8C6;" FontFamily="Segoe MDL2 Assets" FontSize="12"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Command="ApplicationCommands.Copy" Header="{DynamicResource Str_Ctx_Copy}" InputGestureText="Ctrl+C">
+            <MenuItem.Icon><TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="12"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Command="ApplicationCommands.Paste" Header="{DynamicResource Str_Ctx_Paste}" InputGestureText="Ctrl+V">
+            <MenuItem.Icon><TextBlock Text="&#xE77F;" FontFamily="Segoe MDL2 Assets" FontSize="12"/></MenuItem.Icon>
+        </MenuItem>
         <Separator/>
-        <MenuItem Command="ApplicationCommands.SelectAll" Header="{DynamicResource Str_Ctx_SelectAll}"/>
+        <MenuItem Command="ApplicationCommands.SelectAll" Header="{DynamicResource Str_Ctx_SelectAll}" InputGestureText="Ctrl+A">
+            <MenuItem.Icon><TextBlock Text="&#xE8B3;" FontFamily="Segoe MDL2 Assets" FontSize="12"/></MenuItem.Icon>
+        </MenuItem>
     </ContextMenu>
 
     <!-- The places / bookmarks rail. Same template as PickerRow but tight: the rail is a

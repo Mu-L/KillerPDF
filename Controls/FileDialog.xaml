@@ -285,6 +285,10 @@
                         <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
                     </Border.Effect>
                 </Border>
+                <!-- Film grain on the places card - the card's fill covers the dialog-wide tile. -->
+                <Border Grid.Column="0" IsHitTestVisible="False"
+                        CornerRadius="{DynamicResource ControlCornerRadius}"
+                        Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
                 <Grid Grid.Column="0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="0"/>
@@ -303,7 +307,9 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="{DynamicResource Str_Menu_UnpinPlace}" Click="UnpinPlace_Click"/>
+                                <MenuItem Header="{DynamicResource Str_Menu_UnpinPlace}" Click="UnpinPlace_Click">
+                                    <MenuItem.Icon><TextBlock Text="&#xE77A;" FontFamily="Segoe MDL2 Assets" FontSize="12"/></MenuItem.Icon>
+                                </MenuItem>
                             </ContextMenu>
                         </ListBox.ContextMenu>
                         <ListBox.ItemTemplate>
@@ -349,7 +355,9 @@
                               SelectedItemChanged="FolderTree_SelectedItemChanged">
                         <TreeView.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="{DynamicResource Str_Menu_PinPlace}" Click="TreePin_Click"/>
+                                <MenuItem Header="{DynamicResource Str_Menu_PinPlace}" Click="TreePin_Click">
+                                    <MenuItem.Icon><TextBlock Text="&#xE718;" FontFamily="Segoe MDL2 Assets" FontSize="12"/></MenuItem.Icon>
+                                </MenuItem>
                             </ContextMenu>
                         </TreeView.ContextMenu>
                         <TreeView.ItemContainerStyle>
@@ -488,7 +496,9 @@
                                      PreviewMouseWheel="FileList_PreviewMouseWheel">
                                 <ListBox.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="{DynamicResource Str_Menu_PinPlace}" Click="FilePin_Click"/>
+                                        <MenuItem Header="{DynamicResource Str_Menu_PinPlace}" Click="FilePin_Click">
+                                            <MenuItem.Icon><TextBlock Text="&#xE718;" FontFamily="Segoe MDL2 Assets" FontSize="12"/></MenuItem.Icon>
+                                        </MenuItem>
                                     </ContextMenu>
                                 </ListBox.ContextMenu>
                             </ListBox>

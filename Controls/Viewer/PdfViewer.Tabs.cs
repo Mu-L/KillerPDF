@@ -454,6 +454,17 @@ namespace KillerPDF.Controls
         // ============================================================
 
         // Re-render whatever document the active session holds (or show the empty drop zone).
+        // The shared page context menu, attached per pane by MainWindow.BuildContextMenu. The
+        // opening hook rebuilds items at the cursor; per-tile overlays populate programmatically
+        // (which does not raise ContextMenuOpening), same contract as before.
+        internal void AttachContextMenuExt(System.Windows.Controls.ContextMenu menu)
+        {
+            _annotationCanvas.ContextMenu = menu;
+            _annotationCanvas.ContextMenuOpening += (s, e) =>
+                PopulateContextMenu(System.Windows.Input.Mouse.GetPosition(_annotationCanvas),
+                    Math.Max(0, _currentPage));
+        }
+
         // Per-pane cache flush for the per-pane invert toggle: only THIS pane's sessions hold
         // stale pixels, and flushing every pane's cache made the untouched pane visibly
         // re-render on the other pane's toggle (2026-08-15).
