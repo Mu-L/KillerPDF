@@ -150,6 +150,15 @@ namespace KillerPDF.Controls
                 PagePreviewPanel.VerticalOffset - e.Delta * (48.0 / 120.0) * WheelScrollFactor);
         }
 
+        // #196: horizontal scroll fed from the window's WM_MOUSEHWHEEL hook (WPF surfaces no
+        // event for it). Same per-delta distance as the vertical wheel; positive = right.
+        internal void ScrollHorizontalExt(int delta)
+        {
+            if (_doc is null || PagePreviewPanel.Visibility != Visibility.Visible) return;
+            PagePreviewPanel.ScrollToHorizontalOffset(
+                PagePreviewPanel.HorizontalOffset + delta * (48.0 / 120.0) * WheelScrollFactor);
+        }
+
         // Walks up the visual tree from the press's hit element to see if it landed on the scrollbar
         // (thumb, track, or repeat buttons). Used to exempt scrollbar presses from pane pan/marquee/crop.
         private static bool PressIsOnScrollBar(MouseButtonEventArgs e)

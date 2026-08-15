@@ -29,6 +29,7 @@ namespace KillerPDF
 
         private const int  WM_GETMINMAXINFO   = 0x0024;
         private const int  WM_DPICHANGED      = 0x02E0;
+        private const int  WM_MOUSEHWHEEL     = 0x020E;
         private const int  WM_ENTERSIZEMOVE   = 0x0231;
         private const int  WM_EXITSIZEMOVE    = 0x0232;
         private const int  WM_ERASEBKGND      = 0x0014;
@@ -53,6 +54,15 @@ namespace KillerPDF
             if (msg == WM_GETMINMAXINFO)
             {
                 WmGetMinMaxInfo(hwnd, lParam);
+                handled = true;
+            }
+            else if (msg == WM_MOUSEHWHEEL)
+            {
+                // #196: WPF has no MouseHWheel event, so a precision touchpad's two-finger
+                // horizontal scroll (and a mouse's tilt wheel) died at the HwndSource and the
+                // document never panned sideways. Positive delta scrolls right.
+                int hDelta = unchecked((short)((wParam.ToInt64() >> 16) & 0xFFFF));
+                ActiveViewer.ScrollHorizontalExt(hDelta);
                 handled = true;
             }
             else if (msg == WM_DPICHANGED)

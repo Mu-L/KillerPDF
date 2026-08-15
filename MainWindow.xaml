@@ -257,12 +257,18 @@
                                             BorderBrush="{DynamicResource BevelDarkBrush}"
                                             BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <!-- Grain OVER the hover fill (family rule). Hover-only: at rest the
+                                         face is transparent and the window's own grain already shows, so a
+                                         permanent tile here would double the texture. -->
+                                    <Border x:Name="capGrain" IsHitTestVisible="False" Visibility="Collapsed"
+                                            Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
                                 </Grid>
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CaptionHoverBrush}"/>
+                                <Setter TargetName="capGrain" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowSelectedBrush}"/>
@@ -311,6 +317,10 @@
                                             <Rectangle.RenderTransform><RotateTransform Angle="-45" CenterX="5" CenterY="1"/></Rectangle.RenderTransform>
                                         </Rectangle>
                                     </Grid>
+                                    <!-- Grain OVER the hover fill, hover-only - same as ChromeButton. -->
+                                    <Border x:Name="capGrain" IsHitTestVisible="False" Visibility="Collapsed"
+                                            CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                            Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -318,6 +328,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CaptionCloseHoverBrush}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource CaptionCloseHoverFgBrush}"/>
+                                <Setter TargetName="capGrain" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="capLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
