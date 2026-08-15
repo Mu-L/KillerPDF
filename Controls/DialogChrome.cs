@@ -111,7 +111,9 @@ namespace KillerPDF
             var close = new Button
             {
                 HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
+                // The hover face is part of the card's top-right corner. Centering a 26px
+                // button in the 40px caption left a visible 7px strip above it.
+                VerticalAlignment = VerticalAlignment.Top,
                 Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
                 FocusVisualStyle = null,
@@ -198,7 +200,7 @@ namespace KillerPDF
             var card = new Grid();
             card.Children.Add(new Border
             {
-                Background = UiKit.Brush("MenuBackgroundBrush"),
+                Background = Brush(owner, "BackgroundBrush", UiKit.Brush("BackgroundBrush")),
                 CornerRadius = radius,
                 Margin = Value(owner, "DialogWindowFramePadding", new Thickness(0)),
                 Child = content
@@ -215,7 +217,9 @@ namespace KillerPDF
 
             var card = new Border
             {
-                Background = UiKit.Brush("MenuBackgroundBrush"),
+                // Print Preview already used BackgroundBrush directly. The shared frame used
+                // MenuBackgroundBrush, making every other generated window a different color.
+                Background = Brush(owner, "BackgroundBrush", UiKit.Brush("BackgroundBrush")),
                 CornerRadius = UiKit.RadWindow,
                 Margin = Value(owner, "WindowFramePadding", new Thickness(0))
             };
