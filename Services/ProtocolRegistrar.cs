@@ -9,12 +9,18 @@ namespace KillerPDF.Services
         internal const string Scheme = "killerpdf";
         private const string RegistryPath = @"Software\Classes\killerpdf";
 
-        internal static void Register()
+        internal static void Register() => Register(Registry.CurrentUser, null);
+
+        // #183: machine-wide installs must register under HKLM so every user gets the handler,
+        // not just whoever ran the installer. Root is chosen by the caller; appPath defaults to
+        // the running executable (the per-user refresh path) but the elevated installer passes
+        // the Program Files copy explicitly since IT is the source exe at that moment.
+        internal static void Register(RegistryKey root, string? appPath)
         {
             try
             {
-                string appPath = Process.GetCurrentProcess().MainModule!.FileName;
-                using var protocol = Registry.CurrentUser.CreateSubKey(RegistryPath);
+                appPath ??= Process.GetCurrentProcess().MainModule!.FileName;
+                using var protocol = root.CreateSubKey(RegistryPath);
                 if (protocol == null) return;
                 protocol.SetValue("", "URL:KillerPDF Protocol");
                 protocol.SetValue("URL Protocol", "");
@@ -26,9 +32,11 @@ namespace KillerPDF.Services
             catch (Exception ex) { Debug.WriteLine($"Failed to register KillerPDF protocol: {ex.Message}"); }
         }
 
-        internal static void Unregister()
+        internal static void Unregister() => Unregister(Registry.CurrentUser);
+
+        internal static void Unregister(RegistryKey root)
         {
-            try { Registry.CurrentUser.DeleteSubKeyTree(RegistryPath, false); } catch { }
+            try { root.DeleteSubKeyTree(RegistryPath, false); } catch { }
         }
 
         internal static bool TryGetTargetUrl(string? protocolUrl, out Uri? target)

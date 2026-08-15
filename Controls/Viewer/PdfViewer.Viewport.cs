@@ -1192,9 +1192,11 @@ namespace KillerPDF.Controls
                         }
                         else if (restoreFitMode)
                         {
-                            // Reopened document: keep its last page and view mode, but fit it to the
-                            // current window. Replaying a raw zoom saved on a different monitor or at a
-                            // different window size can make the document open enormous or microscopic.
+                            // Reopened document: keep its last page and view mode. A saved FIT mode is
+                            // replayed against the current window (fit is window-relative by definition).
+                            // A saved MANUAL zoom is restored as-is (#201): _zoomLevel already holds the
+                            // saved value from the open path, and SetZoom clamps to ZoomMin/ZoomMax, so a
+                            // zoom saved on different hardware can't open enormous or microscopic.
                             if (_viewMode == ViewMode.Grid)
                             {
                                 _gridColumns = Math.Min(_doc?.PageCount ?? 1, 3);
@@ -1202,7 +1204,7 @@ namespace KillerPDF.Controls
                             }
                             else if (_fitMode == FitMode.Width)   FitToWidth();
                             else if (_fitMode == FitMode.Page)    FitToPage();
-                            else                                  FitToPage();
+                            else                                  SetZoom(_zoomLevel);   // manual zoom: restore it (#201)
                         }
                         else
                         {
