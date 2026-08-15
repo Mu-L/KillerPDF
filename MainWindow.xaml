@@ -1758,7 +1758,10 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        <Border x:Name="PageListFadeTop" Height="18" Opacity="0" Visibility="Collapsed"
+                        <!-- Always Visible, Opacity 0 at rest: the opacity ramp IS the show/hide
+                             (SyncPageListEdgeFades). The 1.7.2 refactor collapsed these with no
+                             code to restore them, which killed the fades entirely. -->
+                        <Border x:Name="PageListFadeTop" Height="18" Opacity="0"
                                 VerticalAlignment="Top" Margin="0,0,12,0" IsHitTestVisible="False">
                             <Border.OpacityMask>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -1771,7 +1774,7 @@
                                 <Border Background="{StaticResource GrainBrushShared}" Opacity="{DynamicResource GrainOpacity}"/>
                             </Grid>
                         </Border>
-                        <Border x:Name="PageListFadeBottom" Height="22" Opacity="0" Visibility="Collapsed"
+                        <Border x:Name="PageListFadeBottom" Height="22" Opacity="0"
                                 VerticalAlignment="Bottom" Margin="0,0,12,0" IsHitTestVisible="False">
                             <Border.OpacityMask>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">

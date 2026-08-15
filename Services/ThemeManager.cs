@@ -199,6 +199,13 @@ namespace KillerPDF.Services
                     foreach (string aliased in new[] { "AccentLogo", "InstallBtnBg", "SelectionAccent", "RadioAccent" })
                         if (!accentDict.Contains(aliased))
                             target[aliased] = accentDict["PrimaryBrush"];
+                // OutlineRestBrush derives from OutlineBtnBrush, not PrimaryBrush: CompleteAppPalette
+                // computed it against the BASE palette before this overlay ran, so re-derive it from
+                // the overlay's own accent or the Install button rests on the theme's base hue.
+                if (!accentDict.Contains("OutlineRestBrush"))
+                    target["OutlineRestBrush"] = accentDict.Contains("OutlineBtnBrush")
+                        ? accentDict["OutlineBtnBrush"]
+                        : accentDict.Contains("PrimaryBrush") ? accentDict["PrimaryBrush"] : target["OutlineRestBrush"];
             }
 
             // App.xaml owns startup fallbacks for these legacy aliases, and local application
@@ -331,8 +338,12 @@ namespace KillerPDF.Services
             // rendered with no background on every other theme. BgCanvas matches the Document
             // Info dialog's fields - the reference look.
             if (!d.Contains("TextFieldBrush")) d["TextFieldBrush"] = Pick("BgCanvas", "PaneBrush");
-            if (!d.Contains("OutlineRestBrush")) d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
-            if (!d.Contains("ButtonEdgeBrush")) d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
+            // FORCE-assigned, not if-absent: no theme dictionary carries these two keys, so an
+            // if-absent fill materialized them once against the FIRST palette and every later
+            // theme switch kept that stale derivation - the green Install outline on teal-accent
+            // Black. Pure derivations are safe to recompute on every load.
+            d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
+            d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
             // Circle swatches by default; 98SE's own 0 makes them squares. Materialized so 98SE's
             // square cannot leak into a later theme through the in-place merge.
             if (!d.Contains("AccentSwatchCornerRadius")) d["AccentSwatchCornerRadius"] = new CornerRadius(9);
