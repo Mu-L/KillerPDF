@@ -206,6 +206,15 @@ namespace KillerPDF
                 Child = content
             });
             card.Children.Add(WindowFrame(owner));
+            // The 1px window outline every dialog was missing: same DialogFrameBrush the file
+            // picker draws (defaults to AppBorderBrush, the main window's DWM border tone).
+            card.Children.Add(new Border
+            {
+                BorderBrush = Brush(owner, "DialogFrameBrush", UiKit.Brush("MenuBorderBrush")),
+                BorderThickness = Value(owner, "DialogFrameThickness", new Thickness(1)),
+                CornerRadius = radius,
+                IsHitTestVisible = false,
+            });
             host.Children.Add(card);
             return host;
         }

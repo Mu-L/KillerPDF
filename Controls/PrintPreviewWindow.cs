@@ -64,6 +64,17 @@ namespace KillerPDF
         private readonly TextBlock _pageLabel = new();
         private readonly TextBlock _renderLabel = new();   // "Rendering X / Y" line shown above the page nav
         private ComboBox _printerCombo = null!;
+        // #186: manual paper pick. Index 0 = "Match document" (the automatic MediaSizeForDocument
+        // behavior); the rest are the driver's supported sizes, repopulated on printer change.
+        private ComboBox _paperCombo = null!;
+        private readonly System.Collections.Generic.List<PageMediaSize> _paperSizes = [];
+        private PageMediaSize? _paperOverride;
+        // #186 follow-up (adeit): paper SOURCE. Index 0 = printer default (ticket untouched);
+        // the rest are the driver's reported input bins. WPF's InputBin enum is coarse - named
+        // trays would need raw PrintTicket XML, which is not worth the driver roulette.
+        private ComboBox _sourceCombo = null!;
+        private readonly System.Collections.Generic.List<InputBin> _sourceBins = [];
+        private InputBin? _sourceOverride;
         private TextBox _copiesBox = null!;
         private TextBox _pagesBox = null!;
         private Grid _rootGrid = null!;   // clipped to rounded corners on resize
@@ -138,8 +149,20 @@ namespace KillerPDF
                 new Rect(0, 0, _rootGrid.ActualWidth, _rootGrid.ActualHeight), 6, 6);
         }
 
-        private static SolidColorBrush R(string key)
-            => (SolidColorBrush)Application.Current.Resources[key];
+        // Brush, NOT SolidColorBrush: gradient themes (98SE's title bar, and any theme free to
+        // define a surface as a gradient) made the old hard cast throw InvalidCastException the
+        // moment the print preview opened.
+        private static Brush R(string key)
+            => Application.Current.Resources[key] as Brush ?? Brushes.Transparent;
+
+        // For the one place that needs a raw COLOR (the busy-scrim veil): gradients fall back to
+        // their first stop.
+        private static Color RColor(string key) => Application.Current.Resources[key] switch
+        {
+            SolidColorBrush s => s.Color,
+            LinearGradientBrush { GradientStops.Count: > 0 } g => g.GradientStops[0].Color,
+            _ => Colors.Transparent,
+        };
 
         private static string S(string key)
             => Application.Current.TryFindResource(key) as string ?? key;
@@ -401,7 +424,9 @@ namespace KillerPDF
             var outer = new Border
             {
                 Background      = R("BackgroundBrush"),
-                BorderBrush     = R("CardBorderBrush"),
+                // DialogFrameBrush, the dialog window outline (defaults to AppBorderBrush) -
+                // CardBorderBrush here was the teal odd-one-out against the themed main frame.
+                BorderBrush     = R("DialogFrameBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius    = UiKit.RadWindow,
                 // Halo must be >= BlurRadius + ShadowDepth or the window edge clips the shadow into a
@@ -444,16 +469,57 @@ namespace KillerPDF
             // Options live in a scroller (buttons are pinned below), so only a little top/side inset.
             var panel = new StackPanel { Margin = new Thickness(16, 8, 12, 4) };
 
+            // Collapsible sections, the Transform/Stamp dialog pattern (WrapSection): PRINTER and
+            // OUTPUT open, LAYOUT tucked away - it holds the set-and-forget options.
+            int secPrinter = panel.Children.Count;
+
             panel.Children.Add(Label(S("Str_Print_Printer")));
             var printerCombo = new ComboBox { Margin = new Thickness(0, 4, 0, 12), Height = 26 };
             ApplyComboStyle(printerCombo);
             printerCombo.SelectionChanged += (s, _) =>
             {
                 int i = ((ComboBox)s).SelectedIndex;
-                if (i >= 0 && i < _queues.Count) { _queue = _queues[i]; RefreshArea(); UpdateDuplexAvailability(); UpdatePreview(); }
+                if (i >= 0 && i < _queues.Count)
+                {
+                    _queue = _queues[i];
+                    if (_paperCombo != null) PopulatePaperSizes();     // new driver, new paper list
+                    if (_sourceCombo != null) PopulatePaperSources();  // and new input bins
+                    RefreshArea(); UpdateDuplexAvailability(); UpdatePreview();
+                }
             };
             _printerCombo = printerCombo;
             panel.Children.Add(printerCombo);
+
+            // #186: paper size. "Match document" keeps the automatic pick; anything else
+            // overrides both the preview sheet and the spooled ticket.
+            panel.Children.Add(Label(S("Str_Print_Paper")));
+            var paper = new ComboBox { Margin = new Thickness(0, 4, 0, 12), Height = 26 };
+            ApplyComboStyle(paper);
+            _paperCombo = paper;
+            PopulatePaperSizes();
+            paper.SelectionChanged += (s, _) =>
+            {
+                int i = ((ComboBox)s).SelectedIndex;
+                _paperOverride = i > 0 && i - 1 < _paperSizes.Count ? _paperSizes[i - 1] : null;
+                RefreshArea();
+                UpdatePreview();
+            };
+            panel.Children.Add(paper);
+
+            // Paper source (adeit's #186 follow-up). Default leaves the ticket alone.
+            panel.Children.Add(Label(S("Str_Print_Source")));
+            var source = new ComboBox { Margin = new Thickness(0, 4, 0, 12), Height = 26 };
+            ApplyComboStyle(source);
+            _sourceCombo = source;
+            PopulatePaperSources();
+            source.SelectionChanged += (s, _) =>
+            {
+                int i = ((ComboBox)s).SelectedIndex;
+                _sourceOverride = i > 0 && i - 1 < _sourceBins.Count ? _sourceBins[i - 1] : null;
+            };
+            panel.Children.Add(source);
+            WrapSection(panel, secPrinter, S("Str_Print_SecPrinter"), expanded: true);
+            int secLayout = panel.Children.Count;
 
             panel.Children.Add(Label(S("Str_Print_Orientation")));
             var orient = new ComboBox { Margin = new Thickness(0, 4, 0, 12), Height = 26 };
@@ -469,18 +535,6 @@ namespace KillerPDF
                 UpdatePreview();
             };
             panel.Children.Add(orient);
-
-            // Color vs black & white. Sent on the print ticket so color-restricted print policies
-            // (e.g. "B&W needs no password") see the job correctly instead of treating it as color.
-            panel.Children.Add(Label(S("Str_Print_Color")));
-            var colorMode = new ComboBox { Margin = new Thickness(0, 4, 0, 12), Height = 26 };
-            ApplyComboStyle(colorMode);
-            colorMode.Items.Add(S("Str_Print_Color"));
-            colorMode.Items.Add(S("Str_Print_BW"));
-            _grayscale = App.GetSetting("PrintGrayscale") == "1";   // restore last color choice
-            colorMode.SelectedIndex = _grayscale ? 1 : 0;
-            colorMode.SelectionChanged += (s, _) => _grayscale = ((ComboBox)s).SelectedIndex == 1;
-            panel.Children.Add(colorMode);
 
             panel.Children.Add(Label(S("Str_Stamp_Position")));
             var position = new ComboBox { Margin = new Thickness(0, 4, 0, 12), Height = 26 };
@@ -620,6 +674,20 @@ namespace KillerPDF
                 UpdatePreview();
             };
             panel.Children.Add(scaleRow);
+            WrapSection(panel, secLayout, S("Str_Print_SecLayout"), expanded: false);
+            int secOutput = panel.Children.Count;
+
+            // Color vs black & white. Sent on the print ticket so color-restricted print policies
+            // (e.g. "B&W needs no password") see the job correctly instead of treating it as color.
+            panel.Children.Add(Label(S("Str_Print_Color")));
+            var colorMode = new ComboBox { Margin = new Thickness(0, 4, 0, 12), Height = 26 };
+            ApplyComboStyle(colorMode);
+            colorMode.Items.Add(S("Str_Print_Color"));
+            colorMode.Items.Add(S("Str_Print_BW"));
+            _grayscale = App.GetSetting("PrintGrayscale") == "1";   // restore last color choice
+            colorMode.SelectedIndex = _grayscale ? 1 : 0;
+            colorMode.SelectionChanged += (s, _) => _grayscale = ((ComboBox)s).SelectedIndex == 1;
+            panel.Children.Add(colorMode);
 
             panel.Children.Add(Label(S("Str_Print_Copies")));
             _copiesBox = new TextBox
@@ -685,6 +753,7 @@ namespace KillerPDF
             _duplexCheck.Unchecked += (_, _) => _duplex = false;
             _duplexCheck.IsChecked = App.GetSetting("PrintDuplex") == "1";   // restore; cleared below if unsupported
             panel.Children.Add(_duplexCheck);
+            WrapSection(panel, secOutput, S("Str_Print_SecOutput"), expanded: true);
             UpdateDuplexAvailability();
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -839,6 +908,107 @@ namespace KillerPDF
         /// printer stocks no matching paper - the printer default stays and fit-to-page
         /// letterboxing is then genuinely unavoidable.
         /// </summary>
+        // #186: fill the paper combo from the current queue's capabilities. Index 0 is always
+        // the automatic "match document" entry; a driver that reports nothing leaves only that.
+        private void PopulatePaperSizes()
+        {
+            _paperSizes.Clear();
+            _paperCombo.Items.Clear();
+            _paperCombo.Items.Add(S("Str_Print_PaperAuto"));
+            try
+            {
+                if (_queue != null)
+                    foreach (var ms in _queue.GetPrintCapabilities().PageMediaSizeCapability)
+                    {
+                        if (ms is null || !ms.Width.HasValue || !ms.Height.HasValue) continue;
+                        _paperSizes.Add(ms);
+                        _paperCombo.Items.Add(PaperDisplayName(ms));
+                    }
+            }
+            catch { /* driver quirk - automatic entry only */ }
+            _paperCombo.SelectedIndex = 0;
+            _paperOverride = null;
+        }
+
+        // Collapsible section, the TransformWindow.WrapSection pattern: lifts the children added
+        // since <paramref name="start"/> into a togglable body under a chevron header.
+        private void WrapSection(StackPanel host, int start, string title, bool expanded)
+        {
+            var children = host.Children.Cast<UIElement>().Skip(start).ToList();
+            while (host.Children.Count > start) host.Children.RemoveAt(start);
+            var body = new StackPanel { Visibility = expanded ? Visibility.Visible : Visibility.Collapsed };
+            foreach (var child in children) body.Children.Add(child);
+            var chevron = new TextBlock
+            {
+                Text = expanded ? "▾" : "▸", Width = 16, FontSize = 12,
+                Foreground = R("MutedTextBrush"), VerticalAlignment = VerticalAlignment.Center,
+            };
+            var label = UiKit.SectionHeader(title);
+            label.Margin = new Thickness(0);
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(chevron);
+            row.Children.Add(label);
+            var header = new Border
+            {
+                Background = Brushes.Transparent, Cursor = Cursors.Hand,
+                Padding = new Thickness(0, 5, 0, 5), Child = row,
+            };
+            header.MouseLeftButtonUp += (_, _2) =>
+            {
+                bool open = body.Visibility != Visibility.Visible;
+                body.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+                chevron.Text = open ? "▾" : "▸";
+            };
+            host.Children.Add(header);
+            host.Children.Add(body);
+        }
+
+        // Input bins from the driver; "Unknown" entries are noise and dropped.
+        private void PopulatePaperSources()
+        {
+            _sourceBins.Clear();
+            _sourceCombo.Items.Clear();
+            _sourceCombo.Items.Add(S("Str_Print_SourceAuto"));
+            try
+            {
+                if (_queue != null)
+                    foreach (var bin in _queue.GetPrintCapabilities().InputBinCapability)
+                    {
+                        if (bin == InputBin.Unknown) continue;
+                        _sourceBins.Add(bin);
+                        _sourceCombo.Items.Add(System.Text.RegularExpressions.Regex.Replace(
+                            bin.ToString(), "(?<=[a-z])(?=[A-Z])", " "));
+                    }
+            }
+            catch { /* driver quirk - default entry only */ }
+            _sourceCombo.SelectedIndex = 0;
+            _sourceOverride = null;
+        }
+
+        // "NorthAmericaLetter" -> "North America Letter (8.5 x 11 in)"; "ISOA4" -> "ISO A4
+        // (210 x 297 mm)". North American papers show inches, everything else millimeters.
+        private static string PaperDisplayName(PageMediaSize ms)
+        {
+            string raw = ms.PageMediaSizeName?.ToString() ?? "";
+            string name = raw;
+            if (name.StartsWith("ISO", StringComparison.Ordinal)) name = "ISO " + name[3..];
+            else if (name.StartsWith("JIS", StringComparison.Ordinal)) name = "JIS " + name[3..];
+            name = System.Text.RegularExpressions.Regex.Replace(
+                name, @"(?<=[a-z])(?=[A-Z])|(?<=\d)(?=[A-Z])", " ");
+            string dims;
+            if (raw.StartsWith("NorthAmerica", StringComparison.Ordinal))
+            {
+                double win = ms.Width!.Value / 96.0, hin = ms.Height!.Value / 96.0;
+                dims = $"{win:0.##} x {hin:0.##} in";
+            }
+            else
+            {
+                double wmm = ms.Width!.Value / 96.0 * 25.4, hmm = ms.Height!.Value / 96.0 * 25.4;
+                dims = $"{wmm:0} x {hmm:0} mm";
+            }
+            return name.Length > 0 ? $"{name} ({dims})" : dims;
+        }
+
         private PageMediaSize? MediaSizeForDocument()
         {
             try
@@ -869,7 +1039,8 @@ namespace KillerPDF
                     var pd = new PrintDialog { PrintQueue = _queue };
                     // Paper follows the document page size when the printer supports it,
                     // so the preview sheet (and the print) has no letterbox margins.
-                    var docMedia = MediaSizeForDocument();
+                    // A manual pick from the paper combo overrides the automatic match (#186).
+                    var docMedia = _paperOverride ?? MediaSizeForDocument();
                     if (docMedia != null)
                     {
                         var t = pd.PrintTicket;
@@ -1076,10 +1247,11 @@ namespace KillerPDF
                 ticket.PageOrientation = _landscape ? PageOrientation.Landscape : PageOrientation.Portrait;
                 if (_duplex) ticket.Duplexing = Duplexing.TwoSidedLongEdge;
                 ticket.OutputColor = _grayscale ? OutputColor.Grayscale : OutputColor.Color;
-                // Same paper pick the preview used: match the document page size so the
-                // spooled sheet carries no letterbox margins (see MediaSizeForDocument).
-                var docMedia = MediaSizeForDocument();
+                // Same paper pick the preview used: the manual combo choice when one is set,
+                // otherwise the automatic document-size match (see MediaSizeForDocument, #186).
+                var docMedia = _paperOverride ?? MediaSizeForDocument();
                 if (docMedia != null) ticket.PageMediaSize = docMedia;
+                if (_sourceOverride is { } bin) ticket.InputBin = bin;   // paper source (#186)
                 pd.PrintTicket = ticket;
 
                 double aw = pd.PrintableAreaWidth, ah = pd.PrintableAreaHeight;
@@ -1234,7 +1406,7 @@ namespace KillerPDF
             stack.Children.Add(status);
 
             // Veil in the card's own color at high opacity, so the scrim reads on either theme.
-            var veil = R("BackgroundBrush").Color;
+            var veil = RColor("BackgroundBrush");
             var overlay = new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(232, veil.R, veil.G, veil.B)),

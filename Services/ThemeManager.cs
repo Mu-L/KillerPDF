@@ -296,7 +296,10 @@ namespace KillerPDF.Services
             if (!d.Contains("FrameInnerLightBrush")) d["FrameInnerLightBrush"] = Brushes.Transparent;
             if (!d.Contains("FrameInnerDarkBrush")) d["FrameInnerDarkBrush"] = Brushes.Transparent;
             if (!d.Contains("WindowFrameBrush")) d["WindowFrameBrush"] = Pick("SurfaceBrush", "PaneBrush");
-            if (!d.Contains("DialogFrameBrush")) d["DialogFrameBrush"] = Pick("MenuBorderBrush", "CardBorderBrush");
+            // Dialogs carry the same outline as the main window (AppBorderBrush - what DWM paints
+            // on the main frame), not the neutral menu hairline they had drifted to. A theme that
+            // defines DialogFrameBrush itself (98SE's black) is left alone.
+            if (!d.Contains("DialogFrameBrush")) d["DialogFrameBrush"] = Pick("AppBorderBrush", "MenuBorderBrush");
             if (!d.Contains("DialogFrameThickness")) d["DialogFrameThickness"] = new Thickness(1);
             if (!d.Contains("DialogFramePadding")) d["DialogFramePadding"] = new Thickness(0);
             if (!d.Contains("DialogWindowFrameThickness")) d["DialogWindowFrameThickness"] = new Thickness(0);

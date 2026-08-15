@@ -351,6 +351,13 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <!-- ── Print dialog ───────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Print_Title">KillerPDF - Print</sys:String>
     <sys:String x:Key="Str_Print_Printer">Printer</sys:String>
+    <sys:String x:Key="Str_Print_Paper">Paper size</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">Match document</sys:String>
+    <sys:String x:Key="Str_Print_Source">Paper source</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">Printer default</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">PRINTER</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">LAYOUT</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">OUTPUT</sys:String>
     <sys:String x:Key="Str_Print_Orientation">Orientation</sys:String>
     <sys:String x:Key="Str_Print_Portrait">Portrait</sys:String>
     <sys:String x:Key="Str_Print_Landscape">Landscape</sys:String>
