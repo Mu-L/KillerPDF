@@ -447,7 +447,8 @@ namespace KillerPDF.Controls
                         using var pr = docReader.GetPageReader(i);
                         int w = pr.GetPageWidth();
                         int h = pr.GetPageHeight();
-                        var raw = PdfiumInterop.RenderPageWithAnnotations(currentFile, i, w, h)
+                        var raw = PdfiumInterop.RenderPageWithAnnotations(currentFile, i, w, h,
+                                includeFormFields: false)   // live overlays show the values; baking them too ghosts the text
                             ?? pr.GetImage();   // #141: draw the file's own markup without Docnet form fill
                         if (w <= 0 || h <= 0 || raw is null) continue;
                         // #135: display-only dark mode, pictures excluded. Invert BEFORE the
@@ -675,7 +676,8 @@ namespace KillerPDF.Controls
                         docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(hiW, hiW * 2));
                         using var pr = docReader.GetPageReader(p);
                         int w = pr.GetPageWidth(), h = pr.GetPageHeight();
-                        var raw = PdfiumInterop.RenderPageWithAnnotations(currentFile, p, w, h)
+                        var raw = PdfiumInterop.RenderPageWithAnnotations(currentFile, p, w, h,
+                                includeFormFields: false)   // live overlays show the values; baking them too ghosts the text
                             ?? pr.GetImage();   // #141: draw the file's own markup without Docnet form fill
                         if (w <= 0 || h <= 0 || raw is null) continue;
                         int rot = rotations.TryGetValue(p, out int rr) ? rr : 0;
@@ -760,7 +762,8 @@ namespace KillerPDF.Controls
                     using var pageReader = docReader.GetPageReader(pageIndex);
                     width  = pageReader.GetPageWidth();
                     height = pageReader.GetPageHeight();
-                    var rawBytes = PdfiumInterop.RenderPageWithAnnotations(_currentFile, pageIndex, width, height)
+                    var rawBytes = PdfiumInterop.RenderPageWithAnnotations(_currentFile, pageIndex, width, height,
+                            includeFormFields: false)   // live overlays show the values; baking them too ghosts the text
                         ?? pageReader.GetImage();   // #141
                     // Bail on an unusable render BEFORE touching the buffer. This check used to sit
                     // after the rotate; moving the invert ahead of the rotate (#135) meant the
@@ -1019,7 +1022,8 @@ namespace KillerPDF.Controls
                             using var pageReader = docReader.GetPageReader(i);
                             int w = pageReader.GetPageWidth();
                             int h = pageReader.GetPageHeight();
-                            var rawBytes = PdfiumInterop.RenderPageWithAnnotations(currentFile, i, w, h)
+                            var rawBytes = PdfiumInterop.RenderPageWithAnnotations(currentFile, i, w, h,
+                                    includeFormFields: false)   // live overlays show the values; baking them too ghosts the text
                                 ?? pageReader.GetImage();   // #141
                             if (w <= 0 || h <= 0 || rawBytes is null) continue;
                             // #135: dark mode with pictures excluded; invert before the rotation

@@ -97,9 +97,53 @@ namespace KillerPDF.Services
             IntPtr formHandle, IntPtr bitmap, IntPtr page, int startX, int startY,
             int sizeX, int sizeY, int rotate, int flags);
 
+        [DllImport("pdfium.dll", EntryPoint = "FPDFPage_GetAnnotCount", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDFPage_GetAnnotCountRaw(IntPtr page);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFPage_GetAnnot", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr FPDFPage_GetAnnotRaw(IntPtr page, int index);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFPage_CloseAnnot", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void FPDFPage_CloseAnnotRaw(IntPtr annot);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAnnot_GetSubtype", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDFAnnot_GetSubtypeRaw(IntPtr annot);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAnnot_GetFlags", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDFAnnot_GetFlagsRaw(IntPtr annot);
+
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAnnot_SetFlags", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDFAnnot_SetFlagsRaw(IntPtr annot, int flags);
+
         private const int FPDFBitmapBgra = 4;
         private const int FpdfAnnot = 0x01;
         private const int FpdfLcdText = 0x02;
+        private const int FpdfAnnotSubtypeWidget = 20;   // fpdf_annot.h FPDF_ANNOT_WIDGET
+        private const int FpdfAnnotFlagHidden = 1 << 1;  // fpdf_annot.h FPDF_ANNOT_FLAG_HIDDEN
+
+        // Marks every WIDGET annotation on the loaded page hidden so neither the FPDF_ANNOT render
+        // pass nor FFLDraw paints form-field appearances. In-memory only: this renderer's document
+        // is a one-shot load that is closed right after, never saved. EntryPointNotFound (an older
+        // bundled PDFium without the annot API) degrades to leaving the fields baked in.
+        private static void HideWidgetAnnotations(IntPtr page)
+        {
+            try
+            {
+                int count = FPDFPage_GetAnnotCountRaw(page);
+                for (int i = 0; i < count; i++)
+                {
+                    IntPtr annot = FPDFPage_GetAnnotRaw(page, i);
+                    if (annot == IntPtr.Zero) continue;
+                    try
+                    {
+                        if (FPDFAnnot_GetSubtypeRaw(annot) == FpdfAnnotSubtypeWidget)
+                            FPDFAnnot_SetFlagsRaw(annot, FPDFAnnot_GetFlagsRaw(annot) | FpdfAnnotFlagHidden);
+                    }
+                    finally { FPDFPage_CloseAnnotRaw(annot); }
+                }
+            }
+            catch { /* annot API unavailable: fields stay baked, no crash */ }
+        }
 
         /// <summary>
         /// Renders one page through PDFium with annotation appearance streams enabled, but without
@@ -107,9 +151,13 @@ namespace KillerPDF.Services
         /// annotation flag while still painting text notes, highlights, stamps, ink, and widget
         /// appearances into viewer, print, flatten, and image-export pixels.
         /// </summary>
+        /// <param name="includeFormFields">False for the on-screen viewer, whose live form
+        /// overlays already show the field values - baking them into the page bitmap as well
+        /// painted the same text twice, slightly offset (the "drop shadow" ghost, thanks Thomas).
+        /// True everywhere the pixels ARE the output: print, flatten, export, thumbnails.</param>
         internal static byte[]? RenderPageWithAnnotations(
             string sourcePath, int pageIndex, int width, int height,
-            bool transparentBackground = false)
+            bool transparentBackground = false, bool includeFormFields = true)
         {
             if (width <= 0 || height <= 0) return null;
             try
@@ -143,6 +191,7 @@ namespace KillerPDF.Services
                             if (page == IntPtr.Zero) return null;
                             try
                             {
+                                if (!includeFormFields) HideWidgetAnnotations(page);
                                 IntPtr bitmap = FPDFBitmap_CreateExRaw(
                                     width, height, FPDFBitmapBgra, pinned.AddrOfPinnedObject(), stride);
                                 if (bitmap == IntPtr.Zero) return null;
@@ -152,7 +201,7 @@ namespace KillerPDF.Services
                                         transparentBackground ? 0x00000000 : 0xFFFFFFFF);
                                     FPDF_RenderPageBitmapRaw(bitmap, page, 0, 0, width, height, 0,
                                         FpdfAnnot | FpdfLcdText);
-                                    if (form != IntPtr.Zero)
+                                    if (includeFormFields && form != IntPtr.Zero)
                                         FPDF_FFLDrawRaw(form, bitmap, page, 0, 0, width, height, 0,
                                             FpdfAnnot | FpdfLcdText);
                                 }
