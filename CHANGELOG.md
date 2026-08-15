@@ -21,6 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Saved highlights now use the Multiply blend mode, darkening the paper behind the text instead of washing the text out with an opaque rectangle (#200, thanks playerbhr).
 - The file picker has its film grain texture back (including the title bar): the grain tile brush was scoped to the main window, invisible to standalone dialog windows. Its footer buttons have their borders on all themes again, and the places sidebar is a proper rounded, shadowed card.
 - The picker radio's selected dot is centered in its ring (PR #198, thanks Ryokoxx).
+- The theme flyout no longer jumps when switching to or from a theme without accent swatches (#199, thanks Ryokoxx).
 - Reopening a file restores its last manual zoom level (#201, thanks kilasuelika).
 - Exported images carry the chosen DPI in their metadata instead of always reporting 96, in both the GUI export and the CLI (#188, thanks GruNostalgia).
 - Dropping PDFs or images onto the Pages sidebar appends their pages to the open document (#172, thanks 1mk3r).

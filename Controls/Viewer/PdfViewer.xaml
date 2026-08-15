@@ -374,10 +374,13 @@
         <Grid x:Name="CardRow" Grid.Row="1">
         <!-- Separate shadow caster keeps the pane content crisp while allowing each modern
              theme to supply its intended elevation. 98SE sets PaneShadowOpacity to zero. -->
+        <!-- DynamicResource PaneShadowEffect, built per theme in ThemeManager (null on 98SE) -
+             the old app-level StaticResource effect froze with its startup opacity and 98SE's
+             zero never applied. -->
         <Border x:Name="PaneShadow" IsHitTestVisible="False" Margin="0,1,0,0"
                 Background="{DynamicResource BgCanvas}"
                 CornerRadius="{DynamicResource RadCard}"
-                Effect="{StaticResource PaneShadow}"/>
+                Effect="{DynamicResource PaneShadowEffect}"/>
         <Border x:Name="PaneBorder" Panel.ZIndex="6"
                 Background="{DynamicResource BgCanvas}"
                 BorderBrush="{DynamicResource PaneBorderBrush}" BorderThickness="1"

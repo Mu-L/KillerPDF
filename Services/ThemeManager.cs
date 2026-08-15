@@ -308,6 +308,9 @@ namespace KillerPDF.Services
             // button rests with the accent outline; the neutral button gets the menu hairline.
             if (!d.Contains("OutlineRestBrush")) d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
             if (!d.Contains("ButtonEdgeBrush")) d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
+            // Circle swatches by default; 98SE's own 0 makes them squares. Materialized so 98SE's
+            // square cannot leak into a later theme through the in-place merge.
+            if (!d.Contains("AccentSwatchCornerRadius")) d["AccentSwatchCornerRadius"] = new CornerRadius(9);
             if (!d.Contains("CheckSunkenDarkThickness")) d["CheckSunkenDarkThickness"] = new Thickness(0);
             if (!d.Contains("CheckSunkenLightThickness")) d["CheckSunkenLightThickness"] = new Thickness(0);
             // 98SE opts into the compact native-style caption and removes the shadow halo. These
@@ -497,6 +500,32 @@ namespace KillerPDF.Services
                 else
                 {
                     d["BarShadowEffect"] = null;
+                }
+            }
+            // The document pane's drop shadow, same pattern as BarShadowEffect above: the App.xaml
+            // PaneShadow effect is an app-level Freezable, so its DynamicResource opacity froze at
+            // startup and 98SE's zero never reached it - the shadow stayed on. Build the effect
+            // per theme instead; null removes it completely.
+            if (!d.Contains("PaneShadowEffect"))
+            {
+                double paneOp = d["PaneShadowOpacity"] is double pv ? pv : 0.60;
+                if (paneOp > 0)
+                {
+                    var paneShadow = new System.Windows.Media.Effects.DropShadowEffect
+                    {
+                        Color = Colors.Black,
+                        BlurRadius = 16,
+                        ShadowDepth = 5,      // family standard: downward cast over the footer
+                        Direction = 270,
+                        Opacity = paneOp,
+                        RenderingBias = System.Windows.Media.Effects.RenderingBias.Quality,
+                    };
+                    paneShadow.Freeze();
+                    d["PaneShadowEffect"] = paneShadow;
+                }
+                else
+                {
+                    d["PaneShadowEffect"] = null;
                 }
             }
             d[SystemColors.HighlightBrushKey] = Pick("SelectionBg", "PrimaryBrush");

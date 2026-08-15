@@ -1104,7 +1104,8 @@
         <Style x:Key="AccentDot" TargetType="Border">
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="18"/>
-            <Setter Property="CornerRadius" Value="9"/>
+            <!-- Theme-driven: 9 (circle) on modern themes, 0 (square) on 98SE. -->
+            <Setter Property="CornerRadius" Value="{DynamicResource AccentSwatchCornerRadius}"/>
             <Setter Property="Margin" Value="0,0,7,0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="2"/>
@@ -2258,7 +2259,17 @@
                                         <ContextMenu.ItemContainerStyle>
                                             <Style TargetType="MenuItem" BasedOn="{StaticResource PanelMenuItem}"/>
                                         </ContextMenu.ItemContainerStyle>
-                        <StackPanel x:Name="ThemeSubmenu" Width="160" Margin="12,10,14,10">
+                        <!-- #199 (Ryokoxx's design): the accent picker is a vertical STRIP beside the
+                             list, not rows inside it. The list is the same height on every theme, so
+                             the bottom-pinned card never moves; the strip animates its WIDTH, and that
+                             growth runs rightward from the pinned left edge into the document side.
+                             Swatch colors are painted per family in code (PopulateAccentStrip). -->
+                        <Grid Margin="12,10,14,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                        <StackPanel x:Name="ThemeSubmenu" Width="120" Grid.Column="0">
                                     <RadioButton x:Name="ThemeDarkRadio"
                                                  Content="{DynamicResource Str_Theme_Dark}"
                                                  GroupName="ThemeGroup"
@@ -2268,49 +2279,17 @@
                                          (clipped), so when you switch, the old row shrinks while the new one grows by
                                          the same amount: the picker slides to the selected theme and the total menu
                                          height never changes. ROYGBIV order. -->
-                                    <StackPanel x:Name="DarkAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
-                                        <Border x:Name="AccentDotRed"    Style="{StaticResource AccentDot}" Background="#DD504B" Tag="Red"    MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotOrange" Style="{StaticResource AccentDot}" Background="#E8962C" Tag="Orange" MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotGreen"  Style="{StaticResource AccentDot}" Background="#1EA54C" Tag="Green"  MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotTeal"   Style="{StaticResource AccentDot}" Background="#1FB8A8" Tag="Teal"   MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotBlue"   Style="{StaticResource AccentDot}" Background="#4580D9" Tag="Blue"   MouseLeftButtonUp="AccentDot_Click"/>
-                                        <Border x:Name="AccentDotPurple" Style="{StaticResource AccentDot}" Background="#B982E3" Tag="Purple" MouseLeftButtonUp="AccentDot_Click"/>
-                                    </StackPanel>
                                     <RadioButton x:Name="ThemeLightRadio"
                                                  Content="{DynamicResource Str_Theme_Light}"
                                                  GroupName="ThemeGroup"
                                                  Style="{StaticResource ThemeRadio}"
                                                  Checked="ThemeLightRadio_Checked"/>
-                                    <StackPanel x:Name="LightAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
-                                        <Border x:Name="AccentDotLightRed"    Style="{StaticResource AccentDot}" Background="#931A1A" Tag="Red"    MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightOrange" Style="{StaticResource AccentDot}" Background="#C7710F" Tag="Orange" MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightGreen"  Style="{StaticResource AccentDot}" Background="#1B5E20" Tag="Green"  MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightTeal"   Style="{StaticResource AccentDot}" Background="#0D827E" Tag="Teal"   MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightBlue"   Style="{StaticResource AccentDot}" Background="#18608E" Tag="Blue"   MouseLeftButtonUp="AccentDotLight_Click"/>
-                                        <Border x:Name="AccentDotLightPurple" Style="{StaticResource AccentDot}" Background="#5A1690" Tag="Purple" MouseLeftButtonUp="AccentDotLight_Click"/>
-                                    </StackPanel>
                                     <RadioButton x:Name="ThemeHCRadio"
                                                  Content="{DynamicResource Str_Theme_Black}"
                                                  GroupName="ThemeGroup"
                                                  Style="{StaticResource ThemeRadio}"
                                                  Checked="ThemeHCRadio_Checked"/>
-                                    <StackPanel x:Name="BlackAccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
-                                        <Border x:Name="AccentDotBlackRed"    Style="{StaticResource AccentDot}" Background="#FF2929" Tag="Red"    MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackOrange" Style="{StaticResource AccentDot}" Background="#FF910A" Tag="Orange" MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackGreen"  Style="{StaticResource AccentDot}" Background="#00FF66" Tag="Green"  MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackTeal"   Style="{StaticResource AccentDot}" Background="#0AFFE7" Tag="Teal"   MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackBlue"   Style="{StaticResource AccentDot}" Background="#298DFF" Tag="Blue"   MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                        <Border x:Name="AccentDotBlackPurple" Style="{StaticResource AccentDot}" Background="#B829FF" Tag="Purple" MouseLeftButtonUp="AccentDotBlack_Click"/>
-                                    </StackPanel>
                                     <RadioButton x:Name="Theme98SERadio" Content="{DynamicResource Str_Theme_98SE}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="Theme98SERadio_Checked"/>
-                                    <StackPanel x:Name="SE98AccentRow" Orientation="Horizontal" Margin="10,-5,0,5" Height="0" ClipToBounds="True" Visibility="Collapsed">
-                                        <Border x:Name="AccentDot98SEBlue"   Style="{StaticResource AccentDot}" Background="#000080" Tag="Blue"   MouseLeftButtonUp="AccentDot98SE_Click"/>
-                                        <Border x:Name="AccentDot98SETeal"   Style="{StaticResource AccentDot}" Background="#008080" Tag="Teal"   MouseLeftButtonUp="AccentDot98SE_Click"/>
-                                        <Border x:Name="AccentDot98SEGreen"  Style="{StaticResource AccentDot}" Background="#006000" Tag="Green"  MouseLeftButtonUp="AccentDot98SE_Click"/>
-                                        <Border x:Name="AccentDot98SEOrange" Style="{StaticResource AccentDot}" Background="#A05000" Tag="Orange" MouseLeftButtonUp="AccentDot98SE_Click"/>
-                                        <Border x:Name="AccentDot98SERed"    Style="{StaticResource AccentDot}" Background="#800040" Tag="Red"    MouseLeftButtonUp="AccentDot98SE_Click"/>
-                                        <Border x:Name="AccentDot98SEPurple" Style="{StaticResource AccentDot}" Background="#5A376E" Tag="Purple" MouseLeftButtonUp="AccentDot98SE_Click"/>
-                                    </StackPanel>
                                     <RadioButton x:Name="ThemeBloodRadio"
                                                  Content="{DynamicResource Str_Theme_Blood}"
                                                  GroupName="ThemeGroup"
@@ -2333,6 +2312,32 @@
                                     <RadioButton x:Name="ThemeDeliriumRadio" Content="{DynamicResource Str_Theme_Delirium}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeDeliriumRadio_Checked"/>
                                     <RadioButton x:Name="ThemeMourningRadio" Content="{DynamicResource Str_Theme_Mourning}" GroupName="ThemeGroup" Style="{StaticResource ThemeRadio}" Checked="ThemeMourningRadio_Checked"/>
                         </StackPanel>
+                            <Grid x:Name="AccentStripHost" Grid.Column="1" Width="0" ClipToBounds="True">
+                                <Border Width="1" HorizontalAlignment="Left" Margin="0,6"
+                                        Background="{DynamicResource MenuBorderBrush}"/>
+                                <!-- Six equal rows stretched over the list's full height: the swatches
+                                     are tall pills, not dots, filling the vertical room the strip has.
+                                     Height="Auto" clears the AccentDot style's fixed 18 so the rows
+                                     size them; the 9px radius caps the 18px width into capsule ends
+                                     (98SE's 0 keeps them square). -->
+                                <Grid x:Name="AccentStrip" Margin="10,6,2,6">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Border x:Name="AccentStripDot0" Grid.Row="0" Style="{StaticResource AccentDot}" Width="26" Height="Auto" VerticalAlignment="Stretch" Margin="0,0,0,8" MouseLeftButtonUp="AccentStripDot_Click"/>
+                                    <Border x:Name="AccentStripDot1" Grid.Row="1" Style="{StaticResource AccentDot}" Width="26" Height="Auto" VerticalAlignment="Stretch" Margin="0,0,0,8" MouseLeftButtonUp="AccentStripDot_Click"/>
+                                    <Border x:Name="AccentStripDot2" Grid.Row="2" Style="{StaticResource AccentDot}" Width="26" Height="Auto" VerticalAlignment="Stretch" Margin="0,0,0,8" MouseLeftButtonUp="AccentStripDot_Click"/>
+                                    <Border x:Name="AccentStripDot3" Grid.Row="3" Style="{StaticResource AccentDot}" Width="26" Height="Auto" VerticalAlignment="Stretch" Margin="0,0,0,8" MouseLeftButtonUp="AccentStripDot_Click"/>
+                                    <Border x:Name="AccentStripDot4" Grid.Row="4" Style="{StaticResource AccentDot}" Width="26" Height="Auto" VerticalAlignment="Stretch" Margin="0,0,0,8" MouseLeftButtonUp="AccentStripDot_Click"/>
+                                    <Border x:Name="AccentStripDot5" Grid.Row="5" Style="{StaticResource AccentDot}" Width="26" Height="Auto" VerticalAlignment="Stretch" Margin="0" MouseLeftButtonUp="AccentStripDot_Click"/>
+                                </Grid>
+                            </Grid>
+                        </Grid>
                                     </ContextMenu>
                                 </Button.ContextMenu>
                             </Button>

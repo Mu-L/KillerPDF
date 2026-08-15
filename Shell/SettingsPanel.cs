@@ -47,8 +47,7 @@ namespace KillerPDF
             ThemeSepulchreRadio.IsChecked = cur == Theme.Sepulchre;
             ThemeDeliriumRadio.IsChecked = cur == Theme.Delirium;
             ThemeMalaiseRadio.IsChecked = cur == Theme.Malaise;
-            UpdateAccentDotSelection();
-            UpdateAccentRowsVisibility(animate: false);
+            UpdateAccentStrip(animate: false);
             // Sync language picker
             var curLoc = KillerPDF.Services.LocaleManager.Current;
             LangEnRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.EnUS;
@@ -329,8 +328,7 @@ namespace KillerPDF
         {
             bool wasOpen = ThemeFlyout is not null && ThemeFlyout.IsOpen;
             ThemeManager.Apply(theme);
-            UpdateAccentDotSelection();
-            UpdateAccentRowsVisibility(animate: true);
+            UpdateAccentStrip(animate: true);
             // Intentionally leave the flyout open so the user can try another theme right away
             // without reopening the submenu. The theme swap's side effects (tab strip rebuild,
             // tool re-select) can still knock the popup closed behind our back, so check once
@@ -340,88 +338,131 @@ namespace KillerPDF
                     (Action)(() => { if (ThemeFlyout is not null && !ThemeFlyout.IsOpen) ThemeFlyout.IsOpen = true; }));
         }
 
-        // Each theme family has its own picker row beneath its radio. Clicking a swatch sets that
-        // family's accent (independently remembered). Switching themes animates the rows' heights so
-        // the picker slides to the selected theme while the total menu height stays fixed.
-        private void AccentDot_Click(object sender, MouseButtonEventArgs e)      => HandleAccentDot(sender, Theme.Dark);
-        private void AccentDotLight_Click(object sender, MouseButtonEventArgs e) => HandleAccentDot(sender, Theme.Light);
-        private void AccentDotBlack_Click(object sender, MouseButtonEventArgs e) => HandleAccentDot(sender, Theme.Black);
-        private void AccentDot98SE_Click(object sender, MouseButtonEventArgs e)  => HandleAccentDot(sender, Theme.SE98);
+        // #199 (Ryokoxx's design): ONE vertical strip of six swatches beside the theme list,
+        // repainted per family, instead of a row under each accented theme. The list height is
+        // identical for every theme, so the bottom-pinned card never moves; only the strip's
+        // width animates, growing rightward from the pinned left edge. Per-family accent memory
+        // in ThemeManager is untouched.
+        private void AccentStripDot_Click(object sender, MouseButtonEventArgs e) => HandleAccentDot(sender, _stripFamily);
 
         private void HandleAccentDot(object sender, Theme family)
         {
             if (sender is not FrameworkElement fe || fe.Tag is not string tag) return;
             if (!Enum.TryParse<DarkAccent>(tag, out var accent)) return;
             ThemeManager.ApplyAccent(family, accent);   // persists for that family; reapplies if active
-            UpdateAccentDotSelection();
+            RingAccentStrip();
         }
 
-        // Ring each family's own selected swatch (Dark, Light, and Black remember independently).
-        private void UpdateAccentDotSelection()
+        // Per-family swatch colors, in each family's display order (moved here from the four
+        // retired XAML accent rows; the strip repaints these onto its six shared dots).
+        private static readonly (DarkAccent Accent, string Hex)[] DarkStripColors =
+            [(DarkAccent.Red, "#DD504B"), (DarkAccent.Orange, "#E8962C"), (DarkAccent.Green, "#1EA54C"),
+             (DarkAccent.Teal, "#1FB8A8"), (DarkAccent.Blue, "#4580D9"), (DarkAccent.Purple, "#B982E3")];
+        private static readonly (DarkAccent Accent, string Hex)[] LightStripColors =
+            [(DarkAccent.Red, "#931A1A"), (DarkAccent.Orange, "#C7710F"), (DarkAccent.Green, "#1B5E20"),
+             (DarkAccent.Teal, "#0D827E"), (DarkAccent.Blue, "#18608E"), (DarkAccent.Purple, "#5A1690")];
+        private static readonly (DarkAccent Accent, string Hex)[] BlackStripColors =
+            [(DarkAccent.Red, "#FF2929"), (DarkAccent.Orange, "#FF910A"), (DarkAccent.Green, "#00FF66"),
+             (DarkAccent.Teal, "#0AFFE7"), (DarkAccent.Blue, "#298DFF"), (DarkAccent.Purple, "#B829FF")];
+        private static readonly (DarkAccent Accent, string Hex)[] SE98StripColors =
+            [(DarkAccent.Red, "#800040"), (DarkAccent.Orange, "#A05000"), (DarkAccent.Green, "#006000"),
+             (DarkAccent.Teal, "#008080"), (DarkAccent.Blue, "#000080"), (DarkAccent.Purple, "#5A376E")];
+
+        private static (DarkAccent Accent, string Hex)[] StripColorsFor(Theme family) => family switch
         {
-            if (DarkAccentRow is null) return;
-            var ring = (System.Windows.Media.Brush)FindResource("TextBrush");
-            void RingRow(Border[] dots, DarkAccent chosen)
+            Theme.Light => LightStripColors,
+            Theme.Black => BlackStripColors,
+            Theme.SE98  => SE98StripColors,
+            _           => DarkStripColors,
+        };
+
+        private Theme _stripFamily = Theme.Dark;   // the family the strip's dots currently show
+        private bool  _stripOpen;
+        private const double AccentStripWidth   = 39;    // 1px rule + 10 gap + 26 swatch + 2 air
+        private const double AccentStripSlideMs = 180;
+
+        private Border[] StripDots =>
+            [AccentStripDot0, AccentStripDot1, AccentStripDot2, AccentStripDot3, AccentStripDot4, AccentStripDot5];
+
+        private void PopulateAccentStrip(Theme family)
+        {
+            var colors = StripColorsFor(family);
+            var dots = StripDots;
+            for (int i = 0; i < dots.Length; i++)
             {
-                foreach (var dot in dots)
-                {
-                    bool sel = dot.Tag is string t && Enum.TryParse<DarkAccent>(t, out var a) && a == chosen;
-                    dot.BorderBrush = sel ? ring : System.Windows.Media.Brushes.Transparent;
-                }
+                var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colors[i].Hex);
+                dots[i].Background = new System.Windows.Media.SolidColorBrush(c);
+                dots[i].Tag = colors[i].Accent.ToString();
             }
-            RingRow([AccentDotRed, AccentDotOrange, AccentDotGreen, AccentDotTeal, AccentDotBlue, AccentDotPurple], ThemeManager.DarkAccentChoice);
-            RingRow([AccentDotLightRed, AccentDotLightOrange, AccentDotLightGreen, AccentDotLightTeal, AccentDotLightBlue, AccentDotLightPurple], ThemeManager.LightAccentChoice);
-            RingRow([AccentDotBlackRed, AccentDotBlackOrange, AccentDotBlackGreen, AccentDotBlackTeal, AccentDotBlackBlue, AccentDotBlackPurple], ThemeManager.BlackAccentChoice);
-            RingRow([AccentDot98SEBlue, AccentDot98SETeal, AccentDot98SEGreen, AccentDot98SEOrange, AccentDot98SERed, AccentDot98SEPurple], ThemeManager.SE98AccentChoice);
+            _stripFamily = family;
+            RingAccentStrip();
         }
 
-        // Slide the picker to the active theme. Each row animates its height; because the outgoing row
-        // shrinks by the same amount the incoming one grows, the combined height is constant - so the
-        // menu doesn't change height, the picker just slides into place under the selected theme.
-        private void UpdateAccentRowsVisibility(bool animate)
+        // Ring the strip's selected swatch for the family it is showing.
+        private void RingAccentStrip()
+        {
+            if (AccentStrip is null) return;
+            var ring = (System.Windows.Media.Brush)FindResource("TextBrush");
+            var chosen = _stripFamily switch
+            {
+                Theme.Light => ThemeManager.LightAccentChoice,
+                Theme.Black => ThemeManager.BlackAccentChoice,
+                Theme.SE98  => ThemeManager.SE98AccentChoice,
+                _           => ThemeManager.DarkAccentChoice,
+            };
+            foreach (var dot in StripDots)
+            {
+                bool sel = dot.Tag is string t && Enum.TryParse<DarkAccent>(t, out var a) && a == chosen;
+                dot.BorderBrush = sel ? ring : System.Windows.Media.Brushes.Transparent;
+            }
+        }
+
+        private void UpdateAccentStrip(bool animate)
         {
             var cur = ThemeManager.Current;
-            SlideRow(DarkAccentRow,  cur == Theme.Dark,         animate);
-            SlideRow(LightAccentRow, cur == Theme.Light,        animate);
-            SlideRow(BlackAccentRow, cur == Theme.Black, animate);
-            SlideRow(SE98AccentRow, cur == Theme.SE98, animate);
-        }
-
-        private const double AccentRowHeight = 26;   // 18px swatch + 8px breathing room
-        // Expand and collapse MUST share one duration (and stay linear): when switching between neutral themes
-        // one row opens while another closes, and equal linear durations keep their heights summing to a
-        // constant, so the panel height never dips/jumps mid-animation.
-        private const double AccentRowSlideMs = 160;
-
-        // Slides the picker row open/closed by animating its Height. Each call clears any in-flight
-        // height animation first so rapid theme clicking can't leave a held animation that strands
-        // the wrong row visible under the wrong heading.
-        private static void SlideRow(FrameworkElement? row, bool show, bool animate)
-        {
-            if (row is null) return;
-            row.BeginAnimation(HeightProperty, null);   // drop any leftover/held animation
+            bool show = cur is Theme.Dark or Theme.Light or Theme.Black or Theme.SE98;
             if (show)
             {
-                row.Visibility = Visibility.Visible;
-                if (animate)
+                if (animate && _stripOpen && _stripFamily != cur)
                 {
-                    row.Height = 0;
-                    row.BeginAnimation(HeightProperty,
-                        new System.Windows.Media.Animation.DoubleAnimation(0, AccentRowHeight, TimeSpan.FromMilliseconds(AccentRowSlideMs)));
+                    // Accented -> accented: the strip stays open and the swatches CROSSFADE.
+                    // Re-running the open animation here snapped the strip shut and back.
+                    var target = cur;
+                    var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(90));
+                    fadeOut.Completed += (_, __) =>
+                    {
+                        PopulateAccentStrip(target);
+                        AccentStrip.BeginAnimation(OpacityProperty,
+                            new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(90)));
+                    };
+                    AccentStrip.BeginAnimation(OpacityProperty, fadeOut);
                 }
-                else row.Height = AccentRowHeight;
+                else PopulateAccentStrip(cur);
             }
-            else if (animate && row.Visibility == Visibility.Visible && row.ActualHeight > 0.5)
+            SlideAccentStrip(show, animate);
+        }
+
+        // Width slide, eased - one element animates now, so the old linear lockstep constraint
+        // that kept two rows summing to a constant height no longer applies.
+        private void SlideAccentStrip(bool show, bool animate)
+        {
+            if (show == _stripOpen && animate) return;   // already there; crossfade handles content
+            _stripOpen = show;
+            AccentStripHost.BeginAnimation(WidthProperty, null);   // drop any in-flight slide
+            if (!animate) { AccentStripHost.Width = show ? AccentStripWidth : 0; return; }
+            double from = double.IsNaN(AccentStripHost.Width) ? AccentStripHost.ActualWidth : AccentStripHost.Width;
+            var anim = new System.Windows.Media.Animation.DoubleAnimation(from, show ? AccentStripWidth : 0,
+                TimeSpan.FromMilliseconds(AccentStripSlideMs))
             {
-                var h = new System.Windows.Media.Animation.DoubleAnimation(AccentRowHeight, 0, TimeSpan.FromMilliseconds(AccentRowSlideMs));
-                h.Completed += (_, __) => { row.BeginAnimation(HeightProperty, null); row.Height = 0; row.Visibility = Visibility.Collapsed; };
-                row.BeginAnimation(HeightProperty, h);
-            }
-            else
+                EasingFunction = new System.Windows.Media.Animation.QuadraticEase
+                    { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            };
+            anim.Completed += (_, __) =>
             {
-                row.Height = 0;
-                row.Visibility = Visibility.Collapsed;
-            }
+                AccentStripHost.BeginAnimation(WidthProperty, null);
+                AccentStripHost.Width = _stripOpen ? AccentStripWidth : 0;
+            };
+            AccentStripHost.BeginAnimation(WidthProperty, anim);
         }
 
         // Localized display name for each theme, shown on the picker row.
