@@ -118,7 +118,7 @@ namespace KillerPDF.Services
                 }
                 int rot = idx < rotSnapshot.Length ? rotSnapshot[idx] : 0;
                 if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
-                var bytes = jpeg ? BitmapHelpers.EncodeJpeg(raw, w, h) : BitmapHelpers.RenderToPng(raw, w, h);
+                var bytes = jpeg ? BitmapHelpers.EncodeJpeg(raw, w, h, dpi) : BitmapHelpers.RenderToPng(raw, w, h, dpi);
                 var name  = $"{baseName}-page-{(idx + 1).ToString().PadLeft(digits, '0')}.{(jpeg ? "jpg" : "png")}";
                 File.WriteAllBytes(Path.Combine(outDir, name), bytes);
                 written++;

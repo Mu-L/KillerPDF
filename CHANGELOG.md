@@ -15,6 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The re-sharpen pass renders at device resolution instead of twice it, sharply cutting memory use on large documents, and re-renders on DPI changes (#189, PR #194, thanks Ryokoxx).
 - The picker radio's selected dot is centered in its ring (PR #198, thanks Ryokoxx).
 - Reopening a file restores its last manual zoom level (#201, thanks kilasuelika).
+- Exported images carry the chosen DPI in their metadata instead of always reporting 96, in both the GUI export and the CLI (#188, thanks GruNostalgia).
 - Machine-wide installs register the killerpdf:// handler for all users, and it now appears in Default apps under link types (#183, thanks adeit).
 - Dark, Light, Cyanotic, and Greed have their rounded flyout corners back.
 - Switching themes through 98SE no longer strips or leaks shadows: 98SE zeroes its header shadow, and the other themes keep their pane, bar, and flyout shadows afterward.

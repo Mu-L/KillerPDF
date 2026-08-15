@@ -150,7 +150,7 @@ namespace KillerPDF.Services
         /// Encodes raw BGRA pixel data from pdfium to PNG without touching the UI thread.
         /// GDI+ Format32bppArgb is BGRA in memory - matches pdfium output exactly.
         /// </summary>
-        internal static byte[] RenderToPng(byte[] bgra, int width, int height)
+        internal static byte[] RenderToPng(byte[] bgra, int width, int height, double dpi = 96)
         {
             var pin = GCHandle.Alloc(bgra, GCHandleType.Pinned);
             try
@@ -159,6 +159,8 @@ namespace KillerPDF.Services
                     width, height, width * 4,
                     System.Drawing.Imaging.PixelFormat.Format32bppArgb,
                     pin.AddrOfPinnedObject());
+                // #188: bake the render DPI into the file's metadata; GDI+ defaults to 96.
+                bmp.SetResolution((float)dpi, (float)dpi);
                 using var ms = new MemoryStream();
                 bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
                 return ms.ToArray();
@@ -181,9 +183,10 @@ namespace KillerPDF.Services
         /// CliEncodeJpeg (no JPEG encoder existed before --to-image); homed here beside RenderToPng
         /// in the KillerUI refactor, shared by the CLI and the GUI image export.
         /// </summary>
-        internal static byte[] EncodeJpeg(byte[] bgra, int width, int height)
+        internal static byte[] EncodeJpeg(byte[] bgra, int width, int height, double dpi = 96)
         {
-            var bmp = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, bgra, width * 4);
+            // #188: dpi lands in the JFIF density header; pixel dimensions are unaffected.
+            var bmp = BitmapSource.Create(width, height, dpi, dpi, PixelFormats.Bgra32, null, bgra, width * 4);
             var encoder = new JpegBitmapEncoder { QualityLevel = 90 };
             encoder.Frames.Add(BitmapFrame.Create(bmp));
             using var ms = new MemoryStream();
