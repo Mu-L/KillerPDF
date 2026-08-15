@@ -17,6 +17,11 @@ namespace KillerPDF.Controls
         /// <summary>The explicit shell boundary used by the viewer.</summary>
         internal IViewerHost? Host { get; private set; }
 
+        /// <summary>Document dark-mode invert, PER PANE (was a global that flipped both panes of
+        /// a split at once). Display only; every render path in this pane reads this flag. The
+        /// moon toggles the focused pane and its lit state follows pane focus.</summary>
+        internal bool DocInvert;
+
         internal void AttachHost(IViewerHost host) => Host = host;
 
         /// <summary>This viewer's per-view state - page maps, view mode, zoom, render cancellation,

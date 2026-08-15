@@ -489,6 +489,9 @@ namespace KillerPDF
 
             ApplyFocusHalo();
 
+            // The moon lights for the FOCUSED pane's invert state (invert is per pane).
+            DocInvertBtn.Tag = pane.DocInvert ? "on" : null;
+
             // Restore rather than refresh: RefreshPageList re-decodes every page, which on a large
             // document costs seconds on every click between panes.
             RestorePageListForActivePane();

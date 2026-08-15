@@ -194,11 +194,13 @@ namespace KillerPDF
         // layout and scroll stay exactly where they are and only the bitmaps re-render.
         private void ToggleDocInvert(bool on)
         {
-            if (BitmapHelpers.DocInvert == on) return;
-            BitmapHelpers.DocInvert = on;
+            // Per pane: only the FOCUSED pane flips, so a split can read one document inverted
+            // beside a normal one. The moon lights for the focused pane; FocusPane re-syncs it.
+            if (ActiveViewer.DocInvert == on) return;
+            ActiveViewer.DocInvert = on;
             App.SetSetting("DocInvert", on ? "1" : "0");
             DocInvertBtn.Tag = on ? "on" : null;   // lights the rail icon in the accent while active
-            RepaintForInvertChange();
+            RepaintForInvertChange(bothPanes: false);   // per-pane toggle: the other pane is untouched
         }
 
         // Right-click on the moon: night-mode options. One checkable item - "Invert images too"
@@ -227,17 +229,22 @@ namespace KillerPDF
             if (BitmapHelpers.DocInvertImages == on) return;
             BitmapHelpers.DocInvertImages = on;
             App.SetSetting("DocInvertImages", on ? "1" : "0");
-            // Only repaint when night mode is actually showing; otherwise it just takes effect
-            // the next time the moon is toggled on.
-            if (BitmapHelpers.DocInvert) RepaintForInvertChange();
+            // Only repaint when night mode is actually showing in either pane; otherwise it just
+            // takes effect the next time a moon is toggled on. Both panes: this option changes
+            // how EVERY inverted pane renders.
+            if (Viewer.DocInvert || ViewerB.DocInvert) RepaintForInvertChange(bothPanes: true);
         }
 
         // Shared by the moon toggle and its right-click option: the invert state is baked into
         // rendered pixels, so flush the render caches and repaint IN PLACE - never through
         // ApplyViewMode (see the comment above ToggleDocInvert).
-        private void RepaintForInvertChange()
+        private void RepaintForInvertChange(bool bothPanes)
         {
-            FlushAllRenderCaches();
+            // Per-pane toggle flushes and repaints ONLY the focused pane; the other pane's
+            // pixels are correct and repainting them read as a spurious refresh (2026-08-15).
+            // The images-too option still touches every inverted pane.
+            if (bothPanes) FlushAllRenderCaches();
+            else ActiveViewer.FlushOwnRenderCaches();
 
             // The invert flag is GLOBAL, but everything below this block runs through the shared
             // fields and so repaints only the FOCUSED pane - the other pane's already-painted
@@ -246,7 +253,7 @@ namespace KillerPDF
             // (2026-08-01). Re-render it with its own session swapped in - the same
             // WithOwnSession idiom the cross-pane tab drag uses. BEFORE the _doc guard: the
             // focused pane being empty must not strand the other pane's stale pixels.
-            if (IsSplit)
+            if (bothPanes && IsSplit)
             {
                 var other = ReferenceEquals(ActiveViewer, Viewer) ? ViewerB : Viewer;
                 // PIXELS ONLY (RepaintPixelsExt, 2026-08-15): the full RenderActiveSessionExt ran
@@ -284,7 +291,7 @@ namespace KillerPDF
         }
 
         private void DocInvertBtn_Click(object sender, RoutedEventArgs e)
-            => ToggleDocInvert(!BitmapHelpers.DocInvert);
+            => ToggleDocInvert(!ActiveViewer.DocInvert);
 
         private void OnThemeChanged()
         {

@@ -54,11 +54,10 @@ namespace KillerPDF.Services
         // Document color inversion (#135, "dark mode")
         // ============================================================
 
-        // True = the document pane renders with inverted colors (dark-mode reading). DISPLAY
-        // ONLY: saves, prints, exports, OCR, thumbnails, and tool previews all keep the
-        // document's true colors. Loaded from the "DocInvert" setting at startup; toggled from
-        // the Settings panel, which flushes the render caches (the state is baked into pixels).
-        internal static bool DocInvert;
+        // Document dark-mode invert is PER PANE now (PdfViewer.DocInvert) so a split can read
+        // one document inverted beside a normal one - the global static that used to live here
+        // flipped both panes at once. DISPLAY ONLY either way: saves, prints, exports, OCR,
+        // thumbnails, and tool previews all keep the document's true colors.
 
         // True = night mode inverts pictures along with everything else (the pre-carve-out
         // behavior, now opt-in from the moon button's right-click menu; default off). Loaded

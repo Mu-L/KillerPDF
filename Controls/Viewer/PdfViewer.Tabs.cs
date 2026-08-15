@@ -454,6 +454,15 @@ namespace KillerPDF.Controls
         // ============================================================
 
         // Re-render whatever document the active session holds (or show the empty drop zone).
+        // Per-pane cache flush for the per-pane invert toggle: only THIS pane's sessions hold
+        // stale pixels, and flushing every pane's cache made the untouched pane visibly
+        // re-render on the other pane's toggle (2026-08-15).
+        internal void FlushOwnRenderCaches()
+        {
+            foreach (var s in _sessions) { s.RenderCache.Clear(); s.RenderCacheSize.Clear(); }
+            FlushImageRectCache();
+        }
+
         // Invert repaint for an UNFOCUSED pane: PIXELS ONLY. RenderActiveSession here ran
         // BootstrapDocumentView / ShowEmptyState, whose Host chrome mutations (sidebar rebuild
         // with this pane's thumbnails - or ClearSidebarPages and control-disabling when this

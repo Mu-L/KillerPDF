@@ -384,9 +384,11 @@ namespace KillerPDF
                 _viewMode = savedVm;
             InitToolbarStyle();   // two-axis toolbar appearance (+ migration from the old five-way key)
             InitAppScale();   // AppScale.cs: restore the app-wide size (scroll the logo to change it)
-            BitmapHelpers.DocInvert = App.GetSetting("DocInvert") == "1";   // #135: document dark mode
+            // #135: document dark mode. Per PANE now; the saved setting seeds the primary pane
+            // (a split's second pane starts normal - inverting it is a per-pane choice).
+            Viewer.DocInvert = App.GetSetting("DocInvert") == "1";
             BitmapHelpers.DocInvertImages = App.GetSetting("DocInvertImages") == "1";   // moon right-click opt-in
-            DocInvertBtn.Tag = BitmapHelpers.DocInvert ? "on" : null;       // rail moon lit while active
+            DocInvertBtn.Tag = Viewer.DocInvert ? "on" : null;              // rail moon lit while active
             // #146: the privacy toggle lives in the About window; init once - only its own
             // handler changes it afterwards (change-guarded, so this init is a no-op there).
             NoRecentCheck.IsChecked = App.GetSetting(App.NoRecentFilesSetting) == "1";

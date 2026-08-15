@@ -487,7 +487,7 @@ namespace KillerPDF.Controls
                         // #135: display-only dark mode, pictures excluded. Invert BEFORE the
                         // pixel-buffer rotation (the ops commute for the full page) so the image
                         // carve-out rects stay in unrotated page space.
-                        if (BitmapHelpers.DocInvert)
+                        if (DocInvert)
                             BitmapHelpers.InvertBgraInPlaceExcept(raw, w, h, ImageRectsFor(currentFile, i, ref pig));
                         if (rot != 0)
                             (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
@@ -716,7 +716,7 @@ namespace KillerPDF.Controls
                         int rot = rotations.TryGetValue(p, out int rr) ? rr : 0;
                         // #135: dark mode with pictures excluded; invert before the rotation so
                         // the carve-out rects stay in unrotated page space.
-                        if (BitmapHelpers.DocInvert)
+                        if (DocInvert)
                             BitmapHelpers.InvertBgraInPlaceExcept(raw, w, h, ImageRectsFor(currentFile, p, ref pig));
                         if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
 
@@ -809,7 +809,7 @@ namespace KillerPDF.Controls
                     // #135: display-only dark mode, pictures excluded. Before the rotation so the
                     // carve-out rects stay in unrotated page space; the one-shot PdfPig open is
                     // paid only on this page's first inverted render (the rects cache after).
-                    if (BitmapHelpers.DocInvert)
+                    if (DocInvert)
                     {
                         PdfPigDoc? pig = null;
                         try { BitmapHelpers.InvertBgraInPlaceExcept(rawBytes, width, height, ImageRectsFor(_currentFile, pageIndex, ref pig)); }
@@ -1065,7 +1065,7 @@ namespace KillerPDF.Controls
                             if (w <= 0 || h <= 0 || rawBytes is null) continue;
                             // #135: dark mode with pictures excluded; invert before the rotation
                             // so the carve-out rects stay in unrotated page space.
-                            if (BitmapHelpers.DocInvert)
+                            if (DocInvert)
                                 BitmapHelpers.InvertBgraInPlaceExcept(rawBytes, w, h, ImageRectsFor(currentFile, i, ref pig));
                             if (rot != 0)
                                 (rawBytes, w, h) = BitmapHelpers.RotateBitmap(rawBytes, w, h, rot);
