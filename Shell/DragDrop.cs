@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -78,12 +79,59 @@ namespace KillerPDF
 
         private void PageList_DragOver(object sender, DragEventArgs e)
         {
-            e.Effects = e.Data.GetDataPresent(typeof(int)) ? DragDropEffects.Move : DragDropEffects.None;
+            // #172: files dropped onto the Pages sidebar append to the open document,
+            // so the list accepts FileDrop as well as its own page-reorder payload.
+            if (e.Data.GetDataPresent(typeof(int)))
+                e.Effects = DragDropEffects.Move;
+            else if (_doc != null && DroppedOpenablePaths(e).Length > 0)
+                e.Effects = DragDropEffects.Copy;
+            else
+                e.Effects = DragDropEffects.None;
             e.Handled = true;
+        }
+
+        private static string[] DroppedOpenablePaths(DragEventArgs e)
+            => e.Data.GetDataPresent(DataFormats.FileDrop)
+                ? ((string[])e.Data.GetData(DataFormats.FileDrop)!).Where(IsOpenablePath).ToArray()
+                : [];
+
+        // #172: append the dropped files' pages to the open document. Appending (not inserting at
+        // the drop point) keeps existing page indices stable, so annotations and rotations need no
+        // remapping.
+        private void AppendFilesToCurrentDoc(string[] files)
+        {
+            if (_doc is null) return;
+            CommitActiveTextBox();
+            int before = _doc.PageCount;
+            foreach (var f in files)
+            {
+                if (PdfImport.IsPdfPath(f))
+                {
+                    try
+                    {
+                        using var src = PdfReader.Open(f, PdfDocumentOpenMode.Import);
+                        for (int i = 0; i < src.PageCount; i++) _doc.AddPage(src.Pages[i]);
+                    }
+                    catch { /* skip an unreadable/encrypted PDF */ }
+                }
+                else
+                {
+                    try { PdfImport.AddImagePagesFromFile(_doc, f); } catch { /* skip an unreadable image */ }
+                }
+            }
+            if (_doc.PageCount == before) { SetStatus(Loc("Str_Drop_NothingOpenable")); return; }
+            MarkDirty(true);
+            SaveTempAndReload(keepAnnotations: true, preserveZoom: true);
+            SetStatus(string.Format(Loc("Str_Status_Merged"), files.Length));
         }
 
         private void PageList_Drop(object sender, DragEventArgs e)
         {
+            if (_doc != null && !e.Data.GetDataPresent(typeof(int)))
+            {
+                var files = DroppedOpenablePaths(e);
+                if (files.Length > 0) { AppendFilesToCurrentDoc(files); e.Handled = true; return; }
+            }
             if (_doc is null || !e.Data.GetDataPresent(typeof(int))) return;
             var doc = _doc;
             int fromIdx = (int)e.Data.GetData(typeof(int))!;
