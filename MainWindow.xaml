@@ -463,8 +463,9 @@
              PanelMenuItem stripping the MenuItem container for panel content. The grain tile's
              ImageSource is wired in code beside the document grain brushes (Shell/ContextMenu.cs).
              ============================================================ -->
-        <ImageBrush x:Key="GrainTileBrush" TileMode="Tile" ViewportUnits="Absolute"
-                    Viewport="0,0,256,256" Stretch="None"/>
+        <!-- GrainTileBrush moved to App.xaml: the file picker (and any other standalone Window)
+             resolves DynamicResource against its own tree and then APPLICATION resources - a
+             brush declared here was invisible to it, which left the picker untextured. -->
 
         <!-- The card: fill, frame, radius, shadow-room margin and the shadow itself. -->
         <Style x:Key="FlyoutCard" TargetType="Border">

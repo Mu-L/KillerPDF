@@ -60,7 +60,21 @@ namespace KillerPDF
             if (TryFindResource("GrainBrushShared") is ImageBrush sharedGrain) sharedGrain.ImageSource = bmp;
             StatusGrainBrush.ImageSource = bmp;
             // The family flyout standard's grain tile (FlyoutGrain style) shares the same texture.
-            if (TryFindResource("GrainTileBrush") is ImageBrush flyoutGrain) flyoutGrain.ImageSource = bmp;
+            // GrainTileBrush lives at APPLICATION scope so standalone windows (the file picker)
+            // resolve it too - and app-level Freezables are frozen, so it cannot be mutated in
+            // place like the window-scoped brushes above. Build a finished frozen brush and
+            // REPLACE the dictionary entry; the swap retriggers every DynamicResource reference.
+            var tileSource = System.Windows.Media.Imaging.BitmapFrame.Create(bmp);
+            tileSource.Freeze();   // a WriteableBitmap itself cannot freeze; its frame can
+            var tile = new ImageBrush(tileSource)
+            {
+                TileMode = TileMode.Tile,
+                ViewportUnits = BrushMappingMode.Absolute,
+                Viewport = new Rect(0, 0, size, size),
+                Stretch = Stretch.None,
+            };
+            tile.Freeze();
+            Application.Current.Resources["GrainTileBrush"] = tile;
         }
 
         /// <summary>Generated film-grain tile, exposed so secondary windows (e.g. the

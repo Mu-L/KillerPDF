@@ -303,6 +303,11 @@ namespace KillerPDF.Services
             if (!d.Contains("DialogWindowFramePadding")) d["DialogWindowFramePadding"] = new Thickness(0);
             if (!d.Contains("ButtonBevelLightThickness")) d["ButtonBevelLightThickness"] = d.Contains("BevelLightThickness") ? d["BevelLightThickness"] : new Thickness(0);
             if (!d.Contains("ButtonBevelDarkThickness")) d["ButtonBevelDarkThickness"] = d.Contains("BevelDarkThickness") ? d["BevelDarkThickness"] : new Thickness(0);
+            // Only 98SE defines these; unmaterialized they resolve to nothing and the picker's
+            // footer buttons lose their borders on every other theme. Family standard: the confirm
+            // button rests with the accent outline; the neutral button gets the menu hairline.
+            if (!d.Contains("OutlineRestBrush")) d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
+            if (!d.Contains("ButtonEdgeBrush")) d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
             if (!d.Contains("CheckSunkenDarkThickness")) d["CheckSunkenDarkThickness"] = new Thickness(0);
             if (!d.Contains("CheckSunkenLightThickness")) d["CheckSunkenLightThickness"] = new Thickness(0);
             // 98SE opts into the compact native-style caption and removes the shadow halo. These

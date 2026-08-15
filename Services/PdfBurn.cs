@@ -212,6 +212,13 @@ namespace KillerPDF.Services
                         case HighlightAnnotation ha:
                             var hc = ha.GetColor();
                             var hBrush = new XSolidBrush(XColor.FromArgb(hc.A, hc.R, hc.G, hc.B));
+                            // #200: fill highlights burn with the Multiply blend mode, so the color
+                            // darkens the paper and the text stays crisp underneath instead of being
+                            // washed out by an alpha rectangle - the way other PDF viewers highlight.
+                            // Strikethrough/underline bands stay normal draws.
+                            bool multiply = ha.Style == HighlightStyle.Fill;
+                            XGraphicsState? hState = null;
+                            if (multiply) { hState = gfx.Save(); gfx.SetPdfBlendMode("Multiply"); }
                             if (HighlightEraseGeometry(ha) is { } hgeo)
                             {
                                 // Carved highlight: flatten the rect-minus-strokes geometry to polygons and
@@ -236,6 +243,7 @@ namespace KillerPDF.Services
                                     hdr.X * sx, hdr.Y * sy,
                                     hdr.Width * sx, hdr.Height * sy);
                             }
+                            if (hState != null) gfx.Restore(hState);
                             break;
 
                         case InkAnnotation ia:

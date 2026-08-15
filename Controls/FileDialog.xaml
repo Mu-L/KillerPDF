@@ -100,6 +100,11 @@
                  palettes look unchanged. -->
             <Border Grid.Row="0" Height="{DynamicResource DialogTitleBarHeight}"
                     Background="{DynamicResource DialogTitleBarBrush}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                <!-- The caption band paints OVER the dialog-wide grain (declared before this row),
+                     so it carries its own tile - same as the main window's chrome. -->
+                <Border IsHitTestVisible="False"
+                        Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
                 <Grid Margin="16,0">
                     <Grid VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False">
                         <!-- The wordmark is the HOST app's, not this file's. This dialog is compiled
@@ -143,6 +148,7 @@
                             </Style>
                         </Button.Style>
                     </Button>
+                </Grid>
                 </Grid>
             </Border>
 
@@ -265,15 +271,21 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- NOT a raised pane, deliberately (2026-07-30): KillerShell's sidebar
-                     sits flat on the chrome background, and this one matches - only the file
-                     LIST is the lifted card. No fill, no shadow, no grain of its own; the
-                     dialog card's shared grain shows through.
+                <!-- A lifted card matching the file list (2026-08-15, revising the 2026-07-30 flat
+                     call - the pane carried a fill anyway, so square shadowless edges read as a
+                     bug, not flatness). Shadow on a SEPARATE border so text keeps ClearType.
 
                      KillerShell's own arrangement, not Explorer's: the tree fills the panel and
                      the pinned places sit BELOW it, the same slot its favorites drawer occupies,
                      so the two apps read identically. Draggable divider between. -->
-                <Grid Grid.Column="0" Background="{DynamicResource FileDialogPaneBrush}">
+                <Border Grid.Column="0" IsHitTestVisible="False"
+                        Background="{DynamicResource FileDialogPaneBrush}"
+                        CornerRadius="{DynamicResource ControlCornerRadius}">
+                    <Border.Effect>
+                        <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
+                    </Border.Effect>
+                </Border>
+                <Grid Grid.Column="0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="0"/>
                         <RowDefinition Height="0"/>
