@@ -21,6 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Form field text no longer shows a ghost "shadow" copy behind it: the viewer stopped baking field appearances into the page bitmap underneath the live field overlays, thanks Thomas. Print, flatten, export, and thumbnails still include them.
 - Rotating a page that was opened with a non-zero /Rotate no longer swaps its MediaBox on save, which permanently clipped the content. Fixed in the vendored PdfSharpCore, whose landscape media-box flip fired on read pages (#184, thanks terada-d).
 - Documents opened from Explorer get keyboard focus immediately, so arrows and Page Up/Down work without clicking the window first (#196, thanks Subjuntivos).
+- Double-click text editing now maps PostScript font names (ArialMT, TimesNewRomanPSMT, Helvetica) to the installed Windows family, so edited text keeps its font instead of falling back to the default (#187, thanks fo-bo).
 - Machine-wide installs register the killerpdf:// handler for all users, and it now appears in Default apps under link types (#183, thanks adeit).
 - Themes are entirely owned by the KillerPDF repository again. The project no longer imports a private sibling `KillerUI` folder or overlays its resources at runtime, so a standalone clone contains every theme resource it builds and displays.
 - Completed the PDF viewer extraction so split panes keep independent documents, tabs, pages, tools, selections, and sidebar positions.
