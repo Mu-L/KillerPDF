@@ -276,7 +276,7 @@ namespace KillerPDF.Controls
                 // Doubled, because a lone underscore in a MenuItem header is an access-key marker:
                 // "Q3_Report" would draw as "Q3Report" with an R underlined, and file names carry
                 // underscores all the time.
-                var item = MakeMenuItem(sess.TabLabel.Replace("_", "__"), (_, _) => SwitchToTab(sess));
+                var item = MakeMenuItem(sess.TabLabel.Replace("_", "__"), (_, _) => SwitchToTab(sess), glyph: "");
                 // Bold rather than a check mark: the menu has no icon column to put one in.
                 if (sess.IsActive) item.FontWeight = FontWeights.Bold;
                 menu.Items.Add(item);
@@ -461,8 +461,8 @@ namespace KillerPDF.Controls
         {
             if (sender is not FrameworkElement fe || fe.DataContext is not DocumentSession s) return;
             var menu = MakeThemedMenu();
-            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CloseTab"), (_, _) => CloseTab(s), "Ctrl+W"));
-            var others = MakeMenuItem(Loc("Str_Ctx_CloseOthers"), (_, _) => CloseOtherTabs(s), "Ctrl+Shift+W");
+            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CloseTab"), (_, _) => CloseTab(s), "Ctrl+W", ""));
+            var others = MakeMenuItem(Loc("Str_Ctx_CloseOthers"), (_, _) => CloseOtherTabs(s), "Ctrl+Shift+W", "");
             others.IsEnabled = _sessions.Count(z => z.Doc != null || z.DeferredPath != null) > 1;
             menu.Items.Add(others);
             menu.PlacementTarget = fe;

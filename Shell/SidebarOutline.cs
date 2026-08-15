@@ -654,34 +654,34 @@ namespace KillerPDF
                 if (inMulti && _bmExtraSel.Count > 1)
                 {
                     menu.Items.Add(MakeMenuItem($"{Loc("Str_Ctx_BmDelete")} ({_bmExtraSel.Count})",
-                                                (_, _2) => DeleteSelectedBookmarks(nref), "Delete"));
+                                                (_, _2) => DeleteSelectedBookmarks(nref), "Delete", ""));
                 }
                 else
                 {
-                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmRename"), (_, _2) => BeginInlineRename(tvi, nref), "F2"));
-                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmAddChild"), (_, _2) => AddBookmarkInto(nref)));
-                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmSetDest"), (_, _2) => SetBookmarkDestination(nref)));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmRename"), (_, _2) => BeginInlineRename(tvi, nref), "F2", ""));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmAddChild"), (_, _2) => AddBookmarkInto(nref), glyph: ""));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmSetDest"), (_, _2) => SetBookmarkDestination(nref), glyph: ""));
                     menu.Items.Add(new Separator());
                     int idx = nref.Parent.IndexOf(nref.Outline);
-                    var up = MakeMenuItem(Loc("Str_Ctx_BmMoveUp"), (_, _2) => MoveBookmark(nref, -1));
+                    var up = MakeMenuItem(Loc("Str_Ctx_BmMoveUp"), (_, _2) => MoveBookmark(nref, -1), glyph: "");
                     up.IsEnabled = idx > 0;
                     menu.Items.Add(up);
-                    var down = MakeMenuItem(Loc("Str_Ctx_BmMoveDown"), (_, _2) => MoveBookmark(nref, +1));
+                    var down = MakeMenuItem(Loc("Str_Ctx_BmMoveDown"), (_, _2) => MoveBookmark(nref, +1), glyph: "");
                     down.IsEnabled = idx >= 0 && idx < nref.Parent.Count - 1;
                     menu.Items.Add(down);
                     menu.Items.Add(new Separator());
-                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmDelete"), (_, _2) => DeleteSelectedBookmarks(nref), "Delete"));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmDelete"), (_, _2) => DeleteSelectedBookmarks(nref), "Delete", ""));
                 }
             }
             else
             {
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmAdd"), (_, _2) => AddBookmarkInto(null)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmAdd"), (_, _2) => AddBookmarkInto(null), glyph: ""));
                 bool hasAny = _doc?.Internals.Catalog.Elements["/Outlines"] is not null
                               && OutlineTree.Items.Count > 1;   // ghost row + at least one real entry
                 if (hasAny)
                 {
                     menu.Items.Add(new Separator());
-                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmDeleteAll"), (_, _2) => DeleteAllBookmarks()));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmDeleteAll"), (_, _2) => DeleteAllBookmarks(), glyph: ""));
                 }
             }
             menu.PlacementTarget = OutlineTree;

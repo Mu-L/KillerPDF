@@ -763,6 +763,9 @@ namespace KillerPDF
         // back whatever was showing (requested on Reddit). Held so page-change chatter can't
         // overwrite it mid-read; the restore stands down if a newer held message took over.
         private void StatusText_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+            => ShowCurrentFileSize();
+
+        private void ShowCurrentFileSize()
         {
             string? path = _originalFile ?? _currentFile;
             if (path is null || !System.IO.File.Exists(path)) return;

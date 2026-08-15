@@ -104,8 +104,8 @@ namespace KillerPDF
                 RemoveSignedField(objNum, pageIndex);
                 _pendingSignField = (initials, objNum, pageIndex, x, y, w, h);
                 ShowSignaturePopup();
-            }));
-            menu.Items.Add(MakeMenuItem("Remove " + what, (_, _) => RemoveSignedField(objNum, pageIndex)));
+            }, glyph: ""));
+            menu.Items.Add(MakeMenuItem("Remove " + what, (_, _) => RemoveSignedField(objNum, pageIndex), glyph: ""));
             menu.IsOpen = true;
         }
 

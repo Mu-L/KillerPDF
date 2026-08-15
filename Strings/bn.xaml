@@ -666,4 +666,18 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_TT_ViewDetails">বিস্তারিত দেখা</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">আইকন দেখা</sys:String>
     <sys:String x:Key="Str_TT_ViewList">তালিকা দেখা</sys:String>
+
+    <!-- 1.7.2: print dialog paper/source/sections, book layout, Transform levels -->
+    <sys:String x:Key="Str_Print_Paper">কাগজের আকার</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">নথির সাথে মিল</sys:String>
+    <sys:String x:Key="Str_Print_Source">কাগজের উৎস</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">প্রিন্টারের ডিফল্ট</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">প্রিন্টার</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">লেআউট</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">আউটপুট</sys:String>
+    <sys:String x:Key="Str_View_BookMode">বই লেআউট</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">লেভেল</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">কালো বিন্দু</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">সাদা বিন্দু</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">মধ্যম টোন</sys:String>
 </ResourceDictionary>

@@ -666,4 +666,18 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_TT_ViewDetails">Ayrıntı görünümü</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">Simge görünümü</sys:String>
     <sys:String x:Key="Str_TT_ViewList">Liste görünümü</sys:String>
+
+    <!-- 1.7.2: print dialog paper/source/sections, book layout, Transform levels -->
+    <sys:String x:Key="Str_Print_Paper">Kağıt boyutu</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">Belgeyle eşleştir</sys:String>
+    <sys:String x:Key="Str_Print_Source">Kağıt kaynağı</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">Yazıcı varsayılanı</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">YAZICI</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">DÜZEN</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">ÇIKTI</sys:String>
+    <sys:String x:Key="Str_View_BookMode">Kitap düzeni</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">DÜZEYLER</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">Siyah noktası</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">Beyaz noktası</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">Orta tonlar</sys:String>
 </ResourceDictionary>

@@ -682,4 +682,18 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_TT_ViewDetails">Vue détails</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">Vue icônes</sys:String>
     <sys:String x:Key="Str_TT_ViewList">Vue liste</sys:String>
+
+    <!-- 1.7.2: print dialog paper/source/sections, book layout, Transform levels -->
+    <sys:String x:Key="Str_Print_Paper">Format du papier</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">Identique au document</sys:String>
+    <sys:String x:Key="Str_Print_Source">Source du papier</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">Défaut de l'imprimante</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">IMPRIMANTE</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">MISE EN PAGE</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">SORTIE</sys:String>
+    <sys:String x:Key="Str_View_BookMode">Mise en page livre</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">NIVEAUX</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">Point noir</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">Point blanc</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">Tons moyens</sys:String>
 </ResourceDictionary>

@@ -191,6 +191,11 @@ namespace KillerPDF
             }
             else if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; }
             else if (e.Key == Key.Escape && _fullScreen) { ToggleFullScreen(); e.Handled = true; }
+            else if (e.Key == Key.F4 && Keyboard.Modifiers == ModifierKeys.Shift && _doc is not null)
+            {
+                ShowCurrentFileSize();
+                e.Handled = true;
+            }
             // PgDn / PgUp navigate to the next / previous page - they never reorder pages (that's the
             // toolbar Move Up/Down buttons). Handled at the window level with e.Handled so it behaves the
             // same whether the page canvas or a sidebar thumbnail has focus; without this, a focused

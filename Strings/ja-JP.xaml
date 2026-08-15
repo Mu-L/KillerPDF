@@ -671,4 +671,18 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_TT_ViewDetails">詳細表示</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">アイコン表示</sys:String>
     <sys:String x:Key="Str_TT_ViewList">一覧表示</sys:String>
+
+    <!-- 1.7.2: print dialog paper/source/sections, book layout, Transform levels -->
+    <sys:String x:Key="Str_Print_Paper">用紙サイズ</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">文書に合わせる</sys:String>
+    <sys:String x:Key="Str_Print_Source">給紙方法</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">プリンターの既定</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">プリンター</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">レイアウト</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">出力</sys:String>
+    <sys:String x:Key="Str_View_BookMode">見開きレイアウト</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">レベル補正</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">ブラックポイント</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">ホワイトポイント</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">中間調</sys:String>
 </ResourceDictionary>

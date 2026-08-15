@@ -672,4 +672,18 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_TT_ViewDetails">Detailansicht</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">Symbolansicht</sys:String>
     <sys:String x:Key="Str_TT_ViewList">Listenansicht</sys:String>
+
+    <!-- 1.7.2: print dialog paper/source/sections, book layout, Transform levels -->
+    <sys:String x:Key="Str_Print_Paper">Papierformat</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">Wie Dokument</sys:String>
+    <sys:String x:Key="Str_Print_Source">Papierquelle</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">Druckerstandard</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">DRUCKER</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">LAYOUT</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">AUSGABE</sys:String>
+    <sys:String x:Key="Str_View_BookMode">Buchlayout</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">TONWERTE</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">Schwarzpunkt</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">Weißpunkt</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">Mitteltöne</sys:String>
 </ResourceDictionary>

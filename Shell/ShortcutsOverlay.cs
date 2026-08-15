@@ -45,6 +45,7 @@ namespace KillerPDF
                 new("Ctrl+N",       "Str_KS_NewBlank"),
                 new("Ctrl+P",       "Str_KS_Print"),
                 new("Ctrl+D / F4",  "Str_KS_DocInfo"),
+                new("Shift+F4",     "Str_KS_FileSize"),
             ]},
             new KsSection { TitleKey = "Str_KS_Tools", Cat = "Tools", Rows =
             [

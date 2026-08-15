@@ -492,6 +492,11 @@ namespace KillerPDF
             // The moon lights for the FOCUSED pane's invert state (invert is per pane).
             DocInvertBtn.Tag = pane.DocInvert ? "on" : null;
 
+            // Title-bar filename follows the focused pane (it stayed on the previous pane's
+            // document, 2026-08-15). _originalFile holds this pane's file after the session
+            // swap above; an empty pane clears the label.
+            FileNameLabel.Text = System.IO.Path.GetFileName(_originalFile ?? "");
+
             // Restore rather than refresh: RefreshPageList re-decodes every page, which on a large
             // document costs seconds on every click between panes.
             RestorePageListForActivePane();

@@ -245,20 +245,21 @@ namespace KillerPDF
                 SetTool(EditTool.Text);
                 _activeCanvas = CanvasForPage(pageIdx);
                 PlaceTextBox(pt, pageIdx);
-            }, glyph: ""));
+            }, "T", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Image"), (s, e) =>
             {
                 _activeCanvas = CanvasForPage(pageIdx);
                 PlaceImageFromDialog(pt, pageIdx);
-            }, glyph: ""));
+            }, "I", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Signature"), (s, e) =>
             {
                 _activeCanvas = CanvasForPage(pageIdx);
                 if (_pendingSignature is not null) PlaceSignature(pt, pageIdx);
                 else { SetTool(EditTool.Signature); ShowSignaturePopup(); }
-            }, glyph: ""));
+            }, "G", ""));
             _ctxMenu.Items.Add(new Separator());
 
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Rotate"), (s, e) => OpenTransformWindow(), "R", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCW"), (s, e) => RotatePages_Click(90), glyph: ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCW"), (s, e) => RotatePages_Click(-90), glyph: ""));
             _ctxMenu.Items.Add(new Separator());
@@ -275,7 +276,7 @@ namespace KillerPDF
             if (_annotationClipboard.Count > 0)
                 _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Paste"), (s, e) => PasteAnnotations(pageIdx), "Ctrl+V", ""));
 
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, e) => OpenStampTool(), glyph: ""));
+            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, e) => OpenStampTool(), "S", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ClearPage"), (s, e) => ClearAnnotations_Click(s!, e), glyph: ""));

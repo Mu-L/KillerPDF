@@ -668,4 +668,18 @@ KillerPDF 將被複製到您的程式資料夾，並新增開始功能表項目�
     <sys:String x:Key="Str_TT_ViewDetails">詳細資料檢視</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">圖示檢視</sys:String>
     <sys:String x:Key="Str_TT_ViewList">清單檢視</sys:String>
+
+    <!-- 1.7.2: print dialog paper/source/sections, book layout, Transform levels -->
+    <sys:String x:Key="Str_Print_Paper">紙張大小</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">與文件一致</sys:String>
+    <sys:String x:Key="Str_Print_Source">紙張來源</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">印表機預設</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">印表機</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">版面配置</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">輸出</sys:String>
+    <sys:String x:Key="Str_View_BookMode">書籍版面</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">色階</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">黑場</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">白場</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">中間調</sys:String>
 </ResourceDictionary>

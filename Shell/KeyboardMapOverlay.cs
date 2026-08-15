@@ -96,7 +96,8 @@ namespace KillerPDF
             },
             [KbLayer.Shift] = new()
             {
-                ["F3"] = ("Search", "Str_Kb_PrevResult"), ["F10"] = ("Edit", "Str_KS_ContextMenu"),
+                ["F3"] = ("Search", "Str_Kb_PrevResult"), ["F4"] = ("File", "Str_KS_FileSize"),
+                ["F10"] = ("Edit", "Str_KS_ContextMenu"),
                 ["Enter"] = ("Search", "Str_Kb_PrevResult"),
                 ["N"] = ("View", "Str_InvertImagesToo"),
             },

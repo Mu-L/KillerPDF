@@ -671,4 +671,18 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_TT_ViewDetails">Zobrazení podrobností</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">Zobrazení ikon</sys:String>
     <sys:String x:Key="Str_TT_ViewList">Zobrazení seznamu</sys:String>
+
+    <!-- 1.7.2: print dialog paper/source/sections, book layout, Transform levels -->
+    <sys:String x:Key="Str_Print_Paper">Formát papíru</sys:String>
+    <sys:String x:Key="Str_Print_PaperAuto">Podle dokumentu</sys:String>
+    <sys:String x:Key="Str_Print_Source">Zdroj papíru</sys:String>
+    <sys:String x:Key="Str_Print_SourceAuto">Výchozí nastavení tiskárny</sys:String>
+    <sys:String x:Key="Str_Print_SecPrinter">TISKÁRNA</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">ROZVRŽENÍ</sys:String>
+    <sys:String x:Key="Str_Print_SecOutput">VÝSTUP</sys:String>
+    <sys:String x:Key="Str_View_BookMode">Knižní rozvržení</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">ÚROVNĚ</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">Černý bod</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">Bílý bod</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">Střední tóny</sys:String>
 </ResourceDictionary>

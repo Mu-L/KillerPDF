@@ -173,16 +173,16 @@ namespace KillerPDF.Controls
         // view canvas menu so both views offer the same actions.
         private void AddLinkMenuItems(ContextMenu menu, object target, int annotIndex, int pageIndex)
         {
-            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OpenLink"), (_, _) => FollowLinkTarget(target)));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OpenLink"), (_, _) => FollowLinkTarget(target), glyph: ""));
             if (target is string uri)
             {
                 if (uri.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
-                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyEmail"), (_, _) => TrySetClipboard(uri["mailto:".Length..])));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyEmail"), (_, _) => TrySetClipboard(uri["mailto:".Length..]), "Ctrl+C", ""));
                 else
-                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyLink"), (_, _) => TrySetClipboard(uri)));
+                    menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyLink"), (_, _) => TrySetClipboard(uri), "Ctrl+C", ""));
             }
             if (annotIndex >= 0)
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RemoveLink"), (_, _) => RemoveLinkAnnotation(pageIndex, annotIndex)));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RemoveLink"), (_, _) => RemoveLinkAnnotation(pageIndex, annotIndex), "Delete", ""));
         }
 
         // Clipboard COM calls throw when another app is holding the clipboard open; swallow so a copy
