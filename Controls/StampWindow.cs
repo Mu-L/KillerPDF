@@ -209,7 +209,8 @@ namespace KillerPDF
                 };
             }
             _previewArea.SizeChanged += (_, _2) => { SizePreviewImage(); Schedule(); };
-            root.Children.Add(previewWrap);
+            // Family shadow under the content pane, like the main window (flat on 98SE).
+            root.Children.Add(UiKit.PaneWithShadow(previewWrap));
 
             Content = DialogChrome.Frame(this, Owner, "KillerPDF - " + S("Str_Stamp_Suffix"), () => { Applied = false; Close(); }, root);
 

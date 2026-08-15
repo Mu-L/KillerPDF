@@ -801,7 +801,6 @@ namespace KillerPDF
                 Margin           = new Thickness(0, 4, 8, 12),
                 CornerRadius     = new CornerRadius(4)
             };
-            Grid.SetColumn(wrap, 1);
 
             var grid = new Grid();
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -854,7 +853,10 @@ namespace KillerPDF
             }
 
             wrap.Child = grid;
-            return wrap;
+            // Family shadow under the content pane, like the main window (flat on 98SE).
+            var host = UiKit.PaneWithShadow(wrap);
+            Grid.SetColumn(host, 1);
+            return host;
         }
 
         private static TextBlock Label(string text) => new()

@@ -333,6 +333,26 @@ namespace KillerPDF
             return new ControlTemplate(typeof(PasswordBox)) { VisualTree = b };
         }
 
+        // Wraps a dialog's document/preview pane with the family drop shadow: a SEPARATE sibling
+        // border underneath (content must never render through a bitmap effect or it loses
+        // ClearType), carrying the per-theme PaneShadowEffect - which is null on 98SE, so the
+        // classic theme stays flat. Dialogs read as mini main windows this way.
+        public static Grid PaneWithShadow(Border pane)
+        {
+            var shadow = new Border
+            {
+                Margin = pane.Margin,
+                CornerRadius = pane.CornerRadius,
+                IsHitTestVisible = false,
+            };
+            shadow.SetResourceReference(Border.BackgroundProperty, "BgCanvas");
+            shadow.SetResourceReference(UIElement.EffectProperty, "PaneShadowEffect");
+            var host = new Grid();
+            host.Children.Add(shadow);
+            host.Children.Add(pane);
+            return host;
+        }
+
         // A dialog section heading (e.g. "ROTATE", "PAGE NUMBERS").
         public static TextBlock SectionHeader(string text) => new()
         {

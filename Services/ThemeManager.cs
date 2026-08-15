@@ -185,6 +185,14 @@ namespace KillerPDF.Services
                 var target = merged[0];
                 foreach (object key in accentDict.Keys)
                     target[key] = accentDict[key];
+                // Aliases derived from PrimaryBrush were materialized against the BASE palette
+                // (CompleteAppPalette runs before this overlay), so an overlay that recolors
+                // PrimaryBrush without carrying the alias left them on the base hue - the green
+                // wordmark on blue-accented 98SE. Re-point them at the overlay's accent.
+                if (accentDict.Contains("PrimaryBrush"))
+                    foreach (string aliased in new[] { "AccentLogo", "InstallBtnBg", "SelectionAccent", "RadioAccent" })
+                        if (!accentDict.Contains(aliased))
+                            target[aliased] = accentDict["PrimaryBrush"];
             }
 
             // App.xaml owns startup fallbacks for these legacy aliases, and local application

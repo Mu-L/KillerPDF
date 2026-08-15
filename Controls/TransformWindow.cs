@@ -330,7 +330,8 @@ namespace KillerPDF
             previewWrap.Child = previewGrid;
             _previewArea = previewWrap;
             previewWrap.SizeChanged += (_, _2) => SizePreviewImage();
-            root.Children.Add(previewWrap);
+            // Family shadow under the content pane, like the main window (flat on 98SE).
+            root.Children.Add(UiKit.PaneWithShadow(previewWrap));
 
             Content = DialogChrome.Frame(this, Owner, "KillerPDF - " + S("Str_Tf_Suffix"), () => { Applied = false; Close(); }, root);
             UpdatePreview();   // populate the output-size readout at the original dimensions
