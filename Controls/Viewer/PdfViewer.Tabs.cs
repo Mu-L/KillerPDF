@@ -322,6 +322,21 @@ namespace KillerPDF.Controls
         // image-heavy document in Continuous view pinned gigabytes in one tab.
         private const int RenderCachePageCap = 48;
 
+        // #189: the count cap alone was not enough - an entry's size scales with the page and the
+        // base render budget, so 48 cached Letter pages held ~630 MB in one tab. Budget the cache
+        // in BYTES too, with a floor of nearby pages so the moving window around the viewport
+        // still serves instantly. Frozen BitmapSources are safe to measure from any thread.
+        private const long RenderCacheByteBudget = 160L << 20;   // ~160 MB per tab
+        private const int  RenderCacheMinPages   = 6;
+
+        private static long RenderCacheBytes(DocumentSession s)
+        {
+            long total = 0;
+            foreach (var b in s.RenderCache.Values)
+                total += 4L * b.PixelWidth * b.PixelHeight;
+            return total;
+        }
+
         internal static void CacheRender(DocumentSession? s, int page, int bucket, int rot, System.Windows.Media.Imaging.BitmapSource bmp)
         {
             if (s == null) return;
@@ -330,8 +345,12 @@ namespace KillerPDF.Controls
             // Evict the entries farthest from the page just cached: renders arrive around the
             // viewport, so this keeps a moving window of nearby pages hot and stays safe to run
             // from any thread (no UI state needed).
-            while (s.RenderCache.Count > RenderCachePageCap)
+            while (true)
             {
+                int count = s.RenderCache.Count;
+                bool overCount = count > RenderCachePageCap;
+                bool overBytes = count > RenderCacheMinPages && RenderCacheBytes(s) > RenderCacheByteBudget;
+                if (!overCount && !overBytes) break;
                 var farthest = default((int page, int bucket, int rot));
                 int bestDist = -1;
                 foreach (var key in s.RenderCache.Keys)
