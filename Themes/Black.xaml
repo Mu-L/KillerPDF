@@ -53,6 +53,9 @@
     <SolidColorBrush x:Key="DimTextBrush"   Color="#aaaaaa" po:Freeze="True"/>
     <SolidColorBrush x:Key="TextFooter"     Color="#aaaaaa" po:Freeze="True"/>
     <SolidColorBrush x:Key="DangerRed"      Color="#ff4444" po:Freeze="True"/>
+    <!-- Match KillerNotes' caption close treatment. DangerRed remains the brighter
+         Black-theme warning color; the title-bar hover uses the quieter family red. -->
+    <SolidColorBrush x:Key="CaptionCloseHoverBrush" Color="#e04444" po:Freeze="True"/>
     <SolidColorBrush x:Key="BgDragHandle"   Color="#888888" po:Freeze="True"/>
     <SolidColorBrush x:Key="DragLine"       Color="#313131" po:Freeze="True"/>
     <SolidColorBrush x:Key="ScrollThumbBrush"      Color="#8800ff66" po:Freeze="True"/>

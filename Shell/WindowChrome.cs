@@ -443,9 +443,14 @@ namespace KillerPDF
                 if (squared) FooterBorder.CornerRadius = new CornerRadius(0);
                 else FooterBorder.SetResourceReference(Border.CornerRadiusProperty, "FooterCornerRadius");
             }
+            // The close tile owns only the window's top-right corner. Reusing the title bar's
+            // full (top-left + top-right) radius rounded the tile's interior left edge too,
+            // making its hover state look like a detached red cap instead of the window corner.
+            var titleCorners = TryFindResource("TitleBarCornerRadius") is CornerRadius tc
+                ? tc : new CornerRadius(0, 7, 0, 0);
             Resources["ChromeCloseCorner"] = squared
                 ? new CornerRadius(0)
-                : (TryFindResource("TitleBarCornerRadius") as CornerRadius? ?? new CornerRadius(0, 7, 0, 0));
+                : new CornerRadius(0, titleCorners.TopRight, 0, 0);
 
             // Retired: native OS shadow replaces the hand-cast one.
             if (WindowShadowBorder != null)
@@ -458,11 +463,10 @@ namespace KillerPDF
             // (caught) on Windows 10 and earlier, which simply keep square corners.
             ApplyWindowCorners(rounded: !squared);
 
-            // The theme chooses dots or diagonal Win98 lines. Do not overwrite that resource here.
+            // This is the permanent resize hit target. Its child canvases choose dots or the
+            // Win98 hatch; collapsing the parent also hid the hatch.
             if (ResizeGripDots != null)
-                ResizeGripDots.SetResourceReference(UIElement.VisibilityProperty, "GripDotsVisibility");
-            if (ResizeGripLines != null)
-                ResizeGripLines.SetResourceReference(UIElement.VisibilityProperty, "GripLinesVisibility");
+                ResizeGripDots.Visibility = Visibility.Visible;
             UpdateRootClip(squared);
         }
 

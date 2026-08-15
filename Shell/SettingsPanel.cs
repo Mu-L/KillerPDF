@@ -286,6 +286,9 @@ namespace KillerPDF
         {
             _appliedSquared = null;
             UpdateWindowChrome();
+            // The 98SE pane reaches the frame while rounded themes retain an 8px outer gutter.
+            // Reapply the saved sidebar side so switching away from 98SE restores that right edge.
+            ApplySidebarSide();
             // Refresh snapshot FindResource calls that were set as local values.
             // SetResourceReference bindings update automatically; sidebar tabs and
             // active tool button background still need an explicit refresh.
@@ -295,7 +298,10 @@ namespace KillerPDF
             else
                 SwitchSidebarToPagesTab();
             RefreshSelectionAccent();
-            RebuildTabStrip();   // tab divider bevel is derived from BgCanvas; refresh for the new theme
+            // Both panes carry local border-thickness state. Rebuild both so an inactive pane cannot
+            // retain the previous theme's right-edge geometry until it happens to receive focus.
+            Viewer.RebuildTabStripExt();
+            ViewerB.RebuildTabStripExt();
             // The signature popup is built from snapshot (FindResource) colors, so rebuild it in place
             // if it's open so it picks up the new theme without the user having to close and reopen it.
             if (_signaturePopup is not null) ShowSignaturePopup();

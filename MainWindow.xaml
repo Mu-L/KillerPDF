@@ -11,7 +11,7 @@
         WindowStyle="None"
         ResizeMode="CanResize"
         Background="{DynamicResource SurfaceBrush}"
-        FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"
+        FontFamily="{DynamicResource UiFont}"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
         UseLayoutRounding="True"
@@ -232,27 +232,42 @@
         </Style>
 
         <Style x:Key="ChromeButton" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource CaptionButtonBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource CaptionGlyphBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Width" Value="{DynamicResource CaptionButtonWidth}"/>
             <Setter Property="Height" Value="{DynamicResource CaptionButtonHeight}"/>
-            <Setter Property="Margin" Value="{DynamicResource CaptionButtonMargin}"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontWeight" Value="{DynamicResource CaptionGlyphWeight}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid>
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}"/>
-                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border x:Name="Bd" Margin="{DynamicResource CaptionButtonMargin}"
+                                    Background="{TemplateBinding Background}"/>
+                            <Border x:Name="Face" Margin="{DynamicResource CaptionButtonMargin}"
+                                    Background="{DynamicResource CaptionButtonBrush}">
+                                <Grid>
+                                    <Border x:Name="capLight" IsHitTestVisible="False"
+                                            BorderBrush="{DynamicResource BevelLightBrush}"
+                                            BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
+                                    <Border x:Name="capDark" IsHitTestVisible="False"
+                                            BorderBrush="{DynamicResource BevelDarkBrush}"
+                                            BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CaptionHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowSelectedBrush}"/>
+                                <Setter TargetName="capLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                                <Setter TargetName="capDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -261,24 +276,62 @@
         </Style>
         <Style x:Key="ChromeCloseButton" TargetType="Button" BasedOn="{StaticResource ChromeButton}">
             <Setter Property="Foreground" Value="{DynamicResource CaptionCloseBrush}"/>
+            <Setter Property="Margin" Value="{DynamicResource CaptionCloseGap}"/>
+            <Setter Property="Tag" Value="{DynamicResource ChromeCloseCorner}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid>
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="{DynamicResource ChromeCloseCorner}"/>
-                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border x:Name="Bd" Margin="{DynamicResource CaptionButtonMargin}"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Border x:Name="Face" Margin="{DynamicResource CaptionButtonMargin}"
+                                    Background="{DynamicResource CaptionButtonBrush}"
+                                    CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Grid>
+                                    <Border x:Name="capLight" IsHitTestVisible="False"
+                                            BorderBrush="{DynamicResource BevelLightBrush}"
+                                            BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
+                                    <Border x:Name="capDark" IsHitTestVisible="False"
+                                            BorderBrush="{DynamicResource BevelDarkBrush}"
+                                            BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
+                                    <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                               FontWeight="{DynamicResource CaptionGlyphWeight}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Visibility="{DynamicResource CaptionFontGlyphVisibility}"/>
+                                    <Grid Width="8" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Visibility="{DynamicResource CaptionDrawnGlyphVisibility}">
+                                        <Rectangle Width="10" Height="2" Fill="{TemplateBinding Foreground}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="45" CenterX="5" CenterY="1"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <Rectangle Width="10" Height="2" Fill="{TemplateBinding Foreground}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="-45" CenterX="5" CenterY="1"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                    </Grid>
+                                </Grid>
+                            </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CaptionCloseHoverBrush}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource CaptionCloseHoverFgBrush}"/>
                             </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="capLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                                <Setter TargetName="capDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <!-- Inset overlay close: the KillerNotes about-card geometry. Unlike the main
+             caption close, its hover face rounds on all four corners. -->
+        <Style x:Key="DialogCloseButton" TargetType="Button" BasedOn="{StaticResource ChromeCloseButton}">
+            <Setter Property="Tag" Value="{DynamicResource SmallCornerRadius}"/>
         </Style>
 
         <!-- Tab close button: themed so hover is the danger red (not WPF's default blue chrome). -->
@@ -754,7 +807,10 @@
                                              SelectionTextBrush="{DynamicResource PrimaryBrush}"
                                              CaretBrush="{DynamicResource PrimaryBrush}"/>
                                     <!-- Chevron arrow -->
-                                    <Grid Grid.Column="1" Margin="{DynamicResource ComboChevMargin}">
+                                    <Grid Grid.Column="1" Width="{DynamicResource ComboButtonSize}"
+                                          Height="{DynamicResource ComboButtonSize}"
+                                          HorizontalAlignment="Right" VerticalAlignment="Center"
+                                          Margin="0" IsHitTestVisible="False">
                                     <Border x:Name="ComboChevFace" Background="{DynamicResource ComboButtonBrush}"/>
                                     <Border x:Name="ComboChevLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
                                     <Border x:Name="ComboChevDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
@@ -1064,7 +1120,7 @@
                                 <Grid Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left">
                                     <Ellipse x:Name="ring" Width="14" Height="14"
                                              Stroke="{DynamicResource DimTextBrush}" StrokeThickness="1.5"
-                                             Fill="Transparent"/>
+                                             Fill="{DynamicResource RadioWellBrush}"/>
                                     <Ellipse x:Name="dot" Width="7" Height="7"
                                              Fill="{DynamicResource RadioAccent}" Visibility="Collapsed"/>
                                 </Grid>
@@ -1109,9 +1165,18 @@
                                 Margin="-8,0,2,0" Padding="10,4,10,4">
                             <DockPanel LastChildFill="True" Background="Transparent">
                                 <Grid Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left">
-                                    <Border x:Name="box" Width="14" Height="14" CornerRadius="3"
-                                            BorderBrush="{DynamicResource DimTextBrush}" BorderThickness="1.5"
-                                            Background="Transparent"/>
+                                    <Border x:Name="box" Width="14" Height="14" CornerRadius="{DynamicResource ControlCornerRadius}"
+                                            BorderBrush="{DynamicResource DimTextBrush}" BorderThickness="1"
+                                            Background="{DynamicResource RadioWellBrush}"/>
+                                    <!-- Classic checkboxes are recessed wells: dark on the top/left,
+                                         light on the bottom/right. Both thicknesses are zero on the
+                                         modern themes, so this adds no second outline there. -->
+                                    <Border Width="14" Height="14" IsHitTestVisible="False"
+                                            BorderBrush="{DynamicResource BevelDarkBrush}"
+                                            BorderThickness="{DynamicResource CheckSunkenDarkThickness}"/>
+                                    <Border Width="14" Height="14" IsHitTestVisible="False"
+                                            BorderBrush="{DynamicResource BevelLightBrush}"
+                                            BorderThickness="{DynamicResource CheckSunkenLightThickness}"/>
                                     <TextBlock x:Name="tick" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
                                                FontSize="10" Foreground="{DynamicResource RadioAccent}"
                                                Visibility="Collapsed"
@@ -1184,7 +1249,7 @@
             <RowDefinition Height="Auto"/>   <!-- 1: toolbar -->
             <RowDefinition Height="Auto"/>   <!-- 2: document tab strip (collapses when no PDF is open) -->
             <RowDefinition Height="*"/>      <!-- 3: document content -->
-            <RowDefinition Height="Auto"/>   <!-- 4: footer / status bar -->
+            <RowDefinition Height="24"/>     <!-- 4: footer / status bar (KillerNotes exact) -->
         </Grid.RowDefinitions>
 
         <!-- Title bar -->
@@ -1237,9 +1302,37 @@
                            Margin="16,0,12,0" TextTrimming="CharacterEllipsis"
                            Foreground="{DynamicResource FilenameBrush}" FontFamily="Consolas" FontSize="11"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="{DynamicResource CaptionButtonsMargin}">
-                    <Button Content="&#xE921;" Click="MinimizeBtn_Click" Style="{StaticResource ChromeButton}" WindowChrome.IsHitTestVisibleInChrome="True"/>
-                    <Button Content="&#xE922;" Click="MaximizeBtn_Click" Style="{StaticResource ChromeButton}" WindowChrome.IsHitTestVisibleInChrome="True"/>
-                    <Button Content="&#xE8BB;" Click="CloseBtn_Click" Style="{StaticResource ChromeCloseButton}" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                    <Button Click="MinimizeBtn_Click" Style="{StaticResource ChromeButton}"
+                            Foreground="{DynamicResource CaptionGlyphBrush}"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Grid Height="{DynamicResource CaptionButtonHeight}">
+                            <TextBlock Text="&#xE921;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontWeight="{DynamicResource CaptionGlyphWeight}"
+                                       Visibility="{DynamicResource CaptionFontGlyphVisibility}"/>
+                            <Rectangle Width="6" Height="2" Fill="{DynamicResource CaptionGlyphBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,3"
+                                       SnapsToDevicePixels="True"
+                                       Visibility="{DynamicResource CaptionDrawnGlyphVisibility}"/>
+                        </Grid>
+                    </Button>
+                    <Button Click="MaximizeBtn_Click" Style="{StaticResource ChromeButton}"
+                            Foreground="{DynamicResource CaptionGlyphBrush}"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Grid>
+                            <TextBlock Text="&#xE922;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                       FontWeight="{DynamicResource CaptionGlyphWeight}"
+                                       Visibility="{DynamicResource CaptionFontGlyphVisibility}"/>
+                            <Grid Width="9" Height="9" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Margin="0,0,0,1" SnapsToDevicePixels="True"
+                                  Visibility="{DynamicResource CaptionDrawnGlyphVisibility}">
+                                <Rectangle Stroke="{DynamicResource CaptionGlyphBrush}" StrokeThickness="1" Fill="Transparent"/>
+                                <Rectangle Height="2" Fill="{DynamicResource CaptionGlyphBrush}" VerticalAlignment="Top"/>
+                            </Grid>
+                        </Grid>
+                    </Button>
+                    <Button Click="CloseBtn_Click" Style="{StaticResource ChromeCloseButton}"
+                            WindowChrome.IsHitTestVisibleInChrome="True"/>
                 </StackPanel>
             </Grid>
             </Grid>
@@ -1309,7 +1402,8 @@
                     <!-- 10px left gap so the zoom cluster reads as separate from the Search button. -->
                     <Button x:Name="ZoomOutBtn" Content="&#xECC9;" Style="{StaticResource ToolbarButton}"
                             Click="ZoomOut_Click" ToolTip="{DynamicResource Str_TT_ZoomOut}" Margin="10,0,4,0"/>
-                    <ComboBox x:Name="ZoomBox" Width="{DynamicResource ZoomBoxWidth}" MinWidth="88" Height="28" VerticalAlignment="Center"
+                    <ComboBox x:Name="ZoomBox" Width="{DynamicResource ZoomBoxWidth}" MinWidth="88"
+                              Height="{DynamicResource ZoomBoxHeight}" VerticalAlignment="Center"
                               Margin="2,0,4,0"
                               IsEditable="True" IsReadOnly="True"
                               Style="{StaticResource DarkComboBox}"
@@ -1806,8 +1900,14 @@
                                                     <Grid>
                                                         <ItemsPresenter/>
                                                         <Border Style="{StaticResource FlyoutGrain}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False"
+                                                                CornerRadius="{DynamicResource FlyoutCornerRadius}"
+                                                                BorderBrush="{DynamicResource BevelLightBrush}"
+                                                                BorderThickness="{DynamicResource BevelLightThickness}"/>
+                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False"
+                                                                CornerRadius="{DynamicResource FlyoutCornerRadius}"
+                                                                BorderBrush="{DynamicResource BevelDarkBrush}"
+                                                                BorderThickness="{DynamicResource BevelDarkThickness}"/>
                                                     </Grid>
                                                 </Border>
                                             </ControlTemplate>
@@ -1944,8 +2044,8 @@
                                                     <Grid>
                                                         <ItemsPresenter/>
                                                         <Border Style="{StaticResource FlyoutGrain}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" CornerRadius="{DynamicResource FlyoutCornerRadius}" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
+                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" CornerRadius="{DynamicResource FlyoutCornerRadius}" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
                                                     </Grid>
                                                 </Border>
                                             </ControlTemplate>
@@ -2124,8 +2224,8 @@
                                                     <Grid>
                                                         <ItemsPresenter/>
                                                         <Border Style="{StaticResource FlyoutGrain}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" CornerRadius="{DynamicResource FlyoutCornerRadius}" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
+                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False" CornerRadius="{DynamicResource FlyoutCornerRadius}" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
                                                     </Grid>
                                                 </Border>
                                             </ControlTemplate>
@@ -2369,25 +2469,22 @@
              order, and this is declared after MainContentGrid. Pushing the footer down rather than
              lifting the content keeps the About overlay - declared later still - on top of both.
              (Family rule; see KillerShell and Killendar.) -->
-        <Border Grid.Row="4" x:Name="FooterBorder" Panel.ZIndex="-1" Height="{DynamicResource FooterHeight}"
-                Background="{DynamicResource BackgroundBrush}" CornerRadius="{DynamicResource FooterCornerRadius}">
+        <Border Grid.Row="4" x:Name="FooterBorder" Panel.ZIndex="-1"
+                Background="{DynamicResource BackgroundBrush}">
             <Grid>
-            <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
-            <!-- Mirror of the tab-strip shadow gradient, flipped so it darkens at the TOP (toward the
-                 document) and fades down. UpdateTabStripFade clips it to the document column too. -->
-            <Border x:Name="FooterFade" IsHitTestVisible="False" Visibility="Collapsed" Background="{DynamicResource TabStripFadeBrush}"
-                    VerticalAlignment="Top" Height="12"
-                    RenderTransformOrigin="0.5,0.5">
-                <Border.RenderTransform>
-                    <ScaleTransform ScaleY="-1"/>
-                </Border.RenderTransform>
-            </Border>
             <Grid Margin="{DynamicResource FooterPadding}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <Border Grid.ColumnSpan="3" IsHitTestVisible="False"
+                        Opacity="{DynamicResource GrainOpacity}" Margin="-16,0">
+                    <Border.Background>
+                        <ImageBrush x:Name="StatusGrainBrush" TileMode="Tile"
+                                    ViewportUnits="Absolute" Viewport="0,0,256,256" Stretch="None"/>
+                    </Border.Background>
+                </Border>
                 <Grid Grid.Column="0" Margin="{DynamicResource FooterCellMargin}">
                     <TextBlock x:Name="StatusText" Text="{DynamicResource Str_Ready}"
                                Foreground="{DynamicResource TextFooter}"
@@ -2396,32 +2493,27 @@
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelDarkBrush}" BorderThickness="{DynamicResource FooterCellLightThickness}"/>
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelLightBrush}" BorderThickness="{DynamicResource FooterCellDarkThickness}"/>
                 </Grid>
-                <!-- Portable mode indicator (hidden when installed) -->
-                <StackPanel x:Name="PortableBadge" Grid.Column="0" Grid.ColumnSpan="3" Panel.ZIndex="3" Orientation="Horizontal"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource Str_Portable}" Foreground="{DynamicResource TextFooter}"
-                               FontFamily="Consolas" FontSize="9"
-                               VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <!-- OutlineButton (Controls/PickerStyles.xaml): accent outline at rest, fills
-                         solid on hover - the family standard for this button (2026-08-01;
-                         it was a flat solid fill at rest before, which is the wrong state). -->
+                <!-- Portable install action (hidden when installed). UpdateFooterFade positions
+                     this button on the actual A/B divider instead of centering a label+button
+                     group across the whole window. -->
+                <Grid x:Name="PortableBadge" Grid.Column="0" Grid.ColumnSpan="3" Panel.ZIndex="3"
+                      HorizontalAlignment="Left" VerticalAlignment="Center"
+                      Visibility="Collapsed">
                     <Button x:Name="InstallBtn" Content="{DynamicResource Str_InstallBtn}"
                             Click="Install_Click" Style="{StaticResource OutlineButton}"
-                            FontFamily="Segoe UI" FontSize="10"
+                            FontFamily="{DynamicResource UiFont}" FontSize="10"
                             Padding="8,1"
                             VerticalAlignment="Center">
-                        <!-- Deliberately square in the thin footer on every theme. This local token
-                             overrides OutlineButton's normal control radius without changing the
-                             rounded buttons used in dialogs and pickers. -->
+                        <!-- The footer action is deliberately a plain rectangle even in themes
+                             whose larger dialog controls use rounded corners. -->
                         <Button.Resources>
                             <CornerRadius x:Key="ControlCornerRadius">0</CornerRadius>
                         </Button.Resources>
                     </Button>
-                </StackPanel>
+                </Grid>
                 <Grid Grid.Column="2" HorizontalAlignment="Right" Margin="{DynamicResource FooterCellMargin}">
-                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelDarkBrush}" BorderThickness="{DynamicResource FooterCellLightThickness}"/>
-                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelLightBrush}" BorderThickness="{DynamicResource FooterCellDarkThickness}"/>
+                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelDarkBrush}" BorderThickness="{DynamicResource FooterCellLightThickness}" Panel.ZIndex="2"/>
+                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelLightBrush}" BorderThickness="{DynamicResource FooterCellDarkThickness}" Panel.ZIndex="2"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
                             Margin="{DynamicResource FooterCellPadding}">
                     <TextBlock x:Name="VersionLabel" Text="v1.6.3"
@@ -2444,35 +2536,38 @@
             </Grid>
             </Grid>
         </Border>
-    </Grid>
 
         <!-- Bottom-right resize grip. The WPF CanResizeWithGrip dots land out in the transparent shadow
              margin, so this custom one sits at the visible content corner and forwards a HTBOTTOMRIGHT
              resize to Windows on drag. -->
-        <Canvas x:Name="ResizeGripDots" Grid.Row="4" Panel.ZIndex="9100" Width="13" Height="13" Visibility="{DynamicResource GripDotsVisibility}"
+        <Canvas x:Name="ResizeGripDots" Grid.Row="4" Panel.ZIndex="50" Width="13" Height="13"
                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"
                 Background="Transparent" Cursor="SizeNWSE"
                 MouseLeftButtonDown="ResizeGrip_MouseDown">
-            <Rectangle Canvas.Left="10" Canvas.Top="2"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
-            <Rectangle Canvas.Left="6"  Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
-            <Rectangle Canvas.Left="10" Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
-            <Rectangle Canvas.Left="2"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
-            <Rectangle Canvas.Left="6"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
-            <Rectangle Canvas.Left="10" Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+            <Canvas Visibility="{DynamicResource GripDotsVisibility}">
+                <Rectangle Canvas.Left="10" Canvas.Top="2"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+                <Rectangle Canvas.Left="6"  Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+                <Rectangle Canvas.Left="10" Canvas.Top="6"  Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+                <Rectangle Canvas.Left="2"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+                <Rectangle Canvas.Left="6"  Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+                <Rectangle Canvas.Left="10" Canvas.Top="10" Width="2" Height="2" Fill="{DynamicResource DimTextBrush}"/>
+            </Canvas>
+            <Canvas Visibility="{DynamicResource GripHatchVisibility}">
+                <Canvas.Resources>
+                    <Style TargetType="Line">
+                        <Setter Property="StrokeThickness" Value="1"/>
+                        <Setter Property="SnapsToDevicePixels" Value="True"/>
+                    </Style>
+                </Canvas.Resources>
+                <Line X1="12.5" Y1="3.5"  X2="3.5"  Y2="12.5" Stroke="{DynamicResource BevelDarkBrush}"/>
+                <Line X1="12.5" Y1="4.5"  X2="4.5"  Y2="12.5" Stroke="{DynamicResource BevelLightBrush}"/>
+                <Line X1="12.5" Y1="6.5"  X2="6.5"  Y2="12.5" Stroke="{DynamicResource BevelDarkBrush}"/>
+                <Line X1="12.5" Y1="7.5"  X2="7.5"  Y2="12.5" Stroke="{DynamicResource BevelLightBrush}"/>
+                <Line X1="12.5" Y1="9.5"  X2="9.5"  Y2="12.5" Stroke="{DynamicResource BevelDarkBrush}"/>
+                <Line X1="12.5" Y1="10.5" X2="10.5" Y2="12.5" Stroke="{DynamicResource BevelLightBrush}"/>
+            </Canvas>
         </Canvas>
-        <Canvas x:Name="ResizeGripLines" Grid.Row="4" Panel.ZIndex="9100" Width="13" Height="13" Visibility="{DynamicResource GripLinesVisibility}"
-                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"
-                Background="Transparent" Cursor="SizeNWSE" SnapsToDevicePixels="True"
-                MouseLeftButtonDown="ResizeGrip_MouseDown">
-            <!-- KillerNotes' Win98 grip exactly: three dark/light beveled diagonal ridges.
-                 Half-pixel centers keep the one-pixel strokes crisp. -->
-            <Line X1="12.5" Y1="3.5"  X2="3.5"  Y2="12.5" Stroke="{DynamicResource BevelDarkBrush}" StrokeThickness="1"/>
-            <Line X1="12.5" Y1="4.5"  X2="4.5"  Y2="12.5" Stroke="{DynamicResource BevelLightBrush}" StrokeThickness="1"/>
-            <Line X1="12.5" Y1="6.5"  X2="6.5"  Y2="12.5" Stroke="{DynamicResource BevelDarkBrush}" StrokeThickness="1"/>
-            <Line X1="12.5" Y1="7.5"  X2="7.5"  Y2="12.5" Stroke="{DynamicResource BevelLightBrush}" StrokeThickness="1"/>
-            <Line X1="12.5" Y1="9.5"  X2="9.5"  Y2="12.5" Stroke="{DynamicResource BevelDarkBrush}" StrokeThickness="1"/>
-            <Line X1="12.5" Y1="10.5" X2="10.5" Y2="12.5" Stroke="{DynamicResource BevelLightBrush}" StrokeThickness="1"/>
-        </Canvas>
+    </Grid>
 
 
         <!-- Tab drag layer (Shell/PaneDrag.cs). Lives at the WINDOW level, not inside a pane,
@@ -2507,7 +2602,11 @@
               Background="#88000000"
               MouseLeftButtonDown="ShortcutOverlay_MouseLeftButtonDown"
               MouseRightButtonDown="ShortcutOverlay_MouseLeftButtonDown">
-            <Grid x:Name="ShortcutCardGrid" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="24" MaxWidth="920">
+            <!-- The shortcut list is intentionally viewport-sized rather than content-sized.
+                 Its ScrollViewer already owns overflow, so a long translated list should not
+                 expand the card to almost the full application height. -->
+            <Grid x:Name="ShortcutCardGrid" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                  Margin="24" MaxWidth="920" MaxHeight="620">
                 <!-- Shadow cast by a separate element so the card content stays crisp. -->
                 <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="{DynamicResource PanelCornerRadius}" IsHitTestVisible="False">
                     <Border.Effect>
@@ -2526,6 +2625,13 @@
                 <Border Grid.RowSpan="2" Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
                 <Border Grid.RowSpan="2" Panel.ZIndex="1" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
                 <Border Grid.RowSpan="2" CornerRadius="{DynamicResource FlyoutCornerRadius}" IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
+                <!-- Modern close follows the KillerNotes shortcut card: it is anchored to the
+                     card itself, not pushed inward by the content padding. -->
+                <Button Grid.RowSpan="2" Click="ShortcutOverlayClose_Click"
+                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Width="28" Height="26" Margin="0,6,6,0" Panel.ZIndex="2"
+                        Style="{StaticResource DialogCloseButton}"
+                        Visibility="{DynamicResource ShortcutModernHeaderVisibility}"/>
                 <Border Grid.Row="0" Height="{DynamicResource DialogTitleBarHeight}" Background="{DynamicResource DialogTitleBarBrush}"
                         Visibility="{DynamicResource ShortcutCaptionVisibility}">
                     <Grid Margin="5,0,2,0">
@@ -2541,7 +2647,7 @@
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
                               CanContentScroll="False">
-                <StackPanel Margin="28,16,28,22">
+                <StackPanel Margin="18,14,18,18">
                     <Grid Margin="0,0,0,12">
                         <TextBlock Text="{DynamicResource Str_KS_Title}"
                                    FontFamily="Consolas" FontSize="16" FontWeight="Bold"
@@ -2560,11 +2666,6 @@
                             <Button x:Name="KsViewKeyboardBtn" Style="{StaticResource SidebarTabBtn}"
                                     Content="{DynamicResource Str_KS_ViewKeyboard}" Click="KsViewKeyboard_Click"/>
                         </StackPanel>
-                        <Button Click="ShortcutOverlayClose_Click"
-                                HorizontalAlignment="Right" VerticalAlignment="Center"
-                                Width="24" Height="24" Content="&#xE711;"
-                                Style="{StaticResource DangerCloseButton}"
-                                Visibility="{DynamicResource ShortcutModernHeaderVisibility}"/>
                     </Grid>
 
                     <!-- Column layout (LIST view) -->
@@ -2636,20 +2737,20 @@
                                     ViewportUnits="Absolute" Viewport="0,0,256,256" Stretch="None"/>
                     </Border.Background>
                 </Border>
-                <Grid Grid.Row="1" Margin="28,20,28,14">
+                <Grid Grid.Row="1" Margin="18,10,18,18">
                     <StackPanel Margin="0">
                     <!-- Header: bloody KillerPDF icon to the left of the title + tagline.
                          A Grid (not a horizontal StackPanel) so the text column is bounded and the
                          tagline wraps to fill two lines (same pattern as KillerScan's About).
                          Width is pinned to the info panel below, so the card's width is still
                          determined by the SHA256 line - never by the tagline text. -->
-                    <Grid Margin="0,0,0,16" Width="{Binding ActualWidth, ElementName=AboutInfoGrid}">
+                    <Grid Margin="0,4,0,14" Width="{Binding ActualWidth, ElementName=AboutInfoGrid}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Image Grid.Column="0" Source="pack://application:,,,/Resources/kp-icon.png"
-                               Width="64" Height="64" Margin="0,0,16,0"
+                               Width="58" Height="58" Margin="0,0,15,0"
                                VerticalAlignment="Center"
                                RenderOptions.BitmapScalingMode="HighQuality">
                             <Image.Effect>
@@ -2808,8 +2909,9 @@
                     <!-- X close button overlaid at top-right - no vertical space consumed -->
                     <Button Click="AboutOverlayClose_Click"
                             HorizontalAlignment="Right" VerticalAlignment="Top"
-                            Width="24" Height="24" Content="&#xE711;"
-                            Style="{StaticResource DangerCloseButton}" Visibility="{DynamicResource AboutModernCloseVisibility}"/>
+                            Width="28" Height="26" Margin="0,6,6,0"
+                            Style="{StaticResource DialogCloseButton}"
+                            Visibility="{DynamicResource AboutModernCloseVisibility}"/>
                 </Grid>
                 </Grid>
                 </Border>

@@ -132,6 +132,12 @@ namespace KillerPDF.Controls
             private bool _retroLastInactive;
             public bool RetroLastInactive { get => _retroLastInactive; set { if (_retroLastInactive != value) { _retroLastInactive = value; Notify(); } } }
 
+            // Theme gate for chrome that must never leak into the shared tab template. Modern
+            // tabs keep their ShadowBar and normal canvas fills; 98SE replaces those with crisp
+            // pixel bevels and pane-focus shading.
+            private bool _useRetroTabChrome;
+            public bool UseRetroTabChrome { get => _useRetroTabChrome; set { if (_useRetroTabChrome != value) { _useRetroTabChrome = value; Notify(); } } }
+
             // True only for the ACTIVE tab of the FOCUSED pane, and only while split. The focus ring
             // has to continue around the active tab - the tab and the card are one surface, so a
             // ring that stops at the strip reads as broken.

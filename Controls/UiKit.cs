@@ -155,15 +155,30 @@ namespace KillerPDF
             var row = new FrameworkElementFactory(typeof(StackPanel)) { Name = "root" };
             row.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
 
+            var boxHost = new FrameworkElementFactory(typeof(Grid));
+            boxHost.SetValue(FrameworkElement.WidthProperty, 16.0);
+            boxHost.SetValue(FrameworkElement.HeightProperty, 16.0);
+            boxHost.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            boxHost.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+
             var box = new FrameworkElementFactory(typeof(Border));
-            box.SetValue(Border.WidthProperty, 16.0);
-            box.SetValue(Border.HeightProperty, 16.0);
             box.SetValue(Border.CornerRadiusProperty, RadControl);
             box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
             box.SetValue(Border.BorderBrushProperty, Brush("CardBorderBrush"));
-            box.SetValue(Border.BackgroundProperty, Brush("BgCanvas"));
-            box.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
-            box.SetValue(Border.MarginProperty, new Thickness(0, 0, 8, 0));
+            box.SetValue(Border.BackgroundProperty, Brush("RadioWellBrush"));
+            boxHost.AppendChild(box);
+
+            var sunkenDark = new FrameworkElementFactory(typeof(Border));
+            sunkenDark.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            sunkenDark.SetResourceReference(Border.BorderBrushProperty, "BevelDarkBrush");
+            sunkenDark.SetResourceReference(Border.BorderThicknessProperty, "CheckSunkenDarkThickness");
+            boxHost.AppendChild(sunkenDark);
+
+            var sunkenLight = new FrameworkElementFactory(typeof(Border));
+            sunkenLight.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            sunkenLight.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
+            sunkenLight.SetResourceReference(Border.BorderThicknessProperty, "CheckSunkenLightThickness");
+            boxHost.AppendChild(sunkenLight);
 
             var check = new FrameworkElementFactory(typeof(TextBlock)) { Name = "chk" };
             check.SetValue(TextBlock.TextProperty, "");   // Segoe MDL2 CheckMark
@@ -174,12 +189,12 @@ namespace KillerPDF
             check.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             check.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             check.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
-            box.AppendChild(check);
+            boxHost.AppendChild(check);
 
             var content = new FrameworkElementFactory(typeof(ContentPresenter));
             content.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
 
-            row.AppendChild(box);
+            row.AppendChild(boxHost);
             row.AppendChild(content);
 
             var ct = new ControlTemplate(typeof(CheckBox)) { VisualTree = row };
@@ -219,6 +234,7 @@ namespace KillerPDF
             ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(7.5));
             ring.SetValue(Border.BorderThicknessProperty, new Thickness(1.5));
             ring.SetValue(Border.BorderBrushProperty, Brush("DimTextBrush"));
+            ring.SetValue(Border.BackgroundProperty, Brush("RadioWellBrush"));
             ring.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
             ring.SetValue(Border.MarginProperty, new Thickness(0, 1, 7, 0));   // +1 top settles it against the text optical center
 
@@ -397,11 +413,11 @@ namespace KillerPDF
             grid.AppendChild(face);
             var light = new FrameworkElementFactory(typeof(Border)) { Name = "light" };
             light.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
-            light.SetResourceReference(Border.BorderThicknessProperty, "BevelLightThickness");
+            light.SetResourceReference(Border.BorderThicknessProperty, "ButtonBevelLightThickness");
             grid.AppendChild(light);
             var dark = new FrameworkElementFactory(typeof(Border)) { Name = "dark" };
             dark.SetResourceReference(Border.BorderBrushProperty, "BevelDarkBrush");
-            dark.SetResourceReference(Border.BorderThicknessProperty, "BevelDarkThickness");
+            dark.SetResourceReference(Border.BorderThicknessProperty, "ButtonBevelDarkThickness");
             grid.AppendChild(dark);
             var template = new ControlTemplate(typeof(Button)) { VisualTree = grid };
             var pressed = new Trigger { Property = Button.IsPressedProperty, Value = true };

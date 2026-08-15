@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.7.2] - Unreleased
 
-1.7.2 is a Black theme repair: its cards, dialogs, keycaps, menus and find box were ringed in a light gray box, the text on a filled accent button was white on a neon fill and could not be read, and the film grain was weaker than every other Killer Tools app on every theme.
+1.7.2 is primarily a refactor and bug-fix release: it completes the self-contained split-pane viewer, restores KillerPDF's standalone ownership of its theme resources, resolves a broad set of UI consistency issues, and adds seven new themes.
 
 ### Added
 - Added 98SE, Ectoplasm, Decay, Mourning, Sepulchre, Delirium, and Malaise themes.

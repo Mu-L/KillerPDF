@@ -210,8 +210,10 @@
                                         <ControlTemplate TargetType="RepeatButton">
                                             <Grid>
                                                 <Border Background="{DynamicResource CaptionButtonBrush}"/>
-                                                <Border x:Name="b1" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                                                <Border x:Name="b2" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                                                <Border x:Name="b1" Margin="{DynamicResource ScrollArrowTopBevelMargin}"
+                                                        BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
+                                                <Border x:Name="b2" Margin="{DynamicResource ScrollArrowTopBevelMargin}"
+                                                        BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
                                                 <Path Data="M 0,4 L 3.5,0 L 7,4 Z" Width="7" Height="4" Stretch="None"
                                                       Fill="{DynamicResource CaptionGlyphBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                       RenderTransformOrigin="0.5,0.5">

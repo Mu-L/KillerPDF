@@ -108,11 +108,14 @@ namespace KillerPDF
             => ActiveViewer.PageListSelectionChangedExt(sender, e);
         private void ShortcutHelp_Click(object sender, RoutedEventArgs e) => ActiveViewer.ShortcutHelpClickExt(sender, e);
         private void ShortcutOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-            => ActiveViewer.ShortcutOverlayMouseDownExt(sender, e);
+            => FadeOverlayOut(ShortcutOverlay);
         private void ShortcutOverlayCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-            => ActiveViewer.ShortcutOverlayCardMouseDownExt(sender, e);
+            => e.Handled = true;
         private void ShortcutOverlayClose_Click(object sender, RoutedEventArgs e)
-            => ActiveViewer.ShortcutOverlayCloseClickExt(sender, e);
+        {
+            e.Handled = true;
+            FadeOverlayOut(ShortcutOverlay);
+        }
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
             => ActiveViewer.HyperlinkRequestNavigateExt(sender, e);
     }

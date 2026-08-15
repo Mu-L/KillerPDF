@@ -32,10 +32,23 @@ namespace KillerPDF
         {
             // Transparent (not null) background so the WHOLE bar is hit-testable and acts as a drag handle.
             bool caption = Value(owner, "UseDialogCaption", false);
-            var bar = new Border { Background = caption ? Brush(owner, "TitleBarBrush", Brushes.Navy) : Brushes.Transparent };
+            var bar = new Border
+            {
+                Background = caption ? Brush(owner, "TitleBarBrush", Brushes.Navy) : Brushes.Transparent,
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true
+            };
             bar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
 
-            var grid = new Grid();
+            var grid = new Grid
+            {
+                // KillerNotes uses the shared title-bar inset for its dialog caption too.  In
+                // particular, the 2px top inset keeps the 16px caption button centered in the
+                // 20px classic band instead of riding against its upper edge.
+                Margin = caption
+                    ? Value(owner, "TitleBarPadding", new Thickness(4, 2, 0, 0))
+                    : new Thickness(0)
+            };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -70,7 +83,7 @@ namespace KillerPDF
                 return sp;
             }
 
-            var title = new Grid { Margin = caption ? new Thickness(5, 0, 0, 0) : new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var title = new Grid { Margin = caption ? new Thickness(0) : new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             if (caption)
             {
                 title.Children.Add(new TextBlock
@@ -92,15 +105,18 @@ namespace KillerPDF
             Grid.SetColumn(title, 0);
             grid.Children.Add(title);
 
-            // Full red rounded-corner close button (ChromeCloseButton), matching the main window chrome.
+            // The close glyph and its complete raised/pressed face live in ChromeCloseButton.
+            // Supplying another glyph/font/background here was overriding that canonical style and
+            // produced the off-centre X and the exposed title-bar pixel seen in classic dialogs.
             var close = new Button
             {
-                Content = CloseGlyph,
-                // CaptionButtonMargin belongs to the main window's button group. On a dialog it
-                // exposes one pixel of the title-bar brush at the lower-right bevel intersection,
-                // which looks like a colored dot in the close face.
-                Margin = new Thickness(0),
-                FocusVisualStyle = null
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand,
+                FocusVisualStyle = null,
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true
             };
             if (owner?.TryFindResource("ChromeCloseButton") is Style chromeClose)
             {
@@ -108,6 +124,7 @@ namespace KillerPDF
             }
             else
             {
+                close.Content = CloseGlyph;
                 close.FontFamily = UiKit.IconFont;
                 close.FontSize = 10;
                 close.Width = 46; close.Height = 36;
@@ -116,7 +133,11 @@ namespace KillerPDF
                 close.BorderThickness = new Thickness(0);
                 close.Cursor = Cursors.Hand;
             }
-            close.Click += (_, _2) => onClose();
+            close.SetResourceReference(FrameworkElement.WidthProperty, "DialogCloseWidth");
+            close.SetResourceReference(FrameworkElement.HeightProperty, "DialogCloseHeight");
+            close.SetResourceReference(FrameworkElement.MarginProperty, "DialogCaptionButtonsMargin");
+            // Get the click before the caption's DragMove handler starts its modal mouse loop.
+            close.PreviewMouseLeftButtonDown += (_, e) => { e.Handled = true; onClose(); };
             Grid.SetColumn(close, 1);
             grid.Children.Add(close);
 

@@ -288,7 +288,7 @@ namespace KillerPDF
         private readonly Button _saveAsBtnRef = null!;
         private readonly Button _closeFileBtnRef = null!;
         private readonly ComboBox _zoomBox = null!;
-        private readonly StackPanel _portableBadge = null!;
+        private readonly Grid _portableBadge = null!;
         private readonly TextBox _pageJumpBox = null!;
         private readonly TextBlock _pageTotalLabel = null!;
 
@@ -352,7 +352,7 @@ namespace KillerPDF
                 if (_zoomBox.Template?.FindName("PART_EditableTextBox", _zoomBox) is TextBox etb)
                     etb.SelectionBrush = System.Windows.Media.Brushes.Transparent;
             };
-            _portableBadge = (StackPanel)FindName("PortableBadge")!;
+            _portableBadge = (Grid)FindName("PortableBadge")!;
             _pageJumpBox = (TextBox)FindName("PageJumpBox")!;
             _pageTotalLabel = (TextBlock)FindName("PageTotalLabel")!;
             // Both panes: each tracks the page under its own viewport. Pane B was never wired, so
@@ -368,6 +368,8 @@ namespace KillerPDF
             // The footer shadow tracks the document pane's actual position; re-anchor when it (or the
             // tab strip, which shifts the document) changes size.
             DocPaneBorder.SizeChanged += (_, _) => ScheduleFadeRefresh();
+            Viewer.SizeChanged += (_, _) => ScheduleFadeRefresh();
+            ViewerB.SizeChanged += (_, _) => ScheduleFadeRefresh();
             TabStripBorder.SizeChanged += (_, _) => { ScheduleFadeRefresh(); ScheduleTabReflow(); };
             // After a sidebar-splitter drag, snap fully closed if dragged too narrow, else save the width.
             SidebarSplitter.PreviewMouseLeftButtonUp += (_, _) => OnSidebarResized();

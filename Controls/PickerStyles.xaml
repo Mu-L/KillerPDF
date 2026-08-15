@@ -40,8 +40,8 @@
                                 CornerRadius="{DynamicResource ControlCornerRadius}" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
+                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <!-- Order matters: IsPressed must come after IsMouseOver to win. -->
@@ -85,8 +85,8 @@
                                 CornerRadius="{DynamicResource ControlCornerRadius}" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
+                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <!-- Order matters: IsPressed after IsMouseOver so it wins. -->
@@ -276,8 +276,8 @@
                         <Border x:Name="bg" Background="Transparent" CornerRadius="{DynamicResource SmallCornerRadius}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                        <Border x:Name="bevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
+                        <Border x:Name="bevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -688,10 +688,10 @@
                                 <Border Grid.Column="1" IsHitTestVisible="False"
                                         Background="{DynamicResource ChipFaceBrush}"
                                         BorderBrush="{DynamicResource BevelLightBrush}"
-                                        BorderThickness="{DynamicResource BevelLightThickness}"/>
+                                        BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
                                 <Border Grid.Column="1" IsHitTestVisible="False"
                                         BorderBrush="{DynamicResource BevelDarkBrush}"
-                                        BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                                        BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
                                 <TextBlock Grid.Column="1" Text="&#xE70D;"
                                            FontFamily="Segoe MDL2 Assets" FontSize="8"
                                            Foreground="{DynamicResource TextBrush}"

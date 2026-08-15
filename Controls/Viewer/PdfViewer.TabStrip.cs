@@ -86,7 +86,10 @@ namespace KillerPDF.Controls
                 PaneBevelOuterDark.BorderThickness = new Thickness(1, 0, 0, 0);
                 PaneBevelOuterLight.BorderThickness = new Thickness(0, 0, 1, 1);
                 PaneBevelInnerDark.BorderThickness = new Thickness(1, 0, 0, 0);
-                PaneBevelInnerLight.BorderThickness = new Thickness(0, 0, 1, 1);
+                // PaneBorder + the outer dark bevel are the complete Win98 right edge.
+                // A third same-color inner rule made the edge fat and produced a one-pixel
+                // step where the selected last tab joined it.
+                PaneBevelInnerLight.BorderThickness = new Thickness(0, 0, 0, 1);
             }
             else
             {
@@ -121,6 +124,7 @@ namespace KillerPDF.Controls
                 t.RetroBeforeActive = false;
                 t.RetroAfterActive = false;
                 t.RetroLastInactive = false;
+                t.UseRetroTabChrome = retroTabs;
             }
             if (strip.Count > 0)
             {
@@ -319,15 +323,21 @@ namespace KillerPDF.Controls
             if (TabBarRing != null)
             {
                 TabBarRing.CornerRadius = new CornerRadius(cr.TopLeft, cr.TopRight, 0, 0);
-                // Sides ONLY where the card's corner is square. There the ring has to carry the border
-                // up the flush tab edge. Against a rounded corner the card already draws that curve
-                // itself, and the ring's own end stands 7px above it as a stray accent stub rising out
-                // of the card.
-                TabBarRing.BorderThickness = new Thickness(firstActive ? 1 : 0, 1, lastActive ? 1 : 0, 0);
                 if (Services.ThemeManager.Current == Services.Theme.SE98)
+                {
+                    // The raised pane's light top rule is the horizontal part of the selected-tab
+                    // route. The selected tab covers its own segment; the remaining rule turns up
+                    // at the tab sides and therefore reads as one continuous classic outline.
+                    TabBarRing.BorderThickness = new Thickness(0, 1, 0, 0);
                     TabBarRing.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
+                }
                 else
+                {
+                    // Modern themes do not use the Win98 edge overlays, so the ring carries the
+                    // side only where the active tab makes that card corner square.
+                    TabBarRing.BorderThickness = new Thickness(firstActive ? 1 : 0, 1, lastActive ? 1 : 0, 0);
                     TabBarRing.SetResourceReference(Border.BorderBrushProperty, "PaneEdgeBrush");
+                }
             }
         }
 
@@ -354,19 +364,42 @@ namespace KillerPDF.Controls
         {
             bool split = Host?.IsSplitView == true;
             bool retro = Services.ThemeManager.Current == Services.Theme.SE98;
-            bool lit   = PaneHasFocus && split && !retro;
+            // Modern themes only need a focus ring when panes are split. 98SE uses the
+            // selected pane's surface color as its focus indicator, including single-pane mode.
+            bool paneActive = PaneHasFocus && (split || retro);
+            bool lit        = PaneHasFocus && split && !retro;
+
+            // TabBarRing is the pane border's top segment inside the tab band. Corner syncing
+            // assigns its geometry and an idle brush, so focus must restore the live accent here
+            // every time the tab state is rebuilt. Without this assignment, the active tab and
+            // the vertical card edges lit up while the horizontal segments beside the tab stayed
+            // dark, leaving the focused-pane perimeter visibly broken.
+            if (TabBarRing != null && !retro)
+                TabBarRing.SetResourceReference(Border.BorderBrushProperty,
+                    lit ? "TabActiveRingBrush" : "PaneEdgeBrush");
 
             foreach (var t in _sessions)
             {
-                t.PaneFocused = lit && t.IsActive;
-                t.PaneDimmed  = split && !lit && t.IsActive;
+                // 98SE uses PaneFocused only for the shared darker pane/tab surface. Its focus
+                // thickness resources are zero, so this never revives the modern accent outline.
+                t.PaneFocused = paneActive && t.IsActive;
+                t.PaneDimmed  = split && !paneActive && t.IsActive;
             }
+
+            if (PaneBorder != null)
+                PaneBorder.SetResourceReference(Border.BackgroundProperty,
+                    retro ? (paneActive ? "FocusedPaneBrush" : "TabInactiveBrush") : "BgCanvas");
+            if (PaneShadow != null)
+                PaneShadow.SetResourceReference(Border.BackgroundProperty,
+                    retro ? (paneActive ? "FocusedPaneBrush" : "TabInactiveBrush") : "BgCanvas");
 
             // Same ownership rule the card's corner rounding uses, read off the tab rather than
             // recomputed: with the strip windowed the tab on an edge is not the one at the end of the
             // list, and two places working that out separately is two places to get it wrong.
             bool firstActive = _active?.IsFirst == true;
             bool lastActive  = _active?.IsLast  == true;
+            bool firstInactiveRetro = retro && _sessions.Any(t => t.IsStripVisible && t.IsFirst && !t.IsActive);
+            bool lastInactiveRetro = retro && _sessions.Any(t => t.RetroLastInactive);
             // The XAML declares these with NO Background - unlike KillerShell's copy, which paints
             // them PrimaryBrush directly in markup, KillerPDF's accent key is only known at runtime
             // (SelectionAccent, resolved the same way SetFocusHalo resolves the card border). Without
@@ -374,17 +407,42 @@ namespace KillerPDF.Controls
             // whatever its Visibility says.
             if (TabEdgeLeft != null)
             {
-                // The retro tab side continues through the six-pixel band/card overlap so its
-                // outer edge physically meets the pane bevel instead of stopping above it.
-                TabEdgeLeft.Margin = retro ? new Thickness(0, 3, 0, -6) : new Thickness(0, 9, 0, 0);
-                TabEdgeLeft.Visibility = (lit || retro) && firstActive ? Visibility.Visible : Visibility.Collapsed;
-                TabEdgeLeft.SetResourceReference(Border.BackgroundProperty, retro ? "BevelLightBrush" : "SelectionAccent");
+                if (retro)
+                {
+                    // This is the OUTER gray frame, not a duplicate highlight. The active first
+                    // tab is inset one pixel: its own white bevel lands at x+1 and its inset light
+                    // gray bevel at x+2, exactly where the pane draws those same two raised layers.
+                    // Keeping the three responsibilities separate makes the complete side read
+                    // gray / white / light-gray instead of a flat or doubled white line.
+                    TabEdgeLeft.Margin = new Thickness(0, firstActive ? 3 : 5, 0, firstActive ? 0 : 1);
+                    TabEdgeLeft.Visibility = firstActive || firstInactiveRetro
+                        ? Visibility.Visible : Visibility.Collapsed;
+                    TabEdgeLeft.SetResourceReference(Border.BackgroundProperty, "PaneBorderBrush");
+                }
+                else
+                {
+                    TabEdgeLeft.Margin = new Thickness(0, 9, 0, 0);
+                    TabEdgeLeft.Visibility = lit && firstActive ? Visibility.Visible : Visibility.Collapsed;
+                    TabEdgeLeft.SetResourceReference(Border.BackgroundProperty, "SelectionAccent");
+                }
             }
             if (TabEdgeRight != null)
             {
-                TabEdgeRight.Margin = retro ? new Thickness(0, 3, 0, -6) : new Thickness(0, 9, 0, 0);
-                TabEdgeRight.Visibility = (lit || retro) && lastActive ? Visibility.Visible : Visibility.Collapsed;
-                TabEdgeRight.SetResourceReference(Border.BackgroundProperty, retro ? "BevelDarkBrush" : "SelectionAccent");
+                // The tab now reserves its final pixel, so this is only the outer frame. Because
+                // the border lives inside TabScroll it shares the tab's vertical origin and no
+                // longer starts above the tab or cuts through the scrollbar-arrow corner.
+                if (retro && lastInactiveRetro)
+                {
+                    TabEdgeRight.Margin = new Thickness(0, 5, 0, 1);
+                }
+                else
+                {
+                    TabEdgeRight.Margin = retro ? new Thickness(0, 3, 0, 0) : new Thickness(0, 9, 0, 0);
+                }
+                TabEdgeRight.Visibility = retro
+                    ? (lastActive || lastInactiveRetro ? Visibility.Visible : Visibility.Collapsed)
+                    : (lit && lastActive ? Visibility.Visible : Visibility.Collapsed);
+                TabEdgeRight.SetResourceReference(Border.BackgroundProperty, retro ? "PaneBorderBrush" : "SelectionAccent");
             }
         }
 

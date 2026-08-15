@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 
 namespace KillerPDF.Services
@@ -194,6 +195,7 @@ namespace KillerPDF.Services
             appResources["RadWindow"] = liveResources["WindowCornerRadius"];
             appResources["RadCard"] = liveResources["PanelCornerRadius"];
             appResources["RadControl"] = liveResources["ControlCornerRadius"];
+            appResources["UiFont"] = liveResources["UiFont"];
 
             // One SystemIdle pass to nudge any elements whose effective value didn't auto-update
             // (e.g. ControlTemplate trigger bindings with TargetName that missed the per-key signal).
@@ -225,9 +227,8 @@ namespace KillerPDF.Services
             Alias("SliderTrack", "InputBorderBrush");
             Alias("RadioAccent", "PrimaryBrush");
             Alias("BgCanvas", "PaneBrush");
-            // Small controls cannot reuse a full-window gradient: WPF re-renders the entire
-            // gradient inside their bounds, producing an unrelated block of color. Match the
-            // solid stand-in used by the other Killer apps, then let inactive tabs use it.
+            Alias("FocusedPaneBrush", "BgCanvas");
+            // Keep a solid fallback for controls that cannot use the full-window gradient.
             if (!d.Contains("SolidBackgroundBrush"))
             {
                 if (d["BackgroundBrush"] is LinearGradientBrush gradient && gradient.GradientStops.Count > 0)
@@ -241,7 +242,16 @@ namespace KillerPDF.Services
                     Alias("SolidBackgroundBrush", "BackgroundBrush");
                 }
             }
-            Alias("TabInactiveBrush", "SolidBackgroundBrush");
+            // Inactive tabs belong to the strip behind them and use the theme background.
+            // Replacing this with the first gradient stop creates visibly unrelated color blocks.
+            Alias("TabInactiveBrush", "BackgroundBrush");
+            Alias("RadioWellBrush", "BgCanvas");
+            // App.xaml owns a local UiFont fallback, and local application resources outrank
+            // merged theme dictionaries. Materialize this key in every palette so LoadDict can
+            // copy the active value into that higher-precedence slot (98SE supplies Microsoft
+            // Sans Serif; the other themes deliberately return to the family Segoe stack).
+            if (!d.Contains("UiFont"))
+                d["UiFont"] = new FontFamily("Segoe UI, Microsoft JhengHei UI, Nirmala UI");
             Alias("ComboFieldBrush", "PaneBrush");
             Alias("ComboPopupBrush", "PaneBrush");
             Alias("ComboButtonBrush", "ComboFieldBrush");
@@ -249,7 +259,10 @@ namespace KillerPDF.Services
             // These must be materialized into every completed palette. Theme dictionaries are
             // copied into the live dictionary in place, so a missing key would otherwise retain
             // the previously selected theme's caption (most visibly 98SE green on Blood).
-            Alias("TitleBarBrush", "SurfaceBrush");
+            // Keep the titlebar continuous with the surrounding app chrome. Themes that need
+            // distinct titlebar treatment (notably 98SE and the gradient themes) provide an
+            // explicit TitleBarBrush and are therefore left untouched by this fallback.
+            Alias("TitleBarBrush", "BackgroundBrush");
             Alias("DialogTitleBarBrush", "TitleBarBrush");
             if (!d.Contains("DangerRed")) d["DangerRed"] = new SolidColorBrush(Color.FromRgb(0xef, 0x44, 0x44));
             if (!d.Contains("BgOverlay")) d["BgOverlay"] = new SolidColorBrush(Color.FromArgb(0xbb, 0, 0, 0));
@@ -281,6 +294,10 @@ namespace KillerPDF.Services
             if (!d.Contains("DialogFramePadding")) d["DialogFramePadding"] = new Thickness(0);
             if (!d.Contains("DialogWindowFrameThickness")) d["DialogWindowFrameThickness"] = new Thickness(0);
             if (!d.Contains("DialogWindowFramePadding")) d["DialogWindowFramePadding"] = new Thickness(0);
+            if (!d.Contains("ButtonBevelLightThickness")) d["ButtonBevelLightThickness"] = d.Contains("BevelLightThickness") ? d["BevelLightThickness"] : new Thickness(0);
+            if (!d.Contains("ButtonBevelDarkThickness")) d["ButtonBevelDarkThickness"] = d.Contains("BevelDarkThickness") ? d["BevelDarkThickness"] : new Thickness(0);
+            if (!d.Contains("CheckSunkenDarkThickness")) d["CheckSunkenDarkThickness"] = new Thickness(0);
+            if (!d.Contains("CheckSunkenLightThickness")) d["CheckSunkenLightThickness"] = new Thickness(0);
             // 98SE opts into the compact native-style caption and removes the shadow halo. These
             // values must exist in every completed palette because the live dictionary is updated
             // in place; otherwise its caption geometry survives after selecting another theme.
@@ -299,19 +316,40 @@ namespace KillerPDF.Services
             if (!d.Contains("PlainTitleVisibility")) d["PlainTitleVisibility"] = Visibility.Collapsed;
             if (!d.Contains("WordmarkVisibility")) d["WordmarkVisibility"] = Visibility.Visible;
             if (!d.Contains("GripDotsVisibility")) d["GripDotsVisibility"] = Visibility.Visible;
-            if (!d.Contains("GripLinesVisibility")) d["GripLinesVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("GripHatchVisibility")) d["GripHatchVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("ComboButtonSize")) d["ComboButtonSize"] = 18.0;
+            if (!d.Contains("ZoomBoxHeight")) d["ZoomBoxHeight"] = 28.0;
             if (!d.Contains("RetroTabJoinVisibility")) d["RetroTabJoinVisibility"] = Visibility.Collapsed;
             if (!d.Contains("RetroActiveTabOutlineVisibility")) d["RetroActiveTabOutlineVisibility"] = Visibility.Collapsed;
+            if (!d.Contains("TabBandHeight")) d["TabBandHeight"] = double.NaN;
             if (!d.Contains("CaptionButtonWidth")) d["CaptionButtonWidth"] = 46.0;
             if (!d.Contains("CaptionButtonHeight")) d["CaptionButtonHeight"] = 36.0;
             if (!d.Contains("CaptionButtonMargin")) d["CaptionButtonMargin"] = new Thickness(0);
+            if (!d.Contains("CaptionCloseGap")) d["CaptionCloseGap"] = new Thickness(0);
             if (!d.Contains("CaptionButtonsMargin")) d["CaptionButtonsMargin"] = new Thickness(0);
+            bool compactDialogCaption = d["UseDialogCaption"] is bool useDialogCaption && useDialogCaption;
+            if (!d.Contains("DialogCloseWidth"))
+                d["DialogCloseWidth"] = compactDialogCaption ? d["CaptionButtonWidth"] : 28.0;
+            if (!d.Contains("DialogCloseHeight"))
+                d["DialogCloseHeight"] = compactDialogCaption ? d["CaptionButtonHeight"] : 26.0;
+            if (!d.Contains("DialogCaptionButtonsMargin"))
+            {
+                var captionButtonsMargin = d["CaptionButtonsMargin"] is Thickness margin
+                    ? margin
+                    : new Thickness(0);
+                d["DialogCaptionButtonsMargin"] = new Thickness(0, 0, captionButtonsMargin.Right, 0);
+            }
             if (!d.Contains("CaptionButtonBrush")) d["CaptionButtonBrush"] = Brushes.Transparent;
             if (!d.Contains("CaptionGlyphBrush")) d["CaptionGlyphBrush"] = Pick("TextBrush", "PaneBrush");
             if (!d.Contains("CaptionHoverBrush")) d["CaptionHoverBrush"] = Pick("RowHoverBrush", "PaneBrush");
             if (!d.Contains("CaptionCloseBrush")) d["CaptionCloseBrush"] = Pick("DangerRed", "TextBrush");
             if (!d.Contains("CaptionCloseHoverBrush")) d["CaptionCloseHoverBrush"] = Pick("DangerRed", "TextBrush");
             if (!d.Contains("CaptionCloseHoverFgBrush")) d["CaptionCloseHoverFgBrush"] = Brushes.White;
+            bool classicCaption = d["PlainTitleVisibility"] is Visibility titleVisibility
+                                  && titleVisibility == Visibility.Visible;
+            d["CaptionGlyphWeight"] = classicCaption ? FontWeights.Bold : FontWeights.Normal;
+            d["CaptionFontGlyphVisibility"] = classicCaption ? Visibility.Collapsed : Visibility.Visible;
+            d["CaptionDrawnGlyphVisibility"] = classicCaption ? Visibility.Visible : Visibility.Collapsed;
             if (!d.Contains("ChromeFontFamily")) d["ChromeFontFamily"] = new FontFamily("Tahoma");
             if (!d.Contains("TitleIconSize")) d["TitleIconSize"] = 25.0;
             if (!d.Contains("TitleIconMargin")) d["TitleIconMargin"] = new Thickness(0, 0, 7, 0);
@@ -338,6 +376,7 @@ namespace KillerPDF.Services
             if (!d.Contains("SidebarInnerDarkVisibility")) d["SidebarInnerDarkVisibility"] = Visibility.Collapsed;
             if (!d.Contains("SplitHostMargin")) d["SplitHostMargin"] = new Thickness(0, 0, 8, 0);
             if (!d.Contains("SplitPaneGutterWidth")) d["SplitPaneGutterWidth"] = 8.0;
+            if (!d.Contains("ContentPaneMargin")) d["ContentPaneMargin"] = new Thickness(0, 0, 8, 0);
             if (!d.Contains("FileDialogPaneBrush")) d["FileDialogPaneBrush"] = d.Contains("PaneBrush") ? d["PaneBrush"] : Brushes.White;
             // Match KillerNotes and KillerShell: modern sidebars do not paint a second surface;
             // the themed app background continues through them. 98SE explicitly overrides this
@@ -362,7 +401,15 @@ namespace KillerPDF.Services
             if (!d.Contains("TabInactiveBevelDarkThickness")) d["TabInactiveBevelDarkThickness"] = new Thickness(0);
             if (!d.Contains("TabActiveBevelDarkThickness")) d["TabActiveBevelDarkThickness"] = new Thickness(0);
             if (!d.Contains("TabBevelMargin")) d["TabBevelMargin"] = new Thickness(0);
+            if (!d.Contains("TabActiveInnerBevelBrush")) d["TabActiveInnerBevelBrush"] = Brushes.Transparent;
+            if (!d.Contains("TabActiveInnerBevelThickness")) d["TabActiveInnerBevelThickness"] = new Thickness(0);
+            if (!d.Contains("TabActiveInnerBevelMargin")) d["TabActiveInnerBevelMargin"] = new Thickness(0);
             if (!d.Contains("TabMargin")) d["TabMargin"] = new Thickness(0, 3, 0, 1);
+            if (!d.Contains("TabInactiveFirstMargin")) d["TabInactiveFirstMargin"] = d["TabMargin"];
+            if (!d.Contains("TabInactiveLastMargin")) d["TabInactiveLastMargin"] = d["TabMargin"];
+            if (!d.Contains("TabActiveFirstMargin")) d["TabActiveFirstMargin"] = new Thickness(0, 3, 0, 0);
+            if (!d.Contains("TabActiveLastMargin")) d["TabActiveLastMargin"] = new Thickness(0, 3, 0, 0);
+            if (!d.Contains("TabActiveOnlyMargin")) d["TabActiveOnlyMargin"] = new Thickness(0, 3, 0, 0);
             if (!d.Contains("TabPadding")) d["TabPadding"] = new Thickness(12, 4, 5, 5);
             if (!d.Contains("TabActiveBevelDarkMargin")) d["TabActiveBevelDarkMargin"] = d["TabBevelMargin"];
             if (!d.Contains("TabActivePadding")) d["TabActivePadding"] = new Thickness(12, 1, 5, 5);
@@ -371,6 +418,12 @@ namespace KillerPDF.Services
             if (!d.Contains("TabActiveRingBrush")) d["TabActiveRingBrush"] = Pick("SelectionAccent", "PrimaryBrush");
             if (!d.Contains("TabFocusThickness")) d["TabFocusThickness"] = new Thickness(1, 3, 1, 0);
             if (!d.Contains("TabFocusPadding")) d["TabFocusPadding"] = new Thickness(11, 1, 4, 5);
+            if (!d.Contains("TabFocusFirstThickness")) d["TabFocusFirstThickness"] = new Thickness(0, 3, 1, 0);
+            if (!d.Contains("TabFocusFirstPadding")) d["TabFocusFirstPadding"] = new Thickness(12, 1, 4, 5);
+            if (!d.Contains("TabFocusLastThickness")) d["TabFocusLastThickness"] = new Thickness(1, 3, 0, 0);
+            if (!d.Contains("TabFocusLastPadding")) d["TabFocusLastPadding"] = new Thickness(11, 1, 5, 5);
+            if (!d.Contains("TabFocusOnlyThickness")) d["TabFocusOnlyThickness"] = new Thickness(0, 3, 0, 0);
+            if (!d.Contains("TabFocusOnlyPadding")) d["TabFocusOnlyPadding"] = new Thickness(12, 1, 5, 5);
             if (!d.Contains("FlyoutCornerRadius")) d["FlyoutCornerRadius"] = new CornerRadius(6);
             if (!d.Contains("MenuFontFamily")) d["MenuFontFamily"] = new FontFamily("Segoe UI");
             if (!d.Contains("MenuFontSize")) d["MenuFontSize"] = 12.0;
@@ -382,6 +435,7 @@ namespace KillerPDF.Services
             if (!d.Contains("ComboHighlightTextBrush")) d["ComboHighlightTextBrush"] = Pick("SelectionFg", "TextBrush");
             if (!d.Contains("ScrollBarThickness")) d["ScrollBarThickness"] = 12.0;
             if (!d.Contains("ScrollArrowSize")) d["ScrollArrowSize"] = 0.0;
+            if (!d.Contains("ScrollArrowTopBevelMargin")) d["ScrollArrowTopBevelMargin"] = new Thickness(0);
             if (!d.Contains("ScrollThumbRadius")) d["ScrollThumbRadius"] = new CornerRadius(3);
             if (!d.Contains("ScrollThumbMargin")) d["ScrollThumbMargin"] = new Thickness(4, 0, 4, 0);
             if (!d.Contains("ScrollTrackBrush")) d["ScrollTrackBrush"] = Brushes.Transparent;
@@ -409,6 +463,29 @@ namespace KillerPDF.Services
                     StartPoint = new Point(0, 0), EndPoint = new Point(0, 1),
                     GradientStops = { new GradientStop(Colors.Transparent, 0), new GradientStop(end, 1) }
                 };
+            }
+            // KillerShell's selected-tab elevation is a centered, palette-driven shadow.
+            // A null resource on 98SE removes the effect completely instead of rasterizing
+            // classic text through a zero-opacity effect.
+            if (!d.Contains("BarShadowEffect"))
+            {
+                double opacity = d["BarShadowOpacity"] is double value ? value : 0;
+                if (opacity > 0)
+                {
+                    var shadow = new DropShadowEffect
+                    {
+                        Color = Colors.Black,
+                        BlurRadius = 9,
+                        ShadowDepth = 0,
+                        Opacity = opacity
+                    };
+                    shadow.Freeze();
+                    d["BarShadowEffect"] = shadow;
+                }
+                else
+                {
+                    d["BarShadowEffect"] = null;
+                }
             }
             d[SystemColors.HighlightBrushKey] = Pick("SelectionBg", "PrimaryBrush");
             d[SystemColors.HighlightTextBrushKey] = Pick("SelectionFg", "OnPrimaryBrush");

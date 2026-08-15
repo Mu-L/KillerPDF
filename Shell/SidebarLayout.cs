@@ -132,7 +132,13 @@ namespace KillerPDF
         // instead of being split by a hairline under the active tab. With no tabs open the band is
         // collapsed and the -1 just eats a pixel against the toolbar.
         private Thickness DocPaneInsetMargin()
-            => _sidebarRight ? new Thickness(8, -1, 0, 0) : new Thickness(0, -1, 8, 0);
+        {
+            // This is layout geometry, not a palette value. Keep the zero-inset exception scoped
+            // to 98SE so it cannot leak into the rounded themes after a live theme switch.
+            double inset = Services.ThemeManager.Current == Services.Theme.SE98 ? 0 : 8;
+            return _sidebarRight ? new Thickness(inset, -1, 0, 0)
+                                 : new Thickness(0, -1, inset, 0);
+        }
 
         // The grip drives SidebarCol's width directly (see the XAML comment). Dragging toward the
         // document grows the sidebar when it is on the left and shrinks it when on the right, so
@@ -205,42 +211,37 @@ namespace KillerPDF
             UpdateFooterFade();
         }
 
-        // ROOT-CAUSE FIX for the recurring footer-shadow disappearance: position the footer shadow by
-        // reading the DOCUMENT PANE's real on-screen position/width, not the sidebar width. The old code
-        // clipped via _sidebarCol.ActualWidth and feathered via the fade's own ActualWidth - both read
-        // mid-layout, so any shuffle (resize, toggle, restructure) left it mis-clipped and uncorrected.
-        // Anchoring directly to the document is deterministic and self-corrects on every layout change.
+        // Keep the portable install action centered on the real A/B boundary. The old footer centered
+        // the PORTABLE + button group across the whole status bar; after removing the label that left
+        // no relationship between the button and the pane divider, especially after either pane was
+        // resized. In a single-pane window, the document pane's center is the natural fallback.
         private void UpdateFooterFade()
         {
-            if (FooterFade is null) return;
-            // Direct generated x:Name fields instead of FindName - this runs on every resize tick.
-            if (DocPaneBorder is not FrameworkElement doc) return;
-            if (FooterBorder is not FrameworkElement footer) return;
-            if (doc.ActualWidth <= 0 || footer.ActualWidth <= 0) return;
+            if (_portableBadge is null || SplitHost is null || SplitHost.ActualWidth <= 0) return;
+            if (_portableBadge.Parent is not Visual footerGrid) return;
+
             try
             {
-                double left  = doc.TransformToVisual(footer).Transform(new Point(0, 0)).X;
-                double right = footer.ActualWidth - left - doc.ActualWidth;
-                FooterFade.Margin = new Thickness(Math.Max(0, left), 0, Math.Max(0, right), 0);
-                // Soft, FIXED-offset feather on the sidebar-facing edge (relative to the element, so it
-                // can't go stale on width changes) - removes the hard vertical corner of the gradient.
-                double f = Math.Min(0.4, 15.0 / doc.ActualWidth);   // ~15px feather regardless of width, so it reaches the corner
-                var mask = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
-                if (_sidebarRight)
+                double hostLeft = SplitHost.TransformToVisual(footerGrid)
+                                           .Transform(new Point(0, 0)).X;
+                double anchor = _isSplit && PaneBCol.ActualWidth > 0
+                    ? hostLeft + PaneACol.ActualWidth + PaneGutterCol.ActualWidth / 2
+                    : hostLeft + SplitHost.ActualWidth / 2;
+
+                double width = _portableBadge.ActualWidth;
+                if (width <= 0)
                 {
-                    mask.GradientStops.Add(new GradientStop(Colors.White, 0));
-                    mask.GradientStops.Add(new GradientStop(Colors.White, 1 - f));
-                    mask.GradientStops.Add(new GradientStop(Colors.Transparent, 1));
+                    _portableBadge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                    width = _portableBadge.DesiredSize.Width;
                 }
-                else
-                {
-                    mask.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
-                    mask.GradientStops.Add(new GradientStop(Colors.White, f));
-                    mask.GradientStops.Add(new GradientStop(Colors.White, 1));
-                }
-                FooterFade.OpacityMask = mask;
+
+                _portableBadge.Margin = new Thickness(Math.Round(anchor - width / 2), 0, 0, 0);
             }
-            catch { /* not laid out yet - a later layout pass will retry */ }
+            catch (InvalidOperationException)
+            {
+                // The two elements are briefly disconnected during startup/theme reconstruction.
+                // A queued layout refresh retries once they share the live visual tree again.
+            }
         }
 
         // The collapse arrow points toward where the page-list content goes when toggled, which

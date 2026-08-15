@@ -58,6 +58,7 @@ namespace KillerPDF
             // indexer, and the failure is silent - the grain simply never gets its texture.
             // TryFindResource walks window -> app, so it works wherever the key is defined.
             if (TryFindResource("GrainBrushShared") is ImageBrush sharedGrain) sharedGrain.ImageSource = bmp;
+            StatusGrainBrush.ImageSource = bmp;
             // The family flyout standard's grain tile (FlyoutGrain style) shares the same texture.
             if (TryFindResource("GrainTileBrush") is ImageBrush flyoutGrain) flyoutGrain.ImageSource = bmp;
         }
