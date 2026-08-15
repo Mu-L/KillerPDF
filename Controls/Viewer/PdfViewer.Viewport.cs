@@ -1220,6 +1220,12 @@ namespace KillerPDF.Controls
                             if (_viewMode == ViewMode.Grid) SetZoom(GridZoomForN(_gridColumns));
                             else SetZoom(_zoomLevel);
                         }
+                        // #196: opening a file from Explorer left keyboard focus outside the document
+                        // view (WPF's initial focus can land in the page-jump box, whose editable-
+                        // TextBox guard swallows every shortcut), so arrows and PageUp/Down did
+                        // nothing until a click. Focus the scroll panel unless the user is typing.
+                        if (System.Windows.Input.Keyboard.FocusedElement is not TextBox { IsReadOnly: false })
+                            PagePreviewPanel.Focus();
                     }));
             }
         }
