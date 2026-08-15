@@ -2145,6 +2145,19 @@
                                                        Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
+                                    <RadioButton x:Name="LangPlRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangPlRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Polski" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="pl-PL" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
                                     <RadioButton x:Name="LangTrRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
                                                  Checked="LangTrRadio_Checked">
                                         <Grid>

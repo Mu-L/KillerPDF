@@ -24,6 +24,7 @@ namespace KillerPDF.Services
             ("spa", "Spanish"),
             ("fra", "French"),
             ("jpn", "Japanese"),
+            ("pol", "Polish"),
             ("tur", "Turkish"),
             ("chi_sim", "Chinese (Simplified)"),
             ("chi_tra", "Chinese (Traditional)"),

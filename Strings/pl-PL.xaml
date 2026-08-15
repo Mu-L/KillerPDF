@@ -1,0 +1,668 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- ================================================================
+         KillerPDF  -  Polish (pl-PL) strings
+         ================================================================ -->
+
+    <!-- ── Toolbar tooltips ─────────────────────────────────────────── -->
+    <sys:String x:Key="Str_TT_Open">Otwórz (Ctrl+O)</sys:String>
+    <sys:String x:Key="Str_TT_NewBlank">Nowy pusty dokument (Ctrl+N)</sys:String>
+    <sys:String x:Key="Str_TT_CloseFile">Zamknij plik (Ctrl+W)</sys:String>
+    <sys:String x:Key="Str_TT_Save">Zapisz (Ctrl+S)</sys:String>
+
+    <!-- ── Drop zone / empty state ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Drop_Title">Upuść tutaj PDF</sys:String>
+    <sys:String x:Key="Str_Drop_Sub">lub kliknij do przeglądania</sys:String>
+    <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>
+    <sys:String x:Key="Str_TT_SaveAs">Zapisz jako (Ctrl+Shift+S)</sys:String>
+    <sys:String x:Key="Str_TT_SaveFlattened">Zapisz spłaszczony PDF (rasteryzuj wszystkie strony - całkowicie nieedytowalne)</sys:String>
+    <sys:String x:Key="Str_TT_Print">Drukuj (Ctrl+P)</sys:String>
+    <sys:String x:Key="Str_TT_MergePDFs">Scal PDF-y (połącz dodatkowe pliki PDF w ten jeden)</sys:String>
+    <sys:String x:Key="Str_TT_ExtractPages">Wyodrębnij strony (zapisz wybrane strony do nowego PDF)</sys:String>
+    <sys:String x:Key="Str_TT_DeletePages">Usuń wybrane strony</sys:String>
+    <sys:String x:Key="Str_TT_MovePageUp">Przesuń stronę w górę (zmiana kolejności)</sys:String>
+    <sys:String x:Key="Str_TT_MovePageDown">Przesuń stronę w dół (zmiana kolejności)</sys:String>
+    <sys:String x:Key="Str_TT_SelectTool">Wybierz Narzędzie - kliknij adnotacje, przeciągnij, aby zaznaczyć tekst, kliknij dwukrotnie, aby edytować (V)</sys:String>
+    <sys:String x:Key="Str_TT_TextTool">Narzędzie Tekstu - kliknij, aby dodać tekst (T)</sys:String>
+    <sys:String x:Key="Str_TT_HighlightTool">Narzędzie Podświetl - przeciągnij, aby podświetlić (H)</sys:String>
+    <sys:String x:Key="Str_TT_StrikeTool">Przekreślenie - przeciągnij po tekście</sys:String>
+    <sys:String x:Key="Str_TT_UnderlineTool">Podkreślenie - przeciągnij po tekście</sys:String>
+    <sys:String x:Key="Str_TT_DrawTool">Narzędzie Rysowania - odręczne rysowanie (D)</sys:String>
+    <sys:String x:Key="Str_TT_ShapeTool">Kształty - prostokąt, elipsa lub wielokąt o dowolnym kształcie</sys:String>
+    <sys:String x:Key="Str_TT_SignatureTool">Podpisy - tworzyć i umieszczać podpisy (G)</sys:String>
+    <sys:String x:Key="Str_TT_ImageTool">Narzędzie Obrazu - kliknij, aby wstawić obraz na stronę (I)</sys:String>
+    <sys:String x:Key="Str_TT_CropTool">Narzędzie Przycinania - przeciągnij, aby ustawić obszar przycięcia, a następnie zastosuj do strony (C)</sys:String>
+    <sys:String x:Key="Str_TT_RotateTool">Przekształć stronę - obrót / korekcja zniekształceń (skala już wkrótce) (R)</sys:String>
+    <sys:String x:Key="Str_TT_ClearAnnotations">Wyczyść wszystkie adnotacje</sys:String>
+    <sys:String x:Key="Str_TT_Search">Szukaj (Ctrl+F)</sys:String>
+    <sys:String x:Key="Str_TT_UndoLast">Cofnij ostatnie (Ctrl+Z)</sys:String>
+    <sys:String x:Key="Str_TT_MultiPageGrid">Wielostronicowy widok siatki (F8)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomOut">Pomniejsz (Ctrl+-)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">Poziom powiększenia (Ctrl+scroll · Ctrl+=/- · Ctrl+0=reset)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Powiększ (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_GoToPage">Przejdź do strony (Enter do nawigacji)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Zwiń pasek boczny (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Rozwiń pasek boczny (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_KeyboardShortcuts">Skróty klawiaturowe (F1)</sys:String>
+    <sys:String x:Key="Str_TT_About">O KillerPDF (F12)</sys:String>
+
+    <!-- ── About overlay ─────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_About_Version">WERSJA</sys:String>
+    <sys:String x:Key="Str_About_Publisher">WYDAWCA</sys:String>
+    <sys:String x:Key="Str_About_Thumbprint">ODCISK PALCA</sys:String>
+    <sys:String x:Key="Str_About_ExeSha">EXE SHA256</sys:String>
+    <sys:String x:Key="Str_About_Computing">Obliczenia...</sys:String>
+    <sys:String x:Key="Str_Tagline">Szybki, bezpłatny zestaw narzędzi PDF dla Windows z narzędziami do adnotacji, scalania, OCR, podpisywania i formularzy. Narzędzie GPLv3 z {0}.</sys:String>
+
+    <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_TabPages">STRONY</sys:String>
+    <sys:String x:Key="Str_TabOutlines">ZARYS</sys:String>
+    <sys:String x:Key="Str_PageLabel">Strona {0}</sys:String>
+    <sys:String x:Key="Str_Outline_Untitled">(bez tytułu)</sys:String>
+
+    <!-- ── Settings panel ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Theme">MOTYW</sys:String>
+    <sys:String x:Key="Str_Language">JĘZYK</sys:String>
+    <sys:String x:Key="Str_Toolbar">PASEK NARZĘDZI</sys:String>
+    <sys:String x:Key="Str_Toolbar_Header">Pasek narzędzi</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextNone">Brak tekstu</sys:String>
+    <sys:String x:Key="Str_Toolbar_SmallIcons">Małe ikony</sys:String>
+    <sys:String x:Key="Str_Toolbar_LargeIcons">Duże ikony</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextBeside">Tekst obok ikon</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextUnder">Tekst pod ikonami</sys:String>
+    <sys:String x:Key="Str_Toolbar_TextOnly">Tylko tekst</sys:String>
+    <sys:String x:Key="Str_Lang_English">English</sys:String>
+    <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
+    <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
+	<sys:String x:Key="Str_Lang_Polish">Polish</sys:String>
+
+    <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
+    <sys:String x:Key="Str_KS_Title">Skróty Klawiaturowe</sys:String>
+    <sys:String x:Key="Str_KS_File">PLIK</sys:String>
+    <sys:String x:Key="Str_KS_Open">Otwórz</sys:String>
+    <sys:String x:Key="Str_KS_CloseFile">Zamknij plik</sys:String>
+    <sys:String x:Key="Str_KS_CloseOthers">Zamknij inne karty</sys:String>
+    <sys:String x:Key="Str_KS_CloseAll">Zamknij wszystko</sys:String>
+    <sys:String x:Key="Str_KS_NewBlank">Nowy pusty dokument</sys:String>
+    <sys:String x:Key="Str_KS_SaveAs">Zapisz jako</sys:String>
+    <sys:String x:Key="Str_KS_Print">Drukuj</sys:String>
+    <sys:String x:Key="Str_KS_Navigation">NAWIGACJA</sys:String>
+    <sys:String x:Key="Str_KS_PrevNext">Poprzednia / następna strona</sys:String>
+    <sys:String x:Key="Str_KS_ScrollView">Przewiń (przewraca stronę w krawędziach)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomCursor">Powiększ / poza (kursor-zakotwiczony)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomInOut">Powiększ / poza</sys:String>
+    <sys:String x:Key="Str_KS_ResetZoom">Zresetuj powiększenie do 100%</sys:String>
+    <sys:String x:Key="Str_KS_PanView">Widok panoramiczny</sys:String>
+    <sys:String x:Key="Str_KS_Editing">EDYTOWANIE</sys:String>
+    <sys:String x:Key="Str_KS_Undo">Cofnij</sys:String>
+    <sys:String x:Key="Str_KS_DeleteAnnot">Usuń zaznaczoną adnotację</sys:String>
+    <sys:String x:Key="Str_KS_ConfirmCancel">Potwierdź / anuluj tekst lub kadrowanie</sys:String>
+    <sys:String x:Key="Str_KS_SearchSelect">WYSZUKIWANIE &amp; WYBIERZ</sys:String>
+    <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
+
+    <!-- Document Info dialog -->
+    <sys:String x:Key="Str_TT_DocInfo">Dokument info (F4)</sys:String>
+    <sys:String x:Key="Str_DocInfo_Suffix">Dokument Info</sys:String>
+    <sys:String x:Key="Str_DocInfo_Title">Tytuł</sys:String>
+    <sys:String x:Key="Str_DocInfo_Author">Autor</sys:String>
+    <sys:String x:Key="Str_DocInfo_Subject">Temat</sys:String>
+    <sys:String x:Key="Str_DocInfo_Keywords">Słowa kluczowe</sys:String>
+    <sys:String x:Key="Str_DocInfo_Creator">Kreator</sys:String>
+    <sys:String x:Key="Str_DocInfo_Save">Zapisz</sys:String>
+    <sys:String x:Key="Str_DocInfo_Cancel">Anuluj</sys:String>
+    <sys:String x:Key="Str_KS_Find">Znajdź / wyszukaj</sys:String>
+    <sys:String x:Key="Str_KS_NextPrevResult">Następny / poprzedni wynik</sys:String>
+    <sys:String x:Key="Str_KS_SelectAll">Zaznacz cały tekst na stronie</sys:String>
+    <sys:String x:Key="Str_KS_CopyText">Skopiuj zaznaczony tekst</sys:String>
+    <sys:String x:Key="Str_KS_Help">POMOC</sys:String>
+    <sys:String x:Key="Str_KS_ThisList">Lista skrótów</sys:String>
+    <sys:String x:Key="Str_KS_About">O oknie dialogowym</sys:String>
+    <sys:String x:Key="Str_KS_DocInfo">Dokument info</sys:String>
+    <sys:String x:Key="Str_KS_OnlineHelp">Pełny przewodnik &amp; poradniki online</sys:String>
+    <sys:String x:Key="Str_KS_Tools">NARZĘDZIA</sys:String>
+    <sys:String x:Key="Str_KS_Paste">Wklej obraz / tekst</sys:String>
+    <sys:String x:Key="Str_KS_TextStyle">Pogrubienie / kursywa / podkreślenie (pole tekstowe)</sys:String>
+    <sys:String x:Key="Str_KS_MultiSelect">Dodaj do wyboru</sys:String>
+
+    <!-- ── Status bar ────────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Ready">Gotowy</sys:String>
+    <sys:String x:Key="Str_Portable">PORTABLE</sys:String>
+    <sys:String x:Key="Str_InstallBtn">Zainstaluj KillerPDF...</sys:String>
+
+    <!-- ── Status messages (format strings - use string.Format) ─────── -->
+    <sys:String x:Key="Str_Opened">Otwarto {0} - {1} stronę(y)</sys:String>
+    <sys:String x:Key="Str_OpenedReadOnly">Otwarto {0} (tylko do odczytu – ograniczenia właściciela) – {1} stronę(y))</sys:String>
+    <sys:String x:Key="Str_OpenedReadOnlyXRef">Otwarto {0} (tylko do odczytu) - niestandardowa tabela XRef) - {1} stronę(y)</sys:String>
+    <sys:String x:Key="Str_OpenedRepaired">Otwarto {0} (naprawioną kopię - zapisano do zachowania zmian) - {1} stronę(y)</sys:String>
+    <sys:String x:Key="Str_OpenedRasterRepair">Otwarto {0} (naprawioną rasteryzowaną - zapisano do zachowania zmian) - {1} stronę(y)</sys:String>
+    <sys:String x:Key="Str_PageOf">Strona {0} z {1}</sys:String>
+    <sys:String x:Key="Str_PageOfLinks">Strona {0} z {1} ({2} linki(i))</sys:String>
+    <sys:String x:Key="Str_PageFormFields">Strona {0} z {1} – ta strona zawiera pola formularza do wypełnienia</sys:String>
+    <sys:String x:Key="Str_PageRenderError">Stronę {0} — nie można renderować</sys:String>
+    <sys:String x:Key="Str_RenderError">Błąd renderowania: {0}</sys:String>
+    <sys:String x:Key="Str_Rotated">Przewrócono {0} stronę(-y)</sys:String>
+    <sys:String x:Key="Str_Cropped">Przycięto {0} stronę(-y)</sys:String>
+    <sys:String x:Key="Str_CropFailed">Przycinanie niepowodzenie: {0}</sys:String>
+    <sys:String x:Key="Str_RemovedCrop">Usunięto CropBox ze {0} stron(y)</sys:String>
+    <sys:String x:Key="Str_RemoveCropFailed">Niepowodzenie przycięcia: {0}</sys:String>
+    <sys:String x:Key="Str_Extracted">Wyodrębniono stronę(y) ({0}) do {1}</sys:String>
+    <sys:String x:Key="Str_Deleted">Usunięto {0} stronę(sy) - {1} pozostało</sys:String>
+    <sys:String x:Key="Str_Printed">Wysłano {0} stronę(y) do drukarki</sys:String>
+    <sys:String x:Key="Str_LinkRemoved">Link usunięto.</sys:String>
+    <sys:String x:Key="Str_LinkRemoveFailed">Nie udało się usunąć linku:</sys:String>
+    <sys:String x:Key="Str_LinkBlocked">Zablokowany link (nieobsługiwany typ):</sys:String>
+    <sys:String x:Key="Str_LinkOpenFailed">Nie udało się otworzyć linku</sys:String>
+    <sys:String x:Key="Str_LinkConfirmBody">Otworzyć ten link w przeglądarce?</sys:String>
+    <sys:String x:Key="Str_LinkConfirmTitle">Otwórz link?</sys:String>
+    <sys:String x:Key="Str_LinkDontAsk">Nie pytaj ponownie</sys:String>
+    <sys:String x:Key="Str_Ctx_OpenLink">Otwórz link</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyLink">Skopiuj adres linku</sys:String>
+    <sys:String x:Key="Str_Ctx_CopyEmail">Skopiuj adres e-mail</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveLink">Usuń link z PDF</sys:String>
+    <sys:String x:Key="Str_LinksSection">LINKI</sys:String>
+    <sys:String x:Key="Str_PrivacySection">PRYWATNOŚĆ</sys:String>
+    <sys:String x:Key="Str_NoRecentSetting">Nie zapamiętywaj ostatnio otwieranych plików</sys:String>
+    <sys:String x:Key="Str_Menu_ExportImages">Eksportuj strony jako obrazy...</sys:String>
+    <sys:String x:Key="Str_Menu_RemovePassword">Usuń Hasło</sys:String>
+    <sys:String x:Key="Str_St_SavedNoPassword">Zapisano bez ochrony hasłem - {0}</sys:String>
+    <sys:String x:Key="Str_ExportImg_Suffix">Eksportuj strony jako obrazy</sys:String>
+    <sys:String x:Key="Str_ExportImg_Format">Format</sys:String>
+    <sys:String x:Key="Str_ExportImg_Dpi">Rozdzielczość (DPI)</sys:String>
+    <sys:String x:Key="Str_ExportImg_Export">Eksport</sys:String>
+    <sys:String x:Key="Str_ExportImg_Done">Wyeksportowano {0} stron do {1}</sys:String>
+    <sys:String x:Key="Str_Print_AllPages">Wszystkie strony</sys:String>
+    <sys:String x:Key="Str_Print_OddOnly">Tylko strony nieparzyste</sys:String>
+    <sys:String x:Key="Str_Print_EvenOnly">Tylko strony parzyste</sys:String>
+    <sys:String x:Key="Str_DocInvertSetting">Odwróć kolory dokumentu</sys:String>
+    <sys:String x:Key="Str_TT_DocInvert">Odwróć kolory dokumentu (N)</sys:String>
+    <sys:String x:Key="Str_TT_SplitPane">Podzielony ekran – dwa dokumenty obok siebie (F10)</sys:String>
+    <sys:String x:Key="Str_TT_CloseTab">Zamknij kartę</sys:String>
+    <sys:String x:Key="Str_TT_TabOverflow">Wszystkie otwarte karty</sys:String>
+    <sys:String x:Key="Str_InvertImagesToo">Odwróć również obrazy</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs">Żadna czcionka na tym PC nie obsługuje tych znaków, więc w zapisanym pliku PDF będą one wyświetlane jako kwadraty:&#10;&#10;{0}&#10;&#10;Zainstaluj czcionkę, która je obejmuje, albo wybierz inną czcionkę dla tego tekstu.</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Przesuń, aby zmienić rozmiar całej aplikacji (Ctrl+Shift+=/-/0)</sys:String>
+    <sys:String x:Key="Str_St_AppSize">Rozmiar aplikacji {0}%</sys:String>
+    <sys:String x:Key="Str_KS_AppSize">Powiększ całą aplikację (dostępność)</sys:String>
+    <sys:String x:Key="Str_KS_SplitPane">Podzielony ekran – dwa dokumenty obok siebie</sys:String>
+    <sys:String x:Key="Str_LinkConfirmSetting">Potwierdź przed otwarciem linków</sys:String>
+    <sys:String x:Key="Str_InvalidRange">Nieprawidłowy zakres – użyj np. 1–3, 5, 7</sys:String>
+    <sys:String x:Key="Str_CropNoDoc">Przytnij: dokument nie jest otwarty</sys:String>
+    <sys:String x:Key="Str_CropNoPage">Przytnij: nie wybrano strony</sys:String>
+    <sys:String x:Key="Str_CropNoDims">Przytnij: wymiary strony są niedostępne</sys:String>
+    <sys:String x:Key="Str_RotateFailed">Obrót nie powiódł się: {0}</sys:String>
+
+    <!-- ── Dialog strings ───────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">Drugie okienko również otwarte "{0}" z własnymi niezapisanymi zmianami.
+
+Zapisanie teraz nadpisuje plik, a zmiany zostaną utracone. Jeśli chcesz je zachować, zachowaj najpierw drugie okienko.</sys:String>
+    <sys:String x:Key="Str_St_SplitOn">Włączono podział panelu - F10, aby zamknąć</sys:String>
+    <sys:String x:Key="Str_St_SplitOff">Wyłączono podział panelu</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallTitle">Zainstaluj KillerPDF</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallMsg">Zainstalować program KillerPDF na tym komputerze?
+
+KillerPDF zostanie skopiowany do twojego folderu programów i dodana zostanie pozycja menu Start. Tę kopię pliku exe pozostawia się tam, gdzie jest i można ją w dowolnym momencie odinstalować używając Dodaj/Usuń programy.</sys:String>
+    <sys:String x:Key="Str_Btn_DoInstall">Zainstaluj</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">Dodaj skrót na pulpicie</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">Zainstaluj dla wszystkich użytkowników tego komputera (wymaga administratora)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">Instalacja nie została zakończona - KillerPDF jest już uruchomiony portable.</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Czy chcesz ustawić KillerPDF jako domyślną przeglądarkę PDF?
+
+Otwiera Ustawienia Windows - Aplikacje domyślne.</sys:String>
+    <sys:String x:Key="Str_Dlg_UnsavedClose">Masz niezapisane zmiany. Zamknąć ten plik bez zapisywania?</sys:String>
+    <sys:String x:Key="Str_Dlg_UnsavedExit">Masz niezapisane zmiany. Zamknąć KillerPDF bez zapisywania?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange">Ten dokument zawiera {0} stron o rozmiarze przekraczającym rozmiar obsługiwany przez Adobe Reader (od 3 do 14 400 punktów na stronę) - Adobe wyświetla je jako puste strony.
+
+Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i proporcje.</sys:String>
+    <sys:String x:Key="Str_Dlg_FailedOpen">Nie udało się otworzyć PDF:
+{0}</sys:String>
+    <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
+    <sys:String x:Key="Str_Dlg_CloseAllDocs">Masz {0} otwartych dokumentów. Czy chcesz, aby KillerPDF zamknął je wszystkie po zamknięciu aplikacji?</sys:String>
+    <sys:String x:Key="Str_Dlg_CloseAllDocsOne">Masz 1 otwarty dokument. Czy chcesz, aby KillerPDF zamknął go po zamknięciu aplikacji?</sys:String>
+    <sys:String x:Key="Str_Dlg_RememberChoice">Zapamiętaj mój wybór</sys:String>
+
+
+    <!-- ── Theme names ────────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Theme_Dark">Ciemny</sys:String>
+    <sys:String x:Key="Str_Theme_Light">Jasny</sys:String>
+    <sys:String x:Key="Str_Theme_Black">Czarny</sys:String>
+    <sys:String x:Key="Str_Theme_Blood">Blood</sys:String>
+    <sys:String x:Key="Str_Theme_Greed">Greed</sys:String>
+    <sys:String x:Key="Str_Theme_Cyanotic">Sini</sys:String>
+
+    <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Zoom_FitWidth">Dopasuj szerokość</sys:String>
+    <sys:String x:Key="Str_Zoom_FitPage">Dopasuj stronę</sys:String>
+    <sys:String x:Key="Str_FitWidth">Strona {0} z {1} — Dopasuj szerokość ({2}%)</sys:String>
+    <sys:String x:Key="Str_FitPage">Strona {0} z {1} – Dopasuj stronę ({2}%))</sys:String>
+
+    <!-- ── KS overlay font size (sys:Double) ──────────────────────────── -->
+    <sys:Double x:Key="Str_KS_FontSize">11</sys:Double>
+
+
+    <!-- ── View mode ──────────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_ViewMode">TRYB WIDOKU</sys:String>
+    <sys:String x:Key="Str_View_Single">Pojedyncza strona</sys:String>
+    <sys:String x:Key="Str_View_Continuous">Ciągłe</sys:String>
+    <sys:String x:Key="Str_View_TwoPage">Dwie strony</sys:String>
+    <sys:String x:Key="Str_View_Grid">Siatka</sys:String>
+    <sys:String x:Key="Str_Continuous_EditMsg">Przełącz na pojedynczą stronę, aby skorzystać z narzędzi edycji</sys:String>
+
+    <!-- ── Overflow menu + menu item labels ───────────────────────────── -->
+    <sys:String x:Key="Str_Lbl_Merge">Połącz PDF-y</sys:String>
+    <sys:String x:Key="Str_Lbl_Extract">Wyodrębnij strony</sys:String>
+    <sys:String x:Key="Str_Lbl_Delete">Usuń strony</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveUp">Przesuń stronę w górę</sys:String>
+    <sys:String x:Key="Str_Lbl_MoveDown">Przesuń stronę w dół</sys:String>
+    <sys:String x:Key="Str_Lbl_Text">Tekst</sys:String>
+    <sys:String x:Key="Str_Lbl_Highlight">Podświetl</sys:String>
+    <sys:String x:Key="Str_Lbl_Strike">Przekreśl</sys:String>
+    <sys:String x:Key="Str_Lbl_Underline">Podkreśl</sys:String>
+    <sys:String x:Key="Str_Lbl_Bold">Pogrubienie</sys:String>
+    <sys:String x:Key="Str_Lbl_Italic">Kursywa</sys:String>
+    <sys:String x:Key="Str_Lbl_Draw">Rysuj</sys:String>
+    <sys:String x:Key="Str_Lbl_Shape">Kształt</sys:String>
+    <sys:String x:Key="Str_Lbl_Crop">Kadruj</sys:String>
+    <sys:String x:Key="Str_Lbl_Rotate">Przekształć</sys:String>
+    <sys:String x:Key="Str_Lbl_Stamp">Stempel</sys:String>
+    <sys:String x:Key="Str_Lbl_Image">Dodaj obraz</sys:String>
+    <sys:String x:Key="Str_Lbl_Signature">Podpis</sys:String>
+    <sys:String x:Key="Str_Lbl_Undo">Cofnij</sys:String>
+    <sys:String x:Key="Str_Lbl_Clear">Wyczyść wszystko</sys:String>
+    <sys:String x:Key="Str_Lbl_New">Nowy</sys:String>
+    <sys:String x:Key="Str_Lbl_Open">Otwórz</sys:String>
+    <sys:String x:Key="Str_Lbl_Close">Zamknij</sys:String>
+    <sys:String x:Key="Str_Lbl_Save">Zapisz</sys:String>
+    <sys:String x:Key="Str_Lbl_Flatten">Spłaszcz</sys:String>
+    <sys:String x:Key="Str_Lbl_Print">Drukuj</sys:String>
+    <sys:String x:Key="Str_Lbl_Select">Wybierz</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomOut">Pomniejsz</sys:String>
+    <sys:String x:Key="Str_Lbl_ZoomIn">Powiększ</sys:String>
+    <sys:String x:Key="Str_Lbl_Search">Szukaj</sys:String>
+
+    <!-- ── Right-click menu labels ────────────────────────────────────── -->
+    <sys:String x:Key="Str_Ctx_CopyText">Kopiuj tekst</sys:String>
+    <sys:String x:Key="Str_Ctx_Print">Drukuj</sys:String>
+    <sys:String x:Key="Str_Ctx_OcrPage">OCR strona (kopiuj tekst))</sys:String>
+    <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
+    <sys:String x:Key="Str_TT_Ocr">OCR strona (kopiuj tekst) (Ctrl+Shift+O)</sys:String>
+    <sys:String x:Key="Str_Ocr_Region">OCR Region...</sys:String>
+    <sys:String x:Key="Str_Ocr_SearchablePdf">Utwórz przeszukiwalny PDF...</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractText">Wyodrębnij wszystki tekst...</sys:String>
+    <sys:String x:Key="Str_Ocr_Language">Język</sys:String>
+    <sys:String x:Key="Str_Ocr_NoDoc">Najpierw otwórz PDF</sys:String>
+    <sys:String x:Key="Str_Ocr_ComingSoon">{0} – już wkrótce</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectTool">Wybierz Narzędzie</sys:String>
+    <sys:String x:Key="Str_Ctx_TextTool">Narzędzie Tekst</sys:String>
+    <sys:String x:Key="Str_Ctx_HighlightTool">Narzędzie Podświetl</sys:String>
+    <sys:String x:Key="Str_Ctx_DrawTool">Narzędzie Rysuj</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCW">Obróć stronę w prawo</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCW">Obróć stronę w lewo</sys:String>
+    <sys:String x:Key="Str_Ctx_StampNumbers">Stempel Numery Stron...</sys:String>
+    <sys:String x:Key="Str_Ctx_DeleteSel">Usuń wybrane</sys:String>
+    <sys:String x:Key="Str_Ctx_UndoLast">Cofnij ostatnie</sys:String>
+    <sys:String x:Key="Str_Ctx_ClearPage">Wyczyść adnotacje strony</sys:String>
+    <sys:String x:Key="Str_Ctx_InsertBlank">Wstaw pustą stronę po</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCWShort">Obróć w prawo</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCWShort">Obróć w lewo</sys:String>
+    <sys:String x:Key="Str_Ctx_ExtractPages">Wyodrębnij stronę(y)</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePages">Usuń stronę(y)</sys:String>
+
+    <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->
+    <sys:String x:Key="Str_Stamp_Title">Numery Stron Stempla</sys:String>
+    <sys:String x:Key="Str_Stamp_StartAt">Uruchom od</sys:String>
+    <sys:String x:Key="Str_Stamp_Format">Format</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint">Użyj {n} jako numeru strony, {N} dla ogółu</sys:String>
+    <sys:String x:Key="Str_Stamp_Hint2">Przykład: "Strona {n} z {N}"</sys:String>
+    <sys:String x:Key="Str_Stamp_Position">Pozycja</sys:String>
+    <sys:String x:Key="Str_Stamp_FontSize">Rozmiar czcionki (pt)</sys:String>
+    <sys:String x:Key="Str_Stamp_Cancel">Anuluj</sys:String>
+    <sys:String x:Key="Str_Stamp_Stamp">Stempel</sys:String>
+    <sys:String x:Key="Str_Stamp_Suffix">Stempel Strony</sys:String>
+    <sys:String x:Key="Str_Stamp_SecNumbers">Numery Stron</sys:String>
+    <sys:String x:Key="Str_Stamp_SecWatermark">Znak Wodny</sys:String>
+    <sys:String x:Key="Str_Stamp_Color">Kolor</sys:String>
+    <sys:String x:Key="Str_Stamp_Pages">Strony</sys:String>
+    <sys:String x:Key="Str_Stamp_WmText">Tekst</sys:String>
+    <sys:String x:Key="Str_Stamp_WmImage">Obraz</sys:String>
+    <sys:String x:Key="Str_Stamp_WmTextLabel">Tekst znaku wodnego</sys:String>
+    <sys:String x:Key="Str_Stamp_ChooseImage">Wybierz obraz...</sys:String>
+    <sys:String x:Key="Str_Stamp_Scale">Skala</sys:String>
+    <sys:String x:Key="Str_Stamp_Angle">Kąt</sys:String>
+    <sys:String x:Key="Str_Stamp_Opacity">Krycie</sys:String>
+    <sys:String x:Key="Str_Stamp_Mirror">Odbicie na sąsiadujących stronach (zewnętrzna krawędź)</sys:String>
+    <sys:String x:Key="Str_Stamp_Applied">Z stemplem {0} strona(y)</sys:String>
+    <sys:String x:Key="Str_TT_StampTool">Strony z stemplem (S)</sys:String>
+    <sys:String x:Key="Str_Ctx_StampPages">Strony z stemplem</sys:String>
+    <sys:String x:Key="Str_Pos_BottomCenter">Dolny środek</sys:String>
+    <sys:String x:Key="Str_Pos_BottomRight">Dolny prawy</sys:String>
+    <sys:String x:Key="Str_Pos_BottomLeft">Dolny lewy</sys:String>
+    <sys:String x:Key="Str_Pos_TopCenter">Góra środek</sys:String>
+    <sys:String x:Key="Str_Pos_TopRight">Góra prawa</sys:String>
+    <sys:String x:Key="Str_Pos_TopLeft">Góra lewa</sys:String>
+
+    <!-- ── Print dialog ───────────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Print_Title">KillerPDF - Drukuj</sys:String>
+    <sys:String x:Key="Str_Print_Printer">Drukarka</sys:String>
+    <sys:String x:Key="Str_Print_Orientation">Orientacja</sys:String>
+    <sys:String x:Key="Str_Print_Portrait">Pionowo</sys:String>
+    <sys:String x:Key="Str_Print_Landscape">Poziomo</sys:String>
+    <sys:String x:Key="Str_Print_Scale">Skala</sys:String>
+    <sys:String x:Key="Str_Print_Fit">Dopasuj do strony</sys:String>
+    <sys:String x:Key="Str_Print_Actual">Aktualny rozmiar (100%)</sys:String>
+    <sys:String x:Key="Str_Print_Custom">Własny %</sys:String>
+    <sys:String x:Key="Str_Print_ScaleHint">Skala procentowa (np. 50 lub 50,23)</sys:String>
+    <sys:String x:Key="Str_Print_Copies">Kopie</sys:String>
+    <sys:String x:Key="Str_Print_Pages">Strony</sys:String>
+    <sys:String x:Key="Str_Print_PagesHint">np. 1-3,5  (pusta = wszystkie)</sys:String>
+    <sys:String x:Key="Str_Print_NoPages">Brak stron</sys:String>
+    <sys:String x:Key="Str_Print_Margins">Marginesy</sys:String>
+    <sys:String x:Key="Str_Margin_None">Nic</sys:String>
+    <sys:String x:Key="Str_Margin_Narrow">Wąski</sys:String>
+    <sys:String x:Key="Str_Margin_Normal">Normalny</sys:String>
+    <sys:String x:Key="Str_Margin_Wide">Szeroki</sys:String>
+    <sys:String x:Key="Str_Print_PagesPerSheet">Strony na arkusz</sys:String>
+    <sys:String x:Key="Str_Print_TwoSided">Drukuj po obu stronach</sys:String>
+    <sys:String x:Key="Str_Print_Color">Kolor</sys:String>
+    <sys:String x:Key="Str_Print_BW">Czarno &amp; biała</sys:String>
+    <sys:String x:Key="Str_Pos_Center">Środek</sys:String>
+    <sys:String x:Key="Str_Pos_Custom">Własne (przeciągnij do podglądu)</sys:String>
+    <sys:String x:Key="Str_Pos_Top">Góra</sys:String>
+    <sys:String x:Key="Str_Pos_Bottom">Dół</sys:String>
+    <sys:String x:Key="Str_Pos_Left">Lewa</sys:String>
+    <sys:String x:Key="Str_Pos_Right">Prawa</sys:String>
+
+    <!-- ── Save / recent menus + signature dialog ──────────────────── -->
+    <sys:String x:Key="Str_Menu_Save">Zapisz</sys:String>
+    <sys:String x:Key="Str_Menu_SaveAs">Zapisz jako...</sys:String>
+    <sys:String x:Key="Str_Menu_SaveNothing">Nic do zapisu</sys:String>
+    <sys:String x:Key="Str_Menu_RecentNone">Brak ostatnich plików</sys:String>
+    <sys:String x:Key="Str_Menu_ClearList">Wyczyść listę</sys:String>
+    <sys:String x:Key="Str_Menu_RemoveFromRecents">Usuń z ostatnich</sys:String>
+
+    <!-- Import images as PDF / Compress to ZIP -->
+    <sys:String x:Key="Str_Menu_Import">Importuj obrazy jako PDF</sys:String>
+    <sys:String x:Key="Str_Menu_CompressZip">Kompresuj do ZIP</sys:String>
+    <sys:String x:Key="Str_Filter_Images">Obrazy</sys:String>
+    <sys:String x:Key="Str_Filter_AllFiles">Wszystkie pliki</sys:String>
+    <sys:String x:Key="Str_Filter_Zip">ZIP archiwum</sys:String>
+    <sys:String x:Key="Str_Status_Imported">Zaimportowano obrazy ({0}) – jeszcze nie zapisano</sys:String>
+    <sys:String x:Key="Str_Err_ImportFailed">Import nie powiódł się:</sys:String>
+    <sys:String x:Key="Str_Err_NoImages">Nie udało się odczytać obrazów.</sys:String>
+    <sys:String x:Key="Str_Drop_Prompt">Upuściłeś {0} plików. Jak chcesz je otworzyć?</sys:String>
+    <sys:String x:Key="Str_Drop_Merge">Połącz w jeden PDF</sys:String>
+    <sys:String x:Key="Str_Drop_Separate">Otwórz osobno</sys:String>
+    <sys:String x:Key="Str_Drop_NothingOpenable">Nie znaleziono plików PDF ani obrazów do otwarcia.</sys:String>
+    <sys:String x:Key="Str_Drop_ManyTabs">Spowoduje to otwarcie {0} oddzielnych kart. Kontynuować?</sys:String>
+    <sys:String x:Key="Str_Drop_TooMany">Ten folder lub archiwum zawiera {0} plików. KillerPDF otworzy tylko pierwszy plik {1}. Kontynuuować?</sys:String>
+    <sys:String x:Key="Str_Status_Merged">Połączono {0} plików – jeszcze nie zapisano</sys:String>
+    <sys:String x:Key="Str_Drop_Merging">Łączenie plików...</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCancelled">Łączenie anulowane</sys:String>
+    <sys:String x:Key="Str_Dlg_UnsavedCloseAll">Zamknąć wszystkie dokumenty? Niezapisane zmiany zostaną utracone.</sys:String>
+    <sys:String x:Key="Str_Msg_OpenFirst">Najpierw otwórz PDF.</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveBeforeZip">Zapisać zmiany przed skompresowaniem do ZIP?</sys:String>
+    <sys:String x:Key="Str_Status_Zipped">Spakowane do {0} - {1} (było {2})</sys:String>
+    <sys:String x:Key="Str_Err_ZipFailed">Kompresja do ZIP nie powiodła się:</sys:String>
+    <sys:String x:Key="Str_Sig_Title">Podpisy</sys:String>
+    <sys:String x:Key="Str_Sig_None">Brak zapisanych podpisów</sys:String>
+    <sys:String x:Key="Str_Sig_Create">Utwórz podpis</sys:String>
+    <sys:String x:Key="Str_Sig_Import">Importuj obraz</sys:String>
+    <sys:String x:Key="Str_Sig_DrawHere">Narysuj tutaj swój podpis</sys:String>
+    <sys:String x:Key="Str_Sig_Clear">Wyczyść</sys:String>
+    <sys:String x:Key="Str_Sig_SaveSig">Zapisz podpis</sys:String>
+
+    <!-- Crop confirm bar tooltips -->
+    <sys:String x:Key="Str_TT_CropThisPage">Przytnij tę stronę (Enter)</sys:String>
+    <sys:String x:Key="Str_TT_CropRange">Przytnij strony w określonym zakresie</sys:String>
+    <sys:String x:Key="Str_TT_CropRemove">Usuń CropBox (i TrimBox) z tej strony</sys:String>
+    <sys:String x:Key="Str_TT_CropRemoveAll">Usuń CropBox ze wszystkich stron</sys:String>
+    <sys:String x:Key="Str_TT_CropCancel">Anuluj (Escape)</sys:String>
+
+    <!-- ── Line tool, layer / group menu (added v1.5.x) ───────────────── -->
+    <sys:String x:Key="Str_Lbl_Line">Linia</sys:String>
+    <sys:String x:Key="Str_TT_LineTool">Linia – przeciągnij do narysowania linii prostej (L)</sys:String>
+    <sys:String x:Key="Str_Ctx_Edit">Edytuj</sys:String>
+    <sys:String x:Key="Str_Ctx_Raise">Podwyż</sys:String>
+    <sys:String x:Key="Str_Ctx_Lower">Obniż</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectCover">Wybierz okładkę</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectText">Wybierz tekst</sys:String>
+    <sys:String x:Key="Str_Ctx_Unpair">Odłącz tekst + okładkę</sys:String>
+    <sys:String x:Key="Str_Ctx_Group">Wybrana grupa</sys:String>
+    <sys:String x:Key="Str_Ctx_Ungroup">Rozgrupuj</sys:String>
+    <sys:String x:Key="Str_Ctx_RemoveFromGroup">Usuń z grupy</sys:String>
+    <sys:String x:Key="Str_Ctx_Copy">Kopiuj</sys:String>
+    <sys:String x:Key="Str_Ctx_Paste">Wklej</sys:String>
+    <!-- ── Annotate-bar labels ────────────────────────────────────────── -->
+    <sys:String x:Key="Str_Bar_Color">Kolor:</sys:String>
+    <sys:String x:Key="Str_Bar_Fill">Wypełnij:</sys:String>
+    <sys:String x:Key="Str_Bar_Size">Rozmiar:</sys:String>
+    <sys:String x:Key="Str_Bar_Opacity">Krycie:</sys:String>
+    <sys:String x:Key="Str_Bar_FillOpacity">Wypełnienie krycie:</sys:String>
+    <sys:String x:Key="Str_Bar_Font">Czcionka:</sys:String>
+    <sys:String x:Key="Str_Bar_Level">Poziom</sys:String>
+    <sys:String x:Key="Str_Bar_Eraser">Wymaż</sys:String>
+    <sys:String x:Key="Str_Bar_MoreColors">Więcej kolorów...</sys:String>
+    <sys:String x:Key="Str_Bar_ShapeFill">Wypełnij</sys:String>
+    <sys:String x:Key="Str_Sig_Signatures">Podpisy</sys:String>
+    <sys:String x:Key="Str_Sig_Initials">Inicjały</sys:String>
+    <sys:String x:Key="Str_Sig_Pen">Ołówek</sys:String>
+    <sys:String x:Key="Str_Sig_Thin">Cienki</sys:String>
+    <sys:String x:Key="Str_Sig_Medium">Średni</sys:String>
+    <sys:String x:Key="Str_Sig_Thick">Gruby</sys:String>
+    <!-- ── Digital Signature dialog ───────────────────────────────────── -->
+    <sys:String x:Key="Str_Sign_Desc">Pieczętuje {0} z certyfikatem i zapisuje podpisaną kopię.</sys:String>
+    <sys:String x:Key="Str_Sign_Certificate">Certyfikat</sys:String>
+    <sys:String x:Key="Str_Sign_FromFile">Z pliku (.pfx / .p12)</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Certyfikat z magazynu Windows</sys:String>
+    <sys:String x:Key="Str_Sign_Browse">Przeglądaj...</sys:String>
+    <sys:String x:Key="Str_Sign_Password">Hasło</sys:String>
+    <sys:String x:Key="Str_Sign_Reason">Argument (opcjonalnie)</sys:String>
+    <sys:String x:Key="Str_Sign_Location">Lokalizacja (opcjonalnie)</sys:String>
+    <sys:String x:Key="Str_Sign_Contact">Kontakt (opcjonalnie)</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Zapisz podpisaną kopię jako</sys:String>
+    <sys:String x:Key="Str_Sign_Sign">Podpis</sys:String>
+    <sys:String x:Key="Str_Sign_Cancel">Anuluj</sys:String>
+    <sys:String x:Key="Str_Sign_TitleSuffix">Podpis cyfrowy</sys:String>
+    <sys:String x:Key="Str_Lbl_DigitalSig">Podpis cyfrowy...</sys:String>
+    <sys:String x:Key="Str_Sidebar">PASEK BOCZNY</sys:String>
+    <sys:String x:Key="Str_Sidebar_Left">Lewa</sys:String>
+    <sys:String x:Key="Str_Sidebar_Right">Prawa</sys:String>
+    <sys:String x:Key="Str_KS_ToggleSidebar">Przełącznik pasek boczny</sys:String>
+    <sys:String x:Key="Str_KS_ToolbarStyle">Wygląd paska narzędzi</sys:String>
+    <sys:String x:Key="Str_KS_SidebarSide">Przesuń pasek boczny w lewo/w prawo</sys:String>
+    <sys:String x:Key="Str_KS_CycleView">Tryby widoku cyklu</sys:String>
+    <sys:String x:Key="Str_TT_ViewMode">Tryb widoku</sys:String>
+    <sys:String x:Key="Str_KS_NextTab">Następna karta (Shift: (poprzednia)</sys:String>
+    <sys:String x:Key="Str_Ctx_DeletePage">Usuń stronę</sys:String>
+    <sys:String x:Key="Str_Ctx_DuplicatePage">Duplikat strony</sys:String>
+    <sys:String x:Key="Str_Ctx_AddBlankPage">Dodaj pustą stronę</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseTab">Zamknij stronę</sys:String>
+    <sys:String x:Key="Str_Ctx_CloseOthers">Zamknij pozostałe strony</sys:String>
+
+    <!-- Transform tool -->
+    <sys:String x:Key="Str_Tf_Suffix">Przekształcanie</sys:String>
+    <sys:String x:Key="Str_Tf_Rotate">OBRÓT</sys:String>
+    <sys:String x:Key="Str_Tf_Scale">SKALA</sys:String>
+    <sys:String x:Key="Str_Tf_Flip">ODRRACANIE</sys:String>
+    <sys:String x:Key="Str_Tf_Skew">UKOŚNIE</sys:String>
+    <sys:String x:Key="Str_Tf_Angle">Kąt</sys:String>
+    <sys:String x:Key="Str_Tf_Size">Rozmiar</sys:String>
+    <sys:String x:Key="Str_Tf_WhenScaling">Podczas skalowania:</sys:String>
+    <sys:String x:Key="Str_Tf_ResizePage">Zmień rozmiar całej strony</sys:String>
+    <sys:String x:Key="Str_Tf_KeepSize">Zachowaj rozmiar strony (dodaj marginesy)</sys:String>
+    <sys:String x:Key="Str_Tf_FlipH">Odwróć w poziomie</sys:String>
+    <sys:String x:Key="Str_Tf_FlipV">Odwróć w pionie</sys:String>
+    <sys:String x:Key="Str_Tf_LevelLine">Narysuj poziomą linię</sys:String>
+    <sys:String x:Key="Str_Tf_SkewHint">Przesuń wszystko, co powinno być wypoziomowane (krawędź, wiersz tekstu). Obrót strony do doasowania.</sys:String>
+    <sys:String x:Key="Str_Tf_Perspective">PERSPEKTYWA</sys:String>
+    <sys:String x:Key="Str_Tf_CorrectPerspective">Popraw zniekształcenie trapezowe</sys:String>
+    <sys:String x:Key="Str_Tf_PerspectiveHint">Przeciągnij cztery rogi na kontur sfotografowanej strony. Zastosuj prostuje go w prostokąt.</sys:String>
+    <sys:String x:Key="Str_Tf_ResetCorners">Zresetuj rogi</sys:String>
+    <sys:String x:Key="Str_Tf_Output">Wyjście: {0} × {1} cali</sys:String>
+    <sys:String x:Key="Str_Tf_ResetAll">Zresetuj wszystko</sys:String>
+    <sys:String x:Key="Str_Tf_Reset">Zresetuj</sys:String>
+    <sys:String x:Key="Str_Tf_Cancel">Anuluj</sys:String>
+    <sys:String x:Key="Str_Tf_Apply">Zastosuj</sys:String>
+    <sys:String x:Key="Str_Tf_Warn">Przekształcenie strony (obrót lub skalowanie) powoduje rasteryzację: strona jest ponownie zapisywana jako obraz, więc wszelki tekst, który można zaznaczyć, zostaje utracony. Możesz później uruchomić OCR, aby ponownie umożliwić wyszukiwanie.</sys:String>
+    <sys:String x:Key="Str_Tf_DontWarn">Nie ostrzegaj mnie już więcej</sys:String>
+    <sys:String x:Key="Str_Tf_Done">Przekształcona strona {0}</sys:String>
+    <sys:String x:Key="Str_Tf_NoRender">Nie można wyrenderować strony - spróbuj ponownie za chwilę</sys:String>
+    <sys:String x:Key="Str_Tf_Failed">Przekształcenie niepowodzenie: {0}</sys:String>
+
+    <!-- Crop bar -->
+    <sys:String x:Key="Str_Crop_Position">Pozycja</sys:String>
+    <sys:String x:Key="Str_Crop_Size">Rozmiar</sys:String>
+    <sys:String x:Key="Str_Crop_Pages">Strony</sys:String>
+    <sys:String x:Key="Str_Crop_All">Wszystkie</sys:String>
+    <sys:String x:Key="Str_Crop_Apply">Przytnij</sys:String>
+    <sys:String x:Key="Str_Crop_RangeTip">Zakres stron, np. 1-3,5 (pusta = bieżąca strona)</sys:String>
+    <sys:String x:Key="Str_Crop_AllTip">Przytnij każdą stronę</sys:String>
+
+    <!-- View-mode + full-screen shortcuts -->
+    <sys:String x:Key="Str_KS_View">Widok</sys:String>
+    <sys:String x:Key="Str_KS_FullScreen">Pełny ekran</sys:String>
+    <sys:String x:Key="Str_FullScreen_Hint">Naciśnij F11 lub Esc do wyjścia z trybu pełnoekranowego</sys:String>
+    <!-- Quit prompt (family standard) -->
+    <sys:String x:Key="Str_Dlg_QuitMsg">Opuścić KillerPDF?</sys:String>
+    <sys:String x:Key="Str_Chk_CloseTabs">Zamknij moje otwarte karty</sys:String>
+    <sys:String x:Key="Str_Btn_Quit">Wyjdź</sys:String>
+    <sys:String x:Key="Str_Btn_CancelDlg">Anuluj</sys:String>
+
+
+    <!-- Status-bar messages (extracted from code) -->
+    <sys:String x:Key="Str_St_DataCleared">Wszystkie dane KillerPDF wyczyszczono</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCancelled">Obszar OCR anulowano</sys:String>
+    <sys:String x:Key="Str_St_Erased">Wymazano</sys:String>
+    <sys:String x:Key="Str_St_Ungrouped">Rozgrupowane</sys:String>
+    <sys:String x:Key="Str_St_RemovedFromGroup">Usunięto z grupy</sys:String>
+    <sys:String x:Key="Str_St_NothingToUndo">Nic do cofnięcia</sys:String>
+    <sys:String x:Key="Str_St_UndidAnnotation">Cofnięto ostatnią adnotację</sys:String>
+    <sys:String x:Key="Str_St_UndidTextEdit">Cofnięto edycję tekstu</sys:String>
+    <sys:String x:Key="Str_St_RemovedStamps">Usunięto numerowane strony stemplem</sys:String>
+    <sys:String x:Key="Str_St_RestoredAnnotations">Przywrócono wyczyszczone adnotacje</sys:String>
+    <sys:String x:Key="Str_St_Undone">Niedokończone</sys:String>
+    <sys:String x:Key="Str_St_UndidDocChange">Cofnięto zmianę w dokumencie</sys:String>
+    <sys:String x:Key="Str_St_ClearedPageAnnotations">Wyczyszcono adnotacje na tej stronie</sys:String>
+    <sys:String x:Key="Str_St_NoAnnotationsToClear">Brak adnotacji do wyczyszczenia</sys:String>
+    <sys:String x:Key="Str_St_RepairCancelled">Naprawa anulowana</sys:String>
+    <sys:String x:Key="Str_St_Cancelled">Anulowano</sys:String>
+    <sys:String x:Key="Str_St_DocInfoUpdated">Zaktualizowano informacje o dokumencie – zapisz plik do zachowania zmian</sys:String>
+    <sys:String x:Key="Str_St_FlattenCancelled">Spłaszczenie anulowano (plik nie został zapisany)</sys:String>
+    <sys:String x:Key="Str_St_FlattenPrintFailed">Nie można spłaszczyć adnotacji do wydrukowania; drukowanie bez nich.</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCancelled">Pobieranie w wysokiej jakości anulowano</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCancelled">Pobieranie języka anulowano</sys:String>
+    <sys:String x:Key="Str_St_OcrCancelled">OCR anulowano</sys:String>
+    <sys:String x:Key="Str_St_OcrDragBox">Przeciągnij ramkę nad obszarem do rozpoznania</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR region jest zbyt mały</sys:String>
+    <sys:String x:Key="Str_St_OcrNoText">OCR: w zaznaczonym obszarze nie znaleziono tekstu</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCancelled">PDF z możliwością wyszukiwania anulowany (nie zapisano pliku)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCancelled">Wyodrębnianie tekstu zostało anulowane (nie zapisano pliku)</sys:String>
+    <sys:String x:Key="Str_St_NoTextOnPage">Na tej stronie nie znaleziono tekstu</sys:String>
+    <sys:String x:Key="Str_St_NoTextSelected">Nie zaznaczono tekstu – przeciągnij do zaznaczenia tekstu</sys:String>
+    <sys:String x:Key="Str_St_NoTextInSelection">Nie znaleziono tekstu w zaznaczeniu</sys:String>
+    <sys:String x:Key="Str_St_NoTextUseShapes">Brak tutaj tekstu - Kształty są na 4</sys:String>
+    <sys:String x:Key="Str_St_SignaturePlaced">Podpis umieszczony — przeciągnij do zmiany położenia, użyj uchwytu narożnego do zmieniany rozmiaru</sys:String>
+    <sys:String x:Key="Str_St_FieldCleared">Pole wyczyszczono</sys:String>
+    <sys:String x:Key="Str_St_FieldSigned">Pole podpisano</sys:String>
+    <sys:String x:Key="Str_St_SignatureSaved">Podpis zapisany - kliknij na stronę, aby go umieścić</sys:String>
+    <sys:String x:Key="Str_St_ImageLoaded">Obraz załadowany - kliknij na stronę, aby go umieścić</sys:String>
+    <sys:String x:Key="Str_St_EditingText">Edycja tekstu - zmień rozmiar/kolor powyżej, Enter do zapisania</sys:String>
+    <sys:String x:Key="Str_St_AlreadyEditHere">Tutaj dokonano już edycji — kliknij jej tekst, aby dokonać ponownej edycji, lub przeciągnij okładkę</sys:String>
+    <sys:String x:Key="Str_St_NoTextLine">Nie znaleziono wiersza tekstu w tej pozycji</sys:String>
+    <sys:String x:Key="Str_St_LineAlreadyEdited">Ta linia jest już edytowana — kliknij jej tekst, aby go zmienić</sys:String>
+    <sys:String x:Key="Str_St_ImagePlaced">Obraz umieszczony — przeciągnij, aby zmienić położenie, użyj uchwytu narożnego, aby zmienić rozmiar</sys:String>
+    <sys:String x:Key="Str_St_ClipImageUnreadable">Nie można odczytać obrazu ze schowka</sys:String>
+    <sys:String x:Key="Str_St_PastedImage">Wklejony obraz — przeciągnij, aby zmienić położenie, użyj uchwytu narożnego, aby zmienić rozmiar</sys:String>
+    <sys:String x:Key="Str_St_ClipNoText">W schowku nie ma tekstu do wklejenia</sys:String>
+    <sys:String x:Key="Str_St_PastedText">Wklejony tekst — przeciągnij, aby zmienić położenie, Usuń, aby usunąć</sys:String>
+    <sys:String x:Key="Str_St_ClipEmpty">Schowek nie ma nic do wklejenia</sys:String>
+
+    <!-- Dialog / message-box strings (extracted from code) -->
+    <sys:String x:Key="Str_Dlg_SaveBeforeUpdate">Proszę zapisać zmiany przed aktualizacją.</sys:String>
+    <sys:String x:Key="Str_Dlg_Uninstalled">KillerPDF został odinstalowany.</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectExtract">Wybierz strony do wyodrębnienia.</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectDelete">Wybierz strony do usunięcia.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoPrinter">Brak dostępnej drukarki.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoValidPages">W tym przedziale nie ma prawidłowych stron.</sys:String>
+    <sys:String x:Key="Str_Dlg_SignedSavedTo">Podpisaną kopię zapisano w:</sys:String>
+    <sys:String x:Key="Str_Dlg_DrawSignatureFirst">Najpierw narysuj podpis.</sys:String>
+
+    <!-- ── Bookmark editing (#133, added v1.6.4) ───────────────── -->
+    <sys:String x:Key="Str_TT_AddBookmark">Dodaj zakładkę do bieżącej strony</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAdd">Dodaj zakładkę</sys:String>
+    <sys:String x:Key="Str_Ctx_BmAddChild">Dodaj zakładkę podrzędną</sys:String>
+    <sys:String x:Key="Str_Ctx_BmRename">Zmień nazwę</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDelete">Usuń</sys:String>
+    <sys:String x:Key="Str_Bm_DefaultTitle">Strona {0}</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteKids">Czy chcesz usunąć tę zakładkę i jej {0} zakładki podrzędne?</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveUp">Przenieś w górę</sys:String>
+    <sys:String x:Key="Str_Ctx_BmMoveDown">Przenieś w dół</sys:String>
+    <sys:String x:Key="Str_Ctx_BmSetDest">Wskaż bieżącą stronę</sys:String>
+    <sys:String x:Key="Str_Ctx_BmDeleteAll">Usuń wszystkie zakładki</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteMulti">Usunąć {0} zakładki?</sys:String>
+    <sys:String x:Key="Str_Bm_DeleteAllConfirm">Usunąć wszystkie zakładki z tego dokumentu?</sys:String>
+
+    <sys:String x:Key="Str_Ctx_Redo">Ponów</sys:String>
+    <sys:String x:Key="Str_St_Redone">Ponowiono</sys:String>
+    <sys:String x:Key="Str_St_NothingToRedo">Nic do ponowienia</sys:String>
+    <sys:String x:Key="Str_KS_FirstLast">Pierwsza / ostatnia strona</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">Wstecz / dalej (historia skoków)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Rzeczywisty rozmiar/szerokość dopasowania/strona dopasowania</sys:String>
+    <sys:String x:Key="Str_KS_ContextMenu">Menu kontekstowe po wybraniu</sys:String>
+
+    <sys:String x:Key="Str_KS_ViewList">LISTA</sys:String>
+    <sys:String x:Key="Str_KS_ViewKeyboard">KLAWIATURA</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Przytrzymaj Ctrl, Shift lub Alt, aby wyświetlić podgląd tej warstwy – najedź kursorem na podświetlony klawisz, aby sprawdzić jego działanie</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">Rzeczywisty rozmiar</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">Poprzednia strona</sys:String>
+
+    <sys:String x:Key="Str_Kb_PrevPage">Poprzednia strona</sys:String>
+    <sys:String x:Key="Str_Kb_NextPage">Następna strona</sys:String>
+    <sys:String x:Key="Str_Kb_FirstPage">Pierwsza strona</sys:String>
+    <sys:String x:Key="Str_Kb_LastPage">Ostatnia strona</sys:String>
+    <sys:String x:Key="Str_Kb_Back">Wstecz</sys:String>
+    <sys:String x:Key="Str_Kb_Forward">Dalej</sys:String>
+    <sys:String x:Key="Str_Kb_NextResult">Następny wynik</sys:String>
+    <sys:String x:Key="Str_Kb_PrevResult">Poprzedni wynik</sys:String>
+    <sys:String x:Key="Str_Kb_Confirm">Potwierdź</sys:String>
+    <sys:String x:Key="Str_Kb_Cancel">Anuluj</sys:String>
+
+    <!-- Themed Windows system menu (caption right-click / Alt+Space) -->
+    <sys:String x:Key="Str_Sys_Restore">Przywróć</sys:String>
+    <sys:String x:Key="Str_Sys_Move">Przenieś</sys:String>
+    <sys:String x:Key="Str_Sys_Size">Rozmiar</sys:String>
+    <sys:String x:Key="Str_Sys_Minimize">Zminimalizuj</sys:String>
+    <sys:String x:Key="Str_Sys_Maximize">Maksymalizuj</sys:String>
+    <sys:String x:Key="Str_Sys_Close">Zamknij</sys:String>
+    <sys:String x:Key="Str_Btn_Cancel">Anuluj</sys:String>
+    <sys:String x:Key="Str_Btn_Open">Otwórz</sys:String>
+    <sys:String x:Key="Str_Btn_Replace">Zamień</sys:String>
+    <sys:String x:Key="Str_Btn_Save">Zapisz</sys:String>
+    <sys:String x:Key="Str_Col_Modified">zmodyfikowany</sys:String>
+    <sys:String x:Key="Str_Col_Name">nazwa</sys:String>
+    <sys:String x:Key="Str_Col_Size">rozmiar</sys:String>
+    <sys:String x:Key="Str_Ctx_Cut">Wytnij</sys:String>
+    <sys:String x:Key="Str_Ctx_SelectAll">Zaznacz wszystko</sys:String>
+    <sys:String x:Key="Str_Dlg_AllFiles">Wszystkie pliki</sys:String>
+    <sys:String x:Key="Str_Dlg_FileName">Nazwa pliku:</sys:String>
+    <sys:String x:Key="Str_Dlg_FileType">Typ pliku:</sys:String>
+    <sys:String x:Key="Str_Dlg_NoMatchingFiles">Żaden z tych elementów nie odpowiada typowi bieżącego pliku.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoSuchFile">Ten plik nie istnieje.</sys:String>
+    <sys:String x:Key="Str_Dlg_NoSuchFolder">Ten folder nie istnieje.</sys:String>
+    <sys:String x:Key="Str_Dlg_OverwriteMsg">Zamienić {0}?</sys:String>
+    <sys:String x:Key="Str_Menu_PinPlace">Przypinaj do miejsc</sys:String>
+    <sys:String x:Key="Str_Menu_UnpinPlace">Usuń z miejsc</sys:String>
+    <sys:String x:Key="Str_QA_Desktop">Pulpit</sys:String>
+    <sys:String x:Key="Str_QA_Documents">Dokumenty</sys:String>
+    <sys:String x:Key="Str_QA_Downloads">Pobrania</sys:String>
+    <sys:String x:Key="Str_QA_Home">Główna</sys:String>
+    <sys:String x:Key="Str_QA_Pictures">Zdjęcia</sys:String>
+    <sys:String x:Key="Str_Sum_Counts">{0} folder(y), {1} plik(i)</sys:String>
+    <sys:String x:Key="Str_TT_RecentLocations">Ostatnie lokalizacje</sys:String>
+    <sys:String x:Key="Str_TT_ShowHidden">Pokaż elementy ukryte i systemowe</sys:String>
+    <sys:String x:Key="Str_TT_Up">Jeden folder wyżej</sys:String>
+    <sys:String x:Key="Str_TT_ViewDetails">Widok szczegółów</sys:String>
+    <sys:String x:Key="Str_TT_ViewIcons">Widok ikon</sys:String>
+    <sys:String x:Key="Str_TT_ViewList">Widok listy</sys:String>
+</ResourceDictionary>

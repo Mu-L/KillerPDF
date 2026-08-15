@@ -10,6 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Added
 - Added 98SE, Ectoplasm, Decay, Mourning, Sepulchre, Delirium, and Malaise themes.
+- Polish (pl-PL) localization, the eleventh interface language, in the language picker as "Polski" (#191, thanks Fresta24).
 
 ### Fixed
 - The re-sharpen pass renders at device resolution instead of twice it, sharply cutting memory use on large documents, and re-renders on DPI changes (#189, PR #194, thanks Ryokoxx).
@@ -18,8 +19,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Exported images carry the chosen DPI in their metadata instead of always reporting 96, in both the GUI export and the CLI (#188, thanks GruNostalgia).
 - Dropping PDFs or images onto the Pages sidebar appends their pages to the open document (#172, thanks 1mk3r).
 - Machine-wide installs register the killerpdf:// handler for all users, and it now appears in Default apps under link types (#183, thanks adeit).
-- Dark, Light, Cyanotic, and Greed have their rounded flyout corners back.
-- Switching themes through 98SE no longer strips or leaks shadows: 98SE zeroes its header shadow, and the other themes keep their pane, bar, and flyout shadows afterward.
 - Themes are entirely owned by the KillerPDF repository again. The project no longer imports a private sibling `KillerUI` folder or overlays its resources at runtime, so a standalone clone contains every theme resource it builds and displays.
 - Completed the PDF viewer extraction so split panes keep independent documents, tabs, pages, tools, selections, and sidebar positions.
 - Various UI and theme consistency tweaks, including clearer Black-theme surfaces and controls, consistent floating-bar borders, legible accent buttons, and balanced film grain across the themes.
