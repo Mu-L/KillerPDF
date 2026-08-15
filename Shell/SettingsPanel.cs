@@ -249,7 +249,11 @@ namespace KillerPDF
             if (IsSplit)
             {
                 var other = ReferenceEquals(ActiveViewer, Viewer) ? ViewerB : Viewer;
-                other.WithOwnSession(other.RenderActiveSessionExt);
+                // PIXELS ONLY (RepaintPixelsExt, 2026-08-15): the full RenderActiveSessionExt ran
+                // Bootstrap/ShowEmptyState under the swapped session, and their Host chrome
+                // mutations kept wrecking the focused pane's sidebar - replaced thumbnails when
+                // the other pane held a doc, cleared and disabled the sidebar when it was empty.
+                other.WithOwnSession(other.RepaintPixelsExt);
             }
 
             if (_doc is null) return;
@@ -592,6 +596,16 @@ namespace KillerPDF
         private void ViewSingleRadio_Checked(object sender, RoutedEventArgs e)     => SelectViewMode(ViewMode.Single);
         private void ViewTwoPageRadio_Checked(object sender, RoutedEventArgs e)    => SelectViewMode(ViewMode.TwoPage);
         private void ViewGridRadio_Checked(object sender, RoutedEventArgs e)       => SelectViewMode(ViewMode.Grid);
+
+        // #193: book layout toggle (cover page alone in Two-Page). Global, persisted; both panes
+        // re-run their current layout so an active Two-Page view re-pairs in place. Reached from
+        // the page context menu while in Two-Page, and the bare B key.
+        internal void ToggleBookMode()
+        {
+            App.SetSetting("TwoPageBook", Controls.PdfViewer.BookMode ? "0" : "1");
+            Viewer.ReapplyViewMode();
+            ViewerB.ReapplyViewMode();
+        }
 
         // ── Toolbar appearance (right-click picker on the bar) ────────────
         // Hover tooltips stay on in every mode, so the text modes are about preference, not

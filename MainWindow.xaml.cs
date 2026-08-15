@@ -757,6 +757,29 @@ namespace KillerPDF
             CrashReporter.PushStatusMessage(text);
         }
 
+        // Clicking the status line flashes the open document's file size for a beat, then puts
+        // back whatever was showing (requested on Reddit). Held so page-change chatter can't
+        // overwrite it mid-read; the restore stands down if a newer held message took over.
+        private void StatusText_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            string? path = _originalFile ?? _currentFile;
+            if (path is null || !System.IO.File.Exists(path)) return;
+            string prior = StatusText.Text;
+            long bytes = new System.IO.FileInfo(path).Length;
+            string size = bytes >= 1L << 20 ? $"{bytes / (double)(1 << 20):0.##} MB"
+                        : bytes >= 1L << 10 ? $"{bytes / (double)(1 << 10):0.#} KB"
+                        : $"{bytes} B";
+            SetStatusHeld($"{System.IO.Path.GetFileName(path)} - {size}", 2500);
+            var restore = new System.Windows.Threading.DispatcherTimer
+                { Interval = TimeSpan.FromMilliseconds(2550) };
+            restore.Tick += (_, _) =>
+            {
+                restore.Stop();
+                if (DateTime.UtcNow >= _statusHoldUntil) SetStatus(prior);
+            };
+            restore.Start();
+        }
+
         /// <summary>
         /// Dereferences a PdfItem if it is an indirect reference (PdfReference is internal;
         /// we detect it by looking for a public "Value" property returning PdfObject).

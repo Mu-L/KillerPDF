@@ -167,6 +167,15 @@
     <Thickness x:Key="WindowFrameThickness" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">3</Thickness>
 
     <SolidColorBrush x:Key="DialogFrameBrush" Color="#000000" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
+
+    <!-- Overlay close button, classic face: MDL2 X glyph, black, bevel-sized (KillerScan's 98SE values). -->
+    <sys:Double x:Key="AboutCloseWidth" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">18</sys:Double>
+    <sys:Double x:Key="AboutCloseHeight" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">16</sys:Double>
+    <Thickness x:Key="AboutCloseMargin" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">0,4,4,0</Thickness>
+    <sys:String x:Key="AboutCloseGlyph" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">&#xE8BB;</sys:String>
+    <FontFamily x:Key="AboutCloseFont" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">Segoe MDL2 Assets</FontFamily>
+    <SolidColorBrush x:Key="AboutCloseFg" Color="#000000" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
+    <SolidColorBrush x:Key="AboutCloseHoverFg" Color="#000000" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
     <Thickness x:Key="DialogFrameThickness" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">1</Thickness>
     <Thickness x:Key="DialogFramePadding" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">2</Thickness>
     <!-- Dialogs and the main window share KillerNotes' symmetric Win98 sizing frame. -->

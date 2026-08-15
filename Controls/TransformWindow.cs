@@ -24,6 +24,11 @@ namespace KillerPDF
         public bool FixedPage { get; private set; }    // true = keep page size (margins); false = resize page
         public bool FlipH { get; private set; }
         public bool FlipV { get; private set; }
+        // #174: source levels (black point, white point, midtone gamma). 0/255/1.0 = untouched.
+        public int    LevelBlack { get; private set; }
+        public int    LevelWhite { get; private set; } = 255;
+        public double LevelGamma { get; private set; } = 1.0;
+
         public Point[] PerspectiveCorners { get; private set; } =
             [new(0, 0), new(1, 0), new(1, 1), new(0, 1)];
 
@@ -50,6 +55,7 @@ namespace KillerPDF
         private readonly TextBlock _scaleReadout = null!;
         private readonly Slider _rotSlider = null!;
         private readonly Slider _scaleSlider = null!;
+        private Slider _lvlBlack = null!, _lvlWhite = null!, _lvlGamma = null!;   // #174
         private readonly RadioButton _resizeRadio = null!;
         private bool _flipH;
         private bool _flipV;
@@ -119,6 +125,7 @@ namespace KillerPDF
                 _quarter = 0; _rotSlider.Value = 0; _scaleSlider.Value = 100;
                 _resizeRadio.IsChecked = true; _flipHCheck.IsChecked = false; _flipVCheck.IsChecked = false;
                 ResetPerspective();
+                ResetLevels();   // #174
             };
             bottom.Children.Add(resetAll);
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
@@ -243,6 +250,33 @@ namespace KillerPDF
             resetPerspective.Click += (_, _2) => ResetPerspective();
             stack.Children.Add(resetPerspective);
             WrapSection(stack, perspectiveStart, S("Str_Tf_Perspective"), expanded: false);
+
+            // #174: LEVELS - FineReader-style source levels for rescuing pale scans. Black point,
+            // white point, and a midtone gamma; live in the preview, baked on Apply like every
+            // other correction here.
+            stack.Children.Add(Divider());
+            int levelsStart = stack.Children.Count;
+            stack.Children.Add(SliderLabel(S("Str_Tf_LevelsBlack")));
+            _lvlBlack = new Slider { Minimum = 0, Maximum = 200, Value = 0, TickFrequency = 5, SmallChange = 1, LargeChange = 10, Margin = new Thickness(0, 2, 0, 2) };
+            if (darkSlider != null) _lvlBlack.Style = darkSlider;
+            _lvlBlack.ValueChanged += (_, ev) => { LevelBlack = (int)Math.Round(ev.NewValue); SchedulePreview(); };
+            stack.Children.Add(_lvlBlack);
+            stack.Children.Add(SliderLabel(S("Str_Tf_LevelsWhite")));
+            _lvlWhite = new Slider { Minimum = 55, Maximum = 255, Value = 255, TickFrequency = 5, SmallChange = 1, LargeChange = 10, Margin = new Thickness(0, 2, 0, 2) };
+            if (darkSlider != null) _lvlWhite.Style = darkSlider;
+            _lvlWhite.ValueChanged += (_, ev) => { LevelWhite = (int)Math.Round(ev.NewValue); SchedulePreview(); };
+            stack.Children.Add(_lvlWhite);
+            stack.Children.Add(SliderLabel(S("Str_Tf_LevelsGamma")));
+            _lvlGamma = new Slider { Minimum = 0.2, Maximum = 2.5, Value = 1.0, TickFrequency = 0.05, SmallChange = 0.05, LargeChange = 0.2, Margin = new Thickness(0, 2, 0, 2) };
+            if (darkSlider != null) _lvlGamma.Style = darkSlider;
+            _lvlGamma.ValueChanged += (_, ev) => { LevelGamma = Math.Round(ev.NewValue, 2); SchedulePreview(); };
+            stack.Children.Add(_lvlGamma);
+            var levelsReset = UiKit.Make(S("Str_Tf_Reset"), false);
+            levelsReset.Margin = new Thickness(0, 7, 0, 0);
+            levelsReset.HorizontalAlignment = HorizontalAlignment.Left;
+            levelsReset.Click += (_, _2) => ResetLevels();
+            stack.Children.Add(levelsReset);
+            WrapSection(stack, levelsStart, S("Str_Tf_Levels"), expanded: false);
 
             side.Children.Add(new ScrollViewer
             {
@@ -475,6 +509,49 @@ namespace KillerPDF
             _previewTimer.Start();
         }
 
+        // #174 helpers, shared with the full-resolution Apply in Rotate.cs.
+        internal static bool LevelsIdentity(int black, int white, double gamma)
+            => black <= 0 && white >= 255 && Math.Abs(gamma - 1.0) < 0.01;
+
+        /// <summary>Levels pass: remaps [black..white] to [0..255] through a midtone gamma,
+        /// per RGB channel, alpha untouched. Identity settings return the source unchanged.</summary>
+        internal static BitmapSource ApplyLevels(BitmapSource src, int black, int white, double gamma)
+        {
+            if (LevelsIdentity(black, white, gamma)) return src;
+            var conv = new FormatConvertedBitmap(src, PixelFormats.Bgra32, null, 0);
+            int w = conv.PixelWidth, h = conv.PixelHeight, stride = w * 4;
+            var px = new byte[stride * h];
+            conv.CopyPixels(px, stride, 0);
+            var lut = new byte[256];
+            double lo = black, hi = Math.Max(black + 1, white), invG = 1.0 / Math.Max(0.05, gamma);
+            for (int i = 0; i < 256; i++)
+            {
+                double t = (i - lo) / (hi - lo);
+                t = t < 0 ? 0 : t > 1 ? 1 : t;
+                lut[i] = (byte)Math.Round(Math.Pow(t, invG) * 255);
+            }
+            for (int i = 0; i < px.Length; i += 4)
+            {
+                px[i]     = lut[px[i]];
+                px[i + 1] = lut[px[i + 1]];
+                px[i + 2] = lut[px[i + 2]];
+            }
+            var bmp = BitmapSource.Create(w, h, conv.DpiX, conv.DpiY, PixelFormats.Bgra32, null, px, stride);
+            bmp.Freeze();
+            return bmp;
+        }
+
+        private void ResetLevels()
+        {
+            _lvlBlack.Value = 0; _lvlWhite.Value = 255; _lvlGamma.Value = 1.0;
+        }
+
+        private TextBlock SliderLabel(string text) => new()
+        {
+            Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
+            FontSize = 10, Margin = new Thickness(0, 6, 0, 0),
+        };
+
         private void UpdatePreview()
         {
             double total = Total;
@@ -482,6 +559,9 @@ namespace KillerPDF
             _preview.Source = (total == 0 && _scale == 1.0 && !_flipH && !_flipV)
                 ? _src
                 : MainWindow.ComposeTransform(_src, total, _scale, _fixedPage, _flipH, _flipV);
+            // #174: levels ride on top of whatever geometry the preview shows.
+            if (_preview.Source is BitmapSource lvlSrc && !LevelsIdentity(LevelBlack, LevelWhite, LevelGamma))
+                _preview.Source = ApplyLevels(lvlSrc, LevelBlack, LevelWhite, LevelGamma);
 
             if (_sizeReadout != null && _preview.Source is BitmapSource b && _srcW > 0 && _pageWpt > 0)
             {

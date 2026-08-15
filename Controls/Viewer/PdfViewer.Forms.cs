@@ -38,7 +38,9 @@ namespace KillerPDF.Controls
             double Cx, double Cy, double Cw, double Ch,
             List<string> Options,
             double DaFontPt,   // font size from the field's /DA (points); 0 = auto-size
-            double Scale);     // canvas units per PDF point, for converting DaFontPt to canvas size
+            double Scale,      // canvas units per PDF point, for converting DaFontPt to canvas size
+            bool   IsComb,     // #158: /Tx with the Comb flag (bit 25) and a MaxLen
+            int    MaxLen);    // #158: comb cell count (also the input length cap)
 
         /// <summary>
         /// Scans the current page's /Annots for Widget subtypes and overlays interactive
@@ -100,12 +102,19 @@ namespace KillerPDF.Controls
                     else
                         fontSize = f.Scale > 0 ? Math.Min(f.Ch * 0.62, 15 * f.Scale) : f.Ch * 0.62;
                     fontSize = Math.Max(9, Math.Min(fontSize, 400));
+                    if (f.IsComb) fontSize = Math.Max(9, Math.Min(fontSize, (f.Cw / f.MaxLen) / 0.55));
+                    // #158: a comb field types one character per printed cell. The overlay
+                    // approximates the cell walk with a monospace face sized to the cell width
+                    // (Consolas advance is ~0.55em), capped by MaxLen; the SAVED appearance
+                    // stream places each character exactly at its cell center.
+                    double combCellW = f.IsComb ? f.Cw / f.MaxLen : 0;
                     var tb = new TextBox
                     {
                         Tag              = FormOverlayTag,
                         Width            = f.Cw,
                         Height           = f.Ch,
                         Text             = cur,
+                        MaxLength        = f.IsComb ? f.MaxLen : 0,
                         IsReadOnly       = f.IsReadOnly,
                         AcceptsReturn    = f.IsMultiLine,
                         TextWrapping     = f.IsMultiLine ? TextWrapping.Wrap : TextWrapping.NoWrap,
@@ -119,11 +128,14 @@ namespace KillerPDF.Controls
                         BorderBrush      = Brushes.Transparent,
                         BorderThickness  = new Thickness(1),
                         FontSize         = fontSize,
-                        Padding          = new Thickness(3, 0, 3, 0),
+                        Padding          = f.IsComb
+                            ? new Thickness(Math.Max(0, combCellW / 2 - fontSize * 0.275), 0, 0, 0)
+                            : new Thickness(3, 0, 3, 0),
                         VerticalContentAlignment = f.IsMultiLine
                             ? VerticalAlignment.Top : VerticalAlignment.Center,
                         ToolTip          = string.IsNullOrEmpty(f.FieldName) ? null : f.FieldName,
                     };
+                    if (f.IsComb) tb.FontFamily = new FontFamily("Consolas");
                     // No outline at rest (the page already shows the field box); accent only on focus.
                     // Focus also raises the per-field font-size stepper (and hides it on blur).
                     int    capturedKey   = f.ObjNum;
@@ -436,6 +448,7 @@ namespace KillerPDF.Controls
                     string curVal = "";
                     string da     = "";   // default appearance string (holds the field's font size)
                     int    flags  = 0;
+                    int    maxLen = 0;    // #158: /MaxLen, the comb cell count
                     var    options = new List<string>();
 
                     PdfDictionary? node = ann;
@@ -454,6 +467,8 @@ namespace KillerPDF.Controls
                             da = das.Value;
                         if (flags == 0 && node.Elements["/Ff"] is PdfInteger fi)
                             flags = fi.Value;
+                        if (maxLen == 0 && node.Elements["/MaxLen"] is PdfInteger ml)
+                            maxLen = ml.Value;   // #158: comb cell count (inheritable, like /Ff)
                         if (options.Count == 0 && node.Elements.GetArray("/Opt") is PdfArray optArr)
                         {
                             for (int j = 0; j < optArr.Elements.Count; j++)
@@ -477,6 +492,9 @@ namespace KillerPDF.Controls
 
                     bool isReadOnly  = (flags & 1) != 0;
                     bool isMultiLine = ft.Contains("Tx") && (flags & 4096) != 0;
+                    // #158: comb (bit 25, value 1<<24) - one character per evenly-spaced cell.
+                    // Only meaningful with a MaxLen; the spec makes comb exclusive of multiline.
+                    bool isComb      = ft.Contains("Tx") && (flags & (1 << 24)) != 0 && maxLen > 0 && !isMultiLine;
                     bool isPushBtn   = ft.Contains("Btn") && (flags & (1 << 16)) != 0;
                     bool isRadio     = ft.Contains("Btn") && !isPushBtn && (flags & (1 << 15)) != 0;
                     bool isCheckBox  = ft.Contains("Btn") && !isPushBtn && !isRadio;
@@ -514,7 +532,8 @@ namespace KillerPDF.Controls
                         ? canvasH / pageW : canvasH / pageH;
 
                     result.Add(new FormFieldInfo(objNum, ft, isCheckBox, isRadio, isMultiLine,
-                        name, curVal, onValue, isReadOnly, cx, cy, cw, ch, options, daFontPt, fScale));
+                        name, curVal, onValue, isReadOnly, cx, cy, cw, ch, options, daFontPt, fScale,
+                        isComb, maxLen));
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPageFormFields: {ex}"); }
@@ -602,15 +621,18 @@ namespace KillerPDF.Controls
                         // appearance has to know which it is: a multiline field lays its value out
                         // in lines from the top of the box, a single-line one draws one centered line.
                         int fieldFlags = 0;
+                        int combLen = 0;   // #158: /MaxLen, inheritable like /Ff
                         node = ann;
-                        while (node is not null && fieldFlags == 0)
+                        while (node is not null && (fieldFlags == 0 || combLen == 0))
                         {
-                            if (node.Elements["/Ff"] is PdfInteger fi) fieldFlags = fi.Value;
+                            if (fieldFlags == 0 && node.Elements["/Ff"] is PdfInteger fi) fieldFlags = fi.Value;
+                            if (combLen == 0 && node.Elements["/MaxLen"] is PdfInteger ml) combLen = ml.Value;
                             var pi = node.Elements["/Parent"];
                             if (pi is null) break;
                             node = pi as PdfDictionary ?? DerefItem(pi) as PdfDictionary;
                         }
                         bool isMultiLine = (fieldFlags & 4096) != 0;
+                        bool isComb = (fieldFlags & (1 << 24)) != 0 && combLen > 0 && !isMultiLine;
 
                         if (_formTextValues.TryGetValue(objNum, out var textVal) && fieldDict is not null)
                         {
@@ -622,7 +644,8 @@ namespace KillerPDF.Controls
                                 daStr = WithDaFontSize(daStr, ovPt);
                                 fieldDict.Elements["/DA"] = new PdfString(daStr);
                             }
-                            GenerateTextFieldAppearance(ann, textVal, daStr, fieldW, fieldH, isMultiLine);
+                            GenerateTextFieldAppearance(ann, textVal, daStr, fieldW, fieldH, isMultiLine,
+                                isComb ? combLen : 0);
                         }
                         else if (_formCheckValues.TryGetValue(objNum, out var checkVal) && fieldDict is not null)
                         {
@@ -697,7 +720,8 @@ namespace KillerPDF.Controls
         /// on the widget annotation. Uses reflection to access PdfSharpCore's internal
         /// PdfDictionary.PdfStream constructor since there is no public factory method.
         /// </summary>
-        private void GenerateTextFieldAppearance(PdfDictionary widgetAnn, string text, string? da, double fieldW, double fieldH, bool isMultiLine)
+        private void GenerateTextFieldAppearance(PdfDictionary widgetAnn, string text, string? da, double fieldW, double fieldH, bool isMultiLine,
+            int combLen = 0)
         {
             try
             {
@@ -710,6 +734,36 @@ namespace KillerPDF.Controls
                 // blew the text up to the height of the whole box.
                 fontSize = isMultiLine ? Math.Max(6, fontSize)
                                        : Math.Max(6, Math.Min(fontSize, fieldH * 0.85));
+
+                // #158: comb - one character per evenly-spaced cell, the way Acrobat fills the
+                // printed boxes. Each glyph is positioned at its cell's center (Helvetica-class
+                // average advance ~0.55em, so half a glyph is ~0.275em); the ordinary single-run
+                // path below would bunch everything at the left edge of the first cell.
+                if (combLen > 0)
+                {
+                    double cellW = fieldW / combLen;
+                    fontSize = Math.Max(6, Math.Min(fontSize, Math.Min(fieldH * 0.85, cellW * 1.4)));
+                    string oneLine = text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
+                    if (oneLine.Length > combLen) oneLine = oneLine[..combLen];
+                    double combY = (fieldH - fontSize) / 2 + fontSize * 0.2;
+                    if (combY < 1) combY = 1;
+
+                    var csb = new System.Text.StringBuilder();
+                    csb.Append($"/Tx BMC\nq\n0 0 {fieldW:F2} {fieldH:F2} re W n\n");
+                    csb.Append($"BT\n{fontName} {fontSize:F2} Tf\n0 g\n");
+                    for (int i = 0; i < oneLine.Length; i++)
+                    {
+                        if (oneLine[i] == ' ') continue;
+                        double gx = i * cellW + cellW / 2 - fontSize * 0.275;
+                        csb.Append($"1 0 0 1 {gx:F2} {combY:F2} Tm\n({EscapePdfString(oneLine[i].ToString())}) Tj\n");
+                    }
+                    csb.Append("ET\nQ\nEMC");
+
+                    var combXobj = BuildFormXObject(fontName, fieldW, fieldH, csb.ToString());
+                    if (combXobj is null) return;
+                    AttachAppearance(widgetAnn, combXobj);
+                    return;
+                }
 
                 // Tj shows a string; it has no concept of a line break, so a value with newlines
                 // in it drew as one run with the breaks swallowed. Lay the value out into lines

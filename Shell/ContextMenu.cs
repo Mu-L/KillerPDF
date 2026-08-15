@@ -279,6 +279,16 @@ namespace KillerPDF
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ClearPage"), (s, e) => ClearAnnotations_Click(s!, e), glyph: ""));
+            // #193: book layout, only offered where it means something - in Two-Page view. The
+            // menu is rebuilt on every open, so the checkmark always reflects the live setting.
+            if (_viewMode == ViewMode.TwoPage)
+            {
+                _ctxMenu.Items.Add(new Separator());
+                var book = MakeMenuItem(Loc("Str_View_BookMode"), (s, e) => ToggleBookMode(), "B", "");
+                book.IsCheckable = true;
+                book.IsChecked = Controls.PdfViewer.BookMode;
+                _ctxMenu.Items.Add(book);
+            }
         }
 
         // Deep-copies page pageIdx and inserts the copy right after it. AddPage on a same-document page

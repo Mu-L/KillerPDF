@@ -125,11 +125,13 @@ namespace KillerPDF.Controls
                     }
                     return;
                 }
-                // Two-page spreads pair (0,1),(2,3),...; clicking either page of the spread that's
-                // already shown (or re-selecting the current single page) renders the exact same pixels,
-                // so skip the re-render and its flash - just move the page number.
+                // Clicking either page of the spread that's already shown (or re-selecting the
+                // current single page) renders the exact same pixels, so skip the re-render and its
+                // flash - just move the page number. SpreadStart, NOT a local % 2: this was the
+                // fourth pairing site and the one #193's book layout missed - its stale (0,1)
+                // pairing matched the rendered cover and swallowed the render of spread (1,2).
                 int targetPrimary = _currentPage;
-                if (_viewMode == ViewMode.TwoPage) targetPrimary -= targetPrimary % 2;
+                if (_viewMode == ViewMode.TwoPage) targetPrimary = SpreadStart(targetPrimary);
                 if (targetPrimary == _renderedPrimaryPage && Math.Abs(_zoomLevel - _lastRenderZoom) < 0.0001)
                 {
                     if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();

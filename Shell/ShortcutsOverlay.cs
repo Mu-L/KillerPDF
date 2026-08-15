@@ -21,17 +21,20 @@ namespace KillerPDF
         // One row: the literal key text and the resource key for its translated description.
         private readonly record struct KsRow(string Keys, string LabelKey);
 
-        // A titled group of rows. TitleKey is a Str_* resource key rendered as the accent subheader.
+        // A titled group of rows. TitleKey is a Str_* resource key rendered as the subheader,
+        // colored by the section's KsCat* theme brush - the family neon set the keyboard map
+        // already uses (KillerShell's colored categories, taken as the reference).
         private sealed class KsSection
         {
             public string TitleKey = "";
+            public string Cat = "";   // "" falls back to PrimaryBrush
             public KsRow[] Rows = [];
         }
 
         // Left column: File, Tools, Editing, Help.
         private static readonly KsSection[] KsLeftColumn =
         [
-            new KsSection { TitleKey = "Str_KS_File", Rows =
+            new KsSection { TitleKey = "Str_KS_File", Cat = "File", Rows =
             [
                 new("Ctrl+O",       "Str_KS_Open"),
                 new("Ctrl+S",       "Str_Lbl_Save"),
@@ -43,7 +46,7 @@ namespace KillerPDF
                 new("Ctrl+P",       "Str_KS_Print"),
                 new("Ctrl+D / F4",  "Str_KS_DocInfo"),
             ]},
-            new KsSection { TitleKey = "Str_KS_Tools", Rows =
+            new KsSection { TitleKey = "Str_KS_Tools", Cat = "Tools", Rows =
             [
                 new("V",        "Str_Lbl_Select"),
                 new("1 (or T)", "Str_Lbl_Text"),
@@ -57,7 +60,7 @@ namespace KillerPDF
                 new("9 (or R)", "Str_Lbl_Rotate"),
                 new("0 (or S)", "Str_TT_StampTool"),
             ]},
-            new KsSection { TitleKey = "Str_KS_Editing", Rows =
+            new KsSection { TitleKey = "Str_KS_Editing", Cat = "Edit", Rows =
             [
                 new("Ctrl+Z",         "Str_KS_Undo"),
                 new("Ctrl+Y",         "Str_Ctx_Redo"),
@@ -70,7 +73,7 @@ namespace KillerPDF
                 new("Enter / Escape", "Str_KS_ConfirmCancel"),
                 new("Menu / Shift+F10","Str_KS_ContextMenu"),
             ]},
-            new KsSection { TitleKey = "Str_KS_Help", Rows =
+            new KsSection { TitleKey = "Str_KS_Help", Cat = "Help", Rows =
             [
                 new("F1 / Ctrl+?", "Str_KS_ThisList"),
                 new("F12",         "Str_KS_About"),
@@ -80,7 +83,7 @@ namespace KillerPDF
         // Right column: Navigation, View, OCR, Search & Select.
         private static readonly KsSection[] KsRightColumn =
         [
-            new KsSection { TitleKey = "Str_KS_Navigation", Rows =
+            new KsSection { TitleKey = "Str_KS_Navigation", Cat = "Nav", Rows =
             [
                 // Tightened to fit the 120px key column with a visible gap before the label.
                 new("← / → or PgUp/PgDn", "Str_KS_PrevNext"),
@@ -98,11 +101,12 @@ namespace KillerPDF
                 new("Ctrl+Tab",       "Str_KS_NextTab"),
                 new("Ctrl+Shift+Tab", "Str_KS_PrevTab"),
             ]},
-            new KsSection { TitleKey = "Str_KS_View", Rows =
+            new KsSection { TitleKey = "Str_KS_View", Cat = "View", Rows =
             [
                 new("F5",        "Str_View_Continuous"),
                 new("F6",        "Str_View_Single"),
                 new("F7",        "Str_View_TwoPage"),
+                new("B",         "Str_View_BookMode"),   // #193: Two-Page only
                 new("F8",        "Str_View_Grid"),
                 new("F9",        "Str_KS_CycleView"),
                 // Untranslated gesture literals, same convention as "Middle drag" below Navigation.
@@ -115,12 +119,12 @@ namespace KillerPDF
                 new("Wheel on logo",   "Str_KS_AppSize"),
                 new("Ctrl+Shift+1..6", "Str_KS_ToolbarStyle"),
             ]},
-            new KsSection { TitleKey = "Str_KS_Ocr", Rows =
+            new KsSection { TitleKey = "Str_KS_Ocr", Cat = "Ocr", Rows =
             [
                 new("Ctrl+Shift+O", "Str_Ctx_OcrPage"),
                 new("Ctrl+Shift+I", "Str_Ocr_Region"),
             ]},
-            new KsSection { TitleKey = "Str_KS_SearchSelect", Rows =
+            new KsSection { TitleKey = "Str_KS_SearchSelect", Cat = "Search", Rows =
             [
                 new("Ctrl+F",              "Str_KS_Find"),
                 new("F3 / Shift+F3",       "Str_KS_NextPrevResult"),
@@ -167,7 +171,10 @@ namespace KillerPDF
                     Margin     = new Thickness(0, s == 0 ? 0 : 12, 0, 4),
                 };
                 header.SetResourceReference(TextBlock.TextProperty, section.TitleKey);
-                header.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryBrush");
+                // Category color, the same KsCat* brushes the keyboard map lights its keys with,
+                // so a section reads as the same color in both views (KillerShell's layout).
+                header.SetResourceReference(TextBlock.ForegroundProperty,
+                    section.Cat.Length > 0 ? "KsCat" + section.Cat : "PrimaryBrush");
                 host.Children.Add(header);
 
                 for (int r = 0; r < section.Rows.Length; r++)

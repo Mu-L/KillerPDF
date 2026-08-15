@@ -11,6 +11,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Added
 - Added 98SE, Ectoplasm, Decay, Mourning, Sepulchre, Delirium, and Malaise themes.
 - The print dialog has paper size and paper source selectors, and its settings are organized into collapsible PRINTER, LAYOUT, and OUTPUT sections (#186, thanks demo1866 and adeit).
+- Two-Page view has a book layout option: the cover page displays alone, so facing pages pair like a physical book (#193, thanks TeutonJon78).
+- Comb text fields are supported: typing is capped at the cell count and the saved value places one character per printed box, like Acrobat (#158, thanks flywire).
+- Clicking the status line shows the open file's size for a moment, then restores what was there.
+- Text selection follows columns: dragging down one column of a two-column PDF no longer sweeps the neighboring column, and copied text comes out in column order (#185, thanks twtscurry30-ai).
+- The Transform tool has a LEVELS section - black point, white point, and midtones - for rescuing pale, hard-to-read scans, applied like its other corrections (#174, thanks 1mk3r).
 - Polish (pl-PL) localization, the eleventh interface language, in the language picker as "Polski" (#191, thanks Fresta24).
 
 ### Changed

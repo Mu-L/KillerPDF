@@ -56,6 +56,7 @@ namespace KillerPDF
                 ["C"] = ("Tools", "Str_Lbl_Crop"),      ["R"] = ("Tools", "Str_Lbl_Rotate"),
                 ["S"] = ("Tools", "Str_TT_StampTool"),
                 ["N"] = ("View", "Str_DocInvertSetting"),
+                ["B"] = ("View", "Str_View_BookMode"),   // #193: Two-Page only
                 ["Home"] = ("Nav", "Str_Kb_FirstPage"), ["End"] = ("Nav", "Str_Kb_LastPage"),
                 ["PgUp"] = ("Nav", "Str_Kb_PrevPage"),  ["PgDn"] = ("Nav", "Str_Kb_NextPage"),
                 ["Left"] = ("Nav", "Str_Kb_PrevPage"),  ["Right"] = ("Nav", "Str_Kb_NextPage"),

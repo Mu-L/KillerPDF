@@ -62,6 +62,11 @@ namespace KillerPDF.Controls
             // the continuous/secondary streamers read it from a background thread. Cleared on edits that change
             // a page's pixels or page order, and dropped entirely when the tab falls out of the LRU window.
             public readonly System.Collections.Concurrent.ConcurrentDictionary<(int page, int bucket, int rot), System.Windows.Media.Imaging.BitmapSource> RenderCache = new();
+            // #189: each entry's byte size, recorded by the INSERTING thread. The budget must
+            // never be computed by reading PixelWidth/Height off the cached bitmaps - an entry
+            // that could not freeze throws cross-thread from whatever renderer is evicting,
+            // which killed the background render tasks (vanishing thumbnails after invert).
+            public readonly System.Collections.Concurrent.ConcurrentDictionary<(int page, int bucket, int rot), long> RenderCacheSize = new();
             public Dictionary<int, int> PageRotations = [];
             public Dictionary<int, string> FormTextValues = [];
             public Dictionary<int, bool> FormCheckValues = [];
@@ -332,8 +337,7 @@ namespace KillerPDF.Controls
         private static long RenderCacheBytes(DocumentSession s)
         {
             long total = 0;
-            foreach (var b in s.RenderCache.Values)
-                total += 4L * b.PixelWidth * b.PixelHeight;
+            foreach (var size in s.RenderCacheSize.Values) total += size;
             return total;
         }
 
@@ -341,6 +345,8 @@ namespace KillerPDF.Controls
         {
             if (s == null) return;
             if (bmp.CanFreeze && !bmp.IsFrozen) bmp.Freeze();
+            // Measured HERE, on the thread that made the bitmap - see RenderCacheSize.
+            s.RenderCacheSize[(page, bucket, rot)] = 4L * bmp.PixelWidth * bmp.PixelHeight;
             s.RenderCache[(page, bucket, rot)] = bmp;
             // Evict the entries farthest from the page just cached: renders arrive around the
             // viewport, so this keeps a moving window of nearby pages hot and stays safe to run
@@ -360,6 +366,7 @@ namespace KillerPDF.Controls
                 }
                 if (bestDist <= 0) break;   // only current-page entries left; nothing sane to evict
                 s.RenderCache.TryRemove(farthest, out _);
+                s.RenderCacheSize.TryRemove(farthest, out _);
             }
         }
 
@@ -368,7 +375,7 @@ namespace KillerPDF.Controls
         // cache (the carve-out that keeps pictures uninverted) goes with it; it re-fills lazily.
         private void FlushAllRenderCaches()
         {
-            foreach (var s in _renderLru) s.RenderCache.Clear();
+            foreach (var s in _renderLru) { s.RenderCache.Clear(); s.RenderCacheSize.Clear(); }
             // THIS pane's rect cache - the bare call, NOT `Viewer.FlushImageRectCache()`, which
             // hardcodes pane A and leaves pane B's night-mode carve-out cache serving rects from
             // the previous state after an invert toggle.
@@ -387,6 +394,7 @@ namespace KillerPDF.Controls
                 var old = _renderLru[0];
                 _renderLru.RemoveAt(0);
                 old.RenderCache.Clear();
+                old.RenderCacheSize.Clear();
                 dropped = true;
             }
             if (dropped) CompactLohSoon();
@@ -407,7 +415,11 @@ namespace KillerPDF.Controls
         }
 
         // Drop a tab's cached bitmaps after an edit that changes page pixels or page order.
-        private void InvalidateRenderCache(DocumentSession? s) => s?.RenderCache.Clear();
+        private void InvalidateRenderCache(DocumentSession? s)
+        {
+            s?.RenderCache.Clear();
+            s?.RenderCacheSize.Clear();
+        }
 
         // Make sure there is always at least one session, adopting whatever is currently live.
         private void EnsureInitialSession()
@@ -442,6 +454,31 @@ namespace KillerPDF.Controls
         // ============================================================
 
         // Re-render whatever document the active session holds (or show the empty drop zone).
+        // Invert repaint for an UNFOCUSED pane: PIXELS ONLY. RenderActiveSession here ran
+        // BootstrapDocumentView / ShowEmptyState, whose Host chrome mutations (sidebar rebuild
+        // with this pane's thumbnails - or ClearSidebarPages and control-disabling when this
+        // pane is EMPTY) trashed the focused pane's shared sidebar (2026-08-15). An empty pane
+        // has no pixels to repaint and must cause no side effects at all.
+        internal void RepaintPixelsExt()
+        {
+            if (_doc is null) return;
+            if (_viewMode == ViewMode.Continuous)
+            {
+                _continuousSharpenCts?.Cancel();
+                _continuousSharpPages.Clear();
+                foreach (var child in _continuousPanel.Children)
+                    if (child is Border b && b.Child is Grid g
+                        && g.Children.Count > 0 && g.Children[0] is System.Windows.Controls.Image img)
+                        img.Source = null;
+                _ = RenderContinuousPages(Math.Max(0, _currentPage));
+                StartRerenderTimer();
+            }
+            else
+            {
+                RenderPage(_viewMode == ViewMode.Grid ? 0 : Math.Max(0, _currentPage), keepTiles: true);
+            }
+        }
+
         private void RenderActiveSession()
         {
             if (_active == null || _active.Doc == null) { ShowEmptyState(); return; }
@@ -744,6 +781,7 @@ namespace KillerPDF.Controls
             _sessions.Remove(s);
             _renderLru.Remove(s);    // don't pin a closed tab's render cache in the LRU list
             s.RenderCache.Clear();
+            s.RenderCacheSize.Clear();
             CompactLohSoon();        // #122: give the freed bitmap memory back to the OS
 
             if (_sessions.Count == 0)

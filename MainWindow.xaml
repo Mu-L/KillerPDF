@@ -2569,7 +2569,8 @@
                 <Grid Grid.Column="0" Margin="{DynamicResource FooterCellMargin}">
                     <TextBlock x:Name="StatusText" Text="{DynamicResource Str_Ready}"
                                Foreground="{DynamicResource TextFooter}"
-                               FontFamily="Consolas" FontSize="11.5"
+                               FontFamily="Consolas" FontSize="11.5" Cursor="Hand"
+                               MouseLeftButtonUp="StatusText_Click"
                                VerticalAlignment="Center" Margin="{DynamicResource FooterCellPadding}"/>
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelDarkBrush}" BorderThickness="{DynamicResource FooterCellLightThickness}"/>
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelLightBrush}" BorderThickness="{DynamicResource FooterCellDarkThickness}"/>
@@ -2689,12 +2690,12 @@
             <Grid x:Name="ShortcutCardGrid" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   Margin="24" MaxWidth="920" MaxHeight="620">
                 <!-- Shadow cast by a separate element so the card content stays crisp. -->
-                <Border Background="{DynamicResource MenuBackgroundBrush}" CornerRadius="{DynamicResource PanelCornerRadius}" IsHitTestVisible="False">
+                <Border Background="{DynamicResource OverlayWindowBrush}" CornerRadius="{DynamicResource PanelCornerRadius}" IsHitTestVisible="False">
                     <Border.Effect>
                         <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="3" Direction="270" Opacity="{DynamicResource ShortcutShadowOpacity}"/>
                     </Border.Effect>
                 </Border>
-                <Border Background="{DynamicResource MenuBackgroundBrush}"
+                <Border Background="{DynamicResource OverlayWindowBrush}"
                         BorderBrush="{DynamicResource AppBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="{DynamicResource PanelCornerRadius}"
@@ -2710,8 +2711,9 @@
                      card itself, not pushed inward by the content padding. -->
                 <Button Grid.RowSpan="2" Click="ShortcutOverlayClose_Click"
                         HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Width="28" Height="26" Margin="0,6,6,0" Panel.ZIndex="2"
-                        Style="{StaticResource DialogCloseButton}"
+                        Width="{DynamicResource AboutCloseWidth}" Height="{DynamicResource AboutCloseHeight}"
+                        Margin="{DynamicResource AboutCloseMargin}" Panel.ZIndex="7"
+                        Content="{DynamicResource AboutCloseGlyph}" Style="{StaticResource OverlayCloseButton}"
                         Visibility="{DynamicResource ShortcutModernHeaderVisibility}"/>
                 <Border Grid.Row="0" Height="{DynamicResource DialogTitleBarHeight}" Background="{DynamicResource DialogTitleBarBrush}"
                         Visibility="{DynamicResource ShortcutCaptionVisibility}">
@@ -2720,8 +2722,8 @@
                                    FontFamily="{DynamicResource ChromeFontFamily}" FontSize="11" FontWeight="Bold"
                                    Foreground="{DynamicResource ChromeTextBrush}"/>
                         <Button Click="ShortcutOverlayClose_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                Width="{DynamicResource DialogCloseWidth}" Height="{DynamicResource DialogCloseHeight}"
-                                Content="&#xE8BB;" Style="{StaticResource ChromeCloseButton}"/>
+                                Width="{DynamicResource AboutCloseWidth}" Height="{DynamicResource AboutCloseHeight}"
+                                Content="{DynamicResource AboutCloseGlyph}" Style="{StaticResource OverlayCloseButton}"/>
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="1"
@@ -2730,15 +2732,14 @@
                               CanContentScroll="False">
                 <StackPanel Margin="18,14,18,18">
                     <Grid Margin="0,0,0,12">
+                        <!-- Family overlay title, KillerShell's SectionHeader recipe: Consolas 13
+                             SemiBold in PrimaryBrush. HeaderLineBrush was the rule color, dark on
+                             dark and unreadable, and the shadow rasterized the text. -->
                         <TextBlock Text="{DynamicResource Str_KS_Title}"
-                                   FontFamily="Consolas" FontSize="16" FontWeight="Bold"
-                                   Foreground="{DynamicResource HeaderLineBrush}"
+                                   FontFamily="Consolas" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryBrush}"
                                    HorizontalAlignment="Left" VerticalAlignment="Center"
-                                   Visibility="{DynamicResource ShortcutModernHeaderVisibility}">
-                            <TextBlock.Effect>
-                                <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="{DynamicResource ShortcutHeaderShadowOpacity}"/>
-                            </TextBlock.Effect>
-                        </TextBlock>
+                                   Visibility="{DynamicResource ShortcutModernHeaderVisibility}"/>
                         <!-- LIST / KEYBOARD view toggle (#keyboard-map) -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Button x:Name="KsViewListBtn" Style="{StaticResource SidebarTabBtn}"
@@ -2786,12 +2787,12 @@
             <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                 <!-- Shadow is cast by a separate element so the card content stays crisp; a
                      DropShadowEffect rasterizes whatever it is applied to, which softens text. -->
-                <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="{DynamicResource PanelCornerRadius}" IsHitTestVisible="False">
+                <Border Background="{DynamicResource OverlayWindowBrush}" CornerRadius="{DynamicResource PanelCornerRadius}" IsHitTestVisible="False">
                     <Border.Effect>
                         <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="3" Direction="270" Opacity="{DynamicResource AboutShadowOpacity}"/>
                     </Border.Effect>
                 </Border>
-                <Border Background="{DynamicResource BackgroundBrush}"
+                <Border Background="{DynamicResource OverlayWindowBrush}"
                         BorderBrush="{DynamicResource AppBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="{DynamicResource PanelCornerRadius}"
@@ -2807,8 +2808,8 @@
                         <TextBlock Text="KillerPDF" VerticalAlignment="Center" FontFamily="{DynamicResource ChromeFontFamily}"
                                    FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ChromeTextBrush}"/>
                         <Button Click="AboutOverlayClose_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                Width="{DynamicResource DialogCloseWidth}" Height="{DynamicResource DialogCloseHeight}"
-                                Content="&#xE8BB;" Style="{StaticResource ChromeCloseButton}"/>
+                                Width="{DynamicResource AboutCloseWidth}" Height="{DynamicResource AboutCloseHeight}"
+                                Content="{DynamicResource AboutCloseGlyph}" Style="{StaticResource OverlayCloseButton}"/>
                     </Grid>
                 </Border>
                 <!-- Film grain - sits on the card background only, behind the icon and text -->
@@ -2992,13 +2993,15 @@
                     </TextBlock>
                     </DockPanel>
                     </StackPanel>
-                    <!-- X close button overlaid at top-right - no vertical space consumed -->
-                    <Button Click="AboutOverlayClose_Click"
-                            HorizontalAlignment="Right" VerticalAlignment="Top"
-                            Width="28" Height="26" Margin="0,6,6,0"
-                            Style="{StaticResource DialogCloseButton}"
-                            Visibility="{DynamicResource AboutModernCloseVisibility}"/>
                 </Grid>
+                <!-- Modern close: anchored to the CARD's corner (root grid), not pushed inward by
+                     the content padding - KillerScan's geometry, taken as the reference. -->
+                <Button Grid.RowSpan="2" Click="AboutOverlayClose_Click"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Panel.ZIndex="7"
+                        Width="{DynamicResource AboutCloseWidth}" Height="{DynamicResource AboutCloseHeight}"
+                        Margin="{DynamicResource AboutCloseMargin}"
+                        Content="{DynamicResource AboutCloseGlyph}" Style="{StaticResource OverlayCloseButton}"
+                        Visibility="{DynamicResource AboutModernCloseVisibility}"/>
                 </Grid>
                 </Border>
             </Grid>

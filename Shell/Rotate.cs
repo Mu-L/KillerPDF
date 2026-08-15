@@ -54,9 +54,10 @@ namespace KillerPDF
             var win = new TransformWindow(this, src, pwpt, phpt);
             win.ShowDialog();
             if (win.Applied && (Math.Abs(win.Angle) > 0.01 || Math.Abs(win.Scale - 1.0) > 0.001 ||
-                win.FlipH || win.FlipV || !PerspectiveWarp.IsIdentity(win.PerspectiveCorners)))
+                win.FlipH || win.FlipV || !PerspectiveWarp.IsIdentity(win.PerspectiveCorners) ||
+                !TransformWindow.LevelsIdentity(win.LevelBlack, win.LevelWhite, win.LevelGamma)))
                 ApplyPageTransform(pageIdx, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV,
-                    win.PerspectiveCorners);
+                    win.PerspectiveCorners, win.LevelBlack, win.LevelWhite, win.LevelGamma);
         }
 
         // The page's visible size in points: the CropBox if one is set (so a cropped page reports its real,
@@ -76,7 +77,8 @@ namespace KillerPDF
 
         // Rasterizes one page with the chosen rotate + scale and swaps it in for the original (undoable).
         private void ApplyPageTransform(int pageIdx, double angleDeg, double scale, bool fixedPage,
-            bool flipH, bool flipV, Point[] perspectiveCorners)
+            bool flipH, bool flipV, Point[] perspectiveCorners,
+            int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0)
         {
             if (_doc is null || _currentFile is null) return;
             if (pageIdx < 0 || pageIdx >= _doc.PageCount) return;
@@ -99,6 +101,8 @@ namespace KillerPDF
                 var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
                     ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
                 var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
+                // #174: levels last, on the final full-resolution pixels - same pass the preview shows.
+                composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
                 byte[] png = EncodePng(composed);
 
                 var oldPage = _doc.Pages[pageIdx];

@@ -758,7 +758,7 @@ namespace KillerPDF.Controls
             if (_viewMode == ViewMode.Continuous) return;
             // Two-page spreads pair (0,1),(2,3),...; render the pair's left (even) page as primary so
             // selecting the right page of a pair still shows the whole spread, not a lone page.
-            if (_viewMode == ViewMode.TwoPage) pageIndex -= pageIndex % 2;
+            if (_viewMode == ViewMode.TwoPage) pageIndex = SpreadStart(pageIndex);   // #193: book-aware
             try
             {
                 // Scale render resolution to match display DPI AND current zoom so the
@@ -959,15 +959,18 @@ namespace KillerPDF.Controls
             // Grid slots carry a constant GridGapPx on-screen gap (divided by zoom because tile
             // margins scale with the view transform); other tiled modes keep the 12px gap.
             double primaryPageW = _annotationCanvas.Width > 0 ? _annotationCanvas.Width : 595;
+            bool bookCover = _viewMode == ViewMode.TwoPage && BookMode && primaryPageIdx == 0;
             double pageSlotW = primaryPageW + (_viewMode == ViewMode.Grid
-                ? GridGapPx / Math.Max(0.01, _zoomLevel) : 12);
+                ? GridGapPx / Math.Max(0.01, _zoomLevel) : bookCover ? 0 : 12);
             double availablePreZoom = (viewportW - 24) / _zoomLevel;
             // +1e-6: same floating-point underflow guard as GridZoomStep, so a zoom set for n columns
             // actually lays out n (not n-1) when the division lands a hair under the integer.
             // Grid lays out its AUTHORITATIVE column count (set on grid zoom, restored per tab); it no longer
             // derives columns from the zoom here - that zoom->columns->zoom round-trip lost the grid zoom on
             // tab switches. Other modes still fit to the current zoom.
-            int pagesPerRow = _viewMode == ViewMode.TwoPage ? 2
+            // #193: a book-layout cover is a ONE-page row - sizing the panel for two slots parked
+            // the cover in the left half of a centered two-slot panel, which read as left-aligned.
+            int pagesPerRow = _viewMode == ViewMode.TwoPage ? (bookCover ? 1 : 2)
                             : _viewMode == ViewMode.Grid    ? Math.Max(1, _gridColumns)
                             : Math.Max(1, (int)(availablePreZoom / pageSlotW + 1e-6));
             // +0.5/slot: secondary tiles round their DIP width to a whole pixel (AddSecondaryTile),
@@ -990,7 +993,9 @@ namespace KillerPDF.Controls
             // Grid shows the whole document; Two-Page shows one secondary; other modes peek ahead.
             int limit = _viewMode == ViewMode.Grid
                 ? _doc.PageCount
-                : Math.Min(_doc.PageCount, primaryPageIdx + 1 + (_viewMode == ViewMode.TwoPage ? 1 : 25));
+                : Math.Min(_doc.PageCount, primaryPageIdx + 1 + (_viewMode == ViewMode.TwoPage
+                    ? (BookMode && primaryPageIdx == 0 ? 0 : 1)   // #193: the cover has no partner
+                    : 25));
             if (limit <= primaryPageIdx + 1) { ClearSecondaryPages(); return; }
 
             // Per-tile reuse: drop tiles for pages that left the view, keep the rest. Pages that already
@@ -1266,7 +1271,7 @@ namespace KillerPDF.Controls
         {
             if (_viewMode == ViewMode.Continuous)
                 return; // continuous mode manages its own rendering
-            if (_viewMode == ViewMode.TwoPage) pageIndex -= pageIndex % 2;   // snap to the spread's left page
+            if (_viewMode == ViewMode.TwoPage) pageIndex = SpreadStart(pageIndex);   // snap to the spread's left page (#193: book-aware)
 
             // Grid fits its columns to the viewport, so it never needs a horizontal scrollbar.
             // Leaving it on Auto shows a stray (green) thumb across the bottom when the tile panel
@@ -1294,8 +1299,11 @@ namespace KillerPDF.Controls
                 && _pageContentPanel.Children[0] is Border primaryBorder)
             {
                 double gapDip = GridGapPx / Math.Max(0.01, _zoomLevel);
+                // #193: a book-layout cover has no facing page, so it drops the 12px spread gap
+                // and centers like a Single page instead of hanging left of an empty slot.
+                bool coverAlone = _viewMode == ViewMode.TwoPage && BookMode && pageIndex == 0;
                 primaryBorder.Margin = _viewMode == ViewMode.Grid    ? new Thickness(0, 0, gapDip, gapDip)
-                                     : _viewMode == ViewMode.TwoPage ? new Thickness(0, 0, 12, 0)
+                                     : _viewMode == ViewMode.TwoPage ? (coverAlone ? new Thickness(0) : new Thickness(0, 0, 12, 0))
                                      : new Thickness(0);
             }
             if (_viewMode == ViewMode.Grid || _viewMode == ViewMode.TwoPage)
@@ -1678,15 +1686,32 @@ namespace KillerPDF.Controls
         // the spread's left page so a press always shows the NEXT spread instead of re-showing the
         // current one from its right page. direction: -1 = back, +1 = forward. Returns true when
         // the selection moved. Shared by the wheel, the Up/Down edge-flip, and the Left/Right keys.
+        // #193: book layout for Two-Page - the cover displays alone, so facing pairs run
+        // (1,2), (3,4)... like a physical book instead of (0,1), (2,3). Global preference.
+        internal static bool BookMode => App.GetSetting("TwoPageBook") == "1";
+
+        // Left page of the spread containing <paramref name="page"/> under the active layout.
+        private static int SpreadStart(int page)
+            => BookMode ? (page == 0 ? 0 : page - ((page + 1) % 2)) : page - page % 2;
+
+        // #193: re-run the current mode's layout in place (the book toggle re-pairs spreads).
+        internal void ReapplyViewMode() => ApplyViewMode(_viewMode);
+
         internal bool NavigatePageStep(int direction)
         {
             if (_doc is null) return false;
             int cur = _currentPage;
             if (_viewMode == ViewMode.TwoPage)
             {
-                int baseIdx = Math.Max(0, cur - cur % 2);   // left page of the current spread
-                int target = baseIdx + direction * 2;
-                if (target < 0 || target >= _doc.PageCount) return false;
+                int baseIdx = SpreadStart(Math.Max(0, cur));   // left page of the current spread
+                int target;
+                if (BookMode)
+                    target = direction > 0
+                        ? (baseIdx == 0 ? 1 : baseIdx + 2)
+                        : (baseIdx <= 1 ? 0 : baseIdx - 2);
+                else
+                    target = baseIdx + direction * 2;
+                if (target == baseIdx || target < 0 || target >= _doc.PageCount) return false;
                 _currentPage = target;
                 return true;
             }

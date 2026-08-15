@@ -253,6 +253,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_View_Continuous">Continuous</sys:String>
     <sys:String x:Key="Str_View_TwoPage">Two Page</sys:String>
     <sys:String x:Key="Str_View_Grid">Grid</sys:String>
+    <sys:String x:Key="Str_View_BookMode">Book layout</sys:String>
     <sys:String x:Key="Str_Continuous_EditMsg">Switch to Single Page to use editing tools</sys:String>
 
     <!-- ── Overflow menu + menu item labels ───────────────────────────── -->
@@ -509,6 +510,10 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Tf_LevelLine">Draw a level line</sys:String>
     <sys:String x:Key="Str_Tf_SkewHint">Drag along anything that should be level (an edge, a line of text). The page rotates to match.</sys:String>
     <sys:String x:Key="Str_Tf_Perspective">PERSPECTIVE</sys:String>
+    <sys:String x:Key="Str_Tf_Levels">LEVELS</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsBlack">Black point</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsWhite">White point</sys:String>
+    <sys:String x:Key="Str_Tf_LevelsGamma">Midtones</sys:String>
     <sys:String x:Key="Str_Tf_CorrectPerspective">Correct trapezoidal distortion</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Drag the four corners onto the photographed page outline. Apply straightens it into a rectangle.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Reset corners</sys:String>

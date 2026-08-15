@@ -271,6 +271,16 @@ namespace KillerPDF
                 BeginOcrRegion();
                 e.Handled = true;
             }
+            else if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.None && _doc is not null
+                     && _viewMode == ViewMode.TwoPage
+                     && ShortcutOverlay.Visibility != Visibility.Visible
+                     && AboutOverlay.Visibility != Visibility.Visible)
+            {
+                // #193: bare B = book layout toggle, only while Two-Page is active (single-key
+                // house style; Ctrl+B stays the sidebar). Same guards as the bare-key switches.
+                ToggleBookMode();
+                e.Handled = true;
+            }
             else if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.None && _doc is not null
                      && ShortcutOverlay.Visibility != Visibility.Visible
                      && AboutOverlay.Visibility != Visibility.Visible)

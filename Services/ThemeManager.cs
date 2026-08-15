@@ -206,6 +206,10 @@ namespace KillerPDF.Services
             // zero radius actually reaches panes, tabs, flyouts, and dialogs.
             var appResources = Application.Current.Resources;
             var liveResources = merged[0];
+            // One semantic role for the two window-like overlays. This is assigned after the
+            // palette and accent overlay are fully merged so gradient BackgroundBrush values are
+            // preserved instead of being flattened or replaced by MenuBackgroundBrush.
+            liveResources["OverlayWindowBrush"] = liveResources["BackgroundBrush"];
             appResources["RadWindow"] = liveResources["WindowCornerRadius"];
             appResources["RadCard"] = liveResources["PanelCornerRadius"];
             appResources["RadControl"] = liveResources["ControlCornerRadius"];
@@ -332,6 +336,16 @@ namespace KillerPDF.Services
             // (RadioAccent) so nothing changes; a theme whose accent equals its hover fill
             // (Sepulchre) overrides it, or the selected label vanishes into its own highlight.
             Alias("RadioHoverFgBrush", "RadioAccent");
+            // Overlay (About / shortcuts) close button, KillerScan reference: a bare muted X that
+            // turns red on hover. 98SE overrides all of these in its own xaml for the classic
+            // MDL2 glyph and metrics.
+            if (!d.Contains("AboutCloseGlyph")) d["AboutCloseGlyph"] = ((char)0x2715).ToString();   // multiplication X, by codepoint so the file stays ASCII-clean
+            if (!d.Contains("AboutCloseFont")) d["AboutCloseFont"] = new FontFamily("Segoe UI");
+            if (!d.Contains("AboutCloseWidth")) d["AboutCloseWidth"] = 28.0;
+            if (!d.Contains("AboutCloseHeight")) d["AboutCloseHeight"] = 26.0;
+            if (!d.Contains("AboutCloseMargin")) d["AboutCloseMargin"] = new Thickness(0, 6, 6, 0);
+            if (!d.Contains("AboutCloseFg")) d["AboutCloseFg"] = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+            if (!d.Contains("AboutCloseHoverFg")) d["AboutCloseHoverFg"] = new SolidColorBrush(Color.FromRgb(0xe0, 0x44, 0x44));
             if (!d.Contains("CheckSunkenDarkThickness")) d["CheckSunkenDarkThickness"] = new Thickness(0);
             if (!d.Contains("CheckSunkenLightThickness")) d["CheckSunkenLightThickness"] = new Thickness(0);
             // 98SE opts into the compact native-style caption and removes the shadow halo. These

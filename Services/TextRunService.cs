@@ -82,6 +82,88 @@ namespace KillerPDF.Services
             return runs;
         }
 
+        // #185 helper: see the call site comment. Bands arrive top-to-bottom; the result is the
+        // same tuple shape, reordered so the flattened char order reads one column at a time.
+        private static List<(List<UglyToad.PdfPig.Content.Word> Words, double Top, double Bottom)>
+            OrderColumnAware(List<(List<UglyToad.PdfPig.Content.Word> Words, double Top, double Bottom)> bands)
+        {
+            if (bands.Count < 2) return bands;
+
+            double textL = double.MaxValue, textR = double.MinValue;
+            foreach (var (ws, _, _) in bands)
+                foreach (var w in ws)
+                {
+                    if (w.BoundingBox.Left < textL) textL = w.BoundingBox.Left;
+                    if (w.BoundingBox.Right > textR) textR = w.BoundingBox.Right;
+                }
+            double wideW = (textR - textL) * 0.62;   // spans most of the text width = not a column line
+
+            var reordered = new List<(List<UglyToad.PdfPig.Content.Word>, double, double)>();
+            var pending = new List<(List<UglyToad.PdfPig.Content.Word> Words, double Top, double Bottom, double L, double R)>();
+
+            void Flush()
+            {
+                if (pending.Count == 0) return;
+                // Cluster segments into columns by X-interval overlap (>= half the narrower range).
+                var cols = new List<(double L, double R, List<int> Idx)>();
+                var byLeft = Enumerable.Range(0, pending.Count).OrderBy(i => pending[i].L).ToList();
+                foreach (int i in byLeft)
+                {
+                    var seg = pending[i];
+                    int hit = -1;
+                    for (int c = 0; c < cols.Count && hit < 0; c++)
+                    {
+                        double ov = Math.Min(cols[c].R, seg.R) - Math.Max(cols[c].L, seg.L);
+                        double minW = Math.Min(cols[c].R - cols[c].L, seg.R - seg.L);
+                        if (minW > 0 && ov >= minW * 0.5) hit = c;
+                    }
+                    if (hit < 0) cols.Add((seg.L, seg.R, [i]));
+                    else
+                    {
+                        var c0 = cols[hit];
+                        c0.Idx.Add(i);
+                        cols[hit] = (Math.Min(c0.L, seg.L), Math.Max(c0.R, seg.R), c0.Idx);
+                    }
+                }
+                foreach (var col in cols.OrderBy(c => c.L))
+                    foreach (int i in col.Idx.OrderByDescending(i => pending[i].Top))
+                        reordered.Add((pending[i].Words, pending[i].Top, pending[i].Bottom));
+                pending.Clear();
+            }
+
+            foreach (var (ws, _, _) in bands)
+            {
+                var sorted = ws.OrderBy(w => w.BoundingBox.Left).ToList();
+                // Split threshold: well past a word space (~0.25em) but below a column gutter.
+                double tw = 0; int tn = 0;
+                foreach (var w in sorted) { tw += w.BoundingBox.Width; tn += Math.Max(1, w.Text.Length); }
+                double gapT = Math.Max(10, (tn > 0 ? tw / tn : 5) * 3);
+
+                var segs = new List<List<UglyToad.PdfPig.Content.Word>> { new() { sorted[0] } };
+                for (int i = 1; i < sorted.Count; i++)
+                {
+                    if (sorted[i].BoundingBox.Left - sorted[i - 1].BoundingBox.Right > gapT)
+                        segs.Add([]);
+                    segs[^1].Add(sorted[i]);
+                }
+                foreach (var sws in segs)
+                {
+                    double sT = double.MinValue, sB = double.MaxValue, sL = double.MaxValue, sR = double.MinValue;
+                    foreach (var w in sws)
+                    {
+                        if (w.BoundingBox.Top > sT) sT = w.BoundingBox.Top;
+                        if (w.BoundingBox.Bottom < sB) sB = w.BoundingBox.Bottom;
+                        if (w.BoundingBox.Left < sL) sL = w.BoundingBox.Left;
+                        if (w.BoundingBox.Right > sR) sR = w.BoundingBox.Right;
+                    }
+                    if (sR - sL >= wideW) { Flush(); reordered.Add((sws, sT, sB)); }
+                    else pending.Add((sws, sT, sB, sL, sR));
+                }
+            }
+            Flush();
+            return reordered;
+        }
+
         private static PageTextRuns Build(UglyToad.PdfPig.Content.Page page)
         {
             var result = new PageTextRuns { PdfWidth = page.Width, PdfHeight = page.Height };
@@ -116,6 +198,16 @@ namespace KillerPDF.Services
             // Reading order: lines top-to-bottom (PDF Y grows upward, so larger Top first).
             // Each line chooses its own horizontal direction so mixed-language pages work too.
             lineWords.Sort((a, b) => b.Top.CompareTo(a.Top));
+
+            // ---- #185: column-aware reading order ----------------------------------------------
+            // A Y band spans the whole page, so on a two-column layout every "line" mixed both
+            // columns and a drag down one column swept its neighbor. Split each band into segments
+            // at column-gutter-sized gaps, cluster narrow segments into columns by X overlap, and
+            // emit whole columns left-to-right (top-to-bottom inside each). Wide segments - titles
+            // and footers spanning the text width - close the open column section, so a
+            // title / two columns / footer page keeps a sane order. A single-column page yields
+            // one cluster and comes out in exactly the old order.
+            lineWords = OrderColumnAware(lineWords);
 
             int wordOrdinal = 0;
             for (int li = 0; li < lineWords.Count; li++)
