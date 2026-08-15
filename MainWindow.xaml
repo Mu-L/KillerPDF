@@ -345,6 +345,44 @@
             <Setter Property="Tag" Value="{DynamicResource SmallCornerRadius}"/>
         </Style>
 
+        <!-- Shared close for the About and shortcuts cards (KillerScan is the family reference):
+             a bare muted X that turns red on hover, no caption-style hover box. 98SE swaps the
+             glyph, font, metrics, and colors through the AboutClose* theme keys. -->
+        <Style x:Key="OverlayCloseButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource AboutCloseFg}"/>
+            <Setter Property="FontFamily" Value="{DynamicResource AboutCloseFont}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="{DynamicResource CaptionGlyphWeight}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border Background="{DynamicResource CaptionButtonBrush}"/>
+                            <Border x:Name="bevelLight" IsHitTestVisible="False"
+                                    BorderBrush="{DynamicResource BevelLightBrush}"
+                                    BorderThickness="{DynamicResource BevelLightThickness}"/>
+                            <Border x:Name="bevelDark" IsHitTestVisible="False"
+                                    BorderBrush="{DynamicResource BevelDarkBrush}"
+                                    BorderThickness="{DynamicResource BevelDarkThickness}"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource AboutCloseHoverFg}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                                <Setter TargetName="bevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Tab close button: themed so hover is the danger red (not WPF's default blue chrome). -->
         <Style x:Key="TabCloseButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -1134,7 +1172,9 @@
                                     <Ellipse x:Name="ring" Width="14" Height="14"
                                              Stroke="{DynamicResource DimTextBrush}" StrokeThickness="1.5"
                                              Fill="{DynamicResource RadioWellBrush}"/>
-                                    <Ellipse x:Name="dot" Width="7" Height="7"
+                                    <!-- 8, not 7: a 7px dot in the 16px cell sits at a half-pixel
+                                         offset and reads lopsided in its ring (PR #198, Ryokoxx). -->
+                                    <Ellipse x:Name="dot" Width="8" Height="8"
                                              Fill="{DynamicResource RadioAccent}" Visibility="Collapsed"/>
                                 </Grid>
                                 <ContentPresenter VerticalAlignment="Center"/>
@@ -1155,6 +1195,17 @@
                                 <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource RadioAccent}"/>
                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
+                            <!-- Checked AND hovered: the accent label sits on the hover fill, and a
+                                 theme whose accent matches its hover (Sepulchre) made it vanish.
+                                 RadioHoverFgBrush defaults to RadioAccent, so other themes are
+                                 untouched. Declared last so it wins both single triggers. -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Foreground" Value="{DynamicResource RadioHoverFgBrush}"/>
+                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -2644,7 +2695,7 @@
                     </Border.Effect>
                 </Border>
                 <Border Background="{DynamicResource MenuBackgroundBrush}"
-                        BorderBrush="{DynamicResource MenuBorderBrush}"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="{DynamicResource PanelCornerRadius}"
                         Padding="0"
@@ -2741,7 +2792,7 @@
                     </Border.Effect>
                 </Border>
                 <Border Background="{DynamicResource BackgroundBrush}"
-                        BorderBrush="{DynamicResource MenuBorderBrush}"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="{DynamicResource PanelCornerRadius}"
                         MouseLeftButtonDown="AboutOverlayCard_MouseLeftButtonDown"
@@ -2790,8 +2841,13 @@
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <!-- Logo (populated in code-behind), with a soft layered shadow -->
                             <Grid Margin="0,0,0,4">
-                                <TextBlock Text="KillerPDF" FontFamily="{DynamicResource WordmarkFont}" FontSize="22" FontWeight="Bold"
-                                           Foreground="#B0000000" Margin="1,1,0,0" IsHitTestVisible="False"
+                                <!-- Shadow copy populated in code-behind (BuildAboutLogo) with the SAME
+                                     runs as the real wordmark. A static flat-size "KillerPDF" here sat
+                                     at different metrics than the two-run logo and read as a long smear
+                                     floating above the word instead of a shadow behind it. -->
+                                <TextBlock x:Name="AboutLogoShadowBlock"
+                                           FontFamily="{DynamicResource WordmarkFont}" FontSize="22" FontWeight="Bold"
+                                           Margin="1,1,0,0" IsHitTestVisible="False"
                                            Opacity="{DynamicResource WordmarkShadowOpacity}">
                                     <TextBlock.Effect><BlurEffect Radius="2"/></TextBlock.Effect>
                                 </TextBlock>

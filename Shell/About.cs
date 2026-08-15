@@ -124,6 +124,26 @@ namespace KillerPDF
             });
             hl.Click += (_, _) => AboutController.OpenUrl("https://killerpdf.net");
             AboutLogoBlock.Inlines.Add(hl);
+
+            // The shadow copy mirrors the real runs exactly (sizes, weights, fonts), so the blur
+            // sits directly behind each letter instead of smearing above the word - a flat
+            // single-size copy had different line metrics than the two-run wordmark.
+            AboutLogoShadowBlock.Inlines.Clear();
+            var shadowBrush = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(0xB0, 0, 0, 0));
+            shadowBrush.Freeze();
+            AboutLogoShadowBlock.Inlines.Add(new Run("Killer")
+            {
+                FontSize   = 21,
+                FontWeight = FontWeights.Normal,
+                Foreground = shadowBrush
+            });
+            AboutLogoShadowBlock.Inlines.Add(new Run("PDF")
+            {
+                FontFamily = UiKit.WordmarkFontPdf,
+                FontSize   = 27.3,
+                Foreground = shadowBrush
+            });
         }
 
         /// <summary>

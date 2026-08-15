@@ -162,6 +162,12 @@ namespace KillerPDF.Services
                 var existing = merged[0];
                 foreach (object key in newDict.Keys)
                     existing[key] = newDict[key];
+                // The two effect keys can be NULL (98SE: no shadows), and a null-valued entry
+                // does not reliably survive the per-key copy above - the previous theme's effect
+                // then stays in the live dictionary and 98SE keeps casting pane shadows. Force
+                // them through explicitly, null included.
+                existing["PaneShadowEffect"] = newDict.Contains("PaneShadowEffect") ? newDict["PaneShadowEffect"] : null;
+                existing["BarShadowEffect"]  = newDict.Contains("BarShadowEffect")  ? newDict["BarShadowEffect"]  : null;
             }
             else
             {
@@ -322,6 +328,10 @@ namespace KillerPDF.Services
             // Circle swatches by default; 98SE's own 0 makes them squares. Materialized so 98SE's
             // square cannot leak into a later theme through the in-place merge.
             if (!d.Contains("AccentSwatchCornerRadius")) d["AccentSwatchCornerRadius"] = new CornerRadius(9);
+            // The checked picker row's label while HOVERED. Defaults to the normal checked color
+            // (RadioAccent) so nothing changes; a theme whose accent equals its hover fill
+            // (Sepulchre) overrides it, or the selected label vanishes into its own highlight.
+            Alias("RadioHoverFgBrush", "RadioAccent");
             if (!d.Contains("CheckSunkenDarkThickness")) d["CheckSunkenDarkThickness"] = new Thickness(0);
             if (!d.Contains("CheckSunkenLightThickness")) d["CheckSunkenLightThickness"] = new Thickness(0);
             // 98SE opts into the compact native-style caption and removes the shadow halo. These
