@@ -1,13 +1,16 @@
-# Standards-conformance validation results - KillerPDF 1.7.2
+# Standards-conformance validation results - KillerPDF 1.7.3
 
-veraPDF run date: 2026-08-15, against the 1.7.2 release candidate. Unlike the 1.7.0 run, this
-one covers real write-path changes: the Multiply blend ExtGState saved highlights now carry
-(#200), comb text-field appearance streams (#158), and the vendored PdfSharpCore media-box
-patch for rotated pages (#184). The run reproduces every count of the 1.6.4-1.7.0 runs
-exactly - same 2,236 resaves, same 671 refusals matching the SKIP rows one for one, same
-63 improvements, and the same single documented PDF/A-4 header case as the only flagged file.
-The qpdf sweep was re-run fresh the same day and reproduces its table exactly: 2,032 clean
-both sides, 195 improved, 9 kept preexisting warnings, 0 worsened.
+veraPDF run date: 2026-08-15, against the 1.7.3 release build. The 1.7.3 diff contains no
+write-path changes (theme brushes and an image-dialog preview only); the fresh run is there
+because "every release is validated" means every release, not every release that feels risky.
+The write-path changes it inherits from 1.7.2 - the Multiply blend ExtGState saved highlights
+carry (#200), comb text-field appearance streams (#158), and the vendored PdfSharpCore
+media-box patch for rotated pages (#184) - were validated under 1.7.2 the same day, and this
+run reproduces every count of the 1.6.4-1.7.2 runs exactly: same 2,236 resaves, same 671
+refusals matching the SKIP rows one for one, same 63 improvements, and the same single
+documented PDF/A-4 header case as the only flagged file. The qpdf sweep was re-run fresh and
+reproduces its table exactly: 2,032 clean both sides, 195 improved, 9 kept preexisting
+warnings, 0 worsened.
 
 Question under test: does saving a PDF through KillerPDF degrade its
 standards conformance? Every file in a 2,907-file public corpus was validated, resaved through
@@ -22,7 +25,7 @@ Result: **Zero** conformance regressions across every file KillerPDF will save, 
 |---|---|---|
 | veraPDF | 1.30.2 | PDF/A + PDF/UA validation (the industry reference validator) |
 | qpdf | 12.3.2 | Structural check (`--check` exit codes) |
-| KillerPDF | 1.7.2 | `--batch-resave` through the standard open/save pipeline |
+| KillerPDF | 1.7.3 | `--batch-resave` through the standard open/save pipeline |
 | Compare-VeraPDF.ps1 | this folder | Diffs the two veraPDF reports file by file |
 | QpdfSweep.ps1 | this folder | Structural before/after sweep (`qpdf --check` exit codes) |
 

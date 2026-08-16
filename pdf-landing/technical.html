@@ -11,7 +11,7 @@
 <meta name="description" content="A deep technical explanation of how KillerPDF renders, zooms, and stays robust.">
 <link rel="icon" type="image/x-icon" href="kp-icon.ico">
 <script defer src="https://koya.thekiller.net/script.js" data-website-id="4036b11d-f6c0-4254-b448-933d3e38b0cb"></script>
-<link rel="stylesheet" href="kp.css?v=16">
+<link rel="stylesheet" href="kp.css?v=17">
 <style>
 .page-hero { text-align: center; padding: 44px 16px 8px; }
 .page-hero .wm-logo { height: clamp(46px, 8vw, 76px); width: auto; margin: 0 auto 8px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.55)); }
@@ -377,7 +377,7 @@
 <p>A PDF editor has one obligation above all others: saving your file must not damage it. Starting with 1.6.4, that claim is tested rather than assumed. Every release is validated against <a href="https://verapdf.org/" target="_blank" rel="noopener">veraPDF</a>, the industry reference validator for PDF/A and PDF/UA, across a 2,907-file public conformance corpus (the veraPDF test corpus, the Isartor PDF/A-1b suite, and the TWG test files). These are deliberately hostile files, most built to violate exactly one clause of a standard, so any structural damage a save introduces shows up immediately as a newly failed rule.</p>
 <h3 id="how-the-test-works">How the test works</h3>
 <p>Every corpus file is validated pristine, resaved through KillerPDF's normal open/save pipeline (headlessly, via <code>--batch-resave</code>), and validated again. A comparison script then flags any file that fails a rule after the resave that it did not fail before. The bar for release is zero regressions. A second pass runs <code>qpdf --check</code> on every original/resave pair and flags any file whose structural health worsened.</p>
-<h3 id="the-numbers">The numbers (v1.7.2, veraPDF 1.30.2)</h3>
+<h3 id="the-numbers">The numbers (v1.7.3, veraPDF 1.30.2)</h3>
 <table class="spec-table"><tr><th>Outcome</th><th>Files</th></tr>
 <tr><td>Corpus total</td><td>2,907</td></tr>
 <tr><td>Resaved and revalidated</td><td>2,236</td></tr>

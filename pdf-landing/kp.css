@@ -14,18 +14,19 @@ html[data-theme="malaise"] { --bg:#563343; --surface:#3f4947; --panel:#343b3d; -
 html[data-theme="sepulchre"] { --bg:#25282b; --surface:#454039; --panel:#3a352f; --sidebar:#454039; --canvas:#3a352f; --border:#835a30; --pane-border:#4d3d2b; --dragline:#4d3d2b; --tab-edge:rgba(79,170,168,.42); --accent:#4faaa8; --accent-text:#ffffff; --text:#f4f4f0; --text2:#d7d7cf; --muted:#b4b6b1; --footer-text:#b4b6b1; --danger:#dc6666; --grain:0.30; --btn:#4faaa8; --btn-text:#ffffff; --logo-pdf:#1ea54c; --chrome:#454039; --modal:#242729; --fade:rgba(0,0,0,0.62); }
 html[data-theme="delirium"] { --bg:#641d25; --surface:#3e3c50; --panel:#343344; --sidebar:#3e3c50; --canvas:#343344; --border:#8e101c; --pane-border:#5c527d; --dragline:#5c527d; --tab-edge:#cf1020; --accent:#dd8500; --accent-text:#ffffff; --text:#f4f4f0; --text2:#d7d7cf; --muted:#b4b6b1; --footer-text:#b4b6b1; --danger:#ff5360; --grain:0.30; --btn:#dd8500; --btn-text:#ffffff; --logo-pdf:#1ea54c; --chrome:#3e3c50; --modal:#24212b; --fade:rgba(0,0,0,0.62); }
 html[data-theme="mourning"] { --bg:#3b3642; --surface:#34373e; --panel:#554c5d; --sidebar:#34373e; --canvas:#554c5d; --border:#756b79; --pane-border:#756b79; --dragline:#756b79; --tab-edge:rgba(255,111,145,.42); --accent:#ff6f91; --accent-text:#292c31; --text:#f4f4f0; --text2:#d7d7cf; --muted:#b4b6b1; --footer-text:#b4b6b1; --danger:#ff5360; --grain:0.28; --btn:#ff6f91; --btn-text:#292c31; --logo-pdf:#1ea54c; --chrome:#34373e; --modal:#4f413f; --fade:rgba(0,0,0,0.62); }
-/* Match the app: the outer chrome carries the palette/gradient while the document pane stays solid. */
-html[data-theme="ectoplasm"] { --bg:#293c3f; --sidebar:linear-gradient(90deg,#5e1764 0%,#25232b 100%); }
-html[data-theme="decay"] { --bg:#403f3b; --sidebar:linear-gradient(90deg,#3b3f46 0%,#50564b 100%); }
-html[data-theme="malaise"] { --bg:#343b3d; --sidebar:linear-gradient(90deg,#563343 0%,#365b58 100%); }
-html[data-theme="sepulchre"] { --bg:#3a352f; --sidebar:linear-gradient(90deg,#25282b 0%,#2c5458 100%); }
-html[data-theme="delirium"] { --bg:#343344; --sidebar:linear-gradient(90deg,#641d25 0%,#2f2853 100%); }
+/* Match the app: the outer chrome carries the palette/gradient while the document pane stays solid.
+   Keep the solid sidebar key separate so components do not accidentally restart the gradient. */
+html[data-theme="ectoplasm"] { --bg:#293c3f; --chrome-bg:linear-gradient(90deg,#5e1764 0%,#25232b 100%); }
+html[data-theme="decay"] { --bg:#403f3b; --chrome-bg:linear-gradient(90deg,#3b3f46 0%,#50564b 100%); }
+html[data-theme="malaise"] { --bg:#343b3d; --chrome-bg:linear-gradient(90deg,#563343 0%,#365b58 100%); }
+html[data-theme="sepulchre"] { --bg:#3a352f; --chrome-bg:linear-gradient(90deg,#25282b 0%,#2c5458 100%); }
+html[data-theme="delirium"] { --bg:#343344; --chrome-bg:linear-gradient(90deg,#641d25 0%,#2f2853 100%); }
 html[data-theme="mourning"] { --bg:#554c5d; --sidebar:#3b3642; }
 html[data-theme="delirium"] .tb-dl:hover,
 html[data-theme="delirium"] body .download-btn:hover { background:#ffad2f; color:#1e1f22; filter:none; }
 html[data-theme="malaise"] .tb-dl:hover,
 html[data-theme="malaise"] body .download-btn:hover { background:#ff9fba; color:#292c31; filter:none; }
-:root { --accent-dim: color-mix(in srgb, var(--accent) 16%, transparent); }
+:root { --accent-dim: color-mix(in srgb, var(--accent) 16%, transparent); --chrome-bg:var(--sidebar); }
 
 html { background: var(--bg); height: 100%; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; height: 100%; overflow: hidden; display: flex; flex-direction: column; position: relative; isolation: isolate; transition: background-color 0.2s, color 0.2s; }
@@ -54,7 +55,7 @@ html[data-theme="light"] .wm-logo { filter: none; }
 html[data-theme="light"] .page-title { text-shadow: none; }
 
 /* ---- Top bar (single app-style chrome bar) ---- */
-.topbar { position: relative; flex: 0 0 auto; z-index: 100; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 16px 0; background: var(--sidebar); }
+.topbar { position: relative; flex: 0 0 auto; z-index: 100; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 16px 0; background: var(--chrome-bg); }
 .topbar::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: url('grain.png?v=2') repeat fixed; background-size: 256px 256px; opacity: 1; }
 .topbar > * { position: relative; z-index: 1; }
 .tb-home { display: inline-flex; align-items: center; gap: 9px; color: var(--text); }
@@ -102,7 +103,7 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 
 /* ---- App body: content + right-hand sidebar ---- */
 /* Chrome-toned shell: the gutter around the rounded content pane reads as grained chrome, like the app windows and killertools.net */
-.shell { display: grid; grid-template-columns: 1fr 268px; flex: 1 1 auto; min-height: 0; overflow: visible; position: relative; z-index: 2; background: var(--sidebar); }
+.shell { display: grid; grid-template-columns: 1fr 268px; flex: 1 1 auto; min-height: 0; overflow: visible; position: relative; z-index: 2; background: var(--chrome-bg); }
 .shell::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: url('grain.png?v=2') repeat fixed; background-size: 256px 256px; opacity: 1; }
 @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
 /* Inset rounded pane (killertools.net MenuLayout treatment): 8px chrome gutter on the window edges, 2px hugging the sidebar, none above the statusbar.
@@ -111,8 +112,11 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 .content-scroll { height: 100%; overflow-y: auto; scroll-behavior: smooth; }
 
 /* ---- Sidebar (the app's docked pane) ---- */
-.sidebar { position: relative; height: calc(100% - 8px); margin-top: 8px; min-height: 0; background: var(--sidebar); display: flex; flex-direction: column; z-index: 5; }
-.sidebar::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: url('grain.png?v=2') repeat fixed; background-size: 256px 256px; opacity: 1; }
+.sidebar { position: relative; height: calc(100% - 8px); margin-top: 8px; min-height: 0; background: transparent; display: flex; flex-direction: column; z-index: 5; }
+/* The shell already paints the chrome gradient and grain across the full window. Painting either
+   again here restarts the gradient inside this narrow column, producing a completely different
+   red-to-purple ramp instead of the continuous right-hand end of the shell. */
+.sidebar::before { content: none; }
 /* :not(.sb-fade) - .sb-fade sets its own position:absolute (it must stay out of flow to
    overlay instead of taking up flex space); this reset must not clobber that. Equal
    specificity + later source order was winning and dropping the fade divs back into
@@ -123,7 +127,7 @@ html[data-theme="light"] .page-title { text-shadow: none; }
    top only once scrolled down, bottom only while more content remains below. Shared by any
    scrollable sidebar content (screenshot strip on the front page, the outline nav elsewhere). */
 .sb-fade { position: absolute; left: 0; right: 8px; height: 40px; pointer-events: none; z-index: 2; opacity: 0; transition: opacity 0.12s ease;
-  background: var(--sidebar) url('grain.png?v=2') repeat fixed; background-size: 256px 256px; }
+  background: var(--chrome-bg); background-attachment: fixed; background-size: 100vw 100vh; }
 .sb-fade-top { top: 0; -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent); }
 .sb-fade-bottom { bottom: 0; -webkit-mask-image: linear-gradient(to top, #000, transparent); mask-image: linear-gradient(to top, #000, transparent); }
 .sb-fade.on { opacity: 1; }
@@ -132,7 +136,7 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 .sb-tabs .on { color: var(--accent); border-bottom: 2px solid var(--tab-edge); }
 
 /* ---- Status bar footer (matches the app) ---- */
-.statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 3px 16px; background: var(--sidebar); font-family: Consolas, monospace; font-size: 11.5px; color: var(--footer-text); position: relative; flex: 0 0 auto; }
+.statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 3px 16px; background: var(--chrome-bg); font-family: Consolas, monospace; font-size: 11.5px; color: var(--footer-text); position: relative; flex: 0 0 auto; }
 .statusbar::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: url('grain.png?v=2') repeat fixed; background-size: 256px 256px; opacity: 1; }
 /* Resize-grip dots in the window corner, matching the app chrome (grain owns ::after) */
 .statusbar::before { content: ""; position: absolute; right: 5px; bottom: 5px; width: 2px; height: 2px; background: var(--footer-text); box-shadow: -4px 0 var(--footer-text), -8px 0 var(--footer-text), 0 -4px var(--footer-text), -4px -4px var(--footer-text), 0 -8px var(--footer-text); opacity: .8; pointer-events: none; z-index: 1; }
@@ -172,11 +176,12 @@ html[data-theme="light"] .page-title { text-shadow: none; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-corner { background: transparent; }
-/* Sidebar is darker than --bg, so its scrollbar track must use --sidebar (not the global --bg) or it shows a lighter mismatched band. */
+/* Let the continuous shell chrome show through the sidebar scrollbar track too. Repainting
+   --sidebar here would restart gradient themes inside the 8px track. */
 .sidebar::-webkit-scrollbar-track,
 .sidebar::-webkit-scrollbar-track-piece,
 .sidebar ::-webkit-scrollbar-track,
-.sidebar ::-webkit-scrollbar-track-piece { background: var(--sidebar) url('grain.png?v=2') repeat; background-size: 256px 256px; }
+.sidebar ::-webkit-scrollbar-track-piece { background: transparent; }
 
 @media (max-width: 900px) {
   html, body { height: auto; overflow: visible; display: block; }

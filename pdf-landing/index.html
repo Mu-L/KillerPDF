@@ -23,7 +23,7 @@
 <meta name="twitter:description" content="One exe. Install or run portable - no account, no subscription, no telemetry. Local PDF editor. GPLv3.">
 <meta name="twitter:image" content="https://killerpdf.net/og-image.png">
 <script defer src="https://koya.thekiller.net/script.js" data-website-id="4036b11d-f6c0-4254-b448-933d3e38b0cb"></script>
-<link rel="stylesheet" href="kp.css?v=16">
+<link rel="stylesheet" href="kp.css?v=17">
 <style>
 /* ---- Page-specific (landing) ---- */
 .content-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px 50px; }
@@ -90,12 +90,12 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
    scrollbar is never faded). Inset 8px from the right to clear the scrollbar. JS toggles .on:
    top only once scrolled down, bottom only while more shots remain below. */
 .sb-fade { position: absolute; left: 0; right: 8px; height: 40px; pointer-events: none; z-index: 2; opacity: 0; transition: opacity 0.12s ease;
-  background: var(--sidebar) url('grain.png?v=2') repeat fixed; background-size: 256px 256px; }
+  background: var(--chrome-bg); background-attachment: fixed; background-size: 100vw 100vh; }
 .sb-fade-top { top: 0; -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent); }
 .sb-fade-bottom { bottom: 0; -webkit-mask-image: linear-gradient(to top, #000, transparent); mask-image: linear-gradient(to top, #000, transparent); }
 .sb-fade.on { opacity: 1; }
-.sb-thumb { flex-shrink: 0; border: 2px solid transparent; border-radius: 5px; overflow: hidden; cursor: pointer; background: var(--panel); transition: border-color 0.15s, transform 0.12s; position: relative; }
-.sb-thumb:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+.sb-thumb { flex-shrink: 0; border: 2px solid transparent; border-radius: 5px; overflow: hidden; cursor: pointer; background: var(--panel); transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s; position: relative; }
+.sb-thumb:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); box-shadow: 0 12px 24px rgba(0,0,0,0.62); z-index: 2; }
 .sb-thumb img { display: block; width: 100%; height: auto; }
 .sb-thumb .lbl { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; font-family: Consolas, monospace; text-align: center; padding: 3px 0; background: rgba(0,0,0,0.6); color: #fff; }
 
@@ -271,18 +271,24 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <script src="kp.js?v=6"></script>
 <script>
 (function () {
-  var SHOTS = [];
-  for (var i = 1; i <= 8; i++) SHOTS.push('screenshots/' + (i < 10 ? '0' + i : '' + i) + '.png');
+  var SHOTS = [
+    { src: 'screenshots/01.png', desc: 'Six-page grid view of the KillerPDF brochure' },
+    { src: 'screenshots/02.png', desc: 'Insert Image file picker in the 98SE theme' },
+    { src: 'screenshots/03.png', desc: 'Split-pane grid view with the outline open in Bengali' },
+    { src: 'screenshots/04.png', desc: 'Night mode with a Traditional Chinese page context menu' },
+    { src: 'screenshots/05.png', desc: 'Shape tools and Book layout in the Black theme' },
+    { src: 'screenshots/06.png', desc: 'Drawing, shapes, and the custom color picker' }
+  ];
   var sbThumbs = document.getElementById('sbThumbs');
   var lightbox = document.getElementById('lightbox');
   var lightboxImg = document.getElementById('lightboxImg');
 
   // Build the sidebar screenshot thumbnails (scrollable, like the app). Click = pop out.
-  SHOTS.forEach(function (src, idx) {
+  SHOTS.forEach(function (shot) {
     var b = document.createElement('button');
-    b.className = 'sb-thumb'; b.title = 'Screenshot ' + (idx + 1);
-    b.innerHTML = '<img src="' + src + '" alt="KillerPDF screenshot ' + (idx + 1) + '" loading="lazy">';
-    b.addEventListener('click', function () { openLightbox(src); });
+    b.className = 'sb-thumb'; b.title = shot.desc;
+    b.innerHTML = '<img src="' + shot.src + '" alt="' + shot.desc + '" loading="lazy">';
+    b.addEventListener('click', function () { openLightbox(shot.src); });
     var im = b.querySelector('img');
     if (im) { im.addEventListener('load', updateFade); im.addEventListener('error', updateFade); }
     sbThumbs.appendChild(b);
