@@ -500,7 +500,7 @@ namespace KillerPDF
         private void ChooseImage()
         {
             var ofd = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Open)
-                          { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*" };
+                          { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*", ShowImagePreview = true };
             if (ofd.ShowDialog(this) == true)
             {
                 _wmImagePath = ofd.FileName;

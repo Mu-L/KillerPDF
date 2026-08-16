@@ -653,6 +653,7 @@ KillerPDF 将被复制到您的程序文件夹，并添加开始菜单项。此 
     <sys:String x:Key="Str_Dlg_FileName">文件名：</sys:String>
     <sys:String x:Key="Str_Dlg_FileType">文件类型：</sys:String>
     <sys:String x:Key="Str_Dlg_NoMatchingFiles">此处没有与当前文件类型匹配的项。</sys:String>
+    <sys:String x:Key="Str_Dlg_Preview">预览</sys:String>
     <sys:String x:Key="Str_Dlg_NoSuchFile">该文件不存在。</sys:String>
     <sys:String x:Key="Str_Dlg_NoSuchFolder">该文件夹不存在。</sys:String>
     <sys:String x:Key="Str_Dlg_OverwriteMsg">要替换 {0} 吗？</sys:String>

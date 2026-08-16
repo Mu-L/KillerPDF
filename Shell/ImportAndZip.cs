@@ -27,7 +27,8 @@ namespace KillerPDF
             {
                 Title       = Loc("Str_Menu_Import"),
                 Filter      = $"{Loc("Str_Filter_Images")}|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff|{Loc("Str_Filter_AllFiles")}|*.*",
-                Multiselect = true
+                Multiselect = true,
+                ShowImagePreview = true
             };
             if (dlg.ShowDialog(this) != true) return;
 

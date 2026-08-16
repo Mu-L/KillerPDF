@@ -776,7 +776,8 @@ namespace KillerPDF
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
             {
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*",
-                Title = "Import Signature Image"
+                Title = "Import Signature Image",
+                ShowImagePreview = true
             };
             if (dlg.ShowDialog(this) != true) return;
 

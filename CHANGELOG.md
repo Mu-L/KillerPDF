@@ -4,6 +4,14 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - 2026-08-15
+
+1.7.3 corrects theme accents and restores the missing visual preview in image-selection dialogs.
+
+### Fixed
+- The active tab's ring and underline now follow the chosen accent color; they stayed on the theme's base color under any other accent, on every theme.
+- Image-selection dialogs now include a live preview pane for image import, image signatures, image stamps, and Insert Image.
+
 ## [1.7.2] - 2026-08-15
 
 KillerPDF 1.7.2 completes the split-pane viewer refactor and builds on it with seven new themes, Polish localization, book layout, Levels, expanded print controls, per-pane night mode, and a substantial round of rendering, memory, form, and interface fixes.

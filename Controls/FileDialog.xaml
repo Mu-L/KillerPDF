@@ -269,6 +269,8 @@
                     <ColumnDefinition Width="170"/>
                     <ColumnDefinition Width="8"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition x:Name="ImagePreviewGapColumn" Width="0"/>
+                    <ColumnDefinition x:Name="ImagePreviewColumn" Width="0"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- A lifted card matching the file list (2026-08-15, revising the 2026-07-30 flat
@@ -510,6 +512,47 @@
                     </DockPanel>
                   </Grid>
                   </Border>
+                </Grid>
+
+                <!-- Image-only pickers opt into this pane. Keeping it in the shared dialog makes
+                     Insert Image, image signatures, image stamps, and image-to-PDF import behave
+                     identically without changing ordinary Open/Save dialogs. -->
+                <Grid x:Name="ImagePreviewHost" Grid.Column="4" Visibility="Collapsed">
+                    <Border Background="{DynamicResource FileDialogPaneBrush}"
+                            CornerRadius="{DynamicResource ControlCornerRadius}"
+                            IsHitTestVisible="False">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270"
+                                              Opacity="{DynamicResource FlyoutShadowOpacity}"/>
+                        </Border.Effect>
+                    </Border>
+                    <Border Background="{DynamicResource FileDialogPaneBrush}"
+                            CornerRadius="{DynamicResource ControlCornerRadius}">
+                        <Grid>
+                            <Border IsHitTestVisible="False"
+                                    CornerRadius="{DynamicResource ControlCornerRadius}"
+                                    Background="{DynamicResource GrainTileBrush}"
+                                    Opacity="{DynamicResource GrainOpacity}"/>
+                            <Grid Margin="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="{DynamicResource Str_Dlg_Preview}"
+                                           FontFamily="Consolas" FontSize="11"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                                <Grid Grid.Row="1" Margin="0,10,0,0">
+                                    <TextBlock x:Name="ImagePreviewPlaceholder" Text="&#xEB9F;"
+                                               FontFamily="Segoe MDL2 Assets" FontSize="42"
+                                               Foreground="{DynamicResource DimTextBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Image x:Name="ImagePreview" Stretch="Uniform"
+                                           SnapsToDevicePixels="True"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Grid>
 

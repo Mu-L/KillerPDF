@@ -150,6 +150,12 @@ namespace KillerPDF.Services
             };
 
             var newDict = new ResourceDictionary { Source = uri };
+            // Recorded BEFORE CompleteAppPalette materializes it: whether the THEME FILE itself
+            // defines the tab ring (98SE does - classic chrome, not an accent derivation). After
+            // materialization the key always exists, so this is the only moment the distinction
+            // is readable, and the accent overlay below needs it to know whether re-deriving the
+            // ring from the overlay's accent would honor the theme or clobber it.
+            bool themeOwnsTabRing = newDict.Contains("TabActiveRingBrush");
             CompleteAppPalette(newDict);
             var merged  = Application.Current.Resources.MergedDictionaries;
 
@@ -206,6 +212,13 @@ namespace KillerPDF.Services
                     target["OutlineRestBrush"] = accentDict.Contains("OutlineBtnBrush")
                         ? accentDict["OutlineBtnBrush"]
                         : accentDict.Contains("PrimaryBrush") ? accentDict["PrimaryBrush"] : target["OutlineRestBrush"];
+                // TabActiveRingBrush is the same pre-overlay derivation (from SelectionAccent), so
+                // the active tab's ring and underline sat on the theme's base hue under every
+                // colored accent, on every theme. Re-derive from the overlay's SelectionAccent -
+                // already merged into target above - UNLESS the theme file defines the ring
+                // itself (98SE's classic chrome) or the overlay carries it explicitly.
+                if (!themeOwnsTabRing && !accentDict.Contains("TabActiveRingBrush"))
+                    target["TabActiveRingBrush"] = target["SelectionAccent"];
             }
 
             // App.xaml owns startup fallbacks for these legacy aliases, and local application
@@ -338,10 +351,11 @@ namespace KillerPDF.Services
             // rendered with no background on every other theme. BgCanvas matches the Document
             // Info dialog's fields - the reference look.
             if (!d.Contains("TextFieldBrush")) d["TextFieldBrush"] = Pick("BgCanvas", "PaneBrush");
-            // FORCE-assigned, not if-absent: no theme dictionary carries these two keys, so an
-            // if-absent fill materialized them once against the FIRST palette and every later
-            // theme switch kept that stale derivation - the green Install outline on teal-accent
-            // Black. Pure derivations are safe to recompute on every load.
+            // No theme dictionary carries these two keys, so on the fresh dict this method runs
+            // against, plain assignment and if-absent are equivalent - assignment states the
+            // intent. NOTE this still runs BEFORE the accent overlay: overlay-time re-derivation
+            // (LoadDict) is what keeps them on the chosen accent, not this line - the green
+            // Install outline on teal-accent Black was fixed THERE.
             d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
             d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
             // Circle swatches by default; 98SE's own 0 makes them squares. Materialized so 98SE's

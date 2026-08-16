@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 
 namespace KillerPDF.Controls
 {
@@ -66,6 +67,10 @@ namespace KillerPDF.Controls
         /// Set it BEFORE ShowDialog - the list's selection mode is applied there.</summary>
         public bool Multiselect { get; set; }
 
+        /// <summary>Show a live preview pane for image-selection workflows. The pane is opt-in so
+        /// ordinary Open and Save dialogs keep their compact layout.</summary>
+        public bool ShowImagePreview { get; set; }
+
         /// <summary>Every path chosen. Always populated on success, so a caller can read this
         /// whether or not it asked for Multiselect - single selection yields one entry, matching
         /// the Win32 dialogs' FileNames. FileName remains the first of them.</summary>
@@ -85,6 +90,12 @@ namespace KillerPDF.Controls
         private int  _viewMode;              // 0 list, 1 icons, 2 details
         private int  _sortKey;               // 0 name, 1 size, 2 modified
         private bool _sortAsc = true;
+        private int _imagePreviewGeneration;
+
+        private static readonly HashSet<string> PreviewImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff"
+        };
 
         // Per-filter-entry patterns, parallel to FilterCombo's items. Empty list = show all.
         private readonly List<string[]> _filterPatterns = [];
@@ -214,6 +225,7 @@ namespace KillerPDF.Controls
 
             HeadingText.Text    = Title ?? "";
             AcceptButton.Content = Loc(_mode == FileDialogMode.Save ? "Str_Btn_Save" : "Str_Btn_Open");
+            ConfigureImagePreview();
             // Extended, not Multiple: Extended is the Explorer behavior (plain click replaces the
             // selection, Ctrl adds, Shift ranges). Multiple toggles on every click, which feels
             // broken to anyone who has used a file dialog before.
@@ -555,6 +567,7 @@ namespace KillerPDF.Controls
             if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir)) return;
 
             _navigating = true;
+            UpdateImagePreview(null);
             _currentDir  = dir;
             PathBox.Text = dir;
             _raw.Clear();
@@ -933,8 +946,72 @@ namespace KillerPDF.Controls
                 if (!en.IsFolder) FileNameBox.Text = en.Name;
                 SelName.Text = en.Name;
                 SelMeta.Text = en.IsFolder ? en.ModifiedLabel : $"{en.SizeLabel}  |  {en.ModifiedLabel}";
+                UpdateImagePreview(en);
             }
-            else UpdateInfoSummary();
+            else
+            {
+                UpdateInfoSummary();
+                UpdateImagePreview(null);
+            }
+        }
+
+        private void ConfigureImagePreview()
+        {
+            if (!ShowImagePreview)
+            {
+                ImagePreviewHost.Visibility = Visibility.Collapsed;
+                ImagePreviewGapColumn.Width = new GridLength(0);
+                ImagePreviewColumn.Width = new GridLength(0);
+                return;
+            }
+
+            ImagePreviewHost.Visibility = Visibility.Visible;
+            ImagePreviewGapColumn.Width = new GridLength(8);
+            ImagePreviewColumn.Width = new GridLength(230);
+
+            // A preview should not consume the file list. Only image pickers grow; the remembered
+            // size remains the user's starting point and is still clamped to the work area.
+            MinWidth = 780;
+            Width = Math.Min(SystemParameters.WorkArea.Width, Math.Max(Width, 880));
+        }
+
+        private async void UpdateImagePreview(PickerEntry? entry)
+        {
+            int generation = ++_imagePreviewGeneration;
+            ImagePreview.Source = null;
+            ImagePreviewPlaceholder.Visibility = Visibility.Visible;
+
+            if (!ShowImagePreview || entry == null || entry.IsFolder ||
+                !PreviewImageExtensions.Contains(Path.GetExtension(entry.FullPath)))
+                return;
+
+            string path = entry.FullPath;
+            try
+            {
+                // BitmapCacheOption.OnLoad closes the file after decoding, and DecodePixelWidth
+                // caps memory for camera images while retaining enough detail for this pane.
+                var bitmap = await Task.Run(() =>
+                {
+                    var image = new BitmapImage();
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    image.DecodePixelWidth = 900;
+                    image.UriSource = new Uri(path, UriKind.Absolute);
+                    image.EndInit();
+                    image.Freeze();
+                    return image;
+                });
+
+                if (generation != _imagePreviewGeneration) return;
+                ImagePreview.Source = bitmap;
+                ImagePreviewPlaceholder.Visibility = Visibility.Collapsed;
+            }
+            catch
+            {
+                // Corrupt, unsupported, or transiently unavailable image: leave the neutral
+                // placeholder visible and keep the picker fully usable.
+            }
         }
 
         private void Files_DoubleClick(object sender, MouseButtonEventArgs e)
