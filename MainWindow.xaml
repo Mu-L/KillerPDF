@@ -2319,7 +2319,7 @@
                              the bottom-pinned card never moves; the strip animates its WIDTH, and that
                              growth runs rightward from the pinned left edge into the document side.
                              Swatch colors are painted per family in code (PopulateAccentStrip). -->
-                        <Grid Margin="12,10,14,10">
+                        <Grid Margin="12,10,3,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -2375,7 +2375,7 @@
                                      Height="Auto" clears the AccentDot style's fixed 18 so the rows
                                      size them; the 9px radius caps the 18px width into capsule ends
                                      (98SE's 0 keeps them square). -->
-                                <Grid x:Name="AccentStrip" Margin="10,6,2,6">
+                                <Grid x:Name="AccentStrip" Margin="7,6,2,6">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>

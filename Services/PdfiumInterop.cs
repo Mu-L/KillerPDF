@@ -121,14 +121,17 @@ namespace KillerPDF.Services
         private const int FpdfAnnotSubtypeWidget = 20;   // fpdf_annot.h FPDF_ANNOT_WIDGET
         private const int FpdfAnnotFlagHidden = 1 << 1;  // fpdf_annot.h FPDF_ANNOT_FLAG_HIDDEN
 
-        // Marks every WIDGET annotation on the loaded page hidden so neither the FPDF_ANNOT render
-        // pass nor FFLDraw paints form-field appearances. In-memory only: this renderer's document
-        // is a one-shot load that is closed right after, never saved. EntryPointNotFound (an older
-        // bundled PDFium without the annot API) degrades to leaving the fields baked in.
-        private static void HideWidgetAnnotations(IntPtr page)
+        // Marks every WIDGET annotation on the loaded page hidden so the FPDF_ANNOT render pass
+        // does not paint form-field appearances, and returns each widget's original flags by
+        // annotation index so RestoreWidgetAnnotationFlags can put them back before FFLDraw.
+        // In-memory only: this renderer's document is a one-shot load that is closed right after,
+        // never saved. EntryPointNotFound (an older bundled PDFium without the annot API) returns
+        // null and degrades to leaving the fields baked in.
+        private static System.Collections.Generic.Dictionary<int, int>? HideWidgetAnnotations(IntPtr page)
         {
             try
             {
+                var saved = new System.Collections.Generic.Dictionary<int, int>();
                 int count = FPDFPage_GetAnnotCountRaw(page);
                 for (int i = 0; i < count; i++)
                 {
@@ -137,12 +140,36 @@ namespace KillerPDF.Services
                     try
                     {
                         if (FPDFAnnot_GetSubtypeRaw(annot) == FpdfAnnotSubtypeWidget)
-                            FPDFAnnot_SetFlagsRaw(annot, FPDFAnnot_GetFlagsRaw(annot) | FpdfAnnotFlagHidden);
+                        {
+                            int flags = FPDFAnnot_GetFlagsRaw(annot);
+                            saved[i] = flags;
+                            FPDFAnnot_SetFlagsRaw(annot, flags | FpdfAnnotFlagHidden);
+                        }
                     }
                     finally { FPDFPage_CloseAnnotRaw(annot); }
                 }
+                return saved;
             }
-            catch { /* annot API unavailable: fields stay baked, no crash */ }
+            catch { return null; /* annot API unavailable: fields stay baked, no crash */ }
+        }
+
+        // Puts back the widget flags HideWidgetAnnotations saved, so FFLDraw sees the original
+        // visibility: a genuinely hidden field stays hidden, everything else draws once there.
+        private static void RestoreWidgetAnnotationFlags(
+            IntPtr page, System.Collections.Generic.Dictionary<int, int>? saved)
+        {
+            if (saved is null) return;
+            try
+            {
+                foreach (var kv in saved)
+                {
+                    IntPtr annot = FPDFPage_GetAnnotRaw(page, kv.Key);
+                    if (annot == IntPtr.Zero) continue;
+                    try { FPDFAnnot_SetFlagsRaw(annot, kv.Value); }
+                    finally { FPDFPage_CloseAnnotRaw(annot); }
+                }
+            }
+            catch { }
         }
 
         /// <summary>
@@ -191,7 +218,16 @@ namespace KillerPDF.Services
                             if (page == IntPtr.Zero) return null;
                             try
                             {
-                                if (!includeFormFields) HideWidgetAnnotations(page);
+                                // Widgets are hidden for the static FPDF_ANNOT pass in BOTH modes:
+                                // the on-screen viewer replaces them with live overlays, and the
+                                // output path paints them once via FFLDraw below - letting the
+                                // static pass draw the /AP as well painted every field twice
+                                // whenever the /AP layout and FFLDraw's (NeedAppearances) layout
+                                // disagreed. If the output path has no form environment to draw
+                                // with, the widgets stay visible so the static pass still shows them.
+                                var savedWidgetFlags = includeFormFields && form == IntPtr.Zero
+                                    ? null
+                                    : HideWidgetAnnotations(page);
                                 IntPtr bitmap = FPDFBitmap_CreateExRaw(
                                     width, height, FPDFBitmapBgra, pinned.AddrOfPinnedObject(), stride);
                                 if (bitmap == IntPtr.Zero) return null;
@@ -202,8 +238,11 @@ namespace KillerPDF.Services
                                     FPDF_RenderPageBitmapRaw(bitmap, page, 0, 0, width, height, 0,
                                         FpdfAnnot | FpdfLcdText);
                                     if (includeFormFields && form != IntPtr.Zero)
+                                    {
+                                        RestoreWidgetAnnotationFlags(page, savedWidgetFlags);
                                         FPDF_FFLDrawRaw(form, bitmap, page, 0, 0, width, height, 0,
                                             FpdfAnnot | FpdfLcdText);
+                                    }
                                 }
                                 finally { FPDFBitmap_DestroyRaw(bitmap); }
                             }

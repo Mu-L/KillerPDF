@@ -748,14 +748,17 @@ namespace KillerPDF.Controls
                     double combY = (fieldH - fontSize) / 2 + fontSize * 0.2;
                     if (combY < 1) combY = 1;
 
+                    // Invariant, like every number below: interpolation formats with the OS culture,
+                    // and a comma decimal (de-DE and most European locales) is not a valid PDF number
+                    // token - the whole appearance stream then fails to execute in strict viewers.
                     var csb = new System.Text.StringBuilder();
-                    csb.Append($"/Tx BMC\nq\n0 0 {fieldW:F2} {fieldH:F2} re W n\n");
-                    csb.Append($"BT\n{fontName} {fontSize:F2} Tf\n0 g\n");
+                    csb.Append(FormattableString.Invariant($"/Tx BMC\nq\n0 0 {fieldW:F2} {fieldH:F2} re W n\n"));
+                    csb.Append(FormattableString.Invariant($"BT\n{fontName} {fontSize:F2} Tf\n0 g\n"));
                     for (int i = 0; i < oneLine.Length; i++)
                     {
                         if (oneLine[i] == ' ') continue;
                         double gx = i * cellW + cellW / 2 - fontSize * 0.275;
-                        csb.Append($"1 0 0 1 {gx:F2} {combY:F2} Tm\n({EscapePdfString(oneLine[i].ToString())}) Tj\n");
+                        csb.Append(FormattableString.Invariant($"1 0 0 1 {gx:F2} {combY:F2} Tm\n({EscapePdfString(oneLine[i].ToString())}) Tj\n"));
                     }
                     csb.Append("ET\nQ\nEMC");
 
@@ -779,9 +782,10 @@ namespace KillerPDF.Controls
                                            : (fieldH - fontSize) / 2 + fontSize * 0.2;
                 if (textY < 1) textY = 1;
 
+                // Invariant: a comma decimal from the OS culture is not a valid PDF number token.
                 var sb = new System.Text.StringBuilder();
-                sb.Append($"/Tx BMC\nq\n0 0 {fieldW:F2} {fieldH:F2} re W n\n");
-                sb.Append($"BT\n{fontName} {fontSize:F2} Tf\n0 g\n{leading:F2} TL\n{pad:F2} {textY:F2} Td\n");
+                sb.Append(FormattableString.Invariant($"/Tx BMC\nq\n0 0 {fieldW:F2} {fieldH:F2} re W n\n"));
+                sb.Append(FormattableString.Invariant($"BT\n{fontName} {fontSize:F2} Tf\n0 g\n{leading:F2} TL\n{pad:F2} {textY:F2} Td\n"));
                 for (int i = 0; i < lines.Count; i++)
                 {
                     if (i > 0) sb.Append("T*\n");   // down one leading, back to the left inset
@@ -851,8 +855,9 @@ namespace KillerPDF.Controls
                 double tx = (fieldW - fs * 0.6) / 2;
                 double ty = (fieldH - fs) / 2 + fs * 0.15;
 
-                string checkedContent =
-                    $"q\nBT\n/ZaDb {fs:F2} Tf\n0 g\n{tx:F2} {ty:F2} Td\n(4) Tj\nET\nQ";
+                // Invariant: a comma decimal from the OS culture is not a valid PDF number token.
+                string checkedContent = FormattableString.Invariant(
+                    $"q\nBT\n/ZaDb {fs:F2} Tf\n0 g\n{tx:F2} {ty:F2} Td\n(4) Tj\nET\nQ");
 
                 string offContent = "q\nQ"; // empty - just clears
 

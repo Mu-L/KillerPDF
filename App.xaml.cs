@@ -1707,8 +1707,42 @@ namespace KillerPDF
         // Uninstall
         // ============================================================
 
+        private static bool RelaunchMachineUninstallElevatedIfNeeded(bool machine)
+        {
+            if (!machine) return false;
+            try
+            {
+                using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+                var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                if (principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+                    return false;
+
+                Process.Start(new ProcessStartInfo(
+                    Process.GetCurrentProcess().MainModule!.FileName, "/uninstall")
+                {
+                    UseShellExecute = true,
+                    Verb = "runas",
+                });
+            }
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                // UAC was declined. Leave the installation untouched.
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Uninstall could not request administrator access:\n{ex.Message}",
+                    AppName, MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return true;
+        }
+
         private static void Uninstall()
         {
+            bool machine = string.Equals(
+                Process.GetCurrentProcess().MainModule?.FileName, MachineInstallExe,
+                StringComparison.OrdinalIgnoreCase);
+            if (RelaunchMachineUninstallElevatedIfNeeded(machine)) return;
+
             var res = MessageBox.Show(
                 "Uninstall KillerPDF from this computer?",
                 $"{AppName} Uninstall",
@@ -1731,9 +1765,6 @@ namespace KillerPDF
             // Machine-wide half. Only reachable when Add/Remove Programs launched the Program Files
             // copy, which Windows runs elevated from the HKLM uninstall entry - so these writes
             // succeed there and simply fail harmlessly on a per-user uninstall.
-            bool machine = string.Equals(
-                Process.GetCurrentProcess().MainModule?.FileName, MachineInstallExe,
-                StringComparison.OrdinalIgnoreCase);
             if (machine)
             {
                 try { File.Delete(MachineStartMenuLnk); } catch { }

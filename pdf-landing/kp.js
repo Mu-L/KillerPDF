@@ -4,6 +4,7 @@
   var root = document.documentElement;
   var THEMES = ['dark','light','hc','blood','greed','cyanotic','ectoplasm','decay','malaise','sepulchre','delirium','mourning'];
   var NEUTRAL = ['dark','light','hc'];
+  var THEMED = ['ectoplasm','decay','malaise','sepulchre','delirium','mourning'];  // have their own wordmark art
   // Per-family palette copied from the app: [ Accent (bright: text/links/logo/outlines), SelectionBg (darker fill: solid buttons, selected tab edges) ].
   var ACCENTS = {
     dark:  { red:['#DD504B','#5E1C1C'], orange:['#E8962C','#F29A28'], green:['#1EA54C','#1C5E38'], teal:['#1FB8A8','#1C5E5C'], blue:['#50AEE8','#1C3B5E'], purple:['#B982E3','#411C5E'] },
@@ -53,9 +54,17 @@
   }
   function updateLogos() {
     var theme = root.getAttribute('data-theme');
-    var variant = (theme === 'light') ? 'light' : 'dark';
-    var color = (NEUTRAL.indexOf(theme) >= 0) ? curAccent : 'green';
-    var src = 'brand/killerpdf-logo-' + variant + '-' + color + '.svg';
+    var src;
+    if (THEMED.indexOf(theme) >= 0) {
+      // The grunge themes carry their own wordmark art, colored with the theme's in-app
+      // wordmark color (make-logo-svgs.py --themes). Blood/greed/cyanotic stay on the green
+      // fallback below - the app keeps their wordmark green too (AccentLogo).
+      src = 'brand/killerpdf-logo-' + theme + '.svg';
+    } else {
+      var variant = (theme === 'light') ? 'light' : 'dark';
+      var color = (NEUTRAL.indexOf(theme) >= 0) ? curAccent : 'green';
+      src = 'brand/killerpdf-logo-' + variant + '-' + color + '.svg';
+    }
     var imgs = document.querySelectorAll('img.wm-logo');
     for (var i = 0; i < imgs.length; i++) imgs[i].src = src;
   }
