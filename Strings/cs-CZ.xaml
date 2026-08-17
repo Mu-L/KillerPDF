@@ -405,7 +405,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Drop_TooMany">Tato složka nebo archiv obsahuje soubory (počet: {0}). KillerPDF otevře jen prvních {1}. Pokračovat?</sys:String>
     <sys:String x:Key="Str_Status_Merged">Sloučeno souborů: {0} - zatím neuloženo</sys:String>
     <sys:String x:Key="Str_Drop_Merging">Slučuji soubory...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">Slučování zrušeno</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">Slučování zrušeno</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">Zavřít všechny dokumenty? Neuložené změny budou ztraceny.</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">Nejprve otevřete PDF.</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">Uložit změny před komprimací do ZIP?</sys:String>
@@ -538,7 +538,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
 
     <!-- Status-bar messages (extracted from code) -->
     <sys:String x:Key="Str_St_DataCleared">Všechna data KillerPDF vymazána</sys:String>
-    <sys:String x:Key="Str_St_OcrRegionCancelled">Oblast OCR zrušena</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCanceled">Oblast OCR zrušena</sys:String>
     <sys:String x:Key="Str_St_Erased">Vymazáno</sys:String>
     <sys:String x:Key="Str_St_Ungrouped">Skupina zrušena</sys:String>
     <sys:String x:Key="Str_St_RemovedFromGroup">Odebráno ze skupiny</sys:String>
@@ -551,19 +551,19 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_St_UndidDocChange">Změna dokumentu vrácena zpět</sys:String>
     <sys:String x:Key="Str_St_ClearedPageAnnotations">Anotace na této stránce vymazány</sys:String>
     <sys:String x:Key="Str_St_NoAnnotationsToClear">Žádné anotace k vymazání</sys:String>
-    <sys:String x:Key="Str_St_RepairCancelled">Oprava zrušena</sys:String>
-    <sys:String x:Key="Str_St_Cancelled">Zrušeno</sys:String>
+    <sys:String x:Key="Str_St_RepairCanceled">Oprava zrušena</sys:String>
+    <sys:String x:Key="Str_St_Canceled">Zrušeno</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">Informace o dokumentu aktualizovány - změny zachováte uložením souboru</sys:String>
-    <sys:String x:Key="Str_St_FlattenCancelled">Sloučení vrstev zrušeno (žádný soubor nebyl zapsán)</sys:String>
+    <sys:String x:Key="Str_St_FlattenCanceled">Sloučení vrstev zrušeno (žádný soubor nebyl zapsán)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">Anotace se pro tisk nepodařilo sloučit se stránkou; tisknu bez nich.</sys:String>
-    <sys:String x:Key="Str_St_HqDownloadCancelled">Stahování vysoce kvalitního modelu zrušeno</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">Stahování jazyka zrušeno</sys:String>
-    <sys:String x:Key="Str_St_OcrCancelled">OCR zrušeno</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCanceled">Stahování vysoce kvalitního modelu zrušeno</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCanceled">Stahování jazyka zrušeno</sys:String>
+    <sys:String x:Key="Str_St_OcrCanceled">OCR zrušeno</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">Tažením vyznačte oblast k rozpoznání</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">Oblast OCR je příliš malá</sys:String>
     <sys:String x:Key="Str_St_OcrNoText">OCR: ve vybrané oblasti nebyl nalezen žádný text</sys:String>
-    <sys:String x:Key="Str_St_SearchablePdfCancelled">Prohledávatelné PDF zrušeno (žádný soubor nebyl zapsán)</sys:String>
-    <sys:String x:Key="Str_St_TextExtractCancelled">Extrakce textu zrušena (žádný soubor nebyl zapsán)</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCanceled">Prohledávatelné PDF zrušeno (žádný soubor nebyl zapsán)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCanceled">Extrakce textu zrušena (žádný soubor nebyl zapsán)</sys:String>
     <sys:String x:Key="Str_St_NoTextOnPage">Na této stránce nebyl nalezen žádný text</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">Není vybrán žádný text - text vyberete tažením</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">Ve výběru nebyl nalezen žádný text</sys:String>

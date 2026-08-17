@@ -49,8 +49,15 @@ namespace KillerPDF
                 e.Handled = true;
                 return;
             }
-            if (e.ButtonState == MouseButtonState.Pressed && WindowState != WindowState.Maximized)
-                DragMove();
+            // #206: hand the drag to Windows the way TitleBar_MouseLeftButtonDown does, rather than
+            // calling DragMove. DragMove throws while maximized, so the logo had to bail out there
+            // and drag-down-to-restore did nothing over it - worst in themes whose wordmark makes
+            // the logo wide, leaving only the file-name gap in the middle of the bar draggable.
+            // WM_NCLBUTTONDOWN(HTCAPTION) restores under the cursor and keeps following it.
+            if (e.ButtonState != MouseButtonState.Pressed) return;
+            e.Handled = true;
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero) SendMessage(hwnd, WM_NCLBUTTONDOWN, new IntPtr(HTCAPTION), IntPtr.Zero);
         }
 
         private void ApplyAppScale(double scale, bool persist = false)

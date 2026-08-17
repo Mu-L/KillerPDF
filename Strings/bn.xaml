@@ -341,7 +341,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Drop_TooMany">এই ফোল্ডার বা আর্কাইভে {0}টি ফাইল আছে। KillerPDF শুধু প্রথম {1}টি খুলবে। চালিয়ে যাবেন?</sys:String>
     <sys:String x:Key="Str_Status_Merged">{0}টি ফাইল একত্র করা হয়েছে - এখনও সংরক্ষণ করা হয়নি</sys:String>
     <sys:String x:Key="Str_Drop_Merging">ফাইল একত্র করা হচ্ছে...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">একত্রীকরণ বাতিল করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">একত্রীকরণ বাতিল করা হয়েছে</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">সব নথি বন্ধ করবেন? অসংরক্ষিত পরিবর্তন হারিয়ে যাবে।</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">প্রথমে একটি PDF খুলুন।</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">ZIP-এ সংকুচিত করার আগে পরিবর্তনগুলি সংরক্ষণ করবেন?</sys:String>
@@ -484,7 +484,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
 
     <!-- Status-bar + dialog strings (extracted from code) -->
     <sys:String x:Key="Str_St_DataCleared">সমস্ত KillerPDF ডেটা মুছে ফেলা হয়েছে</sys:String>
-    <sys:String x:Key="Str_St_OcrRegionCancelled">OCR অঞ্চল বাতিল করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCanceled">OCR অঞ্চল বাতিল করা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_Erased">মুছে ফেলা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_Ungrouped">গ্রুপ বাতিল করা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_RemovedFromGroup">গ্রুপ থেকে সরানো হয়েছে</sys:String>
@@ -497,19 +497,19 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_St_UndidDocChange">নথির পরিবর্তন আন্ডু করা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_ClearedPageAnnotations">এই পৃষ্ঠার টীকা মুছে ফেলা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_NoAnnotationsToClear">মুছে ফেলার মতো কোনো টীকা নেই</sys:String>
-    <sys:String x:Key="Str_St_RepairCancelled">মেরামত বাতিল করা হয়েছে</sys:String>
-    <sys:String x:Key="Str_St_Cancelled">বাতিল করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_RepairCanceled">মেরামত বাতিল করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_Canceled">বাতিল করা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">নথির তথ্য আপডেট করা হয়েছে - পরিবর্তন রাখতে ফাইলটি সংরক্ষণ করুন</sys:String>
-    <sys:String x:Key="Str_St_FlattenCancelled">ফ্ল্যাটেন বাতিল করা হয়েছে (কোনো ফাইল লেখা হয়নি)</sys:String>
+    <sys:String x:Key="Str_St_FlattenCanceled">ফ্ল্যাটেন বাতিল করা হয়েছে (কোনো ফাইল লেখা হয়নি)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">মুদ্রণের জন্য টীকা ফ্ল্যাটেন করা যায়নি; সেগুলি ছাড়াই মুদ্রণ করা হচ্ছে।</sys:String>
-    <sys:String x:Key="Str_St_HqDownloadCancelled">উচ্চ মানের ডাউনলোড বাতিল করা হয়েছে</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">ভাষা ডাউনলোড বাতিল করা হয়েছে</sys:String>
-    <sys:String x:Key="Str_St_OcrCancelled">OCR বাতিল করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCanceled">উচ্চ মানের ডাউনলোড বাতিল করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCanceled">ভাষা ডাউনলোড বাতিল করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_OcrCanceled">OCR বাতিল করা হয়েছে</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">শনাক্ত করতে এলাকার উপর একটি বক্স টেনে আনুন</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR অঞ্চল খুব ছোট</sys:String>
     <sys:String x:Key="Str_St_OcrNoText">OCR: নির্বাচিত অঞ্চলে কোনো টেক্সট পাওয়া যায়নি</sys:String>
-    <sys:String x:Key="Str_St_SearchablePdfCancelled">অনুসন্ধানযোগ্য PDF বাতিল করা হয়েছে (কোনো ফাইল লেখা হয়নি)</sys:String>
-    <sys:String x:Key="Str_St_TextExtractCancelled">টেক্সট নিষ্কাশন বাতিল করা হয়েছে (কোনো ফাইল লেখা হয়নি)</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCanceled">অনুসন্ধানযোগ্য PDF বাতিল করা হয়েছে (কোনো ফাইল লেখা হয়নি)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCanceled">টেক্সট নিষ্কাশন বাতিল করা হয়েছে (কোনো ফাইল লেখা হয়নি)</sys:String>
     <sys:String x:Key="Str_St_NoTextOnPage">এই পৃষ্ঠায় কোনো টেক্সট পাওয়া যায়নি</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">কোনো টেক্সট নির্বাচন করা হয়নি - টেক্সট নির্বাচন করতে টেনে আনুন</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">নির্বাচনে কোনো টেক্সট পাওয়া যায়নি</sys:String>

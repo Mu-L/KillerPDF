@@ -341,7 +341,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Drop_TooMany">Esta carpeta o archivo tiene {0} archivos. KillerPDF abrirá solo los primeros {1}. ¿Continuar?</sys:String>
     <sys:String x:Key="Str_Status_Merged">{0} archivos combinados - sin guardar todavía</sys:String>
     <sys:String x:Key="Str_Drop_Merging">Combinando archivos...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">Combinación cancelada</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">Combinación cancelada</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">¿Cerrar todos los documentos? Se perderán los cambios sin guardar.</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">Primero abre un PDF.</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">¿Guardar los cambios antes de comprimir a ZIP?</sys:String>
@@ -484,7 +484,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
 
     <!-- Status-bar + dialog strings (extracted from code) -->
     <sys:String x:Key="Str_St_DataCleared">Se han borrado todos los datos de KillerPDF</sys:String>
-    <sys:String x:Key="Str_St_OcrRegionCancelled">Región de OCR cancelada</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCanceled">Región de OCR cancelada</sys:String>
     <sys:String x:Key="Str_St_Erased">Borrado</sys:String>
     <sys:String x:Key="Str_St_Ungrouped">Desagrupado</sys:String>
     <sys:String x:Key="Str_St_RemovedFromGroup">Eliminado del grupo</sys:String>
@@ -497,19 +497,19 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_St_UndidDocChange">Se deshizo el cambio del documento</sys:String>
     <sys:String x:Key="Str_St_ClearedPageAnnotations">Se borraron las anotaciones de esta página</sys:String>
     <sys:String x:Key="Str_St_NoAnnotationsToClear">No hay anotaciones que borrar</sys:String>
-    <sys:String x:Key="Str_St_RepairCancelled">Reparación cancelada</sys:String>
-    <sys:String x:Key="Str_St_Cancelled">Cancelado</sys:String>
+    <sys:String x:Key="Str_St_RepairCanceled">Reparación cancelada</sys:String>
+    <sys:String x:Key="Str_St_Canceled">Cancelado</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">Información del documento actualizada - guarde el archivo para conservar los cambios</sys:String>
-    <sys:String x:Key="Str_St_FlattenCancelled">Acoplado cancelado (no se escribió ningún archivo)</sys:String>
+    <sys:String x:Key="Str_St_FlattenCanceled">Acoplado cancelado (no se escribió ningún archivo)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">No se pudieron acoplar las anotaciones para imprimir; se imprimirá sin ellas.</sys:String>
-    <sys:String x:Key="Str_St_HqDownloadCancelled">Descarga de alta calidad cancelada</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">Descarga de idioma cancelada</sys:String>
-    <sys:String x:Key="Str_St_OcrCancelled">OCR cancelado</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCanceled">Descarga de alta calidad cancelada</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCanceled">Descarga de idioma cancelada</sys:String>
+    <sys:String x:Key="Str_St_OcrCanceled">OCR cancelado</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">Arrastre un cuadro sobre el área que desea reconocer</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">La región de OCR es demasiado pequeña</sys:String>
     <sys:String x:Key="Str_St_OcrNoText">OCR: no se encontró texto en la región seleccionada</sys:String>
-    <sys:String x:Key="Str_St_SearchablePdfCancelled">PDF con búsqueda cancelado (no se escribió ningún archivo)</sys:String>
-    <sys:String x:Key="Str_St_TextExtractCancelled">Extracción de texto cancelada (no se escribió ningún archivo)</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCanceled">PDF con búsqueda cancelado (no se escribió ningún archivo)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCanceled">Extracción de texto cancelada (no se escribió ningún archivo)</sys:String>
     <sys:String x:Key="Str_St_NoTextOnPage">No se encontró texto en esta página</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">No hay texto seleccionado - arrastre para seleccionar texto</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">No se encontró texto en la selección</sys:String>

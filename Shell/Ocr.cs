@@ -257,7 +257,7 @@ namespace KillerPDF
                     catch { failed.Add(name); OcrLanguages.TryDeleteFile(dest + ".part"); }
                 }
                 HideBusyOverlay(busy);
-                if (ct.IsCancellationRequested) SetStatus(Loc("Str_St_HqDownloadCancelled"));
+                if (ct.IsCancellationRequested) SetStatus(Loc("Str_St_HqDownloadCanceled"));
                 else if (failed.Count > 0) SetStatus($"High quality models installed; failed: {string.Join(", ", failed)}");
                 else SetStatus($"High quality models installed for: {string.Join("+", toDownload)}");
             }
@@ -316,7 +316,7 @@ namespace KillerPDF
             }
             catch (OperationCanceledException)
             {
-                SetStatus(Loc("Str_St_LangDownloadCancelled"));
+                SetStatus(Loc("Str_St_LangDownloadCanceled"));
                 return false;
             }
             catch (Exception ex)

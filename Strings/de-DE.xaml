@@ -341,7 +341,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Drop_TooMany">Dieser Ordner bzw. dieses Archiv enthält {0} Dateien. KillerPDF öffnet nur die ersten {1}. Fortfahren?</sys:String>
     <sys:String x:Key="Str_Status_Merged">{0} Dateien zusammengeführt - noch nicht gespeichert</sys:String>
     <sys:String x:Key="Str_Drop_Merging">Dateien werden zusammengeführt...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">Zusammenführen abgebrochen</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">Zusammenführen abgebrochen</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">Alle Dokumente schließen? Nicht gespeicherte Änderungen gehen verloren.</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">Öffnen Sie zuerst eine PDF.</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">Änderungen vor dem Komprimieren in ZIP speichern?</sys:String>
@@ -488,7 +488,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
 
     <!-- Status-bar messages (extracted from code) -->
     <sys:String x:Key="Str_St_DataCleared">Alle KillerPDF-Daten gelöscht</sys:String>
-    <sys:String x:Key="Str_St_OcrRegionCancelled">OCR-Bereich abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCanceled">OCR-Bereich abgebrochen</sys:String>
     <sys:String x:Key="Str_St_Erased">Gelöscht</sys:String>
     <sys:String x:Key="Str_St_Ungrouped">Gruppierung aufgehoben</sys:String>
     <sys:String x:Key="Str_St_RemovedFromGroup">Aus Gruppe entfernt</sys:String>
@@ -501,19 +501,19 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_St_UndidDocChange">Dokumentänderung rückgängig gemacht</sys:String>
     <sys:String x:Key="Str_St_ClearedPageAnnotations">Anmerkungen auf dieser Seite gelöscht</sys:String>
     <sys:String x:Key="Str_St_NoAnnotationsToClear">Keine Anmerkungen zum Löschen</sys:String>
-    <sys:String x:Key="Str_St_RepairCancelled">Reparatur abgebrochen</sys:String>
-    <sys:String x:Key="Str_St_Cancelled">Abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_RepairCanceled">Reparatur abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_Canceled">Abgebrochen</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">Dokumentinfo aktualisiert - Datei speichern, um die Änderungen zu behalten</sys:String>
-    <sys:String x:Key="Str_St_FlattenCancelled">Reduzieren abgebrochen (keine Datei geschrieben)</sys:String>
+    <sys:String x:Key="Str_St_FlattenCanceled">Reduzieren abgebrochen (keine Datei geschrieben)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">Anmerkungen konnten für den Druck nicht reduziert werden; Druck ohne sie.</sys:String>
-    <sys:String x:Key="Str_St_HqDownloadCancelled">Download in hoher Qualität abgebrochen</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">Sprachdownload abgebrochen</sys:String>
-    <sys:String x:Key="Str_St_OcrCancelled">OCR abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCanceled">Download in hoher Qualität abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCanceled">Sprachdownload abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_OcrCanceled">OCR abgebrochen</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">Rahmen über den zu erkennenden Bereich ziehen</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR-Bereich zu klein</sys:String>
     <sys:String x:Key="Str_St_OcrNoText">OCR: Kein Text im ausgewählten Bereich gefunden</sys:String>
-    <sys:String x:Key="Str_St_SearchablePdfCancelled">Durchsuchbares PDF abgebrochen (keine Datei geschrieben)</sys:String>
-    <sys:String x:Key="Str_St_TextExtractCancelled">Textextraktion abgebrochen (keine Datei geschrieben)</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCanceled">Durchsuchbares PDF abgebrochen (keine Datei geschrieben)</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCanceled">Textextraktion abgebrochen (keine Datei geschrieben)</sys:String>
     <sys:String x:Key="Str_St_NoTextOnPage">Kein Text auf dieser Seite gefunden</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">Kein Text ausgewählt - zum Auswählen ziehen</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">Kein Text in der Auswahl gefunden</sys:String>

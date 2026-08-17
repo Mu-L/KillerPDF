@@ -69,7 +69,7 @@ namespace KillerPDF.Features
                 _host.HideBusy();
                 // Cooperative cancel: a single page can't be interrupted mid-recognition, so we just discard
                 // the result if the user canceled. No exceptions are thrown for cancellation anywhere.
-                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_OcrCancelled")); return; }
+                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_OcrCanceled")); return; }
 
                 string text = result.Text.Trim();
                 if (text.Length == 0)
@@ -131,7 +131,7 @@ namespace KillerPDF.Features
                 });
 
                 _host.HideBusy();
-                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_OcrCancelled")); return; }
+                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_OcrCanceled")); return; }
 
                 string text = result.Text.Trim();
                 if (text.Length == 0) { _host.SetStatus(_host.Loc("Str_St_OcrNoText")); return; }
@@ -204,7 +204,7 @@ namespace KillerPDF.Features
             {
                 var (pages, words) = await Task.Run(() => BuildSearchablePdf(src, outPath, report, ct, lang));
                 _host.HideBusy();
-                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_SearchablePdfCancelled")); return; }
+                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_SearchablePdfCanceled")); return; }
                 _host.SetStatus($"Searchable PDF saved: {pages} pages, {words} words recognized");
                 KillerDialog.Show(_host.Window,
                     $"Saved searchable PDF:\n{outPath}\n\n{pages} pages processed, {words} words recognized.",
@@ -342,7 +342,7 @@ namespace KillerPDF.Features
             {
                 int pages = await Task.Run(() => ExtractText(src, pageCount, outPath, markdown, report, ct, lang));
                 _host.HideBusy();
-                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_TextExtractCancelled")); return; }
+                if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_TextExtractCanceled")); return; }
                 _host.SetStatus($"Text extracted from {pages} pages -> {Path.GetFileName(outPath)}");
             }
             catch (Exception ex)

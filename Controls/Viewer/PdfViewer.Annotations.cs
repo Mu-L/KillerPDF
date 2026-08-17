@@ -1845,7 +1845,7 @@ namespace KillerPDF.Controls
                     _ocrRegionMode = false;
                     if (dragW >= 4 && dragH >= 4)
                         OcrRegion(pageIdx, new Rect(Math.Min(pos.X, _selectStart.X), Math.Min(pos.Y, _selectStart.Y), dragW, dragH));
-                    else SetStatus(Loc("Str_St_OcrRegionCancelled"));
+                    else SetStatus(Loc("Str_St_OcrRegionCanceled"));
                     return;
                 }
 

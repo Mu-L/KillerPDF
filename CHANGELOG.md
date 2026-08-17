@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.7.4] - Unreleased
 
+### Changed
+- Internal cancellation resource keys now use the same American spelling as their displayed text.
+
 ### Fixed
 - The empty-state recent-files panel now responds to ordinary window resizing, hiding before it crowds the drop target and returning when the pane has enough room.
 - Machine-wide uninstall now requests administrator access before removing the Program Files copy and HKLM registration, rather than silently reporting success after permission failures.
@@ -13,6 +16,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Print, flatten, image export, and thumbnails no longer draw a form field twice when its stored appearance disagrees with the regenerated one.
 - The Open dialog no longer crashes where Explorer's Quick Access cannot be read, such as under Wine and CrossOver; the pinned folders and drives still list (#210, thanks Ximelay).
 - Opening a PDF from Explorer while KillerPDF is still starting no longer crashes; the file now opens once the window is ready (#202, thanks tgv123456).
+- Dropping a damaged PDF on the Pages panel now offers the same repair the Open dialog offers, instead of silently ignoring the file (#203, thanks 1mk3r).
+- Dragging the title bar downward restores a maximized window from anywhere along the bar, including over the logo, on every theme (#206, thanks 1mk3r).
 
 ## [1.7.3] - 2026-08-15
 

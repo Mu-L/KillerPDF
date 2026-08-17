@@ -98,7 +98,7 @@ namespace KillerPDF
         // #172: append the dropped files' pages to the open document. Appending (not inserting at
         // the drop point) keeps existing page indices stable, so annotations and rotations need no
         // remapping.
-        private void AppendFilesToCurrentDoc(string[] files)
+        private async void AppendFilesToCurrentDoc(string[] files)
         {
             if (_doc is null) return;
             CommitActiveTextBox();
@@ -107,22 +107,74 @@ namespace KillerPDF
             {
                 if (PdfImport.IsPdfPath(f))
                 {
-                    try
-                    {
-                        using var src = PdfReader.Open(f, PdfDocumentOpenMode.Import);
-                        for (int i = 0; i < src.PageCount; i++) _doc.AddPage(src.Pages[i]);
-                    }
-                    catch { /* skip an unreadable/encrypted PDF */ }
+                    if (TryAppendPdfPages(_doc, f)) continue;
+
+                    // #203: a damaged PDF used to be swallowed here, so nothing was added and
+                    // nothing was said. Offer the same repair the open path offers.
+                    string? repaired = await RepairDroppedPdfAsync(f);
+                    if (repaired != null && _doc != null) TryAppendPdfPages(_doc, repaired);
                 }
                 else
                 {
                     try { PdfImport.AddImagePagesFromFile(_doc, f); } catch { /* skip an unreadable image */ }
                 }
             }
+            if (_doc is null) return;
             if (_doc.PageCount == before) { SetStatus(Loc("Str_Drop_NothingOpenable")); return; }
             MarkDirty(true);
             SaveTempAndReload(keepAnnotations: true, preserveZoom: true);
             SetStatus(string.Format(Loc("Str_Status_Merged"), files.Length));
+        }
+
+        /// <summary>
+        /// Import-mode page copy. False when the file cannot be read at all, which is the signal
+        /// to offer a repair rather than silently dropping it.
+        /// </summary>
+        private static bool TryAppendPdfPages(PdfDocument target, string path)
+        {
+            try
+            {
+                using var src = PdfReader.Open(path, PdfDocumentOpenMode.Import);
+                if (src.PageCount == 0) return false;
+                for (int i = 0; i < src.PageCount; i++) target.AddPage(src.Pages[i]);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Runs the open path's three repair strategies against a dropped file and returns the
+        /// repaired temp copy, or null if the user declined or nothing recovered it. The original
+        /// file is never written to.
+        /// </summary>
+        private async System.Threading.Tasks.Task<string?> RepairDroppedPdfAsync(string path)
+        {
+            var ask = KillerDialog.Show(this,
+                $"\"{Path.GetFileName(path)}\" has a damaged structure and couldn't be added.\n\nWould you like KillerPDF to attempt a repair? A repaired copy will be created - the original file will not be changed.\n\nNote: repaired files may be missing bookmarks, forms, and other interactive features.",
+                "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (ask != MessageBoxResult.Yes) return null;
+
+            var busy = ShowBusyOverlay("Repairing PDF...");
+            try
+            {
+                // Same order as TryRepairAndOpen: lossless PDFium re-save first (keeps forms and
+                // bookmarks), then a PdfSharpCore page-copy, then the rasterize that always
+                // produces something openable.
+                string? repaired = await System.Threading.Tasks.Task.Run(() =>
+                {
+                    var p = App.MakeTempFile("repaired");
+                    return PdfiumInterop.TryPdfiumStripEncryption(path, p) ? p : null;
+                });
+                repaired ??= await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaImportToFile(path));
+                repaired ??= await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaDocnetRasterizeToFile(path));
+
+                if (repaired is null)
+                    KillerDialog.Show(this,
+                        $"\"{Path.GetFileName(path)}\" could not be repaired.",
+                        "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                return repaired;
+            }
+            finally { HideBusyOverlay(busy); }
         }
 
         private void PageList_Drop(object sender, DragEventArgs e)

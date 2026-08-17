@@ -188,7 +188,7 @@ namespace KillerPDF
                 {
                     HideBusyOverlay(busy);
                     AbortTabLoad(target, prev, createdNew);
-                    SetStatus(Loc("Str_Drop_MergeCancelled"));
+                    SetStatus(Loc("Str_Drop_MergeCanceled"));
                     return;
                 }
 

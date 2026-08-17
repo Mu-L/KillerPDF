@@ -243,13 +243,13 @@ namespace KillerPDF
                     var p = App.MakeTempFile("repaired");
                     return PdfiumInterop.TryPdfiumStripEncryption(path, p) ? p : null;
                 });
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // canceled during strategy 0
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCanceled")); return; }   // canceled during strategy 0
 
                 // Strategy 1: PdfSharpCore Import mode - page-copy, more lenient than Modify/ReadOnly.
                 // Works when the XRef is partially corrupt but the object data is intact. (Returns
                 // null on failure rather than throwing.)
                 repairedPath ??= await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaImportToFile(path));
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // canceled during strategy 1
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCanceled")); return; }   // canceled during strategy 1
 
                 // Strategy 2: PDFium rasterize. PDFium's internal XRef recovery handles damage
                 // PdfSharpCore cannot; each page is rendered to a bitmap and rebuilt into a clean PDF.
@@ -259,7 +259,7 @@ namespace KillerPDF
                     repairedPath = await System.Threading.Tasks.Task.Run(() => PdfImport.RepairViaDocnetRasterizeToFile(path));
                     raster = repairedPath is not null;
                 }
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCancelled")); return; }   // canceled during strategy 2
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_RepairCanceled")); return; }   // canceled during strategy 2
 
                 if (repairedPath is null)
                 {
@@ -312,7 +312,7 @@ namespace KillerPDF
                 var repairedPath = App.MakeTempFile("repaired");
                 bool ok = await System.Threading.Tasks.Task.Run(() =>
                     PdfiumInterop.TryPdfiumStripEncryption(srcPath, repairedPath) || PdfImport.TryImportRepairToPath(srcPath, repairedPath));
-                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_Cancelled")); EndCancellableOp(); return; }
+                if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_Canceled")); EndCancellableOp(); return; }
                 if (!ok)
                 {
                     HideBusyOverlay(busy);
@@ -1165,7 +1165,7 @@ namespace KillerPDF
                     (n, total) => Dispatcher.BeginInvoke(new Action(() => UpdateFlattenProgress(overlay, n, total))),
                     ct));
 
-                if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_FlattenCancelled")); return; }
+                if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_FlattenCanceled")); return; }
                 MarkDirty(false);
                 SetStatus($"Flattened PDF saved to {System.IO.Path.GetFileName(outputPath)}");
             }

@@ -404,7 +404,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Drop_TooMany">このフォルダーまたはアーカイブには {0} 個のファイルがあります。KillerPDF は最初の {1} 個のみを開きます。続行しますか？</sys:String>
     <sys:String x:Key="Str_Status_Merged">{0} 個のファイルを結合しました - 未保存です</sys:String>
     <sys:String x:Key="Str_Drop_Merging">ファイルを結合中...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">結合をキャンセルしました</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">結合をキャンセルしました</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">すべてのドキュメントを閉じますか？保存されていない変更は失われます。</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">先に PDF を開いてください。</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">ZIP に圧縮する前に変更を保存しますか？</sys:String>
@@ -538,7 +538,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
 
     <!-- ステータスバーおよびダイアログの文字列 (コードから抽出) -->
     <sys:String x:Key="Str_St_DataCleared">すべての KillerPDF データを消去しました</sys:String>
-    <sys:String x:Key="Str_St_OcrRegionCancelled">OCR 領域の選択をキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCanceled">OCR 領域の選択をキャンセルしました</sys:String>
     <sys:String x:Key="Str_St_Erased">消去しました</sys:String>
     <sys:String x:Key="Str_St_Ungrouped">グループを解除しました</sys:String>
     <sys:String x:Key="Str_St_RemovedFromGroup">グループから削除しました</sys:String>
@@ -551,19 +551,19 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_St_UndidDocChange">ドキュメントの変更を元に戻しました</sys:String>
     <sys:String x:Key="Str_St_ClearedPageAnnotations">このページの注釈を消去しました</sys:String>
     <sys:String x:Key="Str_St_NoAnnotationsToClear">消去する注釈がありません</sys:String>
-    <sys:String x:Key="Str_St_RepairCancelled">修復をキャンセルしました</sys:String>
-    <sys:String x:Key="Str_St_Cancelled">キャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_RepairCanceled">修復をキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_Canceled">キャンセルしました</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">ドキュメント情報を更新しました。変更を保持するにはファイルを保存してください</sys:String>
-    <sys:String x:Key="Str_St_FlattenCancelled">フラット化をキャンセルしました（ファイルは書き込まれていません）</sys:String>
+    <sys:String x:Key="Str_St_FlattenCanceled">フラット化をキャンセルしました（ファイルは書き込まれていません）</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">印刷用に注釈をフラット化できませんでした。注釈なしで印刷します。</sys:String>
-    <sys:String x:Key="Str_St_HqDownloadCancelled">高品質ダウンロードをキャンセルしました</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">言語のダウンロードをキャンセルしました</sys:String>
-    <sys:String x:Key="Str_St_OcrCancelled">OCR をキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCanceled">高品質ダウンロードをキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCanceled">言語のダウンロードをキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_OcrCanceled">OCR をキャンセルしました</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">認識する領域をドラッグして囲んでください</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR 領域が小さすぎます</sys:String>
     <sys:String x:Key="Str_St_OcrNoText">OCR：選択した領域にテキストが見つかりませんでした</sys:String>
-    <sys:String x:Key="Str_St_SearchablePdfCancelled">検索可能な PDF の作成をキャンセルしました（ファイルは書き込まれていません）</sys:String>
-    <sys:String x:Key="Str_St_TextExtractCancelled">テキスト抽出をキャンセルしました（ファイルは書き込まれていません）</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCanceled">検索可能な PDF の作成をキャンセルしました（ファイルは書き込まれていません）</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCanceled">テキスト抽出をキャンセルしました（ファイルは書き込まれていません）</sys:String>
     <sys:String x:Key="Str_St_NoTextOnPage">このページにテキストが見つかりませんでした</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">テキストが選択されていません。ドラッグしてテキストを選択してください</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">選択範囲にテキストが見つかりませんでした</sys:String>

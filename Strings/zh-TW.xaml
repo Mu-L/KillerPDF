@@ -343,7 +343,7 @@ KillerPDF 將被複製到您的程式資料夾，並新增開始功能表項目�
     <sys:String x:Key="Str_Drop_TooMany">此資料夾或壓縮檔包含 {0} 個檔案。KillerPDF 只會開啟前 {1} 個。要繼續嗎？</sys:String>
     <sys:String x:Key="Str_Status_Merged">已合併 {0} 個檔案 - 尚未儲存</sys:String>
     <sys:String x:Key="Str_Drop_Merging">正在合併檔案...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">已取消合併</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">已取消合併</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">關閉所有文件？未儲存的變更將會遺失。</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">請先開啟一個 PDF。</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">壓縮為 ZIP 前儲存變更？</sys:String>
@@ -486,7 +486,7 @@ KillerPDF 將被複製到您的程式資料夾，並新增開始功能表項目�
 
     <!-- Status-bar + dialog strings (extracted from code) -->
     <sys:String x:Key="Str_St_DataCleared">已清除所有 KillerPDF 資料</sys:String>
-    <sys:String x:Key="Str_St_OcrRegionCancelled">已取消 OCR 區域</sys:String>
+    <sys:String x:Key="Str_St_OcrRegionCanceled">已取消 OCR 區域</sys:String>
     <sys:String x:Key="Str_St_Erased">已擦除</sys:String>
     <sys:String x:Key="Str_St_Ungrouped">已取消群組</sys:String>
     <sys:String x:Key="Str_St_RemovedFromGroup">已從群組移除</sys:String>
@@ -499,19 +499,19 @@ KillerPDF 將被複製到您的程式資料夾，並新增開始功能表項目�
     <sys:String x:Key="Str_St_UndidDocChange">已復原文件變更</sys:String>
     <sys:String x:Key="Str_St_ClearedPageAnnotations">已清除本頁的註解</sys:String>
     <sys:String x:Key="Str_St_NoAnnotationsToClear">沒有可清除的註解</sys:String>
-    <sys:String x:Key="Str_St_RepairCancelled">已取消修復</sys:String>
-    <sys:String x:Key="Str_St_Cancelled">已取消</sys:String>
+    <sys:String x:Key="Str_St_RepairCanceled">已取消修復</sys:String>
+    <sys:String x:Key="Str_St_Canceled">已取消</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">已更新文件資訊-請儲存檔案以保留變更</sys:String>
-    <sys:String x:Key="Str_St_FlattenCancelled">已取消平面化（未寫入檔案）</sys:String>
+    <sys:String x:Key="Str_St_FlattenCanceled">已取消平面化（未寫入檔案）</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">無法為列印平面化註解；將不含註解進行列印。</sys:String>
-    <sys:String x:Key="Str_St_HqDownloadCancelled">已取消高品質下載</sys:String>
-    <sys:String x:Key="Str_St_LangDownloadCancelled">已取消語言下載</sys:String>
-    <sys:String x:Key="Str_St_OcrCancelled">已取消 OCR</sys:String>
+    <sys:String x:Key="Str_St_HqDownloadCanceled">已取消高品質下載</sys:String>
+    <sys:String x:Key="Str_St_LangDownloadCanceled">已取消語言下載</sys:String>
+    <sys:String x:Key="Str_St_OcrCanceled">已取消 OCR</sys:String>
     <sys:String x:Key="Str_St_OcrDragBox">在要辨識的區域上拖曳出方框</sys:String>
     <sys:String x:Key="Str_St_OcrRegionTooSmall">OCR 區域太小</sys:String>
     <sys:String x:Key="Str_St_OcrNoText">OCR：在所選區域中找不到文字</sys:String>
-    <sys:String x:Key="Str_St_SearchablePdfCancelled">已取消可搜尋 PDF（未寫入檔案）</sys:String>
-    <sys:String x:Key="Str_St_TextExtractCancelled">已取消文字擷取（未寫入檔案）</sys:String>
+    <sys:String x:Key="Str_St_SearchablePdfCanceled">已取消可搜尋 PDF（未寫入檔案）</sys:String>
+    <sys:String x:Key="Str_St_TextExtractCanceled">已取消文字擷取（未寫入檔案）</sys:String>
     <sys:String x:Key="Str_St_NoTextOnPage">本頁找不到文字</sys:String>
     <sys:String x:Key="Str_St_NoTextSelected">未選取文字-請拖曳以選取文字</sys:String>
     <sys:String x:Key="Str_St_NoTextInSelection">選取範圍中找不到文字</sys:String>
