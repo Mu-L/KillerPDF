@@ -16,7 +16,7 @@ Full how-tos live on the [help page](https://killerpdf.net/help.html); internals
 - Forms: fill text, checkbox, radio, and comb fields as live controls and save back; digital signatures with a cloud certificate (Certum SimplySign), plus drawn or imported signatures and initials
 - Print with a real in-app preview, paper size and source selection, scale / position / margins / pages-per-sheet options at 300 DPI; Save Flattened rasterizes to a fully uneditable PDF
 - Full-text search with highlighting, and column-aware text selection that copies multi-column pages in reading order
-- Night-mode invert (per pane in split view), thirteen themes with live accent colors, toolbar styles, and a resizable sidebar that docks left or right
+- Night-mode invert (per pane in split view), thirteen themes - four of them (Dark, Light, Black and 98SE) with six live accent colors each, 33 looks in all - toolbar styles, and a resizable sidebar that docks left or right
 - Localized UI in 11 languages (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
 - Runs portable, or self-installs per-user (no UAC) or machine-wide (`/silent` for scripted deployment); registers as a PDF handler and uninstalls cleanly
