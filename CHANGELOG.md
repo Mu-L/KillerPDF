@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ## [1.7.4] - Unreleased
 
 ### Fixed
+- The empty-state recent-files panel now responds to ordinary window resizing, hiding before it crowds the drop target and returning when the pane has enough room.
 - Machine-wide uninstall now requests administrator access before removing the Program Files copy and HKLM registration, rather than silently reporting success after permission failures.
 - Form fields saved on systems whose decimal separator is a comma (German and most European locales) now get valid appearance streams; they previously came out blank or garbled with repeated, re-wrapped text in other viewers and in print, flatten, and export, thanks Thomas.
 - Print, flatten, image export, and thumbnails no longer draw a form field twice when its stored appearance disagrees with the regenerated one.

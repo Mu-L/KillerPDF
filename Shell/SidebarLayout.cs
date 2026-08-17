@@ -113,6 +113,7 @@ namespace KillerPDF
             }
 
             UpdateSidebarToggleGlyph();
+            SyncThemeFlyoutSide();
             UpdateTabStripFade();
             // The column swap repositions the document pane; re-anchor the footer shadow once layout
             // settles (TransformToVisual needs the final positions).

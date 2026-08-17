@@ -33,6 +33,7 @@
     <Compile Include="..\Services\PerspectiveWarp.cs" Link="Services\PerspectiveWarp.cs" />
     <Compile Include="..\Services\PdfFontStyle.cs" Link="Services\PdfFontStyle.cs" />
     <Compile Include="..\Services\PdfScrub.cs" Link="Services\PdfScrub.cs" />
+    <Compile Include="..\Controls\FlyoutPlacement.cs" Link="Controls\FlyoutPlacement.cs" />
   </ItemGroup>
 
   <ItemGroup>

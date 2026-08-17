@@ -85,6 +85,10 @@ Requires the .NET 8 SDK or later to build (even though the output targets .NET F
 
 The PDF write engine (PdfSharpCore, MIT) is vendored under `third_party/PdfSharpCore/` and builds as part of the solution; it carries six standards-conformance patches, each marked `KillerPDF patch` in the source. Origin commit and details are recorded in `third_party/PdfSharpCore/VENDORED.txt`.
 
+## Translations
+
+UI strings live in `Strings/` (one XAML `ResourceDictionary` per locale). To add or improve a language, see [TRANSLATING.md](TRANSLATING.md). Missing keys fall back to English, so a partial translation is fine.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md).

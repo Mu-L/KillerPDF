@@ -103,11 +103,16 @@ namespace KillerPDF.Controls
         // ---- Forwards to the owning window ----------------------------------------------------
         // MainWindow's copies were private; they are internal now purely so these can reach them.
 
-        // No SyncRecentBoxWidth from here. It writes Width and Visibility, both of which re-run
-        // layout, and this IS a layout event - it fed itself. The recents panel is sized when it is
-        // populated and when the split opens, which is every time its width can actually change.
         private void DocPane_SizeChanged(object s, SizeChangedEventArgs e)
-            => Host?.ViewerSizeChanged(this, s, e);
+        {
+            Host?.ViewerSizeChanged(this, s, e);
+
+            // Window resizing changes a pane's usable width without going through the split-pane
+            // callbacks. Keep the empty-state recents panel on the same width gate in that path too.
+            // SyncRecentBoxWidth only writes materially changed values and guards re-entry, so the
+            // follow-up layout pass caused by crossing the threshold settles immediately.
+            if (e.WidthChanged) SyncRecentBoxWidth();
+        }
 
         /// <summary>Size the start screen's Recent panel to this pane, and drop it entirely once the
         /// pane is too narrow to carry both it and the drop target. At its old fixed 340 it took

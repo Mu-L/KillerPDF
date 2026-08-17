@@ -53,18 +53,21 @@ namespace KillerPDF
         {
             if (menu.IsOpen) { menu.IsOpen = false; return; }
 
+            // The theme strip always faces the document. Mirroring the two columns also makes its
+            // width animation grow outward from the rail on either side of the window.
+            if (menu == ThemeFlyout)
+                SyncThemeFlyoutSide();
+
             // Radios and accent dots reflect live state before the card shows - the same single
             // sync the Settings panel runs on open.
             SyncPickerState();
 
-            // The pane the document sits on bounds the window, the footer and the rail at once -
-            // the one corner a flyout can hug without covering any of them. ALWAYS pane A's panel,
-            // never through the PagePreviewPanel accessor: that resolves via ActiveViewer, so with
-            // the split open and the RIGHT pane focused the flyout anchored to pane B and opened
-            // mid-window instead of at the window's bottom-left content corner (2026-08-01).
-            // Pane A is the leftmost pane and never collapses, so its corner is the rail-adjacent one.
-            if (Viewer.PreviewScroller.Parent is FrameworkElement pane)
-                FlyoutPlacement.UsePane(pane);
+            // SplitHost is the full document region between the rail and the window edge. Its
+            // rail-adjacent bottom corner is left when the sidebar is left and right when the
+            // sidebar is right. Using one viewer pane here stranded the flyouts on the left after
+            // the sidebar moved right, and could place them in the middle of a split document.
+            if (SplitHost is FrameworkElement pane)
+                FlyoutPlacement.UsePane(pane, _sidebarRight);
             FlyoutPlacement.Attach(menu, this);
 
             menu.IsOpen = true;
@@ -75,6 +78,25 @@ namespace KillerPDF
                 {
                     EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                 });
+        }
+
+        private void SyncThemeFlyoutSide()
+        {
+            if (ThemePickerLayout is null || ThemeSubmenu is null || AccentStripHost is null ||
+                AccentStripDivider is null || AccentStrip is null)
+                return;
+
+            Grid.SetColumn(ThemeSubmenu, _sidebarRight ? 1 : 0);
+            Grid.SetColumn(AccentStripHost, _sidebarRight ? 0 : 1);
+            AccentStripDivider.HorizontalAlignment = _sidebarRight
+                ? HorizontalAlignment.Right
+                : HorizontalAlignment.Left;
+            AccentStrip.Margin = _sidebarRight
+                ? new Thickness(2, 6, 7, 6)
+                : new Thickness(7, 6, 2, 6);
+            ThemePickerLayout.Margin = _sidebarRight
+                ? new Thickness(3, 10, 12, 10)
+                : new Thickness(12, 10, 3, 10);
         }
     }
 }
