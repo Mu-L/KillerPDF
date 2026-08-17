@@ -16,8 +16,21 @@ namespace KillerPDF
     /// </summary>
     public partial class MainWindow
     {
+        /// <summary>A forwarded path that arrived before the panes existed, replayed from Loaded.</summary>
+        private string? _pendingExternalPath;
+
         public async void OpenFromExternal(string? path)
         {
+            // A second launch is forwarded here off the pipe thread, and Application.MainWindow is
+            // already set while this window's constructor is still running - so ActiveViewer can
+            // still be null (it is assigned by InitSplitPanes). Hold the path and let Loaded
+            // replay it rather than dereferencing null and losing the file the user double-clicked.
+            if (ActiveViewer == null)
+            {
+                _pendingExternalPath = path;
+                return;
+            }
+
             if (!string.IsNullOrEmpty(path) && File.Exists(path))
             {
                 ActiveViewer.OpenInNewTabExt(path!);
@@ -25,6 +38,15 @@ namespace KillerPDF
             }
             if (ProtocolRegistrar.TryGetTargetUrl(path, out var target) && target != null)
                 await OpenProtocolUrlAsync(target);
+        }
+
+        /// <summary>Replay whatever arrived during startup. No-op in the normal case.</summary>
+        internal void FlushPendingExternalOpen()
+        {
+            if (_pendingExternalPath == null) return;
+            var path = _pendingExternalPath;
+            _pendingExternalPath = null;
+            OpenFromExternal(path);
         }
 
         private async Task OpenProtocolUrlAsync(System.Uri target)

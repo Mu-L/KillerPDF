@@ -409,17 +409,29 @@ namespace KillerPDF.Controls
             }
         }
 
-        private static IEnumerable<(string Label, string Path)> ExplorerQuickAccessPlaces()
+        /// <summary>
+        /// Explorer's Quick Access entries, read through the Shell.Application COM object.
+        ///
+        /// Returns a materialized list rather than an iterator so the whole body can sit inside a
+        /// real try/catch: a yield-return method is only allowed a finally, so every failure here
+        /// used to escape into BuildPlaces and take the Open dialog down with it. Each call below
+        /// is late-bound COM and can fail outright - Wine and CrossOver register the
+        /// Shell.Application ProgID but implement no NameSpace, so the ProgID null check passes
+        /// and the binder then throws RuntimeBinderException. Quick Access is a convenience, so
+        /// any failure just drops it and leaves the pinned folders and the drives.
+        /// </summary>
+        private static List<(string Label, string Path)> ExplorerQuickAccessPlaces()
         {
             const string QuickAccess = "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}";
+            var places = new List<(string Label, string Path)>();
             object? shell = null, folder = null, items = null;
             try
             {
                 var type = Type.GetTypeFromProgID("Shell.Application");
-                if (type == null) yield break;
+                if (type == null) return places;
                 shell = Activator.CreateInstance(type);
                 folder = ((dynamic)shell!).NameSpace(QuickAccess);
-                if (folder == null) yield break;
+                if (folder == null) return places;
                 items = ((dynamic)folder).Items();
                 int count = ((dynamic)items).Count;
                 for (int i = 0; i < count; i++)
@@ -433,17 +445,20 @@ namespace KillerPDF.Controls
                         if (!Convert.ToBoolean(quickItem.IsFolder)) continue;
                         string path = Convert.ToString(quickItem.Path) ?? "";
                         string name = Convert.ToString(quickItem.Name) ?? "";
-                        if (Directory.Exists(path)) yield return (name.Length > 0 ? name : LabelFor(path), path);
+                        if (Directory.Exists(path)) places.Add((name.Length > 0 ? name : LabelFor(path), path));
                     }
+                    catch { /* one unreadable entry must not lose the rest */ }
                     finally { if (item != null && Marshal.IsComObject(item)) Marshal.FinalReleaseComObject(item); }
                 }
             }
+            catch { /* no shell, or a shell without Quick Access: keep whatever was read */ }
             finally
             {
                 if (items != null && Marshal.IsComObject(items)) Marshal.FinalReleaseComObject(items);
                 if (folder != null && Marshal.IsComObject(folder)) Marshal.FinalReleaseComObject(folder);
                 if (shell != null && Marshal.IsComObject(shell)) Marshal.FinalReleaseComObject(shell);
             }
+            return places;
         }
 
         /// <summary>
