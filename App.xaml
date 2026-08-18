@@ -101,8 +101,11 @@
             <FontFamily x:Key="UiFont">Segoe UI, Microsoft JhengHei UI, Nirmala UI</FontFamily>
             <!-- The "KillerPDF" wordmark fonts (embedded, subset to the wordmark letters). "Killer" and "PDF"
                  can use different faces. One place to change the logo typefaces everywhere. -->
-            <FontFamily x:Key="WordmarkFont">/KillerPDF;component/Fonts/#Typewriter A602</FontFamily>
-            <FontFamily x:Key="WordmarkFontPdf">/KillerPDF;component/Fonts/#Typewriter A602</FontFamily>
+            <!-- Assembly-relative: release payloads run as KillerPDF.App.exe while legacy and
+                 IDE builds run as KillerPDF.exe. Hard-coding either assembly name makes the
+                 embedded typewriter face silently fall back in the other build. -->
+            <FontFamily x:Key="WordmarkFont">./Fonts/#Typewriter A602</FontFamily>
+            <FontFamily x:Key="WordmarkFontPdf">./Fonts/#Typewriter A602</FontFamily>
             <FontFamily x:Key="MonoFont">Consolas</FontFamily>
             <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
 

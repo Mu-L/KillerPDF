@@ -282,16 +282,28 @@ namespace KillerPDF
 
         private void Install_Click(object sender, RoutedEventArgs e)
         {
+            bool machineInstallExists = App.MachineInstallExists();
+            bool userInstallExists = App.UserInstallExists();
+            bool updating = machineInstallExists || userInstallExists;
             // Two checkboxes, matching Killendar and KillerShell: the desktop shortcut (on by
-            // default, as it always was) and the all-users install (off by default - it needs a
-            // UAC prompt, so it has to be something the user deliberately asks for).
+            // default, as it always was) and the all-users install. If an all-users copy already
+            // exists, keep that scope selected: KillerPDF deliberately supports one installed
+            // copy, not competing Program Files and per-user installations.
             var (confirmed, wantDesktop, allUsers) = KillerDialog.ShowTwoCheckPrompt(this,
-                Loc("Str_Dlg_InstallMsg"),
+                Loc(machineInstallExists ? "Str_Dlg_UpdateMachineMsg" :
+                    userInstallExists ? "Str_Dlg_UpdateUserMsg" : "Str_Dlg_InstallMsg"),
                 Loc("Str_Chk_Desktop"),  check1Initial: true,
-                Loc("Str_Chk_AllUsers"), check2Initial: false,
-                Loc("Str_Btn_DoInstall"),
+                Loc("Str_Chk_AllUsers"), check2Initial: machineInstallExists,
+                Loc(updating ? "Str_Btn_DoUpdate" : "Str_Btn_DoInstall"),
                 Loc("Str_Btn_Cancel"));
             if (!confirmed) return;
+
+            if (machineInstallExists && !allUsers)
+            {
+                KillerDialog.Show(this, Loc("Str_Dlg_OneInstallOnly"),
+                    Loc("Str_Dlg_InstallTitle"), MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
             // Hide the badge immediately so it doesn't flash if relaunch is slow
             _portableBadge.Visibility = Visibility.Collapsed;

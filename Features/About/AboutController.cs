@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Windows;
 
 namespace KillerPDF.Features
@@ -135,10 +136,9 @@ namespace KillerPDF.Features
         // ---- Self-update ---------------------------------------------------------------------
 
         /// <summary>
-        /// One-click self-update: downloads the released exe, verifies it against the published
-        /// SHA256SUMS.txt, then hands off to a small batch that waits for this process to exit,
-        /// swaps the exe in place, and relaunches with the currently-open PDF. Falls back to the
-        /// releases page if anything fails (offline, checksum mismatch, unwritable location).
+        /// One-click self-update: downloads and verifies the public portable/installer. Installed
+        /// copies hand it the same payload-based install command used by a manual upgrade; portable
+        /// copies replace their original launcher after both launcher and inner app have exited.
         /// </summary>
         internal async void Update()
         {
@@ -234,39 +234,65 @@ namespace KillerPDF.Features
                 var pid    = Process.GetCurrentProcess().Id;
                 var relArg = string.IsNullOrEmpty(reopen) ? "" : $" \"{reopen}\"";
                 var bat    = Path.Combine(Path.GetTempPath(), $"killerpdf_update_{Guid.NewGuid():N}.bat");
+                bool portable = App.IsPortable();
+                string? portableLauncher = Environment.GetEnvironmentVariable("KILLERPDF_LAUNCHER_PATH");
+                bool packagedPortable = portable && !string.IsNullOrWhiteSpace(portableLauncher) && File.Exists(portableLauncher);
+
+                if (!App.VerifyAuthenticode(newExe).Valid)
+                    throw new InvalidDataException("The downloaded update is not signed by a trusted publisher.");
 
                 // A machine-wide install (Program Files, from winget, choco or an RMM) is not
                 // writable by a normal user, so the swap has to run elevated. This previously ran
                 // the batch unelevated and sent the copy to >nul with no errorlevel check, so on
                 // those installs it silently failed and then relaunched the OLD exe - the app
                 // appeared to "update" to the same version, with no error.
-                bool needsElevation = !CanWriteTo(Path.GetDirectoryName(curExe)!);
+                string updateTarget = packagedPortable ? portableLauncher! : curExe;
+                bool needsElevation = !CanWriteTo(Path.GetDirectoryName(updateTarget)!);
 
                 // When elevated, relaunch through explorer.exe so the app comes back at the user's
                 // normal integrity level rather than inheriting the elevated token. explorer.exe
                 // cannot forward arguments, so the currently-open file is not reopened on that
                 // path - a one-off convenience loss, preferred over leaving KillerPDF running as
                 // administrator for the rest of the session.
-                string relaunch = needsElevation
-                    ? $"start \"\" explorer.exe \"{curExe}\""
-                    : $"start \"\" \"{curExe}\"{relArg}";
+                var script = new StringBuilder()
+                    .AppendLine("@echo off")
+                    .AppendLine(":waitapp")
+                    .AppendLine($"tasklist /fi \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul")
+                    .AppendLine("if not errorlevel 1 ( ping -n 2 127.0.0.1 >nul & goto waitapp )");
 
-                File.WriteAllText(bat,
-                    "@echo off\r\n" +
-                    ":wait\r\n" +
-                    $"tasklist /fi \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul\r\n" +
-                    "if not errorlevel 1 ( ping -n 2 127.0.0.1 >nul & goto wait )\r\n" +
-                    $"copy /y \"{newExe}\" \"{curExe}\" >nul 2>&1\r\n" +
-                    "if errorlevel 1 goto failed\r\n" +
-                    relaunch + "\r\n" +
-                    "goto cleanup\r\n" +
-                    ":failed\r\n" +
-                    // Do not relaunch a stale exe and call it an update: send the user to the
-                    // releases page so the failure is visible and fixable by hand.
-                    $"start \"\" \"{Repo}/releases/latest\"\r\n" +
-                    ":cleanup\r\n" +
-                    $"del \"{newExe}\" >nul 2>&1\r\n" +
-                    "del \"%~f0\" >nul 2>&1\r\n");
+                if (packagedPortable)
+                {
+                    if (int.TryParse(Environment.GetEnvironmentVariable("KILLERPDF_LAUNCHER_PID"), out int launcherPid))
+                    {
+                        script.AppendLine(":waitlauncher")
+                              .AppendLine($"tasklist /fi \"PID eq {launcherPid}\" 2>nul | find \"{launcherPid}\" >nul")
+                              .AppendLine("if not errorlevel 1 ( ping -n 2 127.0.0.1 >nul & goto waitlauncher )");
+                    }
+                    script.AppendLine($"attrib -r \"{portableLauncher}\" >nul 2>&1")
+                          .AppendLine($"copy /y \"{newExe}\" \"{portableLauncher}\" >nul 2>&1")
+                          .AppendLine("if errorlevel 1 goto failed")
+                          .AppendLine(needsElevation
+                              ? $"start \"\" explorer.exe \"{portableLauncher}\""
+                              : $"start \"\" \"{portableLauncher}\"{relArg}");
+                }
+                else
+                {
+                    bool machineInstall = !CanWriteTo(Path.GetDirectoryName(curExe)!);
+                    string installArg = machineInstall ? "/silent" : "/install-user";
+                    script.AppendLine($"start /wait \"\" \"{newExe}\" {installArg}")
+                          .AppendLine("if errorlevel 1 goto failed")
+                          .AppendLine(needsElevation
+                              ? $"start \"\" explorer.exe \"{curExe}\""
+                              : $"start \"\" \"{curExe}\"{relArg}");
+                }
+
+                script.AppendLine("goto cleanup")
+                      .AppendLine(":failed")
+                      .AppendLine($"start \"\" \"{Repo}/releases/latest\"")
+                      .AppendLine(":cleanup")
+                      .AppendLine($"del \"{newExe}\" >nul 2>&1")
+                      .AppendLine("del \"%~f0\" >nul 2>&1");
+                File.WriteAllText(bat, script.ToString());
 
                 var psi = new ProcessStartInfo("cmd.exe", $"/c \"{bat}\"")
                 {

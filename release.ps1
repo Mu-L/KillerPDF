@@ -1,16 +1,18 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    KillerPDF release script: build → sign → verify → hash → update BuildInfo → publish summary.
+    KillerPDF release script: build payload → sign inner app → pack launcher → sign launcher → verify → publish.
 .DESCRIPTION
     1. Locates pdfium.dll in the NuGet cache, hashes it, and writes BuildInfo.cs so the
-       embedded integrity check at startup knows the expected value.
-    2. Publishes using FolderProfile1 (net48, win-x64); bundle-source.ps1 also runs.
-    3. Signs KillerPDF.exe. Prefers CertThumbprint (exact match) over CertName (CN match).
-       Retries the timestamp across three TSA endpoints if the first attempt fails.
-    4. Runs "signtool verify /pa /v" as a post-sign gate - aborts if the cert chain
+       legacy woven development build's embedded integrity check knows the expected value.
+    2. Builds the ordinary multi-file KillerPDF.App payload without Costura/Fody weaving.
+    3. Signs KillerPDF.App.exe, regenerates its hash manifest, compresses that payload once,
+       and embeds it in the public portable/installer KillerPDF.exe.
+    4. Signs KillerPDF.exe. Prefers CertThumbprint (exact match) over CertName (CN match)
+       and retries the timestamp across three TSA endpoints.
+    5. Runs "signtool verify /pa /v" as a post-sign gate - aborts if either signature chain
        is not trusted to an accepted root.
-    5. Prints thumbprint, SHA256s, and paste targets in the summary.
+    6. Builds the GPL source archive, checksums, and publish summary.
 
 .PARAMETER CertThumbprint
     Preferred. SHA1 thumbprint of your code-signing certificate (40 hex chars, no spaces).
@@ -50,6 +52,9 @@ $proj         = Join-Path $PSScriptRoot "KillerPDF.csproj"
 $buildInfoPath = Join-Path $PSScriptRoot "BuildInfo.cs"
 $publishDir   = Join-Path $PSScriptRoot "bin\Release\net48\publish"
 $exe          = Join-Path $publishDir "KillerPDF.exe"
+$portableBuild = Join-Path $PSScriptRoot "build\build-portable.ps1"
+$payloadDir    = Join-Path $PSScriptRoot "bin\Release\net48\portable-package\payload"
+$innerExe      = Join-Path $payloadDir "KillerPDF.App.exe"
 
 # TSA endpoints - tried in order; first success wins.
 $tsaList = @(
@@ -153,28 +158,12 @@ namespace KillerPDF
 [System.IO.File]::WriteAllText($buildInfoPath, $buildInfoContent, [System.Text.UTF8Encoding]::new($false))
 Write-Host "    BuildInfo.cs updated." -ForegroundColor Green
 
-# ── 2. Build / Publish ──────────────────────────────────────────────────────
-Write-Host "`n==> Building (Release, net48, win-x64)..." -ForegroundColor Cyan
-
-$msbuild = $null
-$vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-if (Test-Path $vsWhere) {
-    $vsPath = & $vsWhere -latest -requires Microsoft.Component.MSBuild -property installationPath 2>$null
-    if ($vsPath) {
-        $candidate = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
-        if (Test-Path $candidate) { $msbuild = $candidate }
-    }
-}
-if (-not $msbuild) { $msbuild = "dotnet" }
-
-if ($msbuild -eq "dotnet") {
-    & dotnet publish $proj /p:PublishProfile=FolderProfile1 -c Release
-} else {
-    & $msbuild $proj /t:Publish /p:PublishProfile=FolderProfile1 /p:Configuration=Release /m /nologo /v:m
-}
-
-if ($LASTEXITCODE -ne 0) { throw "Build failed." }
+# ── 2. Build the loose payload and one-payload launcher ──────────────────────
+Write-Host "`n==> Building loose payload + portable launcher..." -ForegroundColor Cyan
+& powershell -NoProfile -ExecutionPolicy Bypass -File $portableBuild -RequireSignature
+if ($LASTEXITCODE -ne 0) { throw "Portable package build failed." }
 if (-not (Test-Path $exe)) { throw "EXE not found at: $exe" }
+if (-not (Test-Path $innerExe)) { throw "Inner application not found at: $innerExe" }
 Write-Host "    EXE: $exe" -ForegroundColor Green
 
 # ── 3. Sign ─────────────────────────────────────────────────────────────────
@@ -197,6 +186,26 @@ if (-not $SkipSign) {
         Write-Host "`n==> Signing with CN: $CertName..." -ForegroundColor Cyan
         @("/n", $CertName)
     }
+
+    # Sign the real installed application before it is compressed into the public launcher.
+    # Third-party binaries retain their publishers' signatures; only Killer-owned binaries are signed here.
+    Write-Host "`n==> Signing inner application before payload packaging..." -ForegroundColor Cyan
+    $innerSigned = $false
+    foreach ($tsa in $tsaList) {
+        & $signtool sign /fd sha256 /tr $tsa /td sha256 @certArgs `
+            /d "KillerPDF Application" /du "https://killerpdf.net" /v $innerExe
+        if ($LASTEXITCODE -eq 0) { $innerSigned = $true; break }
+        Start-Sleep -Seconds 3
+    }
+    if (-not $innerSigned) { throw "Signing the inner application failed on all TSA endpoints." }
+    & $signtool verify /pa /v $innerExe
+    if ($LASTEXITCODE -ne 0) { throw "Inner application signature verification failed." }
+
+    # Signing changes the inner EXE hash. Rebuild the manifest, compressed payload, and outer
+    # launcher so the payload contains the signed bytes and verifies them after extraction.
+    Write-Host "`n==> Repacking signed payload..." -ForegroundColor Cyan
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $portableBuild -RepackOnly -RequireSignature
+    if ($LASTEXITCODE -ne 0) { throw "Signed payload repack failed." }
 
     # Timestamp with retry across TSA list
     $signed = $false
@@ -252,6 +261,17 @@ if (-not $SkipSign) {
     $actualThumb = "(not signed)"
     $actualCN    = "(not signed)"
 }
+
+# The payload build deliberately suppresses the app project's AfterPublish source target.
+# Generate the GPL source artifact once, beside the final public launcher.
+$projectXml = [xml](Get-Content -Raw -LiteralPath $proj)
+$releaseVersionNode = $projectXml.SelectSingleNode('/Project/PropertyGroup/Version')
+if (-not $releaseVersionNode) { throw "Version missing from KillerPDF.csproj." }
+$sourceBundleScript = Join-Path $PSScriptRoot 'build\bundle-source.ps1'
+$releaseBuildVersion = $releaseVersionNode.InnerText
+& powershell -NoProfile -ExecutionPolicy Bypass -File $sourceBundleScript `
+    -ProjectDir $PSScriptRoot -Version $releaseBuildVersion -AppName 'KillerPDF' -PublishDir $publishDir
+if ($LASTEXITCODE -ne 0) { throw "Source bundle failed." }
 
 } else {
     # PublishOnly: the artifacts from the last full run are the release.

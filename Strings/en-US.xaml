@@ -202,8 +202,18 @@ Saving now overwrites the file and those changes will be lost. Save the other pa
     <sys:String x:Key="Str_Dlg_InstallTitle">Install KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg">Install KillerPDF on this computer?
 
-KillerPDF is copied to your programs folder and a Start menu entry is added. This copy of the exe is left where it is, and you can uninstall via Add/Remove Programs at any time.</sys:String>
+Installing copies the app to your Programs folder for faster startup and adds a Start menu entry. You can keep or delete this portable file afterward.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Update the existing all-users installation of KillerPDF?
+
+This replaces the copy in Program Files with the faster multi-file version. Any older per-user copy is removed so KillerPDF appears only once. You can keep or delete this portable file afterward.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Update your existing KillerPDF installation?
+
+This replaces the installed copy with the faster multi-file version. You can keep or delete this portable file afterward.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF is already installed for everyone on this computer. Update that installation, or uninstall it before choosing a per-user install.
+
+KillerPDF will not create two installed copies.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Install</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Update</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Add a desktop shortcut</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Install for everyone on this computer (needs admin)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Install did not complete - KillerPDF is still running portable.</sys:String>

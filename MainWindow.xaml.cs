@@ -412,9 +412,22 @@ namespace KillerPDF
             // Open a file passed via command-line / file association (e.g. double-clicking a .pdf)
             // Also show the portable badge when running outside the install location.
             bool contentRevealed = false;
+            bool startupSidebarSynced = false;
             ContentRendered += (_, _) =>
             {
+                Services.StartupTrace.Mark("MainWindow first ContentRendered");
                 Services.ThemeManager.RefreshIcons();
+                // Startup can restore pane B, process a relaunch/open-file handoff, and change
+                // ActiveViewer several times before the first frame. Each transition is valid on
+                // its own, but the shared sidebar ItemsSource can still be the preceding pane's
+                // cache (or null) when layout finally wins the race. A click appeared to "bring
+                // thumbnails back" because FocusPane performs this same synchronization. Do it
+                // once here for the pane whose focus halo actually reaches the screen.
+                if (!startupSidebarSynced)
+                {
+                    startupSidebarSynced = true;
+                    RestorePageListForActivePane();
+                }
                 // Final pass once the layout has real widths. The tab-strip / footer shadow gradients
                 // were intermittently blank at startup (their feather mask + margin were computed
                 // before the sidebar column had measured), and only a manual sidebar tweak forced a
@@ -431,6 +444,7 @@ namespace KillerPDF
                         var reveal = new System.Windows.Media.Animation.DoubleAnimation(0, 1,
                             new Duration(TimeSpan.FromMilliseconds(140)));
                         RootClipGrid.BeginAnimation(OpacityProperty, reveal);
+                        Services.StartupTrace.Mark("MainWindow ready");
                     }));
                 }
             };

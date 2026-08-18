@@ -107,7 +107,8 @@ namespace KillerPDF
             {
                 if (PdfImport.IsPdfPath(f))
                 {
-                    if (TryAppendPdfPages(_doc, f)) continue;
+                    var target = _doc;
+                    if (target != null && TryAppendPdfPages(target, f)) continue;
 
                     // #203: a damaged PDF used to be swallowed here, so nothing was added and
                     // nothing was said. Offer the same repair the open path offers.
@@ -116,7 +117,9 @@ namespace KillerPDF
                 }
                 else
                 {
-                    try { PdfImport.AddImagePagesFromFile(_doc, f); } catch { /* skip an unreadable image */ }
+                    var target = _doc;
+                    if (target != null)
+                        try { PdfImport.AddImagePagesFromFile(target, f); } catch { /* skip an unreadable image */ }
                 }
             }
             if (_doc is null) return;
@@ -150,7 +153,7 @@ namespace KillerPDF
         private async System.Threading.Tasks.Task<string?> RepairDroppedPdfAsync(string path)
         {
             var ask = KillerDialog.Show(this,
-                $"\"{Path.GetFileName(path)}\" has a damaged structure and couldn't be added.\n\nWould you like KillerPDF to attempt a repair? A repaired copy will be created - the original file will not be changed.\n\nNote: repaired files may be missing bookmarks, forms, and other interactive features.",
+                $"\"{System.IO.Path.GetFileName(path)}\" has a damaged structure and couldn't be added.\n\nWould you like KillerPDF to attempt a repair? A repaired copy will be created - the original file will not be changed.\n\nNote: repaired files may be missing bookmarks, forms, and other interactive features.",
                 "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (ask != MessageBoxResult.Yes) return null;
 
@@ -170,7 +173,7 @@ namespace KillerPDF
 
                 if (repaired is null)
                     KillerDialog.Show(this,
-                        $"\"{Path.GetFileName(path)}\" could not be repaired.",
+                        $"\"{System.IO.Path.GetFileName(path)}\" could not be repaired.",
                         "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
                 return repaired;
             }
