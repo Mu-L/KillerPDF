@@ -40,8 +40,8 @@
     <sys:String x:Key="Str_TT_UndoLast">Undo Last (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Multi-page grid view (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Zoom out (Ctrl+-)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomLevel">Zoom level (Ctrl+scroll · Ctrl+=/- · Ctrl+0=reset)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomIn">Zoom in (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">Zoom level (Ctrl+scroll · Ctrl++/- · Ctrl+0=reset)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Zoom in (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Go to page (Enter to navigate)</sys:String>
     <sys:String x:Key="Str_TT_CollapseSidebar">Collapse sidebar (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Expand sidebar (Ctrl+B)</sys:String>
@@ -63,8 +63,8 @@
     <sys:String x:Key="Str_Outline_Untitled">(untitled)</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Theme">THEME</sys:String>
-    <sys:String x:Key="Str_Language">LANGUAGE</sys:String>
+    <sys:String x:Key="Str_Theme">Theme</sys:String>
+    <sys:String x:Key="Str_Language">Language</sys:String>
     <sys:String x:Key="Str_Toolbar">TOOLBAR</sys:String>
     <sys:String x:Key="Str_Toolbar_Header">Toolbar</sys:String>
     <sys:String x:Key="Str_Toolbar_TextNone">No text</sys:String>
@@ -181,7 +181,7 @@
     <sys:String x:Key="Str_TT_TabOverflow">All open tabs</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invert images too</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">No font on this PC can draw these characters, so they will appear as boxes in the saved PDF:&#10;&#10;{0}&#10;&#10;Install a font that covers them, or pick a different font for this text.</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift+=/-/0)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App size {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom the whole app (accessibility)</sys:String>
     <sys:String x:Key="Str_KS_FileSize">Show current file size</sys:String>
@@ -539,7 +539,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Crop_AllTip">Crop every page</sys:String>
 
     <!-- View-mode + full-screen shortcuts -->
-    <sys:String x:Key="Str_KS_View">View</sys:String>
+    <sys:String x:Key="Str_KS_View">VIEW</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Full screen</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Press F11 or Esc to exit full screen</sys:String>
     <!-- Quit prompt (family standard) -->
