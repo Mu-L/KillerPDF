@@ -4,6 +4,10 @@
     <TargetFramework>net48</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <!-- Inert on PolySharp 1.15.0, whose targets never make this property compiler-visible.
+         Set here so bumping this project to 1.16.0 cannot reintroduce the CS8336 reserved-name
+         break on net48 that KillerPDF.csproj works around. -->
+    <PolySharpUseEmbeddedAttributeForGeneratedTypes>false</PolySharpUseEmbeddedAttributeForGeneratedTypes>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <UseWPF>true</UseWPF>
