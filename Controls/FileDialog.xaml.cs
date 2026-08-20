@@ -114,6 +114,12 @@ namespace KillerPDF.Controls
         private const string PlacesHKey    = "FileDlgPlacesH";
         private const string LastOpenKey   = "FileDlgLastOpenDir";
         private const string LastSaveKey   = "FileDlgLastSaveDir";
+
+        // Image pickers (every caller with ShowImagePreview) remember their own folder, separate
+        // from the document open/save memory. One shared key meant Insert Image always started
+        // wherever the last PDF was opened from, never where the user last picked an image.
+        private string LastDirKey =>
+            (_mode == FileDialogMode.Open ? LastOpenKey : LastSaveKey) + (ShowImagePreview ? "Img" : "");
         private const int    RecentsMax    = 12;
 
         // Guards the fade-then-close re-entry below. Without it OnClosing would cancel forever.
@@ -257,7 +263,7 @@ namespace KillerPDF.Controls
             }
             if (string.IsNullOrWhiteSpace(startDir) || !Directory.Exists(startDir))
             {
-                string? remembered = App.GetSetting(_mode == FileDialogMode.Open ? LastOpenKey : LastSaveKey);
+                string? remembered = App.GetSetting(LastDirKey);
                 startDir = !string.IsNullOrWhiteSpace(remembered) && Directory.Exists(remembered)
                     ? remembered!
                     : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -1284,7 +1290,7 @@ namespace KillerPDF.Controls
         private void RememberAcceptedDirectory()
         {
             if (_currentDir.Length > 0 && Directory.Exists(_currentDir))
-                App.SetSetting(_mode == FileDialogMode.Open ? LastOpenKey : LastSaveKey, _currentDir);
+                App.SetSetting(LastDirKey, _currentDir);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => Close();

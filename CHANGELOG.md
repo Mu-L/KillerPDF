@@ -18,6 +18,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
 - The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
 - The page list's top and bottom edge fades are back; they painted a transparent brush and so showed on no theme but 98SE.
+- Rotating a page no longer deletes the document's unsaved annotations; they now turn with the page (#169, thanks terada-d).
+- In grid view, drawing on a page or clicking one of its annotations now selects that page, as a plain click already did.
+- Image pickers (Insert Image, image signatures and stamps, watermark) now return to the last folder an image was picked from, instead of wherever the last PDF was opened.
 - After an install relaunch or split-pane session restore, the sidebar now attaches the active pane's thumbnail cache before the first visible frame instead of remaining blank until the user clicks a pane.
 - Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
 - KillerPDF no longer permits a per-user installation beside an existing all-users installation. The installer keeps the existing machine-wide scope selected, blocks an accidental second copy, and removes the current account's older per-user copy when converting or updating to an all-users installation.

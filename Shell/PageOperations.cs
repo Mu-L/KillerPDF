@@ -32,10 +32,19 @@ namespace KillerPDF
             {
                 var indices = new List<int>();
                 foreach (PageThumbnailVm vm in selected) indices.Add(vm.PageIndex);
+                // #169: rotation must not destroy the overlay annotations - the reload's default
+                // keepAnnotations:false cleared them all, losing committed unsaved work on the
+                // second rotation after placing it. Remap each rotated page's annotations through
+                // the turn (render dims are still the pre-turn frame here; the reload clears them)
+                // and keep everything through the reload. A page with no cached render dims keeps
+                // its annotations unmapped - recoverable beats deleted.
+                foreach (var idx in indices)
+                    if (_annotations.TryGetValue(idx, out var anns) && _renderDims.TryGetValue(idx, out var dims))
+                        Services.AnnotationRotate.Remap(anns, delta, dims.w, dims.h);
                 foreach (var idx in indices)
                     _doc.Pages[idx].Rotate = ((_doc.Pages[idx].Rotate + delta) % 360 + 360) % 360;
                 int restoreIdx = PageList.SelectedIndex;
-                SaveTempAndReload();
+                SaveTempAndReload(keepAnnotations: true);
                 PageList.SelectedIndex = Math.Min(restoreIdx, PageList.Items.Count - 1);
                 // After a rotation the page aspect ratio changes; always fit-to-page so the
                 // full rotated page is visible regardless of the previous zoom level.

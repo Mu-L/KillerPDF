@@ -918,6 +918,12 @@ namespace KillerPDF.Controls
             var pos = e.GetPosition(_activeCanvas);
             int pageIdx = _activeCanvas.Tag is int tagPage ? tagPage : _currentPage;
             if (pageIdx < 0) return;
+            // Grid: ANY left interaction with a tile selects that page - drawing, highlighting, and
+            // clicking or dragging an annotation, not just the plain empty-page click below (which
+            // stays as a harmless duplicate in its branch). Shift-click keeps building the
+            // multi-selection without moving the page, matching the existing marquee guard.
+            if (_viewMode == ViewMode.Grid && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+                _currentPage = pageIdx;
             // Pin the surface/page this gesture started on so async re-renders (grid tile streaming)
             // can't redirect the in-progress draw/select to another page. See _gestureCanvas.
             _gestureCanvas = _activeCanvas;
