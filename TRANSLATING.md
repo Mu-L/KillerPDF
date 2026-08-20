@@ -12,6 +12,7 @@ Each language is a single XAML `ResourceDictionary` file in the `Strings/` folde
 - `de-DE.xaml` - German
 - `es.xaml` - Spanish
 - `fr-FR.xaml` - French
+- `hu-HU.xaml` - Hungarian
 - `ja-JP.xaml` - Japanese
 - `pl-PL.xaml` - Polish
 - `tr-TR.xaml` - Turkish
@@ -54,7 +55,17 @@ Each language is a single XAML `ResourceDictionary` file in the `Strings/` folde
 
 ## Testing your translation
 
-If you want to see your strings in the app before submitting, build from source and change the language from the language button on the sidebar rail. Otherwise, submit the PR and the maintainer will test it.
+You can load your translation file into a normal KillerPDF install - no building required. Close any running KillerPDF window first (a second launch hands its arguments to the running instance), then start the app with:
+
+```
+KillerPDF.exe --lang-file C:\path\to\your\it.xaml
+```
+
+The app runs with your file as the active language. Keys you have not translated yet show in English, exactly as a partial translation behaves in a release build.
+
+While the app is running, every save of the file re-applies it immediately - fix a label that is too long, save, and watch it update on screen. A save with an XML error is ignored and the last good version stays applied, so you can save as often as you like. Toolbar captions and menus rebuild on the reload too.
+
+If the file cannot be loaded at startup at all, the app tells you and starts in your normal language.
 
 ## Questions
 

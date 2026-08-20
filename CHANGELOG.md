@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
 - Hide the toolbar from its right-click menu or Alt+M, and full screen no longer sits over other applications when you switch away (#215, thanks Subjuntivos).
 - The page badge fires on grid scrolling and names the visible span (#197, thanks Ryokoxx).
+- Translators can test their work in a normal install: `--lang-file <path>` loads a translation file as the active language and re-applies it on every save (#211, thanks bovirus). See TRANSLATING.md.
 
 ### Changed
 - Internal cancellation resource keys now use the same American spelling as their displayed text.

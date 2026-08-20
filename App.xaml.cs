@@ -177,6 +177,12 @@ namespace KillerPDF
             StartupTrace.Mark("Stale temporary-file cleanup complete");
             ThemeManager.Initialize();
             StartupTrace.Mark("Theme initialized");
+            // #211: translator test mode - load an external translation file as the language
+            // override and re-apply it on every save (see LocaleManager). Documented in
+            // TRANSLATING.md; must be set before LocaleManager.Initialize applies the locale.
+            for (int i = 0; i < e.Args.Length - 1; i++)
+                if (string.Equals(e.Args[i], "--lang-file", StringComparison.OrdinalIgnoreCase))
+                { try { LocaleManager.ExternalFile = Path.GetFullPath(e.Args[i + 1]); } catch { /* bad path: normal locale */ } }
             LocaleManager.Initialize();
             StartupTrace.Mark("Locale initialized");
             var mainWindow = new MainWindow();

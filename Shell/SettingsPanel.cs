@@ -495,6 +495,19 @@ namespace KillerPDF
             _                  => Loc("Str_Theme_Dark"),
         };
 
+        // #211: translator test mode - when the external translation file live-reloads, re-run the
+        // same rebuilds a language switch does, so code-built captions update alongside the
+        // DynamicResource strings. Called once from the window ctor; the event only ever fires
+        // when the app was started with --lang-file.
+        internal void HookExternalLangReload()
+            => KillerPDF.Services.LocaleManager.ExternalReloaded += () =>
+            {
+                ApplyToolNumberTooltips();
+                BuildToolbarMenu();
+                BuildContextMenu();
+                ApplyToolbarAppearance();
+            };
+
         private void LangEnRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.EnUS);
         private void LangCsRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.CsCZ);
         private void LangEsRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.Es);

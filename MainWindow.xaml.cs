@@ -323,6 +323,7 @@ namespace KillerPDF
             // so its bridge would NullReference the moment anything touched it otherwise.
             InitSplitPanes();
             WirePageListEdgeFades();   // sidebar page-list edge fades (SidebarLayout.cs)
+            HookExternalLangReload();  // #211: --lang-file live reload rebuilds code-built captions
             _pageContentGrid  = ActiveViewer.PageGrid;
             _pageContentPanel = ActiveViewer.PageHost;
             _continuousPanel  = ActiveViewer.ContinuousHost;
