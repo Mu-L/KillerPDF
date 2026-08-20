@@ -2200,6 +2200,19 @@
                                                        Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
+                                    <RadioButton x:Name="LangHuRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangHuRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Magyar" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="hu-HU" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
                                     <RadioButton x:Name="LangJaRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
                                                  Checked="LangJaRadio_Checked">
                                         <Grid>

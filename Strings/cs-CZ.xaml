@@ -40,8 +40,8 @@
     <sys:String x:Key="Str_TT_UndoLast">Zpět (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Mřížkové zobrazení více stránek (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Oddálit (Ctrl+-)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomLevel">Úroveň přiblížení (Ctrl+kolečko · Ctrl+=/- · Ctrl+0=obnovit)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomIn">Přiblížit (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">Úroveň přiblížení (Ctrl+kolečko · Ctrl++/- · Ctrl+0=obnovit)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Přiblížit (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Přejít na stránku (potvrďte klávesou Enter)</sys:String>
     <sys:String x:Key="Str_TT_CollapseSidebar">Sbalit postranní panel (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Rozbalit postranní panel (Ctrl+B)</sys:String>
@@ -63,8 +63,8 @@
     <sys:String x:Key="Str_Outline_Untitled">(bez názvu)</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Theme">MOTIV</sys:String>
-    <sys:String x:Key="Str_Language">JAZYK</sys:String>
+    <sys:String x:Key="Str_Theme">Motiv</sys:String>
+    <sys:String x:Key="Str_Language">Jazyk</sys:String>
     <sys:String x:Key="Str_Toolbar">PANEL NÁSTROJŮ</sys:String>
     <sys:String x:Key="Str_Toolbar_Header">Panel nástrojů</sys:String>
     <sys:String x:Key="Str_Toolbar_TextNone">Bez textu</sys:String>
@@ -181,9 +181,10 @@
     <sys:String x:Key="Str_TT_TabOverflow">Všechny otevřené karty</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invertovat i obrázky</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Žádné písmo v tomto počítači neumí vykreslit tyto znaky, takže se v uloženém PDF zobrazí jako rámečky:&#10;&#10;{0}&#10;&#10;Nainstalujte písmo, které je obsahuje, nebo pro tento text zvolte jiné písmo.</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Rolováním změníte velikost celé aplikace (Ctrl+Shift+=/-/0)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Rolováním změníte velikost celé aplikace (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Velikost aplikace {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zvětšení celé aplikace (usnadnění přístupu)</sys:String>
+    <sys:String x:Key="Str_KS_FileSize">Zobrazit velikost aktuálního souboru</sys:String>
     <sys:String x:Key="Str_KS_SplitPane">Rozdělené zobrazení - dva dokumenty vedle sebe</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Před otevřením odkazů se zeptat</sys:String>
     <sys:String x:Key="Str_InvalidRange">Neplatný rozsah - použijte např. 1-3,5,7</sys:String>
@@ -526,7 +527,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Crop_AllTip">Oříznout všechny stránky</sys:String>
 
     <!-- View-mode + full-screen shortcuts -->
-    <sys:String x:Key="Str_KS_View">Zobrazení</sys:String>
+    <sys:String x:Key="Str_KS_View">ZOBRAZENÍ</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Celá obrazovka</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Celou obrazovku ukončíte stisknutím F11 nebo Esc</sys:String>
     <!-- Quit prompt (family standard) -->

@@ -38,8 +38,8 @@
     <sys:String x:Key="Str_TT_UndoLast">শেষ কাজ পূর্বাবস্থায় ফেরান (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">বহু-পৃষ্ঠা গ্রিড ভিউ (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">জুম আউট (Ctrl+-)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomLevel">জুম স্তর (Ctrl+স্ক্রল · Ctrl+=/- · Ctrl+0=রিসেট)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomIn">জুম ইন (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">জুম স্তর (Ctrl+স্ক্রল · Ctrl++/- · Ctrl+0=রিসেট)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">জুম ইন (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">পৃষ্ঠায় যান (নেভিগেট করতে Enter চাপুন)</sys:String>
     <sys:String x:Key="Str_TT_CollapseSidebar">সাইডবার সংকুচিত করুন (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">সাইডবার প্রসারিত করুন (Ctrl+B)</sys:String>
@@ -623,9 +623,10 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_TT_TabOverflow">সব খোলা ট্যাব</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">ছবিও উল্টে দিন</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">এই পিসির কোনো ফন্ট এই অক্ষরগুলি আঁকতে পারে না, তাই সংরক্ষিত PDF-এ সেগুলি বাক্স হিসেবে দেখাবে:&#10;&#10;{0}&#10;&#10;এগুলি সমর্থন করে এমন ফন্ট ইনস্টল করুন, অথবা এই লেখার জন্য অন্য ফন্ট বেছে নিন।</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন (Ctrl+Shift+=/-/0)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">পুরো অ্যাপের আকার বদলাতে স্ক্রোল করুন (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">অ্যাপের আকার {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">পুরো অ্যাপ জুম করুন (অ্যাক্সেসযোগ্যতা)</sys:String>
+    <sys:String x:Key="Str_KS_FileSize">বর্তমান ফাইলের আকার দেখান</sys:String>
     <sys:String x:Key="Str_KS_SplitPane">বিভক্ত ভিউ - পাশাপাশি দুটি নথি</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">লিঙ্ক খোলার আগে নিশ্চিত করুন</sys:String>
 

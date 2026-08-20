@@ -38,8 +38,8 @@
     <sys:String x:Key="Str_TT_UndoLast">Son İşlemi Geri Al (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Çok sayfalı ızgara görünümü (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Uzaklaştır (Ctrl+-)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomLevel">Yakınlaştırma düzeyi (Ctrl+kaydırma · Ctrl+=/- · Ctrl+0=sıfırla)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomIn">Yakınlaştır (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">Yakınlaştırma düzeyi (Ctrl+kaydırma · Ctrl++/- · Ctrl+0=sıfırla)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Yakınlaştır (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Sayfaya git (gitmek için Enter)</sys:String>
     <sys:String x:Key="Str_TT_CollapseSidebar">Kenar çubuğunu daralt (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Kenar çubuğunu genişlet (Ctrl+B)</sys:String>
@@ -59,8 +59,8 @@
     <sys:String x:Key="Str_TabOutlines">ANA HATLAR</sys:String>
 
     <!-- ── Ayarlar paneli ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Theme">TEMA</sys:String>
-    <sys:String x:Key="Str_Language">DİL</sys:String>
+    <sys:String x:Key="Str_Theme">Tema</sys:String>
+    <sys:String x:Key="Str_Language">Dil</sys:String>
     <sys:String x:Key="Str_Toolbar">ARAÇ ÇUBUĞU</sys:String>
     <sys:String x:Key="Str_Toolbar_Header">Araç çubuğu</sys:String>
     <sys:String x:Key="Str_Toolbar_TextNone">Metin yok</sys:String>
@@ -472,7 +472,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Crop_Apply">Kırp</sys:String>
     <sys:String x:Key="Str_Crop_RangeTip">Sayfa aralığı, örn. 1-3,5 (boş = geçerli sayfa)</sys:String>
     <sys:String x:Key="Str_Crop_AllTip">Her sayfayı kırp</sys:String>
-    <sys:String x:Key="Str_KS_View">Görünüm</sys:String>
+    <sys:String x:Key="Str_KS_View">GÖRÜNÜM</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Tam ekran</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Tam ekrandan çıkmak için F11 veya Esc'e basın</sys:String>
     <!-- Quit prompt -->
@@ -623,9 +623,10 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_TT_TabOverflow">Açık tüm sekmeler</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Görselleri de ters çevir</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Bu bilgisayardaki hiçbir yazı tipi bu karakterleri çizemiyor, bu nedenle kaydedilen PDF'de kutu olarak görünecekler:&#10;&#10;{0}&#10;&#10;Bunları içeren bir yazı tipi yükleyin veya bu metin için başka bir yazı tipi seçin.</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın (Ctrl+Shift+=/-/0)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Uygulama boyutu %{0}</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Tüm uygulamayı yakınlaştır (erişilebilirlik)</sys:String>
+    <sys:String x:Key="Str_KS_FileSize">Geçerli dosya boyutunu göster</sys:String>
     <sys:String x:Key="Str_KS_SplitPane">Bölünmüş görünüm - iki belge yan yana</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Bağlantıları açmadan önce sor</sys:String>
 

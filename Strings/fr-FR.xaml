@@ -35,8 +35,8 @@
     <sys:String x:Key="Str_TT_UndoLast">Annuler la dernière action (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Vue en grille multi-pages (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Réduire le zoom (Ctrl+-)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomLevel">Niveau de zoom (Ctrl+molette · Ctrl+=/- · Ctrl+0=Réinitialiser)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomIn">Augmenter le zoom (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">Niveau de zoom (Ctrl+molette · Ctrl++/- · Ctrl+0=Réinitialiser)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Augmenter le zoom (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Aller à la page (Entrée pour naviguer)</sys:String>
     <sys:String x:Key="Str_TT_CollapseSidebar">Réduire le panneau latéral (Ctrl+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Développer le panneau latéral (Ctrl+B)</sys:String>
@@ -55,8 +55,8 @@
     <sys:String x:Key="Str_TabOutlines">PLAN</sys:String>
 
     <!-- Settings panel -->
-    <sys:String x:Key="Str_Theme">THÈME</sys:String>
-    <sys:String x:Key="Str_Language">LANGUE</sys:String>
+    <sys:String x:Key="Str_Theme">Thème</sys:String>
+    <sys:String x:Key="Str_Language">Langue</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
 
@@ -486,7 +486,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Crop_Apply">Recadrer</sys:String>
     <sys:String x:Key="Str_Crop_RangeTip">Plage de pages, ex. 1-3,5 (vide = page actuelle)</sys:String>
     <sys:String x:Key="Str_Crop_AllTip">Recadrer toutes les pages</sys:String>
-    <sys:String x:Key="Str_KS_View">Affichage</sys:String>
+    <sys:String x:Key="Str_KS_View">AFFICHAGE</sys:String>
     <sys:String x:Key="Str_KS_FullScreen">Plein écran</sys:String>
     <sys:String x:Key="Str_FullScreen_Hint">Appuyez sur F11 ou Échap pour quitter le plein écran</sys:String>
 
@@ -638,9 +638,10 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_TT_TabOverflow">Tous les onglets ouverts</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Inverser aussi les images</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Aucune police de ce PC ne peut afficher ces caractères ; ils apparaîtront sous forme de carrés dans le PDF enregistré :&#10;&#10;{0}&#10;&#10;Installez une police qui les contient ou choisissez une autre police pour ce texte.</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application (Ctrl+Maj+=/-/0)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Faites défiler pour redimensionner toute l'application (Ctrl+Maj++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Taille de l'application {0} %</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoomer toute l'application (accessibilité)</sys:String>
+    <sys:String x:Key="Str_KS_FileSize">Afficher la taille du fichier actuel</sys:String>
     <sys:String x:Key="Str_KS_SplitPane">Vue partagée - deux documents côte à côte</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Confirmer avant d'ouvrir les liens</sys:String>
     <sys:Double x:Key="ZoomBoxWidth">96</sys:Double>

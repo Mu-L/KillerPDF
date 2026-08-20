@@ -6,12 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.7.4] - Unreleased
 
+### Added
+- Hungarian (hu-HU) localization, the twelfth interface language, in the language picker as "Magyar" (PR #214, thanks CsokiHUN).
+
 ### Changed
 - Internal cancellation resource keys now use the same American spelling as their displayed text.
 - KillerPDF now remains one portable download while installing as a normal multi-file application. The portable EXE carries one compressed, verified payload and cleans up its temporary files after use; installed shortcuts launch the inner app directly, avoiding Costura extraction and reducing measured first startup by about 40% on the development machine (#189, thanks ags1234). The new package is also roughly 34% smaller than the previous woven EXE.
 - Updates now reuse the same staged and verified payload installer. Portable updates replace the original launcher only after both launcher and app have exited, while per-user and machine-wide installs update their multi-file application safely before relaunching.
 
 ### Fixed
+- The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
+- The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
 - After an install relaunch or split-pane session restore, the sidebar now attaches the active pane's thumbnail cache before the first visible frame instead of remaining blank until the user clicks a pane.
 - Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
 - KillerPDF no longer permits a per-user installation beside an existing all-users installation. The installer keeps the existing machine-wide scope selected, blocks an accidental second copy, and removes the current account's older per-user copy when converting or updating to an all-users installation.

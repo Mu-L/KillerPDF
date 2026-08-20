@@ -38,8 +38,8 @@
     <sys:String x:Key="Str_TT_UndoLast">Letzte Aktion rückgängig machen (Strg+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Mehrseitige Rasteransicht (F8)</sys:String>
     <sys:String x:Key="Str_TT_ZoomOut">Verkleinern (Strg+-)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomLevel">Zoomstufe (Strg+Mausrad · Strg+=/- · Strg+0 = Zurücksetzen)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomIn">Vergrößern (Strg+=)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomLevel">Zoomstufe (Strg+Mausrad · Strg++/- · Strg+0 = Zurücksetzen)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Vergrößern (Strg++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Zu Seite wechseln (Enter zum Navigieren)</sys:String>
     <sys:String x:Key="Str_TT_CollapseSidebar">Seitenleiste einklappen (Strg+B)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Seitenleiste ausklappen (Strg+B)</sys:String>
@@ -59,8 +59,8 @@
     <sys:String x:Key="Str_TabOutlines">GLIEDERUNG</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Theme">DESIGN</sys:String>
-    <sys:String x:Key="Str_Language">SPRACHE</sys:String>
+    <sys:String x:Key="Str_Theme">Design</sys:String>
+    <sys:String x:Key="Str_Language">Sprache</sys:String>
     <sys:String x:Key="Str_Toolbar">SYMBOLLEISTE</sys:String>
     <sys:String x:Key="Str_Toolbar_Header">Symbolleiste</sys:String>
     <sys:String x:Key="Str_Toolbar_TextNone">Kein Text</sys:String>
@@ -629,9 +629,10 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_TT_TabOverflow">Alle geöffneten Tabs</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Bilder ebenfalls invertieren</sys:String>
     <sys:String x:Key="Str_Font_NoGlyphs">Keine Schriftart auf diesem PC kann diese Zeichen darstellen, daher erscheinen sie im gespeicherten PDF als Kästchen:&#10;&#10;{0}&#10;&#10;Installieren Sie eine passende Schriftart oder wählen Sie eine andere Schriftart für diesen Text.</sys:String>
-    <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren (Strg+Umschalt+=/-/0)</sys:String>
+    <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren (Strg+Umschalt++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App-Größe {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Die ganze App zoomen (Barrierefreiheit)</sys:String>
+    <sys:String x:Key="Str_KS_FileSize">Aktuelle Dateigröße anzeigen</sys:String>
     <sys:String x:Key="Str_KS_SplitPane">Geteilte Ansicht - zwei Dokumente nebeneinander</sys:String>
     <sys:String x:Key="Str_LinkConfirmSetting">Vor dem Öffnen von Links bestätigen</sys:String>
 
