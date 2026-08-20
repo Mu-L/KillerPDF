@@ -141,7 +141,7 @@ namespace KillerPDF
         // StyleCheckBox/ThemedCheckTemplate copies so every checkbox in the app is identical.
         public static CheckBox CheckBox(string label) => new()
         {
-            Content                  = label,
+            Content                  = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap },
             Foreground               = Brush("TextBrush"),
             FontFamily               = UiFont,
             FontSize                 = 12,
@@ -152,14 +152,17 @@ namespace KillerPDF
 
         private static ControlTemplate CheckTemplate()
         {
-            var row = new FrameworkElementFactory(typeof(StackPanel)) { Name = "root" };
-            row.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            // DockPanel, not a horizontal StackPanel. A horizontal StackPanel measures its children
+            // at infinite width, so the label could never wrap however it was configured. Docking the
+            // box to the left leaves the label a real width to wrap inside (#223).
+            var row = new FrameworkElementFactory(typeof(DockPanel)) { Name = "root" };
 
             var boxHost = new FrameworkElementFactory(typeof(Grid));
             boxHost.SetValue(FrameworkElement.WidthProperty, 16.0);
             boxHost.SetValue(FrameworkElement.HeightProperty, 16.0);
             boxHost.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
             boxHost.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+            boxHost.SetValue(DockPanel.DockProperty, Dock.Left);
 
             var box = new FrameworkElementFactory(typeof(Border));
             box.SetValue(Border.CornerRadiusProperty, RadControl);
