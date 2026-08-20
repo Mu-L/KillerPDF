@@ -1072,6 +1072,28 @@ namespace KillerPDF
             if (_pages.Length == 0) { _pageLabel.Text = S("Str_Print_NoPages"); _renderLabel.Visibility = Visibility.Collapsed; return; }
 
             var selected = SelectedIndices();
+            if (selected.Count == 0)
+            {
+                // Reuses the string the print-time guard already shows, so there is nothing new to
+                // translate. The Pages box drives this on every keystroke, so the message appears as
+                // soon as the range stops matching anything.
+                _pageLabel.Text = "";
+                UpdateRenderLabel();
+                _previewHost.Children.Add(new TextBlock
+                {
+                    Text                = S("Str_Dlg_NoValidPages"),
+                    Foreground          = R("MutedTextBrush"),
+                    FontSize            = 12,
+                    Margin              = new Thickness(24),
+                    TextWrapping        = TextWrapping.Wrap,
+                    TextAlignment       = TextAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment   = VerticalAlignment.Center,
+                });
+                if (_printBtn != null) _printBtn.IsEnabled = false;
+                return;
+            }
+            if (_printBtn != null) _printBtn.IsEnabled = !_isLoading;
             int sheets = Math.Max(1, (selected.Count + _nUp - 1) / _nUp);
             int sheet = Math.Max(0, Math.Min(_previewIndex, sheets - 1));
             _previewIndex = sheet;
@@ -1449,7 +1471,11 @@ namespace KillerPDF
                     if (v >= 1 && v <= count) set.Add(v - 1);
                 }
             }
-            return set.Count == 0 ? [.. Enumerable.Range(0, count)] : [.. set];
+            // A blank box already returned every page above, so reaching here with nothing resolved
+            // means the text matched no page - a number past the end, or a typo. Return the empty
+            // set and let the callers surface it. Falling back to every page here meant a slipped
+            // keystroke in the Pages box silently spooled the whole document.
+            return [.. set];
         }
 
         // Shared themed button (UiKit.Make) so the print dialog matches every other dialog.
