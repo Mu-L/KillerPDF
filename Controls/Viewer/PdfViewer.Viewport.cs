@@ -89,7 +89,22 @@ namespace KillerPDF.Controls
         private void ShowPageBadge(int page)
         {
             if (_doc is null || _doc.PageCount < 2) return;
-            PageBadgeText.Text = $"{page + 1} / {_doc.PageCount}";
+            ShowPageBadgeText($"{page + 1} / {_doc.PageCount}");
+        }
+
+        // #197 follow-up: one number says the least in Grid, where several tiles share the screen -
+        // the badge names the visible span there instead ("2-5 / 50").
+        private void ShowPageBadgeSpan(int first, int last)
+        {
+            if (_doc is null || _doc.PageCount < 2) return;
+            ShowPageBadgeText(first == last
+                ? $"{first + 1} / {_doc.PageCount}"
+                : $"{first + 1}-{last + 1} / {_doc.PageCount}");
+        }
+
+        private void ShowPageBadgeText(string text)
+        {
+            PageBadgeText.Text = text;
             PageBadgeSlide.BeginAnimation(TranslateTransform.YProperty,
                 new DoubleAnimation(0, TimeSpan.FromMilliseconds(140))
                     { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
@@ -161,17 +176,28 @@ namespace KillerPDF.Controls
             if (_viewMode == ViewMode.Grid && _pageContentPanel.Children.Count > 1
                 && PagePreviewPanel.Content is FrameworkElement gridRoot)
             {
-                double viewCenter = PagePreviewPanel.VerticalOffset + PagePreviewPanel.ViewportHeight * 0.5;
-                int nearest = -1;
+                double viewTop    = PagePreviewPanel.VerticalOffset;
+                double viewBottom = viewTop + PagePreviewPanel.ViewportHeight;
+                double viewCenter = viewTop + PagePreviewPanel.ViewportHeight * 0.5;
+                int nearest = -1, firstVis = -1, lastVis = -1;
                 double minDist = double.MaxValue;
                 for (int i = 0; i < _pageContentPanel.Children.Count; i++)
                 {
                     if (_pageContentPanel.Children[i] is not FrameworkElement tile || tile.ActualHeight <= 0)
                         continue;
-                    double cy = tile.TranslatePoint(new Point(0, tile.ActualHeight * 0.5), gridRoot).Y;
-                    double dist = Math.Abs(cy - viewCenter);
+                    double top    = tile.TranslatePoint(new Point(0, 0), gridRoot).Y;
+                    double bottom = tile.TranslatePoint(new Point(0, tile.ActualHeight), gridRoot).Y;
+                    double dist = Math.Abs((top + bottom) * 0.5 - viewCenter);
                     if (dist < minDist) { minDist = dist; nearest = i; }
+                    if (bottom > viewTop && top < viewBottom)
+                    {
+                        if (firstVis < 0) firstVis = i;
+                        if (i > lastVis) lastVis = i;
+                    }
                 }
+                // #197 follow-up: grid scrolling never raised the badge (it only fired on a page
+                // change), and one page number can't say which tiles are on screen - show the span.
+                if (e.VerticalChange != 0 && firstVis >= 0) ShowPageBadgeSpan(firstVis, lastVis);
                 if (nearest >= 0) SyncCurrentPageTo(nearest);
             }
         }
@@ -1454,7 +1480,11 @@ namespace KillerPDF.Controls
             double vw  = PagePreviewPanel.ViewportWidth > 0
                 ? PagePreviewPanel.ViewportWidth : PagePreviewPanel.ActualWidth;
             if (vw <= 0 || rdW <= 0) return _zoomLevel;
-            return (vw - n * GridGapPx) / (n * rdW);
+            // 2px slack: the zoom used to fit n columns EXACTLY, so a tile width pixel-snapping up
+            // a fraction (UseLayoutRounding) overflowed the wrap panel and the last column dropped
+            // to the next row - a 3-column grid showing 2 columns and a column-wide gap, at some
+            // pane widths and not others.
+            return (vw - n * GridGapPx - 2) / (n * rdW);
         }
 
         internal void GridZoomStep(bool zoomOut)

@@ -844,6 +844,9 @@ namespace KillerPDF
             bool haveNew = false;
             if (Enum.TryParse<ToolbarIconSize>(App.GetSetting("ToolbarIconSize"), out var s)) { _toolbarIconSize = s; haveNew = true; }
             if (Enum.TryParse<ToolbarLabelMode>(App.GetSetting("ToolbarLabels"), out var l)) { _toolbarLabelMode = l; haveNew = true; }
+            // Restore directly - SetToolbarHidden would overwrite the "Ready" status line at startup.
+            if (App.GetSetting("ToolbarHidden") == "1")
+            { _toolbarHidden = true; ToolbarRowBorder.Visibility = Visibility.Collapsed; }
             if (!haveNew && Enum.TryParse<ToolbarStyle>(App.GetSetting("ToolbarStyle"), out var old))
             {
                 switch (old)
@@ -870,6 +873,22 @@ namespace KillerPDF
             _toolbarLabelMode = mode;
             App.SetSetting("ToolbarLabels", mode.ToString());
             ApplyToolbarAppearance();
+        }
+
+        // #215: a reading view without the toolbar, while the window stays a normal window the
+        // user can still switch away from (full screen was the wrong tool for that). On the
+        // toolbar's right-click menu and Ctrl+F11; the tools all remain reachable by shortcut.
+        private bool _toolbarHidden;
+
+        internal void ToggleToolbarHidden() => SetToolbarHidden(!_toolbarHidden);
+
+        private void SetToolbarHidden(bool hidden)
+        {
+            _toolbarHidden = hidden;
+            ToolbarRowBorder.Visibility = hidden ? Visibility.Collapsed : Visibility.Visible;
+            App.SetSetting("ToolbarHidden", hidden ? "1" : "0");
+            SyncToolbarMenuChecks();
+            SetStatus(Loc(hidden ? "Str_St_ToolbarHidden" : "Str_St_ToolbarShown"));
         }
 
         /// <summary>
@@ -913,6 +932,12 @@ namespace KillerPDF
                 mi.Click += (_, _2) => SetToolbarLabelMode(v);
                 ToolbarMenu.Items.Add(mi);
             }
+
+            ToolbarMenu.Items.Add(new Separator());
+            var hide = new MenuItem { Header = Loc("Str_Toolbar_Hide"), Tag = "hide", IsCheckable = true,
+                                      IsChecked = _toolbarHidden, InputGestureText = "Alt+M" };
+            hide.Click += (_, _2) => ToggleToolbarHidden();
+            ToolbarMenu.Items.Add(hide);
         }
 
         private void SyncToolbarMenuChecks()
@@ -929,6 +954,7 @@ namespace KillerPDF
                     mi.IsEnabled = _toolbarLabelMode != ToolbarLabelMode.Only;
                 }
                 else if (mi.Tag is ToolbarLabelMode lb) mi.IsChecked = lb == _toolbarLabelMode;
+                else if (mi.Tag is "hide") mi.IsChecked = _toolbarHidden;
             }
         }
 

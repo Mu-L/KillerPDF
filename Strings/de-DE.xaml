@@ -69,6 +69,9 @@
     <sys:String x:Key="Str_Toolbar_TextBeside">Text neben Symbol</sys:String>
     <sys:String x:Key="Str_Toolbar_TextUnder">Text unter Symbol</sys:String>
     <sys:String x:Key="Str_Toolbar_TextOnly">Nur Text</sys:String>
+    <sys:String x:Key="Str_Toolbar_Hide">Symbolleiste ausblenden</sys:String>
+    <sys:String x:Key="Str_St_ToolbarHidden">Symbolleiste ausgeblendet - Alt+M zeigt sie wieder an</sys:String>
+    <sys:String x:Key="Str_St_ToolbarShown">Symbolleiste eingeblendet</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
@@ -260,6 +263,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Ctx_RotateCWShort">Im Uhrzeigersinn drehen</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCCWShort">Gegen Uhrzeigersinn drehen</sys:String>
     <sys:String x:Key="Str_Ctx_ExtractPages">Seite(n) extrahieren</sys:String>
+    <sys:String x:Key="Str_Ctx_ExportPageImage">Seite als Bild exportieren</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePages">Seite(n) löschen</sys:String>
 
     <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->

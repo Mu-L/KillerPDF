@@ -69,6 +69,9 @@
     <sys:String x:Key="Str_Toolbar_TextBeside">图标加文本</sys:String>
     <sys:String x:Key="Str_Toolbar_TextUnder">图标下方文本</sys:String>
     <sys:String x:Key="Str_Toolbar_TextOnly">仅文本</sys:String>
+    <sys:String x:Key="Str_Toolbar_Hide">隐藏工具栏</sys:String>
+    <sys:String x:Key="Str_St_ToolbarHidden">工具栏已隐藏 - Alt+M 可重新显示</sys:String>
+    <sys:String x:Key="Str_St_ToolbarShown">已显示工具栏</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (简体)</sys:String>
@@ -260,6 +263,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCWShort">顺时针旋转</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCCWShort">逆时针旋转</sys:String>
     <sys:String x:Key="Str_Ctx_ExtractPages">截取页面</sys:String>
+    <sys:String x:Key="Str_Ctx_ExportPageImage">将页面导出为图片</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePages">删除页面</sys:String>
 
     <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->

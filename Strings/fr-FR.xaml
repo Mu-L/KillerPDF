@@ -208,6 +208,9 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Toolbar_TextBeside">Texte à côté des icônes</sys:String>
     <sys:String x:Key="Str_Toolbar_TextUnder">Texte sous les icônes</sys:String>
     <sys:String x:Key="Str_Toolbar_TextOnly">Texte seul</sys:String>
+    <sys:String x:Key="Str_Toolbar_Hide">Masquer la barre d'outils</sys:String>
+    <sys:String x:Key="Str_St_ToolbarHidden">Barre d'outils masquée - Alt+M la réaffiche</sys:String>
+    <sys:String x:Key="Str_St_ToolbarShown">Barre d'outils affichée</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
 
     <!-- Keyboard shortcuts (remainder) -->
@@ -272,6 +275,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Ctx_RotateCWShort">Pivoter à droite</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCCWShort">Pivoter à gauche</sys:String>
     <sys:String x:Key="Str_Ctx_ExtractPages">Extraire la ou les pages</sys:String>
+    <sys:String x:Key="Str_Ctx_ExportPageImage">Exporter la page en image</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePages">Supprimer la ou les pages</sys:String>
     <sys:String x:Key="Str_Ctx_Edit">Modifier</sys:String>
     <sys:String x:Key="Str_Ctx_Raise">Monter</sys:String>

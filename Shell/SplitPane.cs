@@ -46,6 +46,16 @@ namespace KillerPDF
         /// window's right edge shrank the pane at the far LEFT of the window.</summary>
         private double _paneAWidth;
 
+        /// <summary>Pane A's share of the host at the last layout. Window-state JUMPS (snap,
+        /// maximize, unmaximize, full screen) re-derive <see cref="_paneAWidth"/> from this so the
+        /// panes keep their proportions; an interactive edge drag keeps A fixed as documented
+        /// above. WM_ENTER/EXITSIZEMOVE (<see cref="_inWindowSizeMove"/>) tells the two apart.</summary>
+        private double _paneARatio;
+
+        /// <summary>True while the user is interactively moving or resizing the window
+        /// (WM_ENTERSIZEMOVE..WM_EXITSIZEMOVE, tracked in WndProc).</summary>
+        private bool _inWindowSizeMove;
+
         /// <summary>Wire both panes up. Called from the constructor.</summary>
         private void InitSplitPanes()
         {
@@ -88,7 +98,7 @@ namespace KillerPDF
             // layout change - assigning straight from the handler re-enters the layout pass it was
             // raised by. At Background priority it runs after that pass has finished.
             SplitHost.SizeChanged += (_, _) =>
-                Dispatcher.BeginInvoke(new Action(ApplyPaneWidths),
+                Dispatcher.BeginInvoke(new Action(OnSplitHostResized),
                                        System.Windows.Threading.DispatcherPriority.Background);
 
             ApplyFocusHalo();
@@ -529,6 +539,20 @@ namespace KillerPDF
         /// B is the star that takes what is left. Run on every split-host resize as well as on the
         /// gutter drag, so narrowing the window comes out of B until B is at the minimum, then out
         /// of A until A is too. Neither pane can be squeezed below MinPaneWidth from any direction.</summary>
+        /// <summary>SplitHost.SizeChanged lands here. A size change OUTSIDE an interactive
+        /// move/resize is a window-state jump - snap, maximize, unmaximize, full screen - and those
+        /// keep the panes' RATIO; a 50/50 split must not come out of maximize as 75/25. An edge
+        /// drag keeps pane A fixed so the window edge eats pane B only (see _paneAWidth).</summary>
+        private void OnSplitHostResized()
+        {
+            if (_isSplit && !_inWindowSizeMove && !_draggingSplit && _paneARatio > 0)
+            {
+                double avail = SplitHost.ActualWidth - SplitGutter;
+                if (avail > 0) _paneAWidth = Math.Max(MinPaneWidth, avail * _paneARatio);
+            }
+            ApplyPaneWidths();
+        }
+
         private void ApplyPaneWidths()
         {
             if (!_isSplit || _splitAnimating) return;   // the slide owns the columns while it runs
@@ -549,6 +573,11 @@ namespace KillerPDF
                 PaneACol.Width = new GridLength(aW, GridUnitType.Pixel);
             if (!PaneBCol.Width.IsStar)
                 PaneBCol.Width = new GridLength(1, GridUnitType.Star);
+
+            // Remember the proportion this layout settled on - the value the state-jump path
+            // (OnSplitHostResized) restores. Updated here so a divider drag, an edge resize, and a
+            // programmatic width all refresh it consistently.
+            _paneARatio = aW / avail;
         }
 
         /// <summary>The window has no minimum of its own. The only floor is the PANE minimum, which

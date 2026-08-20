@@ -8,6 +8,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Added
 - Hungarian (hu-HU) localization, the twelfth interface language, in the language picker as "Magyar" (PR #214, thanks CsokiHUN).
+- "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
+- Hide the toolbar from its right-click menu or Alt+M, and full screen no longer sits over other applications when you switch away (#215, thanks Subjuntivos).
+- The page badge fires on grid scrolling and names the visible span (#197, thanks Ryokoxx).
 
 ### Changed
 - Internal cancellation resource keys now use the same American spelling as their displayed text.
@@ -18,6 +21,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
 - The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
 - The page list's top and bottom edge fades are back; they painted a transparent brush and so showed on no theme but 98SE.
+- Snapping, maximizing, or restoring the window keeps the split panes' proportions, and a sidebar you closed stays closed when a tab loads its document.
+- Grid view no longer drops its last column into the next row at certain pane widths.
 - Rotating a page no longer deletes the document's unsaved annotations; they now turn with the page (#169, thanks terada-d).
 - In grid view, drawing on a page or clicking one of its annotations now selects that page, as a plain click already did.
 - Image pickers (Insert Image, image signatures and stamps, watermark) now return to the last folder an image was picked from, instead of wherever the last PDF was opened.

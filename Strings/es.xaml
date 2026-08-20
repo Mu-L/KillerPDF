@@ -69,6 +69,9 @@
     <sys:String x:Key="Str_Toolbar_TextBeside">Texto junto a iconos</sys:String>
     <sys:String x:Key="Str_Toolbar_TextUnder">Texto bajo los iconos</sys:String>
     <sys:String x:Key="Str_Toolbar_TextOnly">Solo texto</sys:String>
+    <sys:String x:Key="Str_Toolbar_Hide">Ocultar la barra de herramientas</sys:String>
+    <sys:String x:Key="Str_St_ToolbarHidden">Barra de herramientas oculta - Alt+M la muestra de nuevo</sys:String>
+    <sys:String x:Key="Str_St_ToolbarShown">Barra de herramientas visible</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
@@ -260,6 +263,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCWShort">Girar a la derecha</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCCWShort">Girar a la izquierda</sys:String>
     <sys:String x:Key="Str_Ctx_ExtractPages">Extraer página(s)</sys:String>
+    <sys:String x:Key="Str_Ctx_ExportPageImage">Exportar página como imagen</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePages">Eliminar página(s)</sys:String>
 
     <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->

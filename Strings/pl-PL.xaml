@@ -73,6 +73,9 @@
     <sys:String x:Key="Str_Toolbar_TextBeside">Tekst obok ikon</sys:String>
     <sys:String x:Key="Str_Toolbar_TextUnder">Tekst pod ikonami</sys:String>
     <sys:String x:Key="Str_Toolbar_TextOnly">Tylko tekst</sys:String>
+    <sys:String x:Key="Str_Toolbar_Hide">Ukryj pasek narzędzi</sys:String>
+    <sys:String x:Key="Str_St_ToolbarHidden">Pasek narzędzi ukryty - Alt+M przywraca go</sys:String>
+    <sys:String x:Key="Str_St_ToolbarShown">Pasek narzędzi widoczny</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
@@ -318,6 +321,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Ctx_RotateCWShort">Obróć w prawo</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCCWShort">Obróć w lewo</sys:String>
     <sys:String x:Key="Str_Ctx_ExtractPages">Wyodrębnij stronę(y)</sys:String>
+    <sys:String x:Key="Str_Ctx_ExportPageImage">Eksportuj stronę jako obraz</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePages">Usuń stronę(y)</sys:String>
 
     <!-- ── Stamp Page Numbers dialog ──────────────────────────────────── -->

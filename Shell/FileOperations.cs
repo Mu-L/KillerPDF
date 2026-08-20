@@ -1187,11 +1187,16 @@ namespace KillerPDF
         // Flattened, so future saves don't double-burn), then renders each selected page at the
         // chosen DPI and writes <base>-page-NNN.<ext> beside the base name the user picked.
         private async void ExportImages_Click(object sender, RoutedEventArgs e)
+            => await ExportImagesFlow("");
+
+        /// <summary>The image-export flow; presetRange scopes the dialog to specific pages
+        /// (the Pages panel's "Export page as image", #207) while staying fully editable.</summary>
+        private async Task ExportImagesFlow(string presetRange)
         {
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
 
-            var opts = new ExportImagesDialog(this);
+            var opts = new ExportImagesDialog(this, presetRange);
             opts.ShowDialog();   // fade-close dialogs don't reliably return true; rely on Confirmed
             if (!opts.Confirmed) return;
 

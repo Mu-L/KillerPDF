@@ -581,6 +581,13 @@ namespace KillerPDF
                 menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveDown"), (s, ev) => MoveDown_Click(s!, ev), glyph: ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ExtractPages"), (s, ev) => Split_Click(s!, ev), glyph: ""));
+                // #207: the shared export dialog, scoped to the clicked selection (still editable).
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ExportPageImage"), (s, ev) =>
+                {
+                    var nums = PageList.SelectedItems.Cast<PageThumbnailVm>()
+                                       .Select(vm => vm.PageIndex + 1).OrderBy(n => n);
+                    _ = ExportImagesFlow(string.Join(",", nums));
+                }, glyph: null));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DeletePages"), (s, ev) => Delete_Click(s!, ev), glyph: ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_StampPages"), (s, ev) => OpenStampTool(), glyph: ""));

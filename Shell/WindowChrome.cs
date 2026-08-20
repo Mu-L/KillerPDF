@@ -56,6 +56,8 @@ namespace KillerPDF
                 WmGetMinMaxInfo(hwnd, lParam);
                 handled = true;
             }
+            else if (msg == 0x0231) _inWindowSizeMove = true;    // WM_ENTERSIZEMOVE
+            else if (msg == 0x0232) _inWindowSizeMove = false;   // WM_EXITSIZEMOVE
             else if (msg == WM_MOUSEHWHEEL)
             {
                 // #196: WPF has no MouseHWheel event, so a precision touchpad's two-finger

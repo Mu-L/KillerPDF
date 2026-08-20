@@ -161,6 +161,10 @@ namespace KillerPDF
 
         private void SidebarToggle_Click(object sender, RoutedEventArgs e)
         {
+            // A toggle from the USER makes the state deliberate: a closed sidebar then stays
+            // closed until the user opens it - SyncSidebarToDocState may only undo its own
+            // automatic collapse (see _sidebarAutoCollapsed).
+            if (!_sidebarAutoToggling) _sidebarAutoCollapsed = false;
             _sidebarCollapsed = !_sidebarCollapsed;
             if (_sidebarCollapsed)
             {
@@ -344,19 +348,35 @@ namespace KillerPDF
         // page-jump box + "/ -" hide alongside. Only fires on the open/close transition (FinishOpenFile /
         // ShowEmptyState) and at startup - NOT on tab switches - so a manual toggle mid-session sticks.
         // startup=true collapses instantly (no glide before the first paint); runtime transitions animate.
+        //
+        // A sidebar the USER closed stays closed: the auto-open may only undo this method's OWN
+        // collapse. Materializing a lazy tab runs the document-open transition too, so without the
+        // distinction a tab click was popping a deliberately closed sidebar back open.
+        private bool _sidebarAutoCollapsed;   // the current collapse was made HERE, not by the user
+        private bool _sidebarAutoToggling;    // this method is driving SidebarToggle_Click
+
         private void SyncSidebarToDocState(bool hasDoc, bool startup)
         {
             if (PageControlsRow != null)
                 PageControlsRow.Visibility = (hasDoc && !_sidebarShowingOutlines)
                     ? Visibility.Visible : Visibility.Collapsed;
 
-            if (hasDoc && _sidebarCollapsed)
-                SidebarToggle_Click(this, new RoutedEventArgs());          // open the rail for the document
-            else if (!hasDoc && !_sidebarCollapsed)
+            _sidebarAutoToggling = true;
+            try
             {
-                if (startup) CollapseSidebarToStrip();                     // instant at launch
-                else SidebarToggle_Click(this, new RoutedEventArgs());     // animated on last-tab close
+                if (hasDoc && _sidebarCollapsed && _sidebarAutoCollapsed)
+                {
+                    _sidebarAutoCollapsed = false;
+                    SidebarToggle_Click(this, new RoutedEventArgs());          // open the rail for the document
+                }
+                else if (!hasDoc && !_sidebarCollapsed)
+                {
+                    _sidebarAutoCollapsed = true;
+                    if (startup) CollapseSidebarToStrip();                     // instant at launch
+                    else SidebarToggle_Click(this, new RoutedEventArgs());     // animated on last-tab close
+                }
             }
+            finally { _sidebarAutoToggling = false; }
         }
     }
 }

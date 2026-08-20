@@ -59,11 +59,14 @@ namespace KillerPDF
 
         private void ApplyFullScreen(bool entering)
         {
+            // The split panes keep their RATIO across the size jump - OnSplitHostResized handles
+            // every non-interactive resize (full screen included), so nothing extra is needed here.
             _fullScreen = entering;
             var v = entering ? Visibility.Collapsed : Visibility.Visible;
 
             TitleBarBorder.Visibility     = v;
-            ToolbarRowBorder.Visibility   = v;
+            // Exit must respect the user's hide-toolbar setting (#215), not blanket-restore it.
+            ToolbarRowBorder.Visibility   = entering || _toolbarHidden ? Visibility.Collapsed : Visibility.Visible;
             // BOTH panes - full screen hides every strip, not just the focused pane's.
             Viewer.TabStripBorderCtl.Visibility  = v;
             ViewerB.TabStripBorderCtl.Visibility = v;
@@ -128,6 +131,11 @@ namespace KillerPDF
 
                 var b = CurrentMonitorBoundsDip();
                 Topmost = true;
+                // #215: Topmost exists only to cover the always-on-top taskbar while KillerPDF is
+                // the ACTIVE window. Held unconditionally, it sat over every other program the user
+                // switched to. Yield it on deactivate, take it back on return - browser behavior.
+                Deactivated += FsYieldTopmost;
+                Activated   += FsReassertTopmost;
                 ResizeMode = ResizeMode.NoResize;
                 Left = b.Left; Top = b.Top; Width = b.Width; Height = b.Height;
                 if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal;
@@ -145,6 +153,8 @@ namespace KillerPDF
 
                 // Drop topmost and restore the pre-full-screen window placement. Restore the normal bounds
                 // first (so WPF's remembered restore rect is correct) then re-maximize if it was maximized.
+                Deactivated -= FsYieldTopmost;
+                Activated   -= FsReassertTopmost;
                 Topmost = _fsPrevTopmost;
                 ResizeMode = _fsPrevResize;
                 WindowState = WindowState.Normal;
@@ -156,6 +166,10 @@ namespace KillerPDF
             // back to the floating border on exit. _fullScreen is already set, so UpdateWindowChrome reads it.
             UpdateWindowChrome();
         }
+
+        // #215: full-screen topmost is active-window-only; see the enter branch above.
+        private void FsYieldTopmost(object? sender, EventArgs e)    => Topmost = false;
+        private void FsReassertTopmost(object? sender, EventArgs e) => Topmost = true;
 
         // Full bounds (taskbar included) of the monitor the window is currently on, in WPF device-independent
         // units. MonitorFromWindow/GetMonitorInfo/MONITORINFO/RECT are declared in WindowChrome.cs (same class).

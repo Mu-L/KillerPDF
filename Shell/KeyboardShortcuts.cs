@@ -189,6 +189,10 @@ namespace KillerPDF
                 ToggleSplit();
                 e.Handled = true;
             }
+            // #215: reading view - toolbar off. Alt+M arrives as a system key (Alt+letter), same
+            // shape as the F10 branches above.
+            else if (e.Key == Key.System && e.SystemKey == Key.M && Keyboard.Modifiers == ModifierKeys.Alt)
+            { ToggleToolbarHidden(); e.Handled = true; }
             else if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; }
             else if (e.Key == Key.Escape && _fullScreen) { ToggleFullScreen(); e.Handled = true; }
             else if (e.Key == Key.F4 && Keyboard.Modifiers == ModifierKeys.Shift && _doc is not null)

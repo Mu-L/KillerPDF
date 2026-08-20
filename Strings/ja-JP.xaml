@@ -73,6 +73,9 @@
     <sys:String x:Key="Str_Toolbar_TextBeside">アイコンの横にテキスト</sys:String>
     <sys:String x:Key="Str_Toolbar_TextUnder">アイコンの下にテキスト</sys:String>
     <sys:String x:Key="Str_Toolbar_TextOnly">テキストのみ</sys:String>
+    <sys:String x:Key="Str_Toolbar_Hide">ツールバーを非表示</sys:String>
+    <sys:String x:Key="Str_St_ToolbarHidden">ツールバーを非表示にしました - Alt+M で再表示</sys:String>
+    <sys:String x:Key="Str_St_ToolbarShown">ツールバーを表示しました</sys:String>
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
@@ -324,6 +327,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCWShort">右回転</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCCWShort">左回転</sys:String>
     <sys:String x:Key="Str_Ctx_ExtractPages">ページを抽出</sys:String>
+    <sys:String x:Key="Str_Ctx_ExportPageImage">ページを画像としてエクスポート</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePages">ページを削除</sys:String>
 
     <!-- ── ページ番号スタンプダイアログ ─────────────────────────────────── -->

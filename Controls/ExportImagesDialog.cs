@@ -17,7 +17,9 @@ namespace KillerPDF
         public double Dpi { get; private set; } = 150;
         public string Range { get; private set; } = "";
 
-        public ExportImagesDialog(Window owner)
+        /// <summary>presetRange seeds the page-range field - the Pages panel's per-page export
+        /// (#207) opens the same dialog scoped to the clicked page(s), still editable.</summary>
+        public ExportImagesDialog(Window owner, string presetRange = "")
         {
             Title = "KillerPDF - " + L("Str_ExportImg_Suffix");
             Width = 380;
@@ -25,6 +27,7 @@ namespace KillerPDF
             UseLayoutRounding = true;
             DialogChrome.Configure(this, owner);
             BuildUi();
+            _range.Text = presetRange;
         }
 
         private void BuildUi()

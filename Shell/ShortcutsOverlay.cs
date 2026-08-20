@@ -114,6 +114,7 @@ namespace KillerPDF
                 new("Wheel on view", "Str_KS_CycleView"),
                 new("F10",       "Str_KS_SplitPane"),
                 new("F11 / Esc", "Str_KS_FullScreen"),
+                new("Alt+M",     "Str_Toolbar_Hide"),
                 new("N",         "Str_DocInvertSetting"),
                 new("Shift+N",   "Str_InvertImagesToo"),
                 new("Ctrl+Shift+%zin% / %zout% / 0", "Str_KS_AppSize"),
