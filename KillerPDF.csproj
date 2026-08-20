@@ -109,8 +109,15 @@
     <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
 
+  <!-- KillerPDF.Tests is its own project. Keep its entire tree out of this project's SDK default
+       globs, or its bin\ DLLs become items here (MSB3277 System.ValueTuple conflict) and the folder
+       shows inside this project in Solution Explorer. -->
   <ItemGroup>
     <Compile Remove="KillerPDF.Tests\**" />
+    <None Remove="KillerPDF.Tests\**" />
+    <Content Remove="KillerPDF.Tests\**" />
+    <Resource Remove="KillerPDF.Tests\**" />
+    <Page Remove="KillerPDF.Tests\**" />
   </ItemGroup>
 
   <!-- /brand holds heavy source art only (stored locally, see .gitignore). Keep it out of the SDK default

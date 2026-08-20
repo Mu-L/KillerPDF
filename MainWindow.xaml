@@ -1770,7 +1770,7 @@
                                 </LinearGradientBrush>
                             </Border.OpacityMask>
                             <Grid>
-                                <Border Background="{DynamicResource SidebarPaneBrush}"/>
+                                <Border Background="{DynamicResource SidebarFadeBrush}"/>
                                 <Border Background="{StaticResource GrainBrushShared}" Opacity="{DynamicResource GrainOpacity}"/>
                             </Grid>
                         </Border>
@@ -1783,7 +1783,7 @@
                                 </LinearGradientBrush>
                             </Border.OpacityMask>
                             <Grid>
-                                <Border Background="{DynamicResource SidebarPaneBrush}"/>
+                                <Border Background="{DynamicResource SidebarFadeBrush}"/>
                                 <Border Background="{StaticResource GrainBrushShared}" Opacity="{DynamicResource GrainOpacity}"/>
                             </Grid>
                         </Border>

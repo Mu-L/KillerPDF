@@ -17,7 +17,7 @@ Full how-tos live on the [help page](https://killerpdf.net/help.html); internals
 - Print with a real in-app preview, paper size and source selection, scale / position / margins / pages-per-sheet options at 300 DPI; Save Flattened rasterizes to a fully uneditable PDF
 - Full-text search with highlighting, and column-aware text selection that copies multi-column pages in reading order
 - Night-mode invert (per pane in split view), thirteen themes - four of them (Dark, Light, Black and 98SE) with six live accent colors each, 33 looks in all - toolbar styles, and a resizable sidebar that docks left or right
-- Localized UI in 11 languages (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
+- Localized UI in 12 languages (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
 - Runs portable, or self-installs per-user (no UAC) or machine-wide (`/silent` for scripted deployment); registers as a PDF handler and uninstalls cleanly
 - Standards-safe saves: every release is validated with veraPDF across a 2,900-file conformance corpus with a zero-regressions bar - see [validation/RESULTS.md](validation/RESULTS.md)
@@ -47,7 +47,7 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 | | |
 | --- | --- |
 | ![KillerPDF showing the brochure in a six-page grid](doc/grid-view.png)<br>**Grid view** — Scan a whole document at once while thumbnails and navigation stay close at hand. | ![KillerPDF showing two documents side by side with the outline open](doc/split-pane-outline.png)<br>**Split panes and outlines** — Browse two independent documents side by side, with tabs, pages, zoom, and navigation kept per pane. |
-| ![KillerPDF showing night mode and a localized page context menu](doc/night-mode-context-menu.png)<br>**Night mode and localization** — Per-pane inversion, themed context menus, and an interface translated into eleven languages. | ![KillerPDF showing drawing, shapes, and the custom color picker](doc/annotations-color-picker.png)<br>**Annotation tools** — Draw, highlight, add shapes, and choose exact colors without leaving the document. |
+| ![KillerPDF showing night mode and a localized page context menu](doc/night-mode-context-menu.png)<br>**Night mode and localization** — Per-pane inversion, themed context menus, and an interface translated into twelve languages. | ![KillerPDF showing drawing, shapes, and the custom color picker](doc/annotations-color-picker.png)<br>**Annotation tools** — Draw, highlight, add shapes, and choose exact colors without leaving the document. |
 
 ## Requirements
 

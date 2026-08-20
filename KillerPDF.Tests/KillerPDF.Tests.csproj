@@ -21,7 +21,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="PdfPig" Version="0.1.14" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.Text.Json" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,7 +33,16 @@
     <Compile Include="..\Services\PerspectiveWarp.cs" Link="Services\PerspectiveWarp.cs" />
     <Compile Include="..\Services\PdfFontStyle.cs" Link="Services\PdfFontStyle.cs" />
     <Compile Include="..\Services\PdfScrub.cs" Link="Services\PdfScrub.cs" />
+    <Compile Include="..\Services\PdfBurn.cs" Link="Services\PdfBurn.cs" />
+    <Compile Include="..\Services\FontCoverage.cs" Link="Services\FontCoverage.cs" />
+    <Compile Include="..\Services\CmapCoverage.cs" Link="Services\CmapCoverage.cs" />
+    <Compile Include="..\Services\PdfFonts.cs" Link="Services\PdfFonts.cs" />
+    <Compile Include="..\Models\StampModels.cs" Link="Models\StampModels.cs" />
     <Compile Include="..\Controls\FlyoutPlacement.cs" Link="Controls\FlyoutPlacement.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>

@@ -457,6 +457,13 @@ namespace KillerPDF.Services
             if (!d.Contains("SplitPaneGutterWidth")) d["SplitPaneGutterWidth"] = 8.0;
             if (!d.Contains("ContentPaneMargin")) d["ContentPaneMargin"] = new Thickness(0, 0, 8, 0);
             if (!d.Contains("FileDialogPaneBrush")) d["FileDialogPaneBrush"] = d.Contains("PaneBrush") ? d["PaneBrush"] : Brushes.White;
+            // The page-list edge fades must paint the surface actually behind the thumbnails:
+            // the theme's own sidebar pane when it defines one (98SE's white client pane),
+            // otherwise the window frame the transparent sidebar shows through. Resolved BEFORE
+            // SidebarPaneBrush is backfilled to Transparent below - fading to transparent is
+            // no fade at all, which is how the fades vanished on every modern theme.
+            if (!d.Contains("SidebarFadeBrush"))
+                d["SidebarFadeBrush"] = d.Contains("SidebarPaneBrush") ? d["SidebarPaneBrush"] : d["WindowFrameBrush"];
             // Match KillerNotes and KillerShell: modern sidebars do not paint a second surface;
             // the themed app background continues through them. 98SE explicitly overrides this
             // with its white recessed client pane.
