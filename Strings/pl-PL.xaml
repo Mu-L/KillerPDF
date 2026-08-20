@@ -205,6 +205,16 @@ Zapisanie teraz nadpisuje plik, a zmiany zostaną utracone. Jeśli chcesz je zac
 
 KillerPDF zostanie skopiowany do twojego folderu programów i dodana zostanie pozycja menu Start. Tę kopię pliku exe pozostawia się tam, gdzie jest i można ją w dowolnym momencie odinstalować używając Dodaj/Usuń programy.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Zainstaluj</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Aktualizuj</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Zaktualizować istniejącą instalację KillerPDF?
+
+Zainstalowana kopia zostanie zastąpiona szybszą wersją wieloplikową. Ten plik przenośny możesz potem zachować lub usunąć.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Zaktualizować istniejącą instalację KillerPDF dla wszystkich użytkowników?
+
+Kopia w Program Files zostanie zastąpiona szybszą wersją wieloplikową. Starsza kopia dla pojedynczego użytkownika zostanie usunięta, aby KillerPDF występował tylko raz. Ten plik przenośny możesz potem zachować lub usunąć.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF jest już zainstalowany dla wszystkich użytkowników tego komputera. Zaktualizuj tę instalację albo ją odinstaluj, zanim wybierzesz instalację dla pojedynczego użytkownika.
+
+KillerPDF nie utworzy dwóch zainstalowanych kopii.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Dodaj skrót na pulpicie</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Zainstaluj dla wszystkich użytkowników tego komputera (wymaga administratora)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Instalacja nie została zakończona - KillerPDF jest już uruchomiony portable.</sys:String>

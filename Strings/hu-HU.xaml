@@ -204,6 +204,16 @@ A mentés most felülírja a fájlt, és azok a módosítások elvesznek. Előbb
 
 A KillerPDF a programok mappájába másolódik, és bekerül a Start menübe. Ez az exe-példány a helyén marad, és bármikor eltávolíthatja a Programok telepítése/törlése segítségével.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Telepítés</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Frissítés</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Frissíti a meglévő KillerPDF-telepítést?
+
+Ez a telepített példányt a gyorsabb, többfájlos verzióra cseréli. Ezt a hordozható fájlt utána megtarthatja vagy törölheti.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Frissíti a KillerPDF minden felhasználóra érvényes meglévő telepítését?
+
+Ez a Program Files mappában lévő példányt a gyorsabb, többfájlos verzióra cseréli. A régebbi, felhasználónkénti példány eltávolításra kerül, így a KillerPDF csak egyszer jelenik meg. Ezt a hordozható fájlt utána megtarthatja vagy törölheti.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">A KillerPDF már telepítve van ezen a számítógépen minden felhasználó számára. Frissítse azt a telepítést, vagy távolítsa el, mielőtt felhasználónkénti telepítést választana.
+
+A KillerPDF nem hoz létre két telepített példányt.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Asztali parancsikon hozzáadása</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Telepítés a számítógép minden felhasználója számára (rendszergazdai jog szükséges)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">A telepítés nem fejeződött be - a KillerPDF továbbra is hordozható módban fut.</sys:String>

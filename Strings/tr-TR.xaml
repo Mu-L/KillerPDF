@@ -151,6 +151,16 @@
 
 KillerPDF programlar klasörünüze kopyalanır ve bir Başlat Menüsü girdisi eklenir. EXE dosyasının bu kopyası olduğu yerde kalır ve istediğiniz zaman Program Ekle/Kaldır üzerinden kaldırabilirsiniz.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Yükle</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Güncelle</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Mevcut KillerPDF kurulumu güncellensin mi?
+
+Kurulu kopya, daha hızlı çok dosyalı sürümle değiştirilir. Bu taşınabilir dosyayı daha sonra saklayabilir veya silebilirsiniz.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">KillerPDF'in tüm kullanıcılar için mevcut kurulumu güncellensin mi?
+
+Program Files içindeki kopya, daha hızlı çok dosyalı sürümle değiştirilir. Eski kullanıcı başına kopya kaldırılır, böylece KillerPDF yalnızca bir kez görünür. Bu taşınabilir dosyayı daha sonra saklayabilir veya silebilirsiniz.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF bu bilgisayarda zaten tüm kullanıcılar için kurulu. Kullanıcı başına kurulum seçmeden önce bu kurulumu güncelleyin veya kaldırın.
+
+KillerPDF iki kurulu kopya oluşturmaz.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Masaüstü kısayolu ekle</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Bu bilgisayardaki herkes için yükle (yönetici gerekir)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Yükleme tamamlanmadı - KillerPDF hâlâ taşınabilir olarak çalışıyor.</sys:String>

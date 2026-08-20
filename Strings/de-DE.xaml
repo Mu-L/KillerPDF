@@ -151,6 +151,16 @@ Beim Speichern wird die Datei überschrieben und diese Änderungen gehen verlore
 
 KillerPDF wird in Ihren Programmordner kopiert und eine Verknüpfung im Startmenü erstellt. Diese Kopie der EXE bleibt, wo sie ist, und Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen“ deinstallieren.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Installieren</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Aktualisieren</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Die bestehende KillerPDF-Installation aktualisieren?
+
+Dies ersetzt die installierte Kopie durch die schnellere Mehrdatei-Version. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Die bestehende Installation von KillerPDF für alle Benutzer aktualisieren?
+
+Dies ersetzt die Kopie in Program Files durch die schnellere Mehrdatei-Version. Eine ältere Kopie für den aktuellen Benutzer wird entfernt, sodass KillerPDF nur einmal erscheint. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF ist auf diesem Computer bereits für alle Benutzer installiert. Aktualisieren Sie diese Installation, oder deinstallieren Sie sie, bevor Sie eine Installation nur für Ihr Konto wählen.
+
+KillerPDF legt keine zwei installierten Kopien an.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Desktopverknüpfung hinzufügen</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Für alle Benutzer dieses Computers installieren (erfordert Administrator)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Installation nicht abgeschlossen - KillerPDF läuft weiterhin portabel.</sys:String>

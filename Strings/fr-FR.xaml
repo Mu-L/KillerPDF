@@ -131,6 +131,16 @@ Enregistrer maintenant écrase le fichier et ces modifications seront perdues. E
 
 KillerPDF sera copié dans votre dossier de programmes et un raccourci sera ajouté au menu Démarrer. Cette copie de l'exécutable reste où elle est, et vous pourrez désinstaller le programme à tout moment via « Ajouter ou supprimer des programmes ».</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Installer</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Mettre à jour</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Mettre à jour l'installation existante de KillerPDF ?
+
+Cela remplace la copie installée par la version multifichier plus rapide. Vous pourrez ensuite conserver ou supprimer ce fichier portable.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Mettre à jour l'installation existante de KillerPDF pour tous les utilisateurs ?
+
+Cela remplace la copie de Program Files par la version multifichier plus rapide. Toute ancienne copie par utilisateur est supprimée afin que KillerPDF n'apparaisse qu'une seule fois. Vous pourrez ensuite conserver ou supprimer ce fichier portable.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF est déjà installé pour tous les utilisateurs de cet ordinateur. Mettez à jour cette installation, ou désinstallez-la avant de choisir une installation par utilisateur.
+
+KillerPDF ne créera pas deux copies installées.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Ajouter un raccourci sur le bureau</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Installer pour tous les utilisateurs de cet ordinateur (nécessite un administrateur)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">L'installation n'a pas abouti - KillerPDF fonctionne toujours en mode portable.</sys:String>

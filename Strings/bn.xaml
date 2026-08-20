@@ -151,6 +151,16 @@
 
 KillerPDF আপনার প্রোগ্রাম ফোল্ডারে কপি করা হবে এবং একটি স্টার্ট মেনু এন্ট্রি যোগ করা হবে। EXE-র এই কপিটি যেখানে আছে সেখানেই থাকবে, এবং যেকোনো সময় Add/Remove Programs-এর মাধ্যমে আনইনস্টল করা যাবে।</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">ইনস্টল করুন</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">আপডেট</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">বিদ্যমান KillerPDF ইনস্টলেশন আপডেট করবেন?
+
+এটি ইনস্টল করা কপিটিকে দ্রুততর মাল্টি-ফাইল সংস্করণ দিয়ে প্রতিস্থাপন করে। এরপর এই পোর্টেবল ফাইলটি রাখতে বা মুছতে পারেন।</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">সব ব্যবহারকারীর জন্য বিদ্যমান KillerPDF ইনস্টলেশন আপডেট করবেন?
+
+এটি Program Files-এর কপিটিকে দ্রুততর মাল্টি-ফাইল সংস্করণ দিয়ে প্রতিস্থাপন করে। পুরোনো প্রতি-ব্যবহারকারী কপি সরিয়ে ফেলা হয়, যাতে KillerPDF শুধু একবারই দেখা যায়। এরপর এই পোর্টেবল ফাইলটি রাখতে বা মুছতে পারেন।</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF ইতিমধ্যে এই কম্পিউটারের সবার জন্য ইনস্টল করা আছে। প্রতি-ব্যবহারকারী ইনস্টল বেছে নেওয়ার আগে সেই ইনস্টলেশন আপডেট করুন, অথবা আনইনস্টল করুন।
+
+KillerPDF দুটি ইনস্টল করা কপি তৈরি করবে না।</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">ডেস্কটপ শর্টকাট যোগ করুন</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">এই কম্পিউটারের সব ব্যবহারকারীর জন্য ইনস্টল করুন (অ্যাডমিন লাগবে)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">ইনস্টল সম্পূর্ণ হয়নি - KillerPDF এখনও পোর্টেবল হিসেবে চলছে।</sys:String>

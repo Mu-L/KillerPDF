@@ -204,6 +204,16 @@ Uložením se soubor přepíše a tyto změny budou ztraceny. Pokud si je chcete
 
 KillerPDF se zkopíruje do vaší složky programů a v nabídce Start se vytvoří zástupce. Tato kopie souboru EXE zůstane tam, kde je, a odinstalovat ji můžete kdykoli přes Přidat/odebrat programy.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Nainstalovat</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Aktualizovat</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Aktualizovat stávající instalaci KillerPDF?
+
+Nainstalovaná kopie bude nahrazena rychlejší vícesouborovou verzí. Tento přenosný soubor si poté můžete ponechat nebo smazat.</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Aktualizovat stávající instalaci KillerPDF pro všechny uživatele?
+
+Kopie v Program Files bude nahrazena rychlejší vícesouborovou verzí. Případná starší kopie pro jednoho uživatele bude odstraněna, takže se KillerPDF zobrazí jen jednou. Tento přenosný soubor si poté můžete ponechat nebo smazat.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF je na tomto počítači již nainstalován pro všechny uživatele. Aktualizujte tuto instalaci, nebo ji odinstalujte, než zvolíte instalaci pro jednoho uživatele.
+
+KillerPDF nevytvoří dvě nainstalované kopie.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Přidat zástupce na plochu</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Nainstalovat pro všechny uživatele tohoto počítače (vyžaduje správce)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Instalace nebyla dokončena - KillerPDF stále běží přenosně.</sys:String>

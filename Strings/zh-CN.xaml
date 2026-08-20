@@ -151,6 +151,16 @@
 
 KillerPDF 将被复制到您的程序文件夹，并添加开始菜单项。此 EXE 副本会保留在原处，您可以随时通过添加或删除程序来卸载。</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">安装</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">更新</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">更新现有的 KillerPDF 安装？
+
+这会将已安装的副本替换为更快的多文件版本。之后您可以保留或删除此便携文件。</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">更新现有的 KillerPDF 全用户安装？
+
+这会将 Program Files 中的副本替换为更快的多文件版本。旧的单用户副本将被移除，使 KillerPDF 只出现一次。之后您可以保留或删除此便携文件。</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF 已为此计算机上的所有用户安装。请更新该安装，或先卸载它，再选择单用户安装。
+
+KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">添加桌面快捷方式</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">为这台电脑上的所有用户安装（需要管理员）</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">安装未完成 - KillerPDF 仍以便携方式运行。</sys:String>

@@ -204,6 +204,16 @@
 
 KillerPDF はプログラムフォルダーにコピーされ、スタートメニューに項目が追加されます。この EXE のコピーはそのままの場所に残り、いつでも「プログラムの追加と削除」からアンインストールできます。</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">インストール</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">更新</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg">既存の KillerPDF インストールを更新しますか？
+
+インストール済みのコピーを、より高速なマルチファイル版に置き換えます。このポータブルファイルはその後、保持しても削除してもかまいません。</sys:String>
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">全ユーザー向けの既存の KillerPDF インストールを更新しますか？
+
+Program Files のコピーを、より高速なマルチファイル版に置き換えます。古いユーザーごとのコピーは削除され、KillerPDF は 1 つだけ表示されます。このポータブルファイルはその後、保持しても削除してもかまいません。</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF はこのコンピューターの全ユーザー向けに既にインストールされています。ユーザーごとのインストールを選ぶ前に、そのインストールを更新するかアンインストールしてください。
+
+KillerPDF がインストール済みコピーを 2 つ作成することはありません。</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">デスクトップにショートカットを追加</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">このコンピューターのすべてのユーザーにインストール（管理者権限が必要）</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">インストールは完了しませんでした - KillerPDF はポータブルのまま実行中です。</sys:String>
