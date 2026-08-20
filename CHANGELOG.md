@@ -8,7 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Changed
 - Internal cancellation resource keys now use the same American spelling as their displayed text.
-- KillerPDF now remains one portable download while installing as a normal multi-file application. The portable EXE carries one compressed, verified payload and cleans up its temporary files after use; installed shortcuts launch the inner app directly, avoiding Costura extraction and reducing measured first startup by about 40% on the development machine. The new package is also roughly 34% smaller than the previous woven EXE.
+- KillerPDF now remains one portable download while installing as a normal multi-file application. The portable EXE carries one compressed, verified payload and cleans up its temporary files after use; installed shortcuts launch the inner app directly, avoiding Costura extraction and reducing measured first startup by about 40% on the development machine (#189, thanks ags1234). The new package is also roughly 34% smaller than the previous woven EXE.
 - Updates now reuse the same staged and verified payload installer. Portable updates replace the original launcher only after both launcher and app have exited, while per-user and machine-wide installs update their multi-file application safely before relaunching.
 
 ### Fixed

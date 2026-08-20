@@ -64,10 +64,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Costura.Fody" Version="5.7.0">
+    <PackageReference Include="Costura.Fody" Version="6.2.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Fody" Version="6.8.1">
+    <PackageReference Include="Fody" Version="6.9.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -76,21 +76,21 @@
     <!-- Digital signatures only (Services/Signing). Separate namespace (PdfSharp.*) so it does not
          clash with PdfSharpCore, which still drives the rest of the app. -->
     <PackageReference Include="PDFsharp" Version="6.2.4" />
-    <PackageReference Include="PdfPig" Version="0.1.14" />
+    <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="Docnet.Core" Version="2.6.0" />
     <!-- We embed the x64 natives as resources and self-extract them at runtime (OcrNativeBootstrap), so the
          package's loose x86/x64 native copies in the output are dead weight. ExcludeAssets stops that copy
          while keeping the managed assembly (compile/runtime) and the GeneratePathProperty path for the embed. -->
     <PackageReference Include="Tesseract" Version="5.2.0" GeneratePathProperty="true" ExcludeAssets="build;buildTransitive;native;contentFiles" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="System.Text.Json" Version="10.0.11" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- Transitive pins only (family standard, same as Killendar/KillerNotes): Costura's graph
          otherwise resolves 4.3.0 of both, which carry advisories (GHSA-7jgj-8wvc-jh57,
          GHSA-cmhx-cq75-c4mj). ExcludeAssets="all" means nothing ships - the pin just forces the
          resolver past the vulnerable versions. net48 runs the framework's own copies anyway. -->
     <PackageReference Include="System.Net.Http" Version="4.3.4" ExcludeAssets="all" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" ExcludeAssets="all" />
-    <PackageReference Include="PolySharp" Version="1.15.0">
+    <PackageReference Include="PolySharp" Version="1.16.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

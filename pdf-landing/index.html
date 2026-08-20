@@ -23,7 +23,7 @@
 <meta name="twitter:description" content="One exe. Install or run portable - no account, no subscription, no telemetry. Local PDF editor. GPLv3.">
 <meta name="twitter:image" content="https://killerpdf.net/og-image.png">
 <script defer src="https://koya.thekiller.net/script.js" data-website-id="4036b11d-f6c0-4254-b448-933d3e38b0cb"></script>
-<link rel="stylesheet" href="kp.css?v=17">
+<link rel="stylesheet" href="kp.css?v=19">
 <style>
 /* ---- Page-specific (landing) ---- */
 .content-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px 50px; }
@@ -85,15 +85,9 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 .feature-card code { display: inline-block; margin-top: 4px; background: var(--panel); padding: 2px 7px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; color: var(--text); white-space: nowrap; }
 
 /* Sidebar (the app's thumbnail pane) */
+/* Keep at least 2px of top clearance: thumbnails lift 2px on hover, and a zero
+   top inset makes the scroll container clip the hovered thumbnail's top border. */
 .sb-thumbs { padding: 4px 12px 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; }
-/* Grain fade overlays pinned to the sidebar top/bottom (not a mask on the scroller, so the
-   scrollbar is never faded). Inset 8px from the right to clear the scrollbar. JS toggles .on:
-   top only once scrolled down, bottom only while more shots remain below. */
-.sb-fade { position: absolute; left: 0; right: 8px; height: 40px; pointer-events: none; z-index: 2; opacity: 0; transition: opacity 0.12s ease;
-  background: var(--chrome-bg); background-attachment: fixed; background-size: 100vw 100vh; }
-.sb-fade-top { top: 0; -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent); }
-.sb-fade-bottom { bottom: 0; -webkit-mask-image: linear-gradient(to top, #000, transparent); mask-image: linear-gradient(to top, #000, transparent); }
-.sb-fade.on { opacity: 1; }
 .sb-thumb { flex-shrink: 0; border: 2px solid transparent; border-radius: 5px; overflow: hidden; cursor: pointer; background: var(--panel); transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s; position: relative; }
 .sb-thumb:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); box-shadow: 0 12px 24px rgba(0,0,0,0.62); z-index: 2; }
 .sb-thumb img { display: block; width: 100%; height: auto; }
@@ -264,11 +258,16 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <span class="right"><span id="verEgg" title="click me">v1.7.3</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
 </footer>
 
-<div class="lightbox" id="lightbox"><img id="lightboxImg" src="" alt="KillerPDF screenshot"></div>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Expanded KillerPDF screenshot" aria-hidden="true" tabindex="-1">
+  <figure class="lightbox-figure">
+    <img id="lightboxImg" src="" alt="">
+    <figcaption id="lightboxCaption"></figcaption>
+  </figure>
+</div>
 <div class="egg-toast" id="eggToast"></div>
 
 <script src="kp-i18n.js?v=5"></script>
-<script src="kp.js?v=6"></script>
+<script src="kp.js?v=7"></script>
 <script>
 (function () {
   var SHOTS = [
@@ -282,13 +281,18 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
   var sbThumbs = document.getElementById('sbThumbs');
   var lightbox = document.getElementById('lightbox');
   var lightboxImg = document.getElementById('lightboxImg');
+  var lightboxCaption = document.getElementById('lightboxCaption');
+  var lastLightboxTrigger = null;
 
   // Build the sidebar screenshot thumbnails (scrollable, like the app). Click = pop out.
   SHOTS.forEach(function (shot) {
     var b = document.createElement('button');
     b.className = 'sb-thumb'; b.title = shot.desc;
+    b.setAttribute('aria-label', shot.desc);
     b.innerHTML = '<img src="' + shot.src + '" alt="' + shot.desc + '" loading="lazy">';
-    b.addEventListener('click', function () { openLightbox(shot.src); });
+    var tim = b.querySelector('img');
+    if (tim) tim.title = shot.desc;
+    b.addEventListener('click', function () { openLightbox(shot.src, shot.desc, b); });
     var im = b.querySelector('img');
     if (im) { im.addEventListener('load', updateFade); im.addEventListener('error', updateFade); }
     sbThumbs.appendChild(b);
@@ -308,9 +312,29 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
   window.addEventListener('resize', updateFade);
   updateFade();
 
-  function openLightbox(src) { lightboxImg.src = src; lightbox.classList.add('show'); }
-  lightbox.addEventListener('click', function () { lightbox.classList.remove('show'); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') lightbox.classList.remove('show'); });
+  function openLightbox(src, description, trigger) {
+    lastLightboxTrigger = trigger;
+    lightboxImg.src = src;
+    lightboxImg.alt = description;
+    lightboxImg.title = description;
+    lightboxCaption.textContent = description;
+    lightbox.setAttribute('aria-hidden', 'false');
+    lightbox.classList.add('show');
+    lightbox.focus();
+  }
+  function closeLightbox() {
+    if (!lightbox.classList.contains('show')) return;
+    lightbox.classList.remove('show');
+    lightbox.setAttribute('aria-hidden', 'true');
+    if (lastLightboxTrigger) lastLightboxTrigger.focus();
+  }
+  lightbox.addEventListener('click', closeLightbox);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && lightbox.classList.contains('show')) {
+      closeLightbox();
+      e.preventDefault();
+    }
+  });
 })();
 </script>
 </body>
