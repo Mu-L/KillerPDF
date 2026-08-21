@@ -35,6 +35,11 @@ namespace KillerPDF
         private int _loadedCount;              // pages rendered so far
         private bool _isLoading = true;        // true until every page has rendered
         private Button _printBtn = null!;      // disabled while pages are still loading
+        // Set while a job is rasterizing and spooling. The print scrim blocks the mouse but takes no
+        // keyboard focus, so a keystroke in the Pages box (or an arrow key in a combo) still re-runs
+        // UpdatePreview mid-job; without this it would re-enable Print and Enter (IsDefault) would
+        // spool a second copy behind the scrim. Only the failure path clears it - success closes.
+        private bool _printing;
         public volatile bool Canceled;        // set on close so the background render stops
 
         private readonly List<PrintQueue> _queues = [];
@@ -322,8 +327,9 @@ namespace KillerPDF
         };
 
         // The page indices the preview walks AND the Print button sends - whatever range is typed in the
-        // Pages box (blank or unparseable falls back to every page, matching ParseRange). Driving the
-        // preview off this keeps it showing exactly the pages that will print (type "6" -> preview page 6).
+        // Pages box (blank = every page; a range that matches no page = empty, which the preview and the
+        // print guard both surface). Driving the preview off this keeps it showing exactly the pages that
+        // will print (type "6" -> preview page 6).
         private List<int> SelectedIndices()
         {
             var list = ParseRange(_pagesBox.Text, _pages.Length);
@@ -1072,6 +1078,28 @@ namespace KillerPDF
             if (_pages.Length == 0) { _pageLabel.Text = S("Str_Print_NoPages"); _renderLabel.Visibility = Visibility.Collapsed; return; }
 
             var selected = SelectedIndices();
+            if (selected.Count == 0)
+            {
+                // Reuses the string the print-time guard already shows, so there is nothing new to
+                // translate. The Pages box drives this on every keystroke, so the message appears as
+                // soon as the range stops matching anything.
+                _pageLabel.Text = "";
+                UpdateRenderLabel();
+                _previewHost.Children.Add(new TextBlock
+                {
+                    Text                = S("Str_Dlg_NoValidPages"),
+                    Foreground          = R("MutedTextBrush"),
+                    FontSize            = 12,
+                    Margin              = new Thickness(24),
+                    TextWrapping        = TextWrapping.Wrap,
+                    TextAlignment       = TextAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment   = VerticalAlignment.Center,
+                });
+                if (_printBtn != null) _printBtn.IsEnabled = false;
+                return;
+            }
+            if (_printBtn != null) _printBtn.IsEnabled = !_isLoading && !_printing;
             int sheets = Math.Max(1, (selected.Count + _nUp - 1) / _nUp);
             int sheet = Math.Max(0, Math.Min(_previewIndex, sheets - 1));
             _previewIndex = sheet;
@@ -1227,6 +1255,7 @@ namespace KillerPDF
             // with a progress scrim, push the heavy rasterization onto a background thread, and only
             // return to the PDF once the job is handed to the spooler.
             var overlay = ShowPrintOverlay(out TextBlock statusText);
+            _printing = true;
             _printBtn.IsEnabled = false;
 
             try
@@ -1367,7 +1396,10 @@ namespace KillerPDF
             catch (Exception ex)
             {
                 RemoveOverlay(overlay);   // drop the scrim so the error dialog isn't stuck behind it
-                _printBtn.IsEnabled = true;
+                _printing = false;
+                // Re-derive Print rather than switching it straight back on: the Pages box could have
+                // been retyped behind the scrim, and a range that now matches nothing must stay disabled.
+                UpdatePreview();
                 KillerDialog.Show(this, $"Print failed:\n{ex.GetType().Name}: {ex.Message}",
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -1421,7 +1453,8 @@ namespace KillerPDF
 
         private void RemoveOverlay(Border overlay) => _rootGrid.Children.Remove(overlay);
 
-        // Parses "1-3,5" style ranges into sorted 0-based indices. Blank/invalid = all pages.
+        // Parses "1-3,5" style ranges into sorted 0-based indices. Blank = all pages; a range that
+        // matches no page returns empty and the callers surface it.
         private static List<int> ParseRange(string? text, int count)
         {
             text = text?.Trim() ?? "";
@@ -1454,7 +1487,11 @@ namespace KillerPDF
                     if (v >= 1 && v <= count) set.Add(v - 1);
                 }
             }
-            return set.Count == 0 ? [.. Enumerable.Range(0, count)] : [.. set];
+            // A blank box already returned every page above, so reaching here with nothing resolved
+            // means the text matched no page - a number past the end, or a typo. Return the empty
+            // set and let the callers surface it. Falling back to every page here meant a slipped
+            // keystroke in the Pages box silently spooled the whole document.
+            return [.. set];
         }
 
         // Shared themed button (UiKit.Make) so the print dialog matches every other dialog.
