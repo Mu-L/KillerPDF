@@ -973,6 +973,18 @@ namespace KillerPDF.Controls
             // always shows the whole document instead of only the selected page onward.
             if (_viewMode == ViewMode.Grid) primaryPageIdx = 0;
 
+            // Re-assert the grid's ScrollViewer overrides on every tile layout. RefreshPageView is
+            // where they normally land, but an unfocused pane's ApplyZoom SKIPS RefreshPageView (the
+            // focus check guarding the tile-stream churn), so a grid entered in an unfocused pane
+            // kept the 12px surround padding and Auto scrollbars: the panel overflowed by the
+            // padding + vertical scrollbar width and a horizontal scrollbar appeared under the grid.
+            if (_viewMode == ViewMode.Grid)
+            {
+                PagePreviewPanel.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+                PagePreviewPanel.VerticalScrollBarVisibility   = ScrollBarVisibility.Visible;
+                DocSurfacePad.Padding = new Thickness(0);
+            }
+
             double viewportW = PagePreviewPanel.ActualWidth;
             // A transient zero width (a split drag rewriting the pane columns mid-layout) must NOT
             // wipe the tiles: clearing here is what blanked the grid on a two-pane resize and forced
@@ -1086,25 +1098,28 @@ namespace KillerPDF.Controls
                                 continue;
                             }
 
-                            docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(SecondaryMax, SecondaryMax));
-                            using var pageReader = docReader.GetPageReader(i);
-                            int w = pageReader.GetPageWidth();
-                            int h = pageReader.GetPageHeight();
-                            var rawBytes = PdfiumInterop.RenderPageWithAnnotations(currentFile, i, w, h,
-                                    includeFormFields: false)   // live overlays show the values; baking them too ghosts the text
-                                ?? pageReader.GetImage();   // #141
-                            if (w <= 0 || h <= 0 || rawBytes is null) continue;
-                            // #135: dark mode with pictures excluded; invert before the rotation
-                            // so the carve-out rects stay in unrotated page space.
-                            if (DocInvert)
-                                BitmapHelpers.InvertBgraInPlaceExcept(rawBytes, w, h, ImageRectsFor(currentFile, i, ref pig));
-                            if (rot != 0)
-                                (rawBytes, w, h) = BitmapHelpers.RotateBitmap(rawBytes, w, h, rot);
-
-                            int pi = i, pw = w, ph = h, prot = rot;
-                            byte[] bytes = rawBytes;
+                            // One bad page (a pdfium hiccup, a malformed object) must not kill the
+                            // rest of the stream - it silently stranded every page after it with no
+                            // tile, which read as "the grid's last column never refreshed".
                             try
                             {
+                                docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(SecondaryMax, SecondaryMax));
+                                using var pageReader = docReader.GetPageReader(i);
+                                int w = pageReader.GetPageWidth();
+                                int h = pageReader.GetPageHeight();
+                                var rawBytes = PdfiumInterop.RenderPageWithAnnotations(currentFile, i, w, h,
+                                        includeFormFields: false)   // live overlays show the values; baking them too ghosts the text
+                                    ?? pageReader.GetImage();   // #141
+                                if (w <= 0 || h <= 0 || rawBytes is null) continue;
+                                // #135: dark mode with pictures excluded; invert before the rotation
+                                // so the carve-out rects stay in unrotated page space.
+                                if (DocInvert)
+                                    BitmapHelpers.InvertBgraInPlaceExcept(rawBytes, w, h, ImageRectsFor(currentFile, i, ref pig));
+                                if (rot != 0)
+                                    (rawBytes, w, h) = BitmapHelpers.RotateBitmap(rawBytes, w, h, rot);
+
+                                int pi = i, pw = w, ph = h, prot = rot;
+                                byte[] bytes = rawBytes;
                                 Dispatcher.Invoke(() =>
                                 {
                                     if (cts.IsCancellationRequested || _doc is null) return;
@@ -1120,13 +1135,35 @@ namespace KillerPDF.Controls
                             // the render was canceled; stop rendering cleanly instead of crashing.
                             catch (System.Threading.Tasks.TaskCanceledException) { break; }
                             catch (OperationCanceledException) { break; }
+                            catch { continue; }   // skip this page, keep streaming the rest
                         }
                     }
                     finally { docReader?.Dispose(); pig?.Dispose(); }
                 }, cts.Token);
             }
-            catch { return; }
+            catch (OperationCanceledException) { return; }   // superseded - the newer render owns the tiles now
+            catch
+            {
+                // A transient failure mid-stream must not strand the tail of the grid unrendered
+                // (the "last column never refreshed" symptom). Retry once - the flag stops a
+                // persistently broken document from looping, and cache hits make the retry cheap.
+                if (!_secondaryRenderRetried && !cts.IsCancellationRequested)
+                {
+                    _secondaryRenderRetried = true;
+                    _ = Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
+                        (Action)(() =>
+                        {
+                            if (_viewMode is ViewMode.Grid or ViewMode.TwoPage) RenderAdditionalPages(primaryPageIdx);
+                        }));
+                }
+                return;
+            }
+            _secondaryRenderRetried = false;   // a complete pass clears the retry budget
         }
+
+        // One-shot retry budget for RenderAdditionalPages - set when a failed stream schedules its
+        // retry, cleared by any pass that completes. Keeps a broken document from retry-looping.
+        private bool _secondaryRenderRetried;
 
         /// <summary>
         /// Builds one secondary-page tile (image + annotation overlay + links) and appends it

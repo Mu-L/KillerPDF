@@ -42,6 +42,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
 - Every remaining hardcoded English string - dialog titles, file-picker filters, error and confirmation dialogs, status line messages, busy overlays, and the default DRAFT watermark text - is now translated in all twelve languages, and Polish gained the seven newest theme names (#227, thanks Mr-Update).
 - The annotate settings bars (text, draw, highlight, line, shape) now reflow in single-row groups on a narrow window or split pane; anything that would need a third row collapses into an overflow chevron, least-used controls first.
+- A render failure partway through streaming grid tiles no longer strands the remaining pages blank; the failed page is skipped and the stream retries once.
+- Grid view opened in an unfocused split pane now fills the pane width instead of keeping a surround margin and showing a horizontal scrollbar.
 
 ## [1.7.3] - 2026-08-15
 
