@@ -693,8 +693,17 @@
                                            VerticalAlignment="Center"
                                            HorizontalAlignment="Center"
                                            IsHitTestVisible="False"/>
+                                <!-- Chevron face keys off ComboButtonBrush, the same key the
+                                     MainWindow copy uses. ChipFaceBrush is defined by 98SE alone
+                                     and CompleteAppPalette never materialises it, so it is not a
+                                     key that resolves to nothing elsewhere - it is one that gets
+                                     stuck: ApplyTheme copies the incoming theme in per key and
+                                     removes nothing, so visiting 98SE once left #c0c0c0 in the
+                                     live dictionary and this chevron kept a raised Win98 face on
+                                     every theme after it. ComboButtonBrush is materialised into
+                                     every palette, so the two template copies stay in step. -->
                                 <Border Grid.Column="1" IsHitTestVisible="False"
-                                        Background="{DynamicResource ChipFaceBrush}"
+                                        Background="{DynamicResource ComboButtonBrush}"
                                         BorderBrush="{DynamicResource BevelLightBrush}"
                                         BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
                                 <Border Grid.Column="1" IsHitTestVisible="False"

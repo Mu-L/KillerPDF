@@ -859,7 +859,7 @@
                                     <!-- Chevron arrow -->
                                     <Grid Grid.Column="1" Width="{DynamicResource ComboButtonSize}"
                                           Height="{DynamicResource ComboButtonSize}"
-                                          HorizontalAlignment="Right" VerticalAlignment="Center"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Margin="0" IsHitTestVisible="False">
                                     <Border x:Name="ComboChevFace" Background="{DynamicResource ComboButtonBrush}"/>
                                     <Border x:Name="ComboChevLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>

@@ -780,7 +780,11 @@ namespace KillerPDF
             var optionsScroller = new ScrollViewer
             {
                 Content                       = panel,
-                VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
+                // Visible, not Auto. The options column is a fixed 260 and the bar is 12 wide (16 on
+                // 98SE), so letting it appear on demand shrinks every control in the panel the moment
+                // a section is expanded past the viewport. Reserving the width costs an idle track and
+                // keeps the fields still.
+                VerticalScrollBarVisibility   = ScrollBarVisibility.Visible,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
             };
             Grid.SetRow(optionsScroller, 0);

@@ -292,7 +292,10 @@ namespace KillerPDF.Services
                 d["UiFont"] = new FontFamily("Segoe UI, Microsoft JhengHei UI, Nirmala UI");
             Alias("ComboFieldBrush", "PaneBrush");
             Alias("ComboPopupBrush", "PaneBrush");
-            Alias("ComboButtonBrush", "ComboFieldBrush");
+            // The chevron sits directly on the combo field: no button face by default, so the
+            // arrow does not read as a separate boxed control. 98SE sets ComboButtonBrush
+            // explicitly (#c0c0c0) and keeps its raised Win98 drop-down button.
+            if (!d.Contains("ComboButtonBrush")) d["ComboButtonBrush"] = Brushes.Transparent;
             Alias("ComboButtonHoverBrush", "RowHoverBrush");
             // These must be materialized into every completed palette. Theme dictionaries are
             // copied into the live dictionary in place, so a missing key would otherwise retain
