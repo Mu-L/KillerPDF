@@ -18,6 +18,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Changed
 - KillerPDF now remains one portable download while installing as a normal multi-file application. The portable EXE carries one compressed, verified payload and cleans up its temporary files after use; installed shortcuts launch the inner app directly, avoiding Costura extraction and reducing measured first startup by about 40% on the development machine (#189, thanks ags1234). The new package is also roughly 34% smaller than the previous woven EXE.
 - Internal cancellation resource keys now use the same American spelling as their displayed text.
+- Builds no longer risk the net48 CS8336 attribute collision introduced by compiler-generated polyfills (PR #218, thanks Ryokoxx).
 
 ### Fixed
 - Rotating a page no longer deletes the document's unsaved annotations; they now turn with the page (#169, thanks terada-d).
@@ -44,6 +45,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The annotate settings bars (text, draw, highlight, line, shape) now reflow in single-row groups on a narrow window or split pane; anything that would need a third row collapses into an overflow chevron, least-used controls first.
 - A render failure partway through streaming grid tiles no longer strands the remaining pages blank; the failed page is skipped and the stream retries once.
 - Grid view opened in an unfocused split pane now fills the pane width instead of keeping a surround margin and showing a horizontal scrollbar.
+- A print page range ending in a huge number no longer freezes the app, and a range matching no pages now says so and disables Print instead of spooling the whole document (PRs #222 and #220, thanks Ryokoxx).
+- Checkbox labels now wrap instead of clipping in languages with longer text, and dropdown lists respect their intended maximum height (PRs #224 and #225, thanks Ryokoxx).
+- The print preview's scrollbar and chevrons now follow the theme, and visiting the 98SE theme no longer leaves its gray chip color behind on other themes (PR #219, thanks Ryokoxx).
+- The color picker's OK button is readable at rest on every theme; it previously only showed its label on hover, and its Cancel button is now translated (#227, thanks Mr-Update).
 
 ## [1.7.3] - 2026-08-15
 

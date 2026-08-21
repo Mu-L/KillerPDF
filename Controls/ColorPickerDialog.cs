@@ -184,7 +184,7 @@ namespace KillerPDF
             RebuildSavedRow();
             // OK / Cancel
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
-            var cancel = MakeButton("Cancel", false); cancel.Click += (_, _) => { DialogResult = false; Close(); }; cancel.IsCancel = true;
+            var cancel = MakeButton(L("Str_Btn_CancelDlg"), false); cancel.Click += (_, _) => { DialogResult = false; Close(); }; cancel.IsCancel = true;
             var ok = MakeButton("OK", true); ok.Margin = new Thickness(8, 0, 0, 0); ok.Click += (_, _) => Accept(); ok.IsDefault = true;
             btnRow.Children.Add(cancel); btnRow.Children.Add(ok);
             panel.Children.Add(btnRow);
@@ -386,15 +386,18 @@ namespace KillerPDF
                 BorderThickness = new Thickness(1), Cursor = Cursors.Hand };
             var style = new Style(typeof(Button));
             style.Setters.Add(new Setter(Control.TemplateProperty, MakeBtnTemplate()));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, primary ? R("PrimaryBrush") : R("TextBrush")));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, primary ? R("RowSelectedBrush") : R("PaneBrush")));
+            // Rest brushes match UiKit.Make's accent pair (SelectionFg on SelectionBg): the old
+            // PrimaryBrush-on-RowSelectedBrush pairing put accent text on an accent-tinted fill,
+            // which left "OK" unreadable at rest on several themes until hover repainted it (#227).
+            style.Setters.Add(new Setter(Control.ForegroundProperty, primary ? R("SelectionFg") : R("TextBrush")));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, primary ? R("SelectionBg") : R("PaneBrush")));
             style.Setters.Add(new Setter(Control.BorderBrushProperty, primary ? R("PrimaryBrush") : R("CardBorderBrush")));
-            // Hover: OK fills solid accent (white text for contrast); Cancel goes a shade grayer.
+            // Hover: OK fills solid accent (OnPrimaryBrush text for contrast); Cancel goes a shade grayer.
             var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             if (primary)
             {
                 hover.Setters.Add(new Setter(Control.BackgroundProperty, R("PrimaryBrush")));
-                hover.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+                hover.Setters.Add(new Setter(Control.ForegroundProperty, R("OnPrimaryBrush")));
             }
             else
             {
