@@ -713,7 +713,6 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
     <sys:String x:Key="Str_Sign_Name">Digital Signature</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Choose a signing certificate</sys:String>
-    <sys:String x:Key="Str_Sign_SaveAs">Save signed PDF as</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Import Signature Image</sys:String>
     <sys:String x:Key="Str_Filter_Pdf">PDF files</sys:String>
     <sys:String x:Key="Str_Filter_Cert">Certificate files</sys:String>
@@ -731,4 +730,126 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Dlg_InsertImage">Insert Image</sys:String>
     <sys:String x:Key="Str_Dlg_InstallShortcut">Create desktop shortcut</sys:String>
     <sys:String x:Key="Str_Stamp_DefaultText">DRAFT</sys:String>
+    <sys:String x:Key="Str_Sign_NeedCertFile">Choose a certificate file (.pfx / .p12) first.</sys:String>
+    <sys:String x:Key="Str_Sign_NoStoreCert">No signing certificate is available in the Windows store.</sys:String>
+    <sys:String x:Key="Str_Sign_NeedOutput">Choose where to save the signed copy.</sys:String>
+    <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Could not open the certificate.&#10;&#10;The password may be incorrect, or the file is not a valid .pfx / .p12 certificate.</sys:String>
+    <sys:String x:Key="Str_Sign_CertLoadFailed">Could not load the certificate:</sys:String>
+    <sys:String x:Key="Str_Sign_Failed">Signing failed:</sys:String>
+    <sys:String x:Key="Str_St_ShapeHint">Click to add points - click the first point or double-click to close, Esc cancels, Backspace removes the last point</sys:String>
+    <sys:String x:Key="Str_St_ShapeCanceled">Shape canceled</sys:String>
+
+    <!-- Error-dialog prefixes (code appends the exception detail after a newline) -->
+    <sys:String x:Key="Str_Err_PrintFailed">Print failed:</sys:String>
+    <sys:String x:Key="Str_Err_OcrFailed">OCR failed:</sys:String>
+    <sys:String x:Key="Str_Err_PrepareDoc">Could not prepare the document:</sys:String>
+    <sys:String x:Key="Str_Err_SearchableFailed">Searchable PDF failed:</sys:String>
+    <sys:String x:Key="Str_Err_ExtractFailed">Text extraction failed:</sys:String>
+    <sys:String x:Key="Str_Err_DuplicateFailed">Duplicate failed:</sys:String>
+    <sys:String x:Key="Str_Err_RepairFailed">Repair failed:</sys:String>
+    <sys:String x:Key="Str_Err_OpenProtected">Could not open the protected PDF:</sys:String>
+    <sys:String x:Key="Str_Err_NewDocFailed">Could not create new document:</sys:String>
+    <sys:String x:Key="Str_Err_FileNotFound">File not found:</sys:String>
+    <sys:String x:Key="Str_Err_MergeFailed">Merge failed:</sys:String>
+    <sys:String x:Key="Str_Err_SaveFailed">Save failed:</sys:String>
+    <sys:String x:Key="Str_Err_FlattenFailed">Flatten failed:</sys:String>
+    <sys:String x:Key="Str_Err_ExportFailed">Export failed:</sys:String>
+    <sys:String x:Key="Str_Err_SplitFailed">Split failed:</sys:String>
+    <sys:String x:Key="Str_Err_DeleteFailed">Delete failed:</sys:String>
+    <sys:String x:Key="Str_Err_InsertFailed">Insert failed:</sys:String>
+    <sys:String x:Key="Str_Err_AddPageFailed">Add page failed:</sys:String>
+    <sys:String x:Key="Str_Err_ImportImageFailed">Failed to import image:</sys:String>
+    <sys:String x:Key="Str_Err_LoadImageFailed">Could not load image:</sys:String>
+    <sys:String x:Key="Str_Err_PasteFailed">Could not paste:</sys:String>
+    <sys:String x:Key="Str_Err_HqDownloadFailed">High quality download failed:</sys:String>
+    <sys:String x:Key="Str_Err_ModelDownloadFailed">Could not download the language model:</sys:String>
+    <sys:String x:Key="Str_Err_LangDataFailed">Could not download {0} language data:</sys:String>
+    <sys:String x:Key="Str_Dlg_DownloadTimeout">Downloading {0} timed out. Check your connection and try again.</sys:String>
+    <sys:String x:Key="Str_Dlg_CancelBusy">Cancel the current {0}?</sys:String>
+    <sys:String x:Key="Str_Dlg_DeletePage1">Delete this page?</sys:String>
+    <sys:String x:Key="Str_Dlg_DeletePagesN">Delete {0} pages?</sys:String>
+
+    <!-- Cancellable-operation labels (fill {0} in Str_Dlg_CancelBusy) and busy-overlay messages -->
+    <sys:String x:Key="Str_Op_Repair">repair</sys:String>
+    <sys:String x:Key="Str_Op_Operation">operation</sys:String>
+    <sys:String x:Key="Str_Op_Flatten">flatten</sys:String>
+    <sys:String x:Key="Str_Op_Export">export</sys:String>
+    <sys:String x:Key="Str_Op_Merge">merge</sys:String>
+    <sys:String x:Key="Str_Op_LangDownload">language download</sys:String>
+    <sys:String x:Key="Str_Op_Ocr">OCR operation</sys:String>
+    <sys:String x:Key="Str_Op_OcrRegion">OCR region</sys:String>
+    <sys:String x:Key="Str_Busy_Ocr">Running OCR...</sys:String>
+    <sys:String x:Key="Str_Busy_Region">Recognizing region...</sys:String>
+    <sys:String x:Key="Str_Busy_Searchable">Making searchable PDF...</sys:String>
+    <sys:String x:Key="Str_Busy_Extracting">Extracting text...</sys:String>
+    <sys:String x:Key="Str_Busy_Repairing">Repairing PDF...</sys:String>
+    <sys:String x:Key="Str_Busy_HqModels">Downloading high quality language models...</sys:String>
+    <sys:String x:Key="Str_Busy_Model">Downloading language model...</sys:String>
+
+    <!-- Status-line messages ({0}/{1}/{2} filled by string.Format) -->
+    <sys:String x:Key="Str_Print_Preparing">Preparing page {0} of {1}…</sys:String>
+    <sys:String x:Key="Str_St_AnnotSelected">{0} selected - {1}</sys:String>
+    <sys:String x:Key="Str_St_AnnotHowText">drag a side corner to set width, double-click to edit, Delete to remove</sys:String>
+    <sys:String x:Key="Str_St_AnnotHowGeneric">drag any corner to resize, Delete to remove</sys:String>
+    <sys:String x:Key="Str_St_AnnotSelectedSimple">Selected {0} annotation - press Delete to remove</sys:String>
+    <sys:String x:Key="Str_St_SelectedOne">Selected 1 annotation</sys:String>
+    <sys:String x:Key="Str_St_SelectedMany">Selected {0} annotations</sys:String>
+    <sys:String x:Key="Str_St_Grouped">Grouped {0} annotations - they now move together</sys:String>
+    <sys:String x:Key="Str_St_ClearedAll">Cleared all annotations ({0})</sys:String>
+    <sys:String x:Key="Str_St_CopiedWords">Copied {0} word(s) to clipboard</sys:String>
+    <sys:String x:Key="Str_St_HighlightedLines">Highlighted {0} line(s)</sys:String>
+    <sys:String x:Key="Str_St_StruckLines">Struck through {0} line(s)</sys:String>
+    <sys:String x:Key="Str_St_UnderlinedLines">Underlined {0} line(s)</sys:String>
+    <sys:String x:Key="Str_St_SelectAllCopied">Selected all text - copied to clipboard</sys:String>
+    <sys:String x:Key="Str_St_SelectAllError">Select all error: {0}</sys:String>
+    <sys:String x:Key="Str_St_Copied">Copied to clipboard</sys:String>
+    <sys:String x:Key="Str_St_ExtractError">Text extraction error: {0}</sys:String>
+    <sys:String x:Key="Str_St_AlreadyOpen">Already open: {0}</sys:String>
+    <sys:String x:Key="Str_St_TextEditError">Text edit error: {0}</sys:String>
+    <sys:String x:Key="Str_St_OcrNoTextPage">OCR: no text found on page {0}</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPage">OCR: copied {0} chars from page {1} ({2} confidence)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: copied {0} chars from the region ({1} confidence)</sys:String>
+    <sys:String x:Key="Str_St_SearchableSaved">Searchable PDF saved: {0} pages, {1} words recognized</sys:String>
+    <sys:String x:Key="Str_St_TextExtracted">Text extracted from {0} pages -> {1}</sys:String>
+    <sys:String x:Key="Str_St_DuplicatedPage">Duplicated page {0}</sys:String>
+    <sys:String x:Key="Str_St_Merged">Merged {0} file(s) - {1} total pages</sys:String>
+    <sys:String x:Key="Str_St_Saved">Saved - {0}</sys:String>
+    <sys:String x:Key="Str_St_SavedWithAnnots">Saved with annotations to {0}</sys:String>
+    <sys:String x:Key="Str_St_SavedTo">Saved to {0}</sys:String>
+    <sys:String x:Key="Str_St_FlattenedSaved">Flattened PDF saved to {0}</sys:String>
+    <sys:String x:Key="Str_St_OcrLanguage">OCR language: {0}</sys:String>
+    <sys:String x:Key="Str_St_LangInstalled">{0} installed - OCR language: {1}</sys:String>
+    <sys:String x:Key="Str_St_LangCanceled">{0} download canceled</sys:String>
+    <sys:String x:Key="Str_St_HqFailed">High quality models installed; failed: {0}</sys:String>
+    <sys:String x:Key="Str_St_HqInstalled">High quality models installed for: {0}</sys:String>
+    <sys:String x:Key="Str_St_InsertedBlank">Inserted blank page at position {0}</sys:String>
+    <sys:String x:Key="Str_St_AddedBlank">Added blank page (now {0} pages)</sys:String>
+    <sys:String x:Key="Str_St_RestorePane">Could not restore the second pane: {0}</sys:String>
+
+    <!-- Annotation-type labels for selection status text -->
+    <sys:String x:Key="Str_Annot_Signature">Signature</sys:String>
+    <sys:String x:Key="Str_Annot_Image">Image</sys:String>
+    <sys:String x:Key="Str_Annot_TextBox">Text box</sys:String>
+    <sys:String x:Key="Str_Annot_Cover">Text cover</sys:String>
+    <sys:String x:Key="Str_Annot_Strikethrough">Strikethrough</sys:String>
+    <sys:String x:Key="Str_Annot_Underline">Underline</sys:String>
+    <sys:String x:Key="Str_Annot_Highlight">Highlight</sys:String>
+    <sys:String x:Key="Str_Annot_Drawing">Drawing</sys:String>
+    <sys:String x:Key="Str_Annot_Item">Item</sys:String>
+    <sys:String x:Key="Str_Busy_SearchablePage">Making searchable PDF... page {0} of {1}  (Esc to cancel)</sys:String>
+    <sys:String x:Key="Str_Busy_ExtractingPage">Extracting text... page {0} of {1}  (Esc to cancel)</sys:String>
+    <sys:String x:Key="Str_Busy_LangData">Downloading {0} language data...</sys:String>
+    <sys:String x:Key="Str_Busy_Downloading">Downloading {0}...</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingHq">Downloading {0} (HQ) - {1} of {2} -</sys:String>
+    <sys:String x:Key="Str_Busy_Opening">Opening PDF...</sys:String>
+    <sys:String x:Key="Str_Busy_OpeningProtected">Opening protected PDF...</sys:String>
+    <sys:String x:Key="Str_St_HqAlready">All selected languages are already high quality</sys:String>
+    <sys:String x:Key="Str_St_HqNextTime">High quality models will be used the next time you run OCR</sys:String>
+    <sys:String x:Key="Str_Ocr_SuffixDownload">(download)</sys:String>
+    <sys:String x:Key="Str_Ocr_SuffixDownloadHq">(download HQ)</sys:String>
+    <sys:String x:Key="Str_Dlg_SearchableSaved" xml:space="preserve">Saved searchable PDF:&#10;{0}&#10;&#10;{1} pages processed, {2} words recognized.</sys:String>
+    <sys:String x:Key="Str_Dlg_Repaired" xml:space="preserve">"{0}" was repaired successfully.&#10;&#10;Bookmarks, forms, and other interactive features may have been lost. Use Save As to write the repaired file to a new location.</sys:String>
+    <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">"{0}" was repaired by rasterizing through PDFium.&#10;&#10;Text is not selectable in the repaired copy. Use Save As to write it to a new location.</sys:String>
+    <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">"{0}" has a damaged structure and couldn't be added.&#10;&#10;Would you like KillerPDF to attempt a repair? A repaired copy will be created - the original file will not be changed.&#10;&#10;Note: repaired files may be missing bookmarks, forms, and other interactive features.</sys:String>
+    <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">A language model ({0}) will be downloaded now so OCR can run.&#10;&#10;You can add more languages or switch to higher quality models any time from the OCR menu.</sys:String>
 </ResourceDictionary>

@@ -188,18 +188,18 @@ namespace KillerPDF
             if (_fileRadio.IsChecked == true)
             {
                 string pfx = _pfxBox.Text?.Trim() ?? "";
-                if (!File.Exists(pfx)) { Warn("Choose a certificate file (.pfx / .p12) first."); return; }
+                if (!File.Exists(pfx)) { Warn(L("Str_Sign_NeedCertFile")); return; }
                 provider = new PfxFileCertificateProvider(pfx, _pwBox.Password);
             }
             else
             {
                 int i = _storeCombo.SelectedIndex;
-                if (i < 0 || i >= _storeCerts.Count) { Warn("No signing certificate is available in the Windows store."); return; }
+                if (i < 0 || i >= _storeCerts.Count) { Warn(L("Str_Sign_NoStoreCert")); return; }
                 provider = new StoreCertificateProvider(_storeCerts[i]);
             }
 
             string output = _outputBox.Text?.Trim() ?? "";
-            if (string.IsNullOrEmpty(output)) { Warn("Choose where to save the signed copy."); return; }
+            if (string.IsNullOrEmpty(output)) { Warn(L("Str_Sign_NeedOutput")); return; }
 
             X509Certificate2 cert;
             try { cert = provider.GetCertificate(); }
@@ -207,10 +207,10 @@ namespace KillerPDF
             {
                 // The raw Win32 text ("The specified network password is not correct.") is misleading -
                 // nothing networked is involved. Almost always a wrong password or a non-.pfx file.
-                Warn("Could not open the certificate.\n\nThe password may be incorrect, or the file is not a valid .pfx / .p12 certificate.");
+                Warn(L("Str_Sign_BadCert"));
                 return;
             }
-            catch (Exception ex) { Warn("Could not load the certificate:\n\n" + ex.Message); return; }
+            catch (Exception ex) { Warn(L("Str_Sign_CertLoadFailed") + "\n\n" + ex.Message); return; }
 
             try
             {
@@ -219,16 +219,16 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                Warn("Signing failed:\n\n" + ex.GetType().Name + ": " + ex.Message);
+                Warn(L("Str_Sign_Failed") + "\n\n" + ex.GetType().Name + ": " + ex.Message);
                 return;
             }
 
-            KillerDialog.Show(this, L("Str_Dlg_SignedSavedTo") + "\n" + output, "Digital Signature", MessageBoxButton.OK, MessageBoxImage.Information);
+            KillerDialog.Show(this, L("Str_Dlg_SignedSavedTo") + "\n" + output, L("Str_Sign_Name"), MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
         }
 
-        private void Warn(string msg) => KillerDialog.Show(this, msg, "Digital Signature", MessageBoxButton.OK, MessageBoxImage.Warning);
+        private void Warn(string msg) => KillerDialog.Show(this, msg, L("Str_Sign_Name"), MessageBoxButton.OK, MessageBoxImage.Warning);
 
         // ---- themed control helpers (mirroring PrintPreviewWindow) -------------------------------
         private Style? FindOwnerStyle(string key) => Owner?.TryFindResource(key) as Style;

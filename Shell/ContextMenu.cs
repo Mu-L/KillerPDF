@@ -309,11 +309,11 @@ namespace KillerPDF
                 doc.Pages.Insert(pageIdx + 1, copy);
                 SaveTempAndReload();
                 PageList.SelectedIndex = pageIdx + 1;
-                SetStatus($"Duplicated page {pageIdx + 1}");
+                SetStatus(string.Format(Loc("Str_St_DuplicatedPage"), pageIdx + 1));
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Duplicate failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_DuplicateFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

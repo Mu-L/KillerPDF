@@ -47,7 +47,7 @@ namespace KillerPDF.Features
             int rot = _host.RotationFor(pageIdx);
             string lang = _host.OcrLanguageString;
 
-            var ct = _host.BeginOp("OCR operation", "Running OCR...");
+            var ct = _host.BeginOp(_host.Loc("Str_Op_Ocr"), _host.Loc("Str_Busy_Ocr"));
             try
             {
                 OcrResult result = await Task.Run(() =>
@@ -74,17 +74,17 @@ namespace KillerPDF.Features
                 string text = result.Text.Trim();
                 if (text.Length == 0)
                 {
-                    _host.SetStatus($"OCR: no text found on page {pageIdx + 1}");
+                    _host.SetStatus(string.Format(_host.Loc("Str_St_OcrNoTextPage"), pageIdx + 1));
                     return;
                 }
 
                 Clipboard.SetText(text);
-                _host.SetStatus($"OCR: copied {text.Length} chars from page {pageIdx + 1} ({result.MeanConfidence:P0} confidence)");
+                _host.SetStatus(string.Format(_host.Loc("Str_St_OcrCopiedPage"), text.Length, pageIdx + 1, result.MeanConfidence.ToString("P0")));
             }
             catch (Exception ex)
             {
                 _host.HideBusy();
-                KillerDialog.Show(_host.Window, $"OCR failed:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(_host.Window, _host.Loc("Str_Err_OcrFailed") + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -108,7 +108,7 @@ namespace KillerPDF.Features
             string lang = _host.OcrLanguageString;
             Rect cb = canvasBounds;
 
-            var ct = _host.BeginOp("OCR region", "Recognizing region...");
+            var ct = _host.BeginOp(_host.Loc("Str_Op_OcrRegion"), _host.Loc("Str_Busy_Region"));
             try
             {
                 OcrResult result = await Task.Run(() =>
@@ -136,12 +136,12 @@ namespace KillerPDF.Features
                 string text = result.Text.Trim();
                 if (text.Length == 0) { _host.SetStatus(_host.Loc("Str_St_OcrNoText")); return; }
                 Clipboard.SetText(text);
-                _host.SetStatus($"OCR: copied {text.Length} chars from the region ({result.MeanConfidence:P0} confidence)");
+                _host.SetStatus(string.Format(_host.Loc("Str_St_OcrCopiedRegion"), text.Length, result.MeanConfidence.ToString("P0")));
             }
             catch (Exception ex)
             {
                 _host.HideBusy();
-                KillerDialog.Show(_host.Window, $"OCR failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(_host.Window, _host.Loc("Str_Err_OcrFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -190,14 +190,14 @@ namespace KillerPDF.Features
             try { _host.SaveDocumentTo(src); }
             catch (Exception ex)
             {
-                KillerDialog.Show(_host.Window, $"Could not prepare the document:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(_host.Window, _host.Loc("Str_Err_PrepareDoc") + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            var ct = _host.BeginOp("OCR operation", "Making searchable PDF...");
+            var ct = _host.BeginOp(_host.Loc("Str_Op_Ocr"), _host.Loc("Str_Busy_Searchable"));
             void report(int i, int n) => _host.Window.Dispatcher.Invoke(() =>
-                _host.SetBusyMessage($"Making searchable PDF... page {i + 1} of {n}  (Esc to cancel)"));
+                _host.SetBusyMessage(string.Format(_host.Loc("Str_Busy_SearchablePage"), i + 1, n)));
             string lang = _host.OcrLanguageString;
 
             try
@@ -205,15 +205,15 @@ namespace KillerPDF.Features
                 var (pages, words) = await Task.Run(() => BuildSearchablePdf(src, outPath, report, ct, lang));
                 _host.HideBusy();
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_SearchablePdfCanceled")); return; }
-                _host.SetStatus($"Searchable PDF saved: {pages} pages, {words} words recognized");
+                _host.SetStatus(string.Format(_host.Loc("Str_St_SearchableSaved"), pages, words));
                 KillerDialog.Show(_host.Window,
-                    $"Saved searchable PDF:\n{outPath}\n\n{pages} pages processed, {words} words recognized.",
+                    string.Format(_host.Loc("Str_Dlg_SearchableSaved"), outPath, pages, words),
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
                 _host.HideBusy();
-                KillerDialog.Show(_host.Window, $"Searchable PDF failed:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(_host.Window, _host.Loc("Str_Err_SearchableFailed") + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -328,14 +328,14 @@ namespace KillerPDF.Features
             try { _host.SaveDocumentTo(src); pageCount = _host.PageCount; }
             catch (Exception ex)
             {
-                KillerDialog.Show(_host.Window, $"Could not prepare the document:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(_host.Window, _host.Loc("Str_Err_PrepareDoc") + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            var ct = _host.BeginOp("OCR operation", "Extracting text...");
+            var ct = _host.BeginOp(_host.Loc("Str_Op_Ocr"), _host.Loc("Str_Busy_Extracting"));
             void report(int i, int n) => _host.Window.Dispatcher.Invoke(() =>
-                _host.SetBusyMessage($"Extracting text... page {i + 1} of {n}  (Esc to cancel)"));
+                _host.SetBusyMessage(string.Format(_host.Loc("Str_Busy_ExtractingPage"), i + 1, n)));
             string lang = _host.OcrLanguageString;
 
             try
@@ -343,12 +343,12 @@ namespace KillerPDF.Features
                 int pages = await Task.Run(() => ExtractText(src, pageCount, outPath, markdown, report, ct, lang));
                 _host.HideBusy();
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_TextExtractCanceled")); return; }
-                _host.SetStatus($"Text extracted from {pages} pages -> {Path.GetFileName(outPath)}");
+                _host.SetStatus(string.Format(_host.Loc("Str_St_TextExtracted"), pages, Path.GetFileName(outPath)));
             }
             catch (Exception ex)
             {
                 _host.HideBusy();
-                KillerDialog.Show(_host.Window, $"Text extraction failed:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(_host.Window, _host.Loc("Str_Err_ExtractFailed") + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally

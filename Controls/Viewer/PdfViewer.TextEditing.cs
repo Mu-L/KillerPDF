@@ -313,7 +313,7 @@ namespace KillerPDF.Controls
             }
             catch (Exception ex)
             {
-                SetStatus($"Text edit error: {ex.Message}");
+                SetStatus(string.Format(Loc("Str_St_TextEditError"), ex.Message));
             }
         }
 

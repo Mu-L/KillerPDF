@@ -153,11 +153,11 @@ namespace KillerPDF
         private async System.Threading.Tasks.Task<string?> RepairDroppedPdfAsync(string path)
         {
             var ask = KillerDialog.Show(this,
-                $"\"{System.IO.Path.GetFileName(path)}\" has a damaged structure and couldn't be added.\n\nWould you like KillerPDF to attempt a repair? A repaired copy will be created - the original file will not be changed.\n\nNote: repaired files may be missing bookmarks, forms, and other interactive features.",
+                string.Format(Loc("Str_Dlg_RepairAsk"), System.IO.Path.GetFileName(path)),
                 "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (ask != MessageBoxResult.Yes) return null;
 
-            var busy = ShowBusyOverlay("Repairing PDF...");
+            var busy = ShowBusyOverlay(Loc("Str_Busy_Repairing"));
             try
             {
                 // Same order as TryRepairAndOpen: lossless PDFium re-save first (keeps forms and

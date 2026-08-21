@@ -72,7 +72,7 @@ namespace KillerPDF
                     // background path finalizes the tab itself, so the flag tells the synchronous caller
                     // not to treat the not-yet-set _doc as a failed open.
                     _asyncOpenPending = true;
-                    StripEncryptionAndOpen(srcPath, path, busyMessage: "Opening protected PDF...");
+                    StripEncryptionAndOpen(srcPath, path, busyMessage: Loc("Str_Busy_OpeningProtected"));
                     return;
                 }
                 _currentFile = srcPath;
@@ -86,7 +86,7 @@ namespace KillerPDF
                 // an array-index error. PDFium already has a tolerant, lossless rewrite path that removes
                 // the restriction and repairs those tables, so use it just as we do for other encrypted PDFs.
                 _asyncOpenPending = true;
-                StripEncryptionAndOpen(srcPath, path, busyMessage: "Opening protected PDF...");
+                StripEncryptionAndOpen(srcPath, path, busyMessage: Loc("Str_Busy_OpeningProtected"));
             }
             catch (Exception ex) when (PdfImport.IsPasswordException(ex))
             {
@@ -223,8 +223,8 @@ namespace KillerPDF
             // otherwise the window froze (hourglass, no feedback) for the whole repair. Only the
             // file production runs off-thread; opening/rendering the result stays on the UI thread.
             _asyncOpenPending = true;   // the synchronous open caller defers tab finalization to here
-            var ct = BeginCancellableOp("repair");
-            var busy = ShowBusyOverlay("Repairing PDF...");
+            var ct = BeginCancellableOp(Loc("Str_Op_Repair"));
+            var busy = ShowBusyOverlay(Loc("Str_Busy_Repairing"));
             try
             {
                 // Release any open document before the worker reads the source file.
@@ -282,15 +282,15 @@ namespace KillerPDF
                 FinalizeAsyncOpen();
                 KillerDialog.Show(this,
                     raster
-                        ? $"\"{System.IO.Path.GetFileName(path)}\" was repaired by rasterizing through PDFium.\n\nText is not selectable in the repaired copy. Use Save As to write it to a new location."
-                        : $"\"{System.IO.Path.GetFileName(path)}\" was repaired successfully.\n\nBookmarks, forms, and other interactive features may have been lost. Use Save As to write the repaired file to a new location.",
+                        ? string.Format(Loc("Str_Dlg_RepairedRaster"), System.IO.Path.GetFileName(path))
+                        : string.Format(Loc("Str_Dlg_Repaired"), System.IO.Path.GetFileName(path)),
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.None);
             }
             catch (Exception ex)
             {
                 HideBusyOverlay(busy);
                 _asyncOpenPending = false;
-                KillerDialog.Show(this, $"Repair failed:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(this, Loc("Str_Err_RepairFailed") + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -301,11 +301,11 @@ namespace KillerPDF
 
         // Strips a PDF's encryption on a background thread (so the window doesn't freeze), then opens the
         // clean copy. Mirrors TryRepairAndOpen; finalizes the tab via FinalizeAsyncOpen.
-        private async void StripEncryptionAndOpen(string srcPath, string displayPath, bool markDirty = true, string busyMessage = "Opening PDF...")
+        private async void StripEncryptionAndOpen(string srcPath, string displayPath, bool markDirty = true, string? busyMessage = null)
         {
             _asyncOpenPending = true;
-            var ct = BeginCancellableOp("operation");
-            var busy = ShowBusyOverlay(busyMessage);
+            var ct = BeginCancellableOp(Loc("Str_Op_Operation"));
+            var busy = ShowBusyOverlay(busyMessage ?? Loc("Str_Busy_Opening"));
             try
             {
                 if (_doc is not null) { _doc.Close(); _doc = null; }
@@ -332,7 +332,7 @@ namespace KillerPDF
             {
                 HideBusyOverlay(busy);
                 _asyncOpenPending = false;
-                KillerDialog.Show(this, $"Could not open the protected PDF:\n{ex.Message}",
+                KillerDialog.Show(this, Loc("Str_Err_OpenProtected") + "\n" + ex.Message,
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
                 EndCancellableOp();
             }
@@ -444,7 +444,7 @@ namespace KillerPDF
             catch (Exception ex)
             {
                 AbortTabLoad(target, prev, createdNew);
-                KillerDialog.Show(this, $"Could not create new document:\n{ex.Message}",
+                KillerDialog.Show(this, Loc("Str_Err_NewDocFailed") + "\n" + ex.Message,
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -478,7 +478,7 @@ namespace KillerPDF
                     var item = MakeMenuItem(System.IO.Path.GetFileName(path), (_, _) =>
                     {
                         if (System.IO.File.Exists(path)) OpenInNewTab(path);
-                        else KillerDialog.Show(this, $"File not found:\n{path}", "KillerPDF",
+                        else KillerDialog.Show(this, Loc("Str_Err_FileNotFound") + "\n" + path, "KillerPDF",
                             MessageBoxButton.OK, MessageBoxImage.Warning);
                     });
                     item.ToolTip = path;
@@ -714,7 +714,7 @@ namespace KillerPDF
                     // through ActiveViewer. Clicking pane B's recents opened the file in pane A.
                     FocusPane(pane);
                     if (System.IO.File.Exists(path)) OpenInNewTab(path);
-                    else KillerDialog.Show(this, $"File not found:\n{path}", "KillerPDF",
+                    else KillerDialog.Show(this, Loc("Str_Err_FileNotFound") + "\n" + path, "KillerPDF",
                         MessageBoxButton.OK, MessageBoxImage.Warning);
                 };
                 list.Items.Add(row);
@@ -796,11 +796,11 @@ namespace KillerPDF
                         PdfImport.RewriteNamedDestLinks(doc, pageOffset, namedDestMap);
                 }
                 SaveTempAndReload();
-                SetStatus($"Merged {dlg.FileNames.Length} file(s) - {_doc?.PageCount} total pages");
+                SetStatus(string.Format(Loc("Str_St_Merged"), dlg.FileNames.Length, _doc?.PageCount));
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Merge failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_MergeFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -967,11 +967,11 @@ namespace KillerPDF
                     SetStatus(string.Format(Loc("Str_St_SavedNoPassword"), System.IO.Path.GetFileName(saveTarget)));
                 }
                 else
-                    SetStatus($"Saved - {System.IO.Path.GetFileName(saveTarget)}");
+                    SetStatus(string.Format(Loc("Str_St_Saved"), System.IO.Path.GetFileName(saveTarget)));
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Save failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_SaveFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -993,7 +993,7 @@ namespace KillerPDF
                     defaultResult: MessageBoxResult.Cancel);
                 if (warn != MessageBoxResult.OK) return;
             }
-            var choice = KillerDialog.Show(this, $"Overwrite {name}?", "Save",
+            var choice = KillerDialog.Show(this, string.Format(Loc("Str_Dlg_OverwriteMsg"), name), Loc("Str_Lbl_Save"),
                                            MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
             if (choice == MessageBoxResult.Yes)      SaveInPlace();
             else if (choice == MessageBoxResult.No)  SaveAs_Click(sender, e);
@@ -1068,7 +1068,7 @@ namespace KillerPDF
                         SetStatus(string.Format(Loc("Str_St_SavedNoPassword"), System.IO.Path.GetFileName(dlg.FileName)));
                     }
                     else
-                        SetStatus($"Saved with annotations to {System.IO.Path.GetFileName(dlg.FileName)}");
+                        SetStatus(string.Format(Loc("Str_St_SavedWithAnnots"), System.IO.Path.GetFileName(dlg.FileName)));
                 }
                 else
                 {
@@ -1083,12 +1083,12 @@ namespace KillerPDF
                         SetStatus(string.Format(Loc("Str_St_SavedNoPassword"), System.IO.Path.GetFileName(dlg.FileName)));
                     }
                     else
-                        SetStatus($"Saved to {System.IO.Path.GetFileName(dlg.FileName)}");
+                        SetStatus(string.Format(Loc("Str_St_SavedTo"), System.IO.Path.GetFileName(dlg.FileName)));
                 }
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Save failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_SaveFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1158,7 +1158,7 @@ namespace KillerPDF
 
             try
             {
-                var ct = BeginCancellableOp("flatten");
+                var ct = BeginCancellableOp(Loc("Str_Op_Flatten"));
                 // Rasterize on a background thread - keeps the UI responsive. The core lives in
                 // Services/PdfRasterize.cs; progress marshals back to the overlay here.
                 await Task.Run(() => PdfRasterize.FlattenToPdf(sourcePath, pageCount, pageDims, outputPath,
@@ -1167,11 +1167,11 @@ namespace KillerPDF
 
                 if (ct.IsCancellationRequested) { SetStatus(Loc("Str_St_FlattenCanceled")); return; }
                 MarkDirty(false);
-                SetStatus($"Flattened PDF saved to {System.IO.Path.GetFileName(outputPath)}");
+                SetStatus(string.Format(Loc("Str_St_FlattenedSaved"), System.IO.Path.GetFileName(outputPath)));
             }
             catch (Exception ex)
             {
-                try { KillerDialog.Show(this, $"Flatten failed:\n{ex.GetType().Name}: {ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error); }
+                try { KillerDialog.Show(this, Loc("Str_Err_FlattenFailed") + "\n" + ex.GetType().Name + ": " + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error); }
                 catch { /* dialog failed; overlay still removed in finally */ }
             }
             finally
@@ -1273,7 +1273,7 @@ namespace KillerPDF
             var pages   = selected;
             try
             {
-                var ct = BeginCancellableOp("export");
+                var ct = BeginCancellableOp(Loc("Str_Op_Export"));
                 // The per-page render/encode/write core lives in Services/PdfRasterize.cs;
                 // progress marshals back to the overlay here.
                 int written = await Task.Run(() => PdfRasterize.ExportPageImages(sourcePath, pages,
@@ -1284,7 +1284,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Export failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_ExportFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -1481,7 +1481,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                try { KillerDialog.Show(this, $"Print failed:\n{ex.GetType().Name}: {ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error); }
+                try { KillerDialog.Show(this, Loc("Str_Err_PrintFailed") + "\n" + ex.GetType().Name + ": " + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error); }
                 catch { }
             }
         }

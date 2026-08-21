@@ -40,7 +40,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
 - The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
 - Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
-- Two dozen dialog titles, file-picker filters, and the default DRAFT watermark text that were hardcoded in English are now translated in all twelve languages, and Polish gained the seven newest theme names (#227, thanks Mr-Update).
+- Every remaining hardcoded English string - dialog titles, file-picker filters, error and confirmation dialogs, status line messages, busy overlays, and the default DRAFT watermark text - is now translated in all twelve languages, and Polish gained the seven newest theme names (#227, thanks Mr-Update).
 
 ## [1.7.3] - 2026-08-15
 

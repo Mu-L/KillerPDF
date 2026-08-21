@@ -624,24 +624,24 @@ namespace KillerPDF.Controls
                 LayoutResizeHandles(bounds.X, bounds.Y, bounds.Width, bounds.Height);
                 string label = annot switch
                 {
-                    SignatureAnnotation => "Signature",
-                    ImageAnnotation     => "Image",
-                    TextAnnotation      => "Text box",
-                    CoverAnnotation     => "Text cover",
-                    HighlightAnnotation { Style: HighlightStyle.Strikethrough } => "Strikethrough",
-                    HighlightAnnotation { Style: HighlightStyle.Underline }     => "Underline",
-                    HighlightAnnotation => "Highlight",
-                    InkAnnotation       => "Drawing",
-                    _                   => "Item"
+                    SignatureAnnotation => Loc("Str_Annot_Signature"),
+                    ImageAnnotation     => Loc("Str_Annot_Image"),
+                    TextAnnotation      => Loc("Str_Annot_TextBox"),
+                    CoverAnnotation     => Loc("Str_Annot_Cover"),
+                    HighlightAnnotation { Style: HighlightStyle.Strikethrough } => Loc("Str_Annot_Strikethrough"),
+                    HighlightAnnotation { Style: HighlightStyle.Underline }     => Loc("Str_Annot_Underline"),
+                    HighlightAnnotation => Loc("Str_Annot_Highlight"),
+                    InkAnnotation       => Loc("Str_Annot_Drawing"),
+                    _                   => Loc("Str_Annot_Item")
                 };
                 string how = annot is TextAnnotation
-                    ? "drag a side corner to set width, double-click to edit, Delete to remove"
-                    : "drag any corner to resize, Delete to remove";
-                SetStatus($"{label} selected - {how}");
+                    ? Loc("Str_St_AnnotHowText")
+                    : Loc("Str_St_AnnotHowGeneric");
+                SetStatus(string.Format(Loc("Str_St_AnnotSelected"), label, how));
             }
             else
             {
-                SetStatus($"Selected {annot.GetType().Name.Replace("Annotation", "").ToLower()} annotation - press Delete to remove");
+                SetStatus(string.Format(Loc("Str_St_AnnotSelectedSimple"), annot.GetType().Name.Replace("Annotation", "").ToLower()));
             }
 
             // Selecting a text box opens the text bar (synced to that box) so its color, fill and size
@@ -1902,7 +1902,7 @@ namespace KillerPDF.Controls
                     {
                         ClearSelection();
                         foreach (var (a, b, cv) in hits) ToggleMultiSelect(a, b, cv);
-                        SetStatus($"Selected {hits.Count} annotation{(hits.Count == 1 ? "" : "s")}");
+                        SetStatus(hits.Count == 1 ? Loc("Str_St_SelectedOne") : string.Format(Loc("Str_St_SelectedMany"), hits.Count));
                     }
                     else
                     {
@@ -2187,7 +2187,7 @@ namespace KillerPDF.Controls
                     n++;
                 }
             }
-            if (n > 0) SetStatus($"Selected {n} annotation{(n == 1 ? "" : "s")}");
+            if (n > 0) SetStatus(n == 1 ? Loc("Str_St_SelectedOne") : string.Format(Loc("Str_St_SelectedMany"), n));
             return n > 0;
         }
 
@@ -2242,7 +2242,7 @@ namespace KillerPDF.Controls
             string gid = Guid.NewGuid().ToString("N");
             foreach (var a in sel) a.GroupId = gid;
             MarkDirty();
-            SetStatus($"Grouped {sel.Count} annotations - they now move together");
+            SetStatus(string.Format(Loc("Str_St_Grouped"), sel.Count));
         }
 
         // Break a group: clear the shared group id on every member.
@@ -2685,7 +2685,7 @@ namespace KillerPDF.Controls
             ClearSelection();
             RenderAnnotationsOnAllVisiblePages();
             MarkDirty();
-            SetStatus($"Cleared all annotations ({total})");
+            SetStatus(string.Format(Loc("Str_St_ClearedAll"), total));
         }
 
         // onlyPage: when set, burns just that one page's annotations (used by Transform, which rasterizes a

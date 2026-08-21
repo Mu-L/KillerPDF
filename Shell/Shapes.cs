@@ -182,7 +182,7 @@ namespace KillerPDF
                 _shapePolyCanvas.Children.Add(_shapePolyRubber);
                 _shapePolyCanvas.Children.Add(_shapePolySnapDot);
                 _shapePolyPoints.Add(pos);
-                SetStatus("Click to add points - click the first point or double-click to close, Esc cancels, Backspace removes the last point");
+                SetStatus(Loc("Str_St_ShapeHint"));
                 return;
             }
 
@@ -238,7 +238,7 @@ namespace KillerPDF
         {
             if (_shapePolyPoints.Count == 0) return;
             ResetShapePolyState();
-            SetStatus("Shape canceled");
+            SetStatus(Loc("Str_St_ShapeCanceled"));
         }
 
         /// <summary>Backspace: remove the last placed vertex; removing the only one cancels.</summary>
