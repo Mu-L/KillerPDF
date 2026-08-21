@@ -6,6 +6,9 @@
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <!-- PolySharp 1.16.0 generates Microsoft.CodeAnalysis.EmbeddedAttribute by default; the
+         compiler reserves that name (CS8336). Opt back out to keep net48 building. -->
+    <PolySharpUseEmbeddedAttributeForGeneratedTypes>false</PolySharpUseEmbeddedAttributeForGeneratedTypes>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\kp-icon.ico</ApplicationIcon>
