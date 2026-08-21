@@ -842,4 +842,12 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">„{0}" naprawiono przez rasteryzację w PDFium.&#10;&#10;Tekst w naprawionej kopii nie jest zaznaczalny. Użyj Zapisz jako, aby zapisać ją w nowej lokalizacji.</sys:String>
     <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">„{0}" ma uszkodzoną strukturę i nie można go dodać.&#10;&#10;Czy KillerPDF ma spróbować naprawy? Zostanie utworzona naprawiona kopia - oryginalny plik nie zostanie zmieniony.&#10;&#10;Uwaga: naprawionym plikom mogą brakować zakładki, formularze i inne funkcje interaktywne.</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">Model języka ({0}) zostanie teraz pobrany, aby OCR mógł działać.&#10;&#10;W każdej chwili możesz dodać więcej języków lub przełączyć się na modele wyższej jakości w menu OCR.</sys:String>
+    <sys:String x:Key="Str_Bar_More">Więcej ustawień</sys:String>
+    <sys:String x:Key="Str_Bar_TT_Level">Utrzymuje linię na najbliższej osi (poziomej lub pionowej)</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBox">Przeciągnij ramkę, aby usunąć wszystkie adnotacje w środku</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBrush">Przeciągnij po adnotacjach, aby je usunąć</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeBox">Prostokąt - przeciągnij, aby narysować</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Elipsa - przeciągnij, aby narysować owal</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Kształt dowolny - klikaj, aby dodać punkty; kliknij pierwszy punkt lub kliknij dwukrotnie, aby zamknąć, Esc anuluje, Backspace usuwa ostatni punkt</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFill">Wypełnia wnętrze kształtu</sys:String>
 </ResourceDictionary>

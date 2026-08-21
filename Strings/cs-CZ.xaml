@@ -838,4 +838,12 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">„{0}" byl opraven rastrováním přes PDFium.&#10;&#10;Text v opravené kopii nelze vybírat. Použijte Uložit jako a zapište ji na nové místo.</sys:String>
     <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">„{0}" má poškozenou strukturu a nepodařilo se jej přidat.&#10;&#10;Má se KillerPDF pokusit o opravu? Vytvoří se opravená kopie - původní soubor se nezmění.&#10;&#10;Poznámka: opraveným souborům mohou chybět záložky, formuláře a další interaktivní funkce.</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">Nyní se stáhne jazykový model ({0}), aby OCR mohlo běžet.&#10;&#10;Další jazyky nebo modely vyšší kvality můžete kdykoli přidat v nabídce OCR.</sys:String>
+    <sys:String x:Key="Str_Bar_More">Další možnosti</sys:String>
+    <sys:String x:Key="Str_Bar_TT_Level">Udrží čáru na nejbližší ose (vodorovné nebo svislé)</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBox">Tažením rámečku odstraníte všechny anotace uvnitř</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBrush">Přejetím přes anotace je odstraníte</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeBox">Obdélník - tažením nakreslíte obdélník</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Elipsa - tažením nakreslíte ovál</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Volný tvar - klikáním přidáváte body; kliknutím na první bod nebo dvojklikem uzavřete, Esc zruší, Backspace odebere poslední bod</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFill">Vyplní vnitřek tvaru</sys:String>
 </ResourceDictionary>

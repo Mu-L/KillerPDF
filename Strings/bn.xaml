@@ -833,4 +833,12 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">"{0}" PDFium দিয়ে রাস্টারাইজ করে মেরামত হয়েছে।&#10;&#10;মেরামত করা কপিতে টেক্সট নির্বাচন করা যায় না। নতুন জায়গায় লিখতে Save As ব্যবহার করুন।</sys:String>
     <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">"{0}"-এর কাঠামো ক্ষতিগ্রস্ত, তাই যোগ করা যায়নি।&#10;&#10;KillerPDF কি মেরামতের চেষ্টা করবে? একটি মেরামত করা কপি তৈরি হবে - মূল ফাইল বদলাবে না।&#10;&#10;দ্রষ্টব্য: মেরামত করা ফাইলে বুকমার্ক, ফর্ম ও অন্যান্য ইন্টারঅ্যাক্টিভ বৈশিষ্ট্য নাও থাকতে পারে।</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">OCR চালানোর জন্য এখন একটি ভাষার মডেল ({0}) ডাউনলোড হবে।&#10;&#10;OCR মেনু থেকে যেকোনো সময় আরও ভাষা যোগ করতে বা উচ্চমানের মডেলে যেতে পারবেন।</sys:String>
+    <sys:String x:Key="Str_Bar_More">আরও সেটিংস</sys:String>
+    <sys:String x:Key="Str_Bar_TT_Level">লাইনটিকে নিকটতম অক্ষে রাখে (অনুভূমিক বা উল্লম্ব)</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBox">ভিতরের সব টীকা মুছতে একটি বাক্স টানুন</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBrush">টীকার উপর ব্রাশ চালিয়ে সেগুলি মুছুন</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeBox">বাক্স - একটি আয়তক্ষেত্র টানুন</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeEllipse">উপবৃত্ত - একটি ডিম্বাকৃতি টানুন</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">ফ্রিফর্ম - পয়েন্ট যোগ করতে ক্লিক করুন; বন্ধ করতে প্রথম পয়েন্টে ক্লিক বা ডাবল ক্লিক করুন, Esc বাতিল করে, Backspace শেষ পয়েন্ট মুছে দেয়</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFill">আকৃতির ভিতরটা পূরণ করে</sys:String>
 </ResourceDictionary>

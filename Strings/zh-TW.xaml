@@ -835,4 +835,12 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">「{0}」已透過 PDFium 點陣化修復。&#10;&#10;修復副本中的文字無法選取。請使用另存新檔將其寫入新位置。</sys:String>
     <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">「{0}」的結構已損壞，無法加入。&#10;&#10;要讓 KillerPDF 嘗試修復嗎？將建立修復副本 - 原始檔案不會被變更。&#10;&#10;注意：修復後的檔案可能缺少書籤、表單和其他互動功能。</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">現在將下載語言模型（{0}）以便執行 OCR。&#10;&#10;您可以隨時在 OCR 選單中新增更多語言或切換到更高品質的模型。</sys:String>
+    <sys:String x:Key="Str_Bar_More">更多設定</sys:String>
+    <sys:String x:Key="Str_Bar_TT_Level">使線條保持在最近的軸上（水平或垂直）</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBox">拖出一個框以刪除其中的所有註釋</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBrush">在註釋上塗抹以將其刪除</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeBox">方框 - 拖曳繪製矩形</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeEllipse">橢圓 - 拖曳繪製橢圓</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">自由形狀 - 按一下新增點；按一下第一個點或按兩下閉合，Esc 取消，Backspace 刪除最後一個點</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFill">填滿形狀內部</sys:String>
 </ResourceDictionary>

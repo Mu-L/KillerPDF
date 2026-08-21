@@ -833,4 +833,12 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">"{0}" se reparó rasterizando mediante PDFium.&#10;&#10;El texto no es seleccionable en la copia reparada. Use Guardar como para escribirla en una nueva ubicación.</sys:String>
     <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">"{0}" tiene una estructura dañada y no se pudo añadir.&#10;&#10;¿Desea que KillerPDF intente repararlo? Se creará una copia reparada - el archivo original no se modificará.&#10;&#10;Nota: los archivos reparados pueden carecer de marcadores, formularios y otras funciones interactivas.</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">Se descargará ahora un modelo de idioma ({0}) para poder ejecutar OCR.&#10;&#10;Puede añadir más idiomas o cambiar a modelos de mayor calidad en cualquier momento desde el menú OCR.</sys:String>
+    <sys:String x:Key="Str_Bar_More">Más opciones</sys:String>
+    <sys:String x:Key="Str_Bar_TT_Level">Mantiene la línea en el eje más cercano (horizontal o vertical)</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBox">Arrastre un recuadro para eliminar todas las anotaciones dentro</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBrush">Pase el pincel sobre las anotaciones para eliminarlas</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeBox">Caja - arrastre un rectángulo</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Elipse - arrastre un óvalo</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Forma libre - haga clic para añadir puntos; clic en el primer punto o doble clic para cerrar, Esc cancela, Retroceso elimina el último punto</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFill">Rellena el interior de la forma</sys:String>
 </ResourceDictionary>

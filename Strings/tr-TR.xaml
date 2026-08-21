@@ -833,4 +833,12 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">"{0}" PDFium ile rasterleştirilerek onarıldı.&#10;&#10;Onarılan kopyada metin seçilemez. Yeni bir konuma yazmak için Farklı Kaydet'i kullanın.</sys:String>
     <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">"{0}" hasarlı bir yapıya sahip ve eklenemedi.&#10;&#10;KillerPDF onarmayı denesin mi? Onarılmış bir kopya oluşturulacak - özgün dosya değiştirilmeyecek.&#10;&#10;Not: onarılan dosyalarda yer imleri, formlar ve diğer etkileşimli özellikler eksik olabilir.</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">OCR'nin çalışabilmesi için şimdi bir dil modeli ({0}) indirilecek.&#10;&#10;OCR menüsünden istediğiniz zaman başka diller ekleyebilir veya daha yüksek kaliteli modellere geçebilirsiniz.</sys:String>
+    <sys:String x:Key="Str_Bar_More">Diğer ayarlar</sys:String>
+    <sys:String x:Key="Str_Bar_TT_Level">Çizgiyi en yakın eksende tutar (yatay veya dikey)</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBox">İçindeki tüm açıklamaları silmek için bir kutu sürükleyin</sys:String>
+    <sys:String x:Key="Str_Bar_TT_EraserBrush">Silmek için açıklamaların üzerinden geçin</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeBox">Kutu - bir dikdörtgen sürükleyin</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Elips - bir oval sürükleyin</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Serbest biçim - nokta eklemek için tıklayın; kapatmak için ilk noktaya tıklayın veya çift tıklayın, Esc iptal eder, Backspace son noktayı siler</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFill">Şeklin içini doldurur</sys:String>
 </ResourceDictionary>

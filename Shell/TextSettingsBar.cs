@@ -178,30 +178,21 @@ namespace KillerPDF
                 _textSettingsBar = null;
             }
 
-            // Three self-contained 2-row blocks (Size/Font, Color/Fill, Opacity/Fill-Opacity) laid out in a
-            // WrapPanel (built at the end) so they sit on one line when wide and drop to extra rows when the
-            // window is too narrow - a wrap never splits a paired row, since each pair lives inside one block.
-            Grid Block(int cols)
+            // Six self-contained SINGLE-ROW groups (Font+styles, Size, Color, Fill, Opacity,
+            // Fill Opacity) laid out in a WrapPanel (built at the end). Each group slides into
+            // whatever room is left on the current line and wraps independently, so Size sits
+            // beside Font whenever it fits instead of pinning below it in a fixed block. When
+            // even one group per line would need a third row, the least important groups
+            // collapse into the overflow chevron's popup - see WireBarOverflow (AnnotationBars.cs).
+            StackPanel Group()
             {
-                var g = new Grid { VerticalAlignment = VerticalAlignment.Center };
-                for (int ci = 0; ci < cols; ci++) g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                return g;
-            }
-            var gLeft = Block(1);
-            var gPalette = Block(2);
-            var gOpacity = Block(3);
-            // Right margin = the gap to the next block; top/bottom = the gap when blocks wrap to new rows.
-            gLeft.Margin = new Thickness(0, 2, 16, 2);
-            gPalette.Margin = new Thickness(0, 2, 16, 2);
-            gOpacity.Margin = new Thickness(0, 2, 0, 2);
-            void Place(Grid g, UIElement el, int r, int col, int span = 1)
-            {
-                Grid.SetRow(el, r);
-                Grid.SetColumn(el, col);
-                if (span > 1) Grid.SetColumnSpan(el, span);
-                g.Children.Add(el);
+                return new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    // Right margin = the gap to the next group; top/bottom = the gap between wrapped rows.
+                    Margin = new Thickness(0, 3, 16, 3)
+                };
             }
             TextBlock DimLabel(string text, int top, bool rightAlign = false)
             {
@@ -260,20 +251,12 @@ namespace KillerPDF
                 return grid;
             }
 
-            // Drag grip (col 0), spanning both rows and centered vertically (not pinned to the top row).
-            // 4 dots since this bar is double height.
+            // Drag grip, centered vertically against whatever height the wrapped rows produce.
             var textGrip = MakeBarGrip(4);
             textGrip.VerticalAlignment = VerticalAlignment.Center;
             // (grip is added to the WrapPanel host directly, below.)
 
-            // Color / Fill labels live in the palette block (col 0), with the swatch rows in col 1.
-            Place(gPalette, DimLabel(Loc("Str_Bar_Color"), 0), 0, 0);
-            Place(gPalette, DimLabel(Loc("Str_Bar_Fill"), 4), 1, 0);
-
-            // Swatch rows, col 2. Row 0 gets a leading spacer the size of the "None" tile so the
-            // color swatches sit directly above the fill swatches.
             var swatchRow1 = new StackPanel { Orientation = Orientation.Horizontal };
-            swatchRow1.Children.Add(new Border { Width = 18, Height = 18, Margin = new Thickness(1), Background = Brushes.Transparent });
             foreach (var color in SwatchColors)
             {
                 var c = color;
@@ -292,9 +275,11 @@ namespace KillerPDF
                 ApplyTextStyleToSelection();
                 ShowTextSettings();
             }, () => ShowTextSettings())));
-            Place(gPalette, swatchRow1, 0, 1);
+            var grpColor = Group();
+            grpColor.Children.Add(DimLabel(Loc("Str_Bar_Color"), 0));
+            grpColor.Children.Add(swatchRow1);
 
-            var swatchRow2 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            var swatchRow2 = new StackPanel { Orientation = Orientation.Horizontal };
             bool noneActive = _textFillColor.A == 0;
             var noneGrid = new Grid { Width = 18, Height = 18, Margin = new Thickness(1), Cursor = Cursors.Hand };
             var noneBg = new Border { CornerRadius = new CornerRadius(3), Background = Brushes.White, BorderThickness = new Thickness(noneActive ? 2 : 1) };
@@ -328,19 +313,12 @@ namespace KillerPDF
                 ApplyTextStyleToSelection();
                 ShowTextSettings();
             }, () => ShowTextSettings())));
-            // Faint divider + a little breathing room between the Color row and the Fill row.
-            var fillWrap = new Border
-            {
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(38, 255, 255, 255)),
-                Margin = new Thickness(2, 5, 8, 0),
-                Padding = new Thickness(0, 5, 0, 0),
-                Child = swatchRow2
-            };
-            Place(gPalette, fillWrap, 1, 1);
+            var grpFill = Group();
+            grpFill.Children.Add(DimLabel(Loc("Str_Bar_Fill"), 0));
+            grpFill.Children.Add(swatchRow2);
 
-            // Size group: bottom row of the left block, directly below the font / style row.
-            var sizeStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
+            // Size group: its own single-row group, packed beside Font whenever the width allows.
+            var sizeStack = Group();
             sizeStack.Children.Add(DimLabel(Loc("Str_Bar_Size"), 0));
             var sizeSlider = new Slider
             {
@@ -451,9 +429,8 @@ namespace KillerPDF
             sizeStack.Children.Add(StepButton("+", () => SetSize(_textFontSize + 1)));
             sizeStack.Children.Add(sizeBox);
             sizeStack.Children.Add(ptLabel);
-            Place(gLeft, sizeStack, 1, 0);
 
-            // Fill-row middle (under the Size group): typeface selector + Bold / Italic / Strikethrough.
+            // Font group: typeface selector + Bold / Italic / Strikethrough / Underline.
             // A small square toggle whose glyph previews its own effect (bold B, italic I, struck-through S).
             Border StyleToggle(string glyph, string tip, bool active, FontWeight fw, FontStyle fs, TextDecorationCollection? deco, Action onClick)
             {
@@ -486,7 +463,7 @@ namespace KillerPDF
                 return b;
             }
 
-            var fontStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var fontStack = Group();
             fontStack.Children.Add(DimLabel(Loc("Str_Bar_Font"), 0));
             var fontBox = new ComboBox
             {
@@ -515,10 +492,10 @@ namespace KillerPDF
                 () => { _textStrike = !_textStrike; ApplyTextStyleToSelection(); ShowTextSettings(); }));
             fontStack.Children.Add(StyleToggle("U", Loc("Str_Lbl_Underline"), _textUnderline, FontWeights.Normal, FontStyles.Normal, TextDecorations.Underline,
                 () => { _textUnderline = !_textUnderline; ApplyTextStyleToSelection(); ShowTextSettings(); }));
-            Place(gLeft, fontStack, 0, 0);
 
-            // Opacity (row 0) and Fill Opacity (row 1) block: label col 0, slider col 1, value col 2.
-            Place(gOpacity, DimLabel(Loc("Str_Bar_Opacity"), 0, rightAlign: true), 0, 0);
+            // Opacity and Fill Opacity: two independent single-row groups.
+            var grpOpacity = Group();
+            grpOpacity.Children.Add(DimLabel(Loc("Str_Bar_Opacity"), 0));
             var opacitySlider = new Slider
             {
                 Minimum = 10,
@@ -528,7 +505,7 @@ namespace KillerPDF
                 VerticalAlignment = VerticalAlignment.Center,
                 Style = (Style)FindResource("DarkSlider")
             };
-            Place(gOpacity, opacitySlider, 0, 1);
+            grpOpacity.Children.Add(opacitySlider);
             var opacityLabel = new TextBlock
             {
                 Text = $"{(int)(_textOpacity / 255.0 * 100)}%",
@@ -540,7 +517,7 @@ namespace KillerPDF
                 TextAlignment = TextAlignment.Right
             };
             opacityLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
-            Place(gOpacity, opacityLabel, 0, 2);
+            grpOpacity.Children.Add(opacityLabel);
             opacitySlider.ValueChanged += (s, e) =>
             {
                 byte a = (byte)e.NewValue;
@@ -550,7 +527,8 @@ namespace KillerPDF
                 ApplyTextStyleToSelection();
             };
 
-            Place(gOpacity, DimLabel(Loc("Str_Bar_FillOpacity"), 10, rightAlign: true), 1, 0);
+            var grpFillOp = Group();
+            grpFillOp.Children.Add(DimLabel(Loc("Str_Bar_FillOpacity"), 0));
             byte curFillA = _textFillColor.A == 0 ? (byte)255 : _textFillColor.A;
             var fillOpSlider = new Slider
             {
@@ -559,22 +537,21 @@ namespace KillerPDF
                 Value = curFillA,
                 Width = 90,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 0),
                 Style = (Style)FindResource("DarkSlider")
             };
-            Place(gOpacity, fillOpSlider, 1, 1);
+            grpFillOp.Children.Add(fillOpSlider);
             var fillOpLabel = new TextBlock
             {
                 Text = $"{(int)(curFillA / 255.0 * 100)}%",
                 FontFamily = UiKit.UiFont,
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 10, 0, 0),
+                Margin = new Thickness(4, 0, 0, 0),
                 Width = 40,
                 TextAlignment = TextAlignment.Right
             };
             fillOpLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
-            Place(gOpacity, fillOpLabel, 1, 2);
+            grpFillOp.Children.Add(fillOpLabel);
             fillOpSlider.ValueChanged += (s, e) =>
             {
                 byte a = (byte)e.NewValue;
@@ -584,31 +561,18 @@ namespace KillerPDF
                 ApplyTextStyleToSelection();
             };
 
-            // Faint divider between the Opacity and Fill Opacity rows, matching the color/fill one.
-            var opDivider = new Border
-            {
-                Height = 1,
-                VerticalAlignment = VerticalAlignment.Top,
-                Background = new SolidColorBrush(Color.FromArgb(38, 255, 255, 255)),
-                Margin = new Thickness(0, 5, 8, 0)
-            };
-            Place(gOpacity, opDivider, 1, 1, 2);
-
-            // Assemble the blocks into a wrapping host: grip + the three 2-row blocks, with thin separators
-            // between them. When wide it's the same two rows as before; when narrow whole blocks drop down.
+            // Assemble the groups into one wrapping host: grip + the six single-row groups + the
+            // overflow chevron. The WrapPanel packs the groups like words in a paragraph; the
+            // overflow logic (WireBarOverflow) caps the bar at two rows by shedding the least
+            // important groups into the chevron's popup, restoring them when there is room again.
             var wrapHost = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 2, 8, 2), Background = Brushes.Transparent };
-            // Left-to-right collapse: gLeft (Font/Size) stays on row 1 with the grip; Color and Opacity live
-            // in a nested wrap panel that, as the bar narrows, FIRST drops below gLeft as a whole (the break
-            // lands "before the colors"), THEN splits so Opacity drops below Color. Inter-block spacing is
-            // each block's right margin (set above), so it survives wrapping with no separators.
-            var tRest = new WrapPanel { Orientation = Orientation.Horizontal, Background = Brushes.Transparent };
-            tRest.Children.Add(gPalette);
-            tRest.Children.Add(gOpacity);
+            var overflowBtn = MakeBarOverflow(out var overflowPopup, out var overflowStack);
+            var barGroups = new StackPanel[] { fontStack, sizeStack, grpColor, grpFill, grpOpacity, grpFillOp };
             wrapHost.Children.Add(textGrip);
-            wrapHost.Children.Add(gLeft);
-            wrapHost.Children.Add(tRest);
+            foreach (var g in barGroups) wrapHost.Children.Add(g);
+            wrapHost.Children.Add(overflowBtn);
+            wrapHost.Children.Add(overflowPopup);   // renders nothing; keeps the popup in the tree for DynamicResource
             _annotBarDragInners.Clear();
-            _annotBarDragInners.Add(tRest);
 
             _textSettingsBar = new Border
             {
@@ -629,19 +593,20 @@ namespace KillerPDF
             {
                 Panel.SetZIndex(_textSettingsBar, 100);
                 previewArea.Children.Add(_textSettingsBar);
-                // Cap the wrap host to the document area's width so the blocks reflow on a narrow window.
+                // Cap the wrap host to the document area's width so the groups reflow on a narrow window.
                 wrapHost.SetBinding(FrameworkElement.MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth")
                 { Source = previewArea, Converter = _barWidthInset });
-                // The nested Color+Opacity panel gets the same cap so that, once it has dropped to its own
-                // row, it splits Color / Opacity when even that row is too narrow.
-                tRest.SetBinding(FrameworkElement.MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth")
-                { Source = previewArea, Converter = _barWidthInset });
-                WireBarWrapAdaptation(wrapHost, textGrip, gLeft, previewArea);
+                WireBarWrapAdaptation(wrapHost, textGrip, fontStack, previewArea);
+                // Shed order: Fill Opacity, Opacity, Fill, Color, Size. Font never collapses.
+                WireBarOverflow(wrapHost, overflowBtn, overflowPopup, overflowStack, barGroups, [5, 4, 3, 2, 1], previewArea);
                 PlaceAnnotationBar(_textSettingsBar, textGrip, fadeIn: appearing);
             }
             _annotBarTool = EditTool.Text;
             _annotBarMinimized = false;   // a freshly built bar is full-size
         }
+
+        // (The shared overflow machinery - MakeBarOverflow and WireBarOverflow - lives in
+        // AnnotationBars.cs, used by this bar and the draw/highlight/line/shape bar alike.)
 
         private void HideTextSettings()
         {
