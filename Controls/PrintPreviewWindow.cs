@@ -1440,8 +1440,13 @@ namespace KillerPDF
                         int.TryParse(seg[1].Trim(), out int b))
                     {
                         if (a > b) (a, b) = (b, a);
-                        for (int i = a; i <= b; i++)
-                            if (i >= 1 && i <= count) set.Add(i - 1);
+                        // Clamp the ends rather than testing each i inside the loop. With the test
+                        // inside, "1-2147483647" ran i++ past int.MaxValue, wrapped to int.MinValue,
+                        // and i <= b was true again - the loop never ended. The Pages box drives the
+                        // preview live, so that froze the app on a keystroke. Same output either way.
+                        if (a < 1) a = 1;
+                        if (b > count) b = count;
+                        for (int i = a; i <= b; i++) set.Add(i - 1);
                     }
                 }
                 else if (int.TryParse(part, out int v))

@@ -643,7 +643,12 @@ namespace KillerPDF
                 if (dash > 0)
                 {
                     if (int.TryParse(p[..dash].Trim(), out int a) && int.TryParse(p[(dash + 1)..].Trim(), out int b))
-                        for (int i = Math.Min(a, b); i <= Math.Max(a, b); i++) if (i >= 1 && i <= pageCount) set.Add(i - 1);
+                        {
+                            // Clamp the ends rather than testing each i: an unclamped "1-2147483647" wrapped
+                            // i++ to int.MinValue at the top and never terminated. Same fix as ParseRange.
+                            int lo = Math.Max(1, Math.Min(a, b)), hi = Math.Min(pageCount, Math.Max(a, b));
+                            for (int i = lo; i <= hi; i++) set.Add(i - 1);
+                        }
                 }
                 else if (int.TryParse(p, out int single) && single >= 1 && single <= pageCount) set.Add(single - 1);
             }
