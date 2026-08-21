@@ -22,8 +22,10 @@ namespace KillerPDF
         public ExportImagesDialog(Window owner, string presetRange = "")
         {
             Title = "KillerPDF - " + L("Str_ExportImg_Suffix");
-            Width = 380;
-            SizeToContent = SizeToContent.Height;
+            // Width follows the caption. "Export Pages as Images" is 22 characters in en-US and
+            // up to 35 translated, which ran the title under the close button at a fixed 380 (#223).
+            MinWidth = 380;
+            SizeToContent = SizeToContent.WidthAndHeight;
             UseLayoutRounding = true;
             DialogChrome.Configure(this, owner);
             BuildUi();
