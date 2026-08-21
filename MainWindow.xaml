@@ -894,7 +894,7 @@
                                         Margin="0,2,6,6"
                                         MinWidth="{Binding ActualWidth,
                                                    RelativeSource={RelativeSource TemplatedParent}}"
-                                        MaxHeight="220">
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                     <Border.Effect>
                                         <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
                                     </Border.Effect>
