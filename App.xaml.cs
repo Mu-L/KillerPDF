@@ -106,6 +106,15 @@ namespace KillerPDF
                 return;
             }
 
+            // Elevated half of the dual-install repair (OfferInstallConflictRepair): removes the
+            // machine-wide copy.
+            if (e.Args.Any(a => string.Equals(a, "/remove-machine-conflict", StringComparison.OrdinalIgnoreCase)))
+            {
+                RemoveMachineInstallConflict();
+                Shutdown(0);
+                return;
+            }
+
             // #168: install our font resolver before anything can create an XFont - PdfSharpCore
             // caches the resolver on first use. Without this the save path sees only *.ttf and
             // cannot embed the .ttc families every CJK script relies on.
@@ -171,6 +180,8 @@ namespace KillerPDF
             }
             StartPipeServer();
             StartupTrace.Mark("Single-instance initialization complete");
+
+            OfferInstallConflictRepair();
 
             ShutdownMode = ShutdownMode.OnLastWindowClose;
             CleanupStaleTemps();
@@ -647,6 +658,57 @@ namespace KillerPDF
         /// <summary>True when KillerPDF is already installed for the current user.</summary>
         internal static bool UserInstallExists() =>
             File.Exists(InstallExe) || File.Exists(LegacyUserInstallExe);
+
+        /// <summary>Repairs a machine that carries BOTH a per-user and a machine-wide install -
+        /// the state where each Add/Remove Programs entry describes the other copy's version and
+        /// launching gets whichever exe the shell resolves first. Detected at startup; offers to
+        /// remove whichever copy is NOT running. Removing the machine copy needs elevation, so
+        /// that path re-runs this exe with /remove-machine-conflict under UAC.</summary>
+        private static void OfferInstallConflictRepair()
+        {
+            if (!UserInstallExists() || !MachineInstallExists()) return;
+            string current = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+            bool runningMachine = string.Equals(current, MachineInstallExe, StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(current, LegacyMachineInstallExe, StringComparison.OrdinalIgnoreCase);
+            bool runningUser = string.Equals(current, InstallExe, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(current, LegacyUserInstallExe, StringComparison.OrdinalIgnoreCase);
+            if (!runningMachine && !runningUser) return;
+
+            string other = runningMachine ? "per-user" : "all-users";
+            if (MessageBox.Show($"KillerPDF is installed twice. Remove the other {other} copy now?\n\nYour settings will not be removed.",
+                $"{AppName} installation conflict", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+
+            if (runningMachine)
+            {
+                RemovePerUserInstall();
+                // The machine install's HKLM handler serves every account; drop the per-user
+                // registration so it cannot shadow the shared Program Files paths (#183).
+                UnregisterFileHandler(Registry.CurrentUser);
+            }
+            else
+            {
+                try
+                {
+                    using var p = Process.Start(new ProcessStartInfo(current, "/remove-machine-conflict")
+                    { UseShellExecute = true, Verb = "runas" });
+                    p?.WaitForExit();
+                }
+                catch { /* declining UAC leaves both copies in place */ }
+            }
+        }
+
+        private static void RemoveMachineInstallConflict()
+        {
+            try { File.Delete(MachineStartMenuLnk); } catch { }
+            try { Directory.Delete(MachineStartMenuDir, recursive: false); } catch { }
+            UnregisterFileHandler(Registry.LocalMachine);
+            Services.ProtocolRegistrar.Unregister(Registry.LocalMachine);
+            try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\KillerPDF"); } catch { }
+            try { Registry.LocalMachine.DeleteSubKeyTree(
+                @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF"); } catch { }
+            try { if (Directory.Exists(MachineInstallDir)) Directory.Delete(MachineInstallDir, true); } catch { }
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, IntPtr.Zero, IntPtr.Zero);
+        }
 
         /// <summary>
         /// Installs KillerPDF, offers to set it as the default PDF handler, then relaunches from

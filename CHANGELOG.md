@@ -8,36 +8,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Added
 - Hungarian (hu-HU) localization, the twelfth interface language, in the language picker as "Magyar" (PR #214, thanks CsokiHUN).
-- "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
 - Hide the toolbar from its right-click menu or Alt+M, and full screen no longer sits over other applications when you switch away (#215, thanks Subjuntivos).
+- "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
+- Translations can be tested in a normal install and reload on every save of the file; TRANSLATING.md has the steps (#211, thanks bovirus).
 - The page badge fires on grid scrolling and names the visible span (#197, thanks Ryokoxx).
-- Translators can test their work in a normal install: `--lang-file <path>` loads a translation file as the active language and re-applies it on every save (#211, thanks bovirus). See TRANSLATING.md.
 
 ### Changed
-- Internal cancellation resource keys now use the same American spelling as their displayed text.
 - KillerPDF now remains one portable download while installing as a normal multi-file application. The portable EXE carries one compressed, verified payload and cleans up its temporary files after use; installed shortcuts launch the inner app directly, avoiding Costura extraction and reducing measured first startup by about 40% on the development machine (#189, thanks ags1234). The new package is also roughly 34% smaller than the previous woven EXE.
-- Updates now reuse the same staged and verified payload installer. Portable updates replace the original launcher only after both launcher and app have exited, while per-user and machine-wide installs update their multi-file application safely before relaunching.
+- Internal cancellation resource keys now use the same American spelling as their displayed text.
 
 ### Fixed
-- The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
-- The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
-- The page list's top and bottom edge fades are back; they painted a transparent brush and so showed on no theme but 98SE.
-- Snapping, maximizing, or restoring the window keeps the split panes' proportions, and a sidebar you closed stays closed when a tab loads its document.
-- Grid view no longer drops its last column into the next row at certain pane widths.
 - Rotating a page no longer deletes the document's unsaved annotations; they now turn with the page (#169, thanks terada-d).
-- In grid view, drawing on a page or clicking one of its annotations now selects that page, as a plain click already did.
-- Image pickers (Insert Image, image signatures and stamps, watermark) now return to the last folder an image was picked from, instead of wherever the last PDF was opened.
-- After an install relaunch or split-pane session restore, the sidebar now attaches the active pane's thumbnail cache before the first visible frame instead of remaining blank until the user clicks a pane.
-- Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
-- KillerPDF no longer permits a per-user installation beside an existing all-users installation. The installer keeps the existing machine-wide scope selected, blocks an accidental second copy, and removes the current account's older per-user copy when converting or updating to an all-users installation.
-- The empty-state recent-files panel now responds to ordinary window resizing, hiding before it crowds the drop target and returning when the pane has enough room.
-- Machine-wide uninstall now requests administrator access before removing the Program Files copy and HKLM registration, rather than silently reporting success after permission failures.
 - Form fields saved on systems whose decimal separator is a comma (German and most European locales) now get valid appearance streams; they previously came out blank or garbled with repeated, re-wrapped text in other viewers and in print, flatten, and export, thanks Thomas.
 - Print, flatten, image export, and thumbnails no longer draw a form field twice when its stored appearance disagrees with the regenerated one.
 - The Open dialog no longer crashes where Explorer's Quick Access cannot be read, such as under Wine and CrossOver; the pinned folders and drives still list (#210, thanks Ximelay).
 - Opening a PDF from Explorer while KillerPDF is still starting no longer crashes; the file now opens once the window is ready (#202, thanks tgv123456).
+- KillerPDF no longer permits a per-user installation beside an existing all-users installation. The installer keeps the existing machine-wide scope selected, blocks an accidental second copy, and removes the current account's older per-user copy when converting or updating to an all-users installation.
+- A machine already carrying both a per-user and an all-users installation is now detected at startup, with an offer to remove the copy that is not running.
+- Machine-wide uninstall now requests administrator access before removing the Program Files copy and HKLM registration, rather than silently reporting success after permission failures.
 - Dropping a damaged PDF on the Pages panel now offers the same repair the Open dialog offers, instead of silently ignoring the file (#203, thanks 1mk3r).
+- After an install relaunch or split-pane session restore, the sidebar now attaches the active pane's thumbnail cache before the first visible frame instead of remaining blank until the user clicks a pane.
+- Snapping, maximizing, or restoring the window keeps the split panes' proportions, and a sidebar you closed stays closed when a tab loads its document.
+- Grid view no longer drops its last column into the next row at certain pane widths.
+- In grid view, drawing on a page or clicking one of its annotations now selects that page, as a plain click already did.
+- Image pickers (Insert Image, image signatures and stamps, watermark) now return to the last folder an image was picked from, instead of wherever the last PDF was opened.
 - Dragging the title bar downward restores a maximized window from anywhere along the bar, including over the logo, on every theme (#206, thanks 1mk3r).
+- The page list's top and bottom edge fades are back; they painted a transparent brush and so showed on no theme but 98SE.
+- The empty-state recent-files panel now responds to ordinary window resizing, hiding before it crowds the drop target and returning when the pane has enough room.
+- The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
+- The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
+- Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
 
 ## [1.7.3] - 2026-08-15
 
