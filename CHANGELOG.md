@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.7.4] - Unreleased
 
+1.7.4 repackages KillerPDF as one portable download that installs as a normal multi-file application with a much faster first start, and is otherwise a bug fix release - rotation-safe annotations, valid form fields on comma-decimal locales, installer scope guards, and a round of view, dialog, and localization fixes - plus Hungarian localization and page image export.
+
 ### Added
 - Hungarian (hu-HU) localization, the twelfth interface language, in the language picker as "Magyar" (PR #214, thanks CsokiHUN).
 - Hide the toolbar from its right-click menu or Alt+M, and full screen no longer sits over other applications when you switch away (#215, thanks Subjuntivos).
