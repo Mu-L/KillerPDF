@@ -698,4 +698,28 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Tf_LevelsBlack">黑場</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">白場</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">中間調</sys:String>
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">顏色</sys:String>
+    <sys:String x:Key="Str_Color_Pick">選擇顏色</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">數位簽章</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">選擇簽名憑證</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">簽名 PDF 另存為</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">匯入簽名圖片</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">PDF 檔案</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">憑證檔案</sys:String>
+    <sys:String x:Key="Str_Filter_Text">文字檔</sys:String>
+    <sys:String x:Key="Str_Print_Sending">正在傳送到印表機…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">字型大小：</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">儲存可搜尋的 PDF</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">擷取所有文字</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">使用高品質模型</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">開啟 PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">選擇要合併的 PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">PDF 另存為</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">儲存平面化 PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">擷取的頁面另存為</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">插入圖片</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">建立桌面捷徑</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">草稿</sys:String>
 </ResourceDictionary>

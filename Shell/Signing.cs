@@ -574,7 +574,7 @@ namespace KillerPDF
         {
             var win = new Window
             {
-                Title = "Create Signature",
+                Title = Loc("Str_Sig_Create"),
                 Width = 460,
                 SizeToContent = SizeToContent.Height   // size to content so there's no empty padding below
             };
@@ -775,8 +775,8 @@ namespace KillerPDF
         {
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
             {
-                Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*",
-                Title = "Import Signature Image",
+                Filter = Loc("Str_Filter_Images") + "|*.png;*.jpg;*.jpeg;*.bmp;*.gif|" + Loc("Str_Filter_AllFiles") + "|*.*",
+                Title = Loc("Str_Sign_ImportImage"),
                 ShowImagePreview = true
             };
             if (dlg.ShowDialog(this) != true) return;

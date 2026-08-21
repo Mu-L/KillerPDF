@@ -1323,7 +1323,7 @@ namespace KillerPDF
                     }
                 });
 
-                statusText.Text = "Sending to printer…";
+                statusText.Text = S("Str_Print_Sending");
                 // Let the scrim repaint the new message before the UI-thread compose + spool below runs.
                 await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
 

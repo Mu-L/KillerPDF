@@ -702,4 +702,28 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Tf_LevelsBlack">Schwarzpunkt</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Weißpunkt</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Mitteltöne</sys:String>
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">Farbe</sys:String>
+    <sys:String x:Key="Str_Color_Pick">Farbe wählen</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Digitale Signatur</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Signaturzertifikat wählen</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Signierte PDF speichern unter</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Signaturbild importieren</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">PDF-Dateien</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">Zertifikatdateien</sys:String>
+    <sys:String x:Key="Str_Filter_Text">Textdatei</sys:String>
+    <sys:String x:Key="Str_Print_Sending">Wird an den Drucker gesendet…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">Schriftgröße:</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">Durchsuchbare PDF speichern</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">Gesamten Text extrahieren</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">Hochwertige Modelle verwenden</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">PDF öffnen</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">PDF zum Zusammenführen wählen</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">PDF speichern unter</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">Reduzierte PDF speichern</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">Extrahierte Seiten speichern unter</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">Bild einfügen</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">Desktopverknüpfung erstellen</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">ENTWURF</sys:String>
 </ResourceDictionary>

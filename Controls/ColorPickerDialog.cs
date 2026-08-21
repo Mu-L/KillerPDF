@@ -47,9 +47,10 @@ namespace KillerPDF
         // First-run / Reset palette: 9 fixed slots, last one white.
         private static readonly Color[] DefaultSwatches = UiKit.DefaultSwatches;
         private static SolidColorBrush R(string key) => (SolidColorBrush)Application.Current.Resources[key];
+        private static string L(string key) => Application.Current.TryFindResource(key) as string ?? key;
         public ColorPickerDialog(Window? owner, Color initial)
         {
-            Title = "KillerPDF - Color";
+            Title = "KillerPDF - " + L("Str_Color_Name");
             Width = 300;
             SizeToContent = SizeToContent.Height;
             DialogChrome.Configure(this, owner);
@@ -89,7 +90,7 @@ namespace KillerPDF
             // Accent heading with a 1px drop shadow - the shared style for these secondary-window titles.
             var title = new TextBlock
             {
-                Text = "Pick a color", Foreground = R("PrimaryBrush"),
+                Text = L("Str_Color_Pick"), Foreground = R("PrimaryBrush"),
                 FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 12),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 2, ShadowDepth = 1, Direction = 270, Opacity = 0.7 },
                 Cursor = Cursors.SizeAll
@@ -158,7 +159,7 @@ namespace KillerPDF
             inputRow.Children.Add(_eyedropBtn);
             panel.Children.Add(inputRow);
             var hexRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-            hexRow.Children.Add(new TextBlock { Text = "Hex", Foreground = R("MutedTextBrush"), FontSize = 11,
+            hexRow.Children.Add(new TextBlock { Text = L("Str_Color_Hex"), Foreground = R("MutedTextBrush"), FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
             _hexBox = MakeTextBox(96);
             _hexBox.MaxLength = 7;

@@ -705,4 +705,28 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_TT_ViewDetails">Részletes nézet</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">Ikonnézet</sys:String>
     <sys:String x:Key="Str_TT_ViewList">Listanézet</sys:String>
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">Szín</sys:String>
+    <sys:String x:Key="Str_Color_Pick">Válasszon színt</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Digitális aláírás</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Válasszon aláíró tanúsítványt</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Aláírt PDF mentése másként</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Aláíráskép importálása</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">PDF fájlok</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">Tanúsítványfájlok</sys:String>
+    <sys:String x:Key="Str_Filter_Text">Szövegfájl</sys:String>
+    <sys:String x:Key="Str_Print_Sending">Küldés a nyomtatóra…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">Betűméret:</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">Kereshető PDF mentése</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">Összes szöveg kinyerése</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">Kiváló minőségű modellek használata</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">PDF megnyitása</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">Válassza ki az egyesítendő PDF-et</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">PDF mentése másként</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">Egyesített PDF mentése</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">Kinyert oldalak mentése másként</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">Kép beszúrása</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">Parancsikon létrehozása az asztalon</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">VÁZLAT</sys:String>
 </ResourceDictionary>

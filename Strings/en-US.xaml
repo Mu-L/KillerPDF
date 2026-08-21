@@ -705,4 +705,30 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_TT_ViewDetails">Details view</sys:String>
     <sys:String x:Key="Str_TT_ViewIcons">Icon view</sys:String>
     <sys:String x:Key="Str_TT_ViewList">List view</sys:String>
+
+    <!-- 1.7.4 hardcoded-string sweep (#227): dialog titles, file-dialog filters, and defaults
+         that were English literals in code and invisible to translators. -->
+    <sys:String x:Key="Str_Color_Name">Color</sys:String>
+    <sys:String x:Key="Str_Color_Pick">Pick a color</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Digital Signature</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Choose a signing certificate</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Save signed PDF as</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Import Signature Image</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">PDF files</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">Certificate files</sys:String>
+    <sys:String x:Key="Str_Filter_Text">Text file</sys:String>
+    <sys:String x:Key="Str_Print_Sending">Sending to printer…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">Font size:</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">Save Searchable PDF</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">Extract All Text</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">Use High Quality Models</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">Open PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">Select PDF to merge</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">Save PDF as</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">Save Flattened PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">Save extracted pages as</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">Insert Image</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">Create desktop shortcut</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">DRAFT</sys:String>
 </ResourceDictionary>

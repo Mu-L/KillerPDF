@@ -696,4 +696,28 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Tf_LevelsBlack">Siyah noktası</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Beyaz noktası</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Orta tonlar</sys:String>
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">Renk</sys:String>
+    <sys:String x:Key="Str_Color_Pick">Bir renk seçin</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Dijital İmza</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">İmzalama sertifikası seçin</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">İmzalı PDF'yi farklı kaydet</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">İmza görüntüsünü içe aktar</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">PDF dosyaları</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">Sertifika dosyaları</sys:String>
+    <sys:String x:Key="Str_Filter_Text">Metin dosyası</sys:String>
+    <sys:String x:Key="Str_Print_Sending">Yazıcıya gönderiliyor…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">Yazı tipi boyutu:</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">Aranabilir PDF'yi kaydet</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">Tüm metni çıkar</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">Yüksek kaliteli modelleri kullan</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">PDF aç</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">Birleştirilecek PDF'yi seçin</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">PDF'yi farklı kaydet</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">Düzleştirilmiş PDF'yi kaydet</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">Çıkarılan sayfaları farklı kaydet</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">Resim ekle</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">Masaüstü kısayolu oluştur</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">TASLAK</sys:String>
 </ResourceDictionary>

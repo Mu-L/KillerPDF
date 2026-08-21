@@ -147,7 +147,7 @@ namespace KillerPDF
             root.Items.Add(new Separator());
             var hq = new MenuItem
             {
-                Header = "Use High Quality Models",
+                Header = Loc("Str_Ocr_HighQuality"),
                 IsChecked = hqPref,
                 StaysOpenOnClick = true,   // stay open like the language checkboxes above
             };

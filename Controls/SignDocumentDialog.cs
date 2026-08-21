@@ -45,7 +45,7 @@ namespace KillerPDF
         public SignDocumentDialog(Window? owner, string sourcePdf)
         {
             _sourcePdf = sourcePdf;
-            Title = "KillerPDF - Digital Signature";
+            Title = "KillerPDF - " + L("Str_Sign_Name");
             Width = 470;
             SizeToContent = SizeToContent.Height;
             UseLayoutRounding = true;
@@ -171,14 +171,14 @@ namespace KillerPDF
         private void BrowsePfx()
         {
             var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Open)
-                          { Filter = "Certificate files|*.pfx;*.p12|All files|*.*", Title = "Choose a signing certificate" };
+                          { Filter = L("Str_Filter_Cert") + "|*.pfx;*.p12|" + L("Str_Filter_AllFiles") + "|*.*", Title = L("Str_Sign_ChooseCert") };
             if (dlg.ShowDialog(this) == true) _pfxBox.Text = dlg.FileName;
         }
 
         private void BrowseOutput()
         {
             var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Save)
-                          { Filter = "PDF files|*.pdf", Title = "Save signed PDF as", FileName = Path.GetFileName(_outputBox.Text) };
+                          { Filter = L("Str_Filter_Pdf") + "|*.pdf", Title = L("Str_Sign_SaveAs"), FileName = Path.GetFileName(_outputBox.Text) };
             if (dlg.ShowDialog(this) == true) _outputBox.Text = dlg.FileName;
         }
 

@@ -696,4 +696,28 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Tf_LevelsBlack">Punto negro</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punto blanco</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Medios tonos</sys:String>
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">Color</sys:String>
+    <sys:String x:Key="Str_Color_Pick">Elija un color</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Firma digital</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Elija un certificado de firma</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Guardar PDF firmado como</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Importar imagen de firma</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">Archivos PDF</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">Archivos de certificado</sys:String>
+    <sys:String x:Key="Str_Filter_Text">Archivo de texto</sys:String>
+    <sys:String x:Key="Str_Print_Sending">Enviando a la impresora…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">Tamaño de fuente:</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">Guardar PDF con texto buscable</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">Extraer todo el texto</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">Usar modelos de alta calidad</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">Abrir PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">Seleccione el PDF a combinar</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">Guardar PDF como</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">Guardar PDF aplanado</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">Guardar páginas extraídas como</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">Insertar imagen</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">Crear acceso directo en el escritorio</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">BORRADOR</sys:String>
 </ResourceDictionary>

@@ -701,4 +701,28 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Tf_LevelsBlack">ブラックポイント</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">ホワイトポイント</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">中間調</sys:String>
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">色</sys:String>
+    <sys:String x:Key="Str_Color_Pick">色を選択</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">デジタル署名</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">署名証明書を選択</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">署名済み PDF を保存</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">署名画像をインポート</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">PDF ファイル</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">証明書ファイル</sys:String>
+    <sys:String x:Key="Str_Filter_Text">テキストファイル</sys:String>
+    <sys:String x:Key="Str_Print_Sending">プリンターに送信中…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">フォントサイズ：</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">検索可能な PDF を保存</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">すべてのテキストを抽出</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">高品質モデルを使用</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">PDF を開く</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">結合する PDF を選択</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">PDF に名前を付けて保存</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">統合された PDF を保存</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">抽出したページを保存</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">画像を挿入</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">デスクトップにショートカットを作成</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">下書き</sys:String>
 </ResourceDictionary>

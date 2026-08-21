@@ -695,4 +695,38 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Tf_LevelsBlack">Punkt czerni</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punkt bieli</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Półtony</sys:String>
+    <!-- Theme names missed when pl-PL landed alongside the seven new themes in 1.7.2.
+         Proper nouns, untranslated by family convention (matches de-DE et al). -->
+    <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>
+    <sys:String x:Key="Str_Theme_Ectoplasm">Ectoplasm</sys:String>
+    <sys:String x:Key="Str_Theme_Decay">Decay</sys:String>
+    <sys:String x:Key="Str_Theme_Mourning">Mourning</sys:String>
+    <sys:String x:Key="Str_Theme_Sepulchre">Sepulchre</sys:String>
+    <sys:String x:Key="Str_Theme_Delirium">Delirium</sys:String>
+    <sys:String x:Key="Str_Theme_Malaise">Malaise</sys:String>
+
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">Kolor</sys:String>
+    <sys:String x:Key="Str_Color_Pick">Wybierz kolor</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Podpis cyfrowy</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Wybierz certyfikat podpisu</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Zapisz podpisany PDF jako</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Importuj obraz podpisu</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">Pliki PDF</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">Pliki certyfikatów</sys:String>
+    <sys:String x:Key="Str_Filter_Text">Plik tekstowy</sys:String>
+    <sys:String x:Key="Str_Print_Sending">Wysyłanie do drukarki…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">Rozmiar czcionki:</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">Zapisz przeszukiwalny PDF</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">Wyodrębnij cały tekst</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">Używaj modeli wysokiej jakości</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">Otwórz PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">Wybierz PDF do scalenia</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">Zapisz PDF jako</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">Zapisz spłaszczony PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">Zapisz wyodrębnione strony jako</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">Wstaw obraz</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">Utwórz skrót na pulpicie</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">SZKIC</sys:String>
 </ResourceDictionary>

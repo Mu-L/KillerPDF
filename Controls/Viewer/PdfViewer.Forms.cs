@@ -1028,7 +1028,7 @@ namespace KillerPDF.Controls
             // Fixed light text: the InlineFlyout pill is dark regardless of the app theme.
             var lbl = new TextBlock
             {
-                Text = "Font size:",
+                Text = Loc("Str_Forms_FontSize"),
                 FontFamily = UiKit.UiFont, FontSize = 10,
                 Foreground = new SolidColorBrush(Color.FromRgb(0xB8, 0xB8, 0xB8)),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0)

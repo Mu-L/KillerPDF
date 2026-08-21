@@ -175,8 +175,8 @@ namespace KillerPDF.Features
 
             var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Save)
             {
-                Filter = "PDF files|*.pdf",
-                Title = "Save Searchable PDF",
+                Filter = _host.Loc("Str_Filter_Pdf") + "|*.pdf",
+                Title = _host.Loc("Str_Ocr_SaveSearchable"),
                 FileName = SuggestSearchableName(),
                 CheckFileExists = false,
                 CheckPathExists = true
@@ -313,8 +313,8 @@ namespace KillerPDF.Features
 
             var dlg = new KillerPDF.Controls.FileDialog(KillerPDF.Controls.FileDialogMode.Save)
             {
-                Filter = "Text file|*.txt|Markdown|*.md",
-                Title = "Extract All Text",
+                Filter = _host.Loc("Str_Filter_Text") + "|*.txt|Markdown|*.md",
+                Title = _host.Loc("Str_Ocr_ExtractAllText"),
                 FileName = Path.GetFileNameWithoutExtension(_host.OriginalFile ?? _host.CurrentFile ?? "document") + ".txt",
                 CheckFileExists = false,
                 CheckPathExists = true

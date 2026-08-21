@@ -701,4 +701,28 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Tf_LevelsBlack">Černý bod</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Bílý bod</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Střední tóny</sys:String>
+    <!-- 1.7.4 hardcoded-string sweep (#227) -->
+    <sys:String x:Key="Str_Color_Name">Barva</sys:String>
+    <sys:String x:Key="Str_Color_Pick">Vyberte barvu</sys:String>
+    <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Digitální podpis</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Vyberte podpisový certifikát</sys:String>
+    <sys:String x:Key="Str_Sign_SaveAs">Uložit podepsané PDF jako</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Importovat obrázek podpisu</sys:String>
+    <sys:String x:Key="Str_Filter_Pdf">Soubory PDF</sys:String>
+    <sys:String x:Key="Str_Filter_Cert">Soubory certifikátů</sys:String>
+    <sys:String x:Key="Str_Filter_Text">Textový soubor</sys:String>
+    <sys:String x:Key="Str_Print_Sending">Odesílání do tiskárny…</sys:String>
+    <sys:String x:Key="Str_Forms_FontSize">Velikost písma:</sys:String>
+    <sys:String x:Key="Str_Ocr_SaveSearchable">Uložit prohledávatelné PDF</sys:String>
+    <sys:String x:Key="Str_Ocr_ExtractAllText">Extrahovat všechen text</sys:String>
+    <sys:String x:Key="Str_Ocr_HighQuality">Používat modely vysoké kvality</sys:String>
+    <sys:String x:Key="Str_Dlg_OpenPdf">Otevřít PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SelectMerge">Vyberte PDF ke sloučení</sys:String>
+    <sys:String x:Key="Str_Dlg_SavePdfAs">Uložit PDF jako</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveFlattened">Uložit sloučené PDF</sys:String>
+    <sys:String x:Key="Str_Dlg_SaveExtractedAs">Uložit vyjmuté stránky jako</sys:String>
+    <sys:String x:Key="Str_Dlg_InsertImage">Vložit obrázek</sys:String>
+    <sys:String x:Key="Str_Dlg_InstallShortcut">Vytvořit zástupce na ploše</sys:String>
+    <sys:String x:Key="Str_Stamp_DefaultText">NÁVRH</sys:String>
 </ResourceDictionary>

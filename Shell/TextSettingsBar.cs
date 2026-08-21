@@ -654,8 +654,8 @@ namespace KillerPDF
         {
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
             {
-                Title = "Insert Image",
-                Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tiff;*.tif|All files|*.*",
+                Title = Loc("Str_Dlg_InsertImage"),
+                Filter = Loc("Str_Filter_Images") + "|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tiff;*.tif|" + Loc("Str_Filter_AllFiles") + "|*.*",
                 ShowImagePreview = true
             };
             if (dlg.ShowDialog(this) != true) return;

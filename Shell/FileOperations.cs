@@ -452,7 +452,7 @@ namespace KillerPDF
         private void Open_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
-                          { Filter = "PDF files|*.pdf", Title = "Open PDF" };
+                          { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_OpenPdf") };
             if (dlg.ShowDialog(this) == true) OpenInNewTab(dlg.FileName);
         }
 
@@ -774,7 +774,7 @@ namespace KillerPDF
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var doc = _doc;
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
-                          { Filter = "PDF files|*.pdf", Title = "Select PDF to merge", Multiselect = true };
+                          { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SelectMerge"), Multiselect = true };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
@@ -1005,7 +1005,7 @@ namespace KillerPDF
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
-                          { Filter = "PDF files|*.pdf", Title = "Save PDF as",
+                          { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SavePdfAs"),
                             CheckFileExists = false, CheckPathExists = true };
             // Seed the dialog from the last real save location. Guard every path call: on .NET Framework
             // Path.GetDirectoryName("") throws ArgumentException ("path is not of a legal form"), so a merged
@@ -1097,7 +1097,7 @@ namespace KillerPDF
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
-                          { Filter = "PDF files|*.pdf", Title = "Save Flattened PDF",
+                          { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SaveFlattened"),
                             CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
             CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
