@@ -1222,7 +1222,7 @@ namespace KillerPDF
             {
                 IsChecked = true,
                 Margin    = new Thickness(0, 0, 0, 22),
-                Content   = new TextBlock { Text = "Create desktop shortcut", Foreground = Brushes.White }
+                Content   = new TextBlock { Text = Current.TryFindResource("Str_Dlg_InstallShortcut") as string ?? "Create desktop shortcut", Foreground = Brushes.White }
             };
             content.Children.Add(desktopChk);
 

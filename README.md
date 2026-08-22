@@ -2,7 +2,7 @@
   <a href="https://killerpdf.net"><img src="docs/wordmark.png" width="640" alt="KillerPDF - Free PDF Editor"></a>
 </p>
 
-Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. Single Windows EXE, ~16 MB, no runtime install required.
+Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. One Windows download, no runtime install required.
 
 Full how-tos live on the [help page](https://killerpdf.net/help.html); internals, formats, and limits on the [technical page](https://killerpdf.net/technical.html).
 
@@ -12,6 +12,7 @@ Full how-tos live on the [help page](https://killerpdf.net/help.html); internals
 - Annotate: inline text editing with font matching, word-wrapping text boxes, draw, lines, highlights (saved with the Multiply blend so text underneath stays readable), images, and page-number / watermark stamps - all with per-tab undo and redo
 - Built-in OCR (Tesseract bundled, no cloud): make searchable PDFs, OCR a page or region to the clipboard, extract all text; extra languages download on demand
 - Organize pages: merge, split, insert, rotate, crop, extract, delete, drag-and-drop reordering; drop a folder or `.zip` onto the window to merge its contents
+- Export one page or a multi-page selection as PNG or JPEG directly from the Pages panel
 - Transform: rotate, scale, flip, deskew by drawing a level line, perspective correction for photographed pages, and a LEVELS section (black point, white point, midtones) for pale scans
 - Forms: fill text, checkbox, radio, and comb fields as live controls and save back; digital signatures with a cloud certificate (Certum SimplySign), plus drawn or imported signatures and initials
 - Print with a real in-app preview, paper size and source selection, scale / position / margins / pages-per-sheet options at 300 DPI; Save Flattened rasterizes to a fully uneditable PDF
@@ -69,7 +70,7 @@ choco install killerpdf
 ```
 
 - Prebuilt binary: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe>
-- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.7.3/KillerPDF-1.7.3-src.zip>
+- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.7.4/KillerPDF-1.7.4-src.zip>
 
 ## Build from source
 
@@ -79,7 +80,7 @@ cd KillerPDF
 dotnet publish -c Release
 ```
 
-Output lands in `bin/Release/net48/publish/`. The publish step produces a single Costura-bundled `KillerPDF.exe` plus a versioned `KillerPDF-<version>-src.zip` for GPL3 source distribution.
+Output lands in `bin/Release/net48/publish/`. Normal publishing produces the development single-file build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds a verified multi-file payload and packs it into one portable `KillerPDF.exe`; installed shortcuts launch the inner app directly for faster startup.
 
 Requires the .NET 8 SDK or later to build (even though the output targets .NET Framework 4.8).
 

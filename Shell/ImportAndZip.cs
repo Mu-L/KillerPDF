@@ -178,7 +178,7 @@ namespace KillerPDF
         {
             var target = BeginTabLoad(out var prev, out bool createdNew);
             var busy = ShowBusyOverlay(Loc("Str_Drop_Merging"));
-            var ct = BeginCancellableOp("merge");   // Esc cancels; the busy overlay keeps the window draggable
+            var ct = BeginCancellableOp(Loc("Str_Op_Merge"));   // Esc cancels; the busy overlay keeps the window draggable
             try
             {
                 // Build off the UI thread so the window stays responsive (and movable) while it works.

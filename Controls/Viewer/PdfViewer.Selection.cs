@@ -182,7 +182,7 @@ namespace KillerPDF.Controls
                 return;
             }
             try { Clipboard.SetText(_selectedText); } catch { /* clipboard momentarily locked by another app */ }
-            SetStatus($"Copied {words} word(s) to clipboard");
+            SetStatus(string.Format(Loc("Str_St_CopiedWords"), words));
         }
 
         private ((int Page, int Caret) Start, (int Page, int Caret) End) OrderedSelection()
@@ -324,7 +324,7 @@ namespace KillerPDF.Controls
             MarkDirty();
             ClearTextSelection();
             foreach (var (page, _) in perPage) RenderAllAnnotations(page);
-            SetStatus($"{(style == HighlightStyle.Fill ? "Highlighted" : style == HighlightStyle.Strikethrough ? "Struck through" : "Underlined")} {total} line(s)");
+            SetStatus(string.Format(Loc(style == HighlightStyle.Fill ? "Str_St_HighlightedLines" : style == HighlightStyle.Strikethrough ? "Str_St_StruckLines" : "Str_St_UnderlinedLines"), total));
         }
 
         /// <summary>Drops and repaints the quads on every page the selection touches.</summary>
@@ -379,11 +379,11 @@ namespace KillerPDF.Controls
                     return;
                 }
                 Clipboard.SetText(_selectedText);
-                SetStatus($"Selected all text - copied to clipboard");
+                SetStatus(Loc("Str_St_SelectAllCopied"));
             }
             catch (Exception ex)
             {
-                SetStatus($"Select all error: {ex.Message}");
+                SetStatus(string.Format(Loc("Str_St_SelectAllError"), ex.Message));
             }
         }
 
@@ -392,7 +392,7 @@ namespace KillerPDF.Controls
             if (!string.IsNullOrEmpty(_selectedText))
             {
                 Clipboard.SetText(_selectedText);
-                SetStatus($"Copied to clipboard");
+                SetStatus(Loc("Str_St_Copied"));
             }
             else
             {
@@ -470,11 +470,11 @@ namespace KillerPDF.Controls
 
                 Clipboard.SetText(_selectedText);
                 int wordCount = words.Count;
-                SetStatus($"Copied {wordCount} word(s) to clipboard");
+                SetStatus(string.Format(Loc("Str_St_CopiedWords"), wordCount));
             }
             catch (Exception ex)
             {
-                SetStatus($"Text extraction error: {ex.Message}");
+                SetStatus(string.Format(Loc("Str_St_ExtractError"), ex.Message));
                 ClearTextSelection();
             }
         }

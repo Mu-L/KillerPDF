@@ -141,7 +141,7 @@ namespace KillerPDF
                 // A failed restore must never take the window down with it. Whatever went wrong,
                 // the app still has to come up - worst case with one pane and no tabs in B.
                 _restoringSplit = false;
-                SetStatus($"Could not restore the second pane: {ex.Message}");
+                SetStatus(string.Format(Loc("Str_St_RestorePane"), ex.Message));
             }
         }
 

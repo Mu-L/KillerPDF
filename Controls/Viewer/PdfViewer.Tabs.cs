@@ -635,7 +635,7 @@ namespace KillerPDF.Controls
             if (existing != null && !existing.IsDirty)
             {
                 SwitchToTab(existing);
-                SetStatus($"Already open: {System.IO.Path.GetFileName(path)}");
+                SetStatus(string.Format(Loc("Str_St_AlreadyOpen"), System.IO.Path.GetFileName(path)));
                 return;
             }
 

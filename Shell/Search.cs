@@ -177,7 +177,7 @@ namespace KillerPDF
                     Cursor = Cursors.SizeAll,
                     VerticalAlignment = VerticalAlignment.Stretch,
                     Child = gripDots,
-                    ToolTip = "Drag to move"
+                    ToolTip = Loc("Str_Search_DragTT")
                 };
 
                 var panel = new StackPanel

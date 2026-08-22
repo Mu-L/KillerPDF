@@ -360,6 +360,29 @@ namespace KillerPDF
         // deferred pass positions it once laid out).
         private void PositionAnnotationBar(Border bar, Grid area)
         {
+            // 98SE: classic toolbar band - flush, truly full width, no floating gaps and no slide
+            // parking. The document scroller is inset by the band's height (SyncSe98BarInset), so
+            // the vertical scrollbar starts BELOW the band instead of poking up beside its right
+            // end. Restores the theme's own edge thickness and padding: SetBarDockedBorder below
+            // writes hardcoded 1px borders and 4px padding straight over the BarEdgeThickness /
+            // BarPadding resource references, which is what flattened the classic 2px light bevel
+            // into a thin misplaced line.
+            if (ThemeManager.Current == Theme.SE98)
+            {
+                bar.HorizontalAlignment = HorizontalAlignment.Stretch;
+                bar.Margin = new Thickness(0);
+                bar.SetResourceReference(Border.BorderThicknessProperty, "BarEdgeThickness");
+                bar.SetResourceReference(Border.PaddingProperty, "BarPadding");
+                bar.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+                // First pass runs before layout has measured the band; re-run once it has a height
+                // so the scroller inset below lands on the real value.
+                if (bar.ActualHeight <= 0)
+                    Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                        (Action)(() => { if (bar.Parent is Grid a) PositionAnnotationBar(bar, a); }));
+                SyncSe98BarInset(bar, area);
+                return;
+            }
+            SyncSe98BarInset(bar, area);   // clears a leftover 98SE inset after a theme switch
             double w = bar.ActualWidth;
             // The document's vertical scrollbar lives on the right edge of the area. Keep the bar clear
             // of it when it's showing; when it isn't, the bar can use the full edge.
@@ -413,6 +436,30 @@ namespace KillerPDF
         {
             bar.BorderThickness = new Thickness(dockedLeft ? 0 : 1, 0, dockedRight ? 0 : 1, 1);
             bar.Padding = new Thickness(dockedLeft ? 5 : 4, 4, dockedRight ? 5 : 4, 4);
+        }
+
+        // 98SE reserves the docked band's height as top margin on the pane's document scroller, so
+        // the page and its vertical scrollbar start below the band (a classic toolbar strip) instead
+        // of the bar floating over them. Every other theme (and a removed bar) resolves to 0, which
+        // also clears a leftover inset after a theme switch. The scroller is looked up from the
+        // bar's own area so the inset always lands on the pane the bar actually lives in.
+        private static void SyncSe98BarInset(Border bar, Grid area, bool removing = false)
+        {
+            ScrollViewer? sv = null;
+            foreach (object child in area.Children)
+                if (child is ScrollViewer s) { sv = s; break; }
+            if (sv is null) return;
+            double inset = !removing && ThemeManager.Current == Theme.SE98 ? bar.ActualHeight : 0;
+            if (Math.Abs(sv.Margin.Top - inset) > 0.5)
+                sv.Margin = new Thickness(0, inset, 0, 0);
+        }
+
+        // Re-anchor a bar when its own size settles or changes (first measure, or the WrapPanel
+        // dropping to a second row on a narrow pane) - the 98SE scroller inset must track the
+        // band's real height, and the floating themes re-clamp against the new width.
+        private void AnnotBarSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is Border b && b.Parent is Grid a) PositionAnnotationBar(b, a);
         }
 
         // Snapping changes the window's position/size but NOT its WindowState (it stays Normal), so

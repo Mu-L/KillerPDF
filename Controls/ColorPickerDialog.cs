@@ -47,9 +47,10 @@ namespace KillerPDF
         // First-run / Reset palette: 9 fixed slots, last one white.
         private static readonly Color[] DefaultSwatches = UiKit.DefaultSwatches;
         private static SolidColorBrush R(string key) => (SolidColorBrush)Application.Current.Resources[key];
+        private static string L(string key) => Application.Current.TryFindResource(key) as string ?? key;
         public ColorPickerDialog(Window? owner, Color initial)
         {
-            Title = "KillerPDF - Color";
+            Title = "KillerPDF - " + L("Str_Color_Name");
             Width = 300;
             SizeToContent = SizeToContent.Height;
             DialogChrome.Configure(this, owner);
@@ -63,6 +64,18 @@ namespace KillerPDF
         // ── UI ──────────────────────────────────────────────────────────────────
         private void BuildUi()
         {
+            var panel = new StackPanel { Margin = new Thickness(18, 14, 18, 16) };
+            // 98SE: the hand-rolled card (black outline + 1px AddBevels ring) never read as a
+            // classic window. Use the shared DialogChrome.Frame instead - the same classic caption
+            // bar and five-ring raised frame KillerDialog gets - and let the caption carry the
+            // title, so the in-panel accent heading is skipped.
+            if (Services.ThemeManager.Current == Services.Theme.SE98)
+            {
+                Content = DialogChrome.Frame(this, Owner, L("Str_Color_Pick"),
+                    () => { DialogResult = false; Close(); }, panel);
+            }
+            else
+            {
             var card = new Border
             {
                 Background = R("MenuBackgroundBrush"),
@@ -73,7 +86,6 @@ namespace KillerPDF
                 Margin = Application.Current.TryFindResource("DialogHaloMargin") is Thickness hm ? hm : new Thickness(14),
                 Effect = UiKit.ShadowDialog()
             };
-            var panel = new StackPanel { Margin = new Thickness(18, 14, 18, 16) };
             // Film-grain overlay so the dialog carries the same texture as the rest of the app - dimmed
             // by the shared GrainOpacity so it stays subtle (was rendering at full strength before).
             var root = new Grid();
@@ -89,13 +101,14 @@ namespace KillerPDF
             // Accent heading with a 1px drop shadow - the shared style for these secondary-window titles.
             var title = new TextBlock
             {
-                Text = "Pick a color", Foreground = R("PrimaryBrush"),
+                Text = L("Str_Color_Pick"), Foreground = R("PrimaryBrush"),
                 FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 12),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 2, ShadowDepth = 1, Direction = 270, Opacity = 0.7 },
                 Cursor = Cursors.SizeAll
             };
             title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
             panel.Children.Add(title);
+            }
             // SV square + hue strip
             var pickRow = new StackPanel { Orientation = Orientation.Horizontal };
             _svHue = new Rectangle { Width = SvW, Height = SvH };
@@ -147,7 +160,7 @@ namespace KillerPDF
                 Background = R("BgCanvas"), BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
                 // No Cursor here: the crosshair belongs to the CAPTURE window that opens on click.
                 // On the button it appeared on hover, before the pick had started (2026-08-01).
-                Content = CrosshairIcon(), ToolTip = "Pick a color from anywhere on screen",
+                Content = CrosshairIcon(), ToolTip = L("Str_Color_EyedropTT"),
                 Template = MakeBtnTemplate()
             };
             // Same hover treatment as the dialog's chips (grayer fill), and RunEyedropper holds the
@@ -158,7 +171,7 @@ namespace KillerPDF
             inputRow.Children.Add(_eyedropBtn);
             panel.Children.Add(inputRow);
             var hexRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-            hexRow.Children.Add(new TextBlock { Text = "Hex", Foreground = R("MutedTextBrush"), FontSize = 11,
+            hexRow.Children.Add(new TextBlock { Text = L("Str_Color_Hex"), Foreground = R("MutedTextBrush"), FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
             _hexBox = MakeTextBox(96);
             _hexBox.MaxLength = 7;
@@ -168,10 +181,10 @@ namespace KillerPDF
             panel.Children.Add(hexRow);
             // Swatch header: Replace (assign current color to a slot) on the left, Reset on the far right.
             var swHeader = new Grid { Margin = new Thickness(0, 12, 0, 5), Width = SwatchCols * SwatchCell };
-            _replaceBtn = Chip("Replace", "Click, then click a swatch to set it to the current color");
+            _replaceBtn = Chip(L("Str_Color_Replace"), L("Str_Color_ReplaceTT"));
             _replaceBtn.HorizontalAlignment = HorizontalAlignment.Left;
             _replaceBtn.MouseLeftButtonUp += (_, _) => { _replaceArmed = !_replaceArmed; UpdateReplaceChip(); RebuildSavedRow(); };
-            var resetBtn = Chip("Reset", "Reset swatches to defaults");
+            var resetBtn = Chip(L("Str_Color_Reset"), L("Str_Color_ResetTT"));
             resetBtn.HorizontalAlignment = HorizontalAlignment.Right;
             resetBtn.MouseLeftButtonUp += (_, _) => { StoreSaved([.. DefaultSwatches]); _replaceArmed = false; UpdateReplaceChip(); RebuildSavedRow(); SwatchesChanged?.Invoke(); };
             swHeader.Children.Add(_replaceBtn);
@@ -183,7 +196,7 @@ namespace KillerPDF
             RebuildSavedRow();
             // OK / Cancel
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
-            var cancel = MakeButton("Cancel", false); cancel.Click += (_, _) => { DialogResult = false; Close(); }; cancel.IsCancel = true;
+            var cancel = MakeButton(L("Str_Btn_CancelDlg"), false); cancel.Click += (_, _) => { DialogResult = false; Close(); }; cancel.IsCancel = true;
             var ok = MakeButton("OK", true); ok.Margin = new Thickness(8, 0, 0, 0); ok.Click += (_, _) => Accept(); ok.IsDefault = true;
             btnRow.Children.Add(cancel); btnRow.Children.Add(ok);
             panel.Children.Add(btnRow);
@@ -304,7 +317,7 @@ namespace KillerPDF
                 int idx = i;
                 var sw = new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 4, 4),
                     Background = new SolidColorBrush(c), BorderThickness = new Thickness(_replaceArmed ? 2 : 1), Cursor = Cursors.Hand,
-                    ToolTip = _replaceArmed ? "Click to set this swatch to the current color" : "Click to use this color" };
+                    ToolTip = _replaceArmed ? L("Str_Color_SwatchSetTT") : L("Str_Color_SwatchUseTT") };
                 if (_replaceArmed) sw.SetResourceReference(Border.BorderBrushProperty, "PrimaryBrush"); else sw.BorderBrush = R("CardBorderBrush");
                 sw.MouseLeftButtonUp += (_, _) =>
                 {
@@ -381,19 +394,30 @@ namespace KillerPDF
         }
         private Button MakeButton(string text, bool primary)
         {
+            // 98SE: the shared kit button already carries the beveled ChipFace treatment, so the
+            // dialog's OK / Cancel match the classic toolbar instead of the modern accent pair.
+            if (Services.ThemeManager.Current == Services.Theme.SE98)
+            {
+                var se = UiKit.Make(text, primary);
+                se.Height = 28; se.MinWidth = 74; se.Padding = new Thickness(12, 0, 12, 0);
+                return se;
+            }
             var btn = new Button { Content = text, Height = 28, MinWidth = 74, Padding = new Thickness(12, 0, 12, 0),
                 BorderThickness = new Thickness(1), Cursor = Cursors.Hand };
             var style = new Style(typeof(Button));
             style.Setters.Add(new Setter(Control.TemplateProperty, MakeBtnTemplate()));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, primary ? R("PrimaryBrush") : R("TextBrush")));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, primary ? R("RowSelectedBrush") : R("PaneBrush")));
+            // Rest brushes match UiKit.Make's accent pair (SelectionFg on SelectionBg): the old
+            // PrimaryBrush-on-RowSelectedBrush pairing put accent text on an accent-tinted fill,
+            // which left "OK" unreadable at rest on several themes until hover repainted it (#227).
+            style.Setters.Add(new Setter(Control.ForegroundProperty, primary ? R("SelectionFg") : R("TextBrush")));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, primary ? R("SelectionBg") : R("PaneBrush")));
             style.Setters.Add(new Setter(Control.BorderBrushProperty, primary ? R("PrimaryBrush") : R("CardBorderBrush")));
-            // Hover: OK fills solid accent (white text for contrast); Cancel goes a shade grayer.
+            // Hover: OK fills solid accent (OnPrimaryBrush text for contrast); Cancel goes a shade grayer.
             var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             if (primary)
             {
                 hover.Setters.Add(new Setter(Control.BackgroundProperty, R("PrimaryBrush")));
-                hover.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+                hover.Setters.Add(new Setter(Control.ForegroundProperty, R("OnPrimaryBrush")));
             }
             else
             {

@@ -1318,12 +1318,12 @@ namespace KillerPDF
                         bs.Freeze();
                         hiPages[idx] = bs; hiW[idx] = w; hiH[idx] = h;
                         int shown = done;
-                        try { statusText.Dispatcher.Invoke(() => statusText.Text = $"Preparing page {shown} of {total}…"); }
+                        try { statusText.Dispatcher.Invoke(() => statusText.Text = string.Format(S("Str_Print_Preparing"), shown, total)); }
                         catch { /* window closing */ }
                     }
                 });
 
-                statusText.Text = "Sending to printer…";
+                statusText.Text = S("Str_Print_Sending");
 
                 // Compose the sheets and spool them from a dedicated print thread - see
                 // SpoolOnPrintThreadAsync for why this cannot stay on the UI thread. The sheet
@@ -1344,7 +1344,7 @@ namespace KillerPDF
                 // Re-derive Print rather than switching it straight back on: the Pages box could have
                 // been retyped behind the scrim, and a range that now matches nothing must stay disabled.
                 UpdatePreview();
-                KillerDialog.Show(this, $"Print failed:\n{ex.GetType().Name}: {ex.Message}",
+                KillerDialog.Show(this, S("Str_Err_PrintFailed") + "\n" + ex.GetType().Name + ": " + ex.Message,
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

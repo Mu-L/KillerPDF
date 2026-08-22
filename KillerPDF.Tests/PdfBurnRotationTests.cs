@@ -43,7 +43,12 @@ public sealed class PdfBurnRotationTests
     {
         using var ms = new MemoryStream();
         doc.Save(ms, false);
-        return Encoding.GetEncoding("ISO-8859-1").GetString(ms.ToArray());
+
+        // PdfSharpCore may Flate-compress content streams even when NoCompression is set;
+        // that option governs document structure, not every page stream. Inspect the decoded
+        // page content instead of depending on the writer's storage choice.
+        var content = doc.Pages[0].Contents.CreateSingleContent();
+        return Encoding.GetEncoding("ISO-8859-1").GetString(content.Stream.UnfilteredValue);
     }
 
     // Every `x y w h re` operator in the saved file, as (w, h).

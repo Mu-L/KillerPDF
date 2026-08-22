@@ -25,7 +25,8 @@ namespace KillerPDF
         // ---- Watermark ----
         public bool    WmEnabled;
         public bool    WmIsImage;              // false = text, true = image
-        public string  WmText    = "DRAFT";
+        // Localized default (falls back to DRAFT); resolved at model construction on the UI thread.
+        public string  WmText    = System.Windows.Application.Current?.TryFindResource("Str_Stamp_DefaultText") as string ?? "DRAFT";
         public string  WmFont    = "Segoe UI";
         public double  WmFontPt  = 64;
         public Color   WmColor   = Color.FromRgb(0x88, 0x88, 0x88);

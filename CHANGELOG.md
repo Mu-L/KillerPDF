@@ -4,30 +4,28 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.4] - Unreleased
+## [1.7.4] - 2026-08-21
 
 1.7.4 repackages KillerPDF as one portable download that installs as a normal multi-file application with a much faster first start, and is otherwise a bug fix release - rotation-safe annotations, valid form fields on comma-decimal locales, installer scope guards, and a round of view, dialog, and localization fixes - plus Hungarian localization and page image export.
 
 ### Added
+- "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
 - Hungarian (hu-HU) localization, the twelfth interface language, in the language picker as "Magyar" (PR #214, thanks CsokiHUN).
 - Hide the toolbar from its right-click menu or Alt+M, and full screen no longer sits over other applications when you switch away (#215, thanks Subjuntivos).
-- "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
 - Translations can be tested in a normal install and reload on every save of the file; TRANSLATING.md has the steps (#211, thanks bovirus).
 - The page badge fires on grid scrolling and names the visible span (#197, thanks Ryokoxx).
 
 ### Changed
 - KillerPDF now remains one portable download while installing as a normal multi-file application. The portable EXE carries one compressed, verified payload and cleans up its temporary files after use; installed shortcuts launch the inner app directly, avoiding Costura extraction and reducing measured first startup by about 40% on the development machine (#189, thanks ags1234). The new package is also roughly 34% smaller than the previous woven EXE.
-- Internal cancellation resource keys now use the same American spelling as their displayed text.
+- Builds no longer risk the net48 CS8336 attribute collision introduced by compiler-generated polyfills (PR #218, thanks Ryokoxx).
 
 ### Fixed
 - Rotating a page no longer deletes the document's unsaved annotations; they now turn with the page (#169, thanks terada-d).
 - Form fields saved on systems whose decimal separator is a comma (German and most European locales) now get valid appearance streams; they previously came out blank or garbled with repeated, re-wrapped text in other viewers and in print, flatten, and export, thanks Thomas.
 - Print, flatten, image export, and thumbnails no longer draw a form field twice when its stored appearance disagrees with the regenerated one.
+- Installation scope is now guarded end to end: a per-user install cannot sit beside an all-users install, existing dual installs are detected with an offer to remove the inactive copy, converting to all-users removes the older per-user copy, and machine-wide uninstall requests administrator access instead of reporting success after permission failures.
 - The Open dialog no longer crashes where Explorer's Quick Access cannot be read, such as under Wine and CrossOver; the pinned folders and drives still list (#210, thanks Ximelay).
 - Opening a PDF from Explorer while KillerPDF is still starting no longer crashes; the file now opens once the window is ready (#202, thanks tgv123456).
-- KillerPDF no longer permits a per-user installation beside an existing all-users installation. The installer keeps the existing machine-wide scope selected, blocks an accidental second copy, and removes the current account's older per-user copy when converting or updating to an all-users installation.
-- A machine already carrying both a per-user and an all-users installation is now detected at startup, with an offer to remove the copy that is not running.
-- Machine-wide uninstall now requests administrator access before removing the Program Files copy and HKLM registration, rather than silently reporting success after permission failures.
 - Dropping a damaged PDF on the Pages panel now offers the same repair the Open dialog offers, instead of silently ignoring the file (#203, thanks 1mk3r).
 - After an install relaunch or split-pane session restore, the sidebar now attaches the active pane's thumbnail cache before the first visible frame instead of remaining blank until the user clicks a pane.
 - Snapping, maximizing, or restoring the window keeps the split panes' proportions, and a sidebar you closed stays closed when a tab loads its document.
@@ -40,6 +38,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
 - The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
 - Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
+- Every remaining hardcoded English string - dialog titles, file-picker filters, error and confirmation dialogs, status line messages, busy overlays, and the default DRAFT watermark text - is now translated in all twelve languages, and Polish gained the seven newest theme names (#227, thanks Mr-Update).
+- The annotate settings bars (text, draw, highlight, line, shape) now reflow in single-row groups on a narrow window or split pane; anything that would need a third row collapses into an overflow chevron, least-used controls first.
+- A render failure partway through streaming grid tiles no longer strands the remaining pages blank; the failed page is skipped and the stream retries once.
+- Grid view opened in an unfocused split pane now fills the pane width instead of keeping a surround margin and showing a horizontal scrollbar.
+- A print page range ending in a huge number no longer freezes the app, and a range matching no pages now says so and disables Print instead of spooling the whole document (PRs #222 and #220, thanks Ryokoxx).
+- Checkbox labels now wrap instead of clipping in languages with longer text, and dropdown lists respect their intended maximum height (PRs #224 and #225, thanks Ryokoxx).
+- The print preview's scrollbar and chevrons now follow the theme, and visiting the 98SE theme no longer leaves its gray chip color behind on other themes (PR #219, thanks Ryokoxx).
+- The color picker's OK button is readable at rest on every theme; it previously only showed its label on hover, and its Cancel button and remaining tooltips are now translated (#227, thanks Mr-Update).
+- On the 98SE theme, the color picker now wears the classic caption bar and raised window frame with beveled buttons, code-built dialogs are square-cornered, and the annotate settings bars dock as flush full-width toolbar bands with the proper 2px bevel instead of floating with a thin misdrawn edge and leftover film grain.
 
 ## [1.7.3] - 2026-08-15
 

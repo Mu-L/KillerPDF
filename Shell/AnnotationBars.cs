@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -63,14 +64,14 @@ namespace KillerPDF
         private Grid GrainWrap(UIElement content)
         {
             var g = new Grid();
-            g.Children.Add(new Border
-            {
-                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
-                Margin = new Thickness(-4),
-                IsHitTestVisible = false,
-                Opacity = (double)FindResource("GrainOpacity"),
-                Background = (System.Windows.Media.Brush)FindResource("GrainBrushShared")
-            });
+            // SetResourceReference, not a FindResource snapshot: these hosts are built once and
+            // outlive theme switches, so a snapshot kept the grain painting on 98SE (whose
+            // GrainOpacity is 0) and its -4 margin overhang made the bevel read as misaligned.
+            var grain = new Border { Margin = new Thickness(-4), IsHitTestVisible = false };
+            grain.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+            grain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+            grain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+            g.Children.Add(grain);
             g.Children.Add(content);
             return g;
         }
@@ -113,14 +114,13 @@ namespace KillerPDF
             host.Children.Add(darkEdge);
 
             // Grain stays put when the controls collapse, so the minimized strip keeps the texture.
-            host.Children.Add(new Border
-            {
-                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
-                Margin = new Thickness(-4),
-                IsHitTestVisible = false,
-                Opacity = (double)FindResource("GrainOpacity"),
-                Background = (Brush)FindResource("GrainBrushShared")
-            });
+            // SetResourceReference so a theme switch retargets it - 98SE's GrainOpacity of 0 must
+            // actually clear the texture on an already-built bar (a FindResource snapshot did not).
+            var hostGrain = new Border { Margin = new Thickness(-4), IsHitTestVisible = false };
+            hostGrain.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+            hostGrain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+            hostGrain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+            host.Children.Add(hostGrain);
 
             host.Children.Add(content);   // the collapsible controls
 
@@ -274,6 +274,10 @@ namespace KillerPDF
                     _annotBarAnchorRight = App.GetSetting("AnnotBarRightSide") != "0";   // default: right edge
                 }
             }
+            // Track the bar's own size (first measure, wrap to a second row) so the 98SE scroller
+            // inset and the floating themes' edge clamp stay in step with the real height/width.
+            bar.SizeChanged -= AnnotBarSizeChanged;
+            bar.SizeChanged += AnnotBarSizeChanged;
             EnableBarSlide(grip, bar, area);
             // The minimized peek strip drags the bar too, so a collapsed bar can be repositioned.
             if (_annotBarDots is not null) EnableBarSlide(_annotBarDots, bar, area);
@@ -375,6 +379,157 @@ namespace KillerPDF
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)Apply);
         }
 
+        // Shared overflow chevron + popup for the annotate bars: an E712 "More" button whose popup
+        // (anchored to the button - flyouts anchor to their own button, always) stacks whatever
+        // groups WireBarOverflow sheds.
+        private Border MakeBarOverflow(out Popup popup, out StackPanel stack)
+        {
+            var s = new StackPanel { Margin = new Thickness(10, 6, 10, 6) };
+            // Family flyout rule: the film grain is the LAST child, OVER the items, non-hit-testable.
+            var inner = new Grid();
+            inner.Children.Add(s);
+            // SetResourceReference so a theme switch retargets it (98SE clears grain via opacity 0).
+            var popGrain = new Border { CornerRadius = new CornerRadius(4), IsHitTestVisible = false };
+            popGrain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+            popGrain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+            inner.Children.Add(popGrain);
+            var border = new Border
+            {
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Child = inner
+            };
+            border.SetResourceReference(Border.BackgroundProperty, "MenuBackgroundBrush");
+            border.SetResourceReference(Border.BorderBrushProperty, "MenuBorderBrush");
+            var glyph = new TextBlock
+            {
+                Text = ((char)0xE712).ToString(),   // MDL2 More - the same chevron as the toolbar overflow
+                FontFamily = UiKit.IconFont,
+                FontSize = 13,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            glyph.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
+            var btn = new Border
+            {
+                Width = 22,
+                Height = 20,
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(0, 3, 0, 3),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent,
+                ToolTip = Loc("Str_Bar_More"),
+                Child = glyph,
+                Visibility = Visibility.Collapsed
+            };
+            var p = new Popup
+            {
+                PlacementTarget = btn,
+                Placement = PlacementMode.Bottom,
+                VerticalOffset = 4,
+                StaysOpen = false,
+                AllowsTransparency = true,
+                Child = border
+            };
+            // Open on mouse UP, not down: a StaysOpen=false popup opened mid-mouse-down inherits
+            // the press's capture and closes again the moment the button is released, so it only
+            // stayed open while the click was held. Down is still handled so the press can't start
+            // a bar drag. The 200ms guard covers the toggle-close case (the closing click's up
+            // would otherwise instantly reopen it).
+            var closedAt = DateTime.MinValue;
+            p.Closed += (_, _) => closedAt = DateTime.UtcNow;
+            btn.MouseLeftButtonDown += (_, e) => e.Handled = true;
+            btn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                if ((DateTime.UtcNow - closedAt).TotalMilliseconds < 200) return;
+                p.IsOpen = true;
+            };
+            popup = p;
+            stack = s;
+            return btn;
+        }
+
+        // Caps an annotate bar at two wrapped rows. Group widths are measured ONCE and frozen (the
+        // WireBarWrapAdaptation anti-oscillation rule): the fit test simulates the WrapPanel's own
+        // first-fit line breaking against the available width and, while the visible groups would
+        // need a third row, sheds the next group in shedOrder into the overflow popup - restoring
+        // them in reverse when there is room again. Groups not named in shedOrder never collapse.
+        private void WireBarOverflow(WrapPanel host, Border overflowBtn, Popup popup,
+                                     StackPanel popupStack, StackPanel[] groups, int[] shedOrder,
+                                     FrameworkElement sizeSource)
+        {
+            double[] widths = new double[groups.Length];
+            double btnWidth = 26;   // chevron + margin; always reserved in the test (constant input)
+            int shedCount = 0;
+
+            int LinesNeeded(int shed)
+            {
+                var inPopup = new bool[groups.Length];
+                for (int i = 0; i < shed; i++) inPopup[shedOrder[i]] = true;
+                double avail = host.MaxWidth;
+                double line = btnWidth; int lines = 1;
+                for (int i = 0; i < groups.Length; i++)
+                {
+                    if (inPopup[i]) continue;
+                    double w = widths[i];
+                    if (line + w > avail && line > btnWidth) { lines++; line = btnWidth; }
+                    line += w;
+                }
+                return lines;
+            }
+
+            void MoveToPopup(int gi)
+            {
+                host.Children.Remove(groups[gi]);
+                int at = 0;   // keep display order inside the popup too
+                foreach (UIElement child in popupStack.Children)
+                    if (child is StackPanel sp && Array.IndexOf(groups, sp) is int ci && ci >= 0 && ci < gi) at++;
+                popupStack.Children.Insert(at, groups[gi]);
+            }
+            void MoveToBar(int gi)
+            {
+                popupStack.Children.Remove(groups[gi]);
+                int at = 1;   // index 0 is the grip
+                for (int i = 0; i < gi; i++)
+                    if (host.Children.Contains(groups[i])) at++;
+                host.Children.Insert(at, groups[gi]);
+            }
+
+            void Apply()
+            {
+                double avail = host.MaxWidth;
+                if (double.IsNaN(avail) || double.IsInfinity(avail) || avail <= 0) return;
+                if (widths[0] <= 0)
+                {
+                    for (int i = 0; i < groups.Length; i++)
+                    {
+                        double w = groups[i].DesiredSize.Width;
+                        if (w <= 0) return;   // not measured yet; a later pass retries
+                        widths[i] = w;
+                    }
+                }
+                int want = shedCount;
+                while (want < shedOrder.Length && LinesNeeded(want) > 2) want++;
+                while (want > 0 && LinesNeeded(want - 1) <= 2) want--;
+                if (want == shedCount) return;
+                if (want > shedCount)
+                    for (int i = shedCount; i < want; i++) MoveToPopup(shedOrder[i]);
+                else
+                    for (int i = shedCount - 1; i >= want; i--) MoveToBar(shedOrder[i]);
+                shedCount = want;
+                overflowBtn.Visibility = shedCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+                if (shedCount == 0 && popup.IsOpen) popup.IsOpen = false;
+            }
+
+            void onSource(object? sender, SizeChangedEventArgs e) => Apply();
+            sizeSource.SizeChanged += onSource;
+            host.Unloaded += (_, _) => sizeSource.SizeChanged -= onSource;
+            host.SizeChanged += (_, _) => Apply();
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)Apply);
+        }
+
         private void ShowDrawSettings(EditTool tool)
         {
             // Fade the bar in only when it's genuinely appearing (no bar yet, or coming from the text
@@ -460,13 +615,13 @@ namespace KillerPDF
             StackPanel? barCheck = tool switch
             {
                 EditTool.Line => BarCheck(Loc("Str_Bar_Level"), _lineLevel,
-                    "Keep the line on the nearest axis (horizontal or vertical)",
+                    Loc("Str_Bar_TT_Level"),
                     () => { _lineLevel = !_lineLevel; ShowDrawSettings(tool); }),
                 EditTool.Highlight => BarCheck(Loc("Str_Bar_Eraser"), _highlightErase,
-                    "Drag a box to delete every annotation inside it",
+                    Loc("Str_Bar_TT_EraserBox"),
                     () => { _highlightErase = !_highlightErase; ShowDrawSettings(tool); }),
                 EditTool.Draw => BarCheck(Loc("Str_Bar_Eraser"), _drawErase,
-                    "Brush over annotations to delete them",
+                    Loc("Str_Bar_TT_EraserBrush"),
                     () => { _drawErase = !_drawErase; ShowDrawSettings(tool); }),
                 EditTool.Shape => ShapeKindPicker(),
                 _ => null
@@ -511,9 +666,9 @@ namespace KillerPDF
 
                 var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
                 row.Children.Add(KindBtn(ShapeKind.Rectangle, new Rectangle { Width = 13, Height = 9 },
-                    "Box - drag a rectangle"));
+                    Loc("Str_Bar_TT_ShapeBox")));
                 row.Children.Add(KindBtn(ShapeKind.Ellipse, new Ellipse { Width = 13, Height = 9 },
-                    "Ellipse - drag an oval"));
+                    Loc("Str_Bar_TT_ShapeEllipse")));
                 var pent = new Polygon
                 {
                     Width = 13,
@@ -521,10 +676,10 @@ namespace KillerPDF
                     Points = [new Point(6.5, 0), new Point(13, 4.5), new Point(10.5, 11), new Point(2.5, 11), new Point(0, 4.5)]
                 };
                 row.Children.Add(KindBtn(ShapeKind.Polygon, pent,
-                    "Freeform - click points; click the first point or double-click to close, Esc cancels, Backspace removes the last point"));
+                    Loc("Str_Bar_TT_ShapeFreeform")));
 
                 var fillCheck = BarCheck(Loc("Str_Bar_ShapeFill"), _shapeFill,
-                    "Fill the inside of the shape",
+                    Loc("Str_Bar_TT_ShapeFill"),
                     () => { _shapeFill = !_shapeFill; ShowDrawSettings(tool); });
                 fillCheck.Margin = new Thickness(10, 0, 18, 0);
                 row.Children.Add(fillCheck);
@@ -616,13 +771,13 @@ namespace KillerPDF
             colorGroup.Children.Add(moreDraw);
             panel.Children.Add(colorGroup);
 
-            // Left-to-right collapse: colorGroup stays on row 1 with the grip; Size and the Opacity+toggle
-            // unit live in a nested wrap panel that drops below colorGroup first, then splits Size / Opacity.
-            // Opacity and the Level/Eraser toggle share one unit so the toggle never lands on a row by itself.
-            var dRest = new WrapPanel { Orientation = Orientation.Horizontal, Background = Brushes.Transparent };
+            // Single-row groups (Color, Size, Opacity+toggle) packed directly by the outer WrapPanel;
+            // Opacity and the Level/Eraser toggle share one unit so the toggle never lands on a row by
+            // itself. When even one group per row would need a third row, the least important groups
+            // collapse into the overflow chevron - see WireBarOverflow below.
             var dOpacityUnit = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            StackPanel? sizeGroupRef = null;
             _annotBarDragInners.Clear();
-            _annotBarDragInners.Add(dRest);
 
             // Size slider (draw only)
             if ((tool is EditTool.Draw or EditTool.Line or EditTool.Shape))
@@ -666,7 +821,8 @@ namespace KillerPDF
                 sizeLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
                 sizeSlider.ValueChanged += (s, e) => sizeLabel.Text = $"{e.NewValue:F0}px";
                 sizeGroup.Children.Add(sizeLabel);
-                dRest.Children.Add(sizeGroup);
+                panel.Children.Add(sizeGroup);
+                sizeGroupRef = sizeGroup;
             }
 
             // Opacity group (label + slider + value) - one wrap unit.
@@ -733,8 +889,10 @@ namespace KillerPDF
                 barCheck.Margin = new Thickness(0, 2, 2, 2);
                 dOpacityUnit.Children.Add(barCheck);
             }
-            dRest.Children.Add(dOpacityUnit);
-            panel.Children.Add(dRest);
+            panel.Children.Add(dOpacityUnit);
+            var drawOverflowBtn = MakeBarOverflow(out var drawOverflowPopup, out var drawOverflowStack);
+            panel.Children.Add(drawOverflowBtn);
+            panel.Children.Add(drawOverflowPopup);   // renders nothing; keeps the popup in the tree for DynamicResource
 
             _drawSettingsBar = new Border
             {
@@ -759,11 +917,12 @@ namespace KillerPDF
                 // control groups to new rows once the window is too narrow to hold them on one line.
                 panel.SetBinding(FrameworkElement.MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth")
                 { Source = previewArea, Converter = _barWidthInset });
-                // Same cap on the nested Size+Opacity panel so, once it has dropped to its own row, it
-                // splits Size / Opacity when that row is too narrow.
-                dRest.SetBinding(FrameworkElement.MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth")
-                { Source = previewArea, Converter = _barWidthInset });
                 WireBarWrapAdaptation(panel, drawGrip, colorGroup, previewArea);
+                var drawGroups = sizeGroupRef is null
+                    ? new StackPanel[] { colorGroup, dOpacityUnit }
+                    : new StackPanel[] { colorGroup, sizeGroupRef, dOpacityUnit };
+                int[] drawShed = sizeGroupRef is null ? [1] : [2, 1];   // opacity unit first, then size; color anchored
+                WireBarOverflow(panel, drawOverflowBtn, drawOverflowPopup, drawOverflowStack, drawGroups, drawShed, previewArea);
                 PlaceAnnotationBar(_drawSettingsBar, drawGrip, fadeIn: appearing);
             }
             _annotBarTool = tool;

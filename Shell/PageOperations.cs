@@ -65,7 +65,7 @@ namespace KillerPDF
             var selected = PageList.SelectedItems;
             if (selected.Count == 0) { KillerDialog.Show(this, Loc("Str_Dlg_SelectExtract")); return; }
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
-                          { Filter = "PDF files|*.pdf", Title = "Save extracted pages as",
+                          { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SaveExtractedAs"),
                             CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
             try
@@ -81,7 +81,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Split failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_SplitFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -91,7 +91,7 @@ namespace KillerPDF
             var doc = _doc;
             var selected = PageList.SelectedItems;
             if (selected.Count == 0) { KillerDialog.Show(this, Loc("Str_Dlg_SelectDelete")); return; }
-            var result = KillerDialog.Show(this, $"Delete {selected.Count} {(selected.Count == 1 ? "page" : "pages")}?", "KillerPDF",
+            var result = KillerDialog.Show(this, selected.Count == 1 ? Loc("Str_Dlg_DeletePage1") : string.Format(Loc("Str_Dlg_DeletePagesN"), selected.Count), "KillerPDF",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result != MessageBoxResult.Yes) return;
             try
@@ -105,7 +105,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Delete failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_DeleteFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -120,11 +120,11 @@ namespace KillerPDF
                 doc.Pages.Insert(insertAfter + 1, blank);
                 SaveTempAndReload();
                 PageList.SelectedIndex = insertAfter + 1;
-                SetStatus($"Inserted blank page at position {insertAfter + 2}");
+                SetStatus(string.Format(Loc("Str_St_InsertedBlank"), insertAfter + 2));
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Insert failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_InsertFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -139,11 +139,11 @@ namespace KillerPDF
                 doc.Pages.Add(new PdfPage { Width = XUnit.FromPoint(595), Height = XUnit.FromPoint(842) });
                 SaveTempAndReload();
                 if (PageList.Items.Count > 0) PageList.SelectedIndex = PageList.Items.Count - 1;
-                SetStatus($"Added blank page (now {_doc?.PageCount} pages)");
+                SetStatus(string.Format(Loc("Str_St_AddedBlank"), _doc?.PageCount));
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Add page failed:\n{ex.Message}", "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+                KillerDialog.Show(this, Loc("Str_Err_AddPageFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

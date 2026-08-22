@@ -129,13 +129,13 @@ namespace KillerPDF
                             sel.Remove(code);
                         }
                         SetSelectedOcrLanguages(sel);
-                        SetStatus($"OCR language: {string.Join("+", sel)}");
+                        SetStatus(string.Format(Loc("Str_St_OcrLanguage"), string.Join("+", sel)));
                     };
                     root.Items.Add(item);
                 }
                 else
                 {
-                    var item = new MenuItem { Header = LangHeader(name, code, hqPref ? "(download HQ)" : "(download)") };
+                    var item = new MenuItem { Header = LangHeader(name, code, hqPref ? Loc("Str_Ocr_SuffixDownloadHq") : Loc("Str_Ocr_SuffixDownload")) };
                     item.Click += (_, _) => DownloadOcrLanguage(code, name);
                     downloadItems.Add((item, code, name));
                     root.Items.Add(item);
@@ -147,7 +147,7 @@ namespace KillerPDF
             root.Items.Add(new Separator());
             var hq = new MenuItem
             {
-                Header = "Use High Quality Models",
+                Header = Loc("Str_Ocr_HighQuality"),
                 IsChecked = hqPref,
                 StaysOpenOnClick = true,   // stay open like the language checkboxes above
             };
@@ -160,7 +160,7 @@ namespace KillerPDF
                 SetOcrHighQuality(now);
                 hq.IsChecked = now;
                 foreach (var (item, code, name) in downloadItems)
-                    item.Header = LangHeader(name, code, now ? "(download HQ)" : "(download)");
+                    item.Header = LangHeader(name, code, now ? Loc("Str_Ocr_SuffixDownloadHq") : Loc("Str_Ocr_SuffixDownload"));
                 if (now) RedownloadSelectedHighQuality();
             };
             root.Items.Add(hq);
@@ -170,35 +170,35 @@ namespace KillerPDF
         // Downloads a single language's traineddata (standard or HQ, per the toggle) and selects it.
         private async void DownloadOcrLanguage(string code, string name)
         {
-            var ct = BeginCancellableOp("language download");
-            var busy = ShowBusyOverlay($"Downloading {name} language data...");
+            var ct = BeginCancellableOp(Loc("Str_Op_LangDownload"));
+            var busy = ShowBusyOverlay(string.Format(Loc("Str_Busy_LangData"), name));
             string tessDir = OcrNativeBootstrap.EnsureLanguageData();
             string dest = Path.Combine(tessDir, code + ".traineddata");
             try
             {
                 using var http = OcrLanguages.MakeDownloadClient();
                 await OcrLanguages.DownloadTrainedDataAsync(http, OcrLanguages.LanguageDataUrl(code, OcrHighQuality), dest,
-                    $"Downloading {name}...", msg => SetBusyMessage(busy, msg), ct);
+                    string.Format(Loc("Str_Busy_Downloading"), name), msg => SetBusyMessage(busy, msg), ct);
                 OcrLanguages.MarkLanguageHq(code, OcrHighQuality);
 
                 var sel = GetSelectedOcrLanguages();
                 if (!sel.Contains(code)) { sel.Add(code); SetSelectedOcrLanguages(sel); }
                 HideBusyOverlay(busy);
-                SetStatus($"{name} installed - OCR language: {string.Join("+", GetSelectedOcrLanguages())}");
+                SetStatus(string.Format(Loc("Str_St_LangInstalled"), name, string.Join("+", GetSelectedOcrLanguages())));
             }
             catch (OperationCanceledException)
             {
                 HideBusyOverlay(busy);
                 OcrLanguages.TryDeleteFile(dest + ".part");
-                if (ct.IsCancellationRequested) SetStatus($"{name} download canceled");
-                else KillerDialog.Show(this, $"Downloading {name} timed out. Check your connection and try again.",
+                if (ct.IsCancellationRequested) SetStatus(string.Format(Loc("Str_St_LangCanceled"), name));
+                else KillerDialog.Show(this, string.Format(Loc("Str_Dlg_DownloadTimeout"), name),
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception ex)
             {
                 HideBusyOverlay(busy);
                 OcrLanguages.TryDeleteFile(dest + ".part");
-                KillerDialog.Show(this, $"Could not download {name} language data:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(this, string.Format(Loc("Str_Err_LangDataFailed"), name) + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -227,13 +227,13 @@ namespace KillerPDF
                 bool anyInstalled = false;
                 foreach (var c in GetSelectedOcrLanguages()) if (OcrLanguages.IsLanguageInstalled(c)) { anyInstalled = true; break; }
                 SetStatus(anyInstalled
-                    ? "All selected languages are already high quality"
-                    : "High quality models will be used the next time you run OCR");
+                    ? Loc("Str_St_HqAlready")
+                    : Loc("Str_St_HqNextTime"));
                 return;
             }
 
-            var ct = BeginCancellableOp("language download");
-            var busy = ShowBusyOverlay("Downloading high quality language models...");
+            var ct = BeginCancellableOp(Loc("Str_Op_LangDownload"));
+            var busy = ShowBusyOverlay(Loc("Str_Busy_HqModels"));
             string tessDir = OcrNativeBootstrap.EnsureLanguageData();
             var failed = new List<string>();
             try
@@ -250,7 +250,7 @@ namespace KillerPDF
                     try
                     {
                         await OcrLanguages.DownloadTrainedDataAsync(http, url, dest,
-                            $"Downloading {name} (HQ) - {i} of {toDownload.Count} -", msg => SetBusyMessage(busy, msg), ct);
+                            string.Format(Loc("Str_Busy_DownloadingHq"), name, i, toDownload.Count), msg => SetBusyMessage(busy, msg), ct);
                         OcrLanguages.MarkLanguageHq(code, true);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
@@ -258,13 +258,13 @@ namespace KillerPDF
                 }
                 HideBusyOverlay(busy);
                 if (ct.IsCancellationRequested) SetStatus(Loc("Str_St_HqDownloadCanceled"));
-                else if (failed.Count > 0) SetStatus($"High quality models installed; failed: {string.Join(", ", failed)}");
-                else SetStatus($"High quality models installed for: {string.Join("+", toDownload)}");
+                else if (failed.Count > 0) SetStatus(string.Format(Loc("Str_St_HqFailed"), string.Join(", ", failed)));
+                else SetStatus(string.Format(Loc("Str_St_HqInstalled"), string.Join("+", toDownload)));
             }
             catch (Exception ex)
             {
                 HideBusyOverlay(busy);
-                KillerDialog.Show(this, $"High quality download failed:\n{ex.Message}", "KillerPDF",
+                KillerDialog.Show(this, Loc("Str_Err_HqDownloadFailed") + "\n" + ex.Message, "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -289,13 +289,12 @@ namespace KillerPDF
 
             string names = string.Join(", ", missing.ConvertAll(OcrLanguages.NameForCode));
             var choice = KillerDialog.Show(this,
-                $"A language model ({names}) will be downloaded now so OCR can run.\n\n" +
-                "You can add more languages or switch to higher quality models any time from the OCR menu.",
+                string.Format(Loc("Str_Dlg_LangDownloadAsk"), names),
                 "KillerPDF", MessageBoxButton.OKCancel, MessageBoxImage.Information);
             if (choice != MessageBoxResult.OK) return false;
 
-            var ct = BeginCancellableOp("language download");
-            var busy = ShowBusyOverlay("Downloading language model...");
+            var ct = BeginCancellableOp(Loc("Str_Op_LangDownload"));
+            var busy = ShowBusyOverlay(Loc("Str_Busy_Model"));
             try
             {
                 string tessDir = OcrNativeBootstrap.EnsureLanguageData();
@@ -321,7 +320,7 @@ namespace KillerPDF
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Could not download the language model:\n{ex.Message}",
+                KillerDialog.Show(this, Loc("Str_Err_ModelDownloadFailed") + "\n" + ex.Message,
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }

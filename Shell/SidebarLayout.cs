@@ -303,9 +303,15 @@ namespace KillerPDF
             var sv = FindSidebarDescendant<ScrollViewer>(PageList);
             if (sv == null || PageListFadeTop == null || PageListFadeBottom == null) return;
 
-            PageListFadeTop.Opacity    = EdgeFadeRamp(sv.VerticalOffset, PageListFadeTop.Height, 18);
-            PageListFadeBottom.Opacity = EdgeFadeRamp(sv.ExtentHeight - sv.ViewportHeight - sv.VerticalOffset,
-                                                      PageListFadeBottom.Height, 22);
+            // 98SE deliberately disables these overlays; every other theme defaults to full
+            // strength. The theme resource existed but this scroll handler previously ignored it
+            // and overwrote the borders with a nonzero opacity on every scroll.
+            double themeOpacity = TryFindResource("EdgeFadeOpacity") is double value ? value : 1.0;
+            PageListFadeTop.Opacity = themeOpacity *
+                EdgeFadeRamp(sv.VerticalOffset, PageListFadeTop.Height, 18);
+            PageListFadeBottom.Opacity = themeOpacity *
+                EdgeFadeRamp(sv.ExtentHeight - sv.ViewportHeight - sv.VerticalOffset,
+                             PageListFadeBottom.Height, 22);
         }
 
         // Height is NaN until the border has been laid out, hence the fallback.
