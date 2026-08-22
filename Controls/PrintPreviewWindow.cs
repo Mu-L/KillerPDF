@@ -1324,74 +1324,14 @@ namespace KillerPDF
                 });
 
                 statusText.Text = "Sending to printer…";
-                // Let the scrim repaint the new message before the UI-thread compose + spool below runs.
-                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
 
-                var fixedDoc = new FixedDocument();
-                // Group the selected pages into sheets of _nUp and compose each sheet (margins +
-                // alignment + scale are all handled inside ComposeSheet, shared with the preview).
-                // The whole sheet sequence is emitted `copies` times so the app controls the copy
-                // count directly rather than trusting PrintTicket.CopyCount (issue #83).
-                // Under two-sided printing an odd-sheet copy would leave the next copy starting on the
-                // back of this copy's last sheet. Pad each copy (bar the last) with a blank sheet so every
-                // copy begins on a fresh front side.
-                int sheetsPerCopy = (indices.Count + _nUp - 1) / _nUp;
-                bool padForDuplex = _duplex && copies > 1 && (sheetsPerCopy % 2 == 1);
-                int composed = 0;   // yield to the dispatcher every so often so the spinner keeps turning
-                for (int copy = 0; copy < copies; copy++)
-                {
-                    for (int start = 0; start < indices.Count; start += _nUp)
-                    {
-                        var chunk = indices.Skip(start).Take(_nUp).ToList();
-
-                        var fp = new FixedPage { Width = aw, Height = ah };
-                        var sheet = ComposeSheet(chunk, aw, ah, hiPages, hiW, hiH);
-                        FixedPage.SetLeft(sheet, 0);
-                        FixedPage.SetTop(sheet, 0);
-                        fp.Children.Add(sheet);
-                        fp.Measure(new Size(aw, ah));
-                        fp.Arrange(new Rect(new Point(), new Size(aw, ah)));
-
-                        var pc = new PageContent();
-                        ((IAddChild)pc).AddChild(fp);
-                        fixedDoc.Pages.Add(pc);
-
-                        // Composing many high-res sheets can block long enough to stall the animation;
-                        // hand the UI thread a render pass every dozen sheets to keep the scrim alive.
-                        if (++composed % 12 == 0)
-                            await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
-                    }
-
-                    if (padForDuplex && copy < copies - 1)
-                    {
-                        var blank = new FixedPage { Width = aw, Height = ah };
-                        blank.Measure(new Size(aw, ah));
-                        blank.Arrange(new Rect(new Point(), new Size(aw, ah)));
-                        var bpc = new PageContent();
-                        ((IAddChild)bpc).AddChild(blank);
-                        fixedDoc.Pages.Add(bpc);
-                    }
-                }
-
-                // Spool ASYNCHRONOUSLY so the UI thread stays free and the spinner keeps turning while the
-                // job serializes to the spooler. PrintDialog.PrintDocument does this synchronously, which
-                // froze the animation until the printer had the whole document. The FixedDocument already
-                // carries the copy/duplex layout and `ticket` the orientation/color/duplex, so the output
-                // is identical to the old path (issue #83 copy handling unchanged - ticket.CopyCount stays 1).
-                var writer = PrintQueue.CreateXpsDocumentWriter(_queue);
-                var spooled = new TaskCompletionSource<bool>();
-                writer.WritingCompleted += (_, ev) =>
-                {
-                    if (ev.Error is not null)  spooled.TrySetException(ev.Error);
-                    else if (ev.Cancelled)     spooled.TrySetResult(false);
-                    else                       spooled.TrySetResult(true);
-                };
-                // Write the FixedDocument itself, NOT its DocumentPaginator: the paginator path makes the
-                // XPS serializer wrap each page's Visual in a fresh FixedPage, but the Visual already IS a
-                // FixedPage - "FixedPage cannot contain another FixedPage". The FixedDocument overload
-                // serializes the existing FixedPages directly.
-                writer.WriteAsync(fixedDoc, ticket);
-                bool ok = await spooled.Task;
+                // Compose the sheets and spool them from a dedicated print thread - see
+                // SpoolOnPrintThreadAsync for why this cannot stay on the UI thread. The sheet
+                // sequence still carries the copy/duplex layout and `ticket` the orientation/color/
+                // duplex, so the output is identical to the old path (issue #83 copy handling
+                // unchanged - ticket.CopyCount stays 1).
+                bool ok = await SpoolOnPrintThreadAsync(
+                    indices, copies, aw, ah, hiPages, hiW, hiH, ticket, _queue.FullName);
 
                 PrintedPageCount = ok ? indices.Count : 0;
                 DialogResult = ok;
@@ -1406,6 +1346,139 @@ namespace KillerPDF
                 UpdatePreview();
                 KillerDialog.Show(this, $"Print failed:\n{ex.GetType().Name}: {ex.Message}",
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Composes the sheet sequence and spools it from a dedicated STA thread that owns its own
+        /// Dispatcher, returning true once the job has reached the spooler.
+        /// </summary>
+        /// <remarks>
+        /// XpsDocumentWriter.WriteAsync is asynchronous only in the sense that it returns straight
+        /// away: the serialization itself runs as dispatcher work items on the CALLING thread, and
+        /// every selected page has to be encoded into the XPS package there. Driven from the UI
+        /// thread that starved input for the entire spool - measured on A4 at 300 DPI, roughly 320 ms
+        /// of solid UI block per page with only ~6% of input-priority work items getting through, so
+        /// the window sat dead (scrim included, since the scrim needs that same thread to paint)
+        /// until the printer had the whole job.
+        ///
+        /// Frozen BitmapSources cross threads freely and ComposeSheet only reads plain layout fields,
+        /// so the FixedPages are built on, and stay on, this thread. Output is unaffected: same
+        /// FixedDocument, same ticket, same spooler.
+        /// </remarks>
+        private Task<bool> SpoolOnPrintThreadAsync(
+            List<int> indices, int copies, double aw, double ah,
+            BitmapSource?[] hiPages, int[] hiW, int[] hiH, PrintTicket ticket, string queueName)
+        {
+            var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var thread = new System.Threading.Thread(() =>
+            {
+                var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+                // WriteAsync completes back on this dispatcher, so it has to be pumping before the
+                // work starts - queue the job, then run the loop.
+                dispatcher.BeginInvoke(new Action(async () =>
+                {
+                    try
+                    {
+                        done.TrySetResult(await ComposeAndSpool(
+                            indices, copies, aw, ah, hiPages, hiW, hiH, ticket, queueName));
+                    }
+                    catch (Exception ex) { done.TrySetException(ex); }
+                    finally { dispatcher.InvokeShutdown(); }
+                }));
+                System.Windows.Threading.Dispatcher.Run();
+            });
+            // STA: both the XPS serializer and the spooler reach apartment-bound COM underneath.
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.IsBackground = true;
+            thread.Name = "KillerPDF print spool";
+            thread.Start();
+            return done.Task;
+        }
+
+        /// <summary>
+        /// Builds the sheet sequence and hands it to the spooler. Runs entirely on the print thread.
+        /// </summary>
+        private async Task<bool> ComposeAndSpool(
+            List<int> indices, int copies, double aw, double ah,
+            BitmapSource?[] hiPages, int[] hiW, int[] hiH, PrintTicket ticket, string queueName)
+        {
+            var fixedDoc = new FixedDocument();
+            // Group the selected pages into sheets of _nUp and compose each sheet (margins +
+            // alignment + scale are all handled inside ComposeSheet, shared with the preview).
+            // The whole sheet sequence is emitted `copies` times so the app controls the copy
+            // count directly rather than trusting PrintTicket.CopyCount (issue #83).
+            // Under two-sided printing an odd-sheet copy would leave the next copy starting on the
+            // back of this copy's last sheet. Pad each copy (bar the last) with a blank sheet so every
+            // copy begins on a fresh front side.
+            int sheetsPerCopy = (indices.Count + _nUp - 1) / _nUp;
+            bool padForDuplex = _duplex && copies > 1 && (sheetsPerCopy % 2 == 1);
+            for (int copy = 0; copy < copies; copy++)
+            {
+                for (int start = 0; start < indices.Count; start += _nUp)
+                {
+                    var chunk = indices.Skip(start).Take(_nUp).ToList();
+
+                    var fp = new FixedPage { Width = aw, Height = ah };
+                    var sheet = ComposeSheet(chunk, aw, ah, hiPages, hiW, hiH);
+                    FixedPage.SetLeft(sheet, 0);
+                    FixedPage.SetTop(sheet, 0);
+                    fp.Children.Add(sheet);
+                    fp.Measure(new Size(aw, ah));
+                    fp.Arrange(new Rect(new Point(), new Size(aw, ah)));
+
+                    var pc = new PageContent();
+                    ((IAddChild)pc).AddChild(fp);
+                    fixedDoc.Pages.Add(pc);
+                }
+
+                if (padForDuplex && copy < copies - 1)
+                {
+                    var blank = new FixedPage { Width = aw, Height = ah };
+                    blank.Measure(new Size(aw, ah));
+                    blank.Arrange(new Rect(new Point(), new Size(aw, ah)));
+                    var bpc = new PageContent();
+                    ((IAddChild)bpc).AddChild(blank);
+                    fixedDoc.Pages.Add(bpc);
+                }
+            }
+
+            // A PrintQueue holds a spooler handle opened by whichever thread created it, so this
+            // thread opens its own by name rather than borrowing the one the dialog is holding.
+            using var server = new LocalPrintServer();
+            using var queue  = ResolveQueue(server, queueName);
+
+            var writer = PrintQueue.CreateXpsDocumentWriter(queue);
+            var spooled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            writer.WritingCompleted += (_, ev) =>
+            {
+                if (ev.Error is not null)  spooled.TrySetException(ev.Error);
+                else if (ev.Cancelled)     spooled.TrySetResult(false);
+                else                       spooled.TrySetResult(true);
+            };
+            // Write the FixedDocument itself, NOT its DocumentPaginator: the paginator path makes the
+            // XPS serializer wrap each page's Visual in a fresh FixedPage, but the Visual already IS a
+            // FixedPage - "FixedPage cannot contain another FixedPage". The FixedDocument overload
+            // serializes the existing FixedPages directly.
+            writer.WriteAsync(fixedDoc, ticket);
+            return await spooled.Task;
+        }
+
+        /// <summary>
+        /// Reopens a print queue by name on the calling thread. The dialog enumerates local queues
+        /// and connections off the local server, so its FullName resolves here too; fall back to
+        /// matching that same enumeration for the names the spooler will not take directly.
+        /// </summary>
+        private static PrintQueue ResolveQueue(LocalPrintServer server, string fullName)
+        {
+            try { return server.GetPrintQueue(fullName); }
+            catch
+            {
+                var match = server
+                    .GetPrintQueues([EnumeratedPrintQueueTypes.Local, EnumeratedPrintQueueTypes.Connections])
+                    .FirstOrDefault(q => q.FullName == fullName);
+                if (match != null) return match;
+                throw;
             }
         }
 
