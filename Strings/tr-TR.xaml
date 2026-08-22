@@ -707,6 +707,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Color_EyedropTT">Ekranın herhangi bir yerinden renk seçin</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">Bu renk örneğine geçerli rengi atamak için tıklayın</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">Bu rengi kullanmak için tıklayın</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">Taşımak için sürükleyin</sys:String>
     <sys:String x:Key="Str_Sign_Name">Dijital İmza</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">İmzalama sertifikası seçin</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">İmza görüntüsünü içe aktar</sys:String>

@@ -707,6 +707,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Color_EyedropTT">Elegir un color de cualquier parte de la pantalla</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">Haga clic para asignar el color actual a esta muestra</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">Haga clic para usar este color</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">Arrastre para mover</sys:String>
     <sys:String x:Key="Str_Sign_Name">Firma digital</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Elija un certificado de firma</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Importar imagen de firma</sys:String>

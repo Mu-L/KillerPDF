@@ -723,6 +723,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Color_EyedropTT">Choisir une couleur n'importe où à l'écran</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">Cliquez pour attribuer la couleur actuelle à cette pastille</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">Cliquez pour utiliser cette couleur</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">Faites glisser pour déplacer</sys:String>
     <sys:String x:Key="Str_Sign_Name">Signature numérique</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Choisissez un certificat de signature</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Importer une image de signature</sys:String>

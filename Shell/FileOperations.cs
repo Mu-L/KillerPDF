@@ -498,7 +498,7 @@ namespace KillerPDF
                         Cursor = Cursors.Hand,
                         Padding = new Thickness(0),
                         Style = (Style)FindResource("DangerCloseButton"),
-                        ToolTip = "Remove from list"
+                        ToolTip = Loc("Str_Menu_RemoveFromRecents")
                     };
                     rmBtn.Click += (_, ev) =>
                     {

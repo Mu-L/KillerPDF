@@ -716,6 +716,7 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Color_EyedropTT">Szín kiválasztása a képernyő bármely pontjáról</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">Kattintson az aktuális szín hozzárendeléséhez ehhez a színmintához</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">Kattintson a szín használatához</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">Húzza az áthelyezéshez</sys:String>
     <sys:String x:Key="Str_Sign_Name">Digitális aláírás</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Válasszon aláíró tanúsítványt</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Aláíráskép importálása</sys:String>

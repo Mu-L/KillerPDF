@@ -712,6 +712,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Color_EyedropTT">画面上の任意の場所から色を取得</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">クリックしてこのスウォッチに現在の色を設定</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">クリックしてこの色を使用</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">ドラッグして移動</sys:String>
     <sys:String x:Key="Str_Sign_Name">デジタル署名</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">署名証明書を選択</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">署名画像をインポート</sys:String>

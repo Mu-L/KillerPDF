@@ -712,6 +712,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Color_EyedropTT">Vybrat barvu odkudkoli na obrazovce</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">Kliknutím přiřadíte tomuto vzorku aktuální barvu</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">Kliknutím použijete tuto barvu</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">Tažením přesunete</sys:String>
     <sys:String x:Key="Str_Sign_Name">Digitální podpis</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Vyberte podpisový certifikát</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Importovat obrázek podpisu</sys:String>

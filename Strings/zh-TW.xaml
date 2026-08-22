@@ -709,6 +709,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Color_EyedropTT">從螢幕任意位置擷取顏色</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">點擊將目前顏色設定到此色塊</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">點擊使用此顏色</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">拖曳以移動</sys:String>
     <sys:String x:Key="Str_Sign_Name">數位簽章</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">選擇簽名憑證</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">匯入簽名圖片</sys:String>

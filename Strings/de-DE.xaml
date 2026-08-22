@@ -713,6 +713,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Color_EyedropTT">Eine Farbe von einer beliebigen Stelle des Bildschirms aufnehmen</sys:String>
     <sys:String x:Key="Str_Color_SwatchSetTT">Klicken, um diesem Farbfeld die aktuelle Farbe zuzuweisen</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">Klicken, um diese Farbe zu verwenden</sys:String>
+    <sys:String x:Key="Str_Search_DragTT">Zum Verschieben ziehen</sys:String>
     <sys:String x:Key="Str_Sign_Name">Digitale Signatur</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Signaturzertifikat wählen</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Signaturbild importieren</sys:String>
