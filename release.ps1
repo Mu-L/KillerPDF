@@ -155,9 +155,16 @@ namespace KillerPDF
     }
 }
 "@
-$buildInfoContent += [Environment]::NewLine
-[System.IO.File]::WriteAllText($buildInfoPath, $buildInfoContent, [System.Text.UTF8Encoding]::new($false))
-Write-Host "    BuildInfo.cs updated." -ForegroundColor Green
+$buildInfoContent = $buildInfoContent.TrimEnd("`r", "`n") + [Environment]::NewLine
+$currentBuildInfo = if (Test-Path $buildInfoPath) { [System.IO.File]::ReadAllText($buildInfoPath) } else { "" }
+$normalizedBuildInfo = $buildInfoContent -replace "`r`n?", "`n"
+$normalizedCurrentBuildInfo = $currentBuildInfo -replace "`r`n?", "`n"
+if ($normalizedCurrentBuildInfo -ne $normalizedBuildInfo) {
+    [System.IO.File]::WriteAllText($buildInfoPath, $buildInfoContent, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "    BuildInfo.cs updated." -ForegroundColor Green
+} else {
+    Write-Host "    BuildInfo.cs already current." -ForegroundColor Green
+}
 
 # ── 2. Build the loose payload and one-payload launcher ──────────────────────
 Write-Host "`n==> Building loose payload + portable launcher..." -ForegroundColor Cyan
