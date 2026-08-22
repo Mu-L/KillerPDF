@@ -11,24 +11,11 @@ namespace KillerPDF.Services
     // ============================================================
     internal static class OcrLanguages
     {
-        // Tesseract code -> display name, covering KillerPDF's 8 UI locales. English is bundled; the rest
-        // are downloaded on demand into OcrNativeBootstrap.TessDataDir.
-        // Order mirrors the Settings language picker (English first, then the
-        // same sequence as the LangGroup radios in MainWindow.xaml).
-        internal static readonly (string Code, string Name)[] OcrLanguageCatalog =
-        [
-            ("eng", "English"),
-            ("ben", "Bengali"),
-            ("ces", "Czech"),
-            ("deu", "German"),
-            ("spa", "Spanish"),
-            ("fra", "French"),
-            ("jpn", "Japanese"),
-            ("pol", "Polish"),
-            ("tur", "Turkish"),
-            ("chi_sim", "Chinese (Simplified)"),
-            ("chi_tra", "Chinese (Traditional)"),
-        ];
+        // The catalog itself lives in OcrCatalog.cs - pure data with no App, bootstrap or HTTP
+        // dependency, so the test project can link that one file and check it against Strings\.
+        // These forwarders keep every existing call site (OcrLanguageCatalog) working unchanged.
+        internal static readonly (string Code, string Name)[] OcrLanguageCatalog = OcrCatalog.Languages;
+        internal static readonly (string Locale, string Code)[] LocaleToOcrCode = OcrCatalog.LocaleToCode;
 
         // True if <code>.traineddata exists in the tessdata folder. Nothing is bundled now (not even English);
         // models are downloaded on demand, so this is a pure file-presence check.

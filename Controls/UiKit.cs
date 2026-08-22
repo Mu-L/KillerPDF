@@ -470,12 +470,41 @@ namespace KillerPDF
             {
                 var button = Make(content, Brush("ChipFaceBrush"), Brush("ChipFaceBrush"),
                                   Brush("TextBrush"), Brush("TextBrush"), Brushes.Transparent);
+                // Keep an already-open code-built surface attached to the live palette. The
+                // explicit-color factory below is also used by pre-theme startup dialogs, so the
+                // resource references belong here in the normal themed overload.
+                button.SetResourceReference(Control.BackgroundProperty, "ChipFaceBrush");
+                button.SetResourceReference(Control.ForegroundProperty, "TextBrush");
                 button.Template = BeveledButtonTemplate();
                 return button;
             }
-            return accent
+            var themed = accent
                 ? Make(content, Brush("SelectionBg"), Brush("PrimaryBrush"), Brush("SelectionFg"), Brush("OnPrimaryBrush"), Brush("PrimaryBrush"))
                 : Make(content, Brush("PaneBrush"), Brush("RowHoverBrush"), Brush("TextBrush"), Brush("TextBrush"), Brush("CardBorderBrush"));
+
+            // Make(object,bool) is used by long-lived annotation bars and modeless tool windows.
+            // A local brush value would preserve the palette that happened to be active when the
+            // control was constructed. Re-attach each state to resource keys so theme and accent
+            // changes repaint the existing button instead of leaving an old-colored island.
+            void ApplyRest()
+            {
+                themed.SetResourceReference(Control.BackgroundProperty, accent ? "SelectionBg" : "PaneBrush");
+                themed.SetResourceReference(Control.ForegroundProperty, accent ? "SelectionFg" : "TextBrush");
+                themed.SetResourceReference(Control.BorderBrushProperty, accent ? "PrimaryBrush" : "CardBorderBrush");
+            }
+            void ApplyHover()
+            {
+                themed.SetResourceReference(Control.BackgroundProperty, accent ? "PrimaryBrush" : "RowHoverBrush");
+                themed.SetResourceReference(Control.ForegroundProperty, accent ? "OnPrimaryBrush" : "TextBrush");
+                themed.SetResourceReference(Control.BorderBrushProperty, accent ? "PrimaryBrush" : "CardBorderBrush");
+            }
+
+            // These handlers are registered after the explicit-color factory's handlers, so the
+            // resource-backed values win and remain live for the current palette.
+            themed.MouseEnter += (_, _) => ApplyHover();
+            themed.MouseLeave += (_, _) => ApplyRest();
+            ApplyRest();
+            return themed;
         }
 
         private static ControlTemplate BeveledButtonTemplate()

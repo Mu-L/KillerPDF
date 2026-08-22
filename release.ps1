@@ -452,6 +452,42 @@ try {
         } else {
             Write-Host "    pdf-landing already current"
         }
+
+        # Facts the site states in PROSE, which no other gate can reach. Edit-SiteFact keeps
+        # version, size and hash honest, and OcrCatalogTests keeps the app's OCR list matching
+        # Strings\, but a sentence like "OCR supports ten languages" is just words in a paragraph.
+        # That one was wrong for two releases and nothing noticed, so the count is compared to the
+        # copy here. Silent when the page agrees; only speaks up on a mismatch.
+        $localeCount = @(Get-ChildItem (Join-Path $PSScriptRoot 'Strings') -Filter '*.xaml').Count
+        $numberWords = @{
+            'eight' = 8; 'nine' = 9; 'ten' = 10; 'eleven' = 11; 'twelve' = 12
+            'thirteen' = 13; 'fourteen' = 14; 'fifteen' = 15; 'sixteen' = 16
+        }
+        $sitePages = @('index.html', 'help.html', 'technical.html', 'about.html') |
+            ForEach-Object { Join-Path $PSScriptRoot "pdf-landing\$_" } | Where-Object { Test-Path $_ }
+        $claimMismatches = @()
+        foreach ($page in $sitePages) {
+            # Only sentences about INTERFACE or OCR languages. "fifteen languages" in a sentence
+            # about syntax highlighting is a different count and must not be flagged.
+            $hits = Select-String -Path $page -Pattern '(?i)\b(\w+)\s+(?:languages|locales)\b' -AllMatches
+            foreach ($hit in $hits) {
+                if ($hit.Line -notmatch '(?i)OCR|interface|localiz|locale|translated') { continue }
+                foreach ($m in $hit.Matches) {
+                    $word = $m.Groups[1].Value
+                    $claimed = if ($numberWords.ContainsKey($word.ToLower())) { $numberWords[$word.ToLower()] }
+                               elseif ($word -match '^\d+$') { [int]$word } else { $null }
+                    if ($null -ne $claimed -and $claimed -ne $localeCount) {
+                        $claimMismatches += "      $(Split-Path $page -Leaf):$($hit.LineNumber) says '$($m.Value)' but $localeCount locales ship"
+                    }
+                }
+            }
+        }
+        if ($claimMismatches.Count) {
+            Write-Host ""
+            Write-Warning "Landing-page copy disagrees with the shipped locale count:"
+            $claimMismatches | Sort-Object -Unique | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+            Write-Host "      Fix the copy, or confirm the sentence is about something else." -ForegroundColor Yellow
+        }
     }
 
     git fetch origin $defaultBranch --quiet

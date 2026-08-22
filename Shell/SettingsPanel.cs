@@ -335,8 +335,9 @@ namespace KillerPDF
                 SetKbLayer(layer);
             }
 
-            // The crop bar's buttons snapshot accent colors (UiKit), so rebuild it in the new theme.
-            RebuildCropBarForLocale();
+            // Code-built annotate bars can be open in either pane. Refresh both panes so a bar
+            // cannot retain the accent or control template from the theme that created it.
+            RefreshOpenAnnotationBars();
         }
 
         private void ThemeDarkRadio_Checked(object sender, RoutedEventArgs e)     => SelectTheme(Theme.Dark);
@@ -523,6 +524,7 @@ namespace KillerPDF
                 BuildToolbarMenu();
                 BuildContextMenu();
                 ApplyToolbarAppearance();
+                RefreshOpenAnnotationBars();
             };
 
         private void LangEnRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.EnUS);
@@ -561,17 +563,10 @@ namespace KillerPDF
             // icon-only modes; refreshes the captions for Text-beside / Text-under / Text-only.
             ApplyToolbarAppearance();
 
-            // The annotate bars (text / draw) also capture Loc() values when built, so rebuild whichever
-            // one is currently showing in the new language.
-            if (_annotBarTool == EditTool.Text)
-                ShowTextSettings();
-            else if (_annotBarTool is EditTool bt &&
-                     bt is EditTool.Draw or EditTool.Highlight or EditTool.Line
-                        or EditTool.Strikethrough or EditTool.Underline)
-                ShowDrawSettings(bt);
-
-            // The crop bar is built once with Loc() snapshots; rebuild it in the new language if it's showing.
-            RebuildCropBarForLocale();
+            // Refresh code-built annotate bars in both panes. A language change comes from a
+            // window flyout, so the pane containing the visible bar is not guaranteed to be the
+            // current ActiveViewer by the time these controls are rebuilt.
+            RefreshOpenAnnotationBars();
 
             // Page thumbnails and outline tooltips snapshot Loc() strings when built; rebuild both
             // lists so their "Page N" labels switch to the new language immediately.
@@ -584,6 +579,32 @@ namespace KillerPDF
 
             // The fit-mode terms differ in length per language; resize the zoom box so the longest never clips.
             AdjustZoomBoxWidth();
+        }
+
+        private void RefreshOpenAnnotationBars()
+        {
+            var active = ActiveViewer;
+            var other = ReferenceEquals(active, Viewer) ? ViewerB : Viewer;
+            // Refresh the inactive pane first. BuildBarHost keeps a few drag/minimize references
+            // at window scope, so finishing on the active pane leaves those references pointed at
+            // the controls the shared toolbar is currently operating.
+            if (!ReferenceEquals(other, active)) RefreshOpenAnnotationBars(other);
+            RefreshOpenAnnotationBars(active);
+        }
+
+        private void RefreshOpenAnnotationBars(KillerPDF.Controls.PdfViewer viewer)
+        {
+            ((KillerPDF.Features.IViewerHost)this).RunWithViewerContext(viewer, () =>
+            {
+                var tool = _annotBarTool;
+                if (tool == EditTool.Text)
+                    ShowTextSettings();
+                else if (tool is EditTool bt && bt is EditTool.Draw or EditTool.Highlight
+                    or EditTool.Line or EditTool.Strikethrough or EditTool.Underline or EditTool.Shape)
+                    ShowDrawSettings(bt);
+
+                RebuildCropBarForLocale();
+            });
         }
 
         // Size the editable zoom ComboBox to its widest item in the CURRENT language, so localized fit-mode

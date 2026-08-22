@@ -318,17 +318,31 @@ namespace KillerPDF.Controls
             var grip = MakeBarGrip();
             outer.Children.Add(grip);
             static Button CropBtn(Button b) { b.Padding = new Thickness(10, 4, 10, 4); b.Margin = new Thickness(0, 0, 5, 0); return b; }
-            Brush Res(string key) => (Brush)FindResource(key);
+
+            TextBlock LocalizedText(string key, FontWeight? weight = null)
+            {
+                var text = new TextBlock
+                {
+                    FontFamily = UiKit.UiFont,
+                    FontSize = 11,
+                    FontWeight = weight ?? FontWeights.Normal,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                text.SetResourceReference(TextBlock.TextProperty, key);
+                text.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
+                return text;
+            }
 
             // label + themed field. Enter applies the crop; LostFocus just updates the rect from the values.
             TextBox AddField(string lbl, double width)
             {
-                outer.Children.Add(new TextBlock
+                var label = new TextBlock
                 {
                     Text = lbl, FontFamily = UiKit.UiFont, FontSize = 11,
-                    VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0),
-                    Foreground = Res("MutedTextBrush")
-                });
+                    VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0)
+                };
+                label.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
+                outer.Children.Add(label);
                 var tb = new TextBox
                 {
                     Width = width, Height = 22, FontFamily = UiKit.UiFont, FontSize = 11,
@@ -346,17 +360,17 @@ namespace KillerPDF.Controls
             }
 
             // Group labels (GIMP-style "Position" / "Size") so the single-letter fields read clearly.
-            void GroupLabel(string t, double leftPad) => outer.Children.Add(new TextBlock
+            void GroupLabel(string key, double leftPad)
             {
-                Text = t, FontFamily = UiKit.UiFont, FontSize = 11, FontWeight = FontWeights.SemiBold,
-                Foreground = Res("MutedTextBrush"), VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(leftPad, 0, 6, 0)
-            });
+                var label = LocalizedText(key, FontWeights.SemiBold);
+                label.Margin = new Thickness(leftPad, 0, 6, 0);
+                outer.Children.Add(label);
+            }
 
-            GroupLabel(Loc("Str_Crop_Position"), 0);
+            GroupLabel("Str_Crop_Position", 0);
             _cropXBox = AddField("X", 50);
             _cropYBox = AddField("Y", 50);
-            GroupLabel(Loc("Str_Crop_Size"), 6);   // padding after the Y box, before the size group
+            GroupLabel("Str_Crop_Size", 6);   // padding after the Y box, before the size group
             _cropWBox = AddField("W", 50);
             _cropHBox = AddField("H", 50);
 
@@ -379,20 +393,18 @@ namespace KillerPDF.Controls
 
             // Pages range + "All" checkbox, then a single Crop button on the far right. Crop logic:
             // All checked -> every page; else a typed range like "1-3,5"; else just the current page.
-            outer.Children.Add(new TextBlock
-            {
-                Text = Loc("Str_Crop_Pages"), FontFamily = UiKit.UiFont, FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0),
-                Foreground = Res("MutedTextBrush")
-            });
+            var pagesLabel = LocalizedText("Str_Crop_Pages");
+            pagesLabel.Margin = new Thickness(0, 0, 3, 0);
+            outer.Children.Add(pagesLabel);
             _cropRangeBox = new TextBox
             {
                 Width = 64, Height = 22, FontFamily = UiKit.UiFont, FontSize = 11,
                 BorderThickness = new Thickness(1), Padding = new Thickness(3, 1, 3, 1),
                 VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0), ToolTip = Loc("Str_Crop_RangeTip"),
+                Margin = new Thickness(0, 0, 8, 0),
                 Style = (Style)FindResource("FormFieldTextBox")
             };
+            _cropRangeBox.SetResourceReference(FrameworkElement.ToolTipProperty, "Str_Crop_RangeTip");
             _cropRangeBox.SetResourceReference(TextBox.BackgroundProperty,  "PaneBrush");
             _cropRangeBox.SetResourceReference(TextBox.ForegroundProperty,  "TextBrush");
             _cropRangeBox.SetResourceReference(TextBox.BorderBrushProperty, "CardBorderBrush");
@@ -402,9 +414,10 @@ namespace KillerPDF.Controls
             bool cropAll = false;
             var allTick = new TextBlock { Text = "✓", Foreground = Brushes.White, FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
             var allBox = new Border { Width = 15, Height = 15, CornerRadius = new CornerRadius(3), BorderThickness = new Thickness(1), BorderBrush = _swatchDimBorder, Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0), Child = allTick };
-            var allRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 10, 0), ToolTip = Loc("Str_Crop_AllTip") };
+            var allRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 10, 0) };
+            allRow.SetResourceReference(FrameworkElement.ToolTipProperty, "Str_Crop_AllTip");
             allRow.Children.Add(allBox);
-            allRow.Children.Add(new TextBlock { Text = Loc("Str_Crop_All"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Foreground = Res("MutedTextBrush") });
+            allRow.Children.Add(LocalizedText("Str_Crop_All"));
             allRow.MouseLeftButtonDown += (_, _) =>
             {
                 cropAll = !cropAll;
@@ -416,7 +429,8 @@ namespace KillerPDF.Controls
 
             // Single Crop button on the right.
             var cropBtn = CropBtn(UiKit.Make(Loc("Str_Crop_Apply"), true));
-            cropBtn.ToolTip = Loc("Str_TT_CropThisPage");
+            cropBtn.SetResourceReference(ContentControl.ContentProperty, "Str_Crop_Apply");
+            cropBtn.SetResourceReference(FrameworkElement.ToolTipProperty, "Str_TT_CropThisPage");
             cropBtn.Click += (_, _) =>
             {
                 int pc = _doc?.PageCount ?? 0;

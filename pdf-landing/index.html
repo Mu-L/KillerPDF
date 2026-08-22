@@ -272,13 +272,31 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <script>
 (function () {
   var SHOTS = [
-    { src: 'screenshots/01.png', desc: 'Six-page grid view of the KillerPDF brochure' },
-    { src: 'screenshots/02.png', desc: 'Insert Image file picker in the 98SE theme' },
-    { src: 'screenshots/03.png', desc: 'Split-pane grid view with the outline open in Bengali' },
-    { src: 'screenshots/04.png', desc: 'Night mode with a Traditional Chinese page context menu' },
-    { src: 'screenshots/05.png', desc: 'Shape tools and Book layout in the Black theme' },
-    { src: 'screenshots/06.png', desc: 'Drawing, shapes, and the custom color picker' }
+    { key: 'shot_08', src: 'screenshots/08.png', desc: 'Mourning theme, menu bar hidden, night mode inverting images too' },
+    { key: 'shot_09', src: 'screenshots/09.png', desc: 'Decay theme, menu bar hidden, the language flyout listing twelve languages' },
+    { key: 'shot_02', src: 'screenshots/02.png', desc: 'Insert Image file picker in the 98SE theme' },
+    { key: 'shot_03', src: 'screenshots/03.png', desc: 'Split-pane grid view with the outline open in Bengali' },
+    { key: 'shot_04', src: 'screenshots/04.png', desc: 'Night mode with a Traditional Chinese page context menu' },
+    { key: 'shot_05', src: 'screenshots/05.png', desc: 'Shape tools and Book layout in the Black theme' },
+    { key: 'shot_06', src: 'screenshots/06.png', desc: 'Drawing, shapes, and the custom color picker' },
+    { key: 'shot_07', src: 'screenshots/07.png', desc: 'Filled shapes and opacity over a two-page spread, in Traditional Chinese' },
+    { key: 'shot_01', src: 'screenshots/01.png', desc: 'Six-page grid view of the KillerPDF brochure' }
   ];
+  // EVERY file in screenshots/ belongs in the list above - the strip is this array, not the
+  // folder, so a new .png dropped in the folder is invisible until it is added here. 07 sat
+  // unreferenced for exactly that reason.
+
+  // These captions cannot use data-i18n: that mechanism swaps innerHTML on a node, and a caption
+  // has to land in alt, title and aria-label as well. So the shot's key is resolved against the
+  // same I18N dictionary by hand, with the English text above as the fallback - which is also
+  // what English itself uses, so a missing key degrades to English rather than to a bare key.
+  function shotText(shot) {
+    var lang = document.documentElement.getAttribute('lang') || 'en';
+    if (lang === 'zh-Hant') lang = 'zh';
+    else if (lang === 'zh-Hans') lang = 'zh-cn';
+    var dict = (window.I18N && window.I18N[lang]) || null;
+    return (dict && dict[shot.key] != null) ? dict[shot.key] : shot.desc;
+  }
   var sbThumbs = document.getElementById('sbThumbs');
   var lightbox = document.getElementById('lightbox');
   var lightboxImg = document.getElementById('lightboxImg');
@@ -288,12 +306,19 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
   // Build the sidebar screenshot thumbnails (scrollable, like the app). Click = pop out.
   SHOTS.forEach(function (shot) {
     var b = document.createElement('button');
-    b.className = 'sb-thumb'; b.title = shot.desc;
-    b.setAttribute('aria-label', shot.desc);
-    b.innerHTML = '<img src="' + shot.src + '" alt="' + shot.desc + '" loading="lazy">';
+    var text = shotText(shot);
+    b.className = 'sb-thumb'; b.title = text;
+    b.setAttribute('aria-label', text);
+    // The caption is re-read on every language change, so the element carries its key.
+    b.dataset.shotKey = shot.key;
+    b.innerHTML = '<img src="' + shot.src + '" alt="" loading="lazy">';
+    var alt = b.querySelector('img');
+    // alt is set as a property rather than interpolated into the markup above: a translated
+    // caption can contain a quote or an angle bracket, which would break out of the attribute.
+    if (alt) alt.alt = text;
     var tim = b.querySelector('img');
-    if (tim) tim.title = shot.desc;
-    b.addEventListener('click', function () { openLightbox(shot.src, shot.desc, b); });
+    if (tim) tim.title = text;
+    b.addEventListener('click', function () { openLightbox(shot, b); });
     var im = b.querySelector('img');
     if (im) { im.addEventListener('load', updateFade); im.addEventListener('error', updateFade); }
     sbThumbs.appendChild(b);
@@ -313,16 +338,44 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
   window.addEventListener('resize', updateFade);
   updateFade();
 
-  function openLightbox(src, description, trigger) {
+  var openShot = null;   // which shot the lightbox is showing, so it can be re-captioned
+
+  function openLightbox(shot, trigger) {
     lastLightboxTrigger = trigger;
-    lightboxImg.src = src;
-    lightboxImg.alt = description;
-    lightboxImg.title = description;
-    lightboxCaption.textContent = description;
+    openShot = shot;
+    var text = shotText(shot);
+    lightboxImg.src = shot.src;
+    lightboxImg.alt = text;
+    lightboxImg.title = text;
+    lightboxCaption.textContent = text;
     lightbox.setAttribute('aria-hidden', 'false');
     lightbox.classList.add('show');
     lightbox.focus();
   }
+
+  // kp.js fires this after it has swapped every data-i18n node and set the root lang attribute,
+  // so shotText reads the new language. Covers the thumbnails and the lightbox if it is open -
+  // switching language with a screenshot expanded would otherwise leave its caption in the old
+  // one until it was closed and reopened.
+  document.addEventListener('kpdf-languagechange', function () {
+    var byKey = {};
+    SHOTS.forEach(function (s) { byKey[s.key] = s; });
+    sbThumbs.querySelectorAll('.sb-thumb').forEach(function (b) {
+      var shot = byKey[b.dataset.shotKey];
+      if (!shot) return;
+      var text = shotText(shot);
+      b.title = text;
+      b.setAttribute('aria-label', text);
+      var im = b.querySelector('img');
+      if (im) { im.alt = text; im.title = text; }
+    });
+    if (openShot) {
+      var t = shotText(openShot);
+      lightboxImg.alt = t;
+      lightboxImg.title = t;
+      lightboxCaption.textContent = t;
+    }
+  });
   function closeLightbox() {
     if (!lightbox.classList.contains('show')) return;
     lightbox.classList.remove('show');
