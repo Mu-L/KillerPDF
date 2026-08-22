@@ -154,7 +154,8 @@ namespace KillerPDF
             DockPanel.SetDock(bottom, Dock.Bottom);
             side.Children.Add(bottom);
 
-            var stack = new StackPanel();
+            // Keep fields and section headers clear of the always-reserved scrollbar gutter.
+            var stack = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
             stack.Children.Add(BuildWatermarkSection());
             stack.Children.Add(Divider());
             stack.Children.Add(BuildNumbersSection());
@@ -170,7 +171,7 @@ namespace KillerPDF
             var previewWrap = new Border
             {
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
+                CornerRadius = UiKit.RadControl,
                 Margin = new Thickness(8, 4, 8, 12),
                 ClipToBounds = true
             };

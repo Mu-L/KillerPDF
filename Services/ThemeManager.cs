@@ -156,6 +156,12 @@ namespace KillerPDF.Services
             // is readable, and the accent overlay below needs it to know whether re-deriving the
             // ring from the overlay's accent would honor the theme or clobber it.
             bool themeOwnsTabRing = newDict.Contains("TabActiveRingBrush");
+            // 98SE owns the entire classic button treatment. Other themes derive these roles from
+            // their accent; record ownership before CompleteAppPalette fills the fallback keys.
+            bool themeOwnsOutlineRest = newDict.Contains("OutlineRestBrush");
+            bool themeOwnsOutlineText = newDict.Contains("OutlineTextBrush");
+            bool themeOwnsOutlineHover = newDict.Contains("OutlineHoverBrush");
+            bool themeOwnsOutlineHoverText = newDict.Contains("OutlineHoverTextBrush");
             CompleteAppPalette(newDict);
             var merged  = Application.Current.Resources.MergedDictionaries;
 
@@ -205,13 +211,21 @@ namespace KillerPDF.Services
                     foreach (string aliased in new[] { "AccentLogo", "InstallBtnBg", "SelectionAccent", "RadioAccent" })
                         if (!accentDict.Contains(aliased))
                             target[aliased] = accentDict["PrimaryBrush"];
-                // OutlineRestBrush derives from OutlineBtnBrush, not PrimaryBrush: CompleteAppPalette
-                // computed it against the BASE palette before this overlay ran, so re-derive it from
-                // the overlay's own accent or the Install button rests on the theme's base hue.
-                if (!accentDict.Contains("OutlineRestBrush"))
-                    target["OutlineRestBrush"] = accentDict.Contains("OutlineBtnBrush")
-                        ? accentDict["OutlineBtnBrush"]
-                        : accentDict.Contains("PrimaryBrush") ? accentDict["PrimaryBrush"] : target["OutlineRestBrush"];
+                // The outline-button roles were materialized against the BASE palette before this
+                // overlay ran. Re-derive every accent-led role together; otherwise the Install
+                // button gets (for example) a red outline with the base green text. A theme that
+                // explicitly owns a role (98SE's black-on-gray treatment) keeps it untouched.
+                object outlineAccent = accentDict.Contains("OutlineBtnBrush")
+                    ? accentDict["OutlineBtnBrush"]
+                    : accentDict.Contains("PrimaryBrush") ? accentDict["PrimaryBrush"] : target["OutlineRestBrush"];
+                if (!themeOwnsOutlineRest && !accentDict.Contains("OutlineRestBrush"))
+                    target["OutlineRestBrush"] = outlineAccent;
+                if (!themeOwnsOutlineText && !accentDict.Contains("OutlineTextBrush"))
+                    target["OutlineTextBrush"] = outlineAccent;
+                if (!themeOwnsOutlineHover && !accentDict.Contains("OutlineHoverBrush"))
+                    target["OutlineHoverBrush"] = outlineAccent;
+                if (!themeOwnsOutlineHoverText && !accentDict.Contains("OutlineHoverTextBrush"))
+                    target["OutlineHoverTextBrush"] = target["OnPrimaryBrush"];
                 // TabActiveRingBrush is the same pre-overlay derivation (from SelectionAccent), so
                 // the active tab's ring and underline sat on the theme's base hue under every
                 // colored accent, on every theme. Re-derive from the overlay's SelectionAccent -
@@ -291,6 +305,7 @@ namespace KillerPDF.Services
             if (!d.Contains("UiFont"))
                 d["UiFont"] = new FontFamily("Segoe UI, Microsoft JhengHei UI, Nirmala UI");
             Alias("ComboFieldBrush", "PaneBrush");
+            Alias("ComboFieldHoverBrush", "RowHoverBrush");
             Alias("ComboPopupBrush", "PaneBrush");
             // The chevron sits directly on the combo field: no button face by default, so the
             // arrow does not read as a separate boxed control. 98SE sets ComboButtonBrush
@@ -305,6 +320,7 @@ namespace KillerPDF.Services
             // explicit TitleBarBrush and are therefore left untouched by this fallback.
             Alias("TitleBarBrush", "BackgroundBrush");
             Alias("DialogTitleBarBrush", "TitleBarBrush");
+            Alias("KeyboardKeyBrush", "PaneBrush");
             if (!d.Contains("DangerRed")) d["DangerRed"] = new SolidColorBrush(Color.FromRgb(0xef, 0x44, 0x44));
             if (!d.Contains("BgOverlay")) d["BgOverlay"] = new SolidColorBrush(Color.FromArgb(0xbb, 0, 0, 0));
             if (!d.Contains("HeaderShadowOpacity")) d["HeaderShadowOpacity"] = 0.5;
@@ -322,6 +338,7 @@ namespace KillerPDF.Services
             if (!d.Contains("PaneShadowOpacity"))   d["PaneShadowOpacity"]   = 0.60;
             if (!d.Contains("BarShadowOpacity"))    d["BarShadowOpacity"]    = 0.38;
             if (!d.Contains("FlyoutShadowOpacity")) d["FlyoutShadowOpacity"] = 0.55;
+            if (!d.Contains("ThemeRadioShadowOpacity")) d["ThemeRadioShadowOpacity"] = 0.5;
             if (!d.Contains("ShortcutCaptionVisibility")) d["ShortcutCaptionVisibility"] = Visibility.Collapsed;
             if (!d.Contains("ShortcutModernHeaderVisibility")) d["ShortcutModernHeaderVisibility"] = Visibility.Visible;
             if (!d.Contains("KsCatTools")) d["KsCatTools"] = new SolidColorBrush(Color.FromRgb(0xff, 0xd3, 0x19));
@@ -338,8 +355,8 @@ namespace KillerPDF.Services
             if (!d.Contains("FrameInnerDarkBrush")) d["FrameInnerDarkBrush"] = Brushes.Transparent;
             if (!d.Contains("WindowFrameBrush")) d["WindowFrameBrush"] = Pick("SurfaceBrush", "PaneBrush");
             // Dialogs carry the same outline as the main window (AppBorderBrush - what DWM paints
-            // on the main frame), not the neutral menu hairline they had drifted to. A theme that
-            // defines DialogFrameBrush itself (98SE's black) is left alone.
+            // on the main frame), not the neutral menu hairline they had drifted to. 98SE disables
+            // this uniform outline because its directional frame rings supply the classic bevel.
             if (!d.Contains("DialogFrameBrush")) d["DialogFrameBrush"] = Pick("AppBorderBrush", "MenuBorderBrush");
             if (!d.Contains("DialogFrameThickness")) d["DialogFrameThickness"] = new Thickness(1);
             if (!d.Contains("DialogFramePadding")) d["DialogFramePadding"] = new Thickness(0);
@@ -359,8 +376,14 @@ namespace KillerPDF.Services
             // intent. NOTE this still runs BEFORE the accent overlay: overlay-time re-derivation
             // (LoadDict) is what keeps them on the chosen accent, not this line - the green
             // Install outline on teal-accent Black was fixed THERE.
-            d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
-            d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
+            if (!d.Contains("OutlineRestBrush")) d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
+            if (!d.Contains("ButtonEdgeBrush")) d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
+            // The confirm button remains accent-led in modern themes. 98SE supplies classic gray
+            // face/text/hover values so Open and Save never become a blue selection rectangle.
+            if (!d.Contains("OutlineFaceBrush")) d["OutlineFaceBrush"] = Brushes.Transparent;
+            if (!d.Contains("OutlineTextBrush")) d["OutlineTextBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
+            if (!d.Contains("OutlineHoverBrush")) d["OutlineHoverBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
+            if (!d.Contains("OutlineHoverTextBrush")) d["OutlineHoverTextBrush"] = Pick("OnPrimaryBrush", "TextBrush");
             // Circle swatches by default; 98SE's own 0 makes them squares. Materialized so 98SE's
             // square cannot leak into a later theme through the in-place merge.
             if (!d.Contains("AccentSwatchCornerRadius")) d["AccentSwatchCornerRadius"] = new CornerRadius(9);
@@ -400,6 +423,9 @@ namespace KillerPDF.Services
             if (!d.Contains("GripDotsVisibility")) d["GripDotsVisibility"] = Visibility.Visible;
             if (!d.Contains("GripHatchVisibility")) d["GripHatchVisibility"] = Visibility.Collapsed;
             if (!d.Contains("ComboButtonSize")) d["ComboButtonSize"] = 18.0;
+            // Width and height are separate: modern themes use a compact square chevron face,
+            // while 98SE keeps the native narrow button but stretches it to the field's height.
+            if (!d.Contains("ComboButtonHeight")) d["ComboButtonHeight"] = d["ComboButtonSize"];
             if (!d.Contains("ZoomBoxHeight")) d["ZoomBoxHeight"] = 28.0;
             if (!d.Contains("RetroTabJoinVisibility")) d["RetroTabJoinVisibility"] = Visibility.Collapsed;
             if (!d.Contains("RetroActiveTabOutlineVisibility")) d["RetroActiveTabOutlineVisibility"] = Visibility.Collapsed;
@@ -460,13 +486,10 @@ namespace KillerPDF.Services
             if (!d.Contains("SplitPaneGutterWidth")) d["SplitPaneGutterWidth"] = 8.0;
             if (!d.Contains("ContentPaneMargin")) d["ContentPaneMargin"] = new Thickness(0, 0, 8, 0);
             if (!d.Contains("FileDialogPaneBrush")) d["FileDialogPaneBrush"] = d.Contains("PaneBrush") ? d["PaneBrush"] : Brushes.White;
-            // The page-list edge fades must paint the surface actually behind the thumbnails:
-            // the theme's own sidebar pane when it defines one (98SE's white client pane),
-            // otherwise the window frame the transparent sidebar shows through. Resolved BEFORE
-            // SidebarPaneBrush is backfilled to Transparent below - fading to transparent is
-            // no fade at all, which is how the fades vanished on every modern theme.
-            if (!d.Contains("SidebarFadeBrush"))
-                d["SidebarFadeBrush"] = d.Contains("SidebarPaneBrush") ? d["SidebarPaneBrush"] : d["WindowFrameBrush"];
+            // Theme dictionaries are copied into the live dictionary in place, so a key that is
+            // absent from the next theme keeps the previous theme's value. 98SE sets this to zero;
+            // materialize the modern default so switching away from 98SE restores both edge fades.
+            if (!d.Contains("EdgeFadeOpacity")) d["EdgeFadeOpacity"] = 1.0;
             // Match KillerNotes and KillerShell: modern sidebars do not paint a second surface;
             // the themed app background continues through them. 98SE explicitly overrides this
             // with its white recessed client pane.
@@ -514,6 +537,12 @@ namespace KillerPDF.Services
             if (!d.Contains("TabFocusOnlyThickness")) d["TabFocusOnlyThickness"] = new Thickness(0, 3, 0, 0);
             if (!d.Contains("TabFocusOnlyPadding")) d["TabFocusOnlyPadding"] = new Thickness(12, 1, 5, 5);
             if (!d.Contains("FlyoutCornerRadius")) d["FlyoutCornerRadius"] = new CornerRadius(6);
+            // Annotation bars attach directly beneath the main toolbar: their top edge is always
+            // square, while the exposed bottom corners follow the theme. 98SE's flyout radius is
+            // zero, so this naturally squares all four corners there.
+            var flyoutRadius = d["FlyoutCornerRadius"] is CornerRadius fr ? fr : new CornerRadius(6);
+            d["AnnotationBarCornerRadius"] = new CornerRadius(
+                0, 0, flyoutRadius.BottomRight, flyoutRadius.BottomLeft);
             if (!d.Contains("MenuFontFamily")) d["MenuFontFamily"] = new FontFamily("Segoe UI");
             if (!d.Contains("MenuFontSize")) d["MenuFontSize"] = 12.0;
             if (!d.Contains("MenuItemPadding")) d["MenuItemPadding"] = new Thickness(8, 6, 10, 6);

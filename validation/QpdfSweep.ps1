@@ -33,6 +33,22 @@ $ErrorActionPreference = 'Stop'
 if (-not (Get-Command qpdf -ErrorAction SilentlyContinue)) { Write-Error 'qpdf not on PATH'; exit 2 }
 if (-not (Test-Path -LiteralPath $ResaveLog)) { Write-Error "Resave log not found: $ResaveLog"; exit 2 }
 
+function Get-QpdfCheckCode {
+    param([string]$Path)
+
+    # qpdf writes ordinary exit-3 warnings to stderr. Under Windows PowerShell, redirecting
+    # native stderr while ErrorActionPreference is Stop turns that expected diagnostic into a
+    # terminating NativeCommandError before the sweep can record the exit code.
+    $oldPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & qpdf --check $Path *> $null
+        return $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $oldPreference
+    }
+}
+
 $rows = Import-Csv -LiteralPath $ResaveLog | Where-Object { $_.Status -eq 'OK' }
 $results = New-Object System.Collections.Generic.List[object]
 $i = 0
@@ -46,8 +62,8 @@ foreach ($r in $rows) {
         $results.Add([pscustomobject]@{ File = $r.File; Before = -1; After = -1; Worsened = 'MISSING' })
         continue
     }
-    & qpdf --check $o *> $null; $b = $LASTEXITCODE
-    & qpdf --check $n *> $null; $a = $LASTEXITCODE
+    $b = Get-QpdfCheckCode $o
+    $a = Get-QpdfCheckCode $n
     $results.Add([pscustomobject]@{ File = $r.File; Before = $b; After = $a; Worsened = ($a -gt $b) })
 }
 

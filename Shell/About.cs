@@ -112,6 +112,7 @@ namespace KillerPDF
             var hl = new Hyperlink { TextDecorations = null };
             hl.Inlines.Add(new Run("Killer")
             {
+                FontFamily = UiKit.WordmarkFont,
                 FontSize   = 21,
                 FontWeight = FontWeights.Normal,
                 Foreground = Res("TextBrush")
@@ -134,6 +135,7 @@ namespace KillerPDF
             shadowBrush.Freeze();
             AboutLogoShadowBlock.Inlines.Add(new Run("Killer")
             {
+                FontFamily = UiKit.WordmarkFont,
                 FontSize   = 21,
                 FontWeight = FontWeights.Normal,
                 Foreground = shadowBrush
@@ -217,17 +219,15 @@ namespace KillerPDF
         private void AboutClearData_Click(object sender, RoutedEventArgs e)
         {
             var res = KillerDialog.Show(this,
-                "This will delete all saved settings, downloaded OCR language packs, and temporary files.\n\n" +
-                "Your PDF files are not affected. Continue?",
-                "Clear all Data", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                Loc("Str_ClearDataConfirm"),
+                Loc("Str_ClearAllData"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (res != MessageBoxResult.Yes) return;
 
             App.ClearAllData();
             SetStatus(Loc("Str_St_DataCleared"));
             KillerDialog.Show(this,
-                "Settings, language packs, and temp files were cleared.\n\n" +
-                "Restart KillerPDF to finish clearing any files still in use this session.",
-                "Clear all Data", MessageBoxButton.OK, MessageBoxImage.Information);
+                Loc("Str_ClearDataDone"),
+                Loc("Str_ClearAllData"), MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }

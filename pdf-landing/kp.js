@@ -166,6 +166,7 @@
     langItems.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.lang === lang ? 'true' : 'false'); });
     if (langToggle) langToggle.innerHTML = FLAGS[lang] || FLAGS.en;
     try { localStorage.setItem('kpdf-lang', lang); } catch (e) {}
+    document.dispatchEvent(new CustomEvent('kpdf-languagechange', { detail: { lang: lang } }));
   }
   function closeLangMenu() { if (langMenu) { langMenu.hidden = true; langToggle.setAttribute('aria-expanded', 'false'); } }
   if (langToggle && langMenu) {

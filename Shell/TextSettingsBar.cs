@@ -579,7 +579,7 @@ namespace KillerPDF
                 BorderThickness = new Thickness(1, 0, 1, 1),   // no top border - the toolbar above already separates
                 HorizontalAlignment = HorizontalAlignment.Right,  // right-anchored; slid via the grip
                 VerticalAlignment = VerticalAlignment.Top,
-                CornerRadius = new CornerRadius(0, 0, 4, 4),
+                CornerRadius = new CornerRadius(0),
                 Padding = new Thickness(4),
                 Effect = AnnotBarShadow(),
                 Child = BuildBarHost(wrapHost),
@@ -587,6 +587,7 @@ namespace KillerPDF
             };
             _textSettingsBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
             _textSettingsBar.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
+            _textSettingsBar.SetResourceReference(Border.CornerRadiusProperty, "AnnotationBarCornerRadius");
 
             var previewArea = PagePreviewPanel.Parent as Grid;
             if (previewArea is not null)

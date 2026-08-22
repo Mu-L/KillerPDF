@@ -868,4 +868,22 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Ellipse - drag an oval</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Freeform - click points; click the first point or double-click to close, Esc cancels, Backspace removes the last point</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">Fill the inside of the shape</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">Recent files</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">Save options</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">OCR options</sys:String>
+    <sys:String x:Key="Str_RecentHeading">RECENT</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - Keyboard Shortcuts</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">Update available: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">Download and install KillerPDF {0}?&#10;&#10;The app will close and reopen automatically.</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">Downloading...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">Clear all Data</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">This will delete all saved settings, downloaded OCR language packs, and temporary files.&#10;&#10;Your PDF files are not affected. Continue?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">Settings, language packs, and temp files were cleared.&#10;&#10;Restart KillerPDF to finish clearing any files still in use this session.</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - Unexpected Error</sys:String>
+    <sys:String x:Key="Str_Crash_Log">Log: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">Copy Report</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">Open Logs</sys:String>
+    <sys:String x:Key="Str_Crash_Report">Report on GitHub</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">Continue</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">Quit</sys:String>
 </ResourceDictionary>

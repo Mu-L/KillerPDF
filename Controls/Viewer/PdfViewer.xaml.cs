@@ -74,7 +74,10 @@ namespace KillerPDF.Controls
             bool retro = Services.ThemeManager.Current == Services.Theme.SE98;
             string key = focused && !retro ? "SelectionAccent" : "PaneBorderBrush";
             PaneBorder.SetResourceReference(Border.BorderBrushProperty, key);
-            TabBarRing.SetResourceReference(Border.BorderBrushProperty, key);
+            // The 98SE band is the raised client's white top ledge. Replacing it with the gray
+            // outer-frame brush on focus made the tab/pane join visibly change after a click.
+            TabBarRing.SetResourceReference(Border.BorderBrushProperty,
+                retro ? "BevelLightBrush" : key);
             // The ring runs on around the active tab, so it moves with the pane border. The tab's own
             // share of that is a template trigger on PaneFocused / PaneDimmed, which this sets, plus
             // the band-drawn outer verticals.

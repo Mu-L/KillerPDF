@@ -858,4 +858,22 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Ellipszis - húzással rajzolhat oválist</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Szabad forma - kattintással pontokat helyez el; az első pontra kattintva vagy dupla kattintással zárja, Esc megszakítja, Backspace törli az utolsó pontot</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">Kitölti az alakzat belsejét</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">Legutóbbi fájlok</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">Mentési lehetőségek</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">OCR-lehetőségek</sys:String>
+    <sys:String x:Key="Str_RecentHeading">LEGUTÓBBI</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - Billentyűparancsok</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">Frissítés érhető el: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">Letöltöd és telepíted a KillerPDF {0} verzióját?&#10;&#10;Az alkalmazás automatikusan bezárul és újraindul.</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">Letöltés...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">Minden adat törlése</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">Ez törli az összes mentett beállítást, a letöltött OCR-nyelvi csomagokat és az ideiglenes fájlokat.&#10;&#10;A PDF-fájljaidat nem érinti. Folytatod?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">A beállítások, a nyelvi csomagok és az ideiglenes fájlok törölve lettek.&#10;&#10;Indítsd újra a KillerPDF-et a munkamenetben még használt fájlok törlésének befejezéséhez.</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - Váratlan hiba</sys:String>
+    <sys:String x:Key="Str_Crash_Log">Napló: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">Jelentés másolása</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">Naplók megnyitása</sys:String>
+    <sys:String x:Key="Str_Crash_Report">Jelentés a GitHubon</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">Folytatás</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">Kilépés</sys:String>
 </ResourceDictionary>

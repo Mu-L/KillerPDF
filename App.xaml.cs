@@ -331,6 +331,9 @@ namespace KillerPDF
         /// Dark-themed crash report dialog. Returns true if the user chose Continue.
         /// Must be called on the UI thread.
         /// </summary>
+        private static string CrashText(string key, string fallback) =>
+            System.Windows.Application.Current?.TryFindResource(key) as string ?? fallback;
+
         private static bool ShowCrashDialog(Exception ex, string logPath, bool isFatal)
         {
             bool shouldContinue = false;
@@ -352,7 +355,7 @@ namespace KillerPDF
 
             var win = new Window
             {
-                Title                 = "KillerPDF - Unexpected Error",
+                Title                 = CrashText("Str_Crash_Title", "KillerPDF - Unexpected Error"),
                 Width                 = 680,
                 Height                = 520,
                 MinWidth              = 480,
@@ -385,7 +388,7 @@ namespace KillerPDF
             titleBar.Children.Add(xBtn);
             titleBar.Children.Add(new TextBlock
             {
-                Text              = "KillerPDF - Unexpected Error",
+                Text              = CrashText("Str_Crash_Title", "KillerPDF - Unexpected Error"),
                 Foreground        = dimText,
                 FontSize          = 12,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -431,7 +434,7 @@ namespace KillerPDF
             });
             headerInner.Children.Add(new TextBlock
             {
-                Text       = $"Log: {logPath}",
+                Text       = string.Format(CrashText("Str_Crash_Log", "Log: {0}"), logPath),
                 Foreground = dimText,
                 FontSize   = 11,
                 Margin     = new Thickness(0, 6, 0, 0)
@@ -472,14 +475,14 @@ namespace KillerPDF
             // Left: utility buttons
             var leftBtns = new StackPanel { Orientation = Orientation.Horizontal };
 
-            var copyBtn = MakeCrashButton("Copy Report", grayBtn, grayHov, Brushes.White, 100);
+            var copyBtn = MakeCrashButton(CrashText("Str_Crash_Copy", "Copy Report"), grayBtn, grayHov, Brushes.White, 100);
             copyBtn.Click += (_, _) =>
             {
                 try { Clipboard.SetText(BuildFullCrashReport(ex)); } catch { }
             };
             leftBtns.Children.Add(copyBtn);
 
-            var logsBtn = MakeCrashButton("Open Logs", grayBtn, grayHov, Brushes.White, 88);
+            var logsBtn = MakeCrashButton(CrashText("Str_Crash_OpenLogs", "Open Logs"), grayBtn, grayHov, Brushes.White, 88);
             logsBtn.Margin = new Thickness(8, 0, 0, 0);
             logsBtn.Click += (_, _) =>
             {
@@ -492,7 +495,7 @@ namespace KillerPDF
             };
             leftBtns.Children.Add(logsBtn);
 
-            var githubBtn = MakeCrashButton("Report on GitHub", grayBtn, grayHov,
+            var githubBtn = MakeCrashButton(CrashText("Str_Crash_Report", "Report on GitHub"), grayBtn, grayHov,
                 new SolidColorBrush(Color.FromRgb(0x60, 0xc0, 0xff)), 128);
             githubBtn.Margin = new Thickness(8, 0, 0, 0);
             githubBtn.Click += (_, _) =>
@@ -531,14 +534,14 @@ namespace KillerPDF
                 HorizontalAlignment = HorizontalAlignment.Right
             };
 
-            var contBtn = MakeCrashButton("Continue", green, greenHov,
+            var contBtn = MakeCrashButton(CrashText("Str_Crash_Continue", "Continue"), green, greenHov,
                 new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x0a)), 88);
             contBtn.IsEnabled  = !isFatal;
             contBtn.FontWeight = isFatal ? FontWeights.Normal : FontWeights.SemiBold;
             contBtn.Margin     = new Thickness(0, 0, 8, 0);
             contBtn.Click += (_, _) => { shouldContinue = true; win.Close(); };
 
-            var quitBtnCtrl = MakeCrashButton("Quit", quitNorm, quitHov, Brushes.White, 72);
+            var quitBtnCtrl = MakeCrashButton(CrashText("Str_Crash_Quit", "Quit"), quitNorm, quitHov, Brushes.White, 72);
             quitBtnCtrl.FontWeight = isFatal ? FontWeights.SemiBold : FontWeights.Normal;
             quitBtnCtrl.Click += (_, _) => { shouldContinue = false; win.Close(); };
 

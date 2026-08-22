@@ -69,8 +69,8 @@ namespace KillerPDF
         private static readonly FontFamily _uiFallback   = new("Segoe UI, Microsoft JhengHei UI, Nirmala UI");
         private static readonly FontFamily _monoFallback = new("Consolas");
         private static readonly FontFamily _iconFallback = new("Segoe MDL2 Assets");
-        private static readonly FontFamily _wordmarkFallback = new("Typewriter A602, Consolas");
-        private static readonly FontFamily _wordmarkPdfFallback = new("Typewriter A602, Consolas");
+        private static readonly FontFamily _wordmarkFallback = new("Typewriter - a602 (dead postman 2004), Consolas");
+        private static readonly FontFamily _wordmarkPdfFallback = new("Typewriter - a602 (dead postman 2004), Consolas");
 
         public static CornerRadius RadControl => Rad("RadControl", 3);
         public static CornerRadius RadCard    => Rad("RadCard", 6);
@@ -277,7 +277,7 @@ namespace KillerPDF
             {
                 FontFamily         = UiFont,
                 FontSize           = 12,
-                Background         = Brush("BgCanvas"),
+                Background         = Brush("TextFieldBrush", Brush("BgCanvas")),
                 Foreground         = Brush("TextBrush"),
                 BorderBrush        = Brush("CardBorderBrush"),
                 BorderThickness    = new Thickness(1),
@@ -293,6 +293,7 @@ namespace KillerPDF
 
         private static ControlTemplate FieldTemplate()
         {
+            var root = new FrameworkElementFactory(typeof(Grid));
             var b = new FrameworkElementFactory(typeof(Border));
             b.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
             b.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
@@ -301,7 +302,22 @@ namespace KillerPDF
             var sv = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
             sv.SetValue(Control.PaddingProperty, new Thickness(0));
             b.AppendChild(sv);
-            return new ControlTemplate(typeof(TextBox)) { VisualTree = b };
+            root.AppendChild(b);
+
+            var dark = new FrameworkElementFactory(typeof(Border));
+            dark.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            dark.SetValue(Border.CornerRadiusProperty, RadControl);
+            dark.SetResourceReference(Border.BorderBrushProperty, "BevelDarkBrush");
+            dark.SetResourceReference(Border.BorderThicknessProperty, "CheckSunkenDarkThickness");
+            root.AppendChild(dark);
+
+            var light = new FrameworkElementFactory(typeof(Border));
+            light.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            light.SetValue(Border.CornerRadiusProperty, RadControl);
+            light.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
+            light.SetResourceReference(Border.BorderThicknessProperty, "CheckSunkenLightThickness");
+            root.AppendChild(light);
+            return new ControlTemplate(typeof(TextBox)) { VisualTree = root };
         }
 
         // Themed PasswordBox matching Field(): our border/fill, no OS white box or blue focus chrome.
@@ -311,7 +327,7 @@ namespace KillerPDF
             {
                 FontFamily      = UiFont,
                 FontSize        = 12,
-                Background      = Brush("BgCanvas"),
+                Background      = Brush("TextFieldBrush", Brush("BgCanvas")),
                 Foreground      = Brush("TextBrush"),
                 BorderBrush     = Brush("CardBorderBrush"),
                 BorderThickness = new Thickness(1),
@@ -325,6 +341,7 @@ namespace KillerPDF
 
         private static ControlTemplate PasswordFieldTemplate()
         {
+            var root = new FrameworkElementFactory(typeof(Grid));
             var b = new FrameworkElementFactory(typeof(Border));
             b.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
             b.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
@@ -333,7 +350,22 @@ namespace KillerPDF
             var sv = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
             sv.SetValue(Control.PaddingProperty, new Thickness(0));
             b.AppendChild(sv);
-            return new ControlTemplate(typeof(PasswordBox)) { VisualTree = b };
+            root.AppendChild(b);
+
+            var dark = new FrameworkElementFactory(typeof(Border));
+            dark.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            dark.SetValue(Border.CornerRadiusProperty, RadControl);
+            dark.SetResourceReference(Border.BorderBrushProperty, "BevelDarkBrush");
+            dark.SetResourceReference(Border.BorderThicknessProperty, "CheckSunkenDarkThickness");
+            root.AppendChild(dark);
+
+            var light = new FrameworkElementFactory(typeof(Border));
+            light.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            light.SetValue(Border.CornerRadiusProperty, RadControl);
+            light.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
+            light.SetResourceReference(Border.BorderThicknessProperty, "CheckSunkenLightThickness");
+            root.AppendChild(light);
+            return new ControlTemplate(typeof(PasswordBox)) { VisualTree = root };
         }
 
         // Wraps a dialog's document/preview pane with the family drop shadow: a SEPARATE sibling
@@ -342,6 +374,11 @@ namespace KillerPDF
         // classic theme stays flat. Dialogs read as mini main windows this way.
         public static Grid PaneWithShadow(Border pane)
         {
+            // Code-built preview panes used to carry their own hard-coded radius, so 98SE could
+            // never square them. The theme only supplies this override when it needs one.
+            if (Application.Current?.TryFindResource("PaneCornerRadiusValue") is double radius)
+                pane.CornerRadius = new CornerRadius(radius);
+
             var shadow = new Border
             {
                 Margin = pane.Margin,
@@ -353,6 +390,24 @@ namespace KillerPDF
             var host = new Grid();
             host.Children.Add(shadow);
             host.Children.Add(pane);
+
+            // The main document pane uses these same four bevel rings. They are transparent and
+            // zero-width on modern themes, while 98SE gets its square two-stage classic recess.
+            var bevels = new Grid { Margin = pane.Margin, IsHitTestVisible = false };
+            Border Ring(string brushKey, string thicknessKey, bool inner = false)
+            {
+                var ring = new Border { CornerRadius = pane.CornerRadius };
+                ring.SetResourceReference(Border.BorderBrushProperty, brushKey);
+                ring.SetResourceReference(Border.BorderThicknessProperty, thicknessKey);
+                if (inner)
+                    ring.SetResourceReference(FrameworkElement.MarginProperty, "PaneBevelInnerMargin");
+                return ring;
+            }
+            bevels.Children.Add(Ring("PaneBevelDarkBrush", "PaneBevelLightThickness"));
+            bevels.Children.Add(Ring("PaneBevelLightBrush", "PaneBevelDarkThickness"));
+            bevels.Children.Add(Ring("PaneBevelDark2Brush", "PaneBevel2LightThickness", inner: true));
+            bevels.Children.Add(Ring("PaneBevelLight2Brush", "PaneBevel2DarkThickness", inner: true));
+            host.Children.Add(bevels);
             return host;
         }
 

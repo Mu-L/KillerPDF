@@ -138,6 +138,9 @@ namespace KillerPDF
             close.SetResourceReference(FrameworkElement.WidthProperty, "DialogCloseWidth");
             close.SetResourceReference(FrameworkElement.HeightProperty, "DialogCloseHeight");
             close.SetResourceReference(FrameworkElement.MarginProperty, "DialogCaptionButtonsMargin");
+            // Resizable borderless dialogs use WindowChrome. Without this exemption its resize
+            // band wins the top-right hit test, turning the close button into a resize handle.
+            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(close, true);
             // Get the click before the caption's DragMove handler starts its modal mouse loop.
             close.PreviewMouseLeftButtonDown += (_, e) => { e.Handled = true; onClose(); };
             Grid.SetColumn(close, 1);

@@ -25,6 +25,7 @@ SixLabors.Fonts.dll
 SixLabors.ImageSharp.dll
 System.Buffers.dll
 System.ComponentModel.Annotations.dll
+System.IO.Pipelines.dll
 System.Memory.dll
 System.Numerics.Vectors.dll
 System.Runtime.CompilerServices.Unsafe.dll
@@ -33,7 +34,6 @@ System.Text.Encoding.CodePages.dll
 System.Text.Encodings.Web.dll
 System.Text.Json.dll
 System.Threading.Tasks.Extensions.dll
-System.ValueTuple.dll
 Tesseract.dll
 UglyToad.PdfPig.Core.dll
 UglyToad.PdfPig.dll

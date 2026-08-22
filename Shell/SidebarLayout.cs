@@ -279,12 +279,9 @@ namespace KillerPDF
         // Ctrl+Shift+B (pairs with Ctrl+B, the sidebar collapse toggle).
         private void ToggleSidebarSide() => SelectSidebarSide(!_sidebarRight);
 
-        // ── Page-list edge fades - KillerShell's TreePanel.SyncTreeEdgeFades, ported verbatim ──
-        // (family standard, same behavior as the landing pages' sb-fade). Each edge fades only
-        // while there is a row PAST it, ramped over the fade's own height: none at the very top,
-        // none at the very bottom, full in between - a hard on/off would pop the moment the wheel
-        // moved. PageList disables horizontal scrolling, so KillerShell's scrollbar-lift half of
-        // the pattern (SyncTreeFade) is deliberately not ported.
+        // ── Page-list edge fades - KillerShell's transparent-content mask ──
+        // Each edge fades only while there is a row past it. PageList has no horizontal scrollbar,
+        // so KillerShell's narrow scrollbar-restoration stops are not needed here.
 
         /// <summary>Called once from the window ctor, beside InitSplitPanes.</summary>
         private void WirePageListEdgeFades()
@@ -298,28 +295,38 @@ namespace KillerPDF
             PageList.Loaded      += (_, _) => SyncPageListEdgeFades();
         }
 
+        private const double PageListTopFadePx = 18;
+        private const double PageListBottomFadePx = 22;
+
         private void SyncPageListEdgeFades()
         {
             var sv = FindSidebarDescendant<ScrollViewer>(PageList);
-            if (sv == null || PageListFadeTop == null || PageListFadeBottom == null) return;
+            if (sv == null || PageListFadeHost == null) return;
 
-            // 98SE deliberately disables these overlays; every other theme defaults to full
-            // strength. The theme resource existed but this scroll handler previously ignored it
-            // and overwrote the borders with a nonzero opacity on every scroll.
-            double themeOpacity = TryFindResource("EdgeFadeOpacity") is double value ? value : 1.0;
-            PageListFadeTop.Opacity = themeOpacity *
-                EdgeFadeRamp(sv.VerticalOffset, PageListFadeTop.Height, 18);
-            PageListFadeBottom.Opacity = themeOpacity *
-                EdgeFadeRamp(sv.ExtentHeight - sv.ViewportHeight - sv.VerticalOffset,
-                             PageListFadeBottom.Height, 22);
+            double height = PageListFadeHost.ActualHeight;
+            if (height <= 1) return;
+
+            // Reveal the actual sidebar underneath; never paint a theme-colored strip over it.
+            // EdgeFadeOpacity is zero only in 98SE and one in every other theme.
+            double fade = TryFindResource("EdgeFadeOpacity") is double value ? value : 1.0;
+            double top = EdgeFadeRamp(sv.VerticalOffset, PageListTopFadePx) * fade;
+            double bottom = EdgeFadeRamp(
+                sv.ExtentHeight - sv.ViewportHeight - sv.VerticalOffset,
+                PageListBottomFadePx) * fade;
+
+            PageListFadeTopOuter.Color = FadeMaskAlpha(1 - top);
+            PageListFadeBottomOuter.Color = FadeMaskAlpha(1 - bottom);
+            PageListFadeTopInner.Offset = Math.Min(0.45, PageListTopFadePx / height);
+            PageListFadeBottomInner.Offset = Math.Max(0.5, 1 - PageListBottomFadePx / height);
         }
 
-        // Height is NaN until the border has been laid out, hence the fallback.
-        private static double EdgeFadeRamp(double distance, double height, double fallback)
-        {
-            double h = double.IsNaN(height) || height <= 0 ? fallback : height;
-            return Math.Min(1, Math.Max(0, distance) / h);
-        }
+        private static double EdgeFadeRamp(double distance, double depth) =>
+            Math.Min(1, Math.Max(0, distance) / depth);
+
+        private static Color FadeMaskAlpha(double opacity) =>
+            Color.FromArgb(
+                (byte)Math.Round(Math.Min(1, Math.Max(0, opacity)) * 255),
+                0, 0, 0);
 
         private static T? FindSidebarDescendant<T>(DependencyObject root) where T : DependencyObject
         {

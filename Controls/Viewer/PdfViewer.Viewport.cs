@@ -1777,7 +1777,13 @@ namespace KillerPDF.Controls
             => BookMode ? (page == 0 ? 0 : page - ((page + 1) % 2)) : page - page % 2;
 
         // #193: re-run the current mode's layout in place (the book toggle re-pairs spreads).
-        internal void ReapplyViewMode() => ApplyViewMode(_viewMode);
+        // This must bypass ApplyViewMode's same-mode early return: the mode stays TwoPage while its
+        // pairing rule changes, so treating it as a no-op leaves the old cover/spread tiles visible.
+        internal void ReapplyViewMode()
+        {
+            if (_viewMode == ViewMode.TwoPage)
+                ApplyViewMode(_viewMode, force: true);
+        }
 
         internal bool NavigatePageStep(int direction)
         {
@@ -1967,9 +1973,9 @@ namespace KillerPDF.Controls
             PagePreviewPanel.BeginAnimation(UIElement.OpacityProperty, fadeOut);
         }
 
-        internal void ApplyViewMode(ViewMode mode)
+        internal void ApplyViewMode(ViewMode mode, bool force = false)
         {
-            if (_viewMode == mode) return;
+            if (_viewMode == mode && !force) return;
             _viewMode = mode;
             _renderedPrimaryPage = -1;   // spread/layout changes with the mode; force the next render
             _gridScrollToPage = -1;

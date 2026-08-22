@@ -99,13 +99,14 @@
 
             <!-- Type families -->
             <FontFamily x:Key="UiFont">Segoe UI, Microsoft JhengHei UI, Nirmala UI</FontFamily>
-            <!-- The "KillerPDF" wordmark fonts (embedded, subset to the wordmark letters). "Killer" and "PDF"
-                 can use different faces. One place to change the logo typefaces everywhere. -->
+            <!-- The full embedded Typewriter a602 face used by the KillerPDF wordmark. Keep the
+                 internal family name in sync with the font's name table; an approximate name makes
+                 WPF silently substitute the system font. -->
             <!-- Assembly-relative: release payloads run as KillerPDF.App.exe while legacy and
                  IDE builds run as KillerPDF.exe. Hard-coding either assembly name makes the
                  embedded typewriter face silently fall back in the other build. -->
-            <FontFamily x:Key="WordmarkFont">./Fonts/#Typewriter A602</FontFamily>
-            <FontFamily x:Key="WordmarkFontPdf">./Fonts/#Typewriter A602</FontFamily>
+            <FontFamily x:Key="WordmarkFont">./Fonts/#Typewriter - a602 (dead postman 2004)</FontFamily>
+            <FontFamily x:Key="WordmarkFontPdf">./Fonts/#Typewriter - a602 (dead postman 2004)</FontFamily>
             <FontFamily x:Key="MonoFont">Consolas</FontFamily>
             <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
 
@@ -113,6 +114,31 @@
             <CornerRadius x:Key="RadControl">3</CornerRadius>
             <CornerRadius x:Key="RadCard">6</CornerRadius>
             <CornerRadius x:Key="RadWindow">7</CornerRadius>
+
+            <!-- Shared document/panel recess. Modern themes give these rings transparent brushes
+                 and zero thickness; 98SE supplies the full outer + inner directional bevel. -->
+            <Style x:Key="PaneBevelOverlay" TargetType="{x:Type Control}">
+                <Setter Property="IsHitTestVisible" Value="False"/>
+                <Setter Property="Focusable" Value="False"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Control}">
+                            <Grid>
+                                <Border BorderBrush="{DynamicResource PaneBevelDarkBrush}"
+                                        BorderThickness="{DynamicResource PaneBevelLightThickness}"/>
+                                <Border BorderBrush="{DynamicResource PaneBevelLightBrush}"
+                                        BorderThickness="{DynamicResource PaneBevelDarkThickness}"/>
+                                <Border Margin="{DynamicResource PaneBevelInnerMargin}"
+                                        BorderBrush="{DynamicResource PaneBevelDark2Brush}"
+                                        BorderThickness="{DynamicResource PaneBevel2LightThickness}"/>
+                                <Border Margin="{DynamicResource PaneBevelInnerMargin}"
+                                        BorderBrush="{DynamicResource PaneBevelLight2Brush}"
+                                        BorderThickness="{DynamicResource PaneBevel2DarkThickness}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
             <!-- Elevation: a single shared instance per shadow can be applied to many elements -->
             <DropShadowEffect x:Key="ShadowText"   Color="Black" BlurRadius="3"  ShadowDepth="1" Direction="270" Opacity="0.6"/>

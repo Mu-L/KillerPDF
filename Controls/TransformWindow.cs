@@ -292,7 +292,7 @@ namespace KillerPDF
             var previewWrap = new Border
             {
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
+                CornerRadius = UiKit.RadControl,
                 Margin = new Thickness(8, 4, 8, 12),
                 ClipToBounds = true
             };

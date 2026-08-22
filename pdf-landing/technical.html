@@ -127,10 +127,10 @@
 <a href="#encryption-is-stripped-at-open" class="sub" data-i18n="pt_124">Encryption is stripped at open</a>
 <a href="#network-and-partial-reads" class="sub" data-i18n="pt_126">Network and partial reads</a>
 <a href="#repair-works-on-a-copy" class="sub" data-i18n="pt_128">Repair works on a copy</a>
-<a href="#conformance">Standards conformance</a>
-<a href="#how-the-test-works" class="sub">How the test works</a>
-<a href="#the-numbers" class="sub">The numbers</a>
-<a href="#patching-the-write-engine" class="sub">Patching the write engine</a>
+<a href="#conformance" data-i18n="pt_conf_1">Standards conformance</a>
+<a href="#how-the-test-works" class="sub" data-i18n="pt_conf_2">How the test works</a>
+<a href="#the-numbers" class="sub" data-i18n="pt_conf_3">The numbers</a>
+<a href="#patching-the-write-engine" class="sub" data-i18n="pt_conf_5">Patching the write engine</a>
 <a href="#i18n" data-i18n="pt_13">Localization</a>
 <a href="#captions-and-tooltips-are-separate-strings" class="sub" data-i18n="pt_132">Captions and tooltips are separate strings</a>
 <a href="#specs" data-i18n="pt_14">Constants</a>
@@ -186,7 +186,7 @@
 
 <div class="tech-sec" id="arch">
 <h2 data-i18n="pt_54">Architecture</h2>
-<p data-i18n="pt_55_172"><b>MainWindow</b> is a composed application shell rather than one giant code-behind. Its partials under <code>Shell/</code> own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> control with its own view state, tab strip, render surfaces and document interaction code. Two viewer instances create split pane without opening a second window. Rendering, annotations, forms, links, crop, selection, text editing, tabs and zoom are divided across 16 <code>Controls/Viewer/PdfViewer.*</code> partials totaling about 10,800 lines. Thin bridge and host adapters connect shell and viewer, with shared work under <code>Services/</code> and focused controllers under <code>Features/</code>. Excluding tests, packaging and the vendored PdfSharpCore fork, the application is 122 C# source files and about 41,100 lines: roughly 13,000 under <code>Shell/</code>, 17,400 under <code>Controls/</code>, 5,000 under <code>Services/</code>, 2,600 under <code>Features/</code>, and 2,600 in root application files.</p>
+<p data-i18n="pt_55_174"><b>MainWindow</b> is a composed application shell rather than one giant code-behind. Its partials under <code>Shell/</code> own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> control with its own view state, tab strip, render surfaces and document interaction code. Two viewer instances create split pane without opening a second window. Rendering, annotations, forms, links, crop, selection, text editing, tabs and zoom are divided across 16 <code>Controls/Viewer/PdfViewer.*</code> partials totaling about 10,800 lines. Thin bridge and host adapters connect shell and viewer, with shared work under <code>Services/</code> and focused controllers under <code>Features/</code>. Excluding tests, packaging and the vendored PdfSharpCore fork, the application is 122 C# source files and about 41,400 lines: roughly 13,100 under <code>Shell/</code>, 17,500 under <code>Controls/</code>, 5,100 under <code>Services/</code>, 2,600 under <code>Features/</code>, and 2,600 in root application files.</p>
 <h3 id="two-render-pipelines" data-i18n="pt_56">Two render pipelines</h3>
 <p data-i18n="pt_57">KillerPDF has a primary-page renderer (<b>RenderPage</b>) and a multi-page streaming renderer used by Continuous, Grid and Two-Page layouts. Single view uses the primary tile; multi-page layouts create per-page tiles and replace their bitmaps progressively as work completes. RenderPage is deliberately switched off during Continuous so a primary-page repaint cannot clear the live multi-page overlay map.</p>
 <h3 id="per-tab-sessions-an-lru-cache" data-i18n="pt_58">Per-tab sessions &amp; an LRU cache</h3>
@@ -204,34 +204,34 @@
 </defs>
 <rect x="40" y="24" width="300" height="54" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
 <text x="190" y="48" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="700" font-family="monospace">RenderAllAnnotations(page)</text>
-<text x="190" y="66" text-anchor="middle" fill="var(--muted)" font-size="11">paints onto CanvasForPage(page)</text>
+<text x="190" y="66" text-anchor="middle" fill="var(--muted)" font-size="11" data-i18n="pt_diag_1">paints onto CanvasForPage(page)</text>
 <line x1="340" y1="52" x2="396" y2="52" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#dgbAcc)"/>
 <text x="368" y="44" text-anchor="middle" fill="var(--muted)" font-size="9.5" font-family="monospace">[page]</text>
 <rect x="400" y="20" width="300" height="64" rx="8" fill="var(--modal)" stroke="var(--accent)"/>
 <text x="550" y="44" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700" font-family="monospace">_pages &lt;int, Canvas&gt;</text>
-<text x="550" y="61" text-anchor="middle" fill="var(--muted)" font-size="10.5">authoritative page &#8594; overlay map</text>
-<text x="550" y="75" text-anchor="middle" fill="var(--muted)" font-size="10.5">(the primary tile is one of its entries)</text>
+<text x="550" y="61" text-anchor="middle" fill="var(--muted)" font-size="10.5" data-i18n="pt_diag_2">authoritative page &#8594; overlay map</text>
+<text x="550" y="75" text-anchor="middle" fill="var(--muted)" font-size="10.5" data-i18n="pt_diag_3">(the primary tile is one of its entries)</text>
 <rect x="60" y="168" width="290" height="80" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
-<text x="205" y="196" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700">Primary XAML tile</text>
+<text x="205" y="196" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700" data-i18n="pt_diag_4">Primary XAML tile</text>
 <text x="205" y="215" text-anchor="middle" fill="var(--muted)" font-size="11" font-family="monospace">PageImage + _annotationCanvas</text>
-<text x="205" y="233" text-anchor="middle" fill="var(--muted)" font-size="11">Single &middot; Grid &middot; Two-Page</text>
+<text x="205" y="233" text-anchor="middle" fill="var(--muted)" font-size="11" data-i18n="pt_diag_5">Single &middot; Grid &middot; Two-Page</text>
 <rect x="400" y="168" width="290" height="80" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
-<text x="545" y="196" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700">Secondary overlays</text>
-<text x="545" y="215" text-anchor="middle" fill="var(--muted)" font-size="11">code-built per-page Canvas tiles</text>
-<text x="545" y="233" text-anchor="middle" fill="var(--muted)" font-size="11">continuous, or grid / two-page</text>
+<text x="545" y="196" text-anchor="middle" fill="var(--text)" font-size="12.5" font-weight="700" data-i18n="pt_diag_6">Secondary overlays</text>
+<text x="545" y="215" text-anchor="middle" fill="var(--muted)" font-size="11" data-i18n="pt_diag_7">code-built per-page Canvas tiles</text>
+<text x="545" y="233" text-anchor="middle" fill="var(--muted)" font-size="11" data-i18n="pt_diag_8">continuous, or grid / two-page</text>
 <line x1="470" y1="84" x2="225" y2="165" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#dgbMut)"/>
-<text x="318" y="120" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="monospace">primary entry</text>
+<text x="318" y="120" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="monospace" data-i18n="pt_diag_9">primary entry</text>
 <line x1="628" y1="84" x2="558" y2="165" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#dgbMut)"/>
-<text x="625" y="120" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="monospace">+ secondaries</text>
+<text x="625" y="120" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="monospace" data-i18n="pt_diag_10">+ secondaries</text>
 <rect x="400" y="300" width="290" height="56" rx="8" fill="var(--modal)" stroke="var(--accent)"/>
 <text x="545" y="324" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="700" font-family="monospace">_continuousCanvases</text>
-<text x="545" y="342" text-anchor="middle" fill="var(--muted)" font-size="10.5">the live multi-page tile system</text>
+<text x="545" y="342" text-anchor="middle" fill="var(--muted)" font-size="10.5" data-i18n="pt_diag_11">the live multi-page tile system</text>
 <line x1="545" y1="248" x2="545" y2="298" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#dgbAcc)"/>
-<text x="556" y="277" fill="var(--muted)" font-size="10" font-family="monospace">same overlays</text>
+<text x="556" y="277" fill="var(--muted)" font-size="10" font-family="monospace" data-i18n="pt_diag_12">same overlays</text>
 <rect x="40" y="300" width="300" height="56" rx="8" fill="var(--panel)" stroke="var(--pane-border)"/>
 <text x="190" y="324" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="700" font-family="monospace">WirePageOverlay()</text>
-<text x="190" y="342" text-anchor="middle" fill="var(--muted)" font-size="10.5">registers an overlay in BOTH maps</text>
-<text x="40" y="392" fill="var(--muted)" font-size="11"><tspan fill="var(--accent)" font-family="monospace">ClearSecondaryPages()</tspan> clears _continuousCanvases and prunes those pages from _pages.</text>
+<text x="190" y="342" text-anchor="middle" fill="var(--muted)" font-size="10.5" data-i18n="pt_diag_13">registers an overlay in BOTH maps</text>
+<text x="40" y="392" fill="var(--muted)" font-size="11" data-i18n="pt_diag_14"><tspan fill="var(--accent)" font-family="monospace">ClearSecondaryPages()</tspan> clears _continuousCanvases and prunes those pages from _pages.</text>
 </svg>
 <figcaption data-i18n="pt_65">The single-page repaint routine (<code>RenderPage</code>) begins by clearing the multi-page overlays, which empties the page-to-overlay table. It is therefore switched off while the continuous scroll is on screen. If it ran there, every overlay would point back at the hidden single-page tile and your annotations would paint off-screen until you changed view modes.</figcaption>
 </figure>
@@ -255,8 +255,8 @@
 <marker id="dgaMut" markerWidth="8" markerHeight="8" refX="5" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="var(--muted)"/></marker>
 <marker id="dgaAcc" markerWidth="9" markerHeight="9" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="var(--accent)"/></marker>
 </defs>
-<text x="170" y="26" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="700">PDF point space</text>
-<text x="170" y="43" text-anchor="middle" fill="var(--muted)" font-size="11">origin bottom-left &middot; y up</text>
+<text x="170" y="26" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="700" data-i18n="pt_diag_15">PDF point space</text>
+<text x="170" y="43" text-anchor="middle" fill="var(--muted)" font-size="11" data-i18n="pt_diag_16">origin bottom-left &middot; y up</text>
 <rect x="70" y="60" width="200" height="190" rx="4" fill="var(--panel)" stroke="var(--pane-border)"/>
 <line x1="70" y1="250" x2="70" y2="52" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
 <line x1="70" y1="250" x2="286" y2="250" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
@@ -266,14 +266,14 @@
 <line x1="150" y1="120" x2="150" y2="250" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
 <line x1="150" y1="120" x2="70" y2="120" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
 <circle cx="150" cy="120" r="5" fill="var(--accent)"/>
-<text x="159" y="116" fill="var(--text)" font-size="11">mark</text>
+<text x="159" y="116" fill="var(--text)" font-size="11" data-i18n="pt_diag_17">mark</text>
 <text x="150" y="266" text-anchor="middle" fill="var(--accent)" font-size="10" font-family="monospace">left</text>
 <text x="80" y="112" fill="var(--accent)" font-size="10" font-family="monospace">top</text>
 <path d="M300 150 C 345 150 365 150 405 150" fill="none" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#dgaAcc)"/>
-<text x="353" y="139" text-anchor="middle" fill="var(--text)" font-size="11">scale &amp; flip Y</text>
+<text x="353" y="139" text-anchor="middle" fill="var(--text)" font-size="11" data-i18n="pt_diag_18">scale &amp; flip Y</text>
 <text x="353" y="171" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="monospace">sx, sy</text>
-<text x="570" y="26" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="700">WPF canvas (DIP)</text>
-<text x="570" y="43" text-anchor="middle" fill="var(--muted)" font-size="11">origin top-left &middot; y down</text>
+<text x="570" y="26" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="700" data-i18n="pt_diag_19">WPF canvas (DIP)</text>
+<text x="570" y="43" text-anchor="middle" fill="var(--muted)" font-size="11" data-i18n="pt_diag_20">origin top-left &middot; y down</text>
 <rect x="470" y="60" width="200" height="190" rx="4" fill="var(--panel)" stroke="var(--pane-border)"/>
 <line x1="470" y1="60" x2="470" y2="258" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
 <line x1="470" y1="60" x2="686" y2="60" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#dgaMut)"/>
@@ -283,7 +283,7 @@
 <line x1="550" y1="120" x2="550" y2="60" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
 <line x1="550" y1="120" x2="470" y2="120" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
 <circle cx="550" cy="120" r="5" fill="var(--accent)"/>
-<text x="559" y="116" fill="var(--text)" font-size="11">mark</text>
+<text x="559" y="116" fill="var(--text)" font-size="11" data-i18n="pt_diag_17">mark</text>
 <text x="550" y="52" text-anchor="middle" fill="var(--accent)" font-size="10" font-family="monospace">left&middot;sx</text>
 <text x="478" y="138" fill="var(--accent)" font-size="10" font-family="monospace">renderH - top&middot;sy</text>
 </svg>
@@ -318,19 +318,19 @@
 <marker id="dgcMut" markerWidth="8" markerHeight="8" refX="5" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="var(--muted)"/></marker>
 </defs>
 <line x1="86" y1="232" x2="86" y2="100" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#dgcMut)"/>
-<text x="60" y="178" fill="var(--muted)" font-size="10" font-family="monospace" transform="rotate(-90 60 178)">z-order: bottom &#8594; top</text>
+<text x="60" y="178" fill="var(--muted)" font-size="10" font-family="monospace" transform="rotate(-90 60 178)" data-i18n="pt_diag_21">z-order: bottom &#8594; top</text>
 <rect x="120" y="196" width="280" height="44" rx="4" fill="var(--panel)" stroke="var(--pane-border)"/>
-<text x="260" y="223" text-anchor="middle" fill="var(--muted)" font-size="13">Original words</text>
-<text x="555" y="221" fill="var(--muted)" font-size="11">Page text: untouched underneath</text>
+<text x="260" y="223" text-anchor="middle" fill="var(--muted)" font-size="13" data-i18n="pt_diag_22">Original words</text>
+<text x="555" y="221" fill="var(--muted)" font-size="11" data-i18n="pt_diag_23">Page text: untouched underneath</text>
 <rect x="150" y="152" width="280" height="44" rx="4" fill="var(--modal)" stroke="var(--accent)" stroke-dasharray="5 3"/>
-<text x="290" y="179" text-anchor="middle" fill="var(--text)" font-size="12">cover (opaque)</text>
-<text x="555" y="177" fill="var(--text)" font-size="11">Cover: blocks original, 100% opaque</text>
+<text x="290" y="179" text-anchor="middle" fill="var(--text)" font-size="12" data-i18n="pt_diag_24">cover (opaque)</text>
+<text x="555" y="177" fill="var(--text)" font-size="11" data-i18n="pt_diag_25">Cover: blocks original, 100% opaque</text>
 <rect x="180" y="108" width="280" height="44" rx="4" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
-<text x="320" y="135" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">New words</text>
-<text x="555" y="124" fill="var(--text)" font-size="11">Text: editable, resizable</text>
+<text x="320" y="135" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600" data-i18n="pt_diag_26">New words</text>
+<text x="555" y="124" fill="var(--text)" font-size="11" data-i18n="pt_diag_27">Text: editable, resizable</text>
 <path d="M495 122 h-12 V182 h12" fill="none" stroke="var(--accent)" stroke-width="1.4"/>
 <text x="505" y="148" fill="var(--accent)" font-size="11" font-family="monospace" font-weight="700">PairId</text>
-<text x="505" y="163" fill="var(--muted)" font-size="10">shared GUID</text>
+<text x="505" y="163" fill="var(--muted)" font-size="10" data-i18n="pt_diag_28">shared GUID</text>
 </svg>
 <figcaption data-i18n="pt_98">The cover samples the page color so it blends in, and can never be made translucent. Right-click either half to <b>Select Cover</b> / <b>Select Text</b>, or to <b>Unpair</b> them into two independent annotations. On save the pair flattens to a clean filled box with the new text on top.</figcaption>
 </figure>
@@ -374,37 +374,37 @@
 </div>
 
 <div class="tech-sec" id="conformance">
-<h2>Standards conformance</h2>
-<p>A PDF editor has one obligation above all others: saving your file must not damage it. Starting with 1.6.4, that claim is tested rather than assumed. Every release is validated against <a href="https://verapdf.org/" target="_blank" rel="noopener">veraPDF</a>, the industry reference validator for PDF/A and PDF/UA, across a 2,907-file public conformance corpus (the veraPDF test corpus, the Isartor PDF/A-1b suite, and the TWG test files). These are deliberately hostile files, most built to violate exactly one clause of a standard, so any structural damage a save introduces shows up immediately as a newly failed rule.</p>
-<h3 id="how-the-test-works">How the test works</h3>
-<p>Every corpus file is validated pristine, resaved through KillerPDF's normal open/save pipeline (headlessly, via <code>--batch-resave</code>), and validated again. A comparison script then flags any file that fails a rule after the resave that it did not fail before. The bar for release is zero regressions. A second pass runs <code>qpdf --check</code> on every original/resave pair and flags any file whose structural health worsened.</p>
-<h3 id="the-numbers">The numbers (v1.7.4, veraPDF 1.30.2)</h3>
-<table class="spec-table"><tr><th>Outcome</th><th>Files</th></tr>
-<tr><td>Corpus total</td><td>2,907</td></tr>
-<tr><td>Resaved and revalidated</td><td>2,236</td></tr>
-<tr><td>Refused (encrypted or unparseable; source untouched)</td><td>671</td></tr>
-<tr><td>Conformance regressions</td><td>0 <span style="color:var(--muted)">(one documented PDF 2.0 header limitation, below)</span></td></tr>
-<tr><td>Files that came out <i>more</i> conformant</td><td>63</td></tr>
-<tr><td>qpdf structural check worsened</td><td>0 (195 improved)</td></tr>
+<h2 data-i18n="pt_conf_1">Standards conformance</h2>
+<p data-i18n="pt_conf_7">A PDF editor has one obligation above all others: saving your file must not damage it. Starting with 1.6.4, that claim is tested rather than assumed. Every release is validated against <a href="https://verapdf.org/" target="_blank" rel="noopener">veraPDF</a>, the industry reference validator for PDF/A and PDF/UA, across a 2,907-file public conformance corpus (the veraPDF test corpus, the Isartor PDF/A-1b suite, and the TWG test files). These are deliberately hostile files, most built to violate exactly one clause of a standard, so any structural damage a save introduces shows up immediately as a newly failed rule.</p>
+<h3 id="how-the-test-works" data-i18n="pt_conf_2">How the test works</h3>
+<p data-i18n="pt_conf_8">Every corpus file is validated pristine, resaved through KillerPDF's normal open/save pipeline (headlessly, via <code>--batch-resave</code>), and validated again. A comparison script then flags any file that fails a rule after the resave that it did not fail before. The bar for release is zero regressions. A second pass runs <code>qpdf --check</code> on every original/resave pair and flags any file whose structural health worsened.</p>
+<h3 id="the-numbers" data-i18n="pt_conf_4">The numbers (v1.7.4, veraPDF 1.30.2)</h3>
+<table class="spec-table"><tr><th data-i18n="pt_conf_9">Outcome</th><th data-i18n="pt_conf_10">Files</th></tr>
+<tr><td data-i18n="pt_conf_11">Corpus total</td><td>2,907</td></tr>
+<tr><td data-i18n="pt_conf_12">Resaved and revalidated</td><td>2,236</td></tr>
+<tr><td data-i18n="pt_conf_13">Refused (encrypted or unparseable; source untouched)</td><td>671</td></tr>
+<tr><td data-i18n="pt_conf_14">Conformance regressions</td><td>0 <span style="color:var(--muted)" data-i18n="pt_conf_15">(one documented PDF 2.0 header limitation, below)</span></td></tr>
+<tr><td data-i18n="pt_conf_16">Files that came out <i>more</i> conformant</td><td>63</td></tr>
+<tr><td data-i18n="pt_conf_17">qpdf structural check worsened</td><td data-i18n="pt_conf_28">0 (195 improved)</td></tr>
 </table>
-<h3 id="patching-the-write-engine">Patching the write engine at the source</h3>
-<p>Getting to zero meant fixing the write engine itself. PdfSharpCore is vendored into the repo and patched rather than worked around; each patch is marked in the source and documented with the ISO clause it satisfies:</p>
+<h3 id="patching-the-write-engine" data-i18n="pt_conf_6">Patching the write engine at the source</h3>
+<p data-i18n="pt_conf_18">Getting to zero meant fixing the write engine itself. PdfSharpCore is vendored into the repo and patched rather than worked around; each patch is marked in the source and documented with the ISO clause it satisfies:</p>
 <ul>
-<li>No Producer/Creator stamped into the Info dictionary of an imported document (PDF/A requires Info to stay equivalent to the XMP metadata).</li>
-<li>No /ModDate rewritten the moment a file is opened for modification (same rule).</li>
-<li>No transparency /Group injected onto every page (forbidden outright in PDF/A-1).</li>
-<li>Stream /Length always matches the spec's exact byte count, empty streams included.</li>
-<li>Booleans serialized as the PDF keywords <code>true</code> / <code>false</code>; the library wrote <code>True</code>, .NET's capitalization, which is not a valid PDF token at all.</li>
-<li>The debug-only "verbose" file layout removed, so no build can pad object tokens in ways the object-syntax rules forbid.</li>
+<li data-i18n="pt_conf_19">No Producer/Creator stamped into the Info dictionary of an imported document (PDF/A requires Info to stay equivalent to the XMP metadata).</li>
+<li data-i18n="pt_conf_20">No /ModDate rewritten the moment a file is opened for modification (same rule).</li>
+<li data-i18n="pt_conf_21">No transparency /Group injected onto every page (forbidden outright in PDF/A-1).</li>
+<li data-i18n="pt_conf_22">Stream /Length always matches the spec's exact byte count, empty streams included.</li>
+<li data-i18n="pt_conf_23">Booleans serialized as the PDF keywords <code>true</code> / <code>false</code>; the library wrote <code>True</code>, .NET's capitalization, which is not a valid PDF token at all.</li>
+<li data-i18n="pt_conf_24">The debug-only "verbose" file layout removed, so no build can pad object tokens in ways the object-syntax rules forbid.</li>
 </ul>
-<p>On top of that, every save scrubs the damage older libraries left behind: dangling outline references, degenerate crop boxes, and dead digital-signature values (a signature's digest must cover the whole file, so any edit invalidates it; leaving the stale value in place fails strict validation).</p>
-<p>The one known limitation: PDF/A-4 is built on PDF 2.0, and the write engine serializes PDF 1.7, so the single PDF/A-4 corpus file picks up the version-marker rules on resave. That is a header limitation, not structural damage, and KillerPDF does not claim PDF/A-4 output.</p>
-<p>The full report, the comparison script, and instructions for reproducing the run ship in the repo under <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/validation/RESULTS.md" target="_blank" rel="noopener"><code style="color:inherit">validation/RESULTS.md</code></a>.</p>
+<p data-i18n="pt_conf_25">On top of that, every save scrubs the damage older libraries left behind: dangling outline references, degenerate crop boxes, and dead digital-signature values (a signature's digest must cover the whole file, so any edit invalidates it; leaving the stale value in place fails strict validation).</p>
+<p data-i18n="pt_conf_26">The one known limitation: PDF/A-4 is built on PDF 2.0, and the write engine serializes PDF 1.7, so the single PDF/A-4 corpus file picks up the version-marker rules on resave. That is a header limitation, not structural damage, and KillerPDF does not claim PDF/A-4 output.</p>
+<p data-i18n="pt_conf_27">The full report, the comparison script, and instructions for reproducing the run ship in the repo under <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/validation/RESULTS.md" target="_blank" rel="noopener"><code style="color:inherit">validation/RESULTS.md</code></a>.</p>
 </div>
 
 <div class="tech-sec" id="i18n">
 <h2 data-i18n="pt_130">Localization</h2>
-<p data-i18n="pt_131_172">Every visible string lives in a per-locale <code>ResourceDictionary</code> under <code>Strings/</code> - eleven locales, one XAML file each, including Polish. Nothing hard-codes text; code and XAML resolve a key through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the whole UI live, no restart.</p>
+<p data-i18n="pt_131_174">The desktop interface is localized through per-locale <code>ResourceDictionary</code> files under <code>Strings/</code> - twelve locales, one XAML file each, including Polish and Hungarian. The Hungarian dictionary covers all 784 interface keys. Code-built and XAML controls resolve those keys through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the UI live without a restart.</p>
 <h3 id="captions-and-tooltips-are-separate-strings" data-i18n="pt_132">Captions and tooltips are separate strings</h3>
 <p data-i18n="pt_133">A toolbar button carries two independent strings: the hover <b>tooltip</b> (<code>Str_TT_*</code>) and the text <b>caption</b> under or beside the icon (<code>Str_Lbl_*</code>, mapped per glyph). Because they are localized separately, the toolbar can shed captions to save width while every tooltip stays intact.</p>
 </div>
@@ -431,7 +431,7 @@
 <tr><td data-i18n="pt_158">Annotation</td><td data-i18n="pt_159">Anything you add on top of a PDF: a highlight, text box, drawn line, signature, or image. It sits on the overlay, separate from the original page, and only becomes part of the file when you save (see Flatten).</td></tr>
 <tr><td data-i18n="pt_160">Bitmap</td><td data-i18n="pt_161">A grid of colored pixels. To display a page, KillerPDF draws (rasterizes) it into a bitmap at a resolution chosen from your zoom and screen density.</td></tr>
 <tr><td data-i18n="pt_162">CMS signature</td><td data-i18n="pt_163">Cryptographic Message Syntax, the standard format for a digital signature embedded in a PDF. KillerPDF signs using SHA-256 over the whole file.</td></tr>
-<tr><td data-i18n="pt_164">Costura (Costura.Fody)</td><td data-i18n="pt_165">A build-time tool that packs every library the app needs inside the single .exe, so there is nothing extra to install.</td></tr>
+<tr><td data-i18n="pt_164">Costura (Costura.Fody)</td><td data-i18n="pt_165">A build-time bundler used by normal development builds. The 1.7.4 release payload disables it and ships the ordinary multi-file app behind the portable launcher.</td></tr>
 <tr><td data-i18n="pt_166">Cover / cover-pair</td><td data-i18n="pt_167">A Cover is an opaque box that hides the original words on a page. To edit existing PDF text, KillerPDF lays a Cover over the old text and a Text box on top holding your replacement; the two are locked together as a cover-pair.</td></tr>
 <tr><td data-i18n="pt_168">Cross-reference table (xref)</td><td data-i18n="pt_169">The index near the end of a PDF that records where every internal object is stored. If it is damaged, many readers fail to open the file, so KillerPDF has recovery paths that rebuild it.</td></tr>
 <tr><td data-i18n="pt_170">Device-independent pixel (DIP)</td><td data-i18n="pt_171">The unit KillerPDF's drawing surface uses. One DIP is a fixed physical size regardless of how dense the screen is, so layouts look the same across monitors.</td></tr>

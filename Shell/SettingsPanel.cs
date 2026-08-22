@@ -324,6 +324,17 @@ namespace KillerPDF
             // if it's open so it picks up the new theme without the user having to close and reopen it.
             if (_signaturePopup is not null) ShowSignaturePopup();
 
+            // The keyboard's layer selectors use the current theme's actual button template
+            // (98SE raised bevel versus the modern card button), so rebuild the lazy board when
+            // that template family changes. Key labels and mappings remain table-driven.
+            if (_kbBuilt)
+            {
+                var layer = _kbLayer;
+                _kbBuilt = false;
+                BuildKeyboardView();
+                SetKbLayer(layer);
+            }
+
             // The crop bar's buttons snapshot accent colors (UiKit), so rebuild it in the new theme.
             RebuildCropBarForLocale();
         }

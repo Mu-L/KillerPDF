@@ -20,10 +20,10 @@
     <!-- Hardware-accelerated custom chrome. Dropping AllowsTransparency lets WPF composite the
          whole window on the GPU again (the film grain + drop shadows were being software-rendered
          every frame, which made dragging/animation jumpy). WindowChrome gives native drag, snap,
-         resize and the OS drop shadow; the title bar (row 0, 36px) becomes the caption and the
+         resize and the OS drop shadow; the title bar (row 0) becomes the caption and the
          min/max/close buttons opt back into hit-testing with IsHitTestVisibleInChrome. -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="36"
+        <WindowChrome CaptionHeight="{DynamicResource TitleBarHeight}"
                       ResizeBorderThickness="8"
                       CornerRadius="0"
                       GlassFrameThickness="0"
@@ -754,181 +754,6 @@
             <Setter Property="Margin" Value="4,4"/>
         </Style>
 
-        <!-- ======================================================== -->
-        <!-- Dark ComboBox (zoom dropdown)                           -->
-        <!-- ======================================================== -->
-
-        <!-- Toggle button used inside the ComboBox template -->
-        <Style x:Key="DarkComboToggle" TargetType="ToggleButton">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="ClickMode" Value="Press"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border Background="{TemplateBinding Background}" BorderThickness="0"/>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- ComboBoxItem inside the dark popup -->
-        <Style x:Key="DarkComboItem" TargetType="ComboBoxItem">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-            <Setter Property="Padding" Value="{DynamicResource MenuItemPadding}"/>
-            <Setter Property="FontFamily" Value="{DynamicResource MenuFontFamily}"/>
-            <Setter Property="FontSize" Value="{DynamicResource MenuFontSize}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBoxItem">
-                        <Border x:Name="ItemBd"
-                                Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBd" Property="Background" Value="{DynamicResource SelectionBg}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- The ComboBox itself -->
-        <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Background" Value="{DynamicResource ComboFieldBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontFamily" Value="{DynamicResource MenuFontFamily}"/>
-            <Setter Property="FontSize" Value="{DynamicResource MenuFontSize}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboItem}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <!-- Clickable area / border -->
-                            <Border x:Name="Bd"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="{DynamicResource ControlCornerRadius}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto" MinWidth="{DynamicResource ComboButtonMinWidth}"/>
-                                    </Grid.ColumnDefinitions>
-                                    <!-- Selected item text (non-editable mode) -->
-                                    <ContentPresenter x:Name="ContentSite"
-                                                      Grid.Column="0"
-                                                      Content="{TemplateBinding SelectionBoxItem}"
-                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                      Margin="7,0,0,0"
-                                                      VerticalAlignment="Center"
-                                                      HorizontalAlignment="Left"
-                                                      IsHitTestVisible="False"/>
-                                    <!-- Editable text box (shown when IsEditable=True) -->
-                                    <TextBox x:Name="PART_EditableTextBox"
-                                             Grid.Column="0"
-                                             Margin="8,0,4,0"
-                                             Background="Transparent"
-                                             BorderThickness="0"
-                                             Foreground="{DynamicResource TextBrush}"
-                                             FontFamily="{DynamicResource MenuFontFamily}"
-                                             FontSize="{DynamicResource MenuFontSize}"
-                                             VerticalAlignment="Center"
-                                             IsReadOnly="{TemplateBinding IsReadOnly}"
-                                             Visibility="Hidden"
-                                             Focusable="True"
-                                             SelectionBrush="{DynamicResource RowSelectedBrush}"
-                                             SelectionTextBrush="{DynamicResource PrimaryBrush}"
-                                             CaretBrush="{DynamicResource PrimaryBrush}"/>
-                                    <!-- Chevron arrow -->
-                                    <Grid Grid.Column="1" Width="{DynamicResource ComboButtonSize}"
-                                          Height="{DynamicResource ComboButtonSize}"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Margin="0" IsHitTestVisible="False">
-                                    <Border x:Name="ComboChevFace" Background="{DynamicResource ComboButtonBrush}"/>
-                                    <Border x:Name="ComboChevLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                                    <Border x:Name="ComboChevDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
-                                    <TextBlock Text="{DynamicResource ComboChevGlyph}"
-                                               FontFamily="{DynamicResource ComboChevFont}"
-                                               FontSize="8"
-                                               Foreground="{DynamicResource TextBrush}"
-                                               VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"
-                                               IsHitTestVisible="False"/>
-                                    </Grid>
-                                    <!-- Invisible toggle over the whole control -->
-                                    <ToggleButton Grid.Column="0" Grid.ColumnSpan="2"
-                                                  Style="{StaticResource DarkComboToggle}"
-                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay,
-                                                              RelativeSource={RelativeSource TemplatedParent}}"/>
-                                </Grid>
-                            </Border>
-                            <!-- Dropdown popup -->
-                            <Popup x:Name="PART_Popup"
-                                   AllowsTransparency="True"
-                                   IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   Focusable="False"
-                                   PopupAnimation="Fade"
-                                   Placement="Bottom">
-                                <Border Background="{DynamicResource ComboPopupBrush}"
-                                        BorderBrush="{DynamicResource MenuBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="{DynamicResource FlyoutCornerRadius}"
-                                        Padding="2"
-                                        Margin="0,2,6,6"
-                                        MinWidth="{Binding ActualWidth,
-                                                   RelativeSource={RelativeSource TemplatedParent}}"
-                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                    <Border.Effect>
-                                        <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
-                                    </Border.Effect>
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                                  HorizontalScrollBarVisibility="Disabled">
-                                        <ItemsPresenter/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsEditable" Value="True">
-                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
-                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                                <Setter TargetName="ComboChevFace" Property="Background" Value="{DynamicResource ComboButtonHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
-                                <Setter TargetName="ComboChevFace" Property="Background" Value="{DynamicResource ComboButtonHoverBrush}"/>
-                                <Setter TargetName="ComboChevLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
-                                <Setter TargetName="ComboChevDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- Page list styles -->
         <Style x:Key="PageListBox" TargetType="ListBox">
             <Setter Property="Background" Value="Transparent"/>
@@ -1187,7 +1012,8 @@
                                 <Setter Property="Foreground" Value="{DynamicResource RadioAccent}"/>
                                 <Setter TargetName="bd" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270" Opacity="0.5"/>
+                                        <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="1" Direction="270"
+                                                          Opacity="{DynamicResource ThemeRadioShadowOpacity}"/>
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
@@ -1403,7 +1229,10 @@
         </Border>
 
         <!-- Toolbar -->
-        <Border Grid.Row="1" x:Name="ToolbarRowBorder" Background="{DynamicResource BackgroundBrush}">
+        <!-- Keep the toolbar explicitly in the client hit-test area. This is also a safety net for
+             compact titlebar themes: native caption pixels must never swallow toolbar input. -->
+        <Border Grid.Row="1" x:Name="ToolbarRowBorder" Background="{DynamicResource BackgroundBrush}"
+                WindowChrome.IsHitTestVisibleInChrome="True">
             <Grid>
             <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
             <!-- Background=Transparent is load-bearing: without it the grid's empty stretches have no
@@ -1421,11 +1250,11 @@
                     <Button Content="&#xE7C3;" Style="{StaticResource ToolbarButton}" Click="New_Click" ToolTip="{DynamicResource Str_TT_NewBlank}"/>
                     <Button x:Name="CloseFileBtn" Content="&#xE711;" Style="{StaticResource ToolbarButton}" Click="CloseFile_Click" ToolTip="{DynamicResource Str_TT_CloseFile}" IsEnabled="False"/>
                     <Button x:Name="OpenFileBtn" Content="&#xE8DA;" Style="{StaticResource ToolbarSplitMain}" Click="Open_Click" MouseRightButtonUp="OpenRecent_Click" ToolTip="{DynamicResource Str_TT_Open}"/>
-                    <Button x:Name="OpenRecentBtn" Content="&#xE70D;" FontSize="10" Width="13" Padding="0" Margin="-6,0,0,0" Style="{StaticResource ToolbarButton}" Click="OpenRecent_Click" ToolTip="Recent files"/>
+                    <Button x:Name="OpenRecentBtn" Content="&#xE70D;" FontSize="10" Width="13" Padding="0" Margin="-6,0,0,0" Style="{StaticResource ToolbarButton}" Click="OpenRecent_Click" ToolTip="{DynamicResource Str_TT_RecentFiles}"/>
                     <Button x:Name="SaveAsBtn" Content="&#xE74E;" Style="{StaticResource ToolbarSplitMainAccent}" Click="Save_Click" MouseRightButtonUp="SaveMenu_Click" ToolTip="{DynamicResource Str_TT_Save}"/>
-                    <Button x:Name="SaveMenuBtn" Content="&#xE70D;" FontSize="10" Width="13" Padding="0" Margin="-6,0,0,0" Style="{StaticResource ToolbarButton}" Click="SaveMenu_Click" ToolTip="Save options"/>
+                    <Button x:Name="SaveMenuBtn" Content="&#xE70D;" FontSize="10" Width="13" Padding="0" Margin="-6,0,0,0" Style="{StaticResource ToolbarButton}" Click="SaveMenu_Click" ToolTip="{DynamicResource Str_TT_SaveOptions}"/>
                     <Button x:Name="OcrBtn" Content="&#xEE6F;" Style="{StaticResource ToolbarSplitMain}" Click="Ocr_Click" MouseRightButtonUp="OcrMenu_Click" ToolTip="{DynamicResource Str_TT_Ocr}"/>
-                    <Button x:Name="OcrMenuBtn" Content="&#xE70D;" FontSize="10" Width="13" Padding="0" Margin="-6,0,0,0" Style="{StaticResource ToolbarButton}" Click="OcrMenu_Click" ToolTip="OCR options"/>
+                    <Button x:Name="OcrMenuBtn" Content="&#xE70D;" FontSize="10" Width="13" Padding="0" Margin="-6,0,0,0" Style="{StaticResource ToolbarButton}" Click="OcrMenu_Click" ToolTip="{DynamicResource Str_TT_OcrOptions}"/>
                     <Button Content="&#xE8B9;" Style="{StaticResource ToolbarButton}" Click="SaveFlattened_Click" ToolTip="{DynamicResource Str_TT_SaveFlattened}"/>
                     <Button Content="&#xE749;" Style="{StaticResource ToolbarButton}" Click="Print_Click" ToolTip="{DynamicResource Str_TT_Print}"/>
                     <StackPanel x:Name="GrpPageOps" Orientation="Horizontal">
@@ -1491,7 +1320,7 @@
                                   IsChecked="{Binding IsOpen, ElementName=OverflowPopup, Mode=TwoWay}">
                         <ToggleButton.Template>
                             <ControlTemplate TargetType="ToggleButton">
-                                <Border x:Name="cb" Background="Transparent" CornerRadius="3" Padding="2">
+                                <Border x:Name="cb" Background="Transparent" CornerRadius="{DynamicResource ControlCornerRadius}" Padding="2">
                                     <TextBlock Text="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                                                Foreground="{DynamicResource MutedTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -1507,12 +1336,12 @@
                     <Popup x:Name="OverflowPopup" PlacementTarget="{Binding ElementName=OverflowChevron}"
                            Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
                         <Border Background="{DynamicResource MenuBackgroundBrush}" BorderBrush="{DynamicResource MenuBorderBrush}"
-                                BorderThickness="1" CornerRadius="4" Padding="4" Margin="0,2,6,6">
+                                BorderThickness="1" CornerRadius="{DynamicResource FlyoutCornerRadius}" Padding="4" Margin="0,2,6,6">
                             <Border.Effect>
-                                <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.5"/>
+                                <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
                             </Border.Effect>
                             <Grid>
-                            <Border CornerRadius="4" IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
+                            <Border CornerRadius="{DynamicResource FlyoutCornerRadius}" IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
                             <StackPanel x:Name="OverflowMenuPanel" ButtonBase.Click="OverflowItem_Click" MinWidth="180">
                                 <Button x:Name="MiMerge" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="Merge_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Merge}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
@@ -1628,10 +1457,7 @@
                         BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,0"
                         MouseRightButtonUp="SidebarArea_MouseRightButtonUp">
                     <Grid>
-                    <Border Panel.ZIndex="20" IsHitTestVisible="False" BorderBrush="{DynamicResource PaneBevelDarkBrush}" BorderThickness="{DynamicResource PaneBevelLightThickness}"/>
-                    <Border Panel.ZIndex="20" IsHitTestVisible="False" BorderBrush="{DynamicResource PaneBevelLightBrush}" BorderThickness="{DynamicResource PaneBevelDarkThickness}"/>
-                    <Border Panel.ZIndex="20" IsHitTestVisible="False" Margin="{DynamicResource PaneBevelInnerMargin}" BorderBrush="{DynamicResource PaneBevelDark2Brush}" BorderThickness="{DynamicResource PaneBevel2LightThickness}"/>
-                    <Border Panel.ZIndex="20" IsHitTestVisible="False" Margin="{DynamicResource PaneBevelInnerMargin}" BorderBrush="{DynamicResource PaneBevelLight2Brush}" BorderThickness="{DynamicResource PaneBevel2DarkThickness}"/>
+                    <Control Panel.ZIndex="20" Style="{StaticResource PaneBevelOverlay}"/>
                     <DockPanel x:Name="SidebarContentPanel">
                         <!-- Sticky header - lives outside the ScrollViewer so it never scrolls away -->
                         <!-- Tab row: PAGES (left) | OUTLINES (right) -->
@@ -1695,16 +1521,21 @@
                                        Foreground="{DynamicResource MutedTextBrush}"
                                        Margin="2,0,0,0"/>
                         </DockPanel><!-- /PageControlsRow -->
-                        <!-- Scrollable page list (virtualized), wrapped so the edge fades overlay it.
-                             The fades are KillerShell's TreeFadeTop/Bottom pattern verbatim (family
-                             standard, same as the landing pages' sb-fade): each shows only while
-                             there is a row PAST that edge, ramped over its own height so it arrives
-                             as it becomes true instead of popping - driven by SyncPageListEdgeFades
-                             (Shell/SidebarLayout.cs). Composition matches the sidebar behind it:
-                             BackgroundBrush plus the grain tile at GrainOpacity, or the fade would
-                             dissolve into a flat color the sidebar does not have. -->
+                        <!-- Scrollable page list (virtualized). As in KillerShell, the opacity mask
+                             fades the list itself so the real themed sidebar and grain remain visible
+                             behind it. SyncPageListEdgeFades drives the stops; 98SE makes the mask
+                             fully opaque because that theme deliberately has no edge fades. -->
                         <Grid>
-                        <ListBox x:Name="PageList" Style="{StaticResource PageListBox}"
+                        <Border x:Name="PageListFadeHost" Background="Transparent">
+                            <Border.OpacityMask>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop x:Name="PageListFadeTopOuter" Color="#FF000000" Offset="0"/>
+                                    <GradientStop x:Name="PageListFadeTopInner" Color="#FF000000" Offset="0.08"/>
+                                    <GradientStop x:Name="PageListFadeBottomInner" Color="#FF000000" Offset="0.92"/>
+                                    <GradientStop x:Name="PageListFadeBottomOuter" Color="#FF000000" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.OpacityMask>
+                            <ListBox x:Name="PageList" Style="{StaticResource PageListBox}"
                                  BorderThickness="0" SelectionMode="Extended"
                                  VirtualizingPanel.IsVirtualizing="True"
                                  VirtualizingPanel.VirtualizationMode="Recycling"
@@ -1757,35 +1588,7 @@
                                     </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
-                        </ListBox>
-                        <!-- Always Visible, Opacity 0 at rest: the opacity ramp IS the show/hide
-                             (SyncPageListEdgeFades). The 1.7.2 refactor collapsed these with no
-                             code to restore them, which killed the fades entirely. -->
-                        <Border x:Name="PageListFadeTop" Height="18" Opacity="0"
-                                VerticalAlignment="Top" Margin="0,0,12,0" IsHitTestVisible="False">
-                            <Border.OpacityMask>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#FF000000" Offset="0"/>
-                                    <GradientStop Color="#00000000" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.OpacityMask>
-                            <Grid>
-                                <Border Background="{DynamicResource SidebarFadeBrush}"/>
-                                <Border Background="{StaticResource GrainBrushShared}" Opacity="{DynamicResource GrainOpacity}"/>
-                            </Grid>
-                        </Border>
-                        <Border x:Name="PageListFadeBottom" Height="22" Opacity="0"
-                                VerticalAlignment="Bottom" Margin="0,0,12,0" IsHitTestVisible="False">
-                            <Border.OpacityMask>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#00000000" Offset="0"/>
-                                    <GradientStop Color="#FF000000" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.OpacityMask>
-                            <Grid>
-                                <Border Background="{DynamicResource SidebarFadeBrush}"/>
-                                <Border Background="{StaticResource GrainBrushShared}" Opacity="{DynamicResource GrainOpacity}"/>
-                            </Grid>
+                            </ListBox>
                         </Border>
                         </Grid>
                         <!-- Outline/bookmark tree (visible when OUTLINES tab is active) -->
@@ -2739,7 +2542,7 @@
                 <Border Grid.Row="0" Height="{DynamicResource DialogTitleBarHeight}" Background="{DynamicResource DialogTitleBarBrush}"
                         Visibility="{DynamicResource ShortcutCaptionVisibility}">
                     <Grid Margin="5,0,2,0">
-                        <TextBlock Text="KillerPDF - Keyboard Shortcuts" VerticalAlignment="Center"
+                        <TextBlock Text="{DynamicResource Str_KS_WindowTitle}" VerticalAlignment="Center"
                                    FontFamily="{DynamicResource ChromeFontFamily}" FontSize="11" FontWeight="Bold"
                                    Foreground="{DynamicResource ChromeTextBrush}"/>
                         <Button Click="ShortcutOverlayClose_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -2949,8 +2752,7 @@
                         </StackPanel>
                         </Grid>
                     </Border>
-                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource PaneBevelDarkBrush}" BorderThickness="{DynamicResource PaneBevelLightThickness}"/>
-                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource PaneBevelLightBrush}" BorderThickness="{DynamicResource PaneBevelDarkThickness}"/>
+                    <Control Panel.ZIndex="20" Style="{StaticResource PaneBevelOverlay}"/>
                     </Grid>
                     <!-- Update notice: shown only when a newer release is found (set in code-behind) -->
                     <Button x:Name="AboutUpdateButton" Visibility="Collapsed"
@@ -2971,7 +2773,7 @@
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
                         </Button.Template>
-                        <TextBlock x:Name="AboutUpdateText" Text="Update available"
+                        <TextBlock x:Name="AboutUpdateText" Text="{DynamicResource Str_Btn_DoUpdate}"
                                    FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{DynamicResource PrimaryBrush}"/>
                     </Button>
@@ -3009,7 +2811,7 @@
                                     </Style.Triggers>
                                 </Style>
                             </Hyperlink.Style>
-                            <Run Text="Clear all Data"/>
+                            <Run Text="{DynamicResource Str_ClearAllData}"/>
                         </Hyperlink>
                     </TextBlock>
                     </DockPanel>

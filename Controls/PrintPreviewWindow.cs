@@ -5,7 +5,6 @@ using System.Linq;
 using System.Printing;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Markup;
@@ -61,6 +60,17 @@ namespace KillerPDF
         private ComboBox _subsetCombo = null!;   // all / odd only / even only (#134, manual duplex)
         private bool _grayscale;             // send the job as grayscale/B&W rather than color
 
+        // Immutable copy of every layout choice used while composing a print job. The progress
+        // scrim blocks the mouse but deliberately does not steal keyboard focus, so controls can
+        // still receive keys while the 300-DPI pages are rendering. A job must not observe those
+        // changes halfway through (especially N-up, which controls the page-loop increment).
+        private readonly record struct PrintLayout(
+            bool Landscape, int AlignH, int AlignV, int ScaleMode, double CustomPct,
+            double MarginPx, int NUp, bool Duplex);
+
+        private PrintLayout CurrentLayout() => new(
+            _landscape, _alignH, _alignV, _scaleMode, _customPct, _marginPx, _nUp, _duplex);
+
         // Printable area in DIPs for the currently selected printer + orientation.
         private double _areaW = 816;   // Letter portrait fallback (8.5in * 96)
         private double _areaH = 1056;  // (11in * 96)
@@ -82,10 +92,7 @@ namespace KillerPDF
         private InputBin? _sourceOverride;
         private TextBox _copiesBox = null!;
         private TextBox _pagesBox = null!;
-        private Grid _rootGrid = null!;   // clipped to rounded corners on resize
-
-        // Segoe MDL2 Assets close glyph, matching the main window chrome close button.
-        private const string CloseGlyph = "";
+        private Grid _rootGrid = null!;   // body host; the print-progress scrim is layered here
 
         /// <summary>Number of pages sent to the printer (set when the user prints).</summary>
         public int PrintedPageCount { get; private set; }
@@ -103,7 +110,7 @@ namespace KillerPDF
             _renderPath  = renderPath;
             _cleanupPath = cleanupPath;
 
-            Title  = "KillerPDF - Print";
+            Title  = S("Str_Print_Title");
             Width  = 936;
             Height = 716;
             MinWidth  = 720;
@@ -129,7 +136,6 @@ namespace KillerPDF
             if (owner?.TryFindResource(typeof(System.Windows.Controls.Primitives.ScrollBar)) is Style sbStyle)
                 Resources[typeof(System.Windows.Controls.Primitives.ScrollBar)] = sbStyle;
             BuildUi();
-            SizeChanged += (_, _) => ClipRoot();
             LoadPrinters();
             UpdateDuplexAvailability();
             RefreshArea();
@@ -143,15 +149,6 @@ namespace KillerPDF
             try { _server?.Dispose(); } catch { }
             // We own the flattened temp (kept alive so Print could re-rasterize at 300 DPI); clean it up.
             if (_cleanupPath != null) try { System.IO.File.Delete(_cleanupPath); } catch { }
-        }
-
-        // Clips the content to the card's rounded corners (the rounded border alone doesn't clip
-        // its children, so square corners would poke through).
-        private void ClipRoot()
-        {
-            if (_rootGrid == null) return;
-            _rootGrid.Clip = new RectangleGeometry(
-                new Rect(0, 0, _rootGrid.ActualWidth, _rootGrid.ActualHeight), 6, 6);
         }
 
         // Brush, NOT SolidColorBrush: gradient themes (98SE's title bar, and any theme free to
@@ -171,16 +168,6 @@ namespace KillerPDF
 
         private static string S(string key)
             => Application.Current.TryFindResource(key) as string ?? key;
-
-        // Themes a TextBox so the OS default blue focus border / selection chrome doesn't show.
-        private static void StyleTextBox(TextBox tb)
-        {
-            tb.BorderThickness     = new Thickness(1);
-            tb.CaretBrush          = R("TextBrush");
-            tb.SelectionBrush      = R("RowSelectedBrush");
-            tb.SelectionTextBrush  = R("TextBrush");
-            tb.Template            = MakeTextBoxTemplate();
-        }
 
         // Wires a TextBox as a positive-integer field: digits only, clamped to [min,max], steppable with
         // the Up/Down arrow keys and the mouse wheel. Returns get/set so a spinner can drive the same value.
@@ -216,6 +203,7 @@ namespace KillerPDF
             var g = new Grid { Width = 18, Margin = new Thickness(-1, 0, 0, 0) };
             g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            var stepTemplate = BuildStepperTemplate();
             System.Windows.Controls.Primitives.RepeatButton Step(string glyph, int delta, int row)
             {
                 var b = new System.Windows.Controls.Primitives.RepeatButton
@@ -224,11 +212,13 @@ namespace KillerPDF
                     Padding         = new Thickness(0),
                     FontSize        = 7,
                     Foreground      = R("TextBrush"),
-                    Background      = R("BgCanvas"),
-                    BorderBrush     = R("CardBorderBrush"),
+                    Background      = R("ComboButtonBrush"),
+                    BorderBrush     = R("ButtonEdgeBrush"),
                     BorderThickness = new Thickness(1),
                     Cursor          = Cursors.Hand,
-                    Focusable       = false
+                    Focusable       = false,
+                    OverridesDefaultStyle = true,
+                    Template        = stepTemplate
                 };
                 b.Click += (_, _) => set(get() + delta);
                 Grid.SetRow(b, row);
@@ -239,23 +229,50 @@ namespace KillerPDF
             return g;
         }
 
-
-        private static ControlTemplate MakeTextBoxTemplate()
+        // The stock RepeatButton template paints a white system spinner regardless of the active
+        // palette. This template uses the same guaranteed combo-face and button-bevel resources as
+        // the rest of the app; the bevel resources are zero-width outside classic themes.
+        private static ControlTemplate BuildStepperTemplate()
         {
-            var b = new FrameworkElementFactory(typeof(Border));
-            b.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
-            b.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
-            b.SetBinding(Border.BorderThicknessProperty, new Binding("BorderThickness") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
-            b.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
-            var sv = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
-            b.AppendChild(sv);
-            var ct = new ControlTemplate(typeof(TextBox)) { VisualTree = b };
-            // Dim the box when disabled (e.g. the custom-scale % field unless Scale = Custom) so it
-            // reads as inactive instead of looking like an editable field.
-            var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
-            disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.4));
-            ct.Triggers.Add(disabled);
-            return ct;
+            var grid = new FrameworkElementFactory(typeof(Grid));
+            var face = new FrameworkElementFactory(typeof(Border)) { Name = "face" };
+            face.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background")
+            {
+                RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent)
+            });
+            face.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding("BorderBrush")
+            {
+                RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent)
+            });
+            face.SetBinding(Border.BorderThicknessProperty, new System.Windows.Data.Binding("BorderThickness")
+            {
+                RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent)
+            });
+            face.SetValue(Border.CornerRadiusProperty, UiKit.RadControl);
+            var content = new FrameworkElementFactory(typeof(ContentPresenter));
+            content.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            content.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            face.AppendChild(content);
+            grid.AppendChild(face);
+
+            var light = new FrameworkElementFactory(typeof(Border)) { Name = "light" };
+            light.SetResourceReference(Border.BorderBrushProperty, "BevelLightBrush");
+            light.SetResourceReference(Border.BorderThicknessProperty, "ButtonBevelLightThickness");
+            grid.AppendChild(light);
+            var dark = new FrameworkElementFactory(typeof(Border)) { Name = "dark" };
+            dark.SetResourceReference(Border.BorderBrushProperty, "BevelDarkBrush");
+            dark.SetResourceReference(Border.BorderThicknessProperty, "ButtonBevelDarkThickness");
+            grid.AppendChild(dark);
+
+            var template = new ControlTemplate(typeof(System.Windows.Controls.Primitives.RepeatButton)) { VisualTree = grid };
+            var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hover.Setters.Add(new Setter(Border.BackgroundProperty, R("ComboButtonHoverBrush"), "face"));
+            template.Triggers.Add(hover);
+            var pressed = new Trigger { Property = System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty, Value = true };
+            pressed.Setters.Add(new Setter(Border.BorderBrushProperty, R("BevelDarkBrush"), "light"));
+            pressed.Setters.Add(new Setter(Border.BorderBrushProperty, R("BevelLightBrush"), "dark"));
+            template.Triggers.Add(pressed);
+            return template;
         }
 
         // Pulls a named Style from the owning MainWindow so this dialog reuses the
@@ -264,6 +281,8 @@ namespace KillerPDF
 
         private void ApplyComboStyle(ComboBox combo)
         {
+            // Match the dialog buttons and the file dialog's field height.
+            combo.Height = 28;
             if (FindOwnerStyle("DarkComboBox") is Style s)
             {
                 combo.Style = s;
@@ -272,9 +291,8 @@ namespace KillerPDF
             {
                 combo.Foreground  = R("TextBrush");
                 combo.BorderBrush = R("CardBorderBrush");
+                combo.Background  = R("ComboFieldBrush");
             }
-            // Match the dropdown background to the document/preview area.
-            combo.Background = R("BgCanvas");
         }
 
         // Builds a film-grain overlay matching the main window's texture and per-theme
@@ -299,29 +317,29 @@ namespace KillerPDF
 
         // Raster-pixels -> DIP scale factor for a page under the current scale mode.
         // Fit shrinks the page to the printable area; actual/custom use the true physical size.
-        private double ScaleFor(int idx, double areaW, double areaH, int[] rw, int[] rh)
+        private double ScaleFor(int idx, double areaW, double areaH, int[] rw, int[] rh, PrintLayout layout)
         {
             double actual = _pageDipW[idx] / Math.Max(1, rw[idx]);
-            return _scaleMode switch
+            return layout.ScaleMode switch
             {
                 1 => actual,
-                2 => actual * (_customPct / 100.0),
+                2 => actual * (layout.CustomPct / 100.0),
                 _ => Math.Min(areaW / rw[idx], areaH / rh[idx])
             };
         }
 
         // Page offset within the printable area for the current alignment selection.
-        private double OffsetH(double areaW, double imgW)
-            => _alignH == 0 ? 0 : _alignH == 2 ? areaW - imgW : (areaW - imgW) / 2;
-        private double OffsetV(double areaH, double imgH)
-            => _alignV == 0 ? 0 : _alignV == 2 ? areaH - imgH : (areaH - imgH) / 2;
+        private static double OffsetH(double areaW, double imgW, PrintLayout layout)
+            => layout.AlignH == 0 ? 0 : layout.AlignH == 2 ? areaW - imgW : (areaW - imgW) / 2;
+        private static double OffsetV(double areaH, double imgH, PrintLayout layout)
+            => layout.AlignV == 0 ? 0 : layout.AlignV == 2 ? areaH - imgH : (areaH - imgH) / 2;
 
         // Column/row grid for the current pages-per-sheet count, oriented to the sheet.
-        private (int cols, int rows) NupGrid() => _nUp switch
+        private static (int cols, int rows) NupGrid(PrintLayout layout) => layout.NUp switch
         {
-            2 => _landscape ? (2, 1) : (1, 2),
+            2 => layout.Landscape ? (2, 1) : (1, 2),
             4 => (2, 2),
-            6 => _landscape ? (3, 2) : (2, 3),
+            6 => layout.Landscape ? (3, 2) : (2, 3),
             9 => (3, 3),
             _ => (1, 1)
         };
@@ -354,6 +372,10 @@ namespace KillerPDF
         // preview and the print path so what you see is what prints.
         private Grid ComposeSheet(System.Collections.Generic.List<int> idxs, double aw, double ah,
                                   BitmapSource?[] pages, int[] rw, int[] rh)
+            => ComposeSheet(idxs, aw, ah, pages, rw, rh, CurrentLayout());
+
+        private Grid ComposeSheet(System.Collections.Generic.List<int> idxs, double aw, double ah,
+                                  BitmapSource?[] pages, int[] rw, int[] rh, PrintLayout layout)
         {
             var sheet = new Grid
             {
@@ -361,14 +383,14 @@ namespace KillerPDF
                 UseLayoutRounding = true, SnapsToDevicePixels = true
             };
             var canvas = new Canvas();
-            double m = _marginPx;
+            double m = layout.MarginPx;
 
-            if (_nUp <= 1)
+            if (layout.NUp <= 1)
             {
                 if (idxs.Count > 0)
                 {
                     int idx = idxs[0];
-                    double s = ScaleFor(idx, aw - 2 * m, ah - 2 * m, rw, rh);
+                    double s = ScaleFor(idx, aw - 2 * m, ah - 2 * m, rw, rh, layout);
                     double iw = rw[idx] * s, ih = rh[idx] * s;
                     // Snap to the printable area when the page is within a pixel of filling it, so the
                     // white sheet doesn't peek through as a 1px hairline at the page edge (float seam).
@@ -376,14 +398,14 @@ namespace KillerPDF
                     if (ih >= (ah - 2 * m) - 1.5) ih = ah - 2 * m + 1;
                     var img = new Image { Source = pages[idx]!, Width = iw, Height = ih };
                     RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
-                    Canvas.SetLeft(img, m + OffsetH(aw - 2 * m, iw));
-                    Canvas.SetTop(img, m + OffsetV(ah - 2 * m, ih));
+                    Canvas.SetLeft(img, m + OffsetH(aw - 2 * m, iw, layout));
+                    Canvas.SetTop(img, m + OffsetV(ah - 2 * m, ih, layout));
                     canvas.Children.Add(img);
                 }
             }
             else
             {
-                var (cols, rows) = NupGrid();
+                var (cols, rows) = NupGrid(layout);
                 const double gap = 6;
                 double cellW = (aw - 2 * m) / cols, cellH = (ah - 2 * m) / rows;
                 for (int i = 0; i < idxs.Count && i < cols * rows; i++)
@@ -427,47 +449,19 @@ namespace KillerPDF
 
         private void BuildUi()
         {
-            var outer = new Border
-            {
-                Background      = R("BackgroundBrush"),
-                // DialogFrameBrush, the dialog window outline (defaults to AppBorderBrush) -
-                // CardBorderBrush here was the teal odd-one-out against the themed main frame.
-                BorderBrush     = R("DialogFrameBrush"),
-                BorderThickness = new Thickness(1),
-                CornerRadius    = UiKit.RadWindow,
-                // Halo must be >= BlurRadius + ShadowDepth or the window edge clips the shadow into a
-                // thin hard line (invisible as a soft halo on light backgrounds). Recipe matches the
-                // in-app card shadow so every dialog casts the same soft shadow on any background.
-                Margin          = Application.Current.TryFindResource("DialogHaloMargin") is Thickness hm ? hm : new Thickness(20),
-                Effect          = UiKit.ShadowDialog()
-            };
-            var root = new DockPanel();
-            // Film grain behind the whole dialog so the settings column and title bar carry
-            // the same texture as the rest of the app. The preview column paints its own grain
-            // over its lighter canvas.
-            _rootGrid = new Grid();
-            var bgGrain = MakeGrainLayer();
-            if (bgGrain != null) _rootGrid.Children.Add(bgGrain);
-            DialogChrome.AddBevels(_rootGrid, Owner);
-            _rootGrid.Children.Add(root);
-            outer.Child = _rootGrid;
-            Content = outer;
-
-            // Title bar (transparent so the dialog-wide grain shows through behind the title)
-            // Shared KillerPDF dialog chrome: wordmark + courier suffix + the red ChromeCloseButton.
-            var titleBar = DialogChrome.BuildTitleBar(this, Owner, S("Str_Print_Title"), () => { DialogResult = false; Close(); });
-            titleBar.Height = Application.Current.TryFindResource("DialogTitleBarHeight") is double dh ? dh : 40;
-            DockPanel.SetDock(titleBar, Dock.Top);
-            root.Children.Add(titleBar);
-
-            // Body: settings | preview
+            // Print Preview used to rebuild the dialog frame, title bar, bevels and clipping here.
+            // That private shell drifted from every other dialog. Keep only its body and put it in
+            // the canonical shared frame.
             var body = new Grid();
             body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
             body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            root.Children.Add(body);
-
             body.Children.Add(BuildSettingsColumn());
             body.Children.Add(BuildPreviewColumn());
+
+            _rootGrid = new Grid();
+            _rootGrid.Children.Add(body);
+            Content = DialogChrome.Frame(this, Owner, S("Str_Print_Title"),
+                () => { DialogResult = false; Close(); }, _rootGrid);
         }
 
         private UIElement BuildSettingsColumn()
@@ -612,17 +606,10 @@ namespace KillerPDF
 
             // Custom percentage: a compact box (always 1-100ish) with a "%" suffix, revealed only
             // when "Custom" is chosen - it slides down into place instead of always taking space.
-            _scaleBox = new TextBox
-            {
-                Text         = "100",
-                Background    = R("BgCanvas"),
-                Foreground    = R("TextBrush"),
-                BorderBrush   = R("CardBorderBrush"),
-                Padding       = new Thickness(6, 4, 6, 4),
-                VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip       = S("Str_Print_ScaleHint")
-            };
-            StyleTextBox(_scaleBox);
+            _scaleBox = UiKit.Field();
+            _scaleBox.Text = "100";
+            _scaleBox.VerticalContentAlignment = VerticalAlignment.Center;
+            _scaleBox.ToolTip = S("Str_Print_ScaleHint");
             // Same numeric treatment as Copies: digits only, 1-1000 %, arrow-key / wheel / spinner stepping.
             var (getScale, setScale) = NumericField(_scaleBox, 1, 1000);
             _scaleBox.TextChanged += (s, _) =>
@@ -696,16 +683,9 @@ namespace KillerPDF
             panel.Children.Add(colorMode);
 
             panel.Children.Add(Label(S("Str_Print_Copies")));
-            _copiesBox = new TextBox
-            {
-                Text        = "1",
-                Background   = R("BgCanvas"),
-                Foreground   = R("TextBrush"),
-                BorderBrush  = R("CardBorderBrush"),
-                Padding      = new Thickness(6, 4, 6, 4),
-                VerticalContentAlignment = VerticalAlignment.Center
-            };
-            StyleTextBox(_copiesBox);
+            _copiesBox = UiKit.Field();
+            _copiesBox.Text = "1";
+            _copiesBox.VerticalContentAlignment = VerticalAlignment.Center;
             // Copies is replicated `copies` times in DoPrint, so 1 means exactly one printout; min 1.
             var (getCopies, setCopies) = NumericField(_copiesBox, 1, 9999);
 
@@ -719,16 +699,9 @@ namespace KillerPDF
             panel.Children.Add(copiesRow);
 
             panel.Children.Add(Label(S("Str_Print_Pages")));
-            _pagesBox = new TextBox
-            {
-                Text        = "",
-                Margin      = new Thickness(0, 4, 0, 2),
-                Background   = R("BgCanvas"),
-                Foreground   = R("TextBrush"),
-                BorderBrush  = R("CardBorderBrush"),
-                Padding      = new Thickness(6, 4, 6, 4)
-            };
-            StyleTextBox(_pagesBox);
+            _pagesBox = UiKit.Field();
+            _pagesBox.Text = "";
+            _pagesBox.Margin = new Thickness(0, 4, 0, 2);
             // Typing a range re-filters the preview to just those pages (jump back to the first one).
             _pagesBox.TextChanged += (_, _) => { _previewIndex = 0; UpdatePreview(); };
             panel.Children.Add(_pagesBox);
@@ -780,11 +753,9 @@ namespace KillerPDF
             var optionsScroller = new ScrollViewer
             {
                 Content                       = panel,
-                // Visible, not Auto. The options column is a fixed 260 and the bar is 12 wide (16 on
-                // 98SE), so letting it appear on demand shrinks every control in the panel the moment
-                // a section is expanded past the viewport. Reserving the width costs an idle track and
-                // keeps the fields still.
-                VerticalScrollBarVisibility   = ScrollBarVisibility.Visible,
+                // Stay out of the way while the open sections fit. Expanding Layout or shortening
+                // the window still produces a real scrollbar when the options overflow.
+                VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
             };
             Grid.SetRow(optionsScroller, 0);
@@ -808,8 +779,9 @@ namespace KillerPDF
                 Background       = R("BgCanvas"),
                 BorderBrush      = R("PaneBorderBrush"),   // 1px frame, matching the main document pane
                 BorderThickness  = new Thickness(1),
-                Margin           = new Thickness(0, 4, 8, 12),
-                CornerRadius     = new CornerRadius(4)
+                // Keep a real gutter between the settings/scrollbar column and the preview frame.
+                Margin           = new Thickness(8, 4, 8, 12),
+                CornerRadius     = UiKit.RadControl
             };
 
             var grid = new Grid();
@@ -1301,6 +1273,7 @@ namespace KillerPDF
                 var hiPages = new BitmapSource?[_pages.Length];
                 var hiW = new int[_pages.Length];
                 var hiH = new int[_pages.Length];
+                var layout = CurrentLayout();
                 int total = indices.Count;
                 await Task.Run(() =>
                 {
@@ -1331,7 +1304,7 @@ namespace KillerPDF
                 // duplex, so the output is identical to the old path (issue #83 copy handling
                 // unchanged - ticket.CopyCount stays 1).
                 bool ok = await SpoolOnPrintThreadAsync(
-                    indices, copies, aw, ah, hiPages, hiW, hiH, ticket, _queue.FullName);
+                    indices, copies, aw, ah, hiPages, hiW, hiH, ticket, _queue.FullName, layout);
 
                 PrintedPageCount = ok ? indices.Count : 0;
                 DialogResult = ok;
@@ -1362,13 +1335,15 @@ namespace KillerPDF
         /// the window sat dead (scrim included, since the scrim needs that same thread to paint)
         /// until the printer had the whole job.
         ///
-        /// Frozen BitmapSources cross threads freely and ComposeSheet only reads plain layout fields,
-        /// so the FixedPages are built on, and stay on, this thread. Output is unaffected: same
-        /// FixedDocument, same ticket, same spooler.
+        /// Frozen BitmapSources cross threads freely, and the immutable PrintLayout snapshot keeps
+        /// sheet composition independent of any controls receiving keys behind the progress scrim.
+        /// The FixedPages are built on, and stay on, this thread. Output is otherwise unaffected:
+        /// same FixedDocument, same ticket, same spooler.
         /// </remarks>
         private Task<bool> SpoolOnPrintThreadAsync(
             List<int> indices, int copies, double aw, double ah,
-            BitmapSource?[] hiPages, int[] hiW, int[] hiH, PrintTicket ticket, string queueName)
+            BitmapSource?[] hiPages, int[] hiW, int[] hiH, PrintTicket ticket, string queueName,
+            PrintLayout layout)
         {
             var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var thread = new System.Threading.Thread(() =>
@@ -1381,7 +1356,7 @@ namespace KillerPDF
                     try
                     {
                         done.TrySetResult(await ComposeAndSpool(
-                            indices, copies, aw, ah, hiPages, hiW, hiH, ticket, queueName));
+                            indices, copies, aw, ah, hiPages, hiW, hiH, ticket, queueName, layout));
                     }
                     catch (Exception ex) { done.TrySetException(ex); }
                     finally { dispatcher.InvokeShutdown(); }
@@ -1401,26 +1376,27 @@ namespace KillerPDF
         /// </summary>
         private async Task<bool> ComposeAndSpool(
             List<int> indices, int copies, double aw, double ah,
-            BitmapSource?[] hiPages, int[] hiW, int[] hiH, PrintTicket ticket, string queueName)
+            BitmapSource?[] hiPages, int[] hiW, int[] hiH, PrintTicket ticket, string queueName,
+            PrintLayout layout)
         {
             var fixedDoc = new FixedDocument();
-            // Group the selected pages into sheets of _nUp and compose each sheet (margins +
+            // Group the selected pages into sheets of layout.NUp and compose each sheet (margins +
             // alignment + scale are all handled inside ComposeSheet, shared with the preview).
             // The whole sheet sequence is emitted `copies` times so the app controls the copy
             // count directly rather than trusting PrintTicket.CopyCount (issue #83).
             // Under two-sided printing an odd-sheet copy would leave the next copy starting on the
             // back of this copy's last sheet. Pad each copy (bar the last) with a blank sheet so every
             // copy begins on a fresh front side.
-            int sheetsPerCopy = (indices.Count + _nUp - 1) / _nUp;
-            bool padForDuplex = _duplex && copies > 1 && (sheetsPerCopy % 2 == 1);
+            int sheetsPerCopy = (indices.Count + layout.NUp - 1) / layout.NUp;
+            bool padForDuplex = layout.Duplex && copies > 1 && (sheetsPerCopy % 2 == 1);
             for (int copy = 0; copy < copies; copy++)
             {
-                for (int start = 0; start < indices.Count; start += _nUp)
+                for (int start = 0; start < indices.Count; start += layout.NUp)
                 {
-                    var chunk = indices.Skip(start).Take(_nUp).ToList();
+                    var chunk = indices.Skip(start).Take(layout.NUp).ToList();
 
                     var fp = new FixedPage { Width = aw, Height = ah };
-                    var sheet = ComposeSheet(chunk, aw, ah, hiPages, hiW, hiH);
+                    var sheet = ComposeSheet(chunk, aw, ah, hiPages, hiW, hiH, layout);
                     FixedPage.SetLeft(sheet, 0);
                     FixedPage.SetTop(sheet, 0);
                     fp.Children.Add(sheet);
@@ -1482,11 +1458,10 @@ namespace KillerPDF
             }
         }
 
-        // Full-card scrim with a spinner + live status line, shown while a print job rasterizes and
-        // spools so the window shows progress instead of freezing silently. Added over _rootGrid (which
-        // is already clipped to the card's rounded corners) and painted last, so it sits on top and its
-        // Background swallows clicks - the buttons underneath can't be re-triggered mid-print. Returns
-        // the scrim; `status` is its message line, updated as the job progresses.
+        // Body scrim with a spinner + live status line, shown while a print job rasterizes and
+        // spools. It is painted last over _rootGrid, so its background swallows clicks and the
+        // controls underneath cannot be re-triggered mid-print. Returns the scrim; `status` is its
+        // message line, updated as the job progresses.
         private Border ShowPrintOverlay(out TextBlock status)
         {
             var ring = new System.Windows.Shapes.Ellipse

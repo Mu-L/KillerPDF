@@ -77,7 +77,7 @@
         <Border x:Name="RootBorder" BorderBrush="{DynamicResource DialogFrameBrush}" BorderThickness="{DynamicResource DialogFrameThickness}"
                 Background="{DynamicResource BackgroundBrush}"
                 CornerRadius="{DynamicResource PanelCornerRadius}" Margin="{DynamicResource DialogHaloMargin}"
-                Padding="{DynamicResource DialogFramePadding}">
+                Padding="{DynamicResource DialogWindowFramePadding}">
             <Grid>
             <Grid.RowDefinitions>
                 <!-- Auto, with the height on the band itself: DialogTitleBarHeight is a Double and
@@ -105,91 +105,35 @@
                      so it carries its own tile - same as the main window's chrome. -->
                 <Border IsHitTestVisible="False"
                         Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
-                <Grid Margin="16,0">
-                    <Grid VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False">
-                        <!-- The wordmark is the HOST app's, not this file's. This dialog is compiled
-                             into several apps as linked source, so a hardcoded name showed
-                             "KillerPDF" inside KillerNotes. Str_Wordmark_A / _B come from whichever
-                             app is running ("Killer" + "Notes", "Killer" + "PDF"), and the family
-                             two-run split is preserved: neutral first word, accent second.
-                             There is no "The " - that is Killendar's logotype flourish, not this
-                             family's, and it read as nonsense on every other app. -->
-                        <TextBlock FontFamily="{DynamicResource WordmarkFont}" FontSize="15" Margin="1,2,0,0" Opacity="{DynamicResource IconShadowOpacity}">
-                            <TextBlock.Effect><BlurEffect Radius="3"/></TextBlock.Effect>
-                            <Run Text="{DynamicResource Str_Wordmark_A}" Foreground="#D8000000"/><Run Text="{DynamicResource Str_Wordmark_B}" FontSize="19.5" FontWeight="Bold" Foreground="#D8000000"/>
-                        </TextBlock>
-                        <TextBlock FontFamily="{DynamicResource WordmarkFont}" FontSize="15">
-                            <Run Text="{DynamicResource Str_Wordmark_A}" Foreground="{DynamicResource ChromeTextBrush}"/><Run Text="{DynamicResource Str_Wordmark_B}" FontSize="19.5" FontWeight="Bold" Foreground="{DynamicResource AccentLogo}"/>
-                        </TextBlock>
-                    </Grid>
-                    <Button Content="&#xE8BB;" Click="Cancel_Click" HorizontalAlignment="Right" Width="30" Height="26" FontSize="10"
-                            FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderThickness="0" Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Foreground" Value="{DynamicResource ChromeTextBrush}"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="xb" Background="Transparent" CornerRadius="{DynamicResource SmallCornerRadius}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Foreground" Value="{DynamicResource DangerRed}"/>
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter Property="Foreground" Value="{DynamicResource DangerRed}"/>
-                                                    <Setter TargetName="xb" Property="Background" Value="#33C42B1C"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                <Grid Margin="{DynamicResource TitleBarPadding}">
+                    <!-- A file picker caption names the operation. It is window chrome, not a
+                         branding surface; the caller's Title belongs here and nowhere else. -->
+                    <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                               FontFamily="{DynamicResource ChromeFontFamily}"
+                               FontSize="{DynamicResource MenuFontSize}" FontWeight="Bold"
+                               Foreground="{DynamicResource ChromeTextBrush}"
+                               VerticalAlignment="Center" IsHitTestVisible="False"/>
+                    <Button x:Name="CaptionCloseButton" Content="&#xE8BB;" Click="Cancel_Click"
+                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                            Width="{DynamicResource DialogCloseWidth}" Height="{DynamicResource DialogCloseHeight}"
+                            Margin="{DynamicResource DialogCaptionButtonsMargin}"
+                            FontSize="10" FontFamily="Segoe MDL2 Assets"
+                            Foreground="{DynamicResource CaptionCloseBrush}"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand"/>
                 </Grid>
                 </Grid>
             </Border>
 
-            <!-- Heading: the caller's Title, so "Import iCalendar" still reads as the prompt -->
-            <TextBlock x:Name="HeadingText" Grid.Row="1" Margin="16,0,16,8"
-                       Foreground="{DynamicResource MutedTextBrush}" FontFamily="Consolas" FontSize="12"/>
-
             <!-- Path row: up one level + current path + view modes -->
-            <Grid Grid.Row="2" Margin="16,0,16,8">
+            <Grid Grid.Row="2" Margin="16,8,16,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="UpButton" Grid.Column="0" Content="&#xE74A;" Click="Up_Click" ToolTip="{DynamicResource Str_TT_Up}"
-                        Width="30" Height="28" Margin="0,0,6,0" FontSize="12" FontFamily="Segoe MDL2 Assets"
-                        Foreground="{DynamicResource TextBrush}" Cursor="Hand">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <!-- Bevels as siblings, like the view buttons. ButtonEdgeBrush rather
-                                 than InputBorderBrush so a beveled theme drops the flat outline and
-                                 the raised edge IS the button's edge. Bevel inverts while pressed. -->
-                            <Grid>
-                                <Border x:Name="ub" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource ButtonEdgeBrush}"
-                                        BorderThickness="1" CornerRadius="{DynamicResource ControlCornerRadius}">
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <Border x:Name="ubBevelLight" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}" BorderThickness="{DynamicResource BevelLightThickness}"/>
-                                <Border x:Name="ubBevelDark" IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
-                            </Grid>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ub" Property="Background" Value="{DynamicResource RowHoverBrush}"/></Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="ubBevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
-                                    <Setter TargetName="ubBevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
+                <Button x:Name="UpButton" Grid.Column="0" Content="&#xE74A;" Click="Up_Click"
+                        ToolTip="{DynamicResource Str_TT_Up}" Style="{StaticResource PickerViewBtn}"
+                        Margin="0,0,6,0"/>
                 <!-- Explicit style: an unstyled TextBox falls back to WPF's white fill and blue
                      focus border. The chevron overlays the box's right edge (the box pads 28 to
                      clear it) and drops the recent-locations list, like Explorer's address bar. -->
@@ -197,42 +141,22 @@
                     <TextBox x:Name="PathBox" Height="28" Style="{StaticResource DarkTextBox}"
                              FontFamily="Consolas" FontSize="12" Padding="8,0,28,0"
                              VerticalContentAlignment="Center" KeyDown="PathBox_KeyDown"/>
-                    <Button x:Name="RecentsBtn" Content="&#xE70D;" Click="RecentsBtn_Click"
+                    <Button x:Name="RecentsBtn" Content="{DynamicResource ComboChevGlyph}" Click="RecentsBtn_Click"
                             ToolTip="{DynamicResource Str_TT_RecentLocations}"
-                            Width="24" Height="24" HorizontalAlignment="Right" Margin="0,0,2,0"
-                            FontFamily="Segoe MDL2 Assets" FontSize="10" Cursor="Hand" Focusable="False">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Foreground" Value="{DynamicResource DimTextBrush}"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="Transparent">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                            Style="{StaticResource PickerComboArrowBtn}"
+                            HorizontalAlignment="Right" Margin="0,0,1,0"/>
                     <!-- Recent locations. Same raised-surface pattern as everything else:
                          shadow on an item-free sibling, content border on top. -->
                     <Popup x:Name="RecentsPopup" PlacementTarget="{Binding ElementName=PathBox}"
                            Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
                            VerticalOffset="2" HorizontalOffset="-8">
                         <Grid Margin="8">
-                            <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="{DynamicResource ControlCornerRadius}" IsHitTestVisible="False">
+                            <Border Background="{DynamicResource FileDialogPaneBrush}" CornerRadius="{DynamicResource ControlCornerRadius}" IsHitTestVisible="False">
                                 <Border.Effect>
                                     <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
                                 </Border.Effect>
                             </Border>
-                            <Border Background="{DynamicResource BackgroundBrush}" BorderBrush="{DynamicResource MenuBorderBrush}"
+                            <Border Background="{DynamicResource FileDialogPaneBrush}" BorderBrush="{DynamicResource MenuBorderBrush}"
                                     BorderThickness="1" CornerRadius="{DynamicResource ControlCornerRadius}">
                                 <Grid>
                                     <Border IsHitTestVisible="False" CornerRadius="{DynamicResource ControlCornerRadius}"
@@ -251,6 +175,7 @@
                                     </ListBox>
                                 </Grid>
                             </Border>
+                            <Control Panel.ZIndex="20" Style="{StaticResource PaneBevelOverlay}"/>
                         </Grid>
                     </Popup>
                 </Grid>
@@ -297,12 +222,7 @@
                         <RowDefinition Height="0"/>
                         <RowDefinition x:Name="PlacesRow" Height="*" MinHeight="56"/>
                     </Grid.RowDefinitions>
-                    <Border Grid.RowSpan="3" Panel.ZIndex="20" IsHitTestVisible="False"
-                            BorderBrush="{DynamicResource PaneBevelDarkBrush}"
-                            BorderThickness="{DynamicResource FooterCellLightThickness}"/>
-                    <Border Grid.RowSpan="3" Panel.ZIndex="20" IsHitTestVisible="False"
-                            BorderBrush="{DynamicResource PaneBevelLightBrush}"
-                            BorderThickness="{DynamicResource FooterCellDarkThickness}"/>
+                    <Control Grid.RowSpan="3" Panel.ZIndex="20" Style="{StaticResource PaneBevelOverlay}"/>
                     <ListBox x:Name="PlacesList" Grid.Row="2" Background="Transparent" BorderThickness="0" Padding="2,4"
                              ItemContainerStyle="{StaticResource PickerPlaceRow}" SelectionChanged="Places_SelectionChanged"
                              ContextMenuOpening="Places_ContextMenuOpening"
@@ -512,6 +432,7 @@
                     </DockPanel>
                   </Grid>
                   </Border>
+                  <Control Panel.ZIndex="20" Style="{StaticResource PaneBevelOverlay}"/>
                 </Grid>
 
                 <!-- Image-only pickers opt into this pane. Keeping it in the shared dialog makes
@@ -553,6 +474,7 @@
                             </Grid>
                         </Grid>
                     </Border>
+                    <Control Panel.ZIndex="20" Style="{StaticResource PaneBevelOverlay}"/>
                 </Grid>
             </Grid>
 
@@ -604,12 +526,25 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Keep the raised face inside the dialog's dark outer frame. -->
-            <Border IsHitTestVisible="False" BorderBrush="{DynamicResource BevelLightBrush}"
-                    BorderThickness="{DynamicResource BevelLightThickness}"/>
-            <Border IsHitTestVisible="False" BorderBrush="{DynamicResource BevelDarkBrush}"
-                    BorderThickness="{DynamicResource BevelDarkThickness}"/>
             </Grid>
         </Border>
+
+        <!-- The same directional 98SE window frame used by DialogChrome. Modern themes set these
+             thicknesses to zero, so their existing card treatment is unchanged. -->
+        <Grid Margin="{DynamicResource DialogHaloMargin}" IsHitTestVisible="False">
+            <Border Margin="{DynamicResource WindowFrameMargin}"
+                    BorderBrush="{DynamicResource WindowFrameBrush}"
+                    BorderThickness="{DynamicResource DialogWindowFrameThickness}"/>
+            <Border Margin="{DynamicResource FrameInnerMargin}"
+                    BorderBrush="{DynamicResource FrameInnerLightBrush}"
+                    BorderThickness="{DynamicResource FrameInnerLightThickness}"/>
+            <Border Margin="{DynamicResource FrameInnerMargin}"
+                    BorderBrush="{DynamicResource FrameInnerDarkBrush}"
+                    BorderThickness="{DynamicResource FrameInnerDarkThickness}"/>
+            <Border BorderBrush="{DynamicResource FrameOuterLightBrush}"
+                    BorderThickness="{DynamicResource FrameOuterLightThickness}"/>
+            <Border BorderBrush="{DynamicResource FrameOuterDarkBrush}"
+                    BorderThickness="{DynamicResource FrameOuterDarkThickness}"/>
+        </Grid>
     </Grid>
 </Window>

@@ -123,7 +123,7 @@ namespace KillerPDF
             var svGrid = new Grid { Width = SvW, Height = SvH };
             svGrid.Children.Add(_svHue); svGrid.Children.Add(svWhite); svGrid.Children.Add(svBlack); svGrid.Children.Add(_svThumb);
             // ClipToBounds off so the indicator dot shows fully when it sits at an edge/corner.
-            _svArea = new Border { Width = SvW, Height = SvH, CornerRadius = new CornerRadius(3), ClipToBounds = false,
+            _svArea = new Border { Width = SvW, Height = SvH, CornerRadius = UiKit.RadControl, ClipToBounds = false,
                 BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1), Child = svGrid, Cursor = Cursors.Cross };
             _svArea.MouseLeftButtonDown += (s, e) => { _svArea.CaptureMouse(); SvPick(e.GetPosition(svGrid)); };
             _svArea.MouseMove += (s, e) => { if (e.LeftButton == MouseButtonState.Pressed) SvPick(e.GetPosition(svGrid)); };
@@ -132,13 +132,13 @@ namespace KillerPDF
             var hueRect = new Rectangle { Width = HueW, Height = SvH, Fill = HueStripBrush() };
             // Themed handle, matching the annotate-bar slider thumbs (accent fill, light outline).
             _hueThumb = new Border { Width = HueW + 6, Height = 6, BorderBrush = Brushes.White, BorderThickness = new Thickness(1.5),
-                Background = R("PrimaryBrush"), CornerRadius = new CornerRadius(2), IsHitTestVisible = false };
+                Background = R("PrimaryBrush"), CornerRadius = UiKit.RadControl, IsHitTestVisible = false };
             var hueCanvas = new Canvas { Width = HueW + 6, Height = SvH };
             Canvas.SetLeft(_hueThumb, -3);
             hueCanvas.Children.Add(_hueThumb);
             var hueGrid = new Grid { Margin = new Thickness(8, 0, 0, 0) };
             hueGrid.Children.Add(hueRect); hueGrid.Children.Add(hueCanvas);
-            var hueArea = new Border { Child = hueGrid, Cursor = Cursors.SizeNS, CornerRadius = new CornerRadius(3),
+            var hueArea = new Border { Child = hueGrid, Cursor = Cursors.SizeNS, CornerRadius = UiKit.RadControl,
                 BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1) };
             hueArea.MouseLeftButtonDown += (s, e) => { hueArea.CaptureMouse(); HuePick(e.GetPosition(hueRect)); };
             hueArea.MouseMove += (s, e) => { if (e.LeftButton == MouseButtonState.Pressed) HuePick(e.GetPosition(hueRect)); };
@@ -147,7 +147,7 @@ namespace KillerPDF
             panel.Children.Add(pickRow);
             // RGB + hex + preview + eyedropper
             var inputRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
-            _newSwatch = new Border { Width = 34, Height = 34, CornerRadius = new CornerRadius(3),
+            _newSwatch = new Border { Width = 34, Height = 34, CornerRadius = UiKit.RadControl,
                 BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 10, 0) };
             inputRow.Children.Add(_newSwatch);
             _rBox = NumBox(); _gBox = NumBox(); _bBox = NumBox();
@@ -315,7 +315,7 @@ namespace KillerPDF
             {
                 var c = saved[i];
                 int idx = i;
-                var sw = new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 4, 4),
+                var sw = new Border { Width = 20, Height = 20, CornerRadius = UiKit.RadControl, Margin = new Thickness(0, 0, 4, 4),
                     Background = new SolidColorBrush(c), BorderThickness = new Thickness(_replaceArmed ? 2 : 1), Cursor = Cursors.Hand,
                     ToolTip = _replaceArmed ? L("Str_Color_SwatchSetTT") : L("Str_Color_SwatchUseTT") };
                 if (_replaceArmed) sw.SetResourceReference(Border.BorderBrushProperty, "PrimaryBrush"); else sw.BorderBrush = R("CardBorderBrush");
@@ -349,14 +349,16 @@ namespace KillerPDF
             b.KeyDown += (_, e) => { if (e.Key == Key.Enter) CommitRgb(); };
             return b;
         }
-        private TextBox MakeTextBox(double width) => new()
+        private TextBox MakeTextBox(double width)
         {
-            Width = width, Height = 22, VerticalContentAlignment = VerticalAlignment.Center,
-            Background = R("BgCanvas"), Foreground = R("TextBrush"),
-            BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1),
-            CaretBrush = R("TextBrush"), SelectionBrush = R("RowSelectedBrush"),
-            Padding = new Thickness(4, 0, 4, 0), Template = MakeTextBoxTemplate()
-        };
+            // Use the one shared field implementation. In particular, TextFieldBrush is white on
+            // 98SE while the document canvas is gray; a local BgCanvas field was visibly wrong.
+            var box = UiKit.Field(width);
+            box.Height = 22;
+            box.VerticalContentAlignment = VerticalAlignment.Center;
+            box.Padding = new Thickness(4, 0, 4, 0);
+            return box;
+        }
         // A crosshair/target glyph drawn in vectors, to match the KillerPDF look.
         private UIElement CrosshairIcon()
         {
@@ -371,7 +373,7 @@ namespace KillerPDF
         }
         private Border Chip(string text, string tip)
         {
-            var b = new Border { Height = 20, MinWidth = 22, CornerRadius = new CornerRadius(3), Cursor = Cursors.Hand,
+            var b = new Border { Height = 20, MinWidth = 22, CornerRadius = UiKit.RadControl, Cursor = Cursors.Hand,
                 BorderBrush = R("CardBorderBrush"), BorderThickness = new Thickness(1), Background = R("PaneBrush"),
                 Padding = new Thickness(6, 0, 6, 0), ToolTip = tip,
                 Child = new TextBlock { Text = text, Foreground = R("TextBrush"), FontSize = 11,
@@ -380,17 +382,6 @@ namespace KillerPDF
             b.MouseEnter += (_, _) => { if (b != _replaceBtn || !_replaceArmed) b.Background = R("CardBorderBrush"); };
             b.MouseLeave += (_, _) => { b.Background = (b == _replaceBtn && _replaceArmed) ? R("RowSelectedBrush") : R("PaneBrush"); };
             return b;
-        }
-        private static ControlTemplate MakeTextBoxTemplate()
-        {
-            var b = new FrameworkElementFactory(typeof(Border));
-            foreach (var (dp, prop) in new[] { (Border.BackgroundProperty, "Background"), (Border.BorderBrushProperty, "BorderBrush"), (Border.BorderThicknessProperty, "BorderThickness") })
-                b.SetBinding(dp, new Binding(prop) { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
-            b.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
-            var sv = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
-            sv.SetValue(ScrollViewer.VerticalAlignmentProperty, VerticalAlignment.Center);
-            b.AppendChild(sv);
-            return new ControlTemplate(typeof(TextBox)) { VisualTree = b };
         }
         private Button MakeButton(string text, bool primary)
         {
@@ -432,7 +423,7 @@ namespace KillerPDF
             var bf = new FrameworkElementFactory(typeof(Border));
             foreach (var (dp, prop) in new[] { (Border.BackgroundProperty, "Background"), (Border.BorderBrushProperty, "BorderBrush"), (Border.BorderThicknessProperty, "BorderThickness") })
                 bf.SetBinding(dp, new Binding(prop) { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
-            bf.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+            bf.SetValue(Border.CornerRadiusProperty, UiKit.RadControl);
             var cp = new FrameworkElementFactory(typeof(ContentPresenter));
             cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);

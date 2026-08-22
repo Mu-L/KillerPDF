@@ -291,7 +291,8 @@ namespace KillerPDF
             // subscribes to CollectionChanged, use CollectionChangedEventManager instead of +=.
             HideSignaturePopup();
 
-            var stack = new StackPanel { Margin = new Thickness(4) };
+            bool classicCaption = FindResource("UseDialogCaption") is true;
+            var stack = new StackPanel { Margin = classicCaption ? new Thickness(0) : new Thickness(4) };
 
             // Title doubles as a drag handle so the user can move the popup anywhere inside the
             // document area (position is remembered). Wrapped in a transparent Border so the whole
@@ -302,47 +303,75 @@ namespace KillerPDF
             var sigTitleText = new TextBlock
             {
                 Text = Loc("Str_Sig_Title"),
-                Foreground = (SolidColorBrush)FindResource("PrimaryBrush"),   // accent heading, shared secondary-window style
-                FontFamily = UiKit.MonoFont,
+                Foreground = (Brush)FindResource(classicCaption ? "ChromeTextBrush" : "PrimaryBrush"),
+                FontFamily = classicCaption
+                    ? (FontFamily)FindResource("ChromeFontFamily")
+                    : UiKit.MonoFont,
                 FontWeight = FontWeights.Bold,
-                FontSize = 14,
-                Margin = new Thickness(4, 2, 4, 2),
+                FontSize = classicCaption ? 11 : 14,
+                Margin = classicCaption ? new Thickness(0) : new Thickness(4, 2, 4, 2),
                 VerticalAlignment = VerticalAlignment.Center,
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 2, ShadowDepth = 1, Direction = 270, Opacity = 0.7 }
+                Effect = classicCaption ? null : new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 2, ShadowDepth = 1, Direction = 270, Opacity = 0.7 }
             };
             Grid.SetColumn(sigTitleText, 0);
-            // Close X, matching the Settings panel's close glyph (Segoe MDL2). A TextBlock (not Button)
-            // keeps it chromeless; e.Handled stops the click from starting the header drag.
-            var sigCloseBtn = new TextBlock
+            void ClosePicker()
             {
-                Text = "",
-                FontFamily = UiKit.IconFont,
-                FontSize = 11,
-                Foreground = (SolidColorBrush)FindResource("MutedTextBrush"),
-                Cursor = Cursors.Hand,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 6, 0),
-                Padding = new Thickness(4)
-            };
-            sigCloseBtn.MouseEnter += (_, _) => { sigCloseBtn.Foreground = (SolidColorBrush)FindResource("DangerRed"); sigCloseBtn.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = System.Windows.Media.Colors.Black, BlurRadius = 4, ShadowDepth = 1, Direction = 270, Opacity = 0.5 }; };
-            sigCloseBtn.MouseLeave += (_, _) => { sigCloseBtn.Foreground = (SolidColorBrush)FindResource("MutedTextBrush"); sigCloseBtn.Effect = null; };
-            sigCloseBtn.MouseLeftButtonDown += (_, e) =>
-            {
-                e.Handled = true;
                 HideSignaturePopup();
                 if (_currentTool == EditTool.Signature && _pendingSignature is null)
                     SetTool(EditTool.Select);
-            };
-            Grid.SetColumn(sigCloseBtn, 1);
+            }
+
+            FrameworkElement sigCloseControl;
+            if (classicCaption)
+            {
+                var closeButton = new Button
+                {
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Background = Brushes.Transparent,
+                    BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand,
+                    FocusVisualStyle = null,
+                    Style = (Style)FindResource("ChromeCloseButton")
+                };
+                closeButton.SetResourceReference(FrameworkElement.WidthProperty, "DialogCloseWidth");
+                closeButton.SetResourceReference(FrameworkElement.HeightProperty, "DialogCloseHeight");
+                closeButton.SetResourceReference(FrameworkElement.MarginProperty, "DialogCaptionButtonsMargin");
+                closeButton.PreviewMouseLeftButtonDown += (_, e) => { e.Handled = true; ClosePicker(); };
+                sigCloseControl = closeButton;
+            }
+            else
+            {
+                var closeText = new TextBlock
+                {
+                    Text = "",
+                    FontFamily = UiKit.IconFont,
+                    FontSize = 11,
+                    Foreground = (SolidColorBrush)FindResource("MutedTextBrush"),
+                    Cursor = Cursors.Hand,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 6, 0),
+                    Padding = new Thickness(4)
+                };
+                closeText.MouseEnter += (_, _) => { closeText.Foreground = (SolidColorBrush)FindResource("DangerRed"); closeText.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 4, ShadowDepth = 1, Direction = 270, Opacity = 0.5 }; };
+                closeText.MouseLeave += (_, _) => { closeText.Foreground = (SolidColorBrush)FindResource("MutedTextBrush"); closeText.Effect = null; };
+                closeText.MouseLeftButtonDown += (_, e) => { e.Handled = true; ClosePicker(); };
+                sigCloseControl = closeText;
+            }
+            Grid.SetColumn(sigCloseControl, 1);
             sigHeaderGrid.Children.Add(sigTitleText);
-            sigHeaderGrid.Children.Add(sigCloseBtn);
+            sigHeaderGrid.Children.Add(sigCloseControl);
             var sigHeader = new Border
             {
-                Background = Brushes.Transparent,
-                Margin     = new Thickness(0, 0, 0, 4),
+                Background = classicCaption ? (Brush)FindResource("DialogTitleBarBrush") : Brushes.Transparent,
+                Height = classicCaption && FindResource("DialogTitleBarHeight") is double captionHeight
+                    ? captionHeight : double.NaN,
+                Margin = classicCaption ? new Thickness(0) : new Thickness(0, 0, 0, 4),
                 Child = sigHeaderGrid
             };
+            if (classicCaption)
+                sigHeaderGrid.SetResourceReference(FrameworkElement.MarginProperty, "TitleBarPadding");
             stack.Children.Add(sigHeader);
 
             // Saved signatures and initials, shown as two labeled sections so the HR-style
@@ -354,13 +383,14 @@ namespace KillerPDF
                     Background = Brushes.White,
                     BorderBrush = _swatchDimBorder,
                     BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(3),
+                    CornerRadius = new CornerRadius(0),
                     Margin = new Thickness(4, 2, 4, 2),
                     Padding = new Thickness(4),
                     Cursor = Cursors.Hand,
                     Height = 60,
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
+                item.SetResourceReference(Border.CornerRadiusProperty, "ControlCornerRadius");
 
                 if (sigCopy.ImageData is not null)
                 {
@@ -518,23 +548,52 @@ namespace KillerPDF
 
             // Match the Settings/menu popups: themed modal surface + accent border + film grain.
             var sigContent = new Grid();
-            sigContent.Children.Add(new Border
+            var sigGrain = new Border
             {
-                CornerRadius     = new CornerRadius(6),
+                CornerRadius     = new CornerRadius(0),
                 IsHitTestVisible = false,
                 Opacity          = (double)FindResource("GrainOpacity"),
                 Background       = (System.Windows.Media.Brush)FindResource("GrainBrushShared")
-            });
+            };
+            sigGrain.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+            sigContent.Children.Add(sigGrain);
             sigContent.Children.Add(stack);
+
+            var sigBody = new Border
+            {
+                Background = (Brush)FindResource("MenuBackgroundBrush"),
+                Padding = classicCaption ? new Thickness(0) : new Thickness(4),
+                Child = sigContent
+            };
+            sigBody.SetResourceReference(Border.MarginProperty, "DialogWindowFramePadding");
+            sigBody.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+
+            Border SignatureFrameRing(string brushKey, string thicknessKey, string? marginKey = null)
+            {
+                var ring = new Border { IsHitTestVisible = false };
+                ring.SetResourceReference(Border.BorderBrushProperty, brushKey);
+                ring.SetResourceReference(Border.BorderThicknessProperty, thicknessKey);
+                if (marginKey is not null)
+                    ring.SetResourceReference(Border.MarginProperty, marginKey);
+                return ring;
+            }
+
+            var sigFrame = new Grid();
+            sigFrame.Children.Add(sigBody);
+            sigFrame.Children.Add(SignatureFrameRing("WindowFrameBrush", "DialogWindowFrameThickness"));
+            sigFrame.Children.Add(SignatureFrameRing("FrameInnerLightBrush", "FrameInnerLightThickness", "FrameInnerMargin"));
+            sigFrame.Children.Add(SignatureFrameRing("FrameInnerDarkBrush", "FrameInnerDarkThickness", "FrameInnerMargin"));
+            sigFrame.Children.Add(SignatureFrameRing("FrameOuterLightBrush", "FrameOuterLightThickness"));
+            sigFrame.Children.Add(SignatureFrameRing("FrameOuterDarkBrush", "FrameOuterDarkThickness"));
 
             _signaturePopup = new Border
             {
                 Background = (SolidColorBrush)FindResource("MenuBackgroundBrush"),
                 BorderBrush = (SolidColorBrush)FindResource("MenuBorderBrush"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(4),
-                Child = sigContent,
+                BorderThickness = classicCaption ? new Thickness(0) : new Thickness(1),
+                CornerRadius = new CornerRadius(0),
+                Padding = new Thickness(0),
+                Child = sigFrame,
                 // Free-positioned (Left/Top) inside the document grid so it can be dragged; the
                 // exact spot is set after layout from the saved position (or a default top-right).
                 Width = 320,
@@ -543,9 +602,12 @@ namespace KillerPDF
                 Margin = new Thickness(0, 4, 0, 0),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect
                 {
-                    Color = Colors.Black, BlurRadius = 16, Opacity = 0.55, ShadowDepth = 3
+                    Color = Colors.Black, BlurRadius = 16,
+                    Opacity = FindResource("FlyoutShadowOpacity") is double shadowOpacity ? shadowOpacity : 0.55,
+                    ShadowDepth = 3
                 }
             };
+            _signaturePopup.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
 
             var previewGrid = PagePreviewPanel.Parent as Grid;
             if (previewGrid is not null)
@@ -582,7 +644,7 @@ namespace KillerPDF
             // This separate window can't see MainWindow's ChromeCloseCorner, so the close button's
             // {DynamicResource ChromeCloseCorner} fell back to 0 (square hover). Provide it here so the
             // hover rounds the top-right corner to match the window.
-            win.Resources["ChromeCloseCorner"] = new CornerRadius(0, 7, 0, 0);
+            win.Resources["ChromeCloseCorner"] = new CornerRadius(0, UiKit.RadWindow.TopRight, 0, 0);
 
             var contentArea = new StackPanel();
 
@@ -594,7 +656,7 @@ namespace KillerPDF
                 BorderBrush = new SolidColorBrush(Color.FromRgb(0xcc, 0xcc, 0xcc)),
                 BorderThickness = new Thickness(1),
                 Margin = new Thickness(12, 12, 12, 4),
-                CornerRadius = new CornerRadius(4),
+                CornerRadius = UiKit.RadControl,
                 Height = 170
             };
             var drawCanvas = new Canvas

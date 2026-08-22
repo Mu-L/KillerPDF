@@ -373,7 +373,7 @@ namespace KillerPDF
                 bar.Margin = new Thickness(0);
                 bar.SetResourceReference(Border.BorderThicknessProperty, "BarEdgeThickness");
                 bar.SetResourceReference(Border.PaddingProperty, "BarPadding");
-                bar.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+                bar.SetResourceReference(Border.CornerRadiusProperty, "AnnotationBarCornerRadius");
                 // First pass runs before layout has measured the band; re-run once it has a height
                 // so the scroller inset below lands on the real value.
                 if (bar.ActualHeight <= 0)

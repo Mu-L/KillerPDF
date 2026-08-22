@@ -186,14 +186,15 @@ namespace KillerPDF
             var layerRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
             foreach (var (layer, caption) in KbLayerButtons)
             {
-                var b = new Button
-                {
-                    Content = caption, FontFamily = UiKit.MonoFont, FontSize = 11,
-                    Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 8, 0),
-                    BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
-                    FocusVisualStyle = null, Template = UiKit.ButtonTemplate(),   // no stock hover chrome
-                };
-                b.SetResourceReference(BackgroundProperty, "PaneBrush");
+                // Use the shared command-button factory. In 98SE this supplies the raised two-tone
+                // face and inverted pressed bevel; the old hand-built flat template bypassed it.
+                var b = UiKit.Make(caption, accent: false);
+                b.FontFamily = UiKit.MonoFont;
+                b.FontSize = 11;
+                b.Padding = new Thickness(10, 4, 10, 4);
+                b.Margin = new Thickness(0, 0, 8, 0);
+                b.BorderThickness = new Thickness(1);
+                b.FocusVisualStyle = null;
                 b.SetResourceReference(ForegroundProperty, "MutedTextBrush");
                 b.SetResourceReference(BorderBrushProperty, "CardBorderBrush");
                 var l = layer;
@@ -248,11 +249,12 @@ namespace KillerPDF
                     inner.Children.Add(bar);
                     var key = new Border
                     {
-                        Width = U * w - 4, Height = 44, CornerRadius = new CornerRadius(4),
+                        Width = U * w - 4, Height = 44, CornerRadius = new CornerRadius(0),
                         BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 4, 0),
                         Child = inner,
                     };
-                    key.SetResourceReference(Border.BackgroundProperty, "PaneBrush");
+                    key.SetResourceReference(Border.CornerRadiusProperty, "ControlCornerRadius");
+                    key.SetResourceReference(Border.BackgroundProperty, "KeyboardKeyBrush");
                     key.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
                     // Hover: the keycap lifts a few pixels, like the cards on the killertools.net front page.
                     var lift = new TranslateTransform();

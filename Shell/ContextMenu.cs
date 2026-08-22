@@ -279,16 +279,21 @@ namespace KillerPDF
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_ClearPage"), (s, e) => ClearAnnotations_Click(s!, e), glyph: ""));
-            // #193: book layout, only offered where it means something - in Two-Page view. The
-            // menu is rebuilt on every open, so the checkmark always reflects the live setting.
-            if (_viewMode == ViewMode.TwoPage)
-            {
-                _ctxMenu.Items.Add(new Separator());
-                var book = MakeMenuItem(Loc("Str_View_BookMode"), (s, e) => ToggleBookMode(), "B", "");
-                book.IsCheckable = true;
-                book.IsChecked = Controls.PdfViewer.BookMode;
-                _ctxMenu.Items.Add(book);
-            }
+            AppendBookLayoutItem(_ctxMenu);
+        }
+
+        // Book layout changes the whole two-page viewport, so it belongs on both the page menu and
+        // the surrounding-canvas menu. Keeping the item construction here prevents the two menus
+        // from drifting apart (including the live check state and keyboard hint).
+        private void AppendBookLayoutItem(ContextMenu menu)
+        {
+            if (_viewMode != ViewMode.TwoPage) return;
+
+            menu.Items.Add(new Separator());
+            var book = MakeMenuItem(Loc("Str_View_BookMode"), (s, e) => ToggleBookMode(), "B", "");
+            book.IsCheckable = true;
+            book.IsChecked = Controls.PdfViewer.BookMode;
+            menu.Items.Add(book);
         }
 
         // Deep-copies page pageIdx and inserts the copy right after it. AddPage on a same-document page
@@ -663,6 +668,7 @@ namespace KillerPDF
             menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z", ""));
             menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Redo"), (s, e) => Redo_Click(s!, e), "Ctrl+Y", ""));
             menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Clear"), (s, e) => ClearAllAnnotations_Click(s!, e), glyph: ""));
+            AppendBookLayoutItem(menu);
         }
 
         // Opens the page-agnostic menu for a right-click on the gray area around the page (the document

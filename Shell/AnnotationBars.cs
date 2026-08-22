@@ -68,7 +68,7 @@ namespace KillerPDF
             // outlive theme switches, so a snapshot kept the grain painting on 98SE (whose
             // GrainOpacity is 0) and its -4 margin overhang made the bevel read as misaligned.
             var grain = new Border { Margin = new Thickness(-4), IsHitTestVisible = false };
-            grain.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+            grain.SetResourceReference(Border.CornerRadiusProperty, "AnnotationBarCornerRadius");
             grain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
             grain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
             g.Children.Add(grain);
@@ -117,7 +117,7 @@ namespace KillerPDF
             // SetResourceReference so a theme switch retargets it - 98SE's GrainOpacity of 0 must
             // actually clear the texture on an already-built bar (a FindResource snapshot did not).
             var hostGrain = new Border { Margin = new Thickness(-4), IsHitTestVisible = false };
-            hostGrain.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+            hostGrain.SetResourceReference(Border.CornerRadiusProperty, "AnnotationBarCornerRadius");
             hostGrain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
             hostGrain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
             host.Children.Add(hostGrain);
@@ -158,9 +158,6 @@ namespace KillerPDF
         private static System.Windows.Media.Effects.DropShadowEffect AnnotBarShadow()
             => new() { Color = Colors.Black, BlurRadius = 6, ShadowDepth = 3, Direction = 270,
                 Opacity = Application.Current.TryFindResource("BarShadowOpacity") is double opacity ? opacity : 0.38 };
-
-        private CornerRadius ResourceCornerRadius(string key)
-            => TryFindResource(key) is CornerRadius radius ? radius : new CornerRadius(0);
 
         // Lets the annotation bars slide horizontally along the top via their grip, clamped inside
         // the document area, with the X position remembered (shared across the draw/text bars).
@@ -898,13 +895,16 @@ namespace KillerPDF
             {
                 HorizontalAlignment = HorizontalAlignment.Right,  // right-anchored; slid via the grip
                 VerticalAlignment = VerticalAlignment.Top,
-                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
+                CornerRadius = new CornerRadius(0),
                 Effect = AnnotBarShadow(),
                 Child = BuildBarHost(panel),
                 Margin = new Thickness(0, 0, 0, 0)
             };
             _drawSettingsBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
-            _drawSettingsBar.SetResourceReference(Border.BorderBrushProperty, "BarEdgeBrush");
+            _drawSettingsBar.SetResourceReference(Border.CornerRadiusProperty, "AnnotationBarCornerRadius");
+            // Match the Text bar's pane-integrated edge. BarEdgeBrush is white in 98SE and made
+            // this one bar look like a separate raised slab even though both use the same host.
+            _drawSettingsBar.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
             _drawSettingsBar.SetResourceReference(Border.BorderThicknessProperty, "BarEdgeThickness");
             _drawSettingsBar.SetResourceReference(Border.PaddingProperty, "BarPadding");
 

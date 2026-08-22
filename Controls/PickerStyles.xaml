@@ -20,8 +20,8 @@
         <!-- Transparent at rest, NOT RowSelectedBrush. Filled with RowSelectedBrush while its text
              was OutlineBtnBrush, both resolve to the accent on several palettes - so the confirm
              button was a solid block of color with its caption invisible inside it. -->
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{DynamicResource OutlineBtnBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource OutlineFaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OutlineTextBrush}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Padding" Value="14,5"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -46,12 +46,12 @@
                     <ControlTemplate.Triggers>
                         <!-- Order matters: IsPressed must come after IsMouseOver to win. -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{DynamicResource OutlineBtnBrush}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource OnPrimaryBrush}"/>
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource OutlineHoverBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource OutlineHoverTextBrush}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource OutlinePressedBrush}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource OutlineBtnBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource OutlineTextBrush}"/>
                             <!-- Bevel inverts on press: sunken, the classic behavior. -->
                             <Setter TargetName="bevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
                             <Setter TargetName="bevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
@@ -299,6 +299,43 @@
                         <Trigger Property="Tag" Value="on">
                             <Setter TargetName="bg" Property="Background" Value="{DynamicResource SelectionBg}"/>
                             <Setter Property="Foreground" Value="{DynamicResource SelectionFg}"/>
+                            <Setter TargetName="bevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                            <Setter TargetName="bevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The address-bar dropdown is the same classic arrow face used by ComboBox fields.
+         Keeping it here means every Open, Save and image picker receives one implementation. -->
+    <Style x:Key="PickerComboArrowBtn" TargetType="Button">
+        <Setter Property="Width" Value="{DynamicResource ComboButtonSize}"/>
+        <Setter Property="Height" Value="{DynamicResource ComboButtonHeight}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource ComboChevFont}"/>
+        <Setter Property="FontSize" Value="8"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="face" Background="{DynamicResource ComboButtonBrush}"/>
+                        <Border x:Name="bevelLight" IsHitTestVisible="False"
+                                BorderBrush="{DynamicResource BevelLightBrush}"
+                                BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
+                        <Border x:Name="bevelDark" IsHitTestVisible="False"
+                                BorderBrush="{DynamicResource BevelDarkBrush}"
+                                BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="face" Property="Background" Value="{DynamicResource ComboButtonHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="bevelLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
                             <Setter TargetName="bevelDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
                         </Trigger>
@@ -576,14 +613,7 @@
     </Style>
 
     <!-- ============================================================ -->
-    <!-- File-type ComboBox.                                          -->
-    <!--                                                              -->
-    <!-- Copied from MainWindow.xaml's zoom dropdown (DarkComboToggle -->
-    <!-- / DarkComboItem / DarkComboBox), which lives in that         -->
-    <!-- window's own Window.Resources and so is invisible from this  -->
-    <!-- separate window - the picker's filter combo came up in the   -->
-    <!-- stock white-and-blue WPF template without it. Keep the two    -->
-    <!-- copies in step if either is restyled.                        -->
+    <!-- Shared ComboBox chrome used by both the main-window zoom field and every file picker. -->
     <!-- ============================================================ -->
 
     <!-- Toggle button used inside the ComboBox template -->
@@ -607,9 +637,9 @@
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-        <Setter Property="Padding" Value="8,5"/>
-        <Setter Property="FontFamily" Value="Consolas"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="{DynamicResource MenuItemPadding}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource MenuFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource MenuFontSize}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -636,12 +666,12 @@
     <!-- The ComboBox itself -->
     <Style x:Key="DarkComboBox" TargetType="ComboBox">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
-        <Setter Property="Background" Value="{DynamicResource TextFieldBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource ComboFieldBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="FontFamily" Value="Consolas"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontFamily" Value="{DynamicResource MenuFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource MenuFontSize}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboItem}"/>
         <Setter Property="Template">
@@ -657,7 +687,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="{DynamicResource ComboButtonMinWidth}"/>
                                 </Grid.ColumnDefinitions>
                                 <!-- Selected item text (non-editable mode) -->
                                 <ContentPresenter x:Name="ContentSite"
@@ -675,8 +705,8 @@
                                          Background="Transparent"
                                          BorderThickness="0"
                                          Foreground="{DynamicResource TextBrush}"
-                                         FontFamily="Consolas"
-                                         FontSize="11"
+                                         FontFamily="{DynamicResource MenuFontFamily}"
+                                         FontSize="{DynamicResource MenuFontSize}"
                                          VerticalAlignment="Center"
                                          IsReadOnly="{TemplateBinding IsReadOnly}"
                                          Visibility="Hidden"
@@ -684,36 +714,22 @@
                                          SelectionBrush="{DynamicResource RowSelectedBrush}"
                                          SelectionTextBrush="{DynamicResource PrimaryBrush}"
                                          CaretBrush="{DynamicResource PrimaryBrush}"/>
-                                <!-- Chevron arrow -->
-                                <TextBlock Grid.Column="1"
-                                           Text="&#xE70D;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="8"
-                                           Foreground="{DynamicResource MutedTextBrush}"
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Center"
-                                           IsHitTestVisible="False"/>
-                                <!-- Chevron face keys off ComboButtonBrush, the same key the
-                                     MainWindow copy uses. ChipFaceBrush is defined by 98SE alone
-                                     and CompleteAppPalette never materialises it, so it is not a
-                                     key that resolves to nothing elsewhere - it is one that gets
-                                     stuck: ApplyTheme copies the incoming theme in per key and
-                                     removes nothing, so visiting 98SE once left #c0c0c0 in the
-                                     live dictionary and this chevron kept a raised Win98 face on
-                                     every theme after it. ComboButtonBrush is materialised into
-                                     every palette, so the two template copies stay in step. -->
-                                <Border Grid.Column="1" IsHitTestVisible="False"
-                                        Background="{DynamicResource ComboButtonBrush}"
-                                        BorderBrush="{DynamicResource BevelLightBrush}"
-                                        BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
-                                <Border Grid.Column="1" IsHitTestVisible="False"
-                                        BorderBrush="{DynamicResource BevelDarkBrush}"
-                                        BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
-                                <TextBlock Grid.Column="1" Text="&#xE70D;"
-                                           FontFamily="Segoe MDL2 Assets" FontSize="8"
-                                           Foreground="{DynamicResource TextBrush}"
-                                           VerticalAlignment="Center" HorizontalAlignment="Center"
-                                           IsHitTestVisible="False"/>
+                                <!-- The arrow face stretches to the field's INNER height. A fixed
+                                     26px face clipped inside the 22px toolbar zoom box, cutting its
+                                     bevel in half while looking correct in taller dialog fields. -->
+                                <Grid Grid.Column="1" Width="{DynamicResource ComboButtonSize}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                                       IsHitTestVisible="False">
+                                    <Border x:Name="ComboChevFace" Background="{DynamicResource ComboButtonBrush}"/>
+                                    <Border x:Name="ComboChevLight" BorderBrush="{DynamicResource BevelLightBrush}"
+                                            BorderThickness="{DynamicResource ButtonBevelLightThickness}"/>
+                                    <Border x:Name="ComboChevDark" BorderBrush="{DynamicResource BevelDarkBrush}"
+                                            BorderThickness="{DynamicResource ButtonBevelDarkThickness}"/>
+                                    <TextBlock Text="{DynamicResource ComboChevGlyph}"
+                                               FontFamily="{DynamicResource ComboChevFont}" FontSize="8"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Grid>
                                 <!-- Invisible toggle over the whole control -->
                                 <ToggleButton Grid.Column="0" Grid.ColumnSpan="2"
                                               Style="{StaticResource DarkComboToggle}"
@@ -721,6 +737,19 @@
                                                           RelativeSource={RelativeSource TemplatedParent}}"/>
                             </Grid>
                         </Border>
+                        <!-- A classic edit/combo field is a two-stage SUNKEN frame: gray/white
+                             outside, black/control-face inside. Modern themes make these shared
+                             pane-bevel resources transparent and zero-width. -->
+                        <Border IsHitTestVisible="False" BorderBrush="{DynamicResource PaneBevelDarkBrush}"
+                                BorderThickness="{DynamicResource PaneBevelLightThickness}"/>
+                        <Border IsHitTestVisible="False" BorderBrush="{DynamicResource PaneBevelLightBrush}"
+                                BorderThickness="{DynamicResource PaneBevelDarkThickness}"/>
+                        <Border IsHitTestVisible="False" Margin="{DynamicResource PaneBevelInnerMargin}"
+                                BorderBrush="{DynamicResource PaneBevelDark2Brush}"
+                                BorderThickness="{DynamicResource PaneBevel2LightThickness}"/>
+                        <Border IsHitTestVisible="False" Margin="{DynamicResource PaneBevelInnerMargin}"
+                                BorderBrush="{DynamicResource PaneBevelLight2Brush}"
+                                BorderThickness="{DynamicResource PaneBevel2DarkThickness}"/>
                         <!-- Dropdown popup -->
                         <Popup x:Name="PART_Popup"
                                AllowsTransparency="True"
@@ -728,7 +757,7 @@
                                Focusable="False"
                                PopupAnimation="Fade"
                                Placement="Bottom">
-                            <Border Background="{DynamicResource FileDialogPaneBrush}"
+                            <Border Background="{DynamicResource ComboPopupBrush}"
                                     BorderBrush="{DynamicResource CardBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="{DynamicResource SmallCornerRadius}"
@@ -738,7 +767,8 @@
                                                RelativeSource={RelativeSource TemplatedParent}}"
                                     MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.5"/>
+                                    <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270"
+                                                      Opacity="{DynamicResource FlyoutShadowOpacity}"/>
                                 </Border.Effect>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled">
@@ -753,10 +783,14 @@
                             <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ComboFieldHoverBrush}"/>
+                            <Setter TargetName="ComboChevFace" Property="Background" Value="{DynamicResource ComboButtonHoverBrush}"/>
                         </Trigger>
                         <Trigger Property="IsDropDownOpen" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ComboFieldHoverBrush}"/>
+                            <Setter TargetName="ComboChevFace" Property="Background" Value="{DynamicResource ComboButtonHoverBrush}"/>
+                            <Setter TargetName="ComboChevLight" Property="BorderBrush" Value="{DynamicResource BevelDarkBrush}"/>
+                            <Setter TargetName="ComboChevDark" Property="BorderBrush" Value="{DynamicResource BevelLightBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>

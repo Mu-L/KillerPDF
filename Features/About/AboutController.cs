@@ -127,7 +127,7 @@ namespace KillerPDF.Features
                 if (lat <= cur) return;
 
                 _updateTag = $"v{lat.ToString(3)}";
-                _host.UpdateText    = $"Update available: {_updateTag}";
+                _host.UpdateText    = string.Format(_host.Loc("Str_UpdateAvailable"), _updateTag);
                 _host.UpdateVisible = true;
             }
             catch { /* offline, timeout, or API error - quietly do nothing */ }
@@ -153,12 +153,12 @@ namespace KillerPDF.Features
             }
 
             var confirm = KillerDialog.Show(_host.Window,
-                $"Download and install KillerPDF {tag}?\n\nThe app will close and reopen automatically.",
+                string.Format(_host.Loc("Str_UpdatePrompt"), tag),
                 "KillerPDF", MessageBoxButton.OKCancel, MessageBoxImage.Question);
             if (confirm != MessageBoxResult.OK) return;
 
             _host.UpdateEnabled = false;
-            _host.UpdateText    = "Downloading...";
+            _host.UpdateText    = _host.Loc("Str_UpdateDownloading");
 
             string? newExe = await DownloadVerifiedAsync(tag!).ConfigureAwait(true);
             if (newExe is null)
@@ -166,7 +166,7 @@ namespace KillerPDF.Features
                 // Offline, timed out, or verification failed: restore the button and open the
                 // releases page so the user can update manually.
                 _host.UpdateEnabled = true;
-                _host.UpdateText    = $"Update available: {tag}";
+                _host.UpdateText    = string.Format(_host.Loc("Str_UpdateAvailable"), tag);
                 OpenUrl($"{Repo}/releases/latest");
                 return;
             }
@@ -175,7 +175,7 @@ namespace KillerPDF.Features
             {
                 try { if (File.Exists(newExe)) File.Delete(newExe); } catch { }
                 _host.UpdateEnabled = true;
-                _host.UpdateText    = $"Update available: {tag}";
+                _host.UpdateText    = string.Format(_host.Loc("Str_UpdateAvailable"), tag);
             }
         }
 

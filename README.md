@@ -2,14 +2,14 @@
   <a href="https://killerpdf.net"><img src="docs/wordmark.png" width="640" alt="KillerPDF - Free PDF Editor"></a>
 </p>
 
-Free and open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription or a phone-home. Install or run portable. One Windows download, no runtime install required.
+KillerPDF is a free, open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription. Install it or run it portable from the same Windows download. No runtime installation is required, and the app never phones home.
 
 Full how-tos live on the [help page](https://killerpdf.net/help.html); internals, formats, and limits on the [technical page](https://killerpdf.net/technical.html).
 
 ## Features
 
 - High-quality PDFium rendering with four view modes (Single, Continuous, Two-Page with a book layout option, Grid), tabbed documents, and a split pane for two documents side by side
-- Annotate: inline text editing with font matching, word-wrapping text boxes, draw, lines, highlights (saved with the Multiply blend so text underneath stays readable), images, and page-number / watermark stamps - all with per-tab undo and redo
+- Annotate with inline text editing and font matching, word-wrapping text boxes, drawing, lines, highlights, images, and page-number or watermark stamps. Highlights use the Multiply blend so the text underneath stays readable, and every tab has its own undo and redo history.
 - Built-in OCR (Tesseract bundled, no cloud): make searchable PDFs, OCR a page or region to the clipboard, extract all text; extra languages download on demand
 - Organize pages: merge, split, insert, rotate, crop, extract, delete, drag-and-drop reordering; drop a folder or `.zip` onto the window to merge its contents
 - Export one page or a multi-page selection as PNG or JPEG directly from the Pages panel
@@ -17,11 +17,11 @@ Full how-tos live on the [help page](https://killerpdf.net/help.html); internals
 - Forms: fill text, checkbox, radio, and comb fields as live controls and save back; digital signatures with a cloud certificate (Certum SimplySign), plus drawn or imported signatures and initials
 - Print with a real in-app preview, paper size and source selection, scale / position / margins / pages-per-sheet options at 300 DPI; Save Flattened rasterizes to a fully uneditable PDF
 - Full-text search with highlighting, and column-aware text selection that copies multi-column pages in reading order
-- Night-mode invert (per pane in split view), thirteen themes - four of them (Dark, Light, Black and 98SE) with six live accent colors each, 33 looks in all - toolbar styles, and a resizable sidebar that docks left or right
+- Night-mode inversion works independently in each split pane. Thirteen themes, live accent colors, and toolbar styles provide 33 looks, while the resizable sidebar can dock on either side.
 - Localized UI in 12 languages (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
 - Runs portable, or self-installs per-user (no UAC) or machine-wide (`/silent` for scripted deployment); registers as a PDF handler and uninstalls cleanly
-- Standards-safe saves: every release is validated with veraPDF across a 2,900-file conformance corpus with a zero-regressions bar - see [validation/RESULTS.md](validation/RESULTS.md)
+- Standards-safe saves: every release is tested against a 2,900-file veraPDF conformance corpus with a zero-regressions requirement. See [validation/RESULTS.md](validation/RESULTS.md).
 - Local-only: no account, no telemetry, no phone-home
 
 ## Command line
@@ -47,8 +47,8 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 
 | | |
 | --- | --- |
-| ![KillerPDF showing the brochure in a six-page grid](doc/grid-view.png)<br>**Grid view** — Scan a whole document at once while thumbnails and navigation stay close at hand. | ![KillerPDF showing two documents side by side with the outline open](doc/split-pane-outline.png)<br>**Split panes and outlines** — Browse two independent documents side by side, with tabs, pages, zoom, and navigation kept per pane. |
-| ![KillerPDF showing night mode and a localized page context menu](doc/night-mode-context-menu.png)<br>**Night mode and localization** — Per-pane inversion, themed context menus, and an interface translated into twelve languages. | ![KillerPDF showing drawing, shapes, and the custom color picker](doc/annotations-color-picker.png)<br>**Annotation tools** — Draw, highlight, add shapes, and choose exact colors without leaving the document. |
+| ![KillerPDF showing the brochure in a six-page grid](docs/grid-view.png)<br>**Grid view** — Scan a whole document at once while thumbnails and navigation stay close at hand. | ![KillerPDF showing two documents side by side with the outline open](docs/split-pane-outline.png)<br>**Split panes and outlines** — Browse two independent documents side by side, with tabs, pages, zoom, and navigation kept per pane. |
+| ![KillerPDF showing night mode and a localized page context menu](docs/night-mode-context-menu.png)<br>**Night mode and localization** — Per-pane inversion, themed context menus, and an interface translated into twelve languages. | ![KillerPDF showing drawing, shapes, and the custom color picker](docs/annotations-color-picker.png)<br>**Annotation tools** — Draw, highlight, add shapes, and choose exact colors without leaving the document. |
 
 ## Requirements
 
