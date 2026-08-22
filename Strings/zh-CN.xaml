@@ -144,38 +144,38 @@
     <sys:String x:Key="Str_RotateFailed">旋转失败：{0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">另一个窗格中也打开了“{0}”，并且有自己未保存的更改。
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">另一个窗格中也打开了“{0}”，并且有自己未保存的更改。
 
 现在保存会覆盖该文件，那些更改将会丢失。如果想保留，请先保存另一个窗格。</sys:String>
     <sys:String x:Key="Str_St_SplitOn">分屏已开启 - 按 F10 关闭</sys:String>
     <sys:String x:Key="Str_St_SplitOff">分屏已关闭</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">安装 KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">要将 KillerPDF 安装到这台电脑吗？
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">要将 KillerPDF 安装到这台电脑吗？
 
 KillerPDF 将被复制到您的程序文件夹，并添加开始菜单项。此 EXE 副本会保留在原处，您可以随时通过添加或删除程序来卸载。</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">安装</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">更新</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">更新现有的 KillerPDF 安装？
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">更新现有的 KillerPDF 安装？
 
 这会将已安装的副本替换为更快的多文件版本。之后您可以保留或删除此便携文件。</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">更新现有的 KillerPDF 全用户安装？
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">更新现有的 KillerPDF 全用户安装？
 
 这会将 Program Files 中的副本替换为更快的多文件版本。旧的单用户副本将被移除，使 KillerPDF 只出现一次。之后您可以保留或删除此便携文件。</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF 已为此计算机上的所有用户安装。请更新该安装，或先卸载它，再选择单用户安装。
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF 已为此计算机上的所有用户安装。请更新该安装，或先卸载它，再选择单用户安装。
 
 KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">添加桌面快捷方式</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">为这台电脑上的所有用户安装（需要管理员）</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">安装未完成 - KillerPDF 仍以便携方式运行。</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">要将 KillerPDF 设为默认 PDF 查看器吗？
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">要将 KillerPDF 设为默认 PDF 查看器吗？
 
 将打开 Windows 设置 - 默认应用。</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">您有未保存的变更。要在不保存的情况下关闭此文件吗？</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">您有未保存的变更。要在不保存的情况下关闭 KillerPDF 吗？</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">此文档有 {0} 个页面的尺寸超出 Adobe Reader 支持的范围（每边 3 到 14400 点），Adobe 会将这些页面显示为空白。
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">此文档有 {0} 个页面的尺寸超出 Adobe Reader 支持的范围（每边 3 到 14400 点），Adobe 会将这些页面显示为空白。
 
 要将它们缩放到支持的尺寸吗？页面的外观和比例保持不变。</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">无法打开 PDF：
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">无法打开 PDF：
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">您有 {0} 个打开的文档。退出应用时是否让 KillerPDF 全部关闭？</sys:String>
@@ -640,7 +640,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_TT_CloseTab">关闭标签页</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">所有打开的标签页</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">也反转图像</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">此电脑上没有字体可以显示这些字符，因此它们在保存的 PDF 中将显示为方框：&#10;&#10;{0}&#10;&#10;请安装包含这些字符的字体，或为此文本选择其他字体。</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">此电脑上没有字体可以显示这些字符，因此它们在保存的 PDF 中将显示为方框：&#10;&#10;{0}&#10;&#10;请安装包含这些字符的字体，或为此文本选择其他字体。</sys:String>
     <sys:String x:Key="Str_TT_AppSize">滚动以调整整个应用的大小 (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">应用大小 {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">缩放整个应用（无障碍）</sys:String>

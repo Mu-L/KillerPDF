@@ -144,38 +144,38 @@
     <sys:String x:Key="Str_RotateFailed">Error al rotar: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">El otro panel también tiene «{0}» abierto, con cambios sin guardar propios.
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">El otro panel también tiene «{0}» abierto, con cambios sin guardar propios.
 
 Al guardar ahora se sobrescribe el archivo y esos cambios se perderán. Guarde primero el otro panel si desea conservarlos.</sys:String>
     <sys:String x:Key="Str_St_SplitOn">Vista dividida activada - F10 para cerrar</sys:String>
     <sys:String x:Key="Str_St_SplitOff">Vista dividida desactivada</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">Instalar KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">¿Instalar KillerPDF en este equipo?
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">¿Instalar KillerPDF en este equipo?
 
 KillerPDF se copiará a su carpeta de programas y se añadirá una entrada en el menú Inicio. Esta copia del ejecutable se queda donde está, y puede desinstalarla en cualquier momento desde Agregar o quitar programas.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Instalar</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">Actualizar</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">¿Actualizar la instalación existente de KillerPDF?
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">¿Actualizar la instalación existente de KillerPDF?
 
 Esto sustituye la copia instalada por la versión multiarchivo más rápida. Después puede conservar o eliminar este archivo portátil.</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">¿Actualizar la instalación existente de KillerPDF para todos los usuarios?
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">¿Actualizar la instalación existente de KillerPDF para todos los usuarios?
 
 Esto sustituye la copia de Program Files por la versión multiarchivo más rápida. Cualquier copia antigua por usuario se elimina para que KillerPDF aparezca solo una vez. Después puede conservar o eliminar este archivo portátil.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF ya está instalado para todos los usuarios de este equipo. Actualice esa instalación o desinstálela antes de elegir una instalación por usuario.
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF ya está instalado para todos los usuarios de este equipo. Actualice esa instalación o desinstálela antes de elegir una instalación por usuario.
 
 KillerPDF no creará dos copias instaladas.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Añadir un acceso directo en el escritorio</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Instalar para todos los usuarios de este equipo (requiere administrador)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">La instalación no se completó - KillerPDF sigue ejecutándose en modo portátil.</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">¿Desea establecer KillerPDF como su visor de PDF predeterminado?
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">¿Desea establecer KillerPDF como su visor de PDF predeterminado?
 
 Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Tiene cambios sin guardar. ¿Cerrar este archivo sin guardar?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Tiene cambios sin guardar. ¿Cerrar KillerPDF sin guardar?</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">Este documento tiene {0} página(s) con un tamaño fuera del rango que admite Adobe Reader (3 a 14.400 puntos por lado) - Adobe las muestra como páginas en blanco.
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">Este documento tiene {0} página(s) con un tamaño fuera del rango que admite Adobe Reader (3 a 14.400 puntos por lado) - Adobe las muestra como páginas en blanco.
 
 ¿Escalarlas a un tamaño compatible? Las páginas conservan su aspecto y proporciones.</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">Error al abrir PDF:
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">Error al abrir PDF:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">Tienes {0} documentos abiertos. ¿Quieres que KillerPDF los cierre todos al salir de la aplicación?</sys:String>
@@ -636,7 +636,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_TT_CloseTab">Cerrar pestaña</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">Todas las pestañas abiertas</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invertir también las imágenes</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">Ninguna fuente de este PC puede dibujar estos caracteres, por lo que aparecerán como recuadros en el PDF guardado:&#10;&#10;{0}&#10;&#10;Instala una fuente que los incluya o elige otra fuente para este texto.</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">Ninguna fuente de este PC puede dibujar estos caracteres, por lo que aparecerán como recuadros en el PDF guardado:&#10;&#10;{0}&#10;&#10;Instala una fuente que los incluya o elige otra fuente para este texto.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Desplácese para cambiar el tamaño de toda la aplicación (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Tamaño de la aplicación {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom de toda la aplicación (accesibilidad)</sys:String>

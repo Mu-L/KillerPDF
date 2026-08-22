@@ -183,7 +183,7 @@
     <sys:String x:Key="Str_TT_CloseTab">Close tab</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">All open tabs</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Invert images too</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">No font on this PC can draw these characters, so they will appear as boxes in the saved PDF:&#10;&#10;{0}&#10;&#10;Install a font that covers them, or pick a different font for this text.</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">No font on this PC can draw these characters, so they will appear as boxes in the saved PDF:&#10;&#10;{0}&#10;&#10;Install a font that covers them, or pick a different font for this text.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scroll to resize the whole app (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App size {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom the whole app (accessibility)</sys:String>
@@ -197,22 +197,22 @@
     <sys:String x:Key="Str_RotateFailed">Rotate failed: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">The other pane also has "{0}" open, with unsaved changes of its own.
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">The other pane also has "{0}" open, with unsaved changes of its own.
 
 Saving now overwrites the file and those changes will be lost. Save the other pane first if you want to keep them.</sys:String>
     <sys:String x:Key="Str_St_SplitOn">Split pane on - F10 to close</sys:String>
     <sys:String x:Key="Str_St_SplitOff">Split pane off</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">Install KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">Install KillerPDF on this computer?
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">Install KillerPDF on this computer?
 
 Installing copies the app to your Programs folder for faster startup and adds a Start menu entry. You can keep or delete this portable file afterward.</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Update the existing all-users installation of KillerPDF?
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">Update the existing all-users installation of KillerPDF?
 
 This replaces the copy in Program Files with the faster multi-file version. Any older per-user copy is removed so KillerPDF appears only once. You can keep or delete this portable file afterward.</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Update your existing KillerPDF installation?
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Update your existing KillerPDF installation?
 
 This replaces the installed copy with the faster multi-file version. You can keep or delete this portable file afterward.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF is already installed for everyone on this computer. Update that installation, or uninstall it before choosing a per-user install.
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF is already installed for everyone on this computer. Update that installation, or uninstall it before choosing a per-user install.
 
 KillerPDF will not create two installed copies.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Install</sys:String>
@@ -220,15 +220,15 @@ KillerPDF will not create two installed copies.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Add a desktop shortcut</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Install for everyone on this computer (needs admin)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Install did not complete - KillerPDF is still running portable.</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Would you like to set KillerPDF as your default PDF viewer?
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">Would you like to set KillerPDF as your default PDF viewer?
 
 Opens Windows Settings - Default Apps.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">You have unsaved changes. Close this file without saving?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">You have unsaved changes. Close KillerPDF without saving?</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">This document has {0} page(s) sized outside what Adobe Reader supports (3 to 14,400 points per side) - Adobe shows these as blank pages.
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">This document has {0} page(s) sized outside what Adobe Reader supports (3 to 14,400 points per side) - Adobe shows these as blank pages.
 
 Scale them to a supported size? The pages keep their look and proportions.</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">Failed to open PDF:
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">Failed to open PDF:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">You have {0} open documents. Would you like KillerPDF to close them all when you quit the app?</sys:String>

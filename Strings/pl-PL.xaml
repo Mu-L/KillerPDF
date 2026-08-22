@@ -184,7 +184,7 @@
     <sys:String x:Key="Str_TT_CloseTab">Zamknij kartę</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">Wszystkie otwarte karty</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Odwróć również obrazy</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">Żadna czcionka na tym PC nie obsługuje tych znaków, więc w zapisanym pliku PDF będą one wyświetlane jako kwadraty:&#10;&#10;{0}&#10;&#10;Zainstaluj czcionkę, która je obejmuje, albo wybierz inną czcionkę dla tego tekstu.</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">Żadna czcionka na tym PC nie obsługuje tych znaków, więc w zapisanym pliku PDF będą one wyświetlane jako kwadraty:&#10;&#10;{0}&#10;&#10;Zainstaluj czcionkę, która je obejmuje, albo wybierz inną czcionkę dla tego tekstu.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Przesuń, aby zmienić rozmiar całej aplikacji (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Rozmiar aplikacji {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Powiększ całą aplikację (dostępność)</sys:String>
@@ -198,38 +198,38 @@
     <sys:String x:Key="Str_RotateFailed">Obrót nie powiódł się: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">Drugie okienko również otwarte "{0}" z własnymi niezapisanymi zmianami.
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">Drugie okienko również otwarte "{0}" z własnymi niezapisanymi zmianami.
 
 Zapisanie teraz nadpisuje plik, a zmiany zostaną utracone. Jeśli chcesz je zachować, zachowaj najpierw drugie okienko.</sys:String>
     <sys:String x:Key="Str_St_SplitOn">Włączono podział panelu - F10, aby zamknąć</sys:String>
     <sys:String x:Key="Str_St_SplitOff">Wyłączono podział panelu</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">Zainstaluj KillerPDF</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">Zainstalować program KillerPDF na tym komputerze?
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">Zainstalować program KillerPDF na tym komputerze?
 
 KillerPDF zostanie skopiowany do twojego folderu programów i dodana zostanie pozycja menu Start. Tę kopię pliku exe pozostawia się tam, gdzie jest i można ją w dowolnym momencie odinstalować używając Dodaj/Usuń programy.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Zainstaluj</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">Aktualizuj</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Zaktualizować istniejącą instalację KillerPDF?
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Zaktualizować istniejącą instalację KillerPDF?
 
 Zainstalowana kopia zostanie zastąpiona szybszą wersją wieloplikową. Ten plik przenośny możesz potem zachować lub usunąć.</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Zaktualizować istniejącą instalację KillerPDF dla wszystkich użytkowników?
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">Zaktualizować istniejącą instalację KillerPDF dla wszystkich użytkowników?
 
 Kopia w Program Files zostanie zastąpiona szybszą wersją wieloplikową. Starsza kopia dla pojedynczego użytkownika zostanie usunięta, aby KillerPDF występował tylko raz. Ten plik przenośny możesz potem zachować lub usunąć.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF jest już zainstalowany dla wszystkich użytkowników tego komputera. Zaktualizuj tę instalację albo ją odinstaluj, zanim wybierzesz instalację dla pojedynczego użytkownika.
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF jest już zainstalowany dla wszystkich użytkowników tego komputera. Zaktualizuj tę instalację albo ją odinstaluj, zanim wybierzesz instalację dla pojedynczego użytkownika.
 
 KillerPDF nie utworzy dwóch zainstalowanych kopii.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Dodaj skrót na pulpicie</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Zainstaluj dla wszystkich użytkowników tego komputera (wymaga administratora)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Instalacja nie została zakończona - KillerPDF jest już uruchomiony portable.</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Czy chcesz ustawić KillerPDF jako domyślną przeglądarkę PDF?
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">Czy chcesz ustawić KillerPDF jako domyślną przeglądarkę PDF?
 
 Otwiera Ustawienia Windows - Aplikacje domyślne.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Masz niezapisane zmiany. Zamknąć ten plik bez zapisywania?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Masz niezapisane zmiany. Zamknąć KillerPDF bez zapisywania?</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">Ten dokument zawiera {0} stron o rozmiarze przekraczającym rozmiar obsługiwany przez Adobe Reader (od 3 do 14 400 punktów na stronę) - Adobe wyświetla je jako puste strony.
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">Ten dokument zawiera {0} stron o rozmiarze przekraczającym rozmiar obsługiwany przez Adobe Reader (od 3 do 14 400 punktów na stronę) - Adobe wyświetla je jako puste strony.
 
 Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i proporcje.</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">Nie udało się otworzyć PDF:
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">Nie udało się otworzyć PDF:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">Masz {0} otwartych dokumentów. Czy chcesz, aby KillerPDF zamknął je wszystkie po zamknięciu aplikacji?</sys:String>

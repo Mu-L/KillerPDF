@@ -100,6 +100,58 @@ if (-not $SkipSign) {
     }
 }
 
+# ── 0. Translation parity ───────────────────────────────────────────────────
+# Every localization must carry the complete English key set, and the placeholders have to match:
+# a translation loads perfectly and still throws at runtime when string.Format is handed a value
+# the translation dropped or renumbered. Ported from KillerNotes, which took it from Killendar.
+#
+# First, because it is a pure source check and costs nothing. Without it this tree silently drifted
+# to ten locales missing the same 20 keys - the whole crash dialog among them - and a pl-PL key that
+# does not exist in English. Nothing reported it until users did.
+Write-Host "`n==> Checking translations..." -ForegroundColor Cyan
+
+function Read-StringMap([string]$Path) {
+    [xml]$document = Get-Content -Path $Path -Raw
+    $map = @{}
+    foreach ($node in $document.ResourceDictionary.ChildNodes) {
+        if ($node.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
+        $key = $node.GetAttribute('Key', 'http://schemas.microsoft.com/winfx/2006/xaml')
+        if ($key) { $map[$key] = [string]$node.InnerText }
+    }
+    return $map
+}
+
+$stringsDir = Join-Path $PSScriptRoot 'Strings'
+$englishStrings = Read-StringMap (Join-Path $stringsDir 'en-US.xaml')
+if ($englishStrings.Count -eq 0) { throw "English translation file contains no resource keys." }
+foreach ($localeFile in Get-ChildItem $stringsDir -Filter '*.xaml') {
+    if ($localeFile.Name -eq 'en-US.xaml') { continue }
+    $localized = Read-StringMap $localeFile.FullName
+    $missing = @($englishStrings.Keys | Where-Object { -not $localized.ContainsKey($_) })
+    $extra   = @($localized.Keys | Where-Object { -not $englishStrings.ContainsKey($_) })
+    $empty   = @($localized.Keys | Where-Object { [string]::IsNullOrWhiteSpace($localized[$_]) })
+    $placeholderMismatch = @()
+    foreach ($key in $englishStrings.Keys) {
+        if (-not $localized.ContainsKey($key)) { continue }
+        $englishPlaceholders = @([regex]::Matches($englishStrings[$key], '\{\d+(?::[^}]*)?\}') |
+            ForEach-Object Value | Sort-Object)
+        $localizedPlaceholders = @([regex]::Matches($localized[$key], '\{\d+(?::[^}]*)?\}') |
+            ForEach-Object Value | Sort-Object)
+        if ([string]::Join('|', $englishPlaceholders) -ne
+            [string]::Join('|', $localizedPlaceholders)) {
+            $placeholderMismatch += $key
+        }
+    }
+    if ($missing.Count -or $extra.Count -or $empty.Count -or $placeholderMismatch.Count) {
+        if ($missing.Count)             { Write-Host "    missing: $($missing -join ', ')" -ForegroundColor Yellow }
+        if ($extra.Count)               { Write-Host "    extra:   $($extra -join ', ')" -ForegroundColor Yellow }
+        if ($empty.Count)               { Write-Host "    empty:   $($empty -join ', ')" -ForegroundColor Yellow }
+        if ($placeholderMismatch.Count) { Write-Host "    placeholders: $($placeholderMismatch -join ', ')" -ForegroundColor Yellow }
+        throw "$($localeFile.Name) is incomplete: missing=$($missing.Count), extra=$($extra.Count), empty=$($empty.Count), placeholder mismatches=$($placeholderMismatch.Count)"
+    }
+}
+Write-Host "    Translations OK: $($englishStrings.Count) keys across $((Get-ChildItem $stringsDir -Filter '*.xaml').Count) languages" -ForegroundColor Green
+
 # ── 1. Hash pdfium.dll and update BuildInfo.cs ──────────────────────────────
 Write-Host "`n==> Locating pdfium.dll for integrity pre-hash..." -ForegroundColor Cyan
 

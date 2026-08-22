@@ -144,38 +144,38 @@
     <sys:String x:Key="Str_RotateFailed">Döndürme başarısız: {0}</sys:String>
 
     <!-- ── İletişim kutusu metinleri ────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">Diğer bölmede de "{0}" açık ve kendi kaydedilmemiş değişiklikleri var.
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">Diğer bölmede de "{0}" açık ve kendi kaydedilmemiş değişiklikleri var.
 
 Şimdi kaydetmek dosyanın üzerine yazar ve bu değişiklikler kaybolur. Korumak istiyorsanız önce diğer bölmeyi kaydedin.</sys:String>
     <sys:String x:Key="Str_St_SplitOn">Bölünmüş görünüm açık - kapatmak için F10</sys:String>
     <sys:String x:Key="Str_St_SplitOff">Bölünmüş görünüm kapalı</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF'i Yükle</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF bu bilgisayara yüklensin mi?
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">KillerPDF bu bilgisayara yüklensin mi?
 
 KillerPDF programlar klasörünüze kopyalanır ve bir Başlat Menüsü girdisi eklenir. EXE dosyasının bu kopyası olduğu yerde kalır ve istediğiniz zaman Program Ekle/Kaldır üzerinden kaldırabilirsiniz.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Yükle</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">Güncelle</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Mevcut KillerPDF kurulumu güncellensin mi?
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Mevcut KillerPDF kurulumu güncellensin mi?
 
 Kurulu kopya, daha hızlı çok dosyalı sürümle değiştirilir. Bu taşınabilir dosyayı daha sonra saklayabilir veya silebilirsiniz.</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">KillerPDF'in tüm kullanıcılar için mevcut kurulumu güncellensin mi?
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">KillerPDF'in tüm kullanıcılar için mevcut kurulumu güncellensin mi?
 
 Program Files içindeki kopya, daha hızlı çok dosyalı sürümle değiştirilir. Eski kullanıcı başına kopya kaldırılır, böylece KillerPDF yalnızca bir kez görünür. Bu taşınabilir dosyayı daha sonra saklayabilir veya silebilirsiniz.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF bu bilgisayarda zaten tüm kullanıcılar için kurulu. Kullanıcı başına kurulum seçmeden önce bu kurulumu güncelleyin veya kaldırın.
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF bu bilgisayarda zaten tüm kullanıcılar için kurulu. Kullanıcı başına kurulum seçmeden önce bu kurulumu güncelleyin veya kaldırın.
 
 KillerPDF iki kurulu kopya oluşturmaz.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Masaüstü kısayolu ekle</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Bu bilgisayardaki herkes için yükle (yönetici gerekir)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Yükleme tamamlanmadı - KillerPDF hâlâ taşınabilir olarak çalışıyor.</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">KillerPDF varsayılan PDF görüntüleyiciniz olarak ayarlansın mı?
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">KillerPDF varsayılan PDF görüntüleyiciniz olarak ayarlansın mı?
 
 Windows Ayarları - Varsayılan Uygulamalar bölümünü açar.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Kaydedilmemiş değişiklikleriniz var. Bu dosya kaydedilmeden kapatılsın mı?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Kaydedilmemiş değişiklikleriniz var. KillerPDF kaydedilmeden kapatılsın mı?</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">Bu belgede Adobe Reader'ın desteklediği aralığın (kenar başına 3 - 14.400 punto) dışında boyutlandırılmış {0} sayfa var - Adobe bu sayfaları boş gösterir.
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">Bu belgede Adobe Reader'ın desteklediği aralığın (kenar başına 3 - 14.400 punto) dışında boyutlandırılmış {0} sayfa var - Adobe bu sayfaları boş gösterir.
 
 Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları korunur.</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">PDF açılamadı:
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">PDF açılamadı:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">{0} açık belgeniz var. Uygulamadan çıkarken KillerPDF hepsini kapatsın mı?</sys:String>
@@ -636,7 +636,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_TT_CloseTab">Sekmeyi kapat</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">Açık tüm sekmeler</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Görselleri de ters çevir</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">Bu bilgisayardaki hiçbir yazı tipi bu karakterleri çizemiyor, bu nedenle kaydedilen PDF'de kutu olarak görünecekler:&#10;&#10;{0}&#10;&#10;Bunları içeren bir yazı tipi yükleyin veya bu metin için başka bir yazı tipi seçin.</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">Bu bilgisayardaki hiçbir yazı tipi bu karakterleri çizemiyor, bu nedenle kaydedilen PDF'de kutu olarak görünecekler:&#10;&#10;{0}&#10;&#10;Bunları içeren bir yazı tipi yükleyin veya bu metin için başka bir yazı tipi seçin.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Tüm uygulamayı boyutlandırmak için kaydırın (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Uygulama boyutu %{0}</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Tüm uygulamayı yakınlaştır (erişilebilirlik)</sys:String>

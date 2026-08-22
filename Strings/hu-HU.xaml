@@ -183,7 +183,7 @@
     <sys:String x:Key="Str_TT_CloseTab">Lap bezárása</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">Az összes megnyitott lap</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Képek invertálása is</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">Ezen a számítógépen egyetlen betűtípus sem tudja megjeleníteni ezeket a karaktereket, ezért a mentett PDF-ben négyzetként fognak megjelenni:&#10;&#10;{0}&#10;&#10;Telepítsen egy őket lefedő betűtípust, vagy válasszon másik betűtípust ehhez a szöveghez.</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">Ezen a számítógépen egyetlen betűtípus sem tudja megjeleníteni ezeket a karaktereket, ezért a mentett PDF-ben négyzetként fognak megjelenni:&#10;&#10;{0}&#10;&#10;Telepítsen egy őket lefedő betűtípust, vagy válasszon másik betűtípust ehhez a szöveghez.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Görgetéssel átméretezheti az egész alkalmazást (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Alkalmazás mérete {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Az egész alkalmazás nagyítása (kisegítő lehetőségek)</sys:String>
@@ -197,38 +197,38 @@
     <sys:String x:Key="Str_RotateFailed">A forgatás sikertelen: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">A másik ablaktáblában is meg van nyitva a(z) „{0}", saját, nem mentett módosításokkal.
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">A másik ablaktáblában is meg van nyitva a(z) „{0}", saját, nem mentett módosításokkal.
 
 A mentés most felülírja a fájlt, és azok a módosítások elvesznek. Előbb mentse a másik ablaktáblát, ha meg szeretné őrizni őket.</sys:String>
     <sys:String x:Key="Str_St_SplitOn">Osztott ablaktábla be - F10 a bezáráshoz</sys:String>
     <sys:String x:Key="Str_St_SplitOff">Osztott ablaktábla ki</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF telepítése</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">Telepíti a KillerPDF-et erre a számítógépre?
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">Telepíti a KillerPDF-et erre a számítógépre?
 
 A KillerPDF a programok mappájába másolódik, és bekerül a Start menübe. Ez az exe-példány a helyén marad, és bármikor eltávolíthatja a Programok telepítése/törlése segítségével.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Telepítés</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">Frissítés</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Frissíti a meglévő KillerPDF-telepítést?
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Frissíti a meglévő KillerPDF-telepítést?
 
 Ez a telepített példányt a gyorsabb, többfájlos verzióra cseréli. Ezt a hordozható fájlt utána megtarthatja vagy törölheti.</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Frissíti a KillerPDF minden felhasználóra érvényes meglévő telepítését?
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">Frissíti a KillerPDF minden felhasználóra érvényes meglévő telepítését?
 
 Ez a Program Files mappában lévő példányt a gyorsabb, többfájlos verzióra cseréli. A régebbi, felhasználónkénti példány eltávolításra kerül, így a KillerPDF csak egyszer jelenik meg. Ezt a hordozható fájlt utána megtarthatja vagy törölheti.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">A KillerPDF már telepítve van ezen a számítógépen minden felhasználó számára. Frissítse azt a telepítést, vagy távolítsa el, mielőtt felhasználónkénti telepítést választana.
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">A KillerPDF már telepítve van ezen a számítógépen minden felhasználó számára. Frissítse azt a telepítést, vagy távolítsa el, mielőtt felhasználónkénti telepítést választana.
 
 A KillerPDF nem hoz létre két telepített példányt.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Asztali parancsikon hozzáadása</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Telepítés a számítógép minden felhasználója számára (rendszergazdai jog szükséges)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">A telepítés nem fejeződött be - a KillerPDF továbbra is hordozható módban fut.</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Beállítja a KillerPDF-et alapértelmezett PDF-megjelenítőként?
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">Beállítja a KillerPDF-et alapértelmezett PDF-megjelenítőként?
 
 Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Nem mentett módosításai vannak. Bezárja ezt a fájlt mentés nélkül?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Nem mentett módosításai vannak. Bezárja a KillerPDF-et mentés nélkül?</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">Ebben a dokumentumban {0} oldal mérete kívül esik az Adobe Reader által támogatott tartományon (oldalanként 3-14 400 pont) - az Adobe ezeket üres oldalként jeleníti meg.
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">Ebben a dokumentumban {0} oldal mérete kívül esik az Adobe Reader által támogatott tartományon (oldalanként 3-14 400 pont) - az Adobe ezeket üres oldalként jeleníti meg.
 
 Átméretezi őket támogatott méretre? Az oldalak megtartják megjelenésüket és arányaikat.</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">A PDF megnyitása sikertelen:
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">A PDF megnyitása sikertelen:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">{0} megnyitott dokumentuma van. Szeretné, hogy a KillerPDF mindet bezárja az alkalmazásból való kilépéskor?</sys:String>

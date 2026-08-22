@@ -183,7 +183,7 @@
     <sys:String x:Key="Str_TT_CloseTab">タブを閉じる</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">開いているすべてのタブ</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">画像も反転</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">この PC のどのフォントにもこれらの文字がないため、保存した PDF では四角形として表示されます:&#10;&#10;{0}&#10;&#10;対応するフォントをインストールするか、このテキストに別のフォントを選んでください。</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">この PC のどのフォントにもこれらの文字がないため、保存した PDF では四角形として表示されます:&#10;&#10;{0}&#10;&#10;対応するフォントをインストールするか、このテキストに別のフォントを選んでください。</sys:String>
     <sys:String x:Key="Str_TT_AppSize">スクロールでアプリ全体のサイズを変更 (Ctrl+Shift++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">アプリのサイズ {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">アプリ全体をズーム (アクセシビリティ)</sys:String>
@@ -197,38 +197,38 @@
     <sys:String x:Key="Str_RotateFailed">回転に失敗しました : {0}</sys:String>
 
     <!-- ── ダイアログ文字列 ───────────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">もう一方のペインでも「{0}」が開かれており、そちらにも未保存の変更があります。
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">もう一方のペインでも「{0}」が開かれており、そちらにも未保存の変更があります。
 
 ここで保存するとファイルが上書きされ、その変更は失われます。残したい場合は先にもう一方のペインを保存してください。</sys:String>
     <sys:String x:Key="Str_St_SplitOn">分割表示オン - F10 で閉じる</sys:String>
     <sys:String x:Key="Str_St_SplitOff">分割表示オフ</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF をインストール</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF をこのコンピューターにインストールしますか？
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">KillerPDF をこのコンピューターにインストールしますか？
 
 KillerPDF はプログラムフォルダーにコピーされ、スタートメニューに項目が追加されます。この EXE のコピーはそのままの場所に残り、いつでも「プログラムの追加と削除」からアンインストールできます。</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">インストール</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">更新</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">既存の KillerPDF インストールを更新しますか？
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">既存の KillerPDF インストールを更新しますか？
 
 インストール済みのコピーを、より高速なマルチファイル版に置き換えます。このポータブルファイルはその後、保持しても削除してもかまいません。</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">全ユーザー向けの既存の KillerPDF インストールを更新しますか？
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">全ユーザー向けの既存の KillerPDF インストールを更新しますか？
 
 Program Files のコピーを、より高速なマルチファイル版に置き換えます。古いユーザーごとのコピーは削除され、KillerPDF は 1 つだけ表示されます。このポータブルファイルはその後、保持しても削除してもかまいません。</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF はこのコンピューターの全ユーザー向けに既にインストールされています。ユーザーごとのインストールを選ぶ前に、そのインストールを更新するかアンインストールしてください。
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF はこのコンピューターの全ユーザー向けに既にインストールされています。ユーザーごとのインストールを選ぶ前に、そのインストールを更新するかアンインストールしてください。
 
 KillerPDF がインストール済みコピーを 2 つ作成することはありません。</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">デスクトップにショートカットを追加</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">このコンピューターのすべてのユーザーにインストール（管理者権限が必要）</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">インストールは完了しませんでした - KillerPDF はポータブルのまま実行中です。</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">KillerPDF を既定の PDF ビューアーに設定しますか？
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">KillerPDF を既定の PDF ビューアーに設定しますか？
 
 Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">保存されていない変更があります。保存せずにこのファイルを閉じますか？</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">保存されていない変更があります。保存せずに KillerPDF を終了しますか？</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">この文書には、Adobe Reader が対応する範囲（1 辺あたり 3～14,400 ポイント）外のサイズのページが {0} ページあります。Adobe ではこれらのページは白紙で表示されます。
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">この文書には、Adobe Reader が対応する範囲（1 辺あたり 3～14,400 ポイント）外のサイズのページが {0} ページあります。Adobe ではこれらのページは白紙で表示されます。
 
 対応するサイズに拡大・縮小しますか？ページの見た目と縦横比は変わりません。</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">PDF を開けませんでした :
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">PDF を開けませんでした :
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">{0} 個の開いているドキュメントがあります。アプリを終了するときにすべて閉じますか？</sys:String>

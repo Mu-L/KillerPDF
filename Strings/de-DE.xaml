@@ -144,38 +144,38 @@
     <sys:String x:Key="Str_RotateFailed">Drehen fehlgeschlagen: {0}</sys:String>
 
     <!-- ── Dialog strings ───────────────────────────────────────────── -->
-    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty">Im anderen Bereich ist „{0}“ ebenfalls geöffnet, mit eigenen ungespeicherten Änderungen.
+    <sys:String x:Key="Str_Dlg_SaveOtherPaneDirty" xml:space="preserve">Im anderen Bereich ist „{0}“ ebenfalls geöffnet, mit eigenen ungespeicherten Änderungen.
 
 Beim Speichern wird die Datei überschrieben und diese Änderungen gehen verloren. Speichern Sie zuerst den anderen Bereich, wenn Sie sie behalten möchten.</sys:String>
     <sys:String x:Key="Str_St_SplitOn">Geteilte Ansicht an - F10 zum Schließen</sys:String>
     <sys:String x:Key="Str_St_SplitOff">Geteilte Ansicht aus</sys:String>
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF installieren</sys:String>
-    <sys:String x:Key="Str_Dlg_InstallMsg">KillerPDF auf diesem Computer installieren?
+    <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">KillerPDF auf diesem Computer installieren?
 
 KillerPDF wird in Ihren Programmordner kopiert und eine Verknüpfung im Startmenü erstellt. Diese Kopie der EXE bleibt, wo sie ist, und Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen“ deinstallieren.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Installieren</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">Aktualisieren</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateUserMsg">Die bestehende KillerPDF-Installation aktualisieren?
+    <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Die bestehende KillerPDF-Installation aktualisieren?
 
 Dies ersetzt die installierte Kopie durch die schnellere Mehrdatei-Version. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
-    <sys:String x:Key="Str_Dlg_UpdateMachineMsg">Die bestehende Installation von KillerPDF für alle Benutzer aktualisieren?
+    <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">Die bestehende Installation von KillerPDF für alle Benutzer aktualisieren?
 
 Dies ersetzt die Kopie in Program Files durch die schnellere Mehrdatei-Version. Eine ältere Kopie für den aktuellen Benutzer wird entfernt, sodass KillerPDF nur einmal erscheint. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly">KillerPDF ist auf diesem Computer bereits für alle Benutzer installiert. Aktualisieren Sie diese Installation, oder deinstallieren Sie sie, bevor Sie eine Installation nur für Ihr Konto wählen.
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF ist auf diesem Computer bereits für alle Benutzer installiert. Aktualisieren Sie diese Installation, oder deinstallieren Sie sie, bevor Sie eine Installation nur für Ihr Konto wählen.
 
 KillerPDF legt keine zwei installierten Kopien an.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Desktopverknüpfung hinzufügen</sys:String>
     <sys:String x:Key="Str_Chk_AllUsers">Für alle Benutzer dieses Computers installieren (erfordert Administrator)</sys:String>
     <sys:String x:Key="Str_Status_InstallFailed">Installation nicht abgeschlossen - KillerPDF läuft weiterhin portabel.</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg">Möchten Sie KillerPDF als Standard-PDF-Betrachter festlegen?
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">Möchten Sie KillerPDF als Standard-PDF-Betrachter festlegen?
 
 Öffnet die Windows-Einstellungen - Standard-Apps.</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedClose">Es gibt ungespeicherte Änderungen. Diese Datei ohne Speichern schließen?</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedExit">Es gibt ungespeicherte Änderungen. KillerPDF ohne Speichern beenden?</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange">Dieses Dokument enthält {0} Seite(n) außerhalb des von Adobe Reader unterstützten Größenbereichs (3 bis 14.400 Punkte je Seite) - Adobe zeigt diese als leere Seiten an.
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">Dieses Dokument enthält {0} Seite(n) außerhalb des von Adobe Reader unterstützten Größenbereichs (3 bis 14.400 Punkte je Seite) - Adobe zeigt diese als leere Seiten an.
 
 Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten bleiben erhalten.</sys:String>
-    <sys:String x:Key="Str_Dlg_FailedOpen">PDF konnte nicht geöffnet werden:
+    <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">PDF konnte nicht geöffnet werden:
 {0}</sys:String>
     <sys:String x:Key="Str_Dlg_AppTitle">KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_CloseAllDocs">Sie haben {0} geöffnete Dokumente. Soll KillerPDF diese alle schließen, wenn Sie die App beenden?</sys:String>
@@ -642,7 +642,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_TT_CloseTab">Tab schließen</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">Alle geöffneten Tabs</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Bilder ebenfalls invertieren</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs">Keine Schriftart auf diesem PC kann diese Zeichen darstellen, daher erscheinen sie im gespeicherten PDF als Kästchen:&#10;&#10;{0}&#10;&#10;Installieren Sie eine passende Schriftart oder wählen Sie eine andere Schriftart für diesen Text.</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">Keine Schriftart auf diesem PC kann diese Zeichen darstellen, daher erscheinen sie im gespeicherten PDF als Kästchen:&#10;&#10;{0}&#10;&#10;Installieren Sie eine passende Schriftart oder wählen Sie eine andere Schriftart für diesen Text.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scrollen, um die ganze App zu skalieren (Strg+Umschalt++/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">App-Größe {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Die ganze App zoomen (Barrierefreiheit)</sys:String>
