@@ -189,26 +189,64 @@ namespace KillerPDF.Tests
         [Fact]
         public void OnlyMouseGesturesHaveNoCaps()
         {
+            // Asserted by label key, not by the Keys text: the key column is tokenized, so pinning
+            // its literal spelling here would just break every time a token is renamed.
             var capless = ShortcutTable.KsAll.Where(b => b.Caps.Length == 0)
-                                             .Select(b => b.Keys).ToList();
+                                             .Select(b => b.LabelKey).ToList();
 
             Assert.Equal(
-                new[] { "Ctrl+Scroll", "Middle drag", "Wheel on view", "Wheel on logo", "Shift+Click" }
+                new[] { "Str_KS_ZoomCursor", "Str_KS_PanView", "Str_KS_CycleView",
+                        "Str_KS_AppSize", "Str_KS_MultiSelect" }
                     .OrderBy(s => s, StringComparer.Ordinal).ToArray(),
                 capless.OrderBy(s => s, StringComparer.Ordinal).ToArray());
         }
 
-        /// <summary>The %zin% / %zout% markers are substituted at render time from the keyboard
-        /// layout. A stray token anywhere else would print raw to the user.</summary>
+        /// <summary>
+        /// Every token in the key column must be one the renderer knows, or it prints raw to the
+        /// user as "%shft%". The zoom pair is substituted from the keyboard layout rather than the
+        /// locale (Services/KeyLayout.cs), so it is known-good without a resource key.
+        /// </summary>
         [Fact]
-        public void OnlyTheZoomRowsCarrySubstitutionTokens()
+        public void EveryKeyTokenIsResolvable()
         {
-            var tokened = ShortcutTable.KsAll
-                .Where(b => Regex.IsMatch(b.Keys, "%[a-z]+%"))
-                .Select(b => b.LabelKey)
+            var known = ShortcutTable.KeyTokens.Select(t => t.Token)
+                                     .Concat(new[] { "%zin%", "%zout%" })
+                                     .ToHashSet();
+
+            var unknown = ShortcutTable.KsAll
+                .SelectMany(b => Regex.Matches(b.Keys, "%[a-z]+%").Cast<Match>().Select(m => m.Value))
+                .Distinct()
+                .Where(t => !known.Contains(t))
                 .ToList();
 
-            Assert.Equal(new[] { "Str_KS_ZoomInOut", "Str_KS_AppSize" }, tokened);
+            Assert.True(unknown.Count == 0,
+                "these tokens have no resource key and would render raw: " + string.Join(", ", unknown));
+        }
+
+        [Fact]
+        public void EveryKeyTokenResourceExistsInEnglish()
+        {
+            var english = EnglishKeys();
+            var missing = ShortcutTable.KeyTokens.Select(t => t.Key)
+                                       .Where(k => !english.Contains(k)).ToList();
+
+            Assert.True(missing.Count == 0,
+                "key-name resources missing from en-US.xaml: " + string.Join(", ", missing));
+        }
+
+        /// <summary>The point of #230: no bare English key name is left sitting in the table. Only
+        /// letters, digits, F-numbers, arrows and the chord punctuation may appear literally.</summary>
+        [Fact]
+        public void NoUntranslatedKeyNamesRemainInTheTable()
+        {
+            var offenders = ShortcutTable.KsAll
+                .Where(b => Regex.IsMatch(Regex.Replace(b.Keys, "%[a-z]+%", ""),
+                                          @"\b(Ctrl|Alt|Shift|Delete|Enter|Escape|Esc|Menu|Home|End|PgUp|PgDn|Tab|Scroll|Click|Wheel|Space|Middle|drag|or)\b"))
+                .Select(b => b.Keys)
+                .ToList();
+
+            Assert.True(offenders.Count == 0,
+                "these rows still carry hardcoded English key names: " + string.Join(" | ", offenders));
         }
     }
 }

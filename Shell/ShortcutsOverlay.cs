@@ -62,6 +62,46 @@ namespace KillerPDF
                 : keys.Replace("%zin%", Services.KeyLayout.ZoomInChar())
                       .Replace("%zout%", Services.KeyLayout.ZoomOutChar());
 
+        // #230: the key column used to be raw English, so Shift, Delete, Home, End and the wheel
+        // gestures never reached a translator. They are tokens now (ShortcutTable.KeyTokens).
+        //
+        // Built as Runs rather than one resolved string on purpose. The description beside it uses
+        // SetResourceReference and so follows a language switch live; a string composed once in the
+        // constructor would not, and the overlay is built exactly once (MainWindow ctor). Giving
+        // each token its own Run with its own resource reference keeps the whole row live, and the
+        // literal parts - "Ctrl+", "/", F-numbers, letters - stay plain Runs.
+        //
+        // %zin% / %zout% are NOT tokens here: they depend on the keyboard layout rather than the
+        // locale, so ResolveKeyLabel substitutes them into the literal text first.
+        private static void FillKeyInlines(TextBlock target, string keys)
+        {
+            target.Inlines.Clear();
+            string text = ResolveKeyLabel(keys);
+
+            int pos = 0;
+            while (pos < text.Length)
+            {
+                int start = text.IndexOf('%', pos);
+                if (start < 0) break;
+                int end = text.IndexOf('%', start + 1);
+                if (end < 0) break;
+
+                string token = text.Substring(start, end - start + 1);
+                string? resourceKey = ShortcutTable.KeyTokens
+                    .Where(t => t.Token == token)
+                    .Select(t => t.Key)
+                    .FirstOrDefault();
+                if (resourceKey == null) { pos = start + 1; continue; }   // unknown, leave as text
+
+                if (start > pos) target.Inlines.Add(new System.Windows.Documents.Run(text.Substring(pos, start - pos)));
+                var run = new System.Windows.Documents.Run();
+                run.SetResourceReference(System.Windows.Documents.Run.TextProperty, resourceKey);
+                target.Inlines.Add(run);
+                pos = end + 1;
+            }
+            if (pos < text.Length) target.Inlines.Add(new System.Windows.Documents.Run(text.Substring(pos)));
+        }
+
         // Fill the two overlay columns from the tables above. Called once from the constructor; the
         // SetResourceReference calls keep every string and color live across theme + language changes.
         private void BuildShortcutsOverlay()
@@ -73,6 +113,12 @@ namespace KillerPDF
         private static void BuildShortcutsColumn(StackPanel host, KsSection[] sections)
         {
             host.Children.Clear();
+            // The key column sizes to its widest entry instead of a hardcoded width, and every row
+            // in this column shares that measurement so they stay aligned. Translated key names are
+            // longer than English - Shift becomes Umschalt, Enter becomes Eingabe - and a fixed
+            // 132px clipped them (#230). Each column host is its own scope, so the two columns size
+            // independently.
+            Grid.SetIsSharedSizeScope(host, true);
             for (int s = 0; s < sections.Length; s++)
             {
                 var section = sections[s];
@@ -97,19 +143,24 @@ namespace KillerPDF
                     var row  = section.Rows[r];
                     bool last = r == section.Rows.Length - 1;
                     var rowGrid = new Grid { Margin = new Thickness(0, 0, 0, last ? 0 : 4) };
-                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(132) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition
+                    {
+                        Width = GridLength.Auto,
+                        SharedSizeGroup = "KsKeys",
+                        MinWidth = 132,   // the old fixed width, now a floor rather than a ceiling
+                    });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
                     // Keep the shortcut and description on the same vertical centerline. The wider
                     // key column also leaves a deliberate gap before longer translated labels.
                     var keys = new TextBlock
                     {
-                        Text       = ResolveKeyLabel(row.Keys),
                         FontFamily = new FontFamily("Consolas"),
                         FontSize   = 11,
                         Margin     = new Thickness(0, 0, 12, 0),
                         VerticalAlignment = VerticalAlignment.Center,
                     };
+                    FillKeyInlines(keys, row.Keys);
                     keys.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
                     Grid.SetColumn(keys, 0);
                     rowGrid.Children.Add(keys);

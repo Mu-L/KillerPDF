@@ -31,6 +31,41 @@ namespace KillerPDF
 
     internal static class ShortcutTable
     {
+        // ── Key-name tokens (#230) ─────────────────────────────────────────────────────────────
+        // The key column used to be raw English: "Delete", "Home / End", "Wheel on logo". Italian
+        // users want Canc, Inizio and Fine, and they were right to ask - a keycap name is as much
+        // interface text as the description beside it.
+        //
+        // Only the NAMES are tokens. The chord syntax ("Ctrl+", "/", the F-numbers, letters and
+        // digits) stays in the table, so translators never hand-maintain "Ctrl+Shift+" across 69
+        // rows; they translate about twenty words and the composition takes care of itself.
+        //
+        // Ctrl and Alt are in here because German writes Strg. The gesture phrases are whole
+        // tokens rather than assembled from "Wheel" plus "on" plus "view", because word order in
+        // that phrase is not English's to dictate.
+        internal static readonly (string Token, string Key)[] KeyTokens =
+        [
+            ("%ctrl%",       "Str_Key_Ctrl"),
+            ("%alt%",        "Str_Key_Alt"),
+            ("%shift%",      "Str_Key_Shift"),
+            ("%del%",        "Str_Key_Delete"),
+            ("%enter%",      "Str_Key_Enter"),
+            ("%esc%",        "Str_Key_Esc"),
+            ("%menu%",       "Str_Key_Menu"),
+            ("%home%",       "Str_Key_Home"),
+            ("%end%",        "Str_Key_End"),
+            ("%pgup%",       "Str_Key_PgUp"),
+            ("%pgdn%",       "Str_Key_PgDn"),
+            ("%tab%",        "Str_Key_Tab"),
+            ("%scroll%",     "Str_Key_Scroll"),
+            ("%click%",      "Str_Key_Click"),
+            ("%or%",         "Str_Key_Or"),
+            ("%wheelview%",  "Str_Key_WheelView"),
+            ("%wheellogo%",  "Str_Key_WheelLogo"),
+            ("%middledrag%", "Str_Key_MiddleDrag"),
+            ("%spacedrag%",  "Str_Key_SpaceDrag"),
+        ];
+
         /// <summary>Authoring helper: "F3", "Shift:F3", or either with a per-cap hover label.
         /// Cap ids match KbRows in KeyboardMapOverlay.cs; bare ids are the base layer.</summary>
         internal static KsCap Cap(string id, string labelKey = "")
@@ -57,70 +92,70 @@ namespace KillerPDF
         // A binding with no caps is a mouse gesture and correctly lights nothing on the board.
         internal static readonly KsBinding[] KsAll =
         [
-            B("Ctrl+O",       "Str_KS_Open",        "File", Cap("Ctrl:O")),
-            B("Ctrl+S",       "Str_Lbl_Save",       "File", Cap("Ctrl:S")),
-            B("Ctrl+Shift+S", "Str_KS_SaveAs",      "File", Cap("CtrlShift:S")),
-            B("Ctrl+W",       "Str_KS_CloseFile",   "File", Cap("Ctrl:W")),
-            B("Ctrl+Shift+W", "Str_KS_CloseOthers", "File", Cap("CtrlShift:W")),
-            B("Ctrl+Q",       "Str_KS_CloseAll",    "File", Cap("Ctrl:Q")),
-            B("Ctrl+N",       "Str_KS_NewBlank",    "File", Cap("Ctrl:N")),
-            B("Ctrl+P",       "Str_KS_Print",       "File", Cap("Ctrl:P")),
-            B("Ctrl+D / F4",  "Str_KS_DocInfo",     "File", Cap("Ctrl:D"), Cap("F4")),
-            B("Shift+F4",     "Str_KS_FileSize",    "File", Cap("Shift:F4")),
+            B("%ctrl%+O",             "Str_KS_Open",        "File", Cap("Ctrl:O")),
+            B("%ctrl%+S",             "Str_Lbl_Save",       "File", Cap("Ctrl:S")),
+            B("%ctrl%+%shift%+S",     "Str_KS_SaveAs",      "File", Cap("CtrlShift:S")),
+            B("%ctrl%+W",             "Str_KS_CloseFile",   "File", Cap("Ctrl:W")),
+            B("%ctrl%+%shift%+W",     "Str_KS_CloseOthers", "File", Cap("CtrlShift:W")),
+            B("%ctrl%+Q",             "Str_KS_CloseAll",    "File", Cap("Ctrl:Q")),
+            B("%ctrl%+N",             "Str_KS_NewBlank",    "File", Cap("Ctrl:N")),
+            B("%ctrl%+P",             "Str_KS_Print",       "File", Cap("Ctrl:P")),
+            B("%ctrl%+D / F4",        "Str_KS_DocInfo",     "File", Cap("Ctrl:D"), Cap("F4")),
+            B("%shift%+F4",           "Str_KS_FileSize",    "File", Cap("Shift:F4")),
 
             B("V",               "Str_Lbl_Select",    "Tools", Cap("V")),
-            B("1 (or T)",        "Str_Lbl_Text",      "Tools", Cap("D1"), Cap("T")),
-            B("2 (or H)",        "Str_Lbl_Highlight", "Tools", Cap("D2"), Cap("H")),
-            B("3 (or L or U)",   "Str_Lbl_Line",      "Tools", Cap("D3"), Cap("L"), Cap("U")),
+            B("1 (%or% T)",      "Str_Lbl_Text",      "Tools", Cap("D1"), Cap("T")),
+            B("2 (%or% H)",      "Str_Lbl_Highlight", "Tools", Cap("D2"), Cap("H")),
+            B("3 (%or% L %or% U)", "Str_Lbl_Line",    "Tools", Cap("D3"), Cap("L"), Cap("U")),
             B("4",               "Str_Lbl_Shape",     "Tools", Cap("D4")),
-            B("5 (or D)",        "Str_Lbl_Draw",      "Tools", Cap("D5"), Cap("D")),
-            B("6 (or I)",        "Str_Lbl_Image",     "Tools", Cap("D6"), Cap("I")),
-            B("7 (or G)",        "Str_Lbl_Signature", "Tools", Cap("D7"), Cap("G")),
-            B("8 (or C)",        "Str_Lbl_Crop",      "Tools", Cap("D8"), Cap("C")),
-            B("9 (or R)",        "Str_Lbl_Rotate",    "Tools", Cap("D9"), Cap("R")),
-            B("0 (or S)",        "Str_TT_StampTool",  "Tools", Cap("D0"), Cap("S")),
+            B("5 (%or% D)",      "Str_Lbl_Draw",      "Tools", Cap("D5"), Cap("D")),
+            B("6 (%or% I)",      "Str_Lbl_Image",     "Tools", Cap("D6"), Cap("I")),
+            B("7 (%or% G)",      "Str_Lbl_Signature", "Tools", Cap("D7"), Cap("G")),
+            B("8 (%or% C)",      "Str_Lbl_Crop",      "Tools", Cap("D8"), Cap("C")),
+            B("9 (%or% R)",      "Str_Lbl_Rotate",    "Tools", Cap("D9"), Cap("R")),
+            B("0 (%or% S)",      "Str_TT_StampTool",  "Tools", Cap("D0"), Cap("S")),
 
-            B("Ctrl+Z",           "Str_KS_Undo",        "Edit", Cap("Ctrl:Z")),
-            B("Ctrl+Y",           "Str_Ctx_Redo",       "Edit", Cap("Ctrl:Y")),
-            B("Ctrl+Shift+Z",     "Str_Ctx_Redo",       "Edit", Cap("CtrlShift:Z")),
-            B("Ctrl+C",           "Str_KS_CopyText",    "Edit", Cap("Ctrl:C")),
-            B("Ctrl+V",           "Str_KS_Paste",       "Edit", Cap("Ctrl:V")),
+            B("%ctrl%+Z",         "Str_KS_Undo",        "Edit", Cap("Ctrl:Z")),
+            B("%ctrl%+Y",         "Str_Ctx_Redo",       "Edit", Cap("Ctrl:Y")),
+            B("%ctrl%+%shift%+Z", "Str_Ctx_Redo",       "Edit", Cap("CtrlShift:Z")),
+            B("%ctrl%+C",         "Str_KS_CopyText",    "Edit", Cap("Ctrl:C")),
+            B("%ctrl%+V",         "Str_KS_Paste",       "Edit", Cap("Ctrl:V")),
             // Real bindings as of 1.7.5. These were documented for years and never implemented;
             // Ctrl+B collapsed the sidebar instead, which is why the sidebar moved to F9.
-            B("Ctrl+B / I / U",   "Str_KS_TextStyle",   "Edit", Cap("Ctrl:B", "Str_Lbl_Bold"),
+            B("%ctrl%+B / I / U", "Str_KS_TextStyle",   "Edit", Cap("Ctrl:B", "Str_Lbl_Bold"),
                                                                 Cap("Ctrl:I", "Str_Lbl_Italic"),
                                                                 Cap("Ctrl:U", "Str_Lbl_Underline")),
-            B("Delete",           "Str_KS_DeleteAnnot", "Edit", Cap("Del")),
+            B("%del%",            "Str_KS_DeleteAnnot", "Edit", Cap("Del")),
             B("F2",               "Str_Ctx_BmRename",   "Edit", Cap("F2")),
-            B("Enter / Escape",   "Str_KS_ConfirmCancel","Edit", Cap("Enter", "Str_Kb_Confirm"),
+            B("%enter% / %esc%",  "Str_KS_ConfirmCancel","Edit", Cap("Enter", "Str_Kb_Confirm"),
                                                                  Cap("Esc",   "Str_Kb_Cancel")),
-            B("Menu / Shift+F10", "Str_KS_ContextMenu", "Edit", Cap("Menu"), Cap("Shift:F10")),
+            B("%menu% / %shift%+F10", "Str_KS_ContextMenu", "Edit", Cap("Menu"), Cap("Shift:F10")),
 
-            B("F1 / Ctrl+?", "Str_KS_ThisList", "Help", Cap("F1"), Cap("Ctrl:Slash")),
+            B("F1 / %ctrl%+?", "Str_KS_ThisList", "Help", Cap("F1"), Cap("Ctrl:Slash")),
             B("F12",         "Str_KS_About",    "Help", Cap("F12")),
 
-            B("← / → or PgUp/PgDn", "Str_KS_PrevNext", "Nav", Cap("Left",  "Str_Kb_PrevPage"),
-                                                              Cap("Right", "Str_Kb_NextPage"),
-                                                              Cap("PgUp",  "Str_Kb_PrevPage"),
-                                                              Cap("PgDn",  "Str_Kb_NextPage")),
-            B("Home / End",    "Str_KS_FirstLast",   "Nav", Cap("Home", "Str_Kb_FirstPage"),
+            B("← / → %or% %pgup%/%pgdn%", "Str_KS_PrevNext", "Nav", Cap("Left",  "Str_Kb_PrevPage"),
+                                                                    Cap("Right", "Str_Kb_NextPage"),
+                                                                    Cap("PgUp",  "Str_Kb_PrevPage"),
+                                                                    Cap("PgDn",  "Str_Kb_NextPage")),
+            B("%home% / %end%", "Str_KS_FirstLast",  "Nav", Cap("Home", "Str_Kb_FirstPage"),
                                                             Cap("End",  "Str_Kb_LastPage")),
-            B("Alt+← / Alt+→", "Str_KS_BackForward", "Nav", Cap("Alt:Left",  "Str_Kb_Back"),
-                                                            Cap("Alt:Right", "Str_Kb_Forward")),
+            B("%alt%+← / %alt%+→", "Str_KS_BackForward", "Nav", Cap("Alt:Left",  "Str_Kb_Back"),
+                                                                Cap("Alt:Right", "Str_Kb_Forward")),
             B("↑ / ↓",         "Str_KS_ScrollView",  "Nav", Cap("Up"), Cap("Down")),
-            B("Ctrl+Scroll",   "Str_KS_ZoomCursor",  "Nav"),
-            B("Ctrl+%zin% / Ctrl+%zout%", "Str_KS_ZoomInOut", "Nav", Cap("Ctrl:Equals", "Str_Lbl_ZoomIn"),
-                                                                     Cap("Ctrl:Minus",  "Str_Lbl_ZoomOut")),
-            B("Ctrl+0",        "Str_KS_ResetZoom",   "Nav", Cap("Ctrl:D0")),
-            B("Ctrl+1/2/3",    "Str_KS_ZoomPresets", "Nav", Cap("Ctrl:D1", "Str_Zoom_ActualSize"),
+            B("%ctrl%+%scroll%", "Str_KS_ZoomCursor", "Nav"),
+            B("%ctrl%+%zin% / %ctrl%+%zout%", "Str_KS_ZoomInOut", "Nav", Cap("Ctrl:Equals", "Str_Lbl_ZoomIn"),
+                                                                         Cap("Ctrl:Minus",  "Str_Lbl_ZoomOut")),
+            B("%ctrl%+0",      "Str_KS_ResetZoom",   "Nav", Cap("Ctrl:D0")),
+            B("%ctrl%+1/2/3",  "Str_KS_ZoomPresets", "Nav", Cap("Ctrl:D1", "Str_Zoom_ActualSize"),
                                                             Cap("Ctrl:D2", "Str_Zoom_FitWidth"),
                                                             Cap("Ctrl:D3", "Str_Zoom_FitPage")),
-            B("Middle drag",   "Str_KS_PanView",     "Nav"),
-            B("Space + drag",  "Str_KS_PanView",     "Nav", Cap("Space")),
+            B("%middledrag%",  "Str_KS_PanView",     "Nav"),
+            B("%spacedrag%",   "Str_KS_PanView",     "Nav", Cap("Space")),
             B("F9",            "Str_KS_ToggleSidebar","Nav", Cap("F9")),
-            B("Shift+F9",      "Str_KS_SidebarSide", "Nav", Cap("Shift:F9")),
-            B("Ctrl+Tab",      "Str_KS_NextTab",     "Nav", Cap("Ctrl:Tab")),
-            B("Ctrl+Shift+Tab","Str_KS_PrevTab",     "Nav", Cap("CtrlShift:Tab")),
+            B("%shift%+F9",    "Str_KS_SidebarSide", "Nav", Cap("Shift:F9")),
+            B("%ctrl%+%tab%",  "Str_KS_NextTab",     "Nav", Cap("Ctrl:Tab")),
+            B("%ctrl%+%shift%+%tab%", "Str_KS_PrevTab", "Nav", Cap("CtrlShift:Tab")),
 
             B("F5",            "Str_View_Continuous", "View", Cap("F5")),
             B("F6",            "Str_View_Single",     "View", Cap("F6")),
@@ -129,34 +164,34 @@ namespace KillerPDF
             B("F8",            "Str_View_Grid",       "View", Cap("F8")),
             // Cycling lost its F9 when the sidebar took the key. F5-F8 still reach every mode
             // directly, so the wheel gesture is the only thing that needed to survive.
-            B("Wheel on view", "Str_KS_CycleView",    "View"),
+            B("%wheelview%",   "Str_KS_CycleView",    "View"),
             B("F10",           "Str_KS_SplitPane",    "View", Cap("F10")),
             // Esc belongs to Cancel on the base layer, so full screen only claims F11.
-            B("F11 / Esc",     "Str_KS_FullScreen",   "View", Cap("F11")),
-            B("Alt+M",         "Str_Toolbar_Hide",    "View", Cap("Alt:M")),
+            B("F11 / %esc%",   "Str_KS_FullScreen",   "View", Cap("F11")),
+            B("%alt%+M",       "Str_Toolbar_Hide",    "View", Cap("Alt:M")),
             B("N",             "Str_DocInvertSetting","View", Cap("N")),
-            B("Shift+N",       "Str_InvertImagesToo", "View", Cap("Shift:N")),
-            B("Ctrl+Shift+%zin% / %zout% / 0", "Str_KS_AppSize", "View", Cap("CtrlShift:Equals"),
-                                                                         Cap("CtrlShift:Minus"),
-                                                                         Cap("CtrlShift:D0")),
-            B("Wheel on logo", "Str_KS_AppSize",      "View"),
+            B("%shift%+N",     "Str_InvertImagesToo", "View", Cap("Shift:N")),
+            B("%ctrl%+%shift%+%zin% / %zout% / 0", "Str_KS_AppSize", "View", Cap("CtrlShift:Equals"),
+                                                                             Cap("CtrlShift:Minus"),
+                                                                             Cap("CtrlShift:D0")),
+            B("%wheellogo%",   "Str_KS_AppSize",      "View"),
             // The toolbar appearance six, mirroring the bar's right-click menu top to bottom.
-            B("Ctrl+Shift+1..6", "Str_KS_ToolbarStyle", "View", Cap("CtrlShift:D1", "Str_Toolbar_SmallIcons"),
+            B("%ctrl%+%shift%+1..6", "Str_KS_ToolbarStyle", "View", Cap("CtrlShift:D1", "Str_Toolbar_SmallIcons"),
                                                                 Cap("CtrlShift:D2", "Str_Toolbar_LargeIcons"),
                                                                 Cap("CtrlShift:D3", "Str_Toolbar_TextNone"),
                                                                 Cap("CtrlShift:D4", "Str_Toolbar_TextBeside"),
                                                                 Cap("CtrlShift:D5", "Str_Toolbar_TextUnder"),
                                                                 Cap("CtrlShift:D6", "Str_Toolbar_TextOnly")),
 
-            B("Ctrl+Shift+O", "Str_Ctx_OcrPage", "Ocr", Cap("CtrlShift:O")),
-            B("Ctrl+Shift+I", "Str_Ocr_Region",  "Ocr", Cap("CtrlShift:I")),
+            B("%ctrl%+%shift%+O", "Str_Ctx_OcrPage", "Ocr", Cap("CtrlShift:O")),
+            B("%ctrl%+%shift%+I", "Str_Ocr_Region",  "Ocr", Cap("CtrlShift:I")),
 
-            B("Ctrl+F",              "Str_KS_Find",           "Search", Cap("Ctrl:F")),
-            B("F3 / Shift+F3",       "Str_KS_NextPrevResult", "Search", Cap("F3",       "Str_Kb_NextResult"),
-                                                                        Cap("Shift:F3", "Str_Kb_PrevResult")),
-            B("Enter / Shift+Enter", "Str_KS_NextPrevResult", "Search", Cap("Shift:Enter", "Str_Kb_PrevResult")),
-            B("Ctrl+A",              "Str_KS_SelectAll",      "Search", Cap("Ctrl:A")),
-            B("Shift+Click",         "Str_KS_MultiSelect",    "Search"),
+            B("%ctrl%+F",                  "Str_KS_Find",           "Search", Cap("Ctrl:F")),
+            B("F3 / %shift%+F3",           "Str_KS_NextPrevResult", "Search", Cap("F3",       "Str_Kb_NextResult"),
+                                                                              Cap("Shift:F3", "Str_Kb_PrevResult")),
+            B("%enter% / %shift%+%enter%", "Str_KS_NextPrevResult", "Search", Cap("Shift:Enter", "Str_Kb_PrevResult")),
+            B("%ctrl%+A",                  "Str_KS_SelectAll",      "Search", Cap("Ctrl:A")),
+            B("%shift%+%click%",           "Str_KS_MultiSelect",    "Search"),
         ];
 
         // Section title and column for each category. Order here is the order sections appear.

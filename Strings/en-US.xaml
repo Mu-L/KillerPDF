@@ -673,6 +673,27 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <!-- The app's own wordmark, split into the family's two runs: neutral first word, accent
          second. The file picker reads these rather than hardcoding a name, so the same compiled
          dialog names whichever app is hosting it. -->
+    <!-- Key names for the shortcuts overlay (#230). Composed into the chords by
+         ShortcutsOverlay.FillKeyInlines, so translators get the words without the syntax. -->
+    <sys:String x:Key="Str_Key_Ctrl">Ctrl</sys:String>
+    <sys:String x:Key="Str_Key_Alt">Alt</sys:String>
+    <sys:String x:Key="Str_Key_Shift">Shift</sys:String>
+    <sys:String x:Key="Str_Key_Delete">Delete</sys:String>
+    <sys:String x:Key="Str_Key_Enter">Enter</sys:String>
+    <sys:String x:Key="Str_Key_Esc">Esc</sys:String>
+    <sys:String x:Key="Str_Key_Menu">Menu</sys:String>
+    <sys:String x:Key="Str_Key_Home">Home</sys:String>
+    <sys:String x:Key="Str_Key_End">End</sys:String>
+    <sys:String x:Key="Str_Key_PgUp">PgUp</sys:String>
+    <sys:String x:Key="Str_Key_PgDn">PgDn</sys:String>
+    <sys:String x:Key="Str_Key_Tab">Tab</sys:String>
+    <sys:String x:Key="Str_Key_Scroll">Scroll</sys:String>
+    <sys:String x:Key="Str_Key_Click">Click</sys:String>
+    <sys:String x:Key="Str_Key_Or">or</sys:String>
+    <sys:String x:Key="Str_Key_WheelView">Wheel on view</sys:String>
+    <sys:String x:Key="Str_Key_WheelLogo">Wheel on logo</sys:String>
+    <sys:String x:Key="Str_Key_MiddleDrag">Middle drag</sys:String>
+    <sys:String x:Key="Str_Key_SpaceDrag">Space + drag</sys:String>
     <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
     <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">Open</sys:String>
