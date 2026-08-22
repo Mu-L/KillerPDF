@@ -888,4 +888,24 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Crash_Report">GitHub'da bildir</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Devam et</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Çık</sys:String>
+    <sys:String x:Key="Str_Btn_OK">Tamam</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Evet</sys:String>
+    <sys:String x:Key="Str_Btn_No">Hayır</sys:String>
+    <sys:String x:Key="Str_RecentMissing">eksik</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">1 ek açıklama kopyalandı</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} ek açıklama kopyalandı</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">1 ek açıklama yapıştırıldı</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">{0} ek açıklama yapıştırıldı</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Seçili ek açıklama silindi</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">{0} ek açıklama silindi</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">Eşleşme yok</sys:String>
+    <sys:String x:Key="Str_Search_Error">Arama hatası</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} eşleşme, {1} sayfa</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Önceki eşleşme (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Sonraki eşleşme (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Kapat (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Sayfa {0} / {1} düzleştiriliyor...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">Sayfa {0} / {1} dışa aktarılıyor...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc iptal eder)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">{0} indiriliyor - {1} / {2} -</sys:String>
 </ResourceDictionary>

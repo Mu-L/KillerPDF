@@ -31,6 +31,10 @@ namespace KillerPDF
         private void OpenTransformWindow()
         {
             if (_doc is null) return;
+            // Transform burns the live annotation layer into its preview and final page image. A text
+            // box that still has keyboard focus has not entered that layer yet, so opening Transform
+            // directly after typing used to preview (and apply) the page without the new text.
+            CommitActiveTextBox();
             int pageIdx = PageList.SelectedIndex;
             // Render the preview from a copy with this page's annotations baked in, so the preview matches
             // what Apply will produce (otherwise annotations are invisible in the Transform window). Kept at a

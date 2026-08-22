@@ -109,15 +109,14 @@ namespace KillerPDF
                 _searchBox.Template = tbTemplate;
                 _searchBox.FocusVisualStyle = null;
 
-                // Fixed width + centered so the result count never resizes the bar.
+                // Wide enough for translated empty/error states while keeping the count stable.
                 _searchStatus = new TextBlock
                 {
                     FontFamily = UiKit.UiFont,
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextAlignment = TextAlignment.Center,
-                    Width = 56,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    Width = 96,
                     Margin = new Thickness(2, 0, 2, 0)
                 };
                 _searchStatus.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
@@ -140,9 +139,9 @@ namespace KillerPDF
                     b.Click += (_, _) => onClick();
                     return b;
                 }
-                var prevBtn  = SearchNavBtn("", "Previous Match (Shift+Enter)", SearchPrevResult); // ChevronUp
-                var nextBtn  = SearchNavBtn("", "Next Match (Enter)", SearchNextResult);            // ChevronDown
-                var closeBtn = SearchNavBtn("", "Close (Esc)", CloseSearchBar, danger: true);       // Cancel
+                var prevBtn  = SearchNavBtn("", Loc("Str_Search_PreviousTT"), SearchPrevResult); // ChevronUp
+                var nextBtn  = SearchNavBtn("", Loc("Str_Search_NextTT"), SearchNextResult);     // ChevronDown
+                var closeBtn = SearchNavBtn("", Loc("Str_Search_CloseTT"), CloseSearchBar, danger: true); // Cancel
 
                 var searchIcon = new TextBlock
                 {

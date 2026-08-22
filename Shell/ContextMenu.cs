@@ -467,8 +467,8 @@ namespace KillerPDF
             foreach (var a in sel)
                 if (CloneAnnotation(a) is { } c) _annotationClipboard.Add(c);
 
-            SetStatus(_annotationClipboard.Count == 1
-                ? "Copied 1 annotation" : $"Copied {_annotationClipboard.Count} annotations");
+            SetStatus(string.Format(Loc(_annotationClipboard.Count == 1
+                ? "Str_St_CopiedAnnotationOne" : "Str_St_CopiedAnnotationMany"), _annotationClipboard.Count));
         }
 
         // Paste the clipboard onto pageIdx: fresh clones nudged down-right so they don't sit exactly on
@@ -523,7 +523,8 @@ namespace KillerPDF
             else
                 foreach (var c in pasted) ToggleMultiSelect(c, AnnotBounds(c), canvas);
 
-            SetStatus(pasted.Count == 1 ? "Pasted 1 annotation" : $"Pasted {pasted.Count} annotations");
+            SetStatus(string.Format(Loc(pasted.Count == 1
+                ? "Str_St_PastedAnnotationOne" : "Str_St_PastedAnnotationMany"), pasted.Count));
         }
 
         // --- Edit / pairing / grouping menu actions ------------------------------------------------

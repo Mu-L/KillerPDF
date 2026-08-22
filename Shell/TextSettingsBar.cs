@@ -178,12 +178,10 @@ namespace KillerPDF
                 _textSettingsBar = null;
             }
 
-            // Six self-contained SINGLE-ROW groups (Font+styles, Size, Color, Fill, Opacity,
-            // Fill Opacity) laid out in a WrapPanel (built at the end). Each group slides into
-            // whatever room is left on the current line and wraps independently, so Size sits
-            // beside Font whenever it fits instead of pinning below it in a fixed block. When
-            // even one group per line would need a third row, the least important groups
-            // collapse into the overflow chevron's popup - see WireBarOverflow (AnnotationBars.cs).
+            // Six self-contained single-row groups. The finished text bar deliberately pairs them
+            // into two aligned rows: font/style over size, text color over fill color, and text
+            // opacity over fill opacity. This avoids a lone Fill Opacity group looking like an
+            // accidental wrap at otherwise comfortable window widths.
             StackPanel Group()
             {
                 return new StackPanel
@@ -561,17 +559,32 @@ namespace KillerPDF
                 ApplyTextStyleToSelection();
             };
 
-            // Assemble the groups into one wrapping host: grip + the six single-row groups + the
-            // overflow chevron. The WrapPanel packs the groups like words in a paragraph; the
-            // overflow logic (WireBarOverflow) caps the bar at two rows by shedding the least
-            // important groups into the chevron's popup, restoring them when there is room again.
-            var wrapHost = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 2, 8, 2), Background = Brushes.Transparent };
-            var overflowBtn = MakeBarOverflow(out var overflowPopup, out var overflowStack);
-            var barGroups = new StackPanel[] { fontStack, sizeStack, grpColor, grpFill, grpOpacity, grpFillOp };
-            wrapHost.Children.Add(textGrip);
-            foreach (var g in barGroups) wrapHost.Children.Add(g);
-            wrapHost.Children.Add(overflowBtn);
-            wrapHost.Children.Add(overflowPopup);   // renders nothing; keeps the popup in the tree for DynamicResource
+            // Intentional two-row interim layout for 1.7.5, assembled as three vertical pairs so
+            // related controls share an exact left edge: Font over Size, Text Color over Fill, and
+            // Text Opacity over Fill Opacity. The outer WrapPanel moves a whole pair at narrow split-
+            // pane widths instead of separating a label from the control directly beneath it.
+            var fontPair = new StackPanel();
+            fontPair.Children.Add(fontStack);
+            fontPair.Children.Add(sizeStack);
+
+            var colorPair = new StackPanel();
+            colorPair.Children.Add(grpColor);
+            colorPair.Children.Add(grpFill);
+
+            var opacityPair = new StackPanel();
+            opacityPair.Children.Add(grpOpacity);
+            opacityPair.Children.Add(grpFillOp);
+
+            var pairHost = new WrapPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(8, 2, 8, 2),
+                Background = Brushes.Transparent
+            };
+            pairHost.Children.Add(textGrip);
+            pairHost.Children.Add(fontPair);
+            pairHost.Children.Add(colorPair);
+            pairHost.Children.Add(opacityPair);
             _annotBarDragInners.Clear();
 
             _textSettingsBar = new Border
@@ -582,7 +595,7 @@ namespace KillerPDF
                 CornerRadius = new CornerRadius(0),
                 Padding = new Thickness(4),
                 Effect = AnnotBarShadow(),
-                Child = BuildBarHost(wrapHost),
+                Child = BuildBarHost(pairHost),
                 Margin = new Thickness(0, 0, 0, 0)
             };
             _textSettingsBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
@@ -594,12 +607,11 @@ namespace KillerPDF
             {
                 Panel.SetZIndex(_textSettingsBar, 100);
                 previewArea.Children.Add(_textSettingsBar);
-                // Cap the wrap host to the document area's width so the groups reflow on a narrow window.
-                wrapHost.SetBinding(FrameworkElement.MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth")
-                { Source = previewArea, Converter = _barWidthInset });
-                WireBarWrapAdaptation(wrapHost, textGrip, fontStack, previewArea);
-                // Shed order: Fill Opacity, Opacity, Fill, Color, Size. Font never collapses.
-                WireBarOverflow(wrapHost, overflowBtn, overflowPopup, overflowStack, barGroups, [5, 4, 3, 2, 1], previewArea);
+                // Cap the paired layout to the document area. At split-pane widths whole columns wrap
+                // together; at normal widths the two rows retain their deliberate vertical alignment.
+                pairHost.SetBinding(FrameworkElement.MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth")
+                    { Source = previewArea, Converter = _barWidthInset });
+                WireBarWrapAdaptation(pairHost, textGrip, fontPair, previewArea);
                 PlaceAnnotationBar(_textSettingsBar, textGrip, fadeIn: appearing);
             }
             _annotBarTool = EditTool.Text;

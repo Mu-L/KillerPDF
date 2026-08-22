@@ -888,4 +888,24 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Crash_Report">Informar en GitHub</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Continuar</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Salir</sys:String>
+    <sys:String x:Key="Str_Btn_OK">Aceptar</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Sí</sys:String>
+    <sys:String x:Key="Str_Btn_No">No</sys:String>
+    <sys:String x:Key="Str_RecentMissing">falta</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">Se copió 1 anotación</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">Se copiaron {0} anotaciones</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">Se pegó 1 anotación</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">Se pegaron {0} anotaciones</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Se eliminó la anotación seleccionada</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">Se eliminaron {0} anotaciones</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">Sin coincidencias</sys:String>
+    <sys:String x:Key="Str_Search_Error">Error de búsqueda</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} coincidencias en {1} páginas</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Coincidencia anterior (Mayús+Intro)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Siguiente coincidencia (Intro)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Cerrar (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Aplanando página {0} de {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">Exportando página {0} de {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc para cancelar)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">Descargando {0} - {1} de {2} -</sys:String>
 </ResourceDictionary>

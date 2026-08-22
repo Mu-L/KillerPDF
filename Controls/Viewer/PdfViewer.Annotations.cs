@@ -439,9 +439,8 @@ namespace KillerPDF.Controls
 
             ClearSelection();
             foreach (var p in pages) RenderAllAnnotations(p);
-            SetStatus(toDelete.Count == 1
-                ? "Deleted selected annotation"
-                : $"Deleted {toDelete.Count} annotations");
+            SetStatus(string.Format(Loc(toDelete.Count == 1
+                ? "Str_St_DeletedAnnotationOne" : "Str_St_DeletedAnnotationMany"), toDelete.Count));
         }
 
         private bool HitTestAnnotation(PageAnnotation annot, Point pos, out Rect bounds)

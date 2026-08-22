@@ -11,6 +11,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <UseWPF>true</UseWPF>
+    <!-- Linked data-only model fields are populated by the application, not these focused tests. -->
+    <NoWarn>$(NoWarn);CS0649</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,6 +41,7 @@
     <Compile Include="..\Services\PdfScrub.cs" Link="Services\PdfScrub.cs" />
     <Compile Include="..\Services\PdfBurn.cs" Link="Services\PdfBurn.cs" />
     <Compile Include="..\Services\AnnotationRotate.cs" Link="Services\AnnotationRotate.cs" />
+    <Compile Include="..\Services\WheelPageFlipGate.cs" Link="Services\WheelPageFlipGate.cs" />
     <Compile Include="..\Services\FontCoverage.cs" Link="Services\FontCoverage.cs" />
     <Compile Include="..\Services\CmapCoverage.cs" Link="Services\CmapCoverage.cs" />
     <Compile Include="..\Services\PdfFonts.cs" Link="Services\PdfFonts.cs" />

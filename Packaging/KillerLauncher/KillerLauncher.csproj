@@ -14,6 +14,11 @@
     <AssemblyVersion Condition="'$(LauncherVersion)' != ''">$(LauncherVersion).0</AssemblyVersion>
     <FileVersion Condition="'$(LauncherVersion)' != ''">$(LauncherVersion).0</FileVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- The launcher only uses .NET Framework inbox assemblies, so it needs no binding redirects.
+         Disabling their generated config also keeps SDK 10 publish from looking for a config named
+         after the overridden release assembly instead of the project assembly. -->
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>false</GenerateBindingRedirectsOutputType>
     <DefineConstants Condition="'$(AllowUnsignedInstall)' == 'true'">$(DefineConstants);ALLOW_UNSIGNED_INSTALL</DefineConstants>
   </PropertyGroup>
 

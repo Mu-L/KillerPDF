@@ -895,4 +895,24 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Crash_Report">Jelentés a GitHubon</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Folytatás</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Kilépés</sys:String>
+    <sys:String x:Key="Str_Btn_OK">OK</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Igen</sys:String>
+    <sys:String x:Key="Str_Btn_No">Nem</sys:String>
+    <sys:String x:Key="Str_RecentMissing">hiányzik</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">1 jegyzet másolva</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} jegyzet másolva</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">1 jegyzet beillesztve</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">{0} jegyzet beillesztve</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Kijelölt jegyzet törölve</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">{0} jegyzet törölve</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">Nincs találat</sys:String>
+    <sys:String x:Key="Str_Search_Error">Keresési hiba</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} találat {1} oldalon</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Előző találat (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Következő találat (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Bezárás (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">{0}. / {1} oldal egyesítése...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">{0}. / {1} oldal exportálása...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc megszakítja)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">{0} letöltése - {1} / {2} -</sys:String>
 </ResourceDictionary>

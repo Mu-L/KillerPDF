@@ -888,4 +888,24 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Crash_Report">GitHub-এ রিপোর্ট করুন</sys:String>
     <sys:String x:Key="Str_Crash_Continue">চালিয়ে যান</sys:String>
     <sys:String x:Key="Str_Crash_Quit">প্রস্থান</sys:String>
+    <sys:String x:Key="Str_Btn_OK">ঠিক আছে</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">হ্যাঁ</sys:String>
+    <sys:String x:Key="Str_Btn_No">না</sys:String>
+    <sys:String x:Key="Str_RecentMissing">ফাইল নেই</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">১টি টীকা কপি করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">{0}টি টীকা কপি করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">১টি টীকা পেস্ট করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">{0}টি টীকা পেস্ট করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">নির্বাচিত টীকা মুছে ফেলা হয়েছে</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">{0}টি টীকা মুছে ফেলা হয়েছে</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">কোনো মিল নেই</sys:String>
+    <sys:String x:Key="Str_Search_Error">অনুসন্ধান ত্রুটি</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{1}টি পাতায় {0}টি মিল</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">পূর্ববর্তী মিল (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">পরবর্তী মিল (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">বন্ধ করুন (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">পাতা {0} / {1} ফ্ল্যাট করা হচ্ছে...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">পাতা {0} / {1} রপ্তানি হচ্ছে...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc বাতিল করে)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">{0} ডাউনলোড হচ্ছে - {1} / {2} -</sys:String>
 </ResourceDictionary>

@@ -1024,6 +1024,18 @@ namespace KillerPDF.Controls
             double panelW = pagesPerRow * (pageSlotW + 0.5);
             if (panelW > 0) _pageContentPanel.Width = panelW;
 
+            // A grid zoom changes the pre-transform margin that keeps the visible seam at GridGapPx.
+            // Update every existing tile in one layout pass, before the async bitmap stream starts.
+            // Doing this from AddSecondaryTile made each seam move only when that page's render callback
+            // arrived, so the already-zoomed grid visibly settled one page at a time.
+            if (_viewMode == ViewMode.Grid)
+            {
+                double gapDip = GridGapPx / Math.Max(0.01, _zoomLevel);
+                var margin = new Thickness(0, 0, gapDip, gapDip);
+                foreach (var child in _pageContentPanel.Children)
+                    if (child is Border tile) tile.Margin = margin;
+            }
+
             // Cancel any previously running secondary render.
             _secondaryRenderCts?.Cancel();
             _secondaryRenderCts = new System.Threading.CancellationTokenSource();

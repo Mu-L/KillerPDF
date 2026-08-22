@@ -4,17 +4,34 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.5] - Unreleased
+## [1.7.5] - 2026-08-22
+
+KillerPDF 1.7.5 is a small maintenance release that closes several visible annotation, scrolling, shortcut, theme, and localization regressions. It keeps the faster scrolling introduced in 1.7.4, makes Transform trustworthy with freshly placed text, and gives the text annotation toolbar a cleaner two-row layout.
 
 ### Added
-- Ctrl+B, Ctrl+I and Ctrl+U now bold, italicize and underline while you are editing a text box. They were listed in the shortcuts for years without ever being wired up.
+- Shift+mouse wheel now scrolls wide pages horizontally, using the same scrolling path as a tilt wheel (#209, thanks Ryokoxx).
+- Ctrl+B, Ctrl+I and Ctrl+U now bold, italicize and underline while you are editing a text box. They were listed in the shortcuts for weeks without ever being wired up.
+- Hungarian OCR completes the twelve-language OCR catalog, so every language available for the KillerPDF interface now has a matching downloadable recognition model.
 
 ### Changed
+- The text annotation toolbar now uses a deliberate two-row layout: font above size, text color above fill color, and text opacity above fill opacity. It is taller but substantially narrower, with each lower control aligned beneath its corresponding upper control instead of leaving Fill Opacity stranded on an accidental wrapped row.
 - The sidebar moved from Ctrl+B to F9, and moving it left or right from Ctrl+Shift+B to Shift+F9. Ctrl+B was documented as bold and as the sidebar at the same time, and it was the sidebar that answered. F9 was the one function key with nothing of its own to do: the four view modes still have F5 to F8, and the wheel over the view still cycles them.
+- The current-page span badge now casts a small shadow beneath its rectangle, while its text remains independently rendered and crisp. The 98SE theme keeps the badge flat with the rest of its classic chrome.
 
 ### Fixed
-- Nine dialogs lost every line break in their message, including the install and update prompts. The strings carried the breaks but not the attribute that stops XAML collapsing them, so adding more had no effect (#231, thanks bovirus).
-- Alt+M was missing from the keyboard map, and Home, End and the arrow keys described their action differently on the map than in the list. Both views are now generated from one table and cannot disagree.
+- Rotating a page now keeps upright text boxes, images, and signatures inside the new page bounds. Their centers still follow the rotated sheet, but an item near the old long edge is clamped before it can become invisible and unrecoverable off-page (#169, thanks terada-d).
+- Fast wheel scrolling in Single Page and Two-Page views no longer carries its remaining momentum into an accidental page change at the edge. Scrolling keeps its existing speed; changing pages requires a deliberate second wheel gesture (#205, thanks 1mk3r).
+- Transform now commits an active text box before building its preview, so text placed immediately before opening Transform is included in both the preview and the transformed page.
+- Grid zoom now updates every page seam in one layout pass, so the pages no longer resize first and then visibly settle one border at a time as their refreshed bitmaps arrive.
+- Switching themes, accents, or languages with an annotation or crop bar open now rebuilds that bar completely in both split panes. This fixes controls retaining colors from the previous theme, including the light-theme mismatch, and keeps code-built crop labels, tooltips, and buttons current without reopening the tool.
+- Nine dialogs, including the install and update prompts, now preserve their intended line breaks. The strings carried the breaks but not the attribute that stops XAML collapsing them, so adding more had no effect (#231, thanks bovirus).
+- Shortcut key and mouse names, including Ctrl, Shift, Home, End, Delete, Click and Scroll, are now translatable in all twelve languages. The list and visual keyboard are generated from one shared table, fixing the missing Alt+M entry and inconsistent navigation descriptions while preventing the two views from drifting again (#230, thanks bovirus).
+- Shared dialog buttons now translate OK, Cancel, Yes, and No, including the custom color picker (#227, thanks Mr-Update).
+- Recent files now translate the `missing` label instead of leaving it in English (#227, thanks Mr-Update).
+- Annotation copy, paste, and delete confirmations now use the active language and the correct singular or plural message (#227, thanks Mr-Update).
+- Search now translates its empty, error, summary, navigation, and close messages. Its result field is wider so longer translated states are not clipped (#227, thanks Mr-Update).
+- OCR model downloads now translate their progress and cancellation hints, including multi-model downloads, and flatten/export progress is translated as well (#227, thanks Mr-Update).
+- The portable launcher now publishes cleanly with the .NET 10 SDK without trying to copy an unused binding-redirect configuration file.
 
 ## [1.7.4] - 2026-08-21
 
@@ -51,7 +68,7 @@ KillerPDF 1.7.4 keeps the convenience of one portable download while installing 
 - The theme and language tooltips are no longer all caps, the VIEW shortcut category matches the other headings, and the zoom shortcuts read Ctrl++ instead of Ctrl+=, in every language (PR #216, thanks Mr-Update).
 - The "Show current file size" shortcut description is translated in every language (#217, thanks Mr-Update).
 - Unsigned local development packages can now exercise the complete install path, while public release launchers retain a non-bypassable digital-signature requirement.
-- Every remaining hardcoded English string is now translated in all twelve languages. This includes dialog titles, file-picker filters, error and confirmation dialogs, status messages, busy overlays, and the default DRAFT watermark text. Polish also gained the seven newest theme names (#227, thanks Mr-Update).
+- The hardcoded English strings identified during 1.7.4 development were translated in all twelve languages, including dialog titles, file-picker filters, error and confirmation dialogs, status messages, busy overlays, and the default DRAFT watermark text. Polish also gained the seven newest theme names (#227, thanks Mr-Update).
 - The annotate settings bars (text, draw, highlight, line, shape) now reflow in single-row groups on a narrow window or split pane; anything that would need a third row collapses into an overflow chevron, least-used controls first.
 - A render failure partway through streaming grid tiles no longer strands the remaining pages blank; the failed page is skipped and the stream retries once.
 - Grid view opened in an unfocused split pane now fills the pane width instead of keeping a surround margin and showing a horizontal scrollbar.

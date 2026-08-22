@@ -20,6 +20,8 @@ namespace KillerPDF.Services
         {
             int d = ((delta % 360) + 360) % 360;
             if (d == 0) return;
+            double newW = d == 90 || d == 270 ? oldH : oldW;
+            double newH = d == 90 || d == 270 ? oldW : oldH;
 
             Point MapPoint(Point p) => d switch
             {
@@ -38,7 +40,15 @@ namespace KillerPDF.Services
             Point MapAnchor(double x, double y, double w, double h)
             {
                 var c = MapPoint(new Point(x + w / 2, y + h / 2));
-                return new Point(c.X - w / 2, c.Y - h / 2);
+                // Text, images and signatures stay upright while their centre follows the sheet.
+                // A tall item near the old long edge can therefore need more room on the new axis
+                // than it did before the turn. Keep the complete item reachable rather than
+                // preserving an off-page coordinate the user cannot recover (#169 follow-up).
+                double px = c.X - w / 2;
+                double py = c.Y - h / 2;
+                return new Point(
+                    Math.Max(0, Math.Min(px, Math.Max(0, newW - w))),
+                    Math.Max(0, Math.Min(py, Math.Max(0, newH - h))));
             }
 
             foreach (var annot in annots)

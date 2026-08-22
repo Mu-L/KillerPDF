@@ -594,7 +594,7 @@ namespace KillerPDF
                 string dir = System.IO.Path.GetDirectoryName(path) ?? "";
                 string dateStr = exists
                     ? $"{System.IO.File.GetLastWriteTime(path):MMM d, yyyy}"
-                    : "missing";
+                    : Loc("Str_RecentMissing");
 
                 var name = new TextBlock
                 {
@@ -1153,7 +1153,7 @@ namespace KillerPDF
             }
 
             // Show a progress overlay so the user knows we're working
-            var overlay = ShowFlattenProgress(pageCount);
+            var overlay = ShowFlattenProgress(pageCount, Loc("Str_Busy_FlattenPage"));
             string outputPath = dlg.FileName;
 
             try
@@ -1266,7 +1266,7 @@ namespace KillerPDF
             for (int i = 0; i < rotSnapshot.Length; i++)
                 if (_pageRotations.TryGetValue(i, out int r)) rotSnapshot[i] = r;
 
-            var overlay = ShowFlattenProgress(selected.Count, "Exporting");
+            var overlay = ShowFlattenProgress(selected.Count, Loc("Str_Busy_ExportPage"));
             int digits  = Math.Max(3, _doc.PageCount.ToString().Length);
             bool jpeg   = opts.Jpeg;
             double dpi  = opts.Dpi;
@@ -1295,14 +1295,14 @@ namespace KillerPDF
 
         // ---- flatten progress overlay helpers ----
 
-        private Border ShowFlattenProgress(int pageCount, string verb = "Flattening")
+        private Border ShowFlattenProgress(int pageCount, string progressFormat)
         {
             var progressText = new TextBlock
             {
-                Text       = $"{verb} page 0 of {pageCount}...",
+                Text       = string.Format(progressFormat, 0, pageCount),
                 Foreground = Brushes.White,
                 FontSize   = 14,
-                Tag        = verb   // stored so UpdateFlattenProgress can read it
+                Tag        = progressFormat
             };
             var panel = new StackPanel
             {
@@ -1333,8 +1333,8 @@ namespace KillerPDF
         {
             if (overlay.Child is StackPanel panel)
                 foreach (var child in panel.Children)
-                    if (child is TextBlock tb && tb.Tag is string verb)
-                        tb.Text = $"{verb} page {current} of {total}...";
+                    if (child is TextBlock tb && tb.Tag is string progressFormat)
+                        tb.Text = string.Format(progressFormat, current, total);
         }
 
         private void HideFlattenProgress(Border overlay)

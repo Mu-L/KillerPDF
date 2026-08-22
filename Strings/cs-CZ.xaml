@@ -893,4 +893,24 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Crash_Report">Nahlásit na GitHubu</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Pokračovat</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Ukončit</sys:String>
+    <sys:String x:Key="Str_Btn_OK">OK</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Ano</sys:String>
+    <sys:String x:Key="Str_Btn_No">Ne</sys:String>
+    <sys:String x:Key="Str_RecentMissing">chybí</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">Zkopírována 1 anotace</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">Zkopírováno {0} anotací</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">Vložena 1 anotace</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">Vloženo {0} anotací</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Vybraná anotace odstraněna</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">Odstraněno {0} anotací</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">Žádné shody</sys:String>
+    <sys:String x:Key="Str_Search_Error">Chyba hledání</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} shod na {1} stránkách</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Předchozí shoda (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Další shoda (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Zavřít (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Slučování stránky {0} z {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">Export stránky {0} z {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc zruší)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">Stahování {0} - {1} z {2} -</sys:String>
 </ResourceDictionary>

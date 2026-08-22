@@ -556,23 +556,37 @@
                      up from the bottom corner on scroll and page changes, slides back down when
                      the view settles (ShowPageBadge, Viewport.cs). Never hit-testable, so it
                      cannot eat a page click. 26px right margin clears the vertical scrollbar. -->
-                <Border x:Name="PageBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                        Margin="0,0,26,14" Panel.ZIndex="40" IsHitTestVisible="False" Opacity="0"
-                        Background="{DynamicResource MenuBackgroundBrush}"
-                        BorderBrush="{DynamicResource MenuBorderBrush}" BorderThickness="1"
-                        CornerRadius="{DynamicResource ControlCornerRadius}" Padding="9,3">
-                    <Border.RenderTransform>
+                <Grid x:Name="PageBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                      Margin="0,0,26,14" Panel.ZIndex="40" IsHitTestVisible="False" Opacity="0">
+                    <Grid.RenderTransform>
                         <TranslateTransform x:Name="PageBadgeSlide" Y="46"/>
-                    </Border.RenderTransform>
-                    <Grid>
-                        <TextBlock x:Name="PageBadgeText" FontFamily="Consolas" FontSize="12"
-                                   Foreground="{DynamicResource TextBrush}"/>
-                        <!-- Grain OVER the content, family rule -->
-                        <Border IsHitTestVisible="False" Margin="-9,-3"
-                                CornerRadius="{DynamicResource ControlCornerRadius}"
-                                Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
-                    </Grid>
-                </Border>
+                    </Grid.RenderTransform>
+
+                    <!-- Cast from a separate empty rectangle so the effect never rasterizes the
+                         badge text. BarShadowOpacity keeps the weight consistent with the chrome
+                         and lets 98SE suppress it without a special-case code path. -->
+                    <Border Background="{DynamicResource MenuBackgroundBrush}"
+                            CornerRadius="{DynamicResource ControlCornerRadius}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" BlurRadius="7" ShadowDepth="2"
+                                              Direction="270" Opacity="{DynamicResource BarShadowOpacity}"
+                                              RenderingBias="Quality"/>
+                        </Border.Effect>
+                    </Border>
+
+                    <Border Background="{DynamicResource MenuBackgroundBrush}"
+                            BorderBrush="{DynamicResource MenuBorderBrush}" BorderThickness="1"
+                            CornerRadius="{DynamicResource ControlCornerRadius}" Padding="9,3">
+                        <Grid>
+                            <TextBlock x:Name="PageBadgeText" FontFamily="Consolas" FontSize="12"
+                                       Foreground="{DynamicResource TextBrush}"/>
+                            <!-- Grain OVER the content, family rule -->
+                            <Border IsHitTestVisible="False" Margin="-9,-3"
+                                    CornerRadius="{DynamicResource ControlCornerRadius}"
+                                    Background="{DynamicResource GrainTileBrush}" Opacity="{DynamicResource GrainOpacity}"/>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Grid>
         </Border>
         </Grid><!-- /card row -->

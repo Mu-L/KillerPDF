@@ -23,6 +23,9 @@ namespace KillerPDF
         private static SolidColorBrush R(string key)
             => (SolidColorBrush)Application.Current.Resources[key];
 
+        private static string L(string key, string fallback)
+            => Application.Current.TryFindResource(key) as string ?? fallback;
+
         // Carries the checkbox state of the last Show() call back to ShowWithCheckbox. Dialogs are
         // modal and UI-thread only, so a shared field is safe and avoids a duplicate dialog body.
         private static bool _lastCheckboxChecked;
@@ -152,20 +155,20 @@ namespace KillerPDF
             switch (buttons)
             {
                 case MessageBoxButton.OK:
-                    btnPanel.Children.Add(MakeBtn("OK", MessageBoxResult.OK, accent: true));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_OK", "OK"), MessageBoxResult.OK, accent: true));
                     break;
                 case MessageBoxButton.OKCancel:
-                    btnPanel.Children.Add(MakeBtn("OK", MessageBoxResult.OK, accent: true));
-                    btnPanel.Children.Add(MakeBtn("Cancel", MessageBoxResult.Cancel));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_OK", "OK"), MessageBoxResult.OK, accent: true));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_Cancel", "Cancel"), MessageBoxResult.Cancel));
                     break;
                 case MessageBoxButton.YesNo:
-                    btnPanel.Children.Add(MakeBtn("Yes", MessageBoxResult.Yes, accent: true));
-                    btnPanel.Children.Add(MakeBtn("No", MessageBoxResult.No));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_Yes", "Yes"), MessageBoxResult.Yes, accent: true));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_No", "No"), MessageBoxResult.No));
                     break;
                 case MessageBoxButton.YesNoCancel:
-                    btnPanel.Children.Add(MakeBtn("Yes", MessageBoxResult.Yes, accent: true));
-                    btnPanel.Children.Add(MakeBtn("No", MessageBoxResult.No));
-                    btnPanel.Children.Add(MakeBtn("Cancel", MessageBoxResult.Cancel));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_Yes", "Yes"), MessageBoxResult.Yes, accent: true));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_No", "No"), MessageBoxResult.No));
+                    btnPanel.Children.Add(MakeBtn(L("Str_Btn_Cancel", "Cancel"), MessageBoxResult.Cancel));
                     break;
             }
 

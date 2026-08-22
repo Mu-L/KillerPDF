@@ -904,4 +904,24 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Crash_Report">Signaler sur GitHub</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Continuer</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Quitter</sys:String>
+    <sys:String x:Key="Str_Btn_OK">OK</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Oui</sys:String>
+    <sys:String x:Key="Str_Btn_No">Non</sys:String>
+    <sys:String x:Key="Str_RecentMissing">manquant</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">1 annotation copiée</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} annotations copiées</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">1 annotation collée</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">{0} annotations collées</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Annotation sélectionnée supprimée</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">{0} annotations supprimées</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">Aucun résultat</sys:String>
+    <sys:String x:Key="Str_Search_Error">Erreur de recherche</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} résultats sur {1} pages</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Résultat précédent (Maj+Entrée)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Résultat suivant (Entrée)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Fermer (Échap)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Aplatissement de la page {0} sur {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">Exportation de la page {0} sur {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Échap pour annuler)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">Téléchargement de {0} - {1} sur {2} -</sys:String>
 </ResourceDictionary>

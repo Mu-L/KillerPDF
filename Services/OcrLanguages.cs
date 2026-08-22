@@ -66,7 +66,7 @@ namespace KillerPDF.Services
         // the cancel token; writes via a .part file and atomically moves into place only on full success.
         // Throws on cancel/error. The GUI points the callback at the busy overlay's message line.
         internal static async Task DownloadTrainedDataAsync(System.Net.Http.HttpClient http, string url, string destFile,
-            string label, Action<string> progress, CancellationToken ct)
+            string label, string cancelHint, Action<string> progress, CancellationToken ct)
         {
             string part = destFile + ".part";
             using (var resp = await http.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, ct))
@@ -86,8 +86,8 @@ namespace KillerPDF.Services
                     read += n;
                     double mb = read / 1048576.0;
                     progress(total.HasValue
-                        ? $"{label} {mb:F1} / {total.Value / 1048576.0:F1} MB  (Esc to cancel)"
-                        : $"{label} {mb:F1} MB  (Esc to cancel)");
+                        ? $"{label} {mb:F1} / {total.Value / 1048576.0:F1} MB  {cancelHint}"
+                        : $"{label} {mb:F1} MB  {cancelHint}");
                 }
             }
             if (File.Exists(destFile)) File.Delete(destFile);

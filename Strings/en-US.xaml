@@ -907,4 +907,25 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Crash_Report">Report on GitHub</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Continue</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Quit</sys:String>
+    <!-- Shared text that must never bypass the active locale (#227) -->
+    <sys:String x:Key="Str_Btn_OK">OK</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Yes</sys:String>
+    <sys:String x:Key="Str_Btn_No">No</sys:String>
+    <sys:String x:Key="Str_RecentMissing">missing</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">Copied 1 annotation</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">Copied {0} annotations</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">Pasted 1 annotation</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">Pasted {0} annotations</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Deleted selected annotation</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">Deleted {0} annotations</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">No matches</sys:String>
+    <sys:String x:Key="Str_Search_Error">Search error</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} matches on {1} pages</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Previous Match (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Next Match (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Close (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Flattening page {0} of {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">Exporting page {0} of {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc to cancel)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">Downloading {0} - {1} of {2} -</sys:String>
 </ResourceDictionary>

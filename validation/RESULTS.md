@@ -1,9 +1,10 @@
-# Standards-conformance validation results - KillerPDF 1.7.4
+# Standards-conformance validation results - KillerPDF 1.7.5
 
-veraPDF run date: 2026-08-21, against the 1.7.4 release build. This release changes saved
-annotation rotation and form appearance generation, so the standard open/save pipeline was
-run fresh across the complete corpus in addition to the focused unit tests for those paths.
-The run reproduces every established count exactly: 2,236 successful resaves, 671 refusals
+veraPDF run date: 2026-08-22, against the 1.7.5 release build. This small maintenance release
+changes live annotation rotation behavior, mouse-wheel navigation, shortcuts, and localization,
+without changing the PDF serializer. The standard open/save pipeline was nevertheless run fresh
+across the complete corpus because every KillerPDF release must independently meet the same
+zero-regression bar. The run reproduces every established count exactly: 2,236 successful resaves, 671 refusals
 matching the SKIP rows one for one, 63 improvements, and the same single documented PDF/A-4
 header case as the only flagged saved file. The qpdf sweep also reproduces its table exactly:
 2,032 clean both sides, 195 improved, 9 kept preexisting warnings, 0 worsened.
@@ -21,7 +22,7 @@ Result: **Zero** conformance regressions across every file KillerPDF will save, 
 |---|---|---|
 | veraPDF | 1.30.2 | PDF/A + PDF/UA validation (the industry reference validator) |
 | qpdf | 12.3.2 | Structural check (`--check` exit codes) |
-| KillerPDF | 1.7.4 | `--batch-resave` through the standard open/save pipeline |
+| KillerPDF | 1.7.5 | `--batch-resave` through the standard open/save pipeline |
 | Compare-VeraPDF.ps1 | this folder | Diffs the two veraPDF reports file by file |
 | QpdfSweep.ps1 | this folder | Structural before/after sweep (`qpdf --check` exit codes) |
 

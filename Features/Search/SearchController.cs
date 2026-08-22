@@ -93,7 +93,7 @@ namespace KillerPDF.Features
 
                 if (_matches.Count == 0)
                 {
-                    _host.SetResultText("No matches");
+                    _host.SetResultText(_host.Loc("Str_Search_NoMatches"));
                     return;
                 }
 
@@ -108,7 +108,7 @@ namespace KillerPDF.Features
             }
             catch
             {
-                _host.SetResultText("Search error");
+                _host.SetResultText(_host.Loc("Str_Search_Error"));
             }
         }
 
@@ -144,12 +144,12 @@ namespace KillerPDF.Features
         {
             if (_matches.Count == 0)
             {
-                _host.SetResultCount("No matches", null);
+                _host.SetResultCount(_host.Loc("Str_Search_NoMatches"), null);
                 return;
             }
             int pages = ResultPages.Count;
             _host.SetResultCount($"{_matchCursor + 1} / {_matches.Count}",
-                $"{_matches.Count} match{(_matches.Count != 1 ? "es" : "")} on {pages} page{(pages != 1 ? "s" : "")}");
+                string.Format(_host.Loc("Str_Search_Summary"), _matches.Count, pages));
         }
     }
 }

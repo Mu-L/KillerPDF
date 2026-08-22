@@ -892,4 +892,24 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Crash_Report">在 GitHub 上报告</sys:String>
     <sys:String x:Key="Str_Crash_Continue">继续</sys:String>
     <sys:String x:Key="Str_Crash_Quit">退出</sys:String>
+    <sys:String x:Key="Str_Btn_OK">确定</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">是</sys:String>
+    <sys:String x:Key="Str_Btn_No">否</sys:String>
+    <sys:String x:Key="Str_RecentMissing">文件不存在</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">已复制 1 个注释</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">已复制 {0} 个注释</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">已粘贴 1 个注释</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">已粘贴 {0} 个注释</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">已删除所选注释</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">已删除 {0} 个注释</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">无匹配项</sys:String>
+    <sys:String x:Key="Str_Search_Error">搜索错误</sys:String>
+    <sys:String x:Key="Str_Search_Summary">在 {1} 页中找到 {0} 个匹配项</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">上一个匹配项 (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">下一个匹配项 (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">关闭 (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">正在展平第 {0} 页，共 {1} 页...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">正在导出第 {0} 页，共 {1} 页...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc 取消)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">正在下载 {0} - {1} / {2} -</sys:String>
 </ResourceDictionary>

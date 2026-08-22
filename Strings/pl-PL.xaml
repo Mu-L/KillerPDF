@@ -896,4 +896,24 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Crash_Report">Zgłoś na GitHubie</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Kontynuuj</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Zakończ</sys:String>
+    <sys:String x:Key="Str_Btn_OK">OK</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Tak</sys:String>
+    <sys:String x:Key="Str_Btn_No">Nie</sys:String>
+    <sys:String x:Key="Str_RecentMissing">brak</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">Skopiowano 1 adnotację</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">Skopiowano {0} adnotacji</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">Wklejono 1 adnotację</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">Wklejono {0} adnotacji</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Usunięto wybraną adnotację</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">Usunięto {0} adnotacji</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">Brak wyników</sys:String>
+    <sys:String x:Key="Str_Search_Error">Błąd wyszukiwania</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} wyników na {1} stronach</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Poprzedni wynik (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Następny wynik (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Zamknij (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Spłaszczanie strony {0} z {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">Eksportowanie strony {0} z {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc anuluje)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">Pobieranie {0} - {1} z {2} -</sys:String>
 </ResourceDictionary>

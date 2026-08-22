@@ -894,4 +894,24 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Crash_Report">Auf GitHub melden</sys:String>
     <sys:String x:Key="Str_Crash_Continue">Fortfahren</sys:String>
     <sys:String x:Key="Str_Crash_Quit">Beenden</sys:String>
+    <sys:String x:Key="Str_Btn_OK">OK</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">Ja</sys:String>
+    <sys:String x:Key="Str_Btn_No">Nein</sys:String>
+    <sys:String x:Key="Str_RecentMissing">fehlt</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">1 Anmerkung kopiert</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} Anmerkungen kopiert</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">1 Anmerkung eingefügt</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">{0} Anmerkungen eingefügt</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">Ausgewählte Anmerkung gelöscht</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">{0} Anmerkungen gelöscht</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">Keine Treffer</sys:String>
+    <sys:String x:Key="Str_Search_Error">Suchfehler</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{0} Treffer auf {1} Seiten</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Vorheriger Treffer (Umschalt+Eingabe)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Nächster Treffer (Eingabe)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">Schließen (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Seite {0} von {1} wird reduziert...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">Seite {0} von {1} wird exportiert...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc zum Abbrechen)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">Download von {0} - {1} von {2} -</sys:String>
 </ResourceDictionary>

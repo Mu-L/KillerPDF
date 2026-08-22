@@ -893,4 +893,24 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Crash_Report">GitHub で報告</sys:String>
     <sys:String x:Key="Str_Crash_Continue">続行</sys:String>
     <sys:String x:Key="Str_Crash_Quit">終了</sys:String>
+    <sys:String x:Key="Str_Btn_OK">OK</sys:String>
+    <sys:String x:Key="Str_Btn_Yes">はい</sys:String>
+    <sys:String x:Key="Str_Btn_No">いいえ</sys:String>
+    <sys:String x:Key="Str_RecentMissing">ファイルなし</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationOne">注釈を 1 件コピーしました</sys:String>
+    <sys:String x:Key="Str_St_CopiedAnnotationMany">注釈を {0} 件コピーしました</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationOne">注釈を 1 件貼り付けました</sys:String>
+    <sys:String x:Key="Str_St_PastedAnnotationMany">注釈を {0} 件貼り付けました</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationOne">選択した注釈を削除しました</sys:String>
+    <sys:String x:Key="Str_St_DeletedAnnotationMany">注釈を {0} 件削除しました</sys:String>
+    <sys:String x:Key="Str_Search_NoMatches">一致なし</sys:String>
+    <sys:String x:Key="Str_Search_Error">検索エラー</sys:String>
+    <sys:String x:Key="Str_Search_Summary">{1} ページに {0} 件の一致</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">前の一致 (Shift+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">次の一致 (Enter)</sys:String>
+    <sys:String x:Key="Str_Search_CloseTT">閉じる (Esc)</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">ページ {0} / {1} を統合中...</sys:String>
+    <sys:String x:Key="Str_Busy_ExportPage">ページ {0} / {1} をエクスポート中...</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc でキャンセル)</sys:String>
+    <sys:String x:Key="Str_Busy_DownloadingMany">{0} をダウンロード中 - {1} / {2} -</sys:String>
 </ResourceDictionary>

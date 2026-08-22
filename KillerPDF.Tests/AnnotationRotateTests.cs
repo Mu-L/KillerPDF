@@ -60,14 +60,47 @@ public sealed class AnnotationRotateTests
     [Fact]
     public void TextBox_KeepsSize_CenterFollowsThePage()
     {
-        var ta = new TextAnnotation { Position = new Point(10, 20), Width = 100, Height = 40 };
+        var ta = new TextAnnotation { Position = new Point(10, 70), Width = 100, Height = 40 };
         AnnotationRotate.Remap([ta], 90, W, H);
 
-        // Center (60,40) maps to (560,60); the box keeps 100x40 around it.
-        Assert.Equal(510, ta.Position.X, 3);
+        // Center (60,90) maps to (510,60); the box keeps 100x40 around it.
+        Assert.Equal(460, ta.Position.X, 3);
         Assert.Equal(40, ta.Position.Y, 3);
         Assert.Equal(100, ta.Width, 3);
         Assert.Equal(40, ta.Height, 3);
+    }
+
+    [Fact]
+    public void UprightTextBoxNearLongEdge_IsClampedInsideRotatedPage()
+    {
+        // Fully inside the old 800x600 page. Keeping this tall box upright after a clockwise turn
+        // would put its bottom at 870 on the new 600x800 page unless the remap clamps it.
+        var ta = new TextAnnotation { Position = new Point(750, 100), Width = 40, Height = 200 };
+        AnnotationRotate.Remap([ta], 90, W, H);
+
+        Assert.Equal(380, ta.Position.X, 3);
+        Assert.Equal(600, ta.Position.Y, 3);
+        Assert.InRange(ta.Position.X + ta.Width, 0, H);
+        Assert.InRange(ta.Position.Y + ta.Height, 0, W);
+    }
+
+    [Fact]
+    public void UprightPlacedItemNearLongEdge_IsClampedInsideRotatedPage()
+    {
+        var image = new ImageAnnotation
+        {
+            Position = new Point(750, 100),
+            SourceWidth = 40,
+            SourceHeight = 200,
+            Scale = 1
+        };
+
+        AnnotationRotate.Remap([image], 90, W, H);
+
+        Assert.Equal(380, image.Position.X, 3);
+        Assert.Equal(600, image.Position.Y, 3);
+        Assert.InRange(image.Position.X + image.SourceWidth * image.Scale, 0, H);
+        Assert.InRange(image.Position.Y + image.SourceHeight * image.Scale, 0, W);
     }
 
     [Fact]

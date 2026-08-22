@@ -178,7 +178,8 @@ namespace KillerPDF
             {
                 using var http = OcrLanguages.MakeDownloadClient();
                 await OcrLanguages.DownloadTrainedDataAsync(http, OcrLanguages.LanguageDataUrl(code, OcrHighQuality), dest,
-                    string.Format(Loc("Str_Busy_Downloading"), name), msg => SetBusyMessage(busy, msg), ct);
+                    string.Format(Loc("Str_Busy_Downloading"), name), Loc("Str_Busy_CancelHint"),
+                    msg => SetBusyMessage(busy, msg), ct);
                 OcrLanguages.MarkLanguageHq(code, OcrHighQuality);
 
                 var sel = GetSelectedOcrLanguages();
@@ -250,7 +251,8 @@ namespace KillerPDF
                     try
                     {
                         await OcrLanguages.DownloadTrainedDataAsync(http, url, dest,
-                            string.Format(Loc("Str_Busy_DownloadingHq"), name, i, toDownload.Count), msg => SetBusyMessage(busy, msg), ct);
+                            string.Format(Loc("Str_Busy_DownloadingHq"), name, i, toDownload.Count), Loc("Str_Busy_CancelHint"),
+                            msg => SetBusyMessage(busy, msg), ct);
                         OcrLanguages.MarkLanguageHq(code, true);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
@@ -305,7 +307,9 @@ namespace KillerPDF
                     string name = OcrLanguages.NameForCode(code);
                     string dest = Path.Combine(tessDir, code + ".traineddata");
                     await OcrLanguages.DownloadTrainedDataAsync(http, OcrLanguages.LanguageDataUrl(code, OcrHighQuality), dest,
-                        missing.Count == 1 ? $"Downloading {name}..." : $"Downloading {name} - {i + 1} of {missing.Count} -",
+                        missing.Count == 1 ? string.Format(Loc("Str_Busy_Downloading"), name)
+                                           : string.Format(Loc("Str_Busy_DownloadingMany"), name, i + 1, missing.Count),
+                        Loc("Str_Busy_CancelHint"),
                         msg => SetBusyMessage(busy, msg), ct);
                     OcrLanguages.MarkLanguageHq(code, OcrHighQuality);
                     if (ct.IsCancellationRequested) return false;

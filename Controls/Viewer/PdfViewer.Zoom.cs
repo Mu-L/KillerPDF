@@ -30,6 +30,8 @@ namespace KillerPDF.Controls
     // Window members referenced bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
+        private readonly WheelPageFlipGate _wheelPageFlipGate = new();
+
         // ============================================================
         // Zoom
         // ============================================================
@@ -37,6 +39,15 @@ namespace KillerPDF.Controls
         // internal: PdfViewer's XAML binds this and forwards to it.
         internal void PagePreview_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // #209: match the standard Windows/browser gesture and reuse the same path as a
+            // physical tilt wheel. Wheel-down moves right; wheel-up moves left.
+            if (Keyboard.Modifiers == ModifierKeys.Shift)
+            {
+                e.Handled = true;
+                ScrollHorizontalExt(-e.Delta);
+                return;
+            }
+
             if (Keyboard.Modifiers == ModifierKeys.Control)
             {
                 e.Handled = true;
@@ -92,7 +103,8 @@ namespace KillerPDF.Controls
             if (PagePreviewPanel.ScrollableHeight <= 0)
             {
                 e.Handled = true;
-                NavigatePageByWheel(e.Delta);
+                if (_wheelPageFlipGate.TryConfirm(e.Delta, DateTime.UtcNow))
+                    NavigatePageByWheel(e.Delta);
                 return;
             }
 
@@ -101,9 +113,11 @@ namespace KillerPDF.Controls
             if ((atTop && e.Delta > 0) || (atBottom && e.Delta < 0))
             {
                 e.Handled = true;
-                NavigatePageByWheel(e.Delta);
+                if (_wheelPageFlipGate.TryConfirm(e.Delta, DateTime.UtcNow))
+                    NavigatePageByWheel(e.Delta);
                 return;
             }
+            _wheelPageFlipGate.NoteContentScroll(DateTime.UtcNow);
             ScrollWheel(e);
         }
 
