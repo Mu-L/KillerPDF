@@ -528,6 +528,12 @@ try {
     gh release create $Tag @assets --title "KillerPDF $Tag" --notes-file $notesFile --verify-tag
     if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
 
+    Write-Host "`n==> Refreshing thekiller.net software page..." -ForegroundColor Cyan
+    gh workflow run deploy.yml --repo SteveTheKiller/thekiller-site
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "The release is published, but thekiller.net refresh could not be started. Run: gh workflow run deploy.yml --repo SteveTheKiller/thekiller-site"
+    }
+
     Write-Host "`n==> Release $Tag published:" -ForegroundColor Green
     Write-Host "    The WinGet Release workflow will submit this version once from GitHub Actions."
     gh release view $Tag --json url --jq '.url'
