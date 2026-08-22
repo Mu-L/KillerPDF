@@ -43,8 +43,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">縮放比例 (Ctrl+滾輪 · Ctrl++/- · Ctrl+0=重設)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">放大 (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">前往頁面（按 Enter 導航）</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">收合側邊欄 (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">展開側邊欄 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">收合側邊欄 (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">展開側邊欄 (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">鍵盤快速鍵 (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">關於 KillerPDF (F12)</sys:String>
 
@@ -654,6 +654,8 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Sys_Maximize">最大化</sys:String>
     <sys:String x:Key="Str_Sys_Close">關閉</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">取消</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">開啟</sys:String>
     <sys:String x:Key="Str_Btn_Replace">取代</sys:String>
     <sys:String x:Key="Str_Btn_Save">儲存</sys:String>
@@ -851,4 +853,22 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">橢圓 - 拖曳繪製橢圓</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">自由形狀 - 按一下新增點；按一下第一個點或按兩下閉合，Esc 取消，Backspace 刪除最後一個點</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">填滿形狀內部</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">最近的檔案</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">儲存選項</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">OCR 選項</sys:String>
+    <sys:String x:Key="Str_RecentHeading">最近</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - 鍵盤快速鍵</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">有可用更新: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">要下載並安裝 KillerPDF {0} 嗎?&#10;&#10;應用程式將關閉並自動重新開啟。</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">正在下載...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">清除所有資料</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">這會刪除所有已儲存的設定、已下載的 OCR 語言包和暫存檔案。&#10;&#10;您的 PDF 檔案不受影響。要繼續嗎?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">設定、語言包和暫存檔案已清除。&#10;&#10;請重新啟動 KillerPDF，以完成清除本次工作階段中仍在使用的檔案。</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - 未預期的錯誤</sys:String>
+    <sys:String x:Key="Str_Crash_Log">記錄: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">複製報告</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">開啟記錄</sys:String>
+    <sys:String x:Key="Str_Crash_Report">在 GitHub 上回報</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">繼續</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">結束</sys:String>
 </ResourceDictionary>

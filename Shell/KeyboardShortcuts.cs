@@ -34,6 +34,27 @@ namespace KillerPDF
             // Keyboard view of the shortcuts overlay: holding Ctrl / Shift / Alt previews that layer.
             KbSyncLayerFromModifiers();
 
+            // Bold / italic / underline while a text annotation is being edited. This has to come
+            // BEFORE the early return below, which hands every other key to the edit box: that
+            // return is exactly why Ctrl+B never reached the text tool and collapsed the sidebar
+            // instead. The two meanings of Ctrl+B cannot collide, because the sidebar binding is
+            // only reachable when no edit box has focus and this one only when it does.
+            if (_activeTextBox is not null && _activeTextBox.IsFocused &&
+                Keyboard.Modifiers == ModifierKeys.Control &&
+                e.Key is Key.B or Key.I or Key.U)
+            {
+                switch (e.Key)
+                {
+                    case Key.B: _textBold      = !_textBold;      break;
+                    case Key.I: _textItalic    = !_textItalic;    break;
+                    case Key.U: _textUnderline = !_textUnderline; break;
+                }
+                ApplyTextStyleToSelection();   // TextSettingsBar.cs, same pair the toggle buttons call
+                ShowTextSettings();
+                e.Handled = true;
+                return;
+            }
+
             // Don't intercept keys when typing in an editable TextBox (typewriter tool or form field).
             // The zoom ComboBox is editable-but-read-only; after using it, focus parks on its inner
             // TextBox and would otherwise swallow every shortcut (e.g. Ctrl+F) until the user clicked away.
@@ -286,7 +307,7 @@ namespace KillerPDF
                      && AboutOverlay.Visibility != Visibility.Visible)
             {
                 // #193: bare B = book layout toggle, only while Two-Page is active (single-key
-                // house style; Ctrl+B stays the sidebar). Same guards as the bare-key switches.
+                // house style; the sidebar is F9). Same guards as the bare-key switches.
                 ToggleBookMode();
                 e.Handled = true;
             }
@@ -343,9 +364,9 @@ namespace KillerPDF
                 }
                 e.Handled = true;
             }
-            else if (e.Key == Key.B && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            else if (e.Key == Key.F9 && Keyboard.Modifiers == ModifierKeys.Shift)
             {
-                ToggleSidebarSide();   // left/right, pairing with Ctrl+B's collapse toggle
+                ToggleSidebarSide();   // left/right, pairing with F9's collapse toggle
                 e.Handled = true;
             }
             else if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control)
@@ -353,16 +374,13 @@ namespace KillerPDF
                 NewDocument();
                 e.Handled = true;
             }
-            else if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                SidebarToggle_Click(this, e);   // collapse / restore the sidebar
-                e.Handled = true;
-            }
             else if (e.Key == Key.F9 && Keyboard.Modifiers == ModifierKeys.None)
             {
-                // Jog to the next view mode, wrapping (single-key house style; freed when the
-                // Settings panel retired). F5-F8 still jump straight to a specific mode.
-                CycleViewMode();
+                // The sidebar gets the single key, house style. F9 used to jog the view mode, which
+                // was the one redundant F-key: F5-F8 already jump straight to all four modes and the
+                // wheel over the view still cycles them. There is deliberately no Ctrl+B alias:
+                // Ctrl+B is bold, which is what users pressing it were expecting all along.
+                SidebarToggle_Click(this, e);
                 e.Handled = true;
             }
             else if (e.Key == Key.Home && Keyboard.Modifiers == ModifierKeys.None && _doc is not null)
@@ -654,9 +672,12 @@ namespace KillerPDF
         // Re-resolves the localized base text so a language switch keeps the right wording (from SelectLocale).
         private void ApplyToolNumberTooltips()
         {
-            void Set(System.Windows.Controls.Button btn, string key, string n)
+            // n null or empty = no key to advertise, so the tooltip is just the localized text
+            // rather than a stray empty bracket pair.
+            void Set(System.Windows.Controls.Button btn, string key, string? n)
             {
-                if (btn != null && TryFindResource(key) is string s) btn.ToolTip = $"{s} ({n})";
+                if (btn == null || TryFindResource(key) is not string s) return;
+                btn.ToolTip = string.IsNullOrEmpty(n) ? s : $"{s} ({n})";
             }
             Set(ToolSelectBtn, "Str_TT_SelectTool", "V");
             Set(ToolTextBtn, "Str_TT_TextTool", "1");
@@ -668,9 +689,10 @@ namespace KillerPDF
             Set(ToolSignatureBtn, "Str_TT_SignatureTool", "7");
             Set(ToolCropBtn, "Str_TT_CropTool", "8");
             Set(_toolRotateBtn, "Str_TT_RotateTool", "9");
-            // Not a tool, but the same treatment: the view-mode rail button advertises its jog
-            // key (the wheel-over gesture cycles too). Sentence case, like every rail tooltip.
-            Set(ViewModeBtn, "Str_TT_ViewMode", "F9");
+            // Not a tool, but the same treatment. Cycling has no key any more: F9 went to the
+            // sidebar, so the wheel over the view (or the button itself) is how you jog modes,
+            // and advertising a dead key here is worse than advertising none.
+            Set(ViewModeBtn, "Str_TT_ViewMode", null);
         }
 
         // Opens the online help / how-to page in the user's default browser.

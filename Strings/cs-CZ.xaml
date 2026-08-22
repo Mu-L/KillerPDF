@@ -43,8 +43,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">Úroveň přiblížení (Ctrl+kolečko · Ctrl++/- · Ctrl+0=obnovit)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">Přiblížit (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Přejít na stránku (potvrďte klávesou Enter)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">Sbalit postranní panel (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">Rozbalit postranní panel (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Sbalit postranní panel (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Rozbalit postranní panel (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Klávesové zkratky (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">O aplikaci KillerPDF (F12)</sys:String>
 
@@ -657,6 +657,8 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Sys_Maximize">Maximalizovat</sys:String>
     <sys:String x:Key="Str_Sys_Close">Zavřít</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">Zrušit</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">Otevřít</sys:String>
     <sys:String x:Key="Str_Btn_Replace">Nahradit</sys:String>
     <sys:String x:Key="Str_Btn_Save">Uložit</sys:String>
@@ -854,4 +856,22 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Elipsa - tažením nakreslíte ovál</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Volný tvar - klikáním přidáváte body; kliknutím na první bod nebo dvojklikem uzavřete, Esc zruší, Backspace odebere poslední bod</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">Vyplní vnitřek tvaru</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">Nedávné soubory</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">Možnosti ukládání</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">Možnosti OCR</sys:String>
+    <sys:String x:Key="Str_RecentHeading">NEDÁVNÉ</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - Klávesové zkratky</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">K dispozici je aktualizace: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">Stáhnout a nainstalovat KillerPDF {0}?&#10;&#10;Aplikace se zavře a automaticky znovu otevře.</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">Stahování...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">Vymazat všechna data</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">Tímto se smažou všechna uložená nastavení, stažené jazykové balíčky OCR a dočasné soubory.&#10;&#10;Vašich souborů PDF se to netýká. Pokračovat?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">Nastavení, jazykové balíčky a dočasné soubory byly vymazány.&#10;&#10;Restartujte KillerPDF, aby se dokončilo mazání souborů, které se v této relaci stále používají.</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - Neočekávaná chyba</sys:String>
+    <sys:String x:Key="Str_Crash_Log">Protokol: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">Kopírovat hlášení</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">Otevřít protokoly</sys:String>
+    <sys:String x:Key="Str_Crash_Report">Nahlásit na GitHubu</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">Pokračovat</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">Ukončit</sys:String>
 </ResourceDictionary>

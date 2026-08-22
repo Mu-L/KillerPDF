@@ -18,8 +18,8 @@ namespace KillerPDF
     // ============================================================
     public partial class MainWindow
     {
-        private enum KbLayer { Base, Ctrl, CtrlShift, Shift, Alt }
-
+        // KbLayer, the binding table and its types live in Services/ShortcutTable.cs, which is free
+        // of WPF so KillerPDF.Tests can link it.
         private KbLayer _kbLayer = KbLayer.Base;
         private bool _kbBuilt;
         private TextBlock? _kbDetail;
@@ -30,82 +30,13 @@ namespace KillerPDF
 
         private const string KsViewSetting = "ShortcutView";   // "list" (default) | "keyboard"
 
-        // ── Binding tables ─────────────────────────────────────────────────────────────────────
-        // key id -> (category brush suffix, localized label resource key). Categories map 1:1 to
-        // the KsCat* theme brushes and to the overlay's section title keys for the hover detail.
-        private static readonly Dictionary<KbLayer, Dictionary<string, (string Cat, string Label)>> KbMap = new()
-        {
-            [KbLayer.Base] = new()
-            {
-                ["F1"] = ("Help", "Str_KS_ThisList"),   ["F2"] = ("Edit", "Str_Ctx_BmRename"),
-                ["F3"] = ("Search", "Str_Kb_NextResult"), ["F4"] = ("File", "Str_KS_DocInfo"),
-                ["F5"] = ("View", "Str_View_Continuous"), ["F6"] = ("View", "Str_View_Single"),
-                ["F7"] = ("View", "Str_View_TwoPage"),  ["F8"] = ("View", "Str_View_Grid"),
-                ["F9"] = ("View", "Str_KS_CycleView"),  ["F10"] = ("View", "Str_KS_SplitPane"),
-                ["F11"] = ("View", "Str_KS_FullScreen"),
-                ["F12"] = ("Help", "Str_KS_About"),
-                ["D1"] = ("Tools", "Str_Lbl_Text"),     ["D2"] = ("Tools", "Str_Lbl_Highlight"),
-                ["D3"] = ("Tools", "Str_Lbl_Line"),     ["D4"] = ("Tools", "Str_Lbl_Shape"),
-                ["D5"] = ("Tools", "Str_Lbl_Draw"),     ["D6"] = ("Tools", "Str_Lbl_Image"),
-                ["D7"] = ("Tools", "Str_Lbl_Signature"),["D8"] = ("Tools", "Str_Lbl_Crop"),
-                ["D9"] = ("Tools", "Str_Lbl_Rotate"),   ["D0"] = ("Tools", "Str_TT_StampTool"),
-                ["V"] = ("Tools", "Str_Lbl_Select"),    ["T"] = ("Tools", "Str_Lbl_Text"),
-                ["L"] = ("Tools", "Str_Lbl_Line"),      ["U"] = ("Tools", "Str_Lbl_Line"),
-                ["H"] = ("Tools", "Str_Lbl_Highlight"), ["D"] = ("Tools", "Str_Lbl_Draw"),
-                ["I"] = ("Tools", "Str_Lbl_Image"),     ["G"] = ("Tools", "Str_Lbl_Signature"),
-                ["C"] = ("Tools", "Str_Lbl_Crop"),      ["R"] = ("Tools", "Str_Lbl_Rotate"),
-                ["S"] = ("Tools", "Str_TT_StampTool"),
-                ["N"] = ("View", "Str_DocInvertSetting"),
-                ["B"] = ("View", "Str_View_BookMode"),   // #193: Two-Page only
-                ["Home"] = ("Nav", "Str_Kb_FirstPage"), ["End"] = ("Nav", "Str_Kb_LastPage"),
-                ["PgUp"] = ("Nav", "Str_Kb_PrevPage"),  ["PgDn"] = ("Nav", "Str_Kb_NextPage"),
-                ["Left"] = ("Nav", "Str_Kb_PrevPage"),  ["Right"] = ("Nav", "Str_Kb_NextPage"),
-                ["Up"] = ("Nav", "Str_KS_ScrollView"),  ["Down"] = ("Nav", "Str_KS_ScrollView"),
-                ["Del"] = ("Edit", "Str_KS_DeleteAnnot"),
-                ["Enter"] = ("Edit", "Str_Kb_Confirm"), ["Esc"] = ("Edit", "Str_Kb_Cancel"),
-                ["Space"] = ("Nav", "Str_KS_PanView"),  ["Menu"] = ("Edit", "Str_KS_ContextMenu"),
-            },
-            [KbLayer.Ctrl] = new()
-            {
-                ["O"] = ("File", "Str_KS_Open"),        ["S"] = ("File", "Str_Lbl_Save"),
-                ["W"] = ("File", "Str_KS_CloseFile"),   ["Q"] = ("File", "Str_KS_CloseAll"),
-                ["N"] = ("File", "Str_KS_NewBlank"),    ["P"] = ("File", "Str_KS_Print"),
-                ["D"] = ("File", "Str_KS_DocInfo"),
-                ["F"] = ("Search", "Str_KS_Find"),      ["Z"] = ("Edit", "Str_KS_Undo"),
-                ["Y"] = ("Edit", "Str_Ctx_Redo"),       ["C"] = ("Edit", "Str_KS_CopyText"),
-                ["V"] = ("Edit", "Str_KS_Paste"),       ["A"] = ("Search", "Str_KS_SelectAll"),
-                ["B"] = ("Nav", "Str_KS_ToggleSidebar"),["Tab"] = ("Nav", "Str_KS_NextTab"),
-                ["Slash"] = ("Help", "Str_KS_ThisList"),
-                ["D0"] = ("View", "Str_KS_ResetZoom"),  ["D1"] = ("View", "Str_Zoom_ActualSize"),
-                ["D2"] = ("View", "Str_Zoom_FitWidth"), ["D3"] = ("View", "Str_Zoom_FitPage"),
-                ["Equals"] = ("View", "Str_Lbl_ZoomIn"), ["Minus"] = ("View", "Str_Lbl_ZoomOut"),
-                ["I"] = ("Edit", "Str_Lbl_Italic"),     ["U"] = ("Edit", "Str_Lbl_Underline"),
-            },
-            [KbLayer.CtrlShift] = new()
-            {
-                ["S"] = ("File", "Str_KS_SaveAs"),      ["O"] = ("Ocr", "Str_Ctx_OcrPage"),
-                ["I"] = ("Ocr", "Str_Ocr_Region"),      ["Z"] = ("Edit", "Str_Ctx_Redo"),
-                ["W"] = ("File", "Str_KS_CloseOthers"),
-                ["Tab"] = ("Nav", "Str_KS_PrevTab"),    ["B"] = ("Nav", "Str_KS_SidebarSide"),
-                ["Equals"] = ("View", "Str_KS_AppSize"), ["Minus"] = ("View", "Str_KS_AppSize"),
-                ["D0"] = ("View", "Str_KS_AppSize"),
-                // The toolbar appearance six, mirroring the bar's right-click menu top to bottom.
-                ["D1"] = ("View", "Str_Toolbar_SmallIcons"), ["D2"] = ("View", "Str_Toolbar_LargeIcons"),
-                ["D3"] = ("View", "Str_Toolbar_TextNone"),   ["D4"] = ("View", "Str_Toolbar_TextBeside"),
-                ["D5"] = ("View", "Str_Toolbar_TextUnder"),  ["D6"] = ("View", "Str_Toolbar_TextOnly"),
-            },
-            [KbLayer.Shift] = new()
-            {
-                ["F3"] = ("Search", "Str_Kb_PrevResult"), ["F4"] = ("File", "Str_KS_FileSize"),
-                ["F10"] = ("Edit", "Str_KS_ContextMenu"),
-                ["Enter"] = ("Search", "Str_Kb_PrevResult"),
-                ["N"] = ("View", "Str_InvertImagesToo"),
-            },
-            [KbLayer.Alt] = new()
-            {
-                ["Left"] = ("Nav", "Str_Kb_Back"), ["Right"] = ("Nav", "Str_Kb_Forward"),
-            },
-        };
+        // ── Binding table ──────────────────────────────────────────────────────────────────────
+        // DERIVED from ShortcutTable.KsAll, the same array the list is built from, so the two views
+        // cannot describe a binding differently. Adding a shortcut is a one-line edit there.
+        // A double claim on one cap would silently let the last writer win, which is how Ctrl+B
+        // meant two things for so long; ShortcutTableTests asserts that never happens.
+        private static readonly Dictionary<KbLayer, Dictionary<string, (string Cat, string Label)>> KbMap =
+            ShortcutTable.BuildMap();
 
         // ── Physical layout ────────────────────────────────────────────────────────────────────
         // (id, cap text, width units). id "" = spacer. Numpad omitted (digits mirror the number row).

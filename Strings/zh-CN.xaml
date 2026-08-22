@@ -41,8 +41,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">缩放比例 (Ctrl+滚轮 · Ctrl++/- · Ctrl+0=重设)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">放大 (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">前往页面（按 Enter 导航）</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">折叠侧边栏 (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">展开侧边栏 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">折叠侧边栏 (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">展开侧边栏 (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">键盘快速键 (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">关于 KillerPDF (F12)</sys:String>
 
@@ -656,6 +656,8 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Sys_Maximize">最大化</sys:String>
     <sys:String x:Key="Str_Sys_Close">关闭</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">取消</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">打开</sys:String>
     <sys:String x:Key="Str_Btn_Replace">替换</sys:String>
     <sys:String x:Key="Str_Btn_Save">保存</sys:String>
@@ -853,4 +855,22 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">椭圆 - 拖动绘制椭圆</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">自由形状 - 单击添加点；单击第一个点或双击闭合，Esc 取消，Backspace 删除最后一个点</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">填充形状内部</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">最近的文件</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">保存选项</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">OCR 选项</sys:String>
+    <sys:String x:Key="Str_RecentHeading">最近</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - 键盘快捷键</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">有可用更新: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">下载并安装 KillerPDF {0} 吗?&#10;&#10;应用将关闭并自动重新打开。</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">正在下载...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">清除所有数据</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">这将删除所有已保存的设置、已下载的 OCR 语言包和临时文件。&#10;&#10;您的 PDF 文件不受影响。是否继续?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">设置、语言包和临时文件已清除。&#10;&#10;重启 KillerPDF 以完成清除本次会话中仍在使用的文件。</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - 意外错误</sys:String>
+    <sys:String x:Key="Str_Crash_Log">日志: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">复制报告</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">打开日志</sys:String>
+    <sys:String x:Key="Str_Crash_Report">在 GitHub 上报告</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">继续</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">退出</sys:String>
 </ResourceDictionary>

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -5,11 +6,12 @@ using System.Windows.Media;
 namespace KillerPDF
 {
     // ============================================================
-    // Keyboard-shortcuts overlay: single source of truth.
+    // Keyboard-shortcuts overlay: the LIST view.
     //
-    // The overlay card (ShortcutOverlay in MainWindow.xaml) is generated from the tables below rather
-    // than hand-authored row by row, so adding or changing a shortcut is a one-line edit here and can't
-    // drift out of sync with a parallel block of XAML. The two empty hosts ShortcutLeftColumn /
+    // The overlay card (ShortcutOverlay in MainWindow.xaml) is generated from ShortcutTable.KsAll
+    // rather than hand-authored row by row, so adding or changing a shortcut is a one-line edit
+    // there and can't drift out of sync with a parallel block of XAML - or with the keyboard map,
+    // which is built from the same array. The two empty hosts ShortcutLeftColumn /
     // ShortcutRightColumn are filled by BuildShortcutsOverlay(), called once from the constructor.
     //
     // Keys are literal text (shown in Consolas, like a real keycap); labels are Str_* resource keys so
@@ -31,110 +33,21 @@ namespace KillerPDF
             public KsRow[] Rows = [];
         }
 
-        // Left column: File, Tools, Editing, Help.
-        private static readonly KsSection[] KsLeftColumn =
-        [
-            new KsSection { TitleKey = "Str_KS_File", Cat = "File", Rows =
-            [
-                new("Ctrl+O",       "Str_KS_Open"),
-                new("Ctrl+S",       "Str_Lbl_Save"),
-                new("Ctrl+Shift+S", "Str_KS_SaveAs"),
-                new("Ctrl+W",       "Str_KS_CloseFile"),
-                new("Ctrl+Shift+W", "Str_KS_CloseOthers"),
-                new("Ctrl+Q",       "Str_KS_CloseAll"),
-                new("Ctrl+N",       "Str_KS_NewBlank"),
-                new("Ctrl+P",       "Str_KS_Print"),
-                new("Ctrl+D / F4",  "Str_KS_DocInfo"),
-                new("Shift+F4",     "Str_KS_FileSize"),
-            ]},
-            new KsSection { TitleKey = "Str_KS_Tools", Cat = "Tools", Rows =
-            [
-                new("V",        "Str_Lbl_Select"),
-                new("1 (or T)", "Str_Lbl_Text"),
-                new("2 (or H)", "Str_Lbl_Highlight"),
-                new("3 (or L or U)", "Str_Lbl_Line"),
-                new("4",        "Str_Lbl_Shape"),
-                new("5 (or D)", "Str_Lbl_Draw"),
-                new("6 (or I)", "Str_Lbl_Image"),
-                new("7 (or G)", "Str_Lbl_Signature"),
-                new("8 (or C)", "Str_Lbl_Crop"),
-                new("9 (or R)", "Str_Lbl_Rotate"),
-                new("0 (or S)", "Str_TT_StampTool"),
-            ]},
-            new KsSection { TitleKey = "Str_KS_Editing", Cat = "Edit", Rows =
-            [
-                new("Ctrl+Z",         "Str_KS_Undo"),
-                new("Ctrl+Y",         "Str_Ctx_Redo"),
-                new("Ctrl+Shift+Z",   "Str_Ctx_Redo"),
-                new("Ctrl+C",         "Str_KS_CopyText"),
-                new("Ctrl+V",         "Str_KS_Paste"),
-                new("Ctrl+B / I / U", "Str_KS_TextStyle"),
-                new("Delete",         "Str_KS_DeleteAnnot"),
-                new("F2",             "Str_Ctx_BmRename"),
-                new("Enter / Escape", "Str_KS_ConfirmCancel"),
-                new("Menu / Shift+F10","Str_KS_ContextMenu"),
-            ]},
-            new KsSection { TitleKey = "Str_KS_Help", Cat = "Help", Rows =
-            [
-                new("F1 / Ctrl+?", "Str_KS_ThisList"),
-                new("F12",         "Str_KS_About"),
-            ]},
-        ];
+        /// <summary>The list's view of the table: sections in KsGroups order, rows in declaration
+        /// order. Caps are ignored here; they only matter to the keyboard map.</summary>
+        private static KsSection[] KsColumn(bool right) =>
+            ShortcutTable.KsGroups.Where(g => g.Right == right)
+                .Select(g => new KsSection
+                {
+                    TitleKey = g.TitleKey,
+                    Cat = g.Cat,
+                    Rows = ShortcutTable.KsAll.Where(b => b.Cat == g.Cat)
+                                              .Select(b => new KsRow(b.Keys, b.LabelKey)).ToArray(),
+                })
+                .ToArray();
 
-        // Right column: Navigation, View, OCR, Search & Select.
-        private static readonly KsSection[] KsRightColumn =
-        [
-            new KsSection { TitleKey = "Str_KS_Navigation", Cat = "Nav", Rows =
-            [
-                // Tightened to fit the 120px key column with a visible gap before the label.
-                new("← / → or PgUp/PgDn", "Str_KS_PrevNext"),
-                new("Home / End",     "Str_KS_FirstLast"),
-                new("Alt+← / Alt+→",  "Str_KS_BackForward"),
-                new("↑ / ↓",          "Str_KS_ScrollView"),
-                new("Ctrl+Scroll",    "Str_KS_ZoomCursor"),
-                new("Ctrl+%zin% / Ctrl+%zout%", "Str_KS_ZoomInOut"),
-                new("Ctrl+0",         "Str_KS_ResetZoom"),
-                new("Ctrl+1/2/3",     "Str_KS_ZoomPresets"),
-                new("Middle drag",    "Str_KS_PanView"),
-                new("Space + drag",   "Str_KS_PanView"),
-                new("Ctrl+B",         "Str_KS_ToggleSidebar"),
-                new("Ctrl+Shift+B",   "Str_KS_SidebarSide"),
-                new("Ctrl+Tab",       "Str_KS_NextTab"),
-                new("Ctrl+Shift+Tab", "Str_KS_PrevTab"),
-            ]},
-            new KsSection { TitleKey = "Str_KS_View", Cat = "View", Rows =
-            [
-                new("F5",        "Str_View_Continuous"),
-                new("F6",        "Str_View_Single"),
-                new("F7",        "Str_View_TwoPage"),
-                new("B",         "Str_View_BookMode"),   // #193: Two-Page only
-                new("F8",        "Str_View_Grid"),
-                new("F9",        "Str_KS_CycleView"),
-                // Untranslated gesture literals, same convention as "Middle drag" below Navigation.
-                new("Wheel on view", "Str_KS_CycleView"),
-                new("F10",       "Str_KS_SplitPane"),
-                new("F11 / Esc", "Str_KS_FullScreen"),
-                new("Alt+M",     "Str_Toolbar_Hide"),
-                new("N",         "Str_DocInvertSetting"),
-                new("Shift+N",   "Str_InvertImagesToo"),
-                new("Ctrl+Shift+%zin% / %zout% / 0", "Str_KS_AppSize"),
-                new("Wheel on logo",   "Str_KS_AppSize"),
-                new("Ctrl+Shift+1..6", "Str_KS_ToolbarStyle"),
-            ]},
-            new KsSection { TitleKey = "Str_KS_Ocr", Cat = "Ocr", Rows =
-            [
-                new("Ctrl+Shift+O", "Str_Ctx_OcrPage"),
-                new("Ctrl+Shift+I", "Str_Ocr_Region"),
-            ]},
-            new KsSection { TitleKey = "Str_KS_SearchSelect", Cat = "Search", Rows =
-            [
-                new("Ctrl+F",              "Str_KS_Find"),
-                new("F3 / Shift+F3",       "Str_KS_NextPrevResult"),
-                new("Enter / Shift+Enter", "Str_KS_NextPrevResult"),
-                new("Ctrl+A",              "Str_KS_SelectAll"),
-                new("Shift+Click",         "Str_KS_MultiSelect"),
-            ]},
-        ];
+        private static readonly KsSection[] KsLeftColumn  = KsColumn(right: false);
+        private static readonly KsSection[] KsRightColumn = KsColumn(right: true);
 
         // #153: the zoom keys are spelled differently per keyboard layout - "=" is a plain keypress
         // on US but needs Shift on German, where "+" is the unshifted one instead. The bindings

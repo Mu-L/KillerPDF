@@ -41,8 +41,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">Yakınlaştırma düzeyi (Ctrl+kaydırma · Ctrl++/- · Ctrl+0=sıfırla)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">Yakınlaştır (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Sayfaya git (gitmek için Enter)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">Kenar çubuğunu daralt (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">Kenar çubuğunu genişlet (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Kenar çubuğunu daralt (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Kenar çubuğunu genişlet (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Klavye kısayolları (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">KillerPDF Hakkında (F12)</sys:String>
 
@@ -652,6 +652,8 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Sys_Maximize">Ekranı Kapla</sys:String>
     <sys:String x:Key="Str_Sys_Close">Kapat</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">İptal</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">Aç</sys:String>
     <sys:String x:Key="Str_Btn_Replace">Değiştir</sys:String>
     <sys:String x:Key="Str_Btn_Save">Kaydet</sys:String>
@@ -849,4 +851,22 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Elips - bir oval sürükleyin</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Serbest biçim - nokta eklemek için tıklayın; kapatmak için ilk noktaya tıklayın veya çift tıklayın, Esc iptal eder, Backspace son noktayı siler</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">Şeklin içini doldurur</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">Son kullanılan dosyalar</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">Kaydetme seçenekleri</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">OCR seçenekleri</sys:String>
+    <sys:String x:Key="Str_RecentHeading">SON KULLANILANLAR</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - Klavye kısayolları</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">Güncelleme mevcut: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">KillerPDF {0} indirilip yüklensin mi?&#10;&#10;Uygulama kapanacak ve otomatik olarak yeniden açılacak.</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">İndiriliyor...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">Tüm verileri temizle</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">Bu işlem kayıtlı tüm ayarları, indirilen OCR dil paketlerini ve geçici dosyaları siler.&#10;&#10;PDF dosyalarınız etkilenmez. Devam edilsin mi?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">Ayarlar, dil paketleri ve geçici dosyalar temizlendi.&#10;&#10;Bu oturumda hâlâ kullanımda olan dosyaların temizlenmesini tamamlamak için KillerPDF'i yeniden başlatın.</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - Beklenmeyen hata</sys:String>
+    <sys:String x:Key="Str_Crash_Log">Günlük: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">Raporu kopyala</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">Günlükleri aç</sys:String>
+    <sys:String x:Key="Str_Crash_Report">GitHub'da bildir</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">Devam et</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">Çık</sys:String>
 </ResourceDictionary>

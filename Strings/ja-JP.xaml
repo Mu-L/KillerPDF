@@ -43,8 +43,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">ズームレベル (Ctrl+ホイール · Ctrl++/- · Ctrl+0=リセット)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">ズームイン (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">ページへ移動 (Enterで移動)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">サイドバーを折りたたむ (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">サイドバーを展開 (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">サイドバーを折りたたむ (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">サイドバーを展開 (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">キーボードショートカット (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">KillerPDF について (F12)</sys:String>
 
@@ -657,6 +657,8 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Sys_Maximize">最大化</sys:String>
     <sys:String x:Key="Str_Sys_Close">閉じる</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">キャンセル</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">開く</sys:String>
     <sys:String x:Key="Str_Btn_Replace">置き換え</sys:String>
     <sys:String x:Key="Str_Btn_Save">保存</sys:String>
@@ -854,4 +856,22 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">楕円 - ドラッグで楕円を描きます</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">フリーフォーム - クリックで点を追加。最初の点をクリックまたはダブルクリックで閉じる、Esc でキャンセル、Backspace で最後の点を削除</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">図形の内側を塗りつぶします</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">最近使ったファイル</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">保存オプション</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">OCR オプション</sys:String>
+    <sys:String x:Key="Str_RecentHeading">最近</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - キーボード ショートカット</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">更新があります: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">KillerPDF {0} をダウンロードしてインストールしますか?&#10;&#10;アプリは終了し、自動的に再起動します。</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">ダウンロード中...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">すべてのデータを消去</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">保存されたすべての設定、ダウンロード済みの OCR 言語パック、一時ファイルを削除します。&#10;&#10;PDF ファイルには影響しません。続行しますか?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">設定、言語パック、一時ファイルを消去しました。&#10;&#10;このセッションで使用中のファイルの消去を完了するには、KillerPDF を再起動してください。</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - 予期しないエラー</sys:String>
+    <sys:String x:Key="Str_Crash_Log">ログ: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">レポートをコピー</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">ログを開く</sys:String>
+    <sys:String x:Key="Str_Crash_Report">GitHub で報告</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">続行</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">終了</sys:String>
 </ResourceDictionary>

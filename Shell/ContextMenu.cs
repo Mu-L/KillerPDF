@@ -636,7 +636,7 @@ namespace KillerPDF
             menu.Items.Add(new MenuItem { Header = Loc("Str_Sidebar"), IsEnabled = false });
             var left  = new MenuItem { Header = Loc("Str_Sidebar_Left"),  IsCheckable = true, IsChecked = !_sidebarRight };
             var right = new MenuItem { Header = Loc("Str_Sidebar_Right"), IsCheckable = true, IsChecked = _sidebarRight };
-            (_sidebarRight ? left : right).InputGestureText = "Ctrl+Shift+B";
+            (_sidebarRight ? left : right).InputGestureText = "Shift+F9";
             left.Click  += (_, _2) => SelectSidebarSide(false);
             right.Click += (_, _2) => SelectSidebarSide(true);
             menu.Items.Add(left);

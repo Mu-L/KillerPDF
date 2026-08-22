@@ -41,8 +41,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">জুম স্তর (Ctrl+স্ক্রল · Ctrl++/- · Ctrl+0=রিসেট)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">জুম ইন (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">পৃষ্ঠায় যান (নেভিগেট করতে Enter চাপুন)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">সাইডবার সংকুচিত করুন (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">সাইডবার প্রসারিত করুন (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">সাইডবার সংকুচিত করুন (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">সাইডবার প্রসারিত করুন (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">কীবোর্ড শর্টকাট (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">KillerPDF সম্পর্কে (F12)</sys:String>
 
@@ -652,6 +652,8 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Sys_Maximize">বড় করুন</sys:String>
     <sys:String x:Key="Str_Sys_Close">বন্ধ করুন</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">বাতিল</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">খুলুন</sys:String>
     <sys:String x:Key="Str_Btn_Replace">পরিবর্তন</sys:String>
     <sys:String x:Key="Str_Btn_Save">সংরক্ষণ</sys:String>
@@ -849,4 +851,22 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">উপবৃত্ত - একটি ডিম্বাকৃতি টানুন</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">ফ্রিফর্ম - পয়েন্ট যোগ করতে ক্লিক করুন; বন্ধ করতে প্রথম পয়েন্টে ক্লিক বা ডাবল ক্লিক করুন, Esc বাতিল করে, Backspace শেষ পয়েন্ট মুছে দেয়</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">আকৃতির ভিতরটা পূরণ করে</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">সাম্প্রতিক ফাইল</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">সংরক্ষণের বিকল্প</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">OCR বিকল্প</sys:String>
+    <sys:String x:Key="Str_RecentHeading">সাম্প্রতিক</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - কীবোর্ড শর্টকাট</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">আপডেট উপলব্ধ: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">KillerPDF {0} ডাউনলোড করে ইনস্টল করবেন?&#10;&#10;অ্যাপটি বন্ধ হয়ে স্বয়ংক্রিয়ভাবে আবার খুলবে।</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">ডাউনলোড হচ্ছে...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">সব ডেটা মুছুন</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">এটি সংরক্ষিত সব সেটিংস, ডাউনলোড করা OCR ভাষা প্যাক এবং অস্থায়ী ফাইল মুছে ফেলবে।&#10;&#10;আপনার PDF ফাইলগুলি প্রভাবিত হবে না। চালিয়ে যাবেন?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">সেটিংস, ভাষা প্যাক এবং অস্থায়ী ফাইল মুছে ফেলা হয়েছে।&#10;&#10;এই সেশনে এখনও ব্যবহৃত ফাইলগুলি মোছা সম্পূর্ণ করতে KillerPDF পুনরায় চালু করুন।</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - অপ্রত্যাশিত ত্রুটি</sys:String>
+    <sys:String x:Key="Str_Crash_Log">লগ: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">রিপোর্ট কপি করুন</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">লগ খুলুন</sys:String>
+    <sys:String x:Key="Str_Crash_Report">GitHub-এ রিপোর্ট করুন</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">চালিয়ে যান</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">প্রস্থান</sys:String>
 </ResourceDictionary>

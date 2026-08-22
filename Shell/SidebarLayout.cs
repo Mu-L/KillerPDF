@@ -276,7 +276,7 @@ namespace KillerPDF
             ApplySidebarSide();
         }
 
-        // Ctrl+Shift+B (pairs with Ctrl+B, the sidebar collapse toggle).
+        // Shift+F9 (pairs with F9, the sidebar collapse toggle).
         private void ToggleSidebarSide() => SelectSidebarSide(!_sidebarRight);
 
         // ── Page-list edge fades - KillerShell's transparent-content mask ──

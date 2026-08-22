@@ -43,8 +43,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">Poziom powiększenia (Ctrl+scroll · Ctrl++/- · Ctrl+0=reset)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">Powiększ (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Przejdź do strony (Enter do nawigacji)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">Zwiń pasek boczny (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">Rozwiń pasek boczny (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Zwiń pasek boczny (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Rozwiń pasek boczny (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Skróty klawiaturowe (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">O KillerPDF (F12)</sys:String>
 
@@ -79,7 +79,6 @@
     <sys:String x:Key="Str_Lang_English">English</sys:String>
     <sys:String x:Key="Str_Lang_Spanish">Español</sys:String>
     <sys:String x:Key="Str_Lang_Chinese">中文 (繁體)</sys:String>
-	<sys:String x:Key="Str_Lang_Polish">Polish</sys:String>
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Skróty Klawiaturowe</sys:String>
@@ -651,6 +650,8 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Sys_Maximize">Maksymalizuj</sys:String>
     <sys:String x:Key="Str_Sys_Close">Zamknij</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">Anuluj</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">Otwórz</sys:String>
     <sys:String x:Key="Str_Btn_Replace">Zamień</sys:String>
     <sys:String x:Key="Str_Btn_Save">Zapisz</sys:String>
@@ -858,4 +859,22 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Elipsa - przeciągnij, aby narysować owal</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Kształt dowolny - klikaj, aby dodać punkty; kliknij pierwszy punkt lub kliknij dwukrotnie, aby zamknąć, Esc anuluje, Backspace usuwa ostatni punkt</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">Wypełnia wnętrze kształtu</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">Ostatnie pliki</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">Opcje zapisu</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">Opcje OCR</sys:String>
+    <sys:String x:Key="Str_RecentHeading">OSTATNIE</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - Skróty klawiaturowe</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">Dostępna aktualizacja: {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">Pobrać i zainstalować KillerPDF {0}?&#10;&#10;Aplikacja zamknie się i otworzy ponownie automatycznie.</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">Pobieranie...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">Wyczyść wszystkie dane</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">Spowoduje to usunięcie wszystkich zapisanych ustawień, pobranych pakietów językowych OCR i plików tymczasowych.&#10;&#10;Twoje pliki PDF pozostaną nienaruszone. Kontynuować?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">Ustawienia, pakiety językowe i pliki tymczasowe zostały wyczyszczone.&#10;&#10;Uruchom ponownie KillerPDF, aby dokończyć usuwanie plików nadal używanych w tej sesji.</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - Nieoczekiwany błąd</sys:String>
+    <sys:String x:Key="Str_Crash_Log">Dziennik: {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">Kopiuj raport</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">Otwórz dzienniki</sys:String>
+    <sys:String x:Key="Str_Crash_Report">Zgłoś na GitHubie</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">Kontynuuj</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">Zakończ</sys:String>
 </ResourceDictionary>

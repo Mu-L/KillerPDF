@@ -38,8 +38,8 @@
     <sys:String x:Key="Str_TT_ZoomLevel">Niveau de zoom (Ctrl+molette · Ctrl++/- · Ctrl+0=Réinitialiser)</sys:String>
     <sys:String x:Key="Str_TT_ZoomIn">Augmenter le zoom (Ctrl++)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Aller à la page (Entrée pour naviguer)</sys:String>
-    <sys:String x:Key="Str_TT_CollapseSidebar">Réduire le panneau latéral (Ctrl+B)</sys:String>
-    <sys:String x:Key="Str_TT_ExpandSidebar">Développer le panneau latéral (Ctrl+B)</sys:String>
+    <sys:String x:Key="Str_TT_CollapseSidebar">Réduire le panneau latéral (F9)</sys:String>
+    <sys:String x:Key="Str_TT_ExpandSidebar">Développer le panneau latéral (F9)</sys:String>
     <sys:String x:Key="Str_TT_KeyboardShortcuts">Raccourcis clavier (F1)</sys:String>
     <sys:String x:Key="Str_TT_About">À propos de KillerPDF (F12)</sys:String>
 
@@ -668,6 +668,8 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Sys_Maximize">Agrandir</sys:String>
     <sys:String x:Key="Str_Sys_Close">Fermer</sys:String>
     <sys:String x:Key="Str_Btn_Cancel">Annuler</sys:String>
+    <sys:String x:Key="Str_Wordmark_A">Killer</sys:String>
+    <sys:String x:Key="Str_Wordmark_B">PDF</sys:String>
     <sys:String x:Key="Str_Btn_Open">Ouvrir</sys:String>
     <sys:String x:Key="Str_Btn_Replace">Remplacer</sys:String>
     <sys:String x:Key="Str_Btn_Save">Enregistrer</sys:String>
@@ -865,4 +867,22 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Ellipse - tracez un ovale</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Forme libre - cliquez pour placer des points ; cliquez sur le premier point ou double-cliquez pour fermer, Échap annule, Retour arrière supprime le dernier point</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">Remplit l'intérieur de la forme</sys:String>
+    <sys:String x:Key="Str_TT_RecentFiles">Fichiers récents</sys:String>
+    <sys:String x:Key="Str_TT_SaveOptions">Options d'enregistrement</sys:String>
+    <sys:String x:Key="Str_TT_OcrOptions">Options d'OCR</sys:String>
+    <sys:String x:Key="Str_RecentHeading">RÉCENTS</sys:String>
+    <sys:String x:Key="Str_KS_WindowTitle">KillerPDF - Raccourcis clavier</sys:String>
+    <sys:String x:Key="Str_UpdateAvailable">Mise à jour disponible : {0}</sys:String>
+    <sys:String x:Key="Str_UpdatePrompt" xml:space="preserve">Télécharger et installer KillerPDF {0} ?&#10;&#10;L'application se fermera et rouvrira automatiquement.</sys:String>
+    <sys:String x:Key="Str_UpdateDownloading">Téléchargement...</sys:String>
+    <sys:String x:Key="Str_ClearAllData">Effacer toutes les données</sys:String>
+    <sys:String x:Key="Str_ClearDataConfirm" xml:space="preserve">Cela supprimera tous les paramètres enregistrés, les modules linguistiques OCR téléchargés et les fichiers temporaires.&#10;&#10;Vos fichiers PDF ne sont pas affectés. Continuer ?</sys:String>
+    <sys:String x:Key="Str_ClearDataDone" xml:space="preserve">Les paramètres, les modules linguistiques et les fichiers temporaires ont été effacés.&#10;&#10;Redémarrez KillerPDF pour terminer la suppression des fichiers encore utilisés durant cette session.</sys:String>
+    <sys:String x:Key="Str_Crash_Title">KillerPDF - Erreur inattendue</sys:String>
+    <sys:String x:Key="Str_Crash_Log">Journal : {0}</sys:String>
+    <sys:String x:Key="Str_Crash_Copy">Copier le rapport</sys:String>
+    <sys:String x:Key="Str_Crash_OpenLogs">Ouvrir les journaux</sys:String>
+    <sys:String x:Key="Str_Crash_Report">Signaler sur GitHub</sys:String>
+    <sys:String x:Key="Str_Crash_Continue">Continuer</sys:String>
+    <sys:String x:Key="Str_Crash_Quit">Quitter</sys:String>
 </ResourceDictionary>

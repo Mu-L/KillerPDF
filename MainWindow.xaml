@@ -1732,8 +1732,9 @@
                                 </Button.Template>
                             </Button>
                             <!-- View mode: click opens the picker flyout, rolling the WHEEL over the
-                                 button cycles Single -> Continuous -> TwoPage -> Grid directly (F9
-                                 does the same from the keyboard; F5-F8 still jump straight to one). -->
+                                 button cycles Single -> Continuous -> TwoPage -> Grid directly.
+                                 Cycling has no key of its own since F9 became the sidebar toggle;
+                                 F5-F8 still jump straight to a mode. -->
                             <Button x:Name="ViewModeBtn" Click="RailView_Click"
                                     PreviewMouseWheel="RailView_Wheel"
                                     Cursor="Hand" FocusVisualStyle="{x:Null}"

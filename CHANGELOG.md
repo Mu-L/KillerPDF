@@ -4,6 +4,18 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.5] - Unreleased
+
+### Added
+- Ctrl+B, Ctrl+I and Ctrl+U now bold, italicize and underline while you are editing a text box. They were listed in the shortcuts for years without ever being wired up (#230).
+
+### Changed
+- The sidebar moved from Ctrl+B to F9, and moving it left or right from Ctrl+Shift+B to Shift+F9. Ctrl+B was documented as bold and as the sidebar at the same time, and it was the sidebar that answered. F9 was the one function key with nothing of its own to do: the four view modes still have F5 to F8, and the wheel over the view still cycles them.
+
+### Fixed
+- Nine dialogs lost every line break in their message, including the install and update prompts. The strings carried the breaks but not the attribute that stops XAML collapsing them, so adding more had no effect (#231, thanks bovirus).
+- Alt+M was missing from the keyboard map, and Home, End and the arrow keys described their action differently on the map than in the list. Both views are now generated from one table and cannot disagree.
+
 ## [1.7.4] - 2026-08-21
 
 KillerPDF 1.7.4 keeps the convenience of one portable download while installing as a normal multi-file application, cutting initial startup time substantially. This release also fixes annotation rotation, form fields on comma-decimal locales, installation scope, and a range of viewer, dialog, and localization problems. Hungarian localization and page image export are included as well.
