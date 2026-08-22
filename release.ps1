@@ -155,6 +155,7 @@ namespace KillerPDF
     }
 }
 "@
+$buildInfoContent += [Environment]::NewLine
 [System.IO.File]::WriteAllText($buildInfoPath, $buildInfoContent, [System.Text.UTF8Encoding]::new($false))
 Write-Host "    BuildInfo.cs updated." -ForegroundColor Green
 
