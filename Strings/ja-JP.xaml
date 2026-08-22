@@ -705,6 +705,13 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Color_Name">色</sys:String>
     <sys:String x:Key="Str_Color_Pick">色を選択</sys:String>
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Color_Replace">置き換え</sys:String>
+    <sys:String x:Key="Str_Color_Reset">リセット</sys:String>
+    <sys:String x:Key="Str_Color_ReplaceTT">クリックしてから、現在の色を割り当てるスウォッチをクリックします</sys:String>
+    <sys:String x:Key="Str_Color_ResetTT">スウォッチを既定に戻す</sys:String>
+    <sys:String x:Key="Str_Color_EyedropTT">画面上の任意の場所から色を取得</sys:String>
+    <sys:String x:Key="Str_Color_SwatchSetTT">クリックしてこのスウォッチに現在の色を設定</sys:String>
+    <sys:String x:Key="Str_Color_SwatchUseTT">クリックしてこの色を使用</sys:String>
     <sys:String x:Key="Str_Sign_Name">デジタル署名</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">署名証明書を選択</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">署名画像をインポート</sys:String>

@@ -711,6 +711,13 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Color_Name">Color</sys:String>
     <sys:String x:Key="Str_Color_Pick">Pick a color</sys:String>
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Color_Replace">Replace</sys:String>
+    <sys:String x:Key="Str_Color_Reset">Reset</sys:String>
+    <sys:String x:Key="Str_Color_ReplaceTT">Click, then click a swatch to set it to the current color</sys:String>
+    <sys:String x:Key="Str_Color_ResetTT">Reset swatches to defaults</sys:String>
+    <sys:String x:Key="Str_Color_EyedropTT">Pick a color from anywhere on screen</sys:String>
+    <sys:String x:Key="Str_Color_SwatchSetTT">Click to set this swatch to the current color</sys:String>
+    <sys:String x:Key="Str_Color_SwatchUseTT">Click to use this color</sys:String>
     <sys:String x:Key="Str_Sign_Name">Digital Signature</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Choose a signing certificate</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Import Signature Image</sys:String>

@@ -64,14 +64,14 @@ namespace KillerPDF
         private Grid GrainWrap(UIElement content)
         {
             var g = new Grid();
-            g.Children.Add(new Border
-            {
-                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
-                Margin = new Thickness(-4),
-                IsHitTestVisible = false,
-                Opacity = (double)FindResource("GrainOpacity"),
-                Background = (System.Windows.Media.Brush)FindResource("GrainBrushShared")
-            });
+            // SetResourceReference, not a FindResource snapshot: these hosts are built once and
+            // outlive theme switches, so a snapshot kept the grain painting on 98SE (whose
+            // GrainOpacity is 0) and its -4 margin overhang made the bevel read as misaligned.
+            var grain = new Border { Margin = new Thickness(-4), IsHitTestVisible = false };
+            grain.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+            grain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+            grain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+            g.Children.Add(grain);
             g.Children.Add(content);
             return g;
         }
@@ -114,14 +114,13 @@ namespace KillerPDF
             host.Children.Add(darkEdge);
 
             // Grain stays put when the controls collapse, so the minimized strip keeps the texture.
-            host.Children.Add(new Border
-            {
-                CornerRadius = ResourceCornerRadius("FlyoutCornerRadius"),
-                Margin = new Thickness(-4),
-                IsHitTestVisible = false,
-                Opacity = (double)FindResource("GrainOpacity"),
-                Background = (Brush)FindResource("GrainBrushShared")
-            });
+            // SetResourceReference so a theme switch retargets it - 98SE's GrainOpacity of 0 must
+            // actually clear the texture on an already-built bar (a FindResource snapshot did not).
+            var hostGrain = new Border { Margin = new Thickness(-4), IsHitTestVisible = false };
+            hostGrain.SetResourceReference(Border.CornerRadiusProperty, "FlyoutCornerRadius");
+            hostGrain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+            hostGrain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+            host.Children.Add(hostGrain);
 
             host.Children.Add(content);   // the collapsible controls
 
@@ -275,6 +274,10 @@ namespace KillerPDF
                     _annotBarAnchorRight = App.GetSetting("AnnotBarRightSide") != "0";   // default: right edge
                 }
             }
+            // Track the bar's own size (first measure, wrap to a second row) so the 98SE scroller
+            // inset and the floating themes' edge clamp stay in step with the real height/width.
+            bar.SizeChanged -= AnnotBarSizeChanged;
+            bar.SizeChanged += AnnotBarSizeChanged;
             EnableBarSlide(grip, bar, area);
             // The minimized peek strip drags the bar too, so a collapsed bar can be repositioned.
             if (_annotBarDots is not null) EnableBarSlide(_annotBarDots, bar, area);
@@ -385,13 +388,11 @@ namespace KillerPDF
             // Family flyout rule: the film grain is the LAST child, OVER the items, non-hit-testable.
             var inner = new Grid();
             inner.Children.Add(s);
-            inner.Children.Add(new Border
-            {
-                CornerRadius = new CornerRadius(4),
-                IsHitTestVisible = false,
-                Opacity = (double)FindResource("GrainOpacity"),
-                Background = (Brush)FindResource("GrainBrushShared")
-            });
+            // SetResourceReference so a theme switch retargets it (98SE clears grain via opacity 0).
+            var popGrain = new Border { CornerRadius = new CornerRadius(4), IsHitTestVisible = false };
+            popGrain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+            popGrain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+            inner.Children.Add(popGrain);
             var border = new Border
             {
                 BorderThickness = new Thickness(1),

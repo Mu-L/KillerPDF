@@ -700,6 +700,13 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Color_Name">Renk</sys:String>
     <sys:String x:Key="Str_Color_Pick">Bir renk seçin</sys:String>
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Color_Replace">Değiştir</sys:String>
+    <sys:String x:Key="Str_Color_Reset">Sıfırla</sys:String>
+    <sys:String x:Key="Str_Color_ReplaceTT">Tıklayın, ardından geçerli rengi atamak için bir renk örneğine tıklayın</sys:String>
+    <sys:String x:Key="Str_Color_ResetTT">Renk örneklerini varsayılana sıfırla</sys:String>
+    <sys:String x:Key="Str_Color_EyedropTT">Ekranın herhangi bir yerinden renk seçin</sys:String>
+    <sys:String x:Key="Str_Color_SwatchSetTT">Bu renk örneğine geçerli rengi atamak için tıklayın</sys:String>
+    <sys:String x:Key="Str_Color_SwatchUseTT">Bu rengi kullanmak için tıklayın</sys:String>
     <sys:String x:Key="Str_Sign_Name">Dijital İmza</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">İmzalama sertifikası seçin</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">İmza görüntüsünü içe aktar</sys:String>

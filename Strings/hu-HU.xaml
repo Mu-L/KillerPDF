@@ -709,6 +709,13 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Color_Name">Szín</sys:String>
     <sys:String x:Key="Str_Color_Pick">Válasszon színt</sys:String>
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Color_Replace">Csere</sys:String>
+    <sys:String x:Key="Str_Color_Reset">Visszaállítás</sys:String>
+    <sys:String x:Key="Str_Color_ReplaceTT">Kattintson, majd kattintson egy színmintára az aktuális szín hozzárendeléséhez</sys:String>
+    <sys:String x:Key="Str_Color_ResetTT">Színminták visszaállítása alapértelmezettre</sys:String>
+    <sys:String x:Key="Str_Color_EyedropTT">Szín kiválasztása a képernyő bármely pontjáról</sys:String>
+    <sys:String x:Key="Str_Color_SwatchSetTT">Kattintson az aktuális szín hozzárendeléséhez ehhez a színmintához</sys:String>
+    <sys:String x:Key="Str_Color_SwatchUseTT">Kattintson a szín használatához</sys:String>
     <sys:String x:Key="Str_Sign_Name">Digitális aláírás</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Válasszon aláíró tanúsítványt</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Aláíráskép importálása</sys:String>

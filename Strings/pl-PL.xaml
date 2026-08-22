@@ -709,6 +709,13 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Color_Name">Kolor</sys:String>
     <sys:String x:Key="Str_Color_Pick">Wybierz kolor</sys:String>
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Color_Replace">Zamień</sys:String>
+    <sys:String x:Key="Str_Color_Reset">Resetuj</sys:String>
+    <sys:String x:Key="Str_Color_ReplaceTT">Kliknij, a następnie kliknij próbkę, aby przypisać jej bieżący kolor</sys:String>
+    <sys:String x:Key="Str_Color_ResetTT">Przywróć domyślne próbki</sys:String>
+    <sys:String x:Key="Str_Color_EyedropTT">Pobierz kolor z dowolnego miejsca na ekranie</sys:String>
+    <sys:String x:Key="Str_Color_SwatchSetTT">Kliknij, aby przypisać tej próbce bieżący kolor</sys:String>
+    <sys:String x:Key="Str_Color_SwatchUseTT">Kliknij, aby użyć tego koloru</sys:String>
     <sys:String x:Key="Str_Sign_Name">Podpis cyfrowy</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Wybierz certyfikat podpisu</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Importuj obraz podpisu</sys:String>

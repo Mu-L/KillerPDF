@@ -110,6 +110,9 @@ namespace KillerPDF
             anim.Completed += (_, _) =>
             {
                 bar.BeginAnimation(UIElement.OpacityProperty, null);
+                // Release the 98SE scroller inset before the bar leaves its area, so the document
+                // slides back up to the pane top when the band disappears.
+                if (bar.Parent is Grid area) SyncSe98BarInset(bar, area, removing: true);
                 (bar.Parent as Panel)?.Children.Remove(bar);
             };
             bar.BeginAnimation(UIElement.OpacityProperty, anim);

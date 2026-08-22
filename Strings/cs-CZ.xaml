@@ -705,6 +705,13 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Color_Name">Barva</sys:String>
     <sys:String x:Key="Str_Color_Pick">Vyberte barvu</sys:String>
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Color_Replace">Nahradit</sys:String>
+    <sys:String x:Key="Str_Color_Reset">Obnovit</sys:String>
+    <sys:String x:Key="Str_Color_ReplaceTT">Klikněte a poté klikněte na vzorek, kterému chcete přiřadit aktuální barvu</sys:String>
+    <sys:String x:Key="Str_Color_ResetTT">Obnovit výchozí vzorky</sys:String>
+    <sys:String x:Key="Str_Color_EyedropTT">Vybrat barvu odkudkoli na obrazovce</sys:String>
+    <sys:String x:Key="Str_Color_SwatchSetTT">Kliknutím přiřadíte tomuto vzorku aktuální barvu</sys:String>
+    <sys:String x:Key="Str_Color_SwatchUseTT">Kliknutím použijete tuto barvu</sys:String>
     <sys:String x:Key="Str_Sign_Name">Digitální podpis</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">Vyberte podpisový certifikát</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">Importovat obrázek podpisu</sys:String>

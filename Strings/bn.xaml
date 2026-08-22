@@ -700,6 +700,13 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Color_Name">রং</sys:String>
     <sys:String x:Key="Str_Color_Pick">একটি রং বাছুন</sys:String>
     <sys:String x:Key="Str_Color_Hex">Hex</sys:String>
+    <sys:String x:Key="Str_Color_Replace">প্রতিস্থাপন</sys:String>
+    <sys:String x:Key="Str_Color_Reset">রিসেট</sys:String>
+    <sys:String x:Key="Str_Color_ReplaceTT">ক্লিক করুন, তারপর বর্তমান রং নির্ধারণ করতে একটি সোয়াচে ক্লিক করুন</sys:String>
+    <sys:String x:Key="Str_Color_ResetTT">সোয়াচগুলি ডিফল্টে রিসেট করুন</sys:String>
+    <sys:String x:Key="Str_Color_EyedropTT">স্ক্রিনের যেকোনো জায়গা থেকে রং বাছুন</sys:String>
+    <sys:String x:Key="Str_Color_SwatchSetTT">এই সোয়াচে বর্তমান রং সেট করতে ক্লিক করুন</sys:String>
+    <sys:String x:Key="Str_Color_SwatchUseTT">এই রংটি ব্যবহার করতে ক্লিক করুন</sys:String>
     <sys:String x:Key="Str_Sign_Name">ডিজিটাল স্বাক্ষর</sys:String>
     <sys:String x:Key="Str_Sign_ChooseCert">স্বাক্ষরের সার্টিফিকেট বাছুন</sys:String>
     <sys:String x:Key="Str_Sign_ImportImage">স্বাক্ষরের ছবি আমদানি করুন</sys:String>
