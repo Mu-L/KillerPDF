@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://killerpdf.net"><img src="docs/wordmark.png" width="640" alt="KillerPDF - Free PDF Editor"></a>
+  <a href="https://killerpdf.net"><img src="docs/wordmark.png" width="640" alt="KillerPDF wordmark: a free, open-source PDF editor for Windows"></a>
 </p>
 
 KillerPDF is a free, open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription. Install it or run it portable from the same Windows download. No runtime installation is required, and the app never phones home.
@@ -47,8 +47,8 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 
 | | |
 | --- | --- |
-| ![KillerPDF showing the brochure in a six-page grid](docs/grid-view.png)<br>**Grid view** — Scan a whole document at once while thumbnails and navigation stay close at hand. | ![KillerPDF showing two documents side by side with the outline open](docs/split-pane-outline.png)<br>**Split panes and outlines** — Browse two independent documents side by side, with tabs, pages, zoom, and navigation kept per pane. |
-| ![KillerPDF showing night mode and a localized page context menu](docs/night-mode-context-menu.png)<br>**Night mode and localization** — Per-pane inversion, themed context menus, and an interface translated into twelve languages. | ![KillerPDF showing drawing, shapes, and the custom color picker](docs/annotations-color-picker.png)<br>**Annotation tools** — Draw, highlight, add shapes, and choose exact colors without leaving the document. |
+| ![KillerPDF displaying many brochure pages in Grid view with the Document Info dialog open](docs/grid-document-info.png)<br>**Grid view and document details** — Survey a whole document at once, then inspect and edit its metadata without leaving the viewer. | ![KillerPDF using split-pane view with a 98SE-themed Transform preview open over a scanned camera manual](docs/split-pane-transform.png)<br>**Split panes and Transform** — Work in two independent panes while previewing rotation, scale, flip, skew, perspective, and Levels before applying. |
+| ![KillerPDF showing its drawing controls, custom color picker, and interactive form pages in Grid view](docs/annotations-color-picker.png)<br>**Annotation colors and forms** — Draw with exact colors while viewing fillable fields, comb boxes, and the brochure's live form examples. | ![KillerPDF showing its themed image picker with a large thumbnail preview over a two-page document view](docs/image-picker-preview.png)<br>**Image picker and previews** — Browse images, inspect a large preview, and return directly to the open document. |
 
 ## Requirements
 
