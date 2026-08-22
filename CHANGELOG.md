@@ -4,14 +4,14 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.4] - Unreleased
+## [1.7.4] - 2026-08-21
 
 1.7.4 repackages KillerPDF as one portable download that installs as a normal multi-file application with a much faster first start, and is otherwise a bug fix release - rotation-safe annotations, valid form fields on comma-decimal locales, installer scope guards, and a round of view, dialog, and localization fixes - plus Hungarian localization and page image export.
 
 ### Added
+- "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
 - Hungarian (hu-HU) localization, the twelfth interface language, in the language picker as "Magyar" (PR #214, thanks CsokiHUN).
 - Hide the toolbar from its right-click menu or Alt+M, and full screen no longer sits over other applications when you switch away (#215, thanks Subjuntivos).
-- "Export page as image" on the Pages panel's right-click menu, including multi-page selections (#207, thanks 1mk3r).
 - Translations can be tested in a normal install and reload on every save of the file; TRANSLATING.md has the steps (#211, thanks bovirus).
 - The page badge fires on grid scrolling and names the visible span (#197, thanks Ryokoxx).
 
@@ -23,11 +23,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Rotating a page no longer deletes the document's unsaved annotations; they now turn with the page (#169, thanks terada-d).
 - Form fields saved on systems whose decimal separator is a comma (German and most European locales) now get valid appearance streams; they previously came out blank or garbled with repeated, re-wrapped text in other viewers and in print, flatten, and export, thanks Thomas.
 - Print, flatten, image export, and thumbnails no longer draw a form field twice when its stored appearance disagrees with the regenerated one.
+- Installation scope is now guarded end to end: a per-user install cannot sit beside an all-users install, existing dual installs are detected with an offer to remove the inactive copy, converting to all-users removes the older per-user copy, and machine-wide uninstall requests administrator access instead of reporting success after permission failures.
 - The Open dialog no longer crashes where Explorer's Quick Access cannot be read, such as under Wine and CrossOver; the pinned folders and drives still list (#210, thanks Ximelay).
 - Opening a PDF from Explorer while KillerPDF is still starting no longer crashes; the file now opens once the window is ready (#202, thanks tgv123456).
-- KillerPDF no longer permits a per-user installation beside an existing all-users installation. The installer keeps the existing machine-wide scope selected, blocks an accidental second copy, and removes the current account's older per-user copy when converting or updating to an all-users installation.
-- A machine already carrying both a per-user and an all-users installation is now detected at startup, with an offer to remove the copy that is not running.
-- Machine-wide uninstall now requests administrator access before removing the Program Files copy and HKLM registration, rather than silently reporting success after permission failures.
 - Dropping a damaged PDF on the Pages panel now offers the same repair the Open dialog offers, instead of silently ignoring the file (#203, thanks 1mk3r).
 - After an install relaunch or split-pane session restore, the sidebar now attaches the active pane's thumbnail cache before the first visible frame instead of remaining blank until the user clicks a pane.
 - Snapping, maximizing, or restoring the window keeps the split panes' proportions, and a sidebar you closed stays closed when a tab loads its document.

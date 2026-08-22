@@ -312,6 +312,9 @@ namespace KillerPDF
                 SwitchSidebarToOutlinesTab();
             else
                 SwitchSidebarToPagesTab();
+            // Re-evaluate the page-list edge overlays immediately. 98SE sets the theme
+            // multiplier to zero; modern themes leave it at the default full strength.
+            SyncPageListEdgeFades();
             RefreshSelectionAccent();
             // Both panes carry local border-thickness state. Rebuild both so an inactive pane cannot
             // retain the previous theme's right-edge geometry until it happens to receive focus.

@@ -19,13 +19,13 @@
     <!-- Shown in the About card beside the version so a user can tell how old their build
          is. Must match the date on this version's CHANGELOG section - release.ps1 preflight
          fails the release if it does not. Bump it with the version. -->
-    <ReleaseDate>2026-08-15</ReleaseDate>
+    <ReleaseDate>2026-08-21</ReleaseDate>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
-  <!-- The release pipeline builds the real installed/inner app as ordinary loose files. Keep this
-       opt-in so normal IDE builds retain today's single-exe behavior until the launcher migration
-       is complete. A separate intermediate directory prevents Fody's copy-local cache from the
+  <!-- The release pipeline builds the installed/inner app as ordinary loose files. Keep this
+       opt-in so normal IDE builds remain convenient single-exe development builds while releases
+       use the faster installed payload. A separate intermediate directory prevents Fody's copy-local cache from the
        woven build from hiding the payload dependencies when weaving is disabled. -->
   <PropertyGroup Condition="'$(KillerPayloadBuild)' == 'true'">
     <AssemblyName>KillerPDF.App</AssemblyName>
@@ -134,7 +134,7 @@
   <ItemGroup>
     <Resource Include="Resources\kp-icon.ico" />
     <Resource Include="Resources\kp-icon.png" />
-    <Resource Include="Fonts\Typewriter-wm.ttf" />
+    <Resource Include="Fonts\Typewriter-A602.ttf" />
     <EmbeddedResource Include="Resources\pdf-file.ico" />
   </ItemGroup>
 

@@ -120,7 +120,11 @@ namespace KillerPDF.Controls
                         TextWrapping     = f.IsMultiLine ? TextWrapping.Wrap : TextWrapping.NoWrap,
                         VerticalScrollBarVisibility = f.IsMultiLine
                             ? ScrollBarVisibility.Auto : ScrollBarVisibility.Hidden,
-                        Background       = fieldBg,
+                        // A comb field is laid over the PDF's printed cells. An opaque live-field
+                        // fill hides those dividers and makes it look like an ordinary text box.
+                        // Keep the overlay transparent so the cells remain visible while the
+                        // editable characters, selection, and caret stay above the page artwork.
+                        Background       = f.IsComb ? Brushes.Transparent : fieldBg,
                         Foreground       = Brushes.Black,
                         CaretBrush       = Brushes.Black,
                         SelectionBrush   = (System.Windows.Media.Brush)FindResource("HeaderLineBrush"),
