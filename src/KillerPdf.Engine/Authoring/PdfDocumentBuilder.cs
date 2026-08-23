@@ -130,7 +130,7 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfShading, PdfName>(),
             new Dictionary<PdfFormXObject, PdfName>(),
             new Dictionary<PdfTilingPattern, PdfName>(), [], [], content.Length > 0,
-            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>()));
+            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
     }
 
@@ -152,7 +152,7 @@ public sealed partial class PdfDocumentBuilder
             content.FormResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
-            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>()));
+            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
     }
 
@@ -194,8 +194,36 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    public PdfDocumentBuilder SetPageTransition(
+        int pageIndex, PdfPageTransition transition)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(transition);
+        _pages[pageIndex] = _pages[pageIndex] with { Transition = transition };
+        return this;
+    }
+
+    /// <summary>Sets how long a page remains visible during automatic presentation.</summary>
+    public PdfDocumentBuilder SetPageDisplayDuration(int pageIndex, double seconds)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (!double.IsFinite(seconds) || seconds <= 0)
+            throw new ArgumentOutOfRangeException(nameof(seconds));
+        _pages[pageIndex] = _pages[pageIndex] with { DisplayDuration = seconds };
+        return this;
+    }
+
+    public PdfDocumentBuilder SetPageThumbnail(int pageIndex, PdfImage thumbnail)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(thumbnail);
+        _pages[pageIndex] = _pages[pageIndex] with { Thumbnail = thumbnail };
+        return this;
+    }
+
     public PdfDocumentBuilder AddUriLink(
-        int pageIndex, double x, double y, double width, double height, string uri)
+        int pageIndex, double x, double y, double width, double height, string uri,
+        PdfLinkAppearance? appearance = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -205,13 +233,15 @@ public sealed partial class PdfDocumentBuilder
         PageDefinition page = _pages[pageIndex];
         _pages[pageIndex] = page with
         {
-            Links = [.. page.Links, new UriLinkDefinition(x, y, width, height, parsed.AbsoluteUri)]
+            Links = [.. page.Links, new UriLinkDefinition(
+                x, y, width, height, appearance ?? new PdfLinkAppearance(), parsed.AbsoluteUri)]
         };
         return this;
     }
 
     public PdfDocumentBuilder AddPageLink(
-        int pageIndex, double x, double y, double width, double height, int destinationPageIndex)
+        int pageIndex, double x, double y, double width, double height, int destinationPageIndex,
+        PdfLinkAppearance? appearance = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidatePageIndex(destinationPageIndex, nameof(destinationPageIndex));
@@ -220,13 +250,15 @@ public sealed partial class PdfDocumentBuilder
         _pages[pageIndex] = page with
         {
             Links = [.. page.Links,
-                new PageLinkDefinition(x, y, width, height, destinationPageIndex)]
+                new PageLinkDefinition(x, y, width, height,
+                    appearance ?? new PdfLinkAppearance(), destinationPageIndex)]
         };
         return this;
     }
 
     public PdfDocumentBuilder AddNamedDestinationLink(
-        int pageIndex, double x, double y, double width, double height, string destinationName)
+        int pageIndex, double x, double y, double width, double height, string destinationName,
+        PdfLinkAppearance? appearance = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -239,7 +271,8 @@ public sealed partial class PdfDocumentBuilder
         _pages[pageIndex] = page with
         {
             Links = [.. page.Links,
-                new NamedDestinationLinkDefinition(x, y, width, height, destinationName)]
+                new NamedDestinationLinkDefinition(x, y, width, height,
+                    appearance ?? new PdfLinkAppearance(), destinationName)]
         };
         return this;
     }
@@ -772,6 +805,7 @@ public sealed partial class PdfDocumentBuilder
         foreach (PdfImage image in _pages.SelectMany(page => page.Images.Keys)
             .Concat(forms.SelectMany(form => form.Images.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.Images.Keys))
+            .Concat(_pages.Select(page => page.Thumbnail).Where(image => image is not null).Cast<PdfImage>())
             .Concat(_imageStamps.Select(stamp => stamp.Image)).Distinct())
             AddImageAndMask(image);
         void AddImageAndMask(PdfImage image)
@@ -1275,6 +1309,13 @@ public sealed partial class PdfDocumentBuilder
                 entries.Add((PageBoxName(box), new PdfArray([
                     Number(rectangle.X), Number(rectangle.Y),
                     Number(rectangle.X + rectangle.Width), Number(rectangle.Y + rectangle.Height)])));
+            if (allocatedPage.Definition.DisplayDuration.HasValue)
+                entries.Add(("Dur", Number(allocatedPage.Definition.DisplayDuration.Value)));
+            if (allocatedPage.Definition.Transition is not null)
+                entries.Add(("Trans", PageTransitionDictionary(allocatedPage.Definition.Transition)));
+            if (allocatedPage.Definition.Thumbnail is not null)
+                entries.Add(("Thumb", new PdfIndirectReference(
+                    imageNumbers[allocatedPage.Definition.Thumbnail], 0)));
             if (allocatedPage.AnnotationNumbers.Length > 0)
                 entries.Add(("Annots", new PdfArray(allocatedPage.AnnotationNumbers.Select(number =>
                     (PdfObject)new PdfIndirectReference(number, 0)))));
@@ -1306,6 +1347,22 @@ public sealed partial class PdfDocumentBuilder
                     ("Border", new PdfArray([
                         new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)]))
                 };
+                if (link.Appearance.BorderWidth > 0)
+                {
+                    var borderStyleEntries = new List<(string Name, PdfObject Value)>
+                    {
+                        ("W", Number(link.Appearance.BorderWidth)),
+                        ("S", Name(LinkBorderStyleName(link.Appearance.BorderStyle)))
+                    };
+                    if (link.Appearance.BorderStyle == PdfLinkBorderStyle.Dashed)
+                        borderStyleEntries.Add(("D", new PdfArray(
+                            link.Appearance.DashPattern.Select(Number))));
+                    annotationEntries.Add(("BS", Dictionary(borderStyleEntries.ToArray())));
+                }
+                if (link.Appearance.Color.HasValue)
+                    annotationEntries.Add(("C", ColorArray(link.Appearance.Color.Value)));
+                annotationEntries.Add(("H", Name(LinkHighlightModeName(
+                    link.Appearance.HighlightMode))));
                 if (link is UriLinkDefinition uri)
                 {
                     annotationEntries.Add(("A", Dictionary(
@@ -2263,6 +2320,25 @@ public sealed partial class PdfDocumentBuilder
         _ => throw new ArgumentOutOfRangeException(nameof(box))
     };
 
+    private static string LinkBorderStyleName(PdfLinkBorderStyle style) => style switch
+    {
+        PdfLinkBorderStyle.Solid => "S",
+        PdfLinkBorderStyle.Dashed => "D",
+        PdfLinkBorderStyle.Beveled => "B",
+        PdfLinkBorderStyle.Inset => "I",
+        PdfLinkBorderStyle.Underline => "U",
+        _ => throw new ArgumentOutOfRangeException(nameof(style))
+    };
+
+    private static string LinkHighlightModeName(PdfLinkHighlightMode mode) => mode switch
+    {
+        PdfLinkHighlightMode.None => "N",
+        PdfLinkHighlightMode.Invert => "I",
+        PdfLinkHighlightMode.Outline => "O",
+        PdfLinkHighlightMode.Push => "P",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
+
     private static string PageLayoutName(PdfPageLayout layout) => layout switch
     {
         PdfPageLayout.SinglePage => "SinglePage",
@@ -2316,6 +2392,27 @@ public sealed partial class PdfDocumentBuilder
         return Dictionary(entries.ToArray());
     }
 
+    private static PdfDictionary PageTransitionDictionary(PdfPageTransition transition)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("S", Name(transition.Style == PdfPageTransitionStyle.Replace
+                ? "R" : transition.Style.ToString())),
+            ("D", Number(transition.Duration))
+        };
+        if (transition.Dimension.HasValue)
+            entries.Add(("Dm", Name(transition.Dimension == PdfTransitionDimension.Horizontal ? "H" : "V")));
+        if (transition.Motion.HasValue)
+            entries.Add(("M", Name(transition.Motion == PdfTransitionMotion.Inward ? "I" : "O")));
+        if (transition.Direction.HasValue)
+            entries.Add(("Di", new PdfInteger(transition.Direction.Value)));
+        if (transition.Scale.HasValue)
+            entries.Add(("SS", Number(transition.Scale.Value)));
+        if (transition.Opaque)
+            entries.Add(("B", new PdfBoolean(true)));
+        return Dictionary(entries.ToArray());
+    }
+
     private static PdfArray DestinationArray(
         PdfIndirectReference page, PdfDestination destination)
     {
@@ -2353,21 +2450,27 @@ public sealed partial class PdfDocumentBuilder
         bool HasUntaggedContent,
         int Rotation,
         double UserUnit,
-        IReadOnlyDictionary<PdfPageBox, PageBoxDefinition> Boxes);
+        IReadOnlyDictionary<PdfPageBox, PageBoxDefinition> Boxes,
+        PdfPageTransition? Transition,
+        double? DisplayDuration,
+        PdfImage? Thumbnail);
     private sealed record PageBoxDefinition(
         double X, double Y, double Width, double Height);
     private sealed record AllocatedPage(
         PageDefinition Definition, int PageNumber, int? ContentNumber, int[] AnnotationNumbers);
-    private abstract record LinkDefinition(double X, double Y, double Width, double Height);
+    private abstract record LinkDefinition(
+        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance);
     private sealed record UriLinkDefinition(
-        double X, double Y, double Width, double Height, string Uri)
-        : LinkDefinition(X, Y, Width, Height);
+        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance, string Uri)
+        : LinkDefinition(X, Y, Width, Height, Appearance);
     private sealed record PageLinkDefinition(
-        double X, double Y, double Width, double Height, int DestinationPageIndex)
-        : LinkDefinition(X, Y, Width, Height);
+        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance,
+        int DestinationPageIndex)
+        : LinkDefinition(X, Y, Width, Height, Appearance);
     private sealed record NamedDestinationLinkDefinition(
-        double X, double Y, double Width, double Height, string DestinationName)
-        : LinkDefinition(X, Y, Width, Height);
+        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance,
+        string DestinationName)
+        : LinkDefinition(X, Y, Width, Height, Appearance);
     private sealed record BookmarkDefinition(string Title, int PageIndex, int Level);
     private sealed record StructureElementDefinition(
         PdfStructureType Type,

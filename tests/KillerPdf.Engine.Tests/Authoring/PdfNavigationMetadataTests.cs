@@ -139,6 +139,46 @@ public sealed class PdfNavigationMetadataTests
             .Build());
     }
 
+    [Fact]
+    public void Build_WritesStyledLinkBordersColorsAndHighlightModes()
+    {
+        var appearance = new PdfLinkAppearance(
+            2.5, PdfLinkBorderStyle.Dashed, [6, 2],
+            new PdfRgbColor(0.1, 0.4, 0.9), PdfLinkHighlightMode.Push);
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriLink(0, 10, 20, 100, 30, "https://killerpdf.net", appearance)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfDictionary link = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(page[Name("Annots")])[0]);
+        PdfDictionary border = Assert.IsType<PdfDictionary>(link[Name("BS")]);
+        PdfArray dash = Assert.IsType<PdfArray>(border[Name("D")]);
+        PdfArray color = Assert.IsType<PdfArray>(link[Name("C")]);
+
+        Assert.Equal(2.5, Assert.IsType<PdfReal>(border[Name("W")]).Value);
+        Assert.Equal("D", Assert.IsType<PdfName>(border[Name("S")]).ValueAsLatin1());
+        Assert.Equal([6L, 2L], dash.Select(value => Assert.IsType<PdfInteger>(value).Value));
+        Assert.Equal([0.1, 0.4, 0.9],
+            color.Select(value => Assert.IsType<PdfReal>(value).Value));
+        Assert.Equal("P", Assert.IsType<PdfName>(link[Name("H")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void LinkAppearance_RejectsInvalidStyles()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfLinkAppearance(-1));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfLinkAppearance(1, PdfLinkBorderStyle.Dashed, [0, 0]));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfLinkAppearance(1, PdfLinkBorderStyle.Solid, [2, 1]));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfLinkAppearance(highlightMode: (PdfLinkHighlightMode)4));
+    }
+
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

@@ -84,6 +84,37 @@ public sealed class PdfImageTests
     }
 
     [Fact]
+    public void SetPageThumbnail_ReusesAuthoredImageObject()
+    {
+        PdfImage image = PdfImage.FromRgba(1, 1, new byte[] { 20, 80, 160, 192 });
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder().DrawImage(image, 0, 0, 20, 20))
+            .SetPageThumbnail(0, image)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(document, Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
+        PdfDictionary xobjects = Assert.IsType<PdfDictionary>(resources[Name("XObject")]);
+        PdfIndirectReference placed = Assert.IsType<PdfIndirectReference>(xobjects[Name("Im1")]);
+        PdfIndirectReference thumbnail = Assert.IsType<PdfIndirectReference>(page[Name("Thumb")]);
+        PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(thumbnail));
+
+        Assert.Equal(placed.ObjectNumber, thumbnail.ObjectNumber);
+        Assert.True(stream.Dictionary.ContainsKey(Name("SMask")));
+    }
+
+    [Fact]
+    public void SetPageThumbnail_ValidatesPageAndImage()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+        PdfImage image = PdfImage.FromRgb(1, 1, new byte[] { 0, 0, 0 });
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.SetPageThumbnail(1, image));
+        Assert.Throws<ArgumentNullException>(() => builder.SetPageThumbnail(0, null!));
+    }
+
+    [Fact]
     public void FromJpeg_RejectsUnsupportedComponentCount()
     {
         Assert.Throws<NotSupportedException>(() =>

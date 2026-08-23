@@ -118,6 +118,39 @@ if (args.Length == 3 && args[0] == "--output-intent-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--presentation-effects-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    PdfImage thumbnail = PdfImage.FromRgba(2, 2, new byte[] {
+        30, 110, 210, 255, 240, 90, 60, 210,
+        240, 90, 60, 210, 30, 110, 210, 255 });
+    var content = new PdfContentStreamBuilder()
+        .SetFillRgb(0.08, 0.15, 0.3).Rectangle(72, 540, 468, 160).Fill()
+        .DrawImage(thumbnail, 260, 580, 92, 92);
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF presentation effects smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddPage(612, 792, content)
+        .SetPageThumbnail(0, thumbnail)
+        .SetPageDisplayDuration(0, 8)
+        .SetPageTransition(0, PdfPageTransition.Fly(
+            90, PdfTransitionMotion.Outward, 0.7, opaque: true, duration: 1.5))
+        .AddUriLink(0, 210, 520, 192, 28, "https://killerpdf.net",
+            new PdfLinkAppearance(2, PdfLinkBorderStyle.Dashed, [5, 2],
+                new PdfRgbColor(0.15, 0.55, 0.95), PdfLinkHighlightMode.Push))
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte presentation-effects PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 3 && args[0] == "--cmyk-smoke")
 {
     PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
@@ -953,6 +986,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --presentation-effects-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --cmyk-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa4f-attachment-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa4e-smoke <profile.icc> <output.pdf>");
