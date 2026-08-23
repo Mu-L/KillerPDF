@@ -319,6 +319,47 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
     }
 }
 
+if (args.Length == 3 && args[0] == "--transparency-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    var content = new PdfContentStreamBuilder()
+        .SetFillRgb(0.15, 0.45, 0.85)
+        .SetGraphicsState(new PdfGraphicsState(0.7, 1, PdfBlendMode.Multiply))
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .Rectangle(72, 520, 260, 180).Fill()
+        .EndMarkedContent()
+        .SetFillRgb(0.9, 0.2, 0.4)
+        .SetGraphicsState(new PdfGraphicsState(0.55, 1, PdfBlendMode.Screen))
+        .BeginMarkedContent(PdfStructureType.Figure, 1)
+        .Rectangle(220, 580, 260, 140).Fill()
+        .EndMarkedContent();
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF transparency and blend-mode smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "A translucent blue rectangle")
+        .AddStructureElement(PdfStructureType.Figure, 0, 1, 1,
+            alternateDescription: "A translucent pink rectangle")
+        .Build();
+    byte[] target = new PdfDocumentBuilder().Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(PdfDocument.Open(source))
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte transparency PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--form-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -687,6 +728,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --layers-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --signature-smoke <openssl.exe> <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --transparency-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");

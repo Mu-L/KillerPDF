@@ -13,6 +13,7 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<TrueTypeFont, EmbeddedFontUsage> _embeddedFonts = [];
     private readonly Dictionary<PdfImage, PdfName> _images = [];
     private readonly Dictionary<PdfOptionalContentGroup, PdfName> _optionalContentGroups = [];
+    private readonly Dictionary<PdfGraphicsState, PdfName> _graphicsStates = [];
     private int _savedStateDepth;
     private readonly Stack<bool> _markedContentStack = [];
     private int _accessibleMarkedContentDepth;
@@ -27,6 +28,8 @@ public sealed class PdfContentStreamBuilder
     internal IReadOnlyDictionary<PdfImage, PdfName> ImageResources => _images;
     internal IReadOnlyDictionary<PdfOptionalContentGroup, PdfName> OptionalContentResources =>
         _optionalContentGroups;
+    internal IReadOnlyDictionary<PdfGraphicsState, PdfName> GraphicsStateResources =>
+        _graphicsStates;
     internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
     internal bool HasUntaggedContent => _hasUntaggedContent;
 
@@ -113,6 +116,29 @@ public sealed class PdfContentStreamBuilder
             throw new ArgumentOutOfRangeException(nameof(width));
         return Operator("w"u8, width);
     }
+
+    /// <summary>Applies reusable fill opacity, stroke opacity, and blend-mode settings.</summary>
+    public PdfContentStreamBuilder SetGraphicsState(PdfGraphicsState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (!_graphicsStates.TryGetValue(state, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"GS{_graphicsStates.Count + 1}"));
+            _graphicsStates.Add(state, resource);
+        }
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" gs\n"u8);
+        return this;
+    }
+
+    public PdfContentStreamBuilder SetOpacity(double opacity) =>
+        SetGraphicsState(new PdfGraphicsState(opacity, opacity));
+
+    public PdfContentStreamBuilder SetOpacity(double fillOpacity, double strokeOpacity) =>
+        SetGraphicsState(new PdfGraphicsState(fillOpacity, strokeOpacity));
+
+    public PdfContentStreamBuilder SetBlendMode(PdfBlendMode blendMode) =>
+        SetGraphicsState(new PdfGraphicsState(blendMode: blendMode));
 
     public PdfContentStreamBuilder MoveTo(double x, double y) => Operator("m"u8, x, y);
     public PdfContentStreamBuilder LineTo(double x, double y) => Operator("l"u8, x, y);

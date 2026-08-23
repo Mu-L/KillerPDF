@@ -94,7 +94,8 @@ public sealed partial class PdfDocumentBuilder
         _pages.Add(new PageDefinition(width, height, content.ToArray(),
             new Dictionary<PdfStandardFont, PdfName>(), [],
             new Dictionary<PdfImage, PdfName>(),
-            new Dictionary<PdfOptionalContentGroup, PdfName>(), [], [], content.Length > 0));
+            new Dictionary<PdfOptionalContentGroup, PdfName>(),
+            new Dictionary<PdfGraphicsState, PdfName>(), [], [], content.Length > 0));
         return this;
     }
 
@@ -110,7 +111,8 @@ public sealed partial class PdfDocumentBuilder
             content.FontResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.EmbeddedFontResources.ToArray(),
             content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value),
-            content.OptionalContentResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.OptionalContentResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.GraphicsStateResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent));
         return this;
     }
@@ -585,6 +587,15 @@ public sealed partial class PdfDocumentBuilder
                 $"Optional-content group name '{duplicateLayerName}' is used by more than one group.");
         var optionalContentNumbers = optionalContentGroups
             .ToDictionary(group => group, _ => nextObjectNumber++);
+        PdfGraphicsState[] graphicsStates = _pages
+            .SelectMany(page => page.GraphicsStates.Keys)
+            .Distinct()
+            .OrderBy(state => state.FillOpacity)
+            .ThenBy(state => state.StrokeOpacity)
+            .ThenBy(state => state.BlendMode)
+            .ToArray();
+        var graphicsStateNumbers = graphicsStates
+            .ToDictionary(state => state, _ => nextObjectNumber++);
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
             .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
@@ -1012,6 +1023,13 @@ public sealed partial class PdfDocumentBuilder
                     ("Type", Name("OCG")),
                     ("Name", UnicodeString(group.Name)),
                     ("Intent", new PdfArray([Name("View"), Name("Design")]))), 0));
+        foreach (PdfGraphicsState state in graphicsStates)
+            objects.Add(new PdfIndirectObject(graphicsStateNumbers[state], 0,
+                Dictionary(
+                    ("Type", Name("ExtGState")),
+                    ("ca", Number(state.FillOpacity)),
+                    ("CA", Number(state.StrokeOpacity)),
+                    ("BM", Name(PdfBlendModeNames.Name(state.BlendMode)))), 0));
         for (int index = 0; index < allocatedTextNotes.Length; index++)
             AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1);
         for (int index = 0; index < allocatedTextMarkups.Length; index++)
@@ -1066,6 +1084,13 @@ public sealed partial class PdfDocumentBuilder
                     new KeyValuePair<PdfName, PdfObject>(entry.Value,
                         new PdfIndirectReference(optionalContentNumbers[entry.Key], 0)));
                 resourceEntries.Add(("Properties", new PdfDictionary(propertyEntries)));
+            }
+            if (allocatedPage.Definition.GraphicsStates.Count > 0)
+            {
+                var stateEntries = allocatedPage.Definition.GraphicsStates.Select(entry =>
+                    new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                        new PdfIndirectReference(graphicsStateNumbers[entry.Key], 0)));
+                resourceEntries.Add(("ExtGState", new PdfDictionary(stateEntries)));
             }
             resources = Dictionary(resourceEntries.ToArray());
             var entries = new List<(string Name, PdfObject Value)>
@@ -1959,6 +1984,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyList<EmbeddedFontUsage> EmbeddedFonts,
         IReadOnlyDictionary<PdfImage, PdfName> Images,
         IReadOnlyDictionary<PdfOptionalContentGroup, PdfName> OptionalContentGroups,
+        IReadOnlyDictionary<PdfGraphicsState, PdfName> GraphicsStates,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
         bool HasUntaggedContent);
