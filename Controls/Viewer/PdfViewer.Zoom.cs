@@ -219,7 +219,7 @@ namespace KillerPDF.Controls
                 _panScrollH = PagePreviewPanel.HorizontalOffset;
                 _panScrollV = PagePreviewPanel.VerticalOffset;
                 PagePreviewPanel.CaptureMouse();
-                PagePreviewPanel.Cursor = Cursors.SizeAll;
+                PagePreviewPanel.Cursor = DragCursors.Closed;
                 e.Handled = true;
             }
             // Crop: allow starting the selection OUTSIDE the page - catch margin clicks, route them to the
@@ -352,7 +352,9 @@ namespace KillerPDF.Controls
             if (e.ChangedButton != MouseButton.Middle && e.ChangedButton != MouseButton.Left) return;
             _isPanning = false;
             PagePreviewPanel.ReleaseMouseCapture();
-            PagePreviewPanel.Cursor = _spaceHeld ? Cursors.Hand : Cursors.Arrow;
+            // Still holding space means still armed to pan, so it drops back to the open hand
+            // rather than the arrow - the fingers release, the hand stays.
+            PagePreviewPanel.Cursor = _spaceHeld ? DragCursors.Open : Cursors.Arrow;
             e.Handled = true;
         }
     }

@@ -513,7 +513,7 @@ namespace KillerPDF
             else if (e.Key == Key.Space && !_spaceHeld)
             {
                 _spaceHeld = true;
-                PagePreviewPanel.Cursor = Cursors.Hand;
+                PagePreviewPanel.Cursor = DragCursors.Open;
                 e.Handled = true;
             }
         }

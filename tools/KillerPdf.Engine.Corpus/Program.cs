@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using KillerPdf.Engine.Validation;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Fonts;
@@ -5,6 +6,7 @@ using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
 using KillerPdf.Engine.Editing;
+using KillerPdf.Engine.Signing;
 
 if (args.Length == 2 && args[0] == "--font-info")
 {
@@ -231,6 +233,90 @@ if (args.Length == 3 && args[0] == "--layers-smoke")
     File.WriteAllBytes(destination, pdf);
     Console.WriteLine($"Wrote {pdf.Length:N0} byte layered PDF to {destination}");
     return 0;
+}
+
+if (args.Length == 4 && args[0] == "--signature-smoke")
+{
+    string openSsl = Path.GetFullPath(args[1]);
+    if (!File.Exists(openSsl))
+        throw new FileNotFoundException("The OpenSSL executable was not found.", openSsl);
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[2]));
+    string destination = Path.GetFullPath(args[3]);
+    string scratch = Path.Combine(Path.GetTempPath(),
+        $"killerpdf-signature-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(scratch);
+    try
+    {
+        string keyPath = Path.Combine(scratch, "key.pem");
+        string certificatePath = Path.Combine(scratch, "certificate.pem");
+        string contentPath = Path.Combine(scratch, "content.bin");
+        string signaturePath = Path.Combine(scratch, "signature.der");
+        string verifiedPath = Path.Combine(scratch, "verified.bin");
+        RunOpenSsl("req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", keyPath, "-out", certificatePath,
+            "-days", "1", "-nodes", "-subj", "/CN=KillerPDF Signature Smoke");
+
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "KillerPDF detached CMS signature smoke test",
+                Language = "en-US"
+            })
+            .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+            .EnablePdfA4Conformance()
+            .AddBlankPage()
+            .Build();
+        byte[] pdf = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), content =>
+            {
+                File.WriteAllBytes(contentPath, content.ToArray());
+                RunOpenSsl("cms", "-sign", "-binary", "-in", contentPath,
+                    "-signer", certificatePath, "-inkey", keyPath,
+                    "-outform", "DER", "-out", signaturePath,
+                    "-md", "sha256", "-nosmimecap");
+                return File.ReadAllBytes(signaturePath);
+            }, new PdfSignatureOptions
+            {
+                FieldName = "ReleaseApproval",
+                SignerName = "KillerPDF Signature Smoke",
+                Reason = "Engine validation",
+                SigningTime = DateTimeOffset.UtcNow
+            });
+        RunOpenSsl("cms", "-verify", "-binary", "-inform", "DER",
+            "-in", signaturePath, "-content", contentPath,
+            "-certfile", certificatePath, "-noverify", "-out", verifiedPath);
+        if (!File.ReadAllBytes(contentPath).AsSpan()
+            .SequenceEqual(File.ReadAllBytes(verifiedPath)))
+            throw new InvalidOperationException("OpenSSL returned different verified signature content.");
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        File.WriteAllBytes(destination, pdf);
+        Console.WriteLine($"Wrote {pdf.Length:N0} byte CMS-signed PDF to {destination}");
+    }
+    finally
+    {
+        Directory.Delete(scratch, recursive: true);
+    }
+    return 0;
+
+    void RunOpenSsl(params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo(openSsl)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (string argument in arguments) startInfo.ArgumentList.Add(argument);
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("OpenSSL could not be started.");
+        string standardOutput = process.StandardOutput.ReadToEnd();
+        string standardError = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException(
+                $"OpenSSL exited with code {process.ExitCode}: {standardError}{standardOutput}");
+    }
 }
 
 if (args.Length == 2 && args[0] == "--form-smoke")
@@ -600,6 +686,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --layers-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --signature-smoke <openssl.exe> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");

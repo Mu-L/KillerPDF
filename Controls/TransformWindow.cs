@@ -348,7 +348,7 @@ namespace KillerPDF
                 var handle = new Ellipse
                 {
                     Width = 18, Height = 18, Fill = R("PrimaryBrush"), Stroke = Brushes.White,
-                    StrokeThickness = 2, Cursor = Cursors.SizeAll, Tag = i,
+                    StrokeThickness = 2, Cursor = DragCursors.Open, Tag = i,
                 };
                 handle.PreviewMouseLeftButtonDown += PerspectiveHandle_Down;
                 _perspectiveHandles[i] = handle;
@@ -358,7 +358,9 @@ namespace KillerPDF
                 new MouseEventHandler(PerspectiveCanvas_Move), true);
             _perspectiveCanvas.AddHandler(Mouse.PreviewMouseUpEvent,
                 new MouseButtonEventHandler(PerspectiveCanvas_Up), true);
-            _perspectiveCanvas.LostMouseCapture += (_, _2) => _dragPerspective = -1;
+            // A capture lost to an alt-tab or a dialog never reaches the up handler, which would
+            // strand the closed hand on screen for the rest of the session.
+            _perspectiveCanvas.LostMouseCapture += (_, _2) => { _dragPerspective = -1; DragCursors.EndDrag(); };
             previewGrid.Children.Add(_perspectiveCanvas);
 
             previewWrap.Child = previewGrid;
@@ -423,6 +425,7 @@ namespace KillerPDF
             if (sender is not Ellipse { Tag: int index }) return;
             _dragPerspective = index;
             Mouse.Capture(_perspectiveCanvas, CaptureMode.SubTree);
+            DragCursors.BeginDrag();
             e.Handled = true;
         }
 
@@ -442,6 +445,7 @@ namespace KillerPDF
         {
             _dragPerspective = -1;
             if (ReferenceEquals(Mouse.Captured, _perspectiveCanvas)) Mouse.Capture(null);
+            DragCursors.EndDrag();
             e.Handled = true;
         }
 

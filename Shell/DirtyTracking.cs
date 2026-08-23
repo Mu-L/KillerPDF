@@ -120,10 +120,14 @@ namespace KillerPDF
 
             // Cover the whole window for a uniform dim, but let the user drag the window by pressing
             // anywhere on the overlay - so a long operation (e.g. repair) doesn't trap the window in place.
-            overlay.Cursor = Cursors.SizeAll;
+            overlay.Cursor = DragCursors.Open;
             overlay.MouseLeftButtonDown += (_, e) =>
             {
-                if (e.ButtonState == MouseButtonState.Pressed) { try { DragMove(); } catch { } }
+                if (e.ButtonState != MouseButtonState.Pressed) return;
+                // DragMove blocks for the whole move, so the override brackets it rather than
+                // being cleared from a button-up handler that never runs.
+                DragCursors.BeginDrag();
+                try { DragMove(); } catch { } finally { DragCursors.EndDrag(); }
             };
             if (ShortcutOverlay?.Parent is Grid host)
             {

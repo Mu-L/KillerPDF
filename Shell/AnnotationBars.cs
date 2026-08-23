@@ -163,6 +163,19 @@ namespace KillerPDF
         // the document area, with the X position remembered (shared across the draw/text bars).
         private void EnableBarSlide(FrameworkElement grip, Border bar, FrameworkElement bounds, bool backgroundOnly = false)
         {
+            if (backgroundOnly)
+            {
+                // The content panel's children are sliders, swatches and combos - real controls that
+                // are NOT draggable. Cursor resolution walks UP the tree, so setting the hand on the
+                // panel would put it on all of them; instead it is switched per move, on exactly the
+                // same "did this hit the panel's own background" test the drag itself uses.
+                grip.MouseMove += (s, e) =>
+                    grip.Cursor = ReferenceEquals(e.OriginalSource, grip) ? DragCursors.Open : null;
+            }
+            else grip.Cursor = DragCursors.Open;
+            // A capture lost to an alt-tab or a dialog never reaches the button-up handler, which
+            // would strand the closed hand on screen for the rest of the session.
+            grip.LostMouseCapture += (s, e) => DragCursors.EndDrag();
             grip.MouseLeftButtonDown += (s, e) =>
             {
                 // When wired on a content panel, only act on clicks that hit the panel's OWN background
@@ -183,6 +196,7 @@ namespace KillerPDF
                 bar.Margin = new Thickness(curLeft, bar.Margin.Top, 0, 0);
                 bar.Tag = (e.GetPosition(bounds).X, curLeft);   // (startX, origLeft)
                 grip.CaptureMouse();
+                DragCursors.BeginDrag();
                 e.Handled = true;
             };
             grip.MouseMove += (s, e) =>
@@ -204,6 +218,7 @@ namespace KillerPDF
             {
                 if (!grip.IsMouseCaptured) return;
                 grip.ReleaseMouseCapture();
+                DragCursors.EndDrag();
                 double w = bar.ActualWidth;
                 double left = bar.Margin.Left;
                 // Measure the right gap from the scrollbar's left edge (the usable content edge), so a

@@ -751,10 +751,13 @@ namespace KillerPDF
         {
             _overlay.IsHitTestVisible = true;
             el.IsHitTestVisible = true;
-            el.Cursor = Cursors.SizeAll;
+            el.Cursor = DragCursors.Open;
             bool dragging = false;
-            el.MouseLeftButtonDown += (_, e) => { dragging = true; el.CaptureMouse(); e.Handled = true; };
-            el.MouseLeftButtonUp   += (_, _2) => { dragging = false; el.ReleaseMouseCapture(); };
+            el.MouseLeftButtonDown += (_, e) => { dragging = true; el.CaptureMouse(); DragCursors.BeginDrag(); e.Handled = true; };
+            el.MouseLeftButtonUp   += (_, _2) => { dragging = false; el.ReleaseMouseCapture(); DragCursors.EndDrag(); };
+            // A capture lost to an alt-tab or a dialog never reaches the button-up handler, which
+            // would strand the closed hand on screen for the rest of the session.
+            el.LostMouseCapture    += (_, _2) => { dragging = false; DragCursors.EndDrag(); };
             el.MouseMove += (_, e) =>
             {
                 if (!dragging) return;

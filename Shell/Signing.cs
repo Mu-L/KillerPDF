@@ -224,17 +224,21 @@ namespace KillerPDF
         private void EnablePanelDrag(FrameworkElement handle, FrameworkElement panel, FrameworkElement bounds,
                                      string keyPrefix)
         {
-            handle.Cursor = Cursors.SizeAll;
+            handle.Cursor = DragCursors.Open;
             Point start = default;
             Thickness orig = default;
             bool dragging = false;
 
+            // A capture lost to an alt-tab or a dialog never reaches the button-up handler, which
+            // would strand the closed hand on screen for the rest of the session.
+            handle.LostMouseCapture += (s, e) => { dragging = false; DragCursors.EndDrag(); };
             handle.MouseLeftButtonDown += (s, e) =>
             {
                 dragging = true;
                 start = e.GetPosition(bounds);
                 orig  = panel.Margin;
                 handle.CaptureMouse();
+                DragCursors.BeginDrag();
                 e.Handled = true;
             };
             handle.MouseMove += (s, e) =>
@@ -251,6 +255,7 @@ namespace KillerPDF
                 if (!dragging) return;
                 dragging = false;
                 handle.ReleaseMouseCapture();
+                DragCursors.EndDrag();
                 App.SetSetting(keyPrefix + "Left", ((int)panel.Margin.Left).ToString());
                 App.SetSetting(keyPrefix + "Top",  ((int)panel.Margin.Top).ToString());
                 e.Handled = true;

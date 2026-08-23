@@ -173,7 +173,8 @@ namespace KillerPDF
                 var searchGrip = new Border
                 {
                     Background = Brushes.Transparent,   // transparent yet hit-testable, so it can be grabbed
-                    Cursor = Cursors.SizeAll,
+                    // No Cursor here: EnablePanelDrag sets the grab hand when it wires the drag,
+                    // so the affordance has one source of truth.
                     VerticalAlignment = VerticalAlignment.Stretch,
                     Child = gripDots,
                     ToolTip = Loc("Str_Search_DragTT")
