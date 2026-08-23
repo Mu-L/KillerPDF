@@ -149,6 +149,36 @@ if (args.Length == 3 && args[0] == "--pdfa-annotation-smoke")
     return 0;
 }
 
+if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
+{
+    TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[2]));
+    string destination = Path.GetFullPath(args[3]);
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A visual annotation smoke test", Language = "en-US" })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddBlankPage()
+        .AddFreeText(0, 72, 660, 250, 70, "KillerPDF café Ω\nMultiline free text", font, 14,
+            textColor: new PdfRgbColor(0.1, 0.1, 0.1), fillColor: new PdfRgbColor(1, 1, 0.8), opacity: 0.9)
+        .AddLineAnnotation(0, new PdfPoint(72, 620), new PdfPoint(320, 580),
+            new PdfRgbColor(0.1, 0.35, 0.9), 3, 0.8, "Line annotation")
+        .AddRectangleAnnotation(0, 72, 490, 110, 65,
+            new PdfRgbColor(0.9, 0.1, 0.2), new PdfRgbColor(1, 0.8, 0.85), 3, 0.75, "Rectangle")
+        .AddEllipseAnnotation(0, 210, 490, 110, 65,
+            new PdfRgbColor(0.1, 0.55, 0.25), new PdfRgbColor(0.8, 1, 0.85), 3, 0.75, "Ellipse")
+        .AddInkAnnotation(0,
+        [
+            [new PdfPoint(72, 430), new PdfPoint(110, 455), new PdfPoint(150, 425)],
+            [new PdfPoint(170, 430), new PdfPoint(210, 455), new PdfPoint(250, 425)]
+        ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85, "Two ink strokes")
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4 visual annotation PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -160,6 +190,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-form-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-annotation-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-visual-annotation-smoke <font.ttf> <profile.icc> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 

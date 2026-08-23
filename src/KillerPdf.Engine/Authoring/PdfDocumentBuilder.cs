@@ -10,7 +10,7 @@ using System.Xml;
 namespace KillerPdf.Engine.Authoring;
 
 /// <summary>Creates a new PDF catalog and page tree without relying on the legacy writer.</summary>
-public sealed class PdfDocumentBuilder
+public sealed partial class PdfDocumentBuilder
 {
     private static readonly PdfName RootName = Name("Root");
     private static readonly PdfName SizeName = Name("Size");
@@ -381,10 +381,15 @@ public sealed class PdfDocumentBuilder
             new AllocatedTextNote(note, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedTextMarkups = _textMarkups.Select(markup =>
             new AllocatedTextMarkup(markup, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedFreeTexts = _freeTexts.Select(freeText =>
+            new AllocatedFreeText(freeText, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedVisualAnnotations = _visualAnnotations.Select(annotation =>
+            new AllocatedVisualAnnotation(annotation, nextObjectNumber++, nextObjectNumber++)).ToArray();
         int? iccProfileNumber = _outputIntent is null ? null : nextObjectNumber++;
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
+            .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
             .Where(font => font is not null).Cast<TrueTypeFont>().Distinct().ToArray();
         var formFontResources = formEmbeddedFonts.Select((font, index) => (font, index))
             .ToDictionary(item => item.font,
@@ -396,8 +401,10 @@ public sealed class PdfDocumentBuilder
             foreach (string value in _textFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
                 .Select(field => field.Value)
                 .Concat(_choiceFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
-                    .SelectMany(field => field.Options.Append(field.SelectedValue))))
-                AddTextMappings(usage, value);
+                    .SelectMany(field => field.Options.Append(field.SelectedValue)))
+                .Concat(_freeTexts.Where(freeText => ReferenceEquals(freeText.Font, font))
+                    .Select(freeText => freeText.Contents)))
+                AddDrawableTextMappings(usage, value);
             formFontUsages.Add(usage);
         }
         var fontNumbers = new Dictionary<PdfStandardFont, int>();
@@ -455,7 +462,11 @@ public sealed class PdfDocumentBuilder
                 .. allocatedTextNotes.Where(note => note.Definition.PageIndex == pageIndex)
                     .Select(note => note.AnnotationNumber),
                 .. allocatedTextMarkups.Where(markup => markup.Definition.PageIndex == pageIndex)
-                    .Select(markup => markup.AnnotationNumber)];
+                    .Select(markup => markup.AnnotationNumber),
+                .. allocatedFreeTexts.Where(freeText => freeText.Definition.PageIndex == pageIndex)
+                    .Select(freeText => freeText.AnnotationNumber),
+                .. allocatedVisualAnnotations.Where(annotation => annotation.Definition.PageIndex == pageIndex)
+                    .Select(annotation => annotation.AnnotationNumber)];
             allocated.Add(new AllocatedPage(page, pageNumber, contentNumber, annotationNumbers));
         }
 
@@ -597,6 +608,15 @@ public sealed class PdfDocumentBuilder
             AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1);
         for (int index = 0; index < allocatedTextMarkups.Length; index++)
             AddTextMarkupObjects(objects, allocatedTextMarkups[index], allocated, index + 1);
+        for (int index = 0; index < allocatedFreeTexts.Length; index++)
+        {
+            FreeTextDefinition freeText = allocatedFreeTexts[index].Definition;
+            (PdfName resource, int number) = FormFontBinding(
+                freeText.Font, fontNumbers, formFontResources, embeddedFonts);
+            AddFreeTextObjects(objects, allocatedFreeTexts[index], allocated, index + 1, resource, number);
+        }
+        for (int index = 0; index < allocatedVisualAnnotations.Length; index++)
+            AddVisualAnnotationObjects(objects, allocatedVisualAnnotations[index], allocated, index + 1);
         foreach ((PdfStandardFont font, int number) in fontNumbers.OrderBy(entry => entry.Value))
             objects.Add(new PdfIndirectObject(number, 0, StandardFontDictionary(font), 0));
         foreach (AllocatedEmbeddedFont font in embeddedFonts)
@@ -1267,6 +1287,16 @@ public sealed class PdfDocumentBuilder
     {
         foreach (Rune rune in value.EnumerateRunes())
             usage.AddMapping(usage.Font.GetGlyphId(rune.Value), rune.Value);
+    }
+
+    private static void AddDrawableTextMappings(EmbeddedFontUsage usage, string value)
+    {
+        foreach (Rune rune in value.EnumerateRunes())
+        {
+            if (rune.Value is '\r' or '\n')
+                continue;
+            usage.AddMapping(usage.Font.GetGlyphId(rune.Value), rune.Value);
+        }
     }
 
     private static void WriteShownText(Stream output, string value, TrueTypeFont? embeddedFont)
