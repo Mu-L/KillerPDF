@@ -764,6 +764,22 @@ if (args.Length == 3 && args[0] == "--pdfa-annotation-smoke")
         .AddUnderline(0, 90, 590, 300, 28, "Underlined passage")
         .AddStrikeOut(0, 90, 540, 300, 28, "Struck passage")
         .AddSquiggly(0, 90, 490, 300, 28, "Spelling review")
+        .AddCaretAnnotation(0, 410, 540, 24, 30, "Insert a paragraph",
+            symbol: PdfCaretSymbol.Paragraph,
+            annotationMetadata: new PdfAnnotationMetadata { Author = "Editor" })
+        .AddRedactionMark(0,
+            [
+                new PdfTextQuad(new PdfPoint(90, 450), new PdfPoint(390, 450),
+                    new PdfPoint(90, 425), new PdfPoint(390, 425)),
+                new PdfTextQuad(new PdfPoint(90, 415), new PdfPoint(260, 415),
+                    new PdfPoint(90, 390), new PdfPoint(260, 390))
+            ],
+            "Remove confidential identifiers",
+            annotationMetadata: new PdfAnnotationMetadata
+            {
+                Author = "Privacy review",
+                Subject = "Pending redaction"
+            })
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
@@ -829,6 +845,16 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
         ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85, "Two ink strokes", [10, 4])
         .AddImageStamp(0, 350, 390, 100, 60, stampImage, "RGBA image stamp",
             icon: PdfStampIcon.Final)
+        .AddRedactionMark(0,
+            [
+                new PdfTextQuad(new PdfPoint(72, 350), new PdfPoint(310, 350),
+                    new PdfPoint(72, 325), new PdfPoint(310, 325)),
+                new PdfTextQuad(new PdfPoint(72, 315), new PdfPoint(240, 315),
+                    new PdfPoint(72, 290), new PdfPoint(240, 290))
+            ],
+            "Replacement-text redaction review",
+            overlayText: "REDACTED", repeatOverlayText: true,
+            overlayAlignment: PdfTextAlignment.Center, overlayFont: font)
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);

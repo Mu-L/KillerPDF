@@ -772,7 +772,9 @@ public sealed partial class PdfDocumentBuilder
             || _bookmarks.Count > 0 || _namedDestinations.Count > 0 || _openAction is not null
             || _textFields.Count > 0 || _checkBoxes.Count > 0 || _radioGroups.Count > 0
             || _choiceFields.Count > 0 || _textNotes.Count > 0 || _textMarkups.Count > 0
-            || _freeTexts.Count > 0 || _visualAnnotations.Count > 0 || _imageStamps.Count > 0))
+            || _freeTexts.Count > 0 || _visualAnnotations.Count > 0 || _imageStamps.Count > 0
+            || _fileAttachmentAnnotations.Count > 0 || _caretAnnotations.Count > 0
+            || _redactionAnnotations.Count > 0))
             throw new InvalidOperationException(
                 "PDF/UA-2 annotations, forms, and navigation require structure associations that are not yet authored.");
         if (_pdfUa2Conformance && _attachments.Count > 0)
@@ -805,6 +807,10 @@ public sealed partial class PdfDocumentBuilder
             || _choiceFields.Any(field => field.EmbeddedFont is null)))
             throw new InvalidOperationException(
                 "PDF/A-4 text and choice fields require an embedded TrueType form font.");
+        if (pdfA4 && _redactionAnnotations.Any(annotation =>
+            annotation.OverlayText is not null && annotation.OverlayFont is null))
+            throw new InvalidOperationException(
+                "PDF/A-4 redaction overlay text requires an embedded TrueType font.");
         if (_pdfA4Flavor == PdfA4Flavor.General && _attachments.Count > 0)
             throw new InvalidOperationException("General PDF/A-4 does not permit attachments; enable PDF/A-4f conformance instead.");
         const int catalogNumber = 1;
@@ -850,6 +856,10 @@ public sealed partial class PdfDocumentBuilder
                 StringComparer.Ordinal);
         var allocatedTextMarkups = _textMarkups.Select(markup =>
             new AllocatedTextMarkup(markup, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedCaretAnnotations = _caretAnnotations.Select(annotation =>
+            new AllocatedCaretAnnotation(annotation, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedRedactionAnnotations = _redactionAnnotations.Select(annotation =>
+            new AllocatedRedactionAnnotation(annotation, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedFreeTexts = _freeTexts.Select(freeText =>
             new AllocatedFreeText(freeText, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedVisualAnnotations = _visualAnnotations.Select(annotation =>
@@ -905,6 +915,7 @@ public sealed partial class PdfDocumentBuilder
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
             .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
+            .Concat(_redactionAnnotations.Select(redaction => redaction.OverlayFont))
             .Where(font => font is not null).Cast<TrueTypeFont>().Distinct().ToArray();
         var formFontResources = formEmbeddedFonts.Select((font, index) => (font, index))
             .ToDictionary(item => item.font,
@@ -918,7 +929,11 @@ public sealed partial class PdfDocumentBuilder
                 .Concat(_choiceFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
                     .SelectMany(field => field.Options.Append(field.SelectedValue)))
                 .Concat(_freeTexts.Where(freeText => ReferenceEquals(freeText.Font, font))
-                    .Select(freeText => freeText.Contents)))
+                    .Select(freeText => freeText.Contents))
+                .Concat(_redactionAnnotations
+                    .Where(redaction => ReferenceEquals(redaction.OverlayFont, font)
+                        && redaction.OverlayText is not null)
+                    .Select(redaction => redaction.OverlayText!)))
                 AddDrawableTextMappings(usage, value);
             formFontUsages.Add(usage);
         }
@@ -927,7 +942,9 @@ public sealed partial class PdfDocumentBuilder
             .Concat(forms.SelectMany(form => form.Fonts.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.Fonts.Keys));
         if (_textFields.Any(field => field.EmbeddedFont is null)
-            || _choiceFields.Any(field => field.EmbeddedFont is null))
+            || _choiceFields.Any(field => field.EmbeddedFont is null)
+            || _redactionAnnotations.Any(annotation =>
+                annotation.OverlayText is not null && annotation.OverlayFont is null))
             requestedStandardFonts = requestedStandardFonts.Append(PdfStandardFont.Helvetica);
         foreach (PdfStandardFont font in requestedStandardFonts.Distinct().Order())
             fontNumbers.Add(font, nextObjectNumber++);
@@ -992,6 +1009,10 @@ public sealed partial class PdfDocumentBuilder
                     .Select(annotation => annotation.AnnotationNumber),
                 .. allocatedTextMarkups.Where(markup => markup.Definition.PageIndex == pageIndex)
                     .Select(markup => markup.AnnotationNumber),
+                .. allocatedCaretAnnotations.Where(annotation => annotation.Definition.PageIndex == pageIndex)
+                    .Select(annotation => annotation.AnnotationNumber),
+                .. allocatedRedactionAnnotations.Where(annotation => annotation.Definition.PageIndex == pageIndex)
+                    .Select(annotation => annotation.AnnotationNumber),
                 .. allocatedFreeTexts.Where(freeText => freeText.Definition.PageIndex == pageIndex)
                     .Select(freeText => freeText.AnnotationNumber),
                 .. allocatedVisualAnnotations.Where(annotation => annotation.Definition.PageIndex == pageIndex)
@@ -1406,6 +1427,19 @@ public sealed partial class PdfDocumentBuilder
                 textNoteNumbersByName);
         for (int index = 0; index < allocatedTextMarkups.Length; index++)
             AddTextMarkupObjects(objects, allocatedTextMarkups[index], allocated, index + 1);
+        for (int index = 0; index < allocatedCaretAnnotations.Length; index++)
+            AddCaretAnnotationObjects(objects, allocatedCaretAnnotations[index], allocated, index + 1);
+        for (int index = 0; index < allocatedRedactionAnnotations.Length; index++)
+        {
+            RedactionAnnotationDefinition redaction = allocatedRedactionAnnotations[index].Definition;
+            PdfName? resource = null;
+            int? number = null;
+            if (redaction.OverlayText is not null)
+                (resource, number) = FormFontBinding(
+                    redaction.OverlayFont, fontNumbers, formFontResources, embeddedFonts);
+            AddRedactionAnnotationObjects(objects, allocatedRedactionAnnotations[index], allocated,
+                index + 1, resource, number);
+        }
         for (int index = 0; index < allocatedFreeTexts.Length; index++)
         {
             FreeTextDefinition freeText = allocatedFreeTexts[index].Definition;
