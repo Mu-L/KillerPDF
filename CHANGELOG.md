@@ -11,6 +11,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 ### PDF document engine development
 - Added a standalone, UI-free .NET 10 document-engine project and test project that will replace KillerPDF's PdfSharpCore document pipeline without replacing PDFium rendering.
 - Added from-scratch PDF 2.0 catalogs, page trees, arbitrary finite page sizes, content streams, graphics-state operations, transforms, paths, Bézier curves, rectangles, colors, fills, and strokes.
+- Completed PDF path construction and painting with both cubic Bézier shorthand forms, close-and-stroke, even-odd fill-and-stroke, and closed nonzero or even-odd fill-and-stroke operators.
 - Added complete stroke styling with butt, round, and projecting-square caps; miter, round, and bevel joins; validated miter limits; reusable dash sequences and phases; and solid-stroke reset.
 - Added native DeviceCMYK fill and stroke authoring plus validated CMYK base colors for uncolored stencil patterns, complementing existing grayscale and RGB graphics support.
 - Added all four standard color-rendering intents and validated curve-flatness tolerance controls for predictable screen and print painting behavior.
@@ -21,6 +22,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added PDF optional-content layers with Unicode names, deterministic viewer ordering, initial visibility controls, shared page-property resources, and complete layer-configuration preservation when whole documents are imported into empty destinations. Unsafe partial or combined layer imports now fail explicitly instead of leaving content tied to a missing catalog configuration.
 - Added positioned and escaped Latin-1 text with automatic resources for all 14 built-in Type 1 fonts.
 - Added text matrices, line leading and next-line movement, character and word spacing, horizontal scaling, baseline rise, and all eight PDF text rendering and clipping modes.
+- Added positioned text arrays for built-in Latin-1 and embedded Unicode fonts, enabling deterministic kerning and per-run glyph advances while retaining Unicode mappings.
 - Added bounded TrueType/OpenType inspection for names, metrics, embedding permissions, widths, Unicode cmap formats 4 and 12, deterministic glyf/loca subsetting with composite dependencies, full-file CFF-flavoured OpenType embedding, CIDFontType0 and CIDFontType2 descendants, and `ToUnicode` maps.
 - Added image XObjects with bounded JPEG inspection and lossless DCT passthrough for grayscale, RGB, and CMYK images, deterministic Flate compression for RGB/RGBA pixels, reusable resources, mirroring, and alpha soft masks.
 - Added Unicode metadata in both the information dictionary and XMP, document language, timezone-preserving dates, and stable content-derived trailer identifiers.

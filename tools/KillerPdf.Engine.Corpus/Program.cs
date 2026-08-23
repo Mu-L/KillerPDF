@@ -35,6 +35,39 @@ if (args.Length == 3 && args[0] == "--unicode-smoke")
     return 0;
 }
 
+if (args.Length == 4 && args[0] == "--text-state-smoke")
+{
+    TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[2]));
+    string destination = Path.GetFullPath(args[3]);
+    var content = new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Paragraph, 0)
+        .BeginText().SetFont(font, 28)
+        .SetTextMatrix(0.966, 0.259, -0.259, 0.966, 90, 650)
+        .SetCharacterSpacing(0.3).SetWordSpacing(1.2).SetHorizontalTextScale(94)
+        .SetTextRise(2).SetTextRenderingMode(PdfTextRenderingMode.Fill)
+        .ShowPositionedUnicodeText(["Killer", "PDF"], [-45])
+        .SetTextLeading(40).MoveToNextTextLine().SetTextRise(0)
+        .ShowUnicodeText("positioned text")
+        .EndText().EndMarkedContent();
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF positioned text smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance().EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Paragraph, 0, 0, 1)
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte positioned-text PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 3 && args[0] == "--image-smoke")
 {
     PdfImage image = PdfImage.FromJpeg(File.ReadAllBytes(args[1]));
@@ -900,6 +933,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --tiling-pattern-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --text-state-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");

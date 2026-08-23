@@ -335,13 +335,23 @@ public sealed class PdfContentStreamBuilder
     public PdfContentStreamBuilder CurveTo(
         double x1, double y1, double x2, double y2, double x3, double y3) =>
         Operator("c"u8, x1, y1, x2, y2, x3, y3);
+    /// <summary>Appends a cubic Bézier whose first control point is the current point.</summary>
+    public PdfContentStreamBuilder CurveTo(double x2, double y2, double x3, double y3) =>
+        Operator("v"u8, x2, y2, x3, y3);
+    /// <summary>Appends a cubic Bézier whose second control point is the final point.</summary>
+    public PdfContentStreamBuilder CurveToFinalControl(double x1, double y1, double x3, double y3) =>
+        Operator("y"u8, x1, y1, x3, y3);
     public PdfContentStreamBuilder Rectangle(double x, double y, double width, double height) =>
         Operator("re"u8, x, y, width, height);
     public PdfContentStreamBuilder ClosePath() => NoOperand("h"u8);
     public PdfContentStreamBuilder Stroke() => PaintingOperator("S"u8);
+    public PdfContentStreamBuilder CloseAndStroke() => PaintingOperator("s"u8);
     public PdfContentStreamBuilder Fill() => PaintingOperator("f"u8);
     public PdfContentStreamBuilder FillEvenOdd() => PaintingOperator("f*"u8);
     public PdfContentStreamBuilder FillAndStroke() => PaintingOperator("B"u8);
+    public PdfContentStreamBuilder FillAndStrokeEvenOdd() => PaintingOperator("B*"u8);
+    public PdfContentStreamBuilder CloseFillAndStroke() => PaintingOperator("b"u8);
+    public PdfContentStreamBuilder CloseFillAndStrokeEvenOdd() => PaintingOperator("b*"u8);
     public PdfContentStreamBuilder EndPath() => NoOperand("n"u8);
     public PdfContentStreamBuilder Clip()
     {
@@ -528,6 +538,29 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Writes Latin-1 text segments separated by PDF text-position adjustments.</summary>
+    public PdfContentStreamBuilder ShowPositionedLatin1Text(
+        IReadOnlyList<string> segments, IReadOnlyList<double> adjustments)
+    {
+        RequireText();
+        ValidatePositionedText(segments, adjustments);
+        RecordPaintedContent();
+        _output.WriteByte((byte)'[');
+        for (int index = 0; index < segments.Count; index++)
+        {
+            if (index > 0)
+            {
+                WriteNumber(adjustments[index - 1]);
+                _output.WriteByte((byte)' ');
+            }
+            _output.Write(PdfObjectWriter.Write(new PdfString(
+                Latin1Bytes(segments[index]), PdfStringForm.Literal)));
+            if (index + 1 < segments.Count) _output.WriteByte((byte)' ');
+        }
+        _output.Write("] TJ\n"u8);
+        return this;
+    }
+
     /// <summary>Writes Unicode text as two-byte glyph identifiers and records its ToUnicode mappings.</summary>
     public PdfContentStreamBuilder ShowUnicodeText(string text)
     {
@@ -536,21 +569,32 @@ public sealed class PdfContentStreamBuilder
         RecordPaintedContent();
         EmbeddedFontUsage usage = _activeEmbeddedFont
             ?? throw new InvalidOperationException("Select an embedded TrueType font before writing Unicode text.");
-        _output.WriteByte((byte)'<');
-        Span<byte> encoded = stackalloc byte[2];
-        foreach (Rune rune in text.EnumerateRunes())
+        WriteUnicodeHexString(usage, text);
+        _output.Write(" Tj\n"u8);
+        return this;
+    }
+
+    /// <summary>Writes embedded Unicode text segments separated by PDF text-position adjustments.</summary>
+    public PdfContentStreamBuilder ShowPositionedUnicodeText(
+        IReadOnlyList<string> segments, IReadOnlyList<double> adjustments)
+    {
+        RequireText();
+        ValidatePositionedText(segments, adjustments);
+        EmbeddedFontUsage usage = _activeEmbeddedFont
+            ?? throw new InvalidOperationException("Select an embedded TrueType font before writing Unicode text.");
+        RecordPaintedContent();
+        _output.WriteByte((byte)'[');
+        for (int index = 0; index < segments.Count; index++)
         {
-            ushort glyph = usage.Font.GetGlyphId(rune.Value);
-            if (glyph == 0 && rune.Value != 0)
-                throw new ArgumentException(
-                    $"Font {usage.Font.PostScriptName} has no glyph for U+{rune.Value:X4}.", nameof(text));
-            usage.AddMapping(glyph, rune.Value);
-            encoded[0] = (byte)(glyph >> 8);
-            encoded[1] = (byte)glyph;
-            WriteHexByte(encoded[0]);
-            WriteHexByte(encoded[1]);
+            if (index > 0)
+            {
+                WriteNumber(adjustments[index - 1]);
+                _output.WriteByte((byte)' ');
+            }
+            WriteUnicodeHexString(usage, segments[index]);
+            if (index + 1 < segments.Count) _output.WriteByte((byte)' ');
         }
-        _output.Write("> Tj\n"u8);
+        _output.Write("] TJ\n"u8);
         return this;
     }
 
@@ -608,6 +652,53 @@ public sealed class PdfContentStreamBuilder
             ? new PdfInteger((long)value)
             : new PdfReal(value);
         _output.Write(PdfObjectWriter.Write(number));
+    }
+
+    private static byte[] Latin1Bytes(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        byte[] bytes = new byte[text.Length];
+        for (int index = 0; index < text.Length; index++)
+        {
+            if (text[index] > 0xFF)
+                throw new ArgumentException("Built-in font text is limited to Latin-1 bytes.", nameof(text));
+            bytes[index] = (byte)text[index];
+        }
+        return bytes;
+    }
+
+    private static void ValidatePositionedText(
+        IReadOnlyList<string> segments, IReadOnlyList<double> adjustments)
+    {
+        ArgumentNullException.ThrowIfNull(segments);
+        ArgumentNullException.ThrowIfNull(adjustments);
+        if (segments.Count == 0)
+            throw new ArgumentException("Positioned text requires at least one text segment.", nameof(segments));
+        if (adjustments.Count != segments.Count - 1)
+            throw new ArgumentException(
+                "Positioned text requires exactly one fewer adjustment than text segments.",
+                nameof(adjustments));
+        if (segments.Any(segment => segment is null))
+            throw new ArgumentException("A positioned text segment cannot be null.", nameof(segments));
+        if (adjustments.Any(adjustment => !double.IsFinite(adjustment)))
+            throw new ArgumentOutOfRangeException(nameof(adjustments));
+    }
+
+    private void WriteUnicodeHexString(EmbeddedFontUsage usage, string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        _output.WriteByte((byte)'<');
+        foreach (Rune rune in text.EnumerateRunes())
+        {
+            ushort glyph = usage.Font.GetGlyphId(rune.Value);
+            if (glyph == 0 && rune.Value != 0)
+                throw new ArgumentException(
+                    $"Font {usage.Font.PostScriptName} has no glyph for U+{rune.Value:X4}.", nameof(text));
+            usage.AddMapping(glyph, rune.Value);
+            WriteHexByte((byte)(glyph >> 8));
+            WriteHexByte((byte)glyph);
+        }
+        _output.WriteByte((byte)'>');
     }
 
     private void WriteOperator(ReadOnlySpan<byte> value)

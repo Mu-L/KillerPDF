@@ -29,6 +29,21 @@ public sealed class PdfContentStreamBuilderTests
     }
 
     [Fact]
+    public void Build_WritesBezierShorthandsAndCompletePathPaintingOperators()
+    {
+        byte[] content = new PdfContentStreamBuilder()
+            .MoveTo(10, 10).CurveTo(20, 30, 40, 50).CloseAndStroke()
+            .MoveTo(60, 10).CurveToFinalControl(70, 30, 90, 50).FillAndStrokeEvenOdd()
+            .Rectangle(10, 60, 30, 20).CloseFillAndStroke()
+            .Rectangle(50, 60, 30, 20).CloseFillAndStrokeEvenOdd()
+            .Build();
+
+        Assert.Equal(
+            "10 10 m\n20 30 40 50 v\ns\n60 10 m\n70 30 90 50 y\nB*\n10 60 30 20 re\nb\n50 60 30 20 re\nb*\n",
+            Encoding.ASCII.GetString(content));
+    }
+
+    [Fact]
     public void Build_WritesCompleteStrokeStyling()
     {
         byte[] content = new PdfContentStreamBuilder()
@@ -211,6 +226,47 @@ public sealed class PdfContentStreamBuilderTests
         Assert.Equal(
             "BT\n/F1 14 Tf\n0.866 0.5 -0.5 0.866 72 700 Tm\n18 TL\n0.25 Tc\n1.5 Tw\n92 Tz\n3 Ts\n2 Tr\n(Raised text) Tj\nT*\n0 Ts\n(Next line) Tj\nET\n",
             Encoding.ASCII.GetString(content));
+    }
+
+    [Fact]
+    public void TextOperators_WritePositionedLatin1Array()
+    {
+        byte[] content = new PdfContentStreamBuilder()
+            .BeginText().SetFont(PdfStandardFont.Helvetica, 12)
+            .ShowPositionedLatin1Text(["A", "V", "A"], [-80, 20])
+            .EndText().Build();
+
+        Assert.Equal("BT\n/F1 12 Tf\n[(A) -80 (V) 20 (A)] TJ\nET\n",
+            Encoding.ASCII.GetString(content));
+    }
+
+    [Fact]
+    public void TextOperators_WritePositionedEmbeddedUnicodeArray()
+    {
+        TrueTypeFont embedded = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        byte[] content = new PdfContentStreamBuilder()
+            .BeginText().SetFont(embedded, 12)
+            .ShowPositionedUnicodeText(["A", "A"], [-35.5])
+            .EndText().Build();
+
+        Assert.Equal("BT\n/F1 12 Tf\n[<0001> -35.5 <0001>] TJ\nET\n",
+            Encoding.ASCII.GetString(content));
+    }
+
+    [Fact]
+    public void PositionedText_RejectsMismatchedOrInvalidItems()
+    {
+        var latin = new PdfContentStreamBuilder()
+            .BeginText().SetFont(PdfStandardFont.Helvetica, 12);
+
+        Assert.Throws<ArgumentException>(() =>
+            latin.ShowPositionedLatin1Text([], []));
+        Assert.Throws<ArgumentException>(() =>
+            latin.ShowPositionedLatin1Text(["A", "V"], []));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            latin.ShowPositionedLatin1Text(["A", "V"], [double.NaN]));
+        Assert.Throws<ArgumentException>(() =>
+            latin.ShowPositionedLatin1Text(["A", "Ω"], [0]));
     }
 
     [Fact]
