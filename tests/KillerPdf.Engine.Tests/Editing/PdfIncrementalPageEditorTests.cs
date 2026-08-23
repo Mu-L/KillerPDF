@@ -140,6 +140,50 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_InsertsBlankPagesWithoutRenumberingExistingPages()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage(100, 200)
+            .AddBlankPage(300, 400)
+            .Build();
+        PdfDocument original = PdfDocument.Open(source);
+        PdfIndirectReference[] originalPages = FlatPages(original).References;
+        var editor = new PdfIncrementalPageEditor(original);
+
+        byte[] result = editor.InsertBlankPage(1, 500, 600).Build();
+        PdfDocument reopened = PdfDocument.Open(result);
+        (PdfIndirectReference rootReference, PdfIndirectReference[] references, PdfDictionary[] pages) =
+            FlatPages(reopened);
+        PdfDictionary root = ResolveDictionary(reopened, rootReference);
+
+        Assert.Equal(3, editor.PageCount);
+        Assert.Equal(3, Assert.IsType<PdfInteger>(root[Name("Count")]).Value);
+        Assert.Equal(originalPages[0].ObjectNumber, references[0].ObjectNumber);
+        Assert.Equal(originalPages[1].ObjectNumber, references[2].ObjectNumber);
+        Assert.DoesNotContain(references[1].ObjectNumber,
+            originalPages.Select(reference => reference.ObjectNumber));
+        Assert.Equal(500, BoxWidth(pages[1]));
+        Assert.Equal(rootReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(pages[1][Name("Parent")]).ObjectNumber);
+        Assert.Equal("Page", Assert.IsType<PdfName>(pages[1][Name("Type")]).ValueAsLatin1());
+        Assert.IsType<PdfDictionary>(pages[1][Name("Resources")]);
+        Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+    }
+
+    [Fact]
+    public void Build_CanAppendToAnInitiallyEmptyPageTree()
+    {
+        byte[] source = new PdfDocumentBuilder().Build();
+        var editor = new PdfIncrementalPageEditor(PdfDocument.Open(source));
+
+        PdfDocument reopened = PdfDocument.Open(editor.AddBlankPage(320, 240).Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(reopened);
+
+        Assert.Single(references);
+        Assert.Equal(320, BoxWidth(pages[0]));
+    }
+
+    [Fact]
     public void ArgumentsAndEmptyUpdates_AreRejected()
     {
         var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
@@ -148,6 +192,8 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.MovePage(-1, 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.MovePage(0, 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.RemovePage(1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.InsertBlankPage(2));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddBlankPage(double.PositiveInfinity, 100));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetRotation(0, 45));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetMediaBox(0, 0, 0, 0, 100));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetCropBox(0, 0, 0, 100, double.NaN));
@@ -160,6 +206,7 @@ public sealed class PdfIncrementalPageEditorTests
         byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage().Build();
         byte[] Edit() => new PdfIncrementalPageEditor(PdfDocument.Open(source))
             .MovePage(0, 1)
+            .InsertBlankPage(1, 320, 240)
             .SetRotation(0, 270)
             .Build();
 

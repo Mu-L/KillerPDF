@@ -5,7 +5,7 @@ using KillerPdf.Engine.Writing;
 
 namespace KillerPdf.Engine.Editing;
 
-/// <summary>Rotates and reorders existing pages through a byte-preserving incremental revision.</summary>
+/// <summary>Edits an existing document's pages through a byte-preserving incremental revision.</summary>
 public sealed class PdfIncrementalPageEditor
 {
     private static readonly PdfName PagesName = Name("Pages");
@@ -55,6 +55,20 @@ public sealed class PdfIncrementalPageEditor
         _orderChanged = true;
         return this;
     }
+
+    /// <summary>Inserts a blank page at a zero-based position in the current page order.</summary>
+    public PdfIncrementalPageEditor InsertBlankPage(
+        int pageIndex, double width = 612, double height = 792)
+    {
+        ValidateInsertionIndex(pageIndex, nameof(pageIndex));
+        _pages.Insert(pageIndex, new PageState(Rectangle(0, 0, width, height)));
+        _orderChanged = true;
+        return this;
+    }
+
+    /// <summary>Appends a blank page to the current page order.</summary>
+    public PdfIncrementalPageEditor AddBlankPage(double width = 612, double height = 792) =>
+        InsertBlankPage(_pages.Count, width, height);
 
     public PdfIncrementalPageEditor RotateClockwise(int pageIndex) => Rotate(pageIndex, 90);
     public PdfIncrementalPageEditor RotateCounterClockwise(int pageIndex) => Rotate(pageIndex, -90);
@@ -115,6 +129,8 @@ public sealed class PdfIncrementalPageEditor
         foreach (PageState state in _pages.Where(page =>
                      page.Rotation.HasValue || page.MediaBox is not null || page.CropBox is not null))
         {
+            PdfPageTreeEntry entry = state.Entry
+                ?? throw new InvalidOperationException("New pages require a rebuilt page tree.");
             var replacements = new Dictionary<PdfName, PdfObject>();
             if (state.Rotation.HasValue)
                 replacements[RotateName] = new PdfInteger(state.Rotation.Value);
@@ -122,15 +138,18 @@ public sealed class PdfIncrementalPageEditor
                 replacements[MediaBoxName] = state.MediaBox;
             if (state.CropBox is not null)
                 replacements[CropBoxName] = state.CropBox;
-            update.ReplaceObject(state.Entry.Reference.ObjectNumber,
-                ReplaceMany(state.Entry.Dictionary, replacements));
+            update.ReplaceObject(entry.Reference.ObjectNumber,
+                ReplaceMany(entry.Dictionary, replacements));
         }
     }
 
     private void BuildReorderedTree(PdfIncrementalUpdateBuilder update)
     {
         PdfIndirectReference newRoot = update.ReserveObject();
-        var kids = new PdfArray(_pages.Select(page => (PdfObject)page.Entry.Reference));
+        var references = new Dictionary<PageState, PdfIndirectReference>();
+        foreach (PageState state in _pages)
+            references[state] = state.Entry?.Reference ?? update.ReserveObject();
+        var kids = new PdfArray(_pages.Select(page => (PdfObject)references[page]));
         update.SetObject(newRoot, Dictionary(
             ("Type", Name("Pages")), ("Kids", kids), ("Count", new PdfInteger(_pages.Count))));
         update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
@@ -138,15 +157,32 @@ public sealed class PdfIncrementalPageEditor
 
         foreach (PageState state in _pages)
         {
-            if (!state.Entry.InheritedValues.ContainsKey(MediaBoxName))
+            if (state.Entry is null)
+            {
+                var entries = new List<(string Name, PdfObject Value)>
+                {
+                    ("Type", Name("Page")),
+                    ("Parent", newRoot),
+                    ("MediaBox", state.MediaBox
+                        ?? throw new InvalidOperationException("A new page has no /MediaBox.")),
+                    ("Resources", new PdfDictionary([]))
+                };
+                if (state.CropBox is not null) entries.Add(("CropBox", state.CropBox));
+                if (state.Rotation.HasValue)
+                    entries.Add(("Rotate", new PdfInteger(state.Rotation.Value)));
+                update.SetObject(references[state], Dictionary(entries.ToArray()));
+                continue;
+            }
+            PdfPageTreeEntry entry = state.Entry;
+            if (state.MediaBox is null && !entry.InheritedValues.ContainsKey(MediaBoxName))
                 throw new InvalidOperationException(
-                    $"Page {state.Entry.Index + 1} has no effective /MediaBox and cannot be reparented.");
+                    $"Page {entry.Index + 1} has no effective /MediaBox and cannot be reparented.");
             var replacements = new Dictionary<PdfName, PdfObject>
             {
                 [ParentName] = newRoot
             };
             foreach (PdfName name in InheritableNames)
-                if (state.Entry.InheritedValues.TryGetValue(name, out PdfObject? value))
+                if (entry.InheritedValues.TryGetValue(name, out PdfObject? value))
                     replacements[name] = value;
             if (state.Rotation.HasValue)
                 replacements[RotateName] = new PdfInteger(state.Rotation.Value);
@@ -154,15 +190,16 @@ public sealed class PdfIncrementalPageEditor
                 replacements[MediaBoxName] = state.MediaBox;
             if (state.CropBox is not null)
                 replacements[CropBoxName] = state.CropBox;
-            update.ReplaceObject(state.Entry.Reference.ObjectNumber,
-                ReplaceMany(state.Entry.Dictionary, replacements));
+            update.ReplaceObject(entry.Reference.ObjectNumber,
+                ReplaceMany(entry.Dictionary, replacements));
         }
     }
 
     private static int CurrentRotation(PageState state)
     {
         if (state.Rotation.HasValue) return state.Rotation.Value;
-        if (!state.Entry.InheritedValues.TryGetValue(RotateName, out PdfObject? value)) return 0;
+        if (state.Entry is null
+            || !state.Entry.InheritedValues.TryGetValue(RotateName, out PdfObject? value)) return 0;
         if (value is not PdfInteger rotation || rotation.Value is < int.MinValue or > int.MaxValue
             || rotation.Value % 90 != 0)
             throw new InvalidOperationException(
@@ -207,6 +244,12 @@ public sealed class PdfIncrementalPageEditor
             throw new ArgumentOutOfRangeException(parameterName);
     }
 
+    private void ValidateInsertionIndex(int pageIndex, string parameterName)
+    {
+        if (pageIndex < 0 || pageIndex > _pages.Count)
+            throw new ArgumentOutOfRangeException(parameterName);
+    }
+
     private static PdfDictionary ReplaceMany(
         PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements) =>
         new(source.Where(entry => !replacements.ContainsKey(entry.Key)).Concat(replacements));
@@ -222,9 +265,11 @@ public sealed class PdfIncrementalPageEditor
             : new PdfReal(value);
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 
-    private sealed class PageState(PdfPageTreeEntry entry)
+    private sealed class PageState
     {
-        internal PdfPageTreeEntry Entry { get; } = entry;
+        internal PageState(PdfPageTreeEntry entry) => Entry = entry;
+        internal PageState(PdfArray mediaBox) => MediaBox = mediaBox;
+        internal PdfPageTreeEntry? Entry { get; }
         internal int? Rotation { get; set; }
         internal PdfArray? MediaBox { get; set; }
         internal PdfArray? CropBox { get; set; }

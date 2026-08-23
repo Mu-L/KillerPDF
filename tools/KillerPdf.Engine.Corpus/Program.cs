@@ -287,6 +287,7 @@ if (args.Length == 4 && args[0] == "--pdfa-page-smoke")
         .RotateClockwise(0)
         .SetCropBox(1, 25, 25, 350, 550)
         .MovePage(0, 1)
+        .InsertBlankPage(1, 300, 300)
         .Build();
     if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
         throw new InvalidDataException("The incremental page update changed source bytes.");
@@ -294,7 +295,7 @@ if (args.Length == 4 && args[0] == "--pdfa-page-smoke")
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(sourcePath, source);
     File.WriteAllBytes(destination, pdf);
-    Console.WriteLine($"Removed one page, reordered two, rotated one, and cropped one in {pdf.Length - source.Length:N0} appended bytes to {destination}");
+    Console.WriteLine($"Inserted and removed pages, reordered two, rotated one, and cropped one in {pdf.Length - source.Length:N0} appended bytes to {destination}");
     return 0;
 }
 
