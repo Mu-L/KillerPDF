@@ -8,6 +8,75 @@ namespace KillerPdf.Engine.Tests.Authoring;
 
 public sealed class PdfSignatureFieldTests
 {
+    [Theory]
+    [InlineData(PdfTextFieldAlignment.Left, "3 12 Td")]
+    [InlineData(PdfTextFieldAlignment.Center, "50.3 12 Td")]
+    [InlineData(PdfTextFieldAlignment.Right, "97.6 12 Td")]
+    public void AddSignatureField_MeasuresPromptAlignment(
+        PdfTextFieldAlignment alignment, string expectedPosition)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "signature", 0, 0, 160, 36,
+                appearanceText: "Sign here", appearanceAlignment: alignment)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+
+        Assert.Contains(expectedPosition,
+            Encoding.ASCII.GetString(appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void AddSignatureField_WritesRequiredSigningHandlerSeed()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "signature", 0, 0, 140, 40,
+                seedValue: new PdfSignatureSeedValue
+                {
+                    Handler = PdfSignatureHandler.AdobePpkLite,
+                    RequireHandler = true,
+                    ParserVersion = PdfSignatureSeedParserVersion.Pdf17,
+                    RequireParserVersion = true,
+                    AddRevocationInformation = true,
+                    RequireRevocationInformation = true
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary seed = Assert.IsType<PdfDictionary>(field[Name("SV")]);
+
+        Assert.Equal("Adobe.PPKLite",
+            Assert.IsType<PdfName>(seed[Name("Filter")]).ValueAsLatin1());
+        Assert.Equal(2, Assert.IsType<PdfReal>(seed[Name("V")]).Value);
+        Assert.True(Assert.IsType<PdfBoolean>(seed[Name("AddRevInfo")]).Value);
+        Assert.Equal(37, Assert.IsType<PdfInteger>(seed[Name("Ff")]).Value);
+    }
+
+    [Fact]
+    public void AddSignatureField_ValidatesHandlerAndPromptAlignment()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+        Assert.Throws<ArgumentException>(() => builder.AddSignatureField(
+            0, "handler", 0, 0, 100, 30,
+            seedValue: new PdfSignatureSeedValue { RequireHandler = true }));
+        Assert.Throws<ArgumentException>(() => builder.AddSignatureField(
+            0, "version", 0, 0, 100, 30,
+            seedValue: new PdfSignatureSeedValue { RequireParserVersion = true }));
+        Assert.Throws<ArgumentException>(() => builder.AddSignatureField(
+            0, "revocation", 0, 0, 100, 30,
+            seedValue: new PdfSignatureSeedValue { RequireRevocationInformation = true }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddSignatureField(
+            0, "alignment", 0, 0, 100, 30,
+            appearanceAlignment: (PdfTextFieldAlignment)9));
+    }
+
     [Fact]
     public void AddSignatureField_WritesCustomPromptStyle()
     {

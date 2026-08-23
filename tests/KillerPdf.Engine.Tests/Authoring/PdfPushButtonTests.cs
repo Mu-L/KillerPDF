@@ -8,10 +8,174 @@ namespace KillerPdf.Engine.Tests.Authoring;
 
 public sealed class PdfPushButtonTests
 {
+    [Fact]
+    public void AddUriPushButton_WritesIndependentInteractionStateIcons()
+    {
+        PdfImage normalIcon = PdfImage.FromRgb(1, 1, new byte[] { 255, 0, 0 });
+        PdfImage rolloverIcon = PdfImage.FromRgb(1, 1, new byte[] { 0, 255, 0 });
+        PdfImage downIcon = PdfImage.FromRgb(1, 1, new byte[] { 0, 0, 255 });
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "states", 0, 0, 100, 40, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    Icon = normalIcon,
+                    RolloverIcon = rolloverIcon,
+                    DownIcon = downIcon,
+                    CaptionPosition = PdfPushButtonCaptionPosition.IconOnly
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary characteristics = Assert.IsType<PdfDictionary>(field[Name("MK")]);
+        PdfDictionary appearances = Assert.IsType<PdfDictionary>(field[Name("AP")]);
+        var normalReference = Assert.IsType<PdfIndirectReference>(characteristics[Name("I")]);
+        var rolloverReference = Assert.IsType<PdfIndirectReference>(characteristics[Name("RI")]);
+        var downReference = Assert.IsType<PdfIndirectReference>(characteristics[Name("IX")]);
+
+        Assert.Equal(3, new[]
+        {
+            normalReference.ObjectNumber,
+            rolloverReference.ObjectNumber,
+            downReference.ObjectNumber
+        }.Distinct().Count());
+        Assert.True(appearances.ContainsKey(Name("R")));
+        Assert.True(appearances.ContainsKey(Name("D")));
+        Assert.Equal(rolloverReference.ObjectNumber,
+            IconReference(ResolveStateAppearance(document, appearances[Name("R")])).ObjectNumber);
+        Assert.Equal(downReference.ObjectNumber,
+            IconReference(ResolveStateAppearance(document, appearances[Name("D")])).ObjectNumber);
+    }
+
     [Theory]
-    [InlineData(PdfTextFieldAlignment.Left, "3 6 Td")]
+    [InlineData(PdfPushButtonCaptionPosition.CaptionOnly, 0, false)]
+    [InlineData(PdfPushButtonCaptionPosition.IconOnly, 1, true)]
+    [InlineData(PdfPushButtonCaptionPosition.CaptionBelowIcon, 2, true)]
+    [InlineData(PdfPushButtonCaptionPosition.CaptionAboveIcon, 3, true)]
+    [InlineData(PdfPushButtonCaptionPosition.CaptionRightOfIcon, 4, true)]
+    [InlineData(PdfPushButtonCaptionPosition.CaptionLeftOfIcon, 5, true)]
+    [InlineData(PdfPushButtonCaptionPosition.CaptionOverIcon, 6, true)]
+    public void AddUriPushButton_WritesEveryStandardCaptionPosition(
+        PdfPushButtonCaptionPosition position, int expectedValue, bool drawsIcon)
+    {
+        PdfImage icon = PdfImage.FromRgb(1, 1, new byte[] { 20, 40, 80 });
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "position", 0, 0, 100, 40, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    Icon = icon,
+                    CaptionPosition = position
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary characteristics = Assert.IsType<PdfDictionary>(field[Name("MK")]);
+        PdfDictionary normal = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(normal[Name("Normal")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+
+        Assert.Equal(expectedValue, Assert.IsType<PdfInteger>(characteristics[Name("TP")]).Value);
+        Assert.Equal(drawsIcon, content.Contains("/BtnIcon Do", StringComparison.Ordinal));
+        Assert.Equal(position != PdfPushButtonCaptionPosition.IconOnly,
+            content.Contains("(Open) Tj", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(PdfPushButtonIconScaleMode.Always, "A")]
+    [InlineData(PdfPushButtonIconScaleMode.Never, "N")]
+    [InlineData(PdfPushButtonIconScaleMode.WhenTooLarge, "B")]
+    [InlineData(PdfPushButtonIconScaleMode.WhenTooSmall, "S")]
+    public void AddUriPushButton_WritesEveryIconScalePolicy(
+        PdfPushButtonIconScaleMode mode, string expectedName)
+    {
+        PdfImage icon = PdfImage.FromRgb(1, 1, new byte[] { 20, 40, 80 });
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "scale", 0, 0, 100, 40, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    Icon = icon,
+                    CaptionPosition = PdfPushButtonCaptionPosition.CaptionOverIcon,
+                    IconScaleMode = mode
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary fit = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(field[Name("MK")])[Name("IF")]);
+
+        Assert.Equal(expectedName, Assert.IsType<PdfName>(fit[Name("SW")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void AddUriPushButton_WritesIconFitDictionaryAndGeneratedIconArtwork()
+    {
+        PdfImage icon = PdfImage.FromRgb(2, 1, new byte[] {
+            255, 0, 0, 0, 0, 255 });
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "icon", 0, 0, 100, 40, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    Icon = icon,
+                    CaptionPosition = PdfPushButtonCaptionPosition.CaptionRightOfIcon,
+                    IconScaleMode = PdfPushButtonIconScaleMode.WhenTooLarge,
+                    IconHorizontalAlignment = 0.25,
+                    IconVerticalAlignment = 0.75,
+                    FitIconToBounds = true
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary characteristics = Assert.IsType<PdfDictionary>(field[Name("MK")]);
+        PdfDictionary fit = Assert.IsType<PdfDictionary>(characteristics[Name("IF")]);
+        PdfDictionary normal = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(normal[Name("Normal")])));
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")]);
+        PdfDictionary xObjects = Assert.IsType<PdfDictionary>(resources[Name("XObject")]);
+
+        Assert.Equal(4, Assert.IsType<PdfInteger>(characteristics[Name("TP")]).Value);
+        Assert.Equal("B", Assert.IsType<PdfName>(fit[Name("SW")]).ValueAsLatin1());
+        Assert.Equal("P", Assert.IsType<PdfName>(fit[Name("S")]).ValueAsLatin1());
+        Assert.True(Assert.IsType<PdfBoolean>(fit[Name("FB")]).Value);
+        Assert.IsType<PdfIndirectReference>(characteristics[Name("I")]);
+        Assert.IsType<PdfIndirectReference>(xObjects[Name("BtnIcon")]);
+        Assert.Contains("/BtnIcon Do", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void AddUriPushButton_ValidatesIconPlacementAndAlignment()
+    {
+        PdfImage icon = PdfImage.FromRgb(1, 1, new byte[] { 255, 255, 255 });
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddUriPushButton(0, "missing", 0, 0, 100, 20, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    CaptionPosition = PdfPushButtonCaptionPosition.IconOnly
+                }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddUriPushButton(0, "anchor", 0, 0, 100, 20, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    Icon = icon,
+                    CaptionPosition = PdfPushButtonCaptionPosition.CaptionOverIcon,
+                    IconHorizontalAlignment = 1.1
+                }));
+    }
+
+    [Theory]
+    [InlineData(PdfTextFieldAlignment.Left, "4 6 Td")]
     [InlineData(PdfTextFieldAlignment.Center, "56.8 6 Td")]
-    [InlineData(PdfTextFieldAlignment.Right, "110.6 6 Td")]
+    [InlineData(PdfTextFieldAlignment.Right, "109.6 6 Td")]
     public void AddUriPushButton_MeasuresCaptionAlignment(
         PdfTextFieldAlignment alignment, string expectedPosition)
     {
@@ -327,6 +491,10 @@ public sealed class PdfPushButtonTests
         return Assert.IsType<PdfStream>(document.Resolve(
             Assert.IsType<PdfIndirectReference>(states[Name("Normal")])));
     }
+    private static PdfIndirectReference IconReference(PdfStream appearance) =>
+        Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")])[Name("XObject")])[
+                Name("BtnIcon")]);
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

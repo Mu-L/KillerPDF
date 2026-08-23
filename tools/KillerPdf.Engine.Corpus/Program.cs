@@ -658,6 +658,13 @@ if (args.Length == 3 && args[0] == "--tiling-pattern-smoke")
 if (args.Length == 2 && args[0] == "--form-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
+    PdfImage buttonIcon = PdfImage.FromRgba(2, 2, new byte[]
+    {
+        40, 100, 220, 255, 120, 180, 255, 255,
+        120, 180, 255, 255, 40, 100, 220, 255
+    });
+    PdfImage rolloverButtonIcon = PdfImage.FromRgb(1, 1, new byte[] { 70, 170, 110 });
+    PdfImage downButtonIcon = PdfImage.FromRgb(1, 1, new byte[] { 220, 120, 50 });
     byte[] pdf = new PdfDocumentBuilder()
         .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF form smoke test", Language = "en-US" })
         .AddBlankPage()
@@ -708,10 +715,16 @@ if (args.Length == 2 && args[0] == "--form-smoke")
                 PdfSignatureLockAction.Include, ["customer.name", "customer.approved"]),
             seedValue: new PdfSignatureSeedValue
             {
+                Handler = PdfSignatureHandler.AdobePpkLite,
+                RequireHandler = true,
+                ParserVersion = PdfSignatureSeedParserVersion.Pdf17,
+                RequireParserVersion = true,
                 SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
                 RequireSubFilter = true,
                 DigestMethods = [PdfSignatureDigestMethod.Sha256, PdfSignatureDigestMethod.Sha512],
                 RequireDigestMethod = true,
+                AddRevocationInformation = true,
+                RequireRevocationInformation = true,
                 Reasons = ["Approved", "Reviewed"],
                 CertificationPermission = PdfSignatureCertificationPermission.ApprovalSignature
             }, appearanceText: "Sign here", appearanceStyle: new PdfFormFieldAppearanceStyle
@@ -721,7 +734,7 @@ if (args.Length == 2 && args[0] == "--form-smoke")
                 TextColor = new PdfRgbColor(0.4, 0.15, 0.05),
                 BorderWidth = 1.5,
                 BorderStyle = PdfFormFieldBorderStyle.Inset
-            })
+            }, appearanceAlignment: PdfTextFieldAlignment.Center)
         .AddComboBoxOptions(0, "customer.theme", 72, 550, 180, 24,
             [new PdfChoiceOption("dark", "Dark"),
              new PdfChoiceOption("mourning", "Mourning"),
@@ -749,6 +762,11 @@ if (args.Length == 2 && args[0] == "--form-smoke")
             }, appearanceOptions: new PdfPushButtonAppearanceOptions
             {
                 Alignment = PdfTextFieldAlignment.Center,
+                Icon = buttonIcon,
+                RolloverIcon = rolloverButtonIcon,
+                DownIcon = downButtonIcon,
+                CaptionPosition = PdfPushButtonCaptionPosition.CaptionRightOfIcon,
+                IconScaleMode = PdfPushButtonIconScaleMode.WhenTooLarge,
                 RolloverLabel = "Open documentation",
                 DownLabel = "Opening docs"
             })
@@ -860,10 +878,16 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
                 PdfSignatureLockAction.Exclude, ["customer.theme"]),
             seedValue: new PdfSignatureSeedValue
             {
+                Handler = PdfSignatureHandler.AdobePpkLite,
+                RequireHandler = true,
+                ParserVersion = PdfSignatureSeedParserVersion.Pdf17,
+                RequireParserVersion = true,
                 SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
                 RequireSubFilter = true,
                 DigestMethods = [PdfSignatureDigestMethod.Sha256, PdfSignatureDigestMethod.Sha384],
                 RequireDigestMethod = true,
+                AddRevocationInformation = true,
+                RequireRevocationInformation = true,
                 Reasons = ["Approved for archival"],
                 RequireReason = true,
                 CertificationPermission =
@@ -876,7 +900,7 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
                 TextColor = new PdfRgbColor(0.4, 0.15, 0.05),
                 BorderWidth = 1.5,
                 BorderStyle = PdfFormFieldBorderStyle.Inset
-            })
+            }, appearanceAlignment: PdfTextFieldAlignment.Center)
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);

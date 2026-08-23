@@ -1198,7 +1198,8 @@ public sealed partial class PdfDocumentBuilder
         PdfSignatureSeedValue? seedValue = null,
         string? appearanceText = null, double fontSize = 12,
         TrueTypeFont? embeddedFont = null,
-        PdfFormFieldAppearanceStyle? appearanceStyle = null)
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfTextFieldAlignment appearanceAlignment = PdfTextFieldAlignment.Left)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -1214,11 +1215,13 @@ public sealed partial class PdfDocumentBuilder
                 "Unicode signature appearance text requires an embedded font.", nameof(appearanceText));
         if (embeddedFont is not null && appearanceText is not null)
             ValidateFormFontText(embeddedFont, appearanceText, nameof(appearanceText));
+        if (!Enum.IsDefined(appearanceAlignment))
+            throw new ArgumentOutOfRangeException(nameof(appearanceAlignment));
         _signatureFields.Add(new SignatureFieldDefinition(
             pageIndex, name, x, y, width, height,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
             fieldLock, seedValue, appearanceText, fontSize, embeddedFont,
-            ValidateFormFieldAppearanceStyle(appearanceStyle)));
+            ValidateFormFieldAppearanceStyle(appearanceStyle), appearanceAlignment));
         return this;
     }
 
@@ -1496,8 +1499,10 @@ public sealed partial class PdfDocumentBuilder
         var allocatedPushButtons = _pushButtons.Select(field =>
             new AllocatedPushButton(
                 field, nextObjectNumber++, nextObjectNumber++,
-                field.AppearanceOptions.RolloverLabel is null ? null : nextObjectNumber++,
-                field.AppearanceOptions.DownLabel is null ? null : nextObjectNumber++)).ToArray();
+                field.AppearanceOptions.RolloverLabel is null
+                    && field.AppearanceOptions.RolloverIcon is null ? null : nextObjectNumber++,
+                field.AppearanceOptions.DownLabel is null
+                    && field.AppearanceOptions.DownIcon is null ? null : nextObjectNumber++)).ToArray();
         var allocatedSignatureFields = _signatureFields.Select(field =>
             new AllocatedSignatureField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedTextNotes = _textNotes.Select(note =>
@@ -1644,6 +1649,13 @@ public sealed partial class PdfDocumentBuilder
             .Concat(forms.SelectMany(form => form.Images.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.Images.Keys))
             .Concat(_pages.Select(page => page.Thumbnail).Where(image => image is not null).Cast<PdfImage>())
+            .Concat(_pushButtons.SelectMany(field => new[]
+                {
+                    field.AppearanceOptions.Icon,
+                    field.AppearanceOptions.RolloverIcon,
+                    field.AppearanceOptions.DownIcon
+                })
+                .Where(image => image is not null).Cast<PdfImage>())
             .Concat(_imageStamps.Select(stamp => stamp.Image)).Distinct())
             AddImageAndMask(image);
         void AddImageAndMask(PdfImage image)
@@ -2066,7 +2078,12 @@ public sealed partial class PdfDocumentBuilder
             (PdfName resource, int number) = FormFontBinding(
                 allocatedPushButton.Definition.EmbeddedFont,
                 fontNumbers, formFontResources, embeddedFonts);
-            AddPushButtonObjects(objects, allocatedPushButton, allocated, resource, number);
+            PdfPushButtonAppearanceOptions appearance =
+                allocatedPushButton.Definition.AppearanceOptions;
+            AddPushButtonObjects(objects, allocatedPushButton, allocated, resource, number,
+                appearance.Icon is null ? null : imageNumbers[appearance.Icon],
+                appearance.RolloverIcon is null ? null : imageNumbers[appearance.RolloverIcon],
+                appearance.DownIcon is null ? null : imageNumbers[appearance.DownIcon]);
         }
         foreach (AllocatedSignatureField allocatedSignatureField in allocatedSignatureFields)
         {
@@ -3182,7 +3199,10 @@ public sealed partial class PdfDocumentBuilder
         AllocatedPushButton allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
-        int fontNumber)
+        int fontNumber,
+        int? iconNumber,
+        int? rolloverIconNumber,
+        int? downIconNumber)
     {
         PushButtonDefinition field = allocatedField.Definition;
         int flags = (1 << 16) | FormFieldFlags(field.FieldOptions);
@@ -3204,7 +3224,8 @@ public sealed partial class PdfDocumentBuilder
                 $"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf " +
                 $"{ColorOperands(field.AppearanceStyle.TextColor)} rg")),
             ("MK", PushButtonAppearanceCharacteristics(
-                field.Label, field.AppearanceStyle, field.AppearanceOptions)),
+                field.Label, field.AppearanceStyle, field.AppearanceOptions,
+                iconNumber, rolloverIconNumber, downIconNumber)),
             ("BS", FormFieldBorderDictionary(field.AppearanceStyle)),
             ("A", field.Uri is not null
                 ? Dictionary(("S", Name("URI")), ("URI", UnicodeString(field.Uri)))
@@ -3225,10 +3246,8 @@ public sealed partial class PdfDocumentBuilder
         objects.Add(new PdfIndirectObject(
             allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
-        byte[] appearance = BuildSimpleTextAppearance(
-            field.Width, field.Height, field.FontSize, field.Label,
-            fontResource, field.EmbeddedFont, field.AppearanceStyle,
-            field.AppearanceOptions.Alignment);
+        byte[] appearance = BuildPushButtonAppearance(
+            field, field.Label, fontResource, iconNumber);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -3237,16 +3256,17 @@ public sealed partial class PdfDocumentBuilder
                 ("BBox", new PdfArray([
                     new PdfInteger(0), new PdfInteger(0),
                     Number(field.Width), Number(field.Height)])),
-                ("Resources", Dictionary(("Font", new PdfDictionary([
-                    new KeyValuePair<PdfName, PdfObject>(
-                        fontResource, new PdfIndirectReference(fontNumber, 0))]))))),
+                ("Resources", PushButtonAppearanceResources(
+                    fontResource, fontNumber, iconNumber))),
                 appearance), 0));
         AddAlternatePushButtonAppearance(
             objects, allocatedField.RolloverAppearanceNumber,
-            field.AppearanceOptions.RolloverLabel, field, fontResource, fontNumber);
+            field.AppearanceOptions.RolloverLabel ?? field.Label,
+            field, fontResource, fontNumber, rolloverIconNumber ?? iconNumber);
         AddAlternatePushButtonAppearance(
             objects, allocatedField.DownAppearanceNumber,
-            field.AppearanceOptions.DownLabel, field, fontResource, fontNumber);
+            field.AppearanceOptions.DownLabel ?? field.Label,
+            field, fontResource, fontNumber, downIconNumber ?? iconNumber);
     }
 
     private static PdfDictionary PushButtonAppearanceDictionary(AllocatedPushButton field)
@@ -3265,16 +3285,138 @@ public sealed partial class PdfDocumentBuilder
         return Dictionary(entries.ToArray());
     }
 
-    private static void AddAlternatePushButtonAppearance(
-        ICollection<PdfIndirectObject> objects, int? objectNumber, string? label,
-        PushButtonDefinition field, PdfName fontResource, int fontNumber)
+    private static PdfDictionary PushButtonAppearanceResources(
+        PdfName fontResource, int fontNumber, int? iconNumber)
     {
-        if (!objectNumber.HasValue || label is null)
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Font", new PdfDictionary([
+                new KeyValuePair<PdfName, PdfObject>(
+                    fontResource, new PdfIndirectReference(fontNumber, 0))]))
+        };
+        if (iconNumber.HasValue)
+            entries.Add(("XObject", Dictionary(
+                ("BtnIcon", new PdfIndirectReference(iconNumber.Value, 0)))));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static byte[] BuildPushButtonAppearance(
+        PushButtonDefinition field, string label, PdfName fontResource, int? iconNumber)
+    {
+        using var output = new MemoryStream();
+        WriteFormFieldBackgroundAndBorder(
+            output, field.Width, field.Height, field.AppearanceStyle, clip: true);
+        PdfPushButtonCaptionPosition position = field.AppearanceOptions.CaptionPosition;
+        double inset = field.AppearanceOptions.FitIconToBounds
+            ? 0 : Math.Max(1, field.AppearanceStyle.BorderWidth);
+        double x = inset;
+        double y = inset;
+        double width = Math.Max(0, field.Width - inset * 2);
+        double height = Math.Max(0, field.Height - inset * 2);
+        double textX = x;
+        double textY = y;
+        double textWidth = width;
+        double textHeight = height;
+        double iconX = x;
+        double iconY = y;
+        double iconWidth = width;
+        double iconHeight = height;
+        double captionHeight = Math.Min(height, field.FontSize * 1.3);
+        switch (position)
+        {
+            case PdfPushButtonCaptionPosition.CaptionOnly:
+                iconWidth = iconHeight = 0;
+                break;
+            case PdfPushButtonCaptionPosition.IconOnly:
+                textWidth = textHeight = 0;
+                break;
+            case PdfPushButtonCaptionPosition.CaptionBelowIcon:
+                textHeight = captionHeight;
+                iconY += captionHeight;
+                iconHeight = Math.Max(0, height - captionHeight);
+                break;
+            case PdfPushButtonCaptionPosition.CaptionAboveIcon:
+                textY += Math.Max(0, height - captionHeight);
+                textHeight = captionHeight;
+                iconHeight = Math.Max(0, height - captionHeight);
+                break;
+            case PdfPushButtonCaptionPosition.CaptionRightOfIcon:
+                iconWidth = width / 2;
+                textX += iconWidth;
+                textWidth = width - iconWidth;
+                break;
+            case PdfPushButtonCaptionPosition.CaptionLeftOfIcon:
+                textWidth = width / 2;
+                iconX += textWidth;
+                iconWidth = width - textWidth;
+                break;
+            case PdfPushButtonCaptionPosition.CaptionOverIcon:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(position));
+        }
+        if (iconNumber.HasValue && iconWidth > 0 && iconHeight > 0)
+            WritePushButtonIcon(output, field.AppearanceOptions, iconX, iconY, iconWidth, iconHeight);
+        if (position != PdfPushButtonCaptionPosition.IconOnly && textWidth > 0 && textHeight > 0)
+        {
+            double baseline = textY + Math.Max(1, (textHeight - field.FontSize) / 2);
+            double captionX = textX + SimpleTextX(
+                textWidth, field.FontSize, label, field.EmbeddedFont,
+                field.AppearanceOptions.Alignment);
+            WriteAscii(output,
+                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
+                $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
+                $"{FormatNumber(captionX)} {FormatNumber(baseline)} Td\n");
+            WriteShownText(output, label, field.EmbeddedFont);
+            output.Write("ET\n"u8);
+        }
+        output.Write("Q\n"u8);
+        return output.ToArray();
+    }
+
+    private static void WritePushButtonIcon(
+        Stream output, PdfPushButtonAppearanceOptions options,
+        double x, double y, double width, double height)
+    {
+        PdfImage icon = options.Icon!;
+        double scaleX = width / icon.Width;
+        double scaleY = height / icon.Height;
+        if (options.ProportionalIconScaling)
+            scaleX = scaleY = Math.Min(scaleX, scaleY);
+        switch (options.IconScaleMode)
+        {
+            case PdfPushButtonIconScaleMode.Always:
+                break;
+            case PdfPushButtonIconScaleMode.Never:
+                scaleX = scaleY = 1;
+                break;
+            case PdfPushButtonIconScaleMode.WhenTooLarge:
+                scaleX = Math.Min(1, scaleX);
+                scaleY = Math.Min(1, scaleY);
+                break;
+            case PdfPushButtonIconScaleMode.WhenTooSmall:
+                scaleX = Math.Max(1, scaleX);
+                scaleY = Math.Max(1, scaleY);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(options.IconScaleMode));
+        }
+        double drawnWidth = icon.Width * scaleX;
+        double drawnHeight = icon.Height * scaleY;
+        double drawnX = x + (width - drawnWidth) * options.IconHorizontalAlignment;
+        double drawnY = y + (height - drawnHeight) * options.IconVerticalAlignment;
+        WriteAscii(output,
+            $"q\n{FormatNumber(drawnWidth)} 0 0 {FormatNumber(drawnHeight)} " +
+            $"{FormatNumber(drawnX)} {FormatNumber(drawnY)} cm\n/BtnIcon Do\nQ\n");
+    }
+
+    private static void AddAlternatePushButtonAppearance(
+        ICollection<PdfIndirectObject> objects, int? objectNumber, string label,
+        PushButtonDefinition field, PdfName fontResource, int fontNumber, int? iconNumber)
+    {
+        if (!objectNumber.HasValue)
             return;
-        byte[] appearance = BuildSimpleTextAppearance(
-            field.Width, field.Height, field.FontSize, label,
-            fontResource, field.EmbeddedFont, field.AppearanceStyle,
-            field.AppearanceOptions.Alignment);
+        byte[] appearance = BuildPushButtonAppearance(field, label, fontResource, iconNumber);
         objects.Add(new PdfIndirectObject(objectNumber.Value, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -3283,9 +3425,8 @@ public sealed partial class PdfDocumentBuilder
                 ("BBox", new PdfArray([
                     new PdfInteger(0), new PdfInteger(0),
                     Number(field.Width), Number(field.Height)])),
-                ("Resources", Dictionary(("Font", new PdfDictionary([
-                    new KeyValuePair<PdfName, PdfObject>(fontResource,
-                        new PdfIndirectReference(fontNumber, 0))]))))),
+                ("Resources", PushButtonAppearanceResources(
+                    fontResource, fontNumber, iconNumber))),
                 appearance), 0));
     }
 
@@ -3347,6 +3488,16 @@ public sealed partial class PdfDocumentBuilder
     {
         var entries = new List<(string Name, PdfObject Value)>();
         int flags = 0;
+        if (seedValue.Handler.HasValue)
+        {
+            entries.Add(("Filter", Name(SignatureHandlerName(seedValue.Handler.Value))));
+            if (seedValue.RequireHandler) flags |= 1;
+        }
+        if (seedValue.ParserVersion.HasValue)
+        {
+            entries.Add(("V", new PdfReal((int)seedValue.ParserVersion.Value)));
+            if (seedValue.RequireParserVersion) flags |= 1 << 2;
+        }
         if (seedValue.SubFilters is not null)
         {
             entries.Add(("SubFilter", new PdfArray(seedValue.SubFilters.Select(subFilter =>
@@ -3358,6 +3509,11 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("DigestMethod", new PdfArray(seedValue.DigestMethods.Select(method =>
                 (PdfObject)Name(SignatureDigestMethodName(method))))));
             if (seedValue.RequireDigestMethod) flags |= 1 << 6;
+        }
+        if (seedValue.AddRevocationInformation)
+        {
+            entries.Add(("AddRevInfo", new PdfBoolean(true)));
+            if (seedValue.RequireRevocationInformation) flags |= 1 << 5;
         }
         if (seedValue.Reasons is not null)
         {
@@ -3372,6 +3528,12 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Ff", new PdfInteger(flags)));
         return Dictionary(entries.ToArray());
     }
+
+    private static string SignatureHandlerName(PdfSignatureHandler handler) => handler switch
+    {
+        PdfSignatureHandler.AdobePpkLite => "Adobe.PPKLite",
+        _ => throw new ArgumentOutOfRangeException(nameof(handler))
+    };
 
     private static string SignatureSubFilterName(PdfSignatureSubFilter subFilter) => subFilter switch
     {
@@ -3438,7 +3600,7 @@ public sealed partial class PdfDocumentBuilder
             appearance = BuildSimpleTextAppearance(
                 field.Width, field.Height, field.FontSize, field.AppearanceText,
                 fontResource, field.EmbeddedFont, field.AppearanceStyle,
-                PdfTextFieldAlignment.Left);
+                field.AppearanceAlignment);
             resources = Dictionary(("Font", new PdfDictionary([
                 new KeyValuePair<PdfName, PdfObject>(
                     fontResource, new PdfIndirectReference(fontNumber, 0))])));
@@ -3940,6 +4102,18 @@ public sealed partial class PdfDocumentBuilder
         options ??= new PdfPushButtonAppearanceOptions();
         if (!Enum.IsDefined(options.Alignment))
             throw new ArgumentOutOfRangeException(nameof(options));
+        if (!Enum.IsDefined(options.CaptionPosition)
+            || !Enum.IsDefined(options.IconScaleMode))
+            throw new ArgumentOutOfRangeException(nameof(options));
+        if (options.Icon is null && options.RolloverIcon is null && options.DownIcon is null
+            && options.CaptionPosition != PdfPushButtonCaptionPosition.CaptionOnly)
+            throw new ArgumentException(
+                "A push-button icon position requires an icon.", nameof(options));
+        if (!double.IsFinite(options.IconHorizontalAlignment)
+            || options.IconHorizontalAlignment is < 0 or > 1
+            || !double.IsFinite(options.IconVerticalAlignment)
+            || options.IconVerticalAlignment is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(options));
         foreach (string? label in new[] { options.RolloverLabel, options.DownLabel })
         {
             if (label is null)
@@ -3970,7 +4144,8 @@ public sealed partial class PdfDocumentBuilder
 
     private static PdfDictionary PushButtonAppearanceCharacteristics(
         string label, PdfFormFieldAppearanceStyle style,
-        PdfPushButtonAppearanceOptions options)
+        PdfPushButtonAppearanceOptions options, int? iconNumber,
+        int? rolloverIconNumber, int? downIconNumber)
     {
         var entries = new List<(string Name, PdfObject Value)>
         {
@@ -3984,8 +4159,34 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("RC", UnicodeString(options.RolloverLabel)));
         if (options.DownLabel is not null)
             entries.Add(("AC", UnicodeString(options.DownLabel)));
+        if (iconNumber.HasValue)
+            entries.Add(("I", new PdfIndirectReference(iconNumber.Value, 0)));
+        if (rolloverIconNumber.HasValue)
+            entries.Add(("RI", new PdfIndirectReference(rolloverIconNumber.Value, 0)));
+        if (downIconNumber.HasValue)
+            entries.Add(("IX", new PdfIndirectReference(downIconNumber.Value, 0)));
+        if (iconNumber.HasValue || rolloverIconNumber.HasValue || downIconNumber.HasValue)
+        {
+            entries.Add(("TP", new PdfInteger((int)options.CaptionPosition)));
+            entries.Add(("IF", Dictionary(
+                ("SW", Name(PushButtonIconScaleName(options.IconScaleMode))),
+                ("S", Name(options.ProportionalIconScaling ? "P" : "A")),
+                ("A", new PdfArray([
+                    Number(options.IconHorizontalAlignment),
+                    Number(options.IconVerticalAlignment)])),
+                ("FB", new PdfBoolean(options.FitIconToBounds)))));
+        }
         return Dictionary(entries.ToArray());
     }
+
+    private static string PushButtonIconScaleName(PdfPushButtonIconScaleMode mode) => mode switch
+    {
+        PdfPushButtonIconScaleMode.Always => "A",
+        PdfPushButtonIconScaleMode.Never => "N",
+        PdfPushButtonIconScaleMode.WhenTooLarge => "B",
+        PdfPushButtonIconScaleMode.WhenTooSmall => "S",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
 
     private static PdfArray RgbArray(PdfRgbColor color) => new([
         Number(color.Red), Number(color.Green), Number(color.Blue)]);
@@ -4160,6 +4361,11 @@ public sealed partial class PdfDocumentBuilder
     {
         if (seedValue is null)
             return null;
+        if (seedValue.Handler.HasValue && !Enum.IsDefined(seedValue.Handler.Value))
+            throw new ArgumentOutOfRangeException(nameof(seedValue));
+        if (seedValue.ParserVersion.HasValue
+            && !Enum.IsDefined(seedValue.ParserVersion.Value))
+            throw new ArgumentOutOfRangeException(nameof(seedValue));
         PdfSignatureSubFilter[]? subFilters = seedValue.SubFilters?.ToArray();
         PdfSignatureDigestMethod[]? methods = seedValue.DigestMethods?.ToArray();
         string[]? reasons = seedValue.Reasons?.ToArray();
@@ -4181,16 +4387,27 @@ public sealed partial class PdfDocumentBuilder
         if (seedValue.RequireDigestMethod && methods is null)
             throw new ArgumentException(
                 "A required signature digest method needs an allowed-method list.", nameof(seedValue));
+        if (seedValue.RequireRevocationInformation && !seedValue.AddRevocationInformation)
+            throw new ArgumentException(
+                "Required revocation information must be enabled.", nameof(seedValue));
         if (seedValue.RequireSubFilter && subFilters is null)
             throw new ArgumentException(
                 "A required signature subfilter needs an allowed-subfilter list.", nameof(seedValue));
+        if (seedValue.RequireHandler && !seedValue.Handler.HasValue)
+            throw new ArgumentException(
+                "A required signature handler needs a handler value.", nameof(seedValue));
+        if (seedValue.RequireParserVersion && !seedValue.ParserVersion.HasValue)
+            throw new ArgumentException(
+                "A required seed parser version needs a version value.", nameof(seedValue));
         if (seedValue.RequireReason && reasons is null)
             throw new ArgumentException(
                 "A required signature reason needs an allowed-reason list.", nameof(seedValue));
         if (seedValue.CertificationPermission.HasValue
             && !Enum.IsDefined(seedValue.CertificationPermission.Value))
             throw new ArgumentOutOfRangeException(nameof(seedValue));
-        if (subFilters is null && methods is null && reasons is null
+        if (!seedValue.Handler.HasValue && !seedValue.ParserVersion.HasValue
+            && subFilters is null && methods is null && reasons is null
+            && !seedValue.AddRevocationInformation
             && !seedValue.CertificationPermission.HasValue)
             throw new ArgumentException(
                 "A signature seed value must define at least one constraint.", nameof(seedValue));
@@ -4917,7 +5134,8 @@ public sealed partial class PdfDocumentBuilder
         PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions,
         PdfSignatureFieldLock? FieldLock, PdfSignatureSeedValue? SeedValue,
         string? AppearanceText, double FontSize, TrueTypeFont? EmbeddedFont,
-        PdfFormFieldAppearanceStyle AppearanceStyle);
+        PdfFormFieldAppearanceStyle AppearanceStyle,
+        PdfTextFieldAlignment AppearanceAlignment);
     private sealed record AllocatedSignatureField(
         SignatureFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record OutputIntentDefinition(
