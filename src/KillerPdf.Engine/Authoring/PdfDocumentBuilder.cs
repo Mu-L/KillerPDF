@@ -2539,8 +2539,7 @@ public sealed partial class PdfDocumentBuilder
                 ("F", new PdfInteger(4)),
                 ("DA", defaultAppearance),
                 ("MK", FormFieldAppearanceCharacteristics(field.AppearanceStyle)),
-                ("BS", Dictionary(
-                    ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))),
+                ("BS", FormFieldBorderDictionary(field.AppearanceStyle)),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
         };
         int flags = TextFieldFlags(field.Options, field.RichTextValue is not null);
@@ -2611,8 +2610,7 @@ public sealed partial class PdfDocumentBuilder
                 ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
                 ("F", new PdfInteger(4)),
                 ("MK", CheckBoxAppearanceCharacteristics(field)),
-                ("BS", Dictionary(
-                    ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))),
+                ("BS", FormFieldBorderDictionary(field.AppearanceStyle)),
                 ("AP", Dictionary(("N", new PdfDictionary([
                     new KeyValuePair<PdfName, PdfObject>(
                         Name("Off"), new PdfIndirectReference(allocatedField.OffAppearanceNumber, 0)),
@@ -2781,8 +2779,7 @@ public sealed partial class PdfDocumentBuilder
                     ("F", new PdfInteger(4)),
                     ("AS", appearanceState),
                     ("MK", FormFieldAppearanceCharacteristics(style)),
-                    ("BS", Dictionary(
-                        ("W", Number(style.BorderWidth)), ("S", Name("S")))),
+                    ("BS", FormFieldBorderDictionary(style)),
                     ("AP", Dictionary(("N", new PdfDictionary([
                         new KeyValuePair<PdfName, PdfObject>(
                             Name("Off"), new PdfIndirectReference(allocatedWidget.OffAppearanceNumber, 0)),
@@ -2814,9 +2811,32 @@ public sealed partial class PdfDocumentBuilder
             WriteAscii(output,
                 $"{ColorOperands(style.BorderColor.Value)} RG\n" +
                 $"{FormatNumber(style.BorderWidth)} w\n");
-            WriteCircle(output, centerX, centerY,
-                Math.Max(0, radius - style.BorderWidth / 2));
-            output.Write("S\n"u8);
+            if (style.BorderStyle == PdfFormFieldBorderStyle.Dashed)
+                WriteAscii(output,
+                    $"[{string.Join(' ', style.DashPattern!.Select(FormatNumber))}] 0 d\n");
+            if (style.BorderStyle == PdfFormFieldBorderStyle.Underline)
+                WriteAscii(output,
+                    $"0 {FormatNumber(style.BorderWidth / 2)} m\n" +
+                    $"{FormatNumber(option.Width)} {FormatNumber(style.BorderWidth / 2)} l\nS\n");
+            else
+            {
+                WriteCircle(output, centerX, centerY,
+                    Math.Max(0, radius - style.BorderWidth / 2));
+                output.Write("S\n"u8);
+                if (style.BorderStyle is PdfFormFieldBorderStyle.Beveled
+                    or PdfFormFieldBorderStyle.Inset)
+                {
+                    PdfRgbColor edge = BlendRgb(style.BorderColor.Value,
+                        style.BorderStyle == PdfFormFieldBorderStyle.Beveled
+                            ? new PdfRgbColor(1, 1, 1) : new PdfRgbColor(0, 0, 0), 0.55);
+                    WriteAscii(output, $"{ColorOperands(edge)} RG\n");
+                    WriteCircle(output, centerX, centerY,
+                        Math.Max(0, radius - style.BorderWidth * 1.5));
+                    output.Write("S\n"u8);
+                }
+            }
+            if (style.BorderStyle == PdfFormFieldBorderStyle.Dashed)
+                output.Write("[] 0 d\n"u8);
         }
         if (selected)
         {
@@ -2879,9 +2899,8 @@ public sealed partial class PdfDocumentBuilder
                     $"{ColorOperands(field.ChoiceOptions.AppearanceStyle!.TextColor)} rg")),
                 ("MK", FormFieldAppearanceCharacteristics(
                     field.ChoiceOptions.AppearanceStyle)),
-                ("BS", Dictionary(
-                    ("W", Number(field.ChoiceOptions.AppearanceStyle.BorderWidth)),
-                    ("S", Name("S")))),
+                ("BS", FormFieldBorderDictionary(
+                    field.ChoiceOptions.AppearanceStyle)),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
         };
         if (!field.IsMultiSelect || field.SelectedValues.Count != 0)
@@ -3186,8 +3205,7 @@ public sealed partial class PdfDocumentBuilder
                 $"{ColorOperands(field.AppearanceStyle.TextColor)} rg")),
             ("MK", PushButtonAppearanceCharacteristics(
                 field.Label, field.AppearanceStyle, field.AppearanceOptions)),
-            ("BS", Dictionary(
-                ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))),
+            ("BS", FormFieldBorderDictionary(field.AppearanceStyle)),
             ("A", field.Uri is not null
                 ? Dictionary(("S", Name("URI")), ("URI", UnicodeString(field.Uri)))
                 : field.NamedDestination is not null
@@ -3400,8 +3418,7 @@ public sealed partial class PdfDocumentBuilder
         if (field.SeedValue is not null)
             entries.Add(("SV", SignatureSeedValueDictionary(field.SeedValue)));
         entries.Add(("MK", FormFieldAppearanceCharacteristics(field.AppearanceStyle)));
-        entries.Add(("BS", Dictionary(
-            ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))));
+        entries.Add(("BS", FormFieldBorderDictionary(field.AppearanceStyle)));
         objects.Add(new PdfIndirectObject(
             allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
@@ -3875,8 +3892,47 @@ public sealed partial class PdfDocumentBuilder
         style ??= new PdfFormFieldAppearanceStyle();
         if (!double.IsFinite(style.BorderWidth) || style.BorderWidth < 0)
             throw new ArgumentOutOfRangeException(nameof(style));
-        return style;
+        if (!Enum.IsDefined(style.BorderStyle))
+            throw new ArgumentOutOfRangeException(nameof(style));
+        double[]? dashPattern = style.DashPattern?.ToArray();
+        if (style.BorderStyle == PdfFormFieldBorderStyle.Dashed)
+        {
+            dashPattern ??= [3];
+            if (dashPattern.Length == 0
+                || dashPattern.Any(value => !double.IsFinite(value) || value < 0)
+                || dashPattern.All(value => value == 0))
+                throw new ArgumentException(
+                    "A dashed field border requires a finite, nonnegative, nonzero dash pattern.",
+                    nameof(style));
+        }
+        else if (dashPattern is not null)
+            throw new ArgumentException(
+                "A field-border dash pattern requires the dashed border style.", nameof(style));
+        return style with { DashPattern = dashPattern };
     }
+
+    private static PdfDictionary FormFieldBorderDictionary(
+        PdfFormFieldAppearanceStyle style)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("W", Number(style.BorderWidth)),
+            ("S", Name(FormFieldBorderStyleName(style.BorderStyle)))
+        };
+        if (style.BorderStyle == PdfFormFieldBorderStyle.Dashed)
+            entries.Add(("D", new PdfArray(style.DashPattern!.Select(Number))));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static string FormFieldBorderStyleName(PdfFormFieldBorderStyle style) => style switch
+    {
+        PdfFormFieldBorderStyle.Solid => "S",
+        PdfFormFieldBorderStyle.Dashed => "D",
+        PdfFormFieldBorderStyle.Beveled => "B",
+        PdfFormFieldBorderStyle.Inset => "I",
+        PdfFormFieldBorderStyle.Underline => "U",
+        _ => throw new ArgumentOutOfRangeException(nameof(style))
+    };
 
     private static PdfPushButtonAppearanceOptions ValidatePushButtonAppearanceOptions(
         PdfPushButtonAppearanceOptions? options, TrueTypeFont? embeddedFont)
@@ -3946,12 +4002,33 @@ public sealed partial class PdfDocumentBuilder
         if (style.BorderColor.HasValue && style.BorderWidth > 0)
         {
             double inset = style.BorderWidth / 2;
-            WriteAscii(output,
-                $"{ColorOperands(style.BorderColor.Value)} RG\n" +
-                $"{FormatNumber(style.BorderWidth)} w\n" +
-                $"{FormatNumber(inset)} {FormatNumber(inset)} " +
-                $"{FormatNumber(Math.Max(0, width - style.BorderWidth))} " +
-                $"{FormatNumber(Math.Max(0, height - style.BorderWidth))} re\nS\n");
+            PdfRgbColor border = style.BorderColor.Value;
+            WriteAscii(output, $"{ColorOperands(border)} RG\n" +
+                $"{FormatNumber(style.BorderWidth)} w\n");
+            switch (style.BorderStyle)
+            {
+                case PdfFormFieldBorderStyle.Solid:
+                    WriteFieldBorderRectangle(output, width, height, style.BorderWidth);
+                    break;
+                case PdfFormFieldBorderStyle.Dashed:
+                    WriteAscii(output,
+                        $"[{string.Join(' ', style.DashPattern!.Select(FormatNumber))}] 0 d\n");
+                    WriteFieldBorderRectangle(output, width, height, style.BorderWidth);
+                    output.Write("[] 0 d\n"u8);
+                    break;
+                case PdfFormFieldBorderStyle.Underline:
+                    WriteAscii(output,
+                        $"0 {FormatNumber(inset)} m\n{FormatNumber(width)} " +
+                        $"{FormatNumber(inset)} l\nS\n");
+                    break;
+                case PdfFormFieldBorderStyle.Beveled:
+                case PdfFormFieldBorderStyle.Inset:
+                    WriteFieldBorderRectangle(output, width, height, style.BorderWidth);
+                    WriteBeveledFieldBorder(output, width, height, style);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(style.BorderStyle));
+            }
         }
         if (clip)
         {
@@ -3962,6 +4039,43 @@ public sealed partial class PdfDocumentBuilder
                 $"{FormatNumber(Math.Max(0, height - inset * 2))} re\nW\nn\n");
         }
     }
+
+    private static void WriteFieldBorderRectangle(
+        Stream output, double width, double height, double borderWidth)
+    {
+        double inset = borderWidth / 2;
+        WriteAscii(output,
+            $"{FormatNumber(inset)} {FormatNumber(inset)} " +
+            $"{FormatNumber(Math.Max(0, width - borderWidth))} " +
+            $"{FormatNumber(Math.Max(0, height - borderWidth))} re\nS\n");
+    }
+
+    private static void WriteBeveledFieldBorder(
+        Stream output, double width, double height, PdfFormFieldAppearanceStyle style)
+    {
+        PdfRgbColor border = style.BorderColor!.Value;
+        PdfRgbColor light = BlendRgb(border, new PdfRgbColor(1, 1, 1), 0.65);
+        PdfRgbColor dark = BlendRgb(border, new PdfRgbColor(0, 0, 0), 0.45);
+        if (style.BorderStyle == PdfFormFieldBorderStyle.Inset)
+            (light, dark) = (dark, light);
+        double edge = Math.Max(0.5, style.BorderWidth);
+        WriteAscii(output,
+            $"{ColorOperands(light)} RG\n{FormatNumber(edge)} w\n" +
+            $"{FormatNumber(edge)} {FormatNumber(edge)} m\n" +
+            $"{FormatNumber(edge)} {FormatNumber(Math.Max(edge, height - edge))} l\n" +
+            $"{FormatNumber(Math.Max(edge, width - edge))} " +
+            $"{FormatNumber(Math.Max(edge, height - edge))} l\nS\n" +
+            $"{ColorOperands(dark)} RG\n" +
+            $"{FormatNumber(edge)} {FormatNumber(edge)} m\n" +
+            $"{FormatNumber(Math.Max(edge, width - edge))} {FormatNumber(edge)} l\n" +
+            $"{FormatNumber(Math.Max(edge, width - edge))} " +
+            $"{FormatNumber(Math.Max(edge, height - edge))} l\nS\n");
+    }
+
+    private static PdfRgbColor BlendRgb(PdfRgbColor from, PdfRgbColor to, double amount) =>
+        new(from.Red + (to.Red - from.Red) * amount,
+            from.Green + (to.Green - from.Green) * amount,
+            from.Blue + (to.Blue - from.Blue) * amount);
 
     private static void ValidateRichTextValue(string value)
     {

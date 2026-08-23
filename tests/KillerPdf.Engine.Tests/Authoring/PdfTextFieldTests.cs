@@ -11,6 +11,51 @@ namespace KillerPdf.Engine.Tests.Authoring;
 
 public sealed class PdfTextFieldTests
 {
+    [Theory]
+    [InlineData(PdfFormFieldBorderStyle.Solid, "S", " re\nS")]
+    [InlineData(PdfFormFieldBorderStyle.Dashed, "D", "[2 1] 0 d")]
+    [InlineData(PdfFormFieldBorderStyle.Beveled, "B", "0.65 0.65 0.65 RG")]
+    [InlineData(PdfFormFieldBorderStyle.Inset, "I", "0 0 0 RG")]
+    [InlineData(PdfFormFieldBorderStyle.Underline, "U", " l\nS")]
+    public void AddTextField_WritesStandardBorderStyles(
+        PdfFormFieldBorderStyle borderStyle, string expectedName, string expectedArtwork)
+    {
+        var style = new PdfFormFieldAppearanceStyle
+        {
+            BorderStyle = borderStyle,
+            DashPattern = borderStyle == PdfFormFieldBorderStyle.Dashed ? [2, 1] : null
+        };
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "border", 0, 0, 120, 24, "Value", appearanceStyle: style)
+            .Build());
+        PdfDictionary field = FirstField(document);
+        PdfDictionary border = Assert.IsType<PdfDictionary>(field[Name("BS")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+
+        Assert.Equal(expectedName, Assert.IsType<PdfName>(border[Name("S")]).ValueAsLatin1());
+        Assert.Contains(expectedArtwork, Encoding.ASCII.GetString(appearance.EncodedData.Span));
+        if (borderStyle == PdfFormFieldBorderStyle.Dashed)
+            Assert.Equal(2, Assert.IsType<PdfArray>(border[Name("D")]).Count);
+    }
+
+    [Fact]
+    public void AddTextField_ValidatesBorderDashPatterns()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "solid", 0, 0, 100, 20, appearanceStyle:
+                new PdfFormFieldAppearanceStyle { DashPattern = [2] }));
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "dashed", 0, 0, 100, 20, appearanceStyle:
+                new PdfFormFieldAppearanceStyle
+                {
+                    BorderStyle = PdfFormFieldBorderStyle.Dashed,
+                    DashPattern = [0, 0]
+                }));
+    }
+
     [Fact]
     public void AddTextField_WritesCustomVisualStyleIntoWidgetAndAppearance()
     {

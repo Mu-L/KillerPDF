@@ -669,7 +669,9 @@ if (args.Length == 2 && args[0] == "--form-smoke")
                 BackgroundColor = new PdfRgbColor(0.96, 0.96, 1),
                 BorderColor = new PdfRgbColor(0.2, 0.3, 0.65),
                 TextColor = new PdfRgbColor(0.1, 0.1, 0.3),
-                BorderWidth = 1.5
+                BorderWidth = 1.5,
+                BorderStyle = PdfFormFieldBorderStyle.Dashed,
+                DashPattern = [3, 1.5]
             })
         .AddTextField(0, "customer.address", 72, 620, 200, 48, "First line\nSecond line", 11,
             new PdfTextFieldOptions { Multiline = true },
@@ -717,7 +719,8 @@ if (args.Length == 2 && args[0] == "--form-smoke")
                 BackgroundColor = new PdfRgbColor(1, 0.96, 0.86),
                 BorderColor = new PdfRgbColor(0.6, 0.35, 0.1),
                 TextColor = new PdfRgbColor(0.4, 0.15, 0.05),
-                BorderWidth = 1.5
+                BorderWidth = 1.5,
+                BorderStyle = PdfFormFieldBorderStyle.Inset
             })
         .AddComboBoxOptions(0, "customer.theme", 72, 550, 180, 24,
             [new PdfChoiceOption("dark", "Dark"),
@@ -741,7 +744,8 @@ if (args.Length == 2 && args[0] == "--form-smoke")
             {
                 BackgroundColor = new PdfRgbColor(0.86, 0.93, 1),
                 BorderColor = new PdfRgbColor(0.15, 0.35, 0.65),
-                TextColor = new PdfRgbColor(0.08, 0.2, 0.5)
+                TextColor = new PdfRgbColor(0.08, 0.2, 0.5),
+                BorderStyle = PdfFormFieldBorderStyle.Beveled
             }, appearanceOptions: new PdfPushButtonAppearanceOptions
             {
                 Alignment = PdfTextFieldAlignment.Center,
@@ -784,7 +788,9 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
                 BackgroundColor = new PdfRgbColor(0.96, 0.96, 1),
                 BorderColor = new PdfRgbColor(0.2, 0.3, 0.65),
                 TextColor = new PdfRgbColor(0.1, 0.1, 0.3),
-                BorderWidth = 1.5
+                BorderWidth = 1.5,
+                BorderStyle = PdfFormFieldBorderStyle.Dashed,
+                DashPattern = [3, 1.5]
             })
         .AddTextField(0, "customer.address", 72, 660, 200, 48, "First line\nSecond line", 11,
             new PdfTextFieldOptions { Multiline = true }, embeddedFont: font,
@@ -868,7 +874,8 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
                 BackgroundColor = new PdfRgbColor(1, 0.96, 0.86),
                 BorderColor = new PdfRgbColor(0.6, 0.35, 0.1),
                 TextColor = new PdfRgbColor(0.4, 0.15, 0.05),
-                BorderWidth = 1.5
+                BorderWidth = 1.5,
+                BorderStyle = PdfFormFieldBorderStyle.Inset
             })
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);

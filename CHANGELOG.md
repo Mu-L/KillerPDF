@@ -63,6 +63,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Extended reusable visual styles to checkbox and radio-button widgets, applying configurable backgrounds, borders, widths, and mark colors consistently to widget characteristics and every on/off appearance state.
 - Added typed rollover and pressed captions to every push-button action, with Unicode font validation, matching widget characteristics, and independently generated normal, rollover, and down appearance streams.
 - Added measured left, center, or right push-button caption alignment across normal, rollover, and down appearances, using actual embedded-font advances when available.
+- Added all five standard widget border styles with matching solid, validated dashed, beveled, inset, or underline `/BS` dictionaries and generated appearances across rectangular and radio-button widgets.
 - Added full-PDF submit buttons restricted to HTTP or HTTPS endpoints, with URL file specifications and validated include or exclude field lists.
 - Added typed push-button highlighting for none, invert, outline, push, and toggle interaction modes.
 - Added typed checkbox marks with matching appearance characteristics and generated check, cross, circle, diamond, square, or star artwork.
