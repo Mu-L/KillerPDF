@@ -354,6 +354,27 @@ if (args.Length == 4 && args[0] == "--import-document")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--pdfa-navigation-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A navigation smoke test", Language = "en-US" })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddBlankPage().AddBlankPage().AddBlankPage()
+        .AddNamedDestination("appendix", 2)
+        .AddNamedDestination("résumé", 1)
+        .AddNamedDestinationLink(0, 72, 680, 180, 24, "appendix")
+        .AddPageLabelRange(0, PdfPageLabelStyle.LowerRoman)
+        .AddPageLabelRange(2, PdfPageLabelStyle.Decimal, "Appendix ", 1)
+        .Build();
+    string destination = Path.GetFullPath(args[2]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4 navigation PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -372,6 +393,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-page-smoke <profile.icc> <source.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-import-smoke <profile.icc> <target.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --import-document <source.pdf> <target.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-navigation-smoke <profile.icc> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 

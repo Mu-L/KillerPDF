@@ -16,6 +16,8 @@ public sealed partial class PdfDocumentBuilder
     private static readonly PdfName SizeName = Name("Size");
     private readonly List<PageDefinition> _pages = [];
     private readonly List<BookmarkDefinition> _bookmarks = [];
+    private readonly List<NamedDestinationDefinition> _namedDestinations = [];
+    private readonly List<PageLabelDefinition> _pageLabels = [];
     private readonly List<AttachmentDefinition> _attachments = [];
     private readonly List<TextFieldDefinition> _textFields = [];
     private readonly List<CheckBoxDefinition> _checkBoxes = [];
@@ -115,6 +117,56 @@ public sealed partial class PdfDocumentBuilder
             Links = [.. page.Links,
                 new PageLinkDefinition(x, y, width, height, destinationPageIndex)]
         };
+        return this;
+    }
+
+    public PdfDocumentBuilder AddNamedDestinationLink(
+        int pageIndex, double x, double y, double width, double height, string destinationName)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        if (string.IsNullOrWhiteSpace(destinationName))
+            throw new ArgumentException("A named destination cannot be empty.", nameof(destinationName));
+        if (!_namedDestinations.Any(destination =>
+                string.Equals(destination.Name, destinationName, StringComparison.Ordinal)))
+            throw new ArgumentException("The named destination has not been defined.", nameof(destinationName));
+        PageDefinition page = _pages[pageIndex];
+        _pages[pageIndex] = page with
+        {
+            Links = [.. page.Links,
+                new NamedDestinationLinkDefinition(x, y, width, height, destinationName)]
+        };
+        return this;
+    }
+
+    public PdfDocumentBuilder AddNamedDestination(string name, int pageIndex)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("A named destination cannot be empty.", nameof(name));
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (_namedDestinations.Any(destination =>
+                string.Equals(destination.Name, name, StringComparison.Ordinal)))
+            throw new ArgumentException("Named destinations must be unique.", nameof(name));
+        _namedDestinations.Add(new NamedDestinationDefinition(name, pageIndex));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddPageLabelRange(
+        int pageIndex,
+        PdfPageLabelStyle style,
+        string? prefix = null,
+        int startNumber = 1)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (!Enum.IsDefined(style))
+            throw new ArgumentOutOfRangeException(nameof(style));
+        if (startNumber < 1)
+            throw new ArgumentOutOfRangeException(nameof(startNumber));
+        if (style == PdfPageLabelStyle.None && string.IsNullOrEmpty(prefix))
+            throw new ArgumentException("A page-label range without numbering requires a prefix.", nameof(prefix));
+        if (_pageLabels.Any(label => label.PageIndex == pageIndex))
+            throw new ArgumentException("A page-label range already begins on this page.", nameof(pageIndex));
+        _pageLabels.Add(new PageLabelDefinition(pageIndex, style, prefix, startNumber));
         return this;
     }
 
@@ -491,6 +543,7 @@ public sealed partial class PdfDocumentBuilder
             catalogEntries.Add(("Outlines", new PdfIndirectReference(outlinesNumber.Value, 0)));
             catalogEntries.Add(("PageMode", Name("UseOutlines")));
         }
+        var catalogNameEntries = new List<(string Name, PdfObject Value)>();
         if (allocatedAttachments.Length > 0)
         {
             var names = new List<PdfObject>();
@@ -500,10 +553,42 @@ public sealed partial class PdfDocumentBuilder
                 names.Add(UnicodeString(attachment.Definition.FileName));
                 names.Add(new PdfIndirectReference(attachment.FileSpecificationNumber, 0));
             }
-            catalogEntries.Add(("Names", Dictionary(
-                ("EmbeddedFiles", Dictionary(("Names", new PdfArray(names)))))));
+            catalogNameEntries.Add(
+                ("EmbeddedFiles", Dictionary(("Names", new PdfArray(names)))));
             catalogEntries.Add(("AF", new PdfArray(allocatedAttachments.Select(attachment =>
                 (PdfObject)new PdfIndirectReference(attachment.FileSpecificationNumber, 0)))));
+        }
+        if (_namedDestinations.Count > 0)
+        {
+            var names = new List<PdfObject>();
+            foreach (NamedDestinationDefinition destination in _namedDestinations
+                .OrderBy(value => value.Name, StringComparer.Ordinal))
+            {
+                names.Add(UnicodeString(destination.Name));
+                names.Add(new PdfArray([
+                    new PdfIndirectReference(allocated[destination.PageIndex].PageNumber, 0),
+                    Name("Fit")]));
+            }
+            catalogNameEntries.Add(("Dests", Dictionary(("Names", new PdfArray(names)))));
+        }
+        if (catalogNameEntries.Count > 0)
+            catalogEntries.Add(("Names", Dictionary(catalogNameEntries.ToArray())));
+        if (_pageLabels.Count > 0)
+        {
+            var numbers = new List<PdfObject>();
+            foreach (PageLabelDefinition label in _pageLabels.OrderBy(value => value.PageIndex))
+            {
+                var entries = new List<(string Name, PdfObject Value)>();
+                PdfName? style = PageLabelName(label.Style);
+                if (style is not null) entries.Add(("S", style));
+                if (!string.IsNullOrEmpty(label.Prefix))
+                    entries.Add(("P", UnicodeString(label.Prefix)));
+                if (label.Style != PdfPageLabelStyle.None && label.StartNumber != 1)
+                    entries.Add(("St", new PdfInteger(label.StartNumber)));
+                numbers.Add(new PdfInteger(label.PageIndex));
+                numbers.Add(Dictionary(entries.ToArray()));
+            }
+            catalogEntries.Add(("PageLabels", Dictionary(("Nums", new PdfArray(numbers)))));
         }
         if (allocatedTextFields.Length > 0 || allocatedCheckBoxes.Length > 0
             || allocatedRadioGroups.Count > 0 || allocatedChoiceFields.Length > 0)
@@ -708,6 +793,10 @@ public sealed partial class PdfDocumentBuilder
                     annotationEntries.Add(("Dest", new PdfArray([
                         new PdfIndirectReference(allocated[pageLink.DestinationPageIndex].PageNumber, 0),
                         Name("Fit")])));
+                }
+                else if (link is NamedDestinationLinkDefinition named)
+                {
+                    annotationEntries.Add(("Dest", UnicodeString(named.DestinationName)));
                 }
                 objects.Add(new PdfIndirectObject(
                     allocatedPage.AnnotationNumbers[index], 0,
@@ -1502,6 +1591,17 @@ public sealed partial class PdfDocumentBuilder
 
     private static PdfName Name(string value) => new(System.Text.Encoding.ASCII.GetBytes(value));
 
+    private static PdfName? PageLabelName(PdfPageLabelStyle style) => style switch
+    {
+        PdfPageLabelStyle.None => null,
+        PdfPageLabelStyle.Decimal => Name("D"),
+        PdfPageLabelStyle.UpperRoman => Name("R"),
+        PdfPageLabelStyle.LowerRoman => Name("r"),
+        PdfPageLabelStyle.UpperLetters => Name("A"),
+        PdfPageLabelStyle.LowerLetters => Name("a"),
+        _ => throw new ArgumentOutOfRangeException(nameof(style))
+    };
+
     private sealed record PageDefinition(
         double Width,
         double Height,
@@ -1519,7 +1619,13 @@ public sealed partial class PdfDocumentBuilder
     private sealed record PageLinkDefinition(
         double X, double Y, double Width, double Height, int DestinationPageIndex)
         : LinkDefinition(X, Y, Width, Height);
+    private sealed record NamedDestinationLinkDefinition(
+        double X, double Y, double Width, double Height, string DestinationName)
+        : LinkDefinition(X, Y, Width, Height);
     private sealed record BookmarkDefinition(string Title, int PageIndex);
+    private sealed record NamedDestinationDefinition(string Name, int PageIndex);
+    private sealed record PageLabelDefinition(
+        int PageIndex, PdfPageLabelStyle Style, string? Prefix, int StartNumber);
     private sealed record AttachmentDefinition(
         string FileName,
         byte[] Data,

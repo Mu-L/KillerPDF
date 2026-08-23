@@ -11,16 +11,15 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 ### Highlights
 - Began a new PDF 2.0 document engine designed to replace PdfSharpCore without replacing PDFium rendering.
 - Added deterministic PDF 2.0 authoring for pages, text, Unicode embedded fonts, images, metadata, bookmarks, attachments, links, forms, and editable annotations.
+- Added named destinations, links to stable named targets, and page-label ranges with decimal, Roman-numeral, alphabetic, prefix, and custom starting-number options.
 - Added byte-preserving incremental editing for annotations and page operations, including insertion, deletion, reordering, rotation, resizing, and cropping.
 - Added cross-document page import for merge and split workflows while preserving content, resources, images, fonts, ordinary annotations, links among pages imported together, and complete AcroForms when their entire source document is imported.
 - Added PDF/A-4 authoring and validation across new documents, forms, annotations, page operations, and imported pages.
 
-### PDF document engine development
+### PDF document engine internals
 - Built a typed PDF object model, byte-accurate parser, bounded Flate/predictor decoder, and lazy document loader supporting classic, hybrid, cross-reference-stream, incremental, and compressed-object files through PDF 2.0. Structural inspection reports retain useful byte offsets and reject malformed boundaries, cycles, invalid generations, and unsafe resource limits.
 - Built deterministic preservation writers for canonical object serialization, full-file rewriting, and incremental updates. Existing revisions can remain byte-for-byte untouched, document identifiers and trailer inheritance survive correctly, and equivalent output remains identical across repeated builds and operating systems.
-- Built the authoring layer for page content and graphics, built-in and embedded Unicode fonts, JPEG/RGB/RGBA images, document metadata and identity, bookmarks, safe links, associated embedded files, AcroForms, and text, free-text, markup, shape, ink, and image-stamp annotations with explicit appearances.
-- Built the structural editing layer for nested page trees, annotation updates, page insertion and removal, rotation, reordering, resizing, cropping, and cross-document object-graph import. Inherited page properties are materialized when trees change; complete single-source AcroForms retain their fields, widgets, values, appearances, and resources. Unsupported encrypted, tagged, partial linked-page, partial-form, and multi-AcroForm imports fail explicitly instead of producing damaged files.
-- Built PDF/A-4 output-intent and identification support plus deterministic corpus, round-trip, qpdf, veraPDF, and rendering checks. The new library remains UI-free and independent of WPF, PDFium, PdfPig, PdfSharpCore, and the current application pipeline so features can migrate into KillerPDF deliberately.
+- Kept the new library UI-free and independent of WPF, PDFium, PdfPig, PdfSharpCore, and the current application pipeline. Dedicated unit, corpus, round-trip, qpdf, veraPDF, and rendering checks allow document features to mature before they are migrated into KillerPDF.
 
 ### Fixed
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.
