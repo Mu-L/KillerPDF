@@ -9,7 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 KillerPDF 1.8 development has begun with the first boundary for a new, independently authored PDF engine. This alpha is an engineering build, not a public release.
 
 ### Added
-- Added a standalone .NET 10 PDF engine project and test project, beginning with strict PDF header parsing and explicit support for PDF versions through 2.0.
+- Added a standalone .NET 10 PDF engine project and test project, beginning with strict PDF header parsing, explicit support for PDF versions through 2.0, and byte-accurate tokenization of PDF numbers, names, strings, arrays, dictionaries, comments, and keywords.
 - Documented the engine boundary: new PDF 2.0 authoring work remains independent from the legacy application pipeline and can be migrated into the app incrementally.
 
 ### Fixed
