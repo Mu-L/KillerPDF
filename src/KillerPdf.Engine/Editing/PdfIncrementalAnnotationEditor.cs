@@ -4,6 +4,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Signing;
 using KillerPdf.Engine.Writing;
 
 namespace KillerPdf.Engine.Editing;
@@ -170,10 +171,16 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
-    public byte[] Build()
+    public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
         if (_annotations.Count == 0)
             throw new InvalidOperationException("The incremental annotation update is empty.");
+        PdfSignatureCertificationPermission? certification =
+            PdfSignatureReader.ReadCertificationPermission(_document);
+        if (certification.HasValue
+            && certification != PdfSignatureCertificationPermission.FormFillingSignaturesAndAnnotations)
+            throw new InvalidOperationException(
+                "The document certification signature prohibits annotation changes.");
         var update = new PdfIncrementalUpdateBuilder(_document);
         var allocated = _annotations.Select(annotation => new AllocatedAnnotation(
             annotation, update.ReserveObject(), update.ReserveObject())).ToArray();
@@ -201,7 +208,8 @@ public sealed class PdfIncrementalAnnotationEditor
                         FreeTextDictionary(freeText, page.Reference, item.AnnotationReference,
                             item.AppearanceReference, binding.Resource));
                     update.SetObject(item.AppearanceReference,
-                        FreeTextAppearance(freeText, binding.Resource, binding.Type0Reference));
+                        FreeTextAppearance(freeText, binding.Resource, binding.Type0Reference,
+                            binding.Usage));
                     break;
                 case PendingLine line:
                     update.SetObject(item.AnnotationReference,
@@ -232,7 +240,7 @@ public sealed class PdfIncrementalAnnotationEditor
 
         foreach (IGrouping<int, AllocatedAnnotation> group in allocated.GroupBy(item => item.Definition.PageIndex))
             AppendPageAnnotations(update, _pages[group.Key], group.Select(item => item.AnnotationReference));
-        return update.Build();
+        return update.Build(options);
     }
 
     private Dictionary<TrueTypeFont, EditorFontBinding> AllocateFonts(PdfIncrementalUpdateBuilder update)
@@ -242,27 +250,28 @@ public sealed class PdfIncrementalAnnotationEditor
         foreach (IGrouping<TrueTypeFont, PendingFreeText> group in
             _annotations.OfType<PendingFreeText>().GroupBy(value => value.Font))
         {
-            var mappings = new SortedDictionary<ushort, int>();
-            foreach (Rune rune in group.SelectMany(value => value.Contents.EnumerateRunes()))
+            var usage = new EmbeddedFontUsage(group.Key, new PdfName(
+                Encoding.ASCII.GetBytes($"KpF{sequence + 1}")));
+            foreach (FontGlyphMapping mapping in group.SelectMany(
+                         value => group.Key.MapText(value.Contents)))
             {
-                if (rune.Value is '\r' or '\n') continue;
-                ushort glyph = group.Key.GetGlyphId(rune.Value);
-                if (mappings.TryGetValue(glyph, out int existing) && existing != rune.Value)
-                    throw new InvalidOperationException($"Glyph {glyph} has conflicting Unicode mappings.");
-                mappings[glyph] = rune.Value;
+                if (mapping.UnicodeSequence is "\r" or "\n") continue;
+                usage.AddMapping(mapping.Glyph, mapping.UnicodeSequence);
             }
             PdfIndirectReference type0 = update.ReserveObject();
             PdfIndirectReference cidFont = update.ReserveObject();
             PdfIndirectReference descriptor = update.ReserveObject();
             PdfIndirectReference fontFile = update.ReserveObject();
             PdfIndirectReference toUnicode = update.ReserveObject();
+            PdfIndirectReference encoding = update.ReserveObject();
             EmbeddedTrueTypeFontObjects values = PdfEmbeddedTrueTypeFontFactory.Create(
-                group.Key, mappings, type0, cidFont, descriptor, fontFile, toUnicode);
+                group.Key, usage.Mappings, type0, cidFont, descriptor, fontFile, toUnicode,
+                encoding);
             update.SetObject(type0, values.Type0).SetObject(cidFont, values.CidFont)
                 .SetObject(descriptor, values.Descriptor).SetObject(fontFile, values.FontFile)
-                .SetObject(toUnicode, values.ToUnicode);
+                .SetObject(toUnicode, values.ToUnicode).SetObject(encoding, values.Encoding);
             result.Add(group.Key, new EditorFontBinding(
-                new PdfName(Encoding.ASCII.GetBytes($"KpF{++sequence}")), type0));
+                new PdfName(Encoding.ASCII.GetBytes($"KpF{++sequence}")), type0, usage));
         }
         return result;
     }
@@ -426,7 +435,8 @@ public sealed class PdfIncrementalAnnotationEditor
     }
 
     private static PdfStream FreeTextAppearance(
-        PendingFreeText value, PdfName fontResource, PdfIndirectReference type0Reference)
+        PendingFreeText value, PdfName fontResource, PdfIndirectReference type0Reference,
+        EmbeddedFontUsage usage)
     {
         PdfDictionary resources = OpacityResources(value.Opacity,
             (fontResource, type0Reference));
@@ -434,7 +444,7 @@ public sealed class PdfIncrementalAnnotationEditor
         WriteAscii(output, "q\n/GS1 gs\n");
         WriteBox(output, value.Width, value.Height, value.BorderWidth,
             value.BorderColor, value.FillColor, ellipse: false);
-        WriteFreeText(output, value, fontResource);
+        WriteFreeText(output, value, fontResource, usage);
         output.Write("Q\n"u8);
         return Appearance(value.Width, value.Height, resources, output.ToArray());
     }
@@ -606,7 +616,8 @@ public sealed class PdfIncrementalAnnotationEditor
         WriteAscii(output, $"{Format(cx + rx * kappa)} {Format(cy - ry)} {Format(cx + rx)} {Format(cy - ry * kappa)} {Format(cx + rx)} {Format(cy)} c\nh\n");
     }
 
-    private static void WriteFreeText(Stream output, PendingFreeText value, PdfName fontResource)
+    private static void WriteFreeText(
+        Stream output, PendingFreeText value, PdfName fontResource, EmbeddedFontUsage usage)
     {
         double padding = Math.Max(3, value.BorderWidth + 2);
         double lineHeight = value.FontSize * 1.2;
@@ -618,7 +629,7 @@ public sealed class PdfIncrementalAnnotationEditor
         for (int index = 0; index < lines.Count; index++)
         {
             if (index > 0) WriteAscii(output, $"0 -{Format(lineHeight)} Td\n");
-            WriteGlyphText(output, lines[index], value.Font);
+            WriteGlyphText(output, lines[index], value.Font, usage);
             if ((index + 2) * lineHeight > value.Height - padding) break;
         }
         output.Write("ET\n"u8);
@@ -652,14 +663,16 @@ public sealed class PdfIncrementalAnnotationEditor
     }
 
     private static double TextWidth(string value, TrueTypeFont font, double fontSize) =>
-        value.EnumerateRunes().Sum(rune => font.GetPdfAdvanceWidth(font.GetGlyphId(rune.Value)))
+        font.MapText(value).Sum(mapping => font.GetPdfAdvanceWidth(mapping.Glyph))
             * fontSize / 1000;
 
-    private static void WriteGlyphText(Stream output, string value, TrueTypeFont font)
+    private static void WriteGlyphText(
+        Stream output, string value, TrueTypeFont font, EmbeddedFontUsage usage)
     {
         output.WriteByte((byte)'<');
-        foreach (Rune rune in value.EnumerateRunes())
-            WriteAscii(output, font.GetGlyphId(rune.Value).ToString("X4", CultureInfo.InvariantCulture));
+        foreach (FontGlyphMapping mapping in font.MapText(value))
+            WriteAscii(output, usage.AddMapping(mapping.Glyph, mapping.UnicodeSequence)
+                .ToString("X4", CultureInfo.InvariantCulture));
         output.Write("> Tj\n"u8);
     }
 
@@ -709,14 +722,17 @@ public sealed class PdfIncrementalAnnotationEditor
     {
         if (!font.EmbeddingAllowed)
             throw new ArgumentException($"Font {font.PostScriptName} prohibits PDF embedding.", parameterName);
-        foreach (Rune rune in value.EnumerateRunes())
+        foreach (FontGlyphMapping mapping in font.MapText(value))
         {
-            if (rune.Value is '\r' or '\n') continue;
-            if (font.GetGlyphId(rune.Value) == 0 && rune.Value != 0)
+            if (mapping.UnicodeSequence is "\r" or "\n") continue;
+            if (mapping.Glyph == 0 && mapping.UnicodeSequence != "\0")
                 throw new ArgumentException(
-                    $"Font {font.PostScriptName} has no glyph for U+{rune.Value:X4}.", parameterName);
+                    $"Font {font.PostScriptName} has no glyph for {FormatUnicodeSequence(mapping.UnicodeSequence)}.", parameterName);
         }
     }
+
+    private static string FormatUnicodeSequence(string value) =>
+        string.Join(" ", value.EnumerateRunes().Select(rune => $"U+{rune.Value:X4}"));
 
     private static PdfArray Rectangle(double x, double y, double width, double height) =>
         new([Number(x), Number(y), Number(x + width), Number(y + height)]);
@@ -769,7 +785,8 @@ public sealed class PdfIncrementalAnnotationEditor
     private sealed record AllocatedAnnotation(
         PendingAnnotation Definition, PdfIndirectReference AnnotationReference,
         PdfIndirectReference AppearanceReference);
-    private sealed record EditorFontBinding(PdfName Resource, PdfIndirectReference Type0Reference);
+    private sealed record EditorFontBinding(
+        PdfName Resource, PdfIndirectReference Type0Reference, EmbeddedFontUsage Usage);
     private sealed record Bounds(double X, double Y, double Width, double Height);
     private enum PendingShapeType { Square, Circle }
 }

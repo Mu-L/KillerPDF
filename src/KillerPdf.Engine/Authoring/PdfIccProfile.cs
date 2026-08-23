@@ -33,8 +33,9 @@ public sealed class PdfIccProfile
         int components = colorSpace switch
         {
             "GRAY" => 1,
-            "RGB " => 3,
-            "CMYK" => 4,
+            "RGB " or "XYZ " or "Lab " or "Luv " or "YCbr" or "Yxy "
+                or "HSV " or "HLS " or "CMY " or "3CLR" => 3,
+            "CMYK" or "4CLR" => 4,
             _ => throw new NotSupportedException(
                 $"ICC colour space '{colorSpace.Trim()}' is not yet supported for PDF output intents.")
         };

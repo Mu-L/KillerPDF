@@ -46,6 +46,41 @@ public sealed class PdfDocumentInspectorTests
     }
 
     [Fact]
+    public void Inspect_ReportsInvalidTrailerOffsetsWithoutThrowing()
+    {
+        byte[] source = ClassicPdf(
+            "1 0 obj << /Type /Catalog >> endobj\n", includeRoot: true);
+        string text = Encoding.ASCII.GetString(source)
+            .Replace("/Root 1 0 R", "/Root 1 0 R /Prev -1", StringComparison.Ordinal);
+
+        PdfInspectionReport report = PdfDocumentInspector.Inspect(
+            Encoding.ASCII.GetBytes(text));
+
+        Assert.True(report.RequiresRepair);
+        Assert.Contains(report.Diagnostics,
+            item => item.Code == PdfDiagnosticCode.InvalidCrossReference);
+    }
+
+    [Fact]
+    public void Inspect_DoesNotThrowForDeterministicallyMutatedPdfBytes()
+    {
+        byte[] valid = ClassicPdf(
+            "1 0 obj << /Type /Catalog >> endobj\n", includeRoot: true);
+        var random = new Random(18_00_20);
+
+        for (int sample = 0; sample < 500; sample++)
+        {
+            byte[] mutated = valid.ToArray();
+            int changes = random.Next(1, 9);
+            for (int change = 0; change < changes; change++)
+                mutated[random.Next(mutated.Length)] = (byte)random.Next(256);
+
+            Exception? error = Record.Exception(() => PdfDocumentInspector.Inspect(mutated));
+            Assert.Null(error);
+        }
+    }
+
+    [Fact]
     public void Inspect_IdentifiesTheObjectWhoseXrefEntryPointsToTheWrongHeader()
     {
         byte[] source = ClassicPdf("2 0 obj << /Type /Catalog >> endobj\n", includeRoot: true);

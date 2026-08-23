@@ -373,6 +373,48 @@ public sealed class PdfContentStreamBuilderTests
     }
 
     [Fact]
+    public void UnicodeText_WritesVariationSequenceAsOneGlyphAndPreservesItInToUnicodeMap()
+    {
+        TrueTypeFont embedded = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(
+            format12: false, cmap: TrueTypeFontTests.Cmap14()));
+        var content = new PdfContentStreamBuilder()
+            .BeginText().SetFont(embedded, 12).ShowUnicodeText("AA\uFE0F").EndText();
+        PdfDocument document = PdfDocument.Open(
+            new PdfDocumentBuilder().AddPage(100, 100, content).Build());
+        PdfStream toUnicode = FindToUnicode(document);
+
+        Assert.Equal("BT\n/F1 12 Tf\n<00010002> Tj\nET\n", Encoding.ASCII.GetString(content.Build()));
+        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+        Assert.Contains("<0002> <0041FE0F>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+    }
+
+    [Fact]
+    public void UnicodeText_SharesEmbeddedFontObjectsForCompatiblePageMappings()
+    {
+        TrueTypeFont embedded = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfContentStreamBuilder FirstContent() => new PdfContentStreamBuilder()
+            .BeginText().SetFont(embedded, 12).ShowUnicodeText("A").EndText();
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, FirstContent())
+            .AddPage(100, 100, FirstContent())
+            .Build());
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(document.Trailer[Name("Root")])));
+        PdfDictionary pages = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(catalog[Name("Pages")])));
+        PdfArray kids = Assert.IsType<PdfArray>(pages[Name("Kids")]);
+        PdfIndirectReference FontReference(PdfObject pageReference)
+        {
+            PdfDictionary page = Assert.IsType<PdfDictionary>(document.Resolve(
+                Assert.IsType<PdfIndirectReference>(pageReference)));
+            return Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(
+                Assert.IsType<PdfDictionary>(page[Name("Resources")])[Name("Font")])[Name("F1")]);
+        }
+
+        Assert.Equal(FontReference(kids[0]).ObjectNumber, FontReference(kids[1]).ObjectNumber);
+    }
+
+    [Fact]
     public void CffOpenType_UsesCidFontType0AndFontFile3()
     {
         TrueTypeFont embedded = TrueTypeFont.Load(

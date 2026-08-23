@@ -1,9 +1,11 @@
 using System.Text;
 using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Tests.Fonts;
 using KillerPdf.Engine.Writing;
 using Xunit;
@@ -12,6 +14,76 @@ namespace KillerPdf.Engine.Tests.Editing;
 
 public sealed class PdfIncrementalAnnotationEditorTests
 {
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(3, true)]
+    public void Build_HonorsAnnotationCertificationPermission(int permission, bool allowed)
+    {
+        var editor = new PdfIncrementalAnnotationEditor(
+            PdfDocument.Open(CertifiedSource(permission)))
+            .AddTextNote(0, 20, 700, "review");
+
+        if (allowed)
+            Assert.NotEmpty(editor.Build());
+        else
+            Assert.Throws<InvalidOperationException>(() => editor.Build());
+    }
+
+    [Fact]
+    public void Build_CanEmitCompressedStructuralRevision()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalAnnotationEditor(
+                PdfDocument.Open(source))
+            .AddTextNote(0, 72, 650, "Compressed note")
+            .Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressObjectStreams = true,
+                CompressCrossReferenceStream = true
+            }));
+
+        Assert.True(reopened.CrossReferences.Sections[0].IsStream);
+        Assert.Contains(reopened.CrossReferences.Sections[0].Values,
+            entry => entry.Type == PdfCrossReferenceEntryType.Compressed);
+        Assert.Single(Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")]));
+    }
+
+    [Fact]
+    public void Build_CanEmitEncryptedCompressedStructuralRevision()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user", OwnerPassword = "owner"
+            })
+            .AddBlankPage().Build();
+
+        byte[] bytes = new PdfIncrementalAnnotationEditor(
+                PdfDocument.Open(source, "owner"))
+            .AddTextNote(0, 72, 650, "Encrypted compressed note")
+            .Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressObjectStreams = true,
+                CompressCrossReferenceStream = true
+            });
+        PdfDocument reopened = PdfDocument.Open(bytes, "user");
+        PdfDictionary note = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+
+        PdfString contents = Assert.IsType<PdfString>(note[Name("Contents")]);
+        Assert.Equal("Encrypted compressed note",
+            Encoding.BigEndianUnicode.GetString(contents.Bytes.Span[2..]));
+        Assert.Equal(-1, bytes.AsSpan().IndexOf("Encrypted compressed note"u8));
+        Assert.Contains(reopened.CrossReferences.Sections[0].Values,
+            entry => entry.Type == PdfCrossReferenceEntryType.Compressed);
+    }
+
     [Fact]
     public void Build_AppendsAnnotationsToTheSelectedExistingPage()
     {
@@ -164,6 +236,32 @@ public sealed class PdfIncrementalAnnotationEditorTests
     }
 
     [Fact]
+    public void FreeText_DistinguishesBaseAndVariationSequenceSharingOneGlyph()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(
+            format12: false, cmap: TrueTypeFontTests.Cmap14()));
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+            .AddFreeText(0, 20, 650, 160, 60, "AA\uFE0F", font)
+            .Build());
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+        PdfDictionary type0 = ResolveDictionary(reopened,
+            Assert.IsType<PdfDictionary>(
+                Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")])[Name("Font")])
+                [Name("KpF1")]);
+        PdfStream toUnicode = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(type0[Name("ToUnicode")])));
+
+        Assert.Contains("<00010002> Tj", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+        Assert.Contains("<0002> <0041FE0F>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+    }
+
+    [Fact]
     public void VisualAnnotationArguments_AreRejectedBeforeWriting()
     {
         var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
@@ -248,5 +346,30 @@ public sealed class PdfIncrementalAnnotationEditorTests
             .Append(new KeyValuePair<PdfName, PdfObject>(name, value)));
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
+    private static byte[] CertifiedSource(int permission)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(document, catalogReference);
+        var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference parameters = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("TransformParams")),
+            new(Name("P"), new PdfInteger(permission))
+        ]));
+        PdfIndirectReference transform = update.AddObject(new PdfDictionary([
+            new(Name("TransformMethod"), Name("DocMDP")),
+            new(Name("TransformParams"), parameters)
+        ]));
+        PdfIndirectReference signature = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Sig")),
+            new(Name("Reference"), new PdfArray([transform]))
+        ]));
+        update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Perms"), new PdfDictionary([
+                new(Name("DocMDP"), signature)
+            ])))));
+        return update.Build();
+    }
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 }

@@ -25,16 +25,19 @@ internal sealed class PdfStandardSecurityHandler
     private readonly CryptMethod _stringMethod;
     private readonly CryptMethod _streamMethod;
     private readonly CryptMethod _embeddedFileMethod;
+    private readonly IReadOnlyDictionary<string, CryptMethod> _cryptFilters;
     private readonly bool _encryptMetadata;
 
     private PdfStandardSecurityHandler(
         byte[] fileKey, CryptMethod stringMethod, CryptMethod streamMethod,
-        CryptMethod embeddedFileMethod, bool encryptMetadata)
+        CryptMethod embeddedFileMethod, bool encryptMetadata,
+        IReadOnlyDictionary<string, CryptMethod>? cryptFilters = null)
     {
         _fileKey = fileKey;
         _stringMethod = stringMethod;
         _streamMethod = streamMethod;
         _embeddedFileMethod = embeddedFileMethod;
+        _cryptFilters = cryptFilters ?? new Dictionary<string, CryptMethod>();
         _encryptMetadata = encryptMetadata;
     }
 
@@ -80,7 +83,71 @@ internal sealed class PdfStandardSecurityHandler
         CryptMethod embeddedFileMethod = encryption.ContainsKey(Name("EFF"))
             ? ReadModernCryptFilter(encryption, "EFF", "AESV3") : streamMethod;
         return new PdfStandardSecurityHandler(
-            fileKey, stringMethod, streamMethod, embeddedFileMethod, encryptMetadata);
+            fileKey, stringMethod, streamMethod, embeddedFileMethod, encryptMetadata,
+            ReadCryptFilters(encryption, "AESV3"));
+    }
+
+    internal static (PdfStandardSecurityHandler Handler, PdfDictionary Dictionary)
+        CreateRevision6(PdfPasswordEncryptionOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(options.UserPassword);
+        ArgumentNullException.ThrowIfNull(options.OwnerPassword);
+        byte[] userPassword = PasswordBytes(options.UserPassword, normalize: true);
+        byte[] ownerPassword = PasswordBytes(options.OwnerPassword, normalize: true);
+        byte[] fileKey = RandomNumberGenerator.GetBytes(32);
+        byte[] userValidationSalt = RandomNumberGenerator.GetBytes(8);
+        byte[] userKeySalt = RandomNumberGenerator.GetBytes(8);
+        byte[] userHash = HashPassword(userPassword, userValidationSalt, null, 6);
+        byte[] user = [.. userHash, .. userValidationSalt, .. userKeySalt];
+        byte[] userKey = HashPassword(userPassword, userKeySalt, null, 6);
+        byte[] userEncryptedKey = EncryptKey(userKey, fileKey);
+        byte[] ownerValidationSalt = RandomNumberGenerator.GetBytes(8);
+        byte[] ownerKeySalt = RandomNumberGenerator.GetBytes(8);
+        byte[] ownerHash = HashPassword(ownerPassword, ownerValidationSalt, user, 6);
+        byte[] owner = [.. ownerHash, .. ownerValidationSalt, .. ownerKeySalt];
+        byte[] ownerKey = HashPassword(ownerPassword, ownerKeySalt, user, 6);
+        byte[] ownerEncryptedKey = EncryptKey(ownerKey, fileKey);
+        int permissions = -4;
+        SetPermission(3, options.AllowLowQualityPrinting);
+        SetPermission(4, options.AllowDocumentModification);
+        SetPermission(5, options.AllowContentCopying);
+        SetPermission(6, options.AllowAnnotationModification);
+        SetPermission(9, options.AllowFormFilling);
+        SetPermission(10, options.AllowAccessibilityExtraction);
+        SetPermission(11, options.AllowDocumentAssembly);
+        SetPermission(12, options.AllowHighQualityPrinting);
+        byte[] permissionBlock = RandomNumberGenerator.GetBytes(16);
+        BinaryPrimitives.WriteInt32LittleEndian(permissionBlock, permissions);
+        permissionBlock.AsSpan(4, 4).Fill(0xFF);
+        permissionBlock[8] = options.EncryptMetadata ? (byte)'T' : (byte)'F';
+        "adb"u8.CopyTo(permissionBlock.AsSpan(9));
+        byte[] encryptedPermissions = EncryptEcb(fileKey, permissionBlock);
+        PdfName standardFilter = Name("StdCF");
+        var dictionary = new PdfDictionary([
+            Pair("Filter", Name("Standard")), Pair("V", new PdfInteger(5)),
+            Pair("Length", new PdfInteger(256)), Pair("R", new PdfInteger(6)),
+            Pair("O", Hex(owner)), Pair("U", Hex(user)), Pair("OE", Hex(ownerEncryptedKey)),
+            Pair("UE", Hex(userEncryptedKey)), Pair("P", new PdfInteger(permissions)),
+            Pair("Perms", Hex(encryptedPermissions)),
+            Pair("EncryptMetadata", new PdfBoolean(options.EncryptMetadata)),
+            Pair("CF", new PdfDictionary([new KeyValuePair<PdfName, PdfObject>(standardFilter,
+                new PdfDictionary([Pair("AuthEvent", Name("DocOpen")), Pair("CFM", Name("AESV3")),
+                    Pair("Length", new PdfInteger(32))]))])),
+            Pair("StmF", standardFilter), Pair("StrF", standardFilter), Pair("EFF", standardFilter)
+        ]);
+        return (new PdfStandardSecurityHandler(fileKey, CryptMethod.Aes256,
+            CryptMethod.Aes256, CryptMethod.Aes256, options.EncryptMetadata,
+            new Dictionary<string, CryptMethod> { ["StdCF"] = CryptMethod.Aes256 }), dictionary);
+
+        static KeyValuePair<PdfName, PdfObject> Pair(string key, PdfObject value) =>
+            new(Name(key), value);
+        static PdfString Hex(byte[] value) => new(value, PdfStringForm.Hexadecimal);
+        void SetPermission(int bit, bool allowed)
+        {
+            int mask = 1 << (bit - 1);
+            permissions = allowed ? permissions | mask : permissions & ~mask;
+        }
     }
 
     internal PdfObject Decrypt(PdfObject value, int objectNumber, int generation)
@@ -142,7 +209,8 @@ internal sealed class PdfStandardSecurityHandler
             && type is PdfName name && name.Equals(MetadataName);
         bool isEmbeddedFile = type is PdfName embeddedName
             && embeddedName.Equals(EmbeddedFileName);
-        CryptMethod method = isEmbeddedFile ? _embeddedFileMethod : _streamMethod;
+        CryptMethod method = ExplicitStreamMethod(stream.Dictionary)
+            ?? (isEmbeddedFile ? _embeddedFileMethod : _streamMethod);
         ReadOnlySpan<byte> data = stream.EncodedData.Span;
         return new PdfStream(dictionary,
             method != CryptMethod.Identity && (_encryptMetadata || !isMetadata)
@@ -157,11 +225,49 @@ internal sealed class PdfStandardSecurityHandler
             && type is PdfName name && name.Equals(MetadataName);
         bool isEmbeddedFile = type is PdfName embeddedName
             && embeddedName.Equals(EmbeddedFileName);
-        CryptMethod method = isEmbeddedFile ? _embeddedFileMethod : _streamMethod;
+        CryptMethod method = ExplicitStreamMethod(stream.Dictionary)
+            ?? (isEmbeddedFile ? _embeddedFileMethod : _streamMethod);
         ReadOnlySpan<byte> data = stream.EncodedData.Span;
         return new PdfStream(dictionary,
             method != CryptMethod.Identity && (_encryptMetadata || !isMetadata)
                 ? EncryptBytes(data, method, objectNumber, generation) : data);
+    }
+
+    private CryptMethod? ExplicitStreamMethod(PdfDictionary dictionary)
+    {
+        if (!dictionary.TryGetValue(Name("Filter"), out PdfObject? filterValue)) return null;
+        PdfName? firstFilter = filterValue switch
+        {
+            PdfName name => name,
+            PdfArray { Count: > 0 } array => array[0] as PdfName,
+            _ => null
+        };
+        if (firstFilter?.ValueAsLatin1() != "Crypt")
+        {
+            if (filterValue is PdfArray filters && filters.OfType<PdfName>()
+                    .Any(name => name.ValueAsLatin1() == "Crypt"))
+                throw new InvalidOperationException("A stream /Crypt filter must be first in its filter pipeline.");
+            return null;
+        }
+        PdfDictionary? parameters = null;
+        if (dictionary.TryGetValue(Name("DecodeParms"), out PdfObject? parameterValue))
+            parameters = parameterValue switch
+            {
+                PdfDictionary single => single,
+                PdfArray { Count: > 0 } array => array[0] as PdfDictionary,
+                PdfNull => null,
+                _ => throw new InvalidOperationException(
+                    "A stream /DecodeParms value does not match its /Crypt filter.")
+            };
+        string filterName = parameters is not null
+            && parameters.TryGetValue(Name("Name"), out PdfObject? nameValue)
+            ? (nameValue as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException("A /Crypt decode parameter /Name is not a name.")
+            : "Identity";
+        if (filterName == "Identity") return CryptMethod.Identity;
+        return _cryptFilters.TryGetValue(filterName, out CryptMethod method)
+            ? method : throw new InvalidOperationException(
+                $"The stream selects missing crypt filter /{filterName}.");
     }
 
     private static PdfStandardSecurityHandler CreateLegacy(
@@ -210,7 +316,8 @@ internal sealed class PdfStandardSecurityHandler
                 ? ReadModernCryptFilter(encryption, "EFF", null) : streamMethod;
         }
         return new PdfStandardSecurityHandler(
-            fileKey, stringMethod, streamMethod, embeddedFileMethod, encryptMetadata);
+            fileKey, stringMethod, streamMethod, embeddedFileMethod, encryptMetadata,
+            version == 4 ? ReadCryptFilters(encryption, null) : null);
     }
 
     private static byte[]? TryLegacyUserPassword(
@@ -369,6 +476,28 @@ internal sealed class PdfStandardSecurityHandler
         return aes.DecryptCbc(encrypted, aes.IV, PaddingMode.None);
     }
 
+    private static byte[] EncryptKey(byte[] key, byte[] cleartext)
+    {
+        using Aes aes = Aes.Create();
+        aes.KeySize = 256;
+        aes.BlockSize = 128;
+        aes.Mode = CipherMode.CBC;
+        aes.Padding = PaddingMode.None;
+        aes.Key = key;
+        aes.IV = new byte[16];
+        return aes.EncryptCbc(cleartext, aes.IV, PaddingMode.None);
+    }
+
+    private static byte[] EncryptEcb(byte[] key, byte[] cleartext)
+    {
+        using Aes aes = Aes.Create();
+        aes.KeySize = 256;
+        aes.Mode = CipherMode.ECB;
+        aes.Padding = PaddingMode.None;
+        aes.Key = key;
+        return aes.EncryptEcb(cleartext, PaddingMode.None);
+    }
+
     private static byte[] DecryptEcb(byte[] key, byte[] encrypted)
     {
         using Aes aes = Aes.Create();
@@ -454,12 +583,32 @@ internal sealed class PdfStandardSecurityHandler
             || !filters.TryGetValue(filter, out PdfObject? selectedValue)
             || selectedValue is not PdfDictionary selected)
             throw new InvalidOperationException($"The encryption crypt filter /{filter.ValueAsLatin1()} is missing.");
+        return ReadCryptFilterMethod(selected, filter.ValueAsLatin1(), requiredMethod);
+    }
+
+    private static IReadOnlyDictionary<string, CryptMethod> ReadCryptFilters(
+        PdfDictionary encryption, string? requiredMethod)
+    {
+        if (!encryption.TryGetValue(Name("CF"), out PdfObject? filtersValue))
+            return new Dictionary<string, CryptMethod>();
+        PdfDictionary filters = filtersValue as PdfDictionary
+            ?? throw new InvalidOperationException("The encryption /CF value is not a dictionary.");
+        return filters.ToDictionary(entry => entry.Key.ValueAsLatin1(), entry =>
+            ReadCryptFilterMethod(entry.Value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"Encryption crypt filter /{entry.Key.ValueAsLatin1()} is not a dictionary."),
+                entry.Key.ValueAsLatin1(), requiredMethod), StringComparer.Ordinal);
+    }
+
+    private static CryptMethod ReadCryptFilterMethod(
+        PdfDictionary selected, string filterName, string? requiredMethod)
+    {
         if (!selected.TryGetValue(Name("CFM"), out PdfObject? methodValue)
             || methodValue is not PdfName method)
             throw new InvalidOperationException(
-                $"The encryption crypt filter /{filter.ValueAsLatin1()} has no /CFM name.");
+                $"The encryption crypt filter /{filterName} has no /CFM name.");
         string methodName = method.ValueAsLatin1();
-        if (requiredMethod is not null && methodName != requiredMethod)
+        if (requiredMethod is not null && methodName != requiredMethod && methodName != "None")
             throw new NotSupportedException(
                 $"The encryption crypt filter method /{methodName} is not /{requiredMethod}.");
         return methodName switch

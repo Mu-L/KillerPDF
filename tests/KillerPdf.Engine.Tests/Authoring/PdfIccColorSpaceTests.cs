@@ -36,6 +36,7 @@ public sealed class PdfIccColorSpaceTests
     [Theory]
     [InlineData("GRAY", 1, "DeviceGray")]
     [InlineData("RGB ", 3, "DeviceRGB")]
+    [InlineData("Lab ", 3, "DeviceRGB")]
     [InlineData("CMYK", 4, "DeviceCMYK")]
     public void Build_WritesProfileComponentCountAndAlternate(
         string signature, int components, string alternate)

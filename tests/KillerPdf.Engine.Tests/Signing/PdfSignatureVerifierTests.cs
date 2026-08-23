@@ -6,6 +6,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Signing;
 using KillerPdf.Engine.Tests.Security;
+using KillerPdf.Engine.Writing;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Signing;
@@ -26,12 +27,25 @@ public sealed class PdfSignatureVerifierTests
 
         byte[] signed = PdfDetachedSignatureWriter.Sign(
             source, content => Sign(content, certificate),
-            new PdfSignatureOptions { ReservedSignatureSize = 4_096 });
+            new PdfSignatureOptions
+            {
+                ReservedSignatureSize = 4_096,
+                IncrementalWriteOptions = new PdfIncrementalUpdateWriteOptions
+                {
+                    CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                    CompressCrossReferenceStream = true,
+                    UseObjectStreams = true,
+                    CompressObjectStreams = true
+                }
+            });
         PdfDocument reopened = PdfDocument.Open(signed, "user-password");
         PdfSignatureVerificationResult result = PdfSignatureVerifier.VerifyIntegrity(
             reopened, Assert.Single(PdfSignatureReader.Read(reopened)));
 
         Assert.True(reopened.IsEncrypted);
+        Assert.True(reopened.CrossReferences.Sections[0].IsStream);
+        Assert.Contains(reopened.CrossReferences.Sections[0].Values,
+            entry => entry.Type == KillerPdf.Engine.CrossReference.PdfCrossReferenceEntryType.Compressed);
         Assert.True(result.IsStructurallyValid);
         Assert.True(result.IsCryptographicallyValid);
         Assert.Null(result.Error);

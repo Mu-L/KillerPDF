@@ -7,7 +7,6 @@ namespace KillerPdf.Engine.Editing;
 /// <summary>Copies a source document's reachable object graph into an incremental revision.</summary>
 internal sealed class PdfObjectGraphImporter
 {
-    private static readonly PdfName EncryptName = new("Encrypt"u8);
     private static readonly PdfName LengthName = new("Length"u8);
     private const int MaximumImportedObjects = 1_000_000;
 
@@ -28,15 +27,19 @@ internal sealed class PdfObjectGraphImporter
         _source = source ?? throw new ArgumentNullException(nameof(source));
         _update = update ?? throw new ArgumentNullException(nameof(update));
         _sourcePageNumbers = new HashSet<int>(sourcePageNumbers);
-        if (source.CrossReferences.TryGetTrailerValue(EncryptName, out _))
-            throw new NotSupportedException("Importing pages from encrypted PDFs is not yet supported.");
+        if (source.IsEncrypted && !source.IsDecrypted)
+            throw new InvalidOperationException(
+                "An encrypted source PDF must be opened with a password before its pages can be imported.");
     }
 
     internal void SeedPage(PdfIndirectReference source, PdfIndirectReference destination)
+        => SeedReference(source, destination);
+
+    internal void SeedReference(PdfIndirectReference source, PdfIndirectReference destination)
     {
         var key = new SourceReference(source.ObjectNumber, source.Generation);
         if (!_references.TryAdd(key, destination))
-            throw new InvalidOperationException($"Source page {source.ObjectNumber} was mapped more than once.");
+            throw new InvalidOperationException($"Source object {source.ObjectNumber} was mapped more than once.");
         _populated.Add(key);
     }
 
@@ -62,6 +65,9 @@ internal sealed class PdfObjectGraphImporter
     }
 
     internal PdfObject Import(PdfObject value) => Import(value, 0, null);
+
+    internal PdfDictionary ApplyDictionaryTransform(PdfDictionary dictionary) =>
+        _dictionaryTransform?.Invoke(null, dictionary) ?? dictionary;
 
     private PdfObject Import(PdfObject value, int depth, PdfIndirectReference? context)
     {

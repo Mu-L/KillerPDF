@@ -17,6 +17,7 @@ internal static class PdfNameTree
         var result = new List<PdfNameTreeEntry>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
         var active = new HashSet<int>();
+        var visited = new HashSet<int>();
         Visit(root, 0);
         return result;
 
@@ -30,6 +31,12 @@ internal static class PdfNameTree
                 referenceNumber = reference.ObjectNumber;
                 if (!active.Add(reference.ObjectNumber))
                     throw new InvalidOperationException("The name tree contains a cycle.");
+                if (!visited.Add(reference.ObjectNumber))
+                {
+                    active.Remove(reference.ObjectNumber);
+                    throw new InvalidOperationException(
+                        "The name tree references the same node more than once.");
+                }
                 value = document.Resolve(reference);
             }
             try

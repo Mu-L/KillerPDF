@@ -1202,15 +1202,14 @@ public sealed class PdfContentStreamBuilder
     {
         ArgumentNullException.ThrowIfNull(text);
         _output.WriteByte((byte)'<');
-        foreach (Rune rune in text.EnumerateRunes())
+        foreach (FontGlyphMapping mapping in usage.Font.MapText(text))
         {
-            ushort glyph = usage.Font.GetGlyphId(rune.Value);
-            if (glyph == 0 && rune.Value != 0)
+            if (mapping.Glyph == 0 && mapping.UnicodeSequence != "\0")
                 throw new ArgumentException(
-                    $"Font {usage.Font.PostScriptName} has no glyph for U+{rune.Value:X4}.", nameof(text));
-            usage.AddMapping(glyph, rune.Value);
-            WriteHexByte((byte)(glyph >> 8));
-            WriteHexByte((byte)glyph);
+                    $"Font {usage.Font.PostScriptName} has no glyph for Unicode sequence {mapping.UnicodeSequence}.", nameof(text));
+            ushort characterCode = usage.AddMapping(mapping.Glyph, mapping.UnicodeSequence);
+            WriteHexByte((byte)(characterCode >> 8));
+            WriteHexByte((byte)characterCode);
         }
         _output.WriteByte((byte)'>');
     }
@@ -1247,17 +1246,40 @@ public sealed class PdfContentStreamBuilder
 
 internal sealed class EmbeddedFontUsage(TrueTypeFont font, PdfName resourceName)
 {
-    private readonly SortedDictionary<ushort, int> _unicodeByGlyph = [];
+    private readonly SortedDictionary<ushort, EmbeddedCharacterMapping> _mappings = [];
+    private readonly Dictionary<string, ushort> _codeByUnicode = new(StringComparer.Ordinal);
 
     public TrueTypeFont Font { get; } = font;
     public PdfName ResourceName { get; } = resourceName;
-    public IReadOnlyDictionary<ushort, int> UnicodeByGlyph => _unicodeByGlyph;
+    public IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> Mappings => _mappings;
 
-    public void AddMapping(ushort glyph, int unicodeScalar)
+    public ushort AddMapping(ushort glyph, int unicodeScalar)
+        => AddMapping(glyph, char.ConvertFromUtf32(unicodeScalar));
+
+    public ushort AddMapping(ushort glyph, string unicodeSequence)
     {
-        if (_unicodeByGlyph.TryGetValue(glyph, out int existing) && existing != unicodeScalar)
+        if (_codeByUnicode.TryGetValue(unicodeSequence, out ushort existingCode))
+        {
+            if (_mappings[existingCode].Glyph != glyph)
+                throw new InvalidOperationException(
+                    "One Unicode sequence resolved to conflicting font glyphs.");
+            return existingCode;
+        }
+        ushort code = glyph;
+        if (_mappings.ContainsKey(code))
+        {
+            int available = Enumerable.Range(1, ushort.MaxValue)
+                .FirstOrDefault(candidate => !_mappings.ContainsKey((ushort)candidate));
+            if (available == 0)
+                throw new InvalidOperationException("The embedded-font character-code range is exhausted.");
+            code = (ushort)available;
+        }
+        _mappings.Add(code, new EmbeddedCharacterMapping(glyph, unicodeSequence));
+        if (!_codeByUnicode.TryAdd(unicodeSequence, code))
             throw new InvalidOperationException(
-                $"Glyph {glyph} maps to both U+{existing:X4} and U+{unicodeScalar:X4}; this font requires shaped text support.");
-        _unicodeByGlyph[glyph] = unicodeScalar;
+                "The embedded-font Unicode mapping could not be registered.");
+        return code;
     }
 }
+
+internal sealed record EmbeddedCharacterMapping(ushort Glyph, string UnicodeSequence);

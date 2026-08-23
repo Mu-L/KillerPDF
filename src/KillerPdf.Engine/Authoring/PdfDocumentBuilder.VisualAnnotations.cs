@@ -234,18 +234,19 @@ public sealed partial class PdfDocumentBuilder
     {
         if (!font.EmbeddingAllowed)
             throw new ArgumentException($"Font {font.PostScriptName} prohibits PDF embedding.", parameterName);
-        foreach (Rune rune in value.EnumerateRunes())
+        foreach (FontGlyphMapping mapping in font.MapText(value))
         {
-            if (rune.Value is '\r' or '\n') continue;
-            if (font.GetGlyphId(rune.Value) == 0 && rune.Value != 0)
+            if (mapping.UnicodeSequence is "\r" or "\n") continue;
+            if (mapping.Glyph == 0 && mapping.UnicodeSequence != "\0")
                 throw new ArgumentException(
-                    $"Font {font.PostScriptName} has no glyph for U+{rune.Value:X4}.", parameterName);
+                    $"Font {font.PostScriptName} has no glyph for {FormatUnicodeSequence(mapping.UnicodeSequence)}.", parameterName);
         }
     }
 
     private static void AddFreeTextObjects(
         ICollection<PdfIndirectObject> objects, AllocatedFreeText allocated,
-        IReadOnlyList<AllocatedPage> pages, int sequence, PdfName fontResource, int fontNumber)
+        IReadOnlyList<AllocatedPage> pages, int sequence, PdfName fontResource, int fontNumber,
+        EmbeddedFontUsage? fontUsage)
     {
         FreeTextDefinition value = allocated.Definition;
         Bounds bounds = FreeTextBounds(value);
@@ -279,7 +280,7 @@ public sealed partial class PdfDocumentBuilder
             $"q\n1 0 0 1 {FormatNumber(value.X - bounds.X)} {FormatNumber(value.Y - bounds.Y)} cm\n");
         WriteBox(appearance, value.Width, value.Height, value.BorderWidth,
             value.BorderColor, value.FillColor, ellipse: false);
-        WriteFreeText(appearance, value, fontResource);
+        WriteFreeText(appearance, value, fontResource, fontUsage);
         appearance.Write("Q\nQ\n"u8);
         objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
             AnnotationAppearance(bounds.Width, bounds.Height, resources, appearance.ToArray()), 0));
@@ -726,7 +727,9 @@ public sealed partial class PdfDocumentBuilder
         WriteAscii(output, $"{FormatNumber(cx + rx * kappa)} {FormatNumber(cy - ry)} {FormatNumber(cx + rx)} {FormatNumber(cy - ry * kappa)} {FormatNumber(cx + rx)} {FormatNumber(cy)} c\nh\n");
     }
 
-    private static void WriteFreeText(Stream output, FreeTextDefinition value, PdfName fontResource)
+    private static void WriteFreeText(
+        Stream output, FreeTextDefinition value, PdfName fontResource,
+        EmbeddedFontUsage? fontUsage)
     {
         double padding = Math.Max(3, value.BorderWidth + 2);
         double lineHeight = value.FontSize * 1.2;
@@ -749,7 +752,7 @@ public sealed partial class PdfDocumentBuilder
                 padding, value.Height - padding - value.FontSize - index * lineHeight);
             WriteAscii(output,
                 $"1 0 0 1 {FormatNumber(x)} {FormatNumber(y)} Tm\n");
-            WriteShownText(output, lines[index], value.Font);
+            WriteShownText(output, lines[index], value.Font, fontUsage);
             if ((index + 2) * lineHeight > value.Height - padding) break;
         }
         output.Write("ET\n"u8);
@@ -785,7 +788,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static double TextWidth(string value, TrueTypeFont font, double fontSize) =>
-        value.EnumerateRunes().Sum(rune => font.GetPdfAdvanceWidth(font.GetGlyphId(rune.Value)))
+        font.MapText(value).Sum(mapping => font.GetPdfAdvanceWidth(mapping.Glyph))
             * fontSize / 1000;
 
     private static Bounds PointBounds(IEnumerable<PdfPoint> points, double padding)

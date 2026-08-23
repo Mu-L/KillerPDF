@@ -1,6 +1,7 @@
 using System.Text;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Signing;
 using KillerPdf.Engine.Writing;
 
 namespace KillerPdf.Engine.Editing;
@@ -18,12 +19,34 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName WidgetName = Name("Widget");
     private static readonly PdfName StructParentsName = Name("StructParents");
     private static readonly PdfName StructTreeRootName = Name("StructTreeRoot");
+    private static readonly PdfName ParentTreeName = Name("ParentTree");
+    private static readonly PdfName ParentTreeNextKeyName = Name("ParentTreeNextKey");
+    private static readonly PdfName StructureParentName = Name("StructParent");
+    private static readonly PdfName NamespacesName = Name("Namespaces");
+    private static readonly PdfName RoleMapName = Name("RoleMap");
+    private static readonly PdfName ClassMapName = Name("ClassMap");
+    private static readonly PdfName StructureTypeName = Name("S");
+    private static readonly PdfName StructureClassName = Name("C");
+    private static readonly PdfName StructureElementParentName = Name("P");
+    private static readonly PdfName IdTreeName = Name("IDTree");
+    private static readonly PdfName StructureIdName = Name("ID");
+    private static readonly PdfName StructureAssociatedFilesName = Name("AF");
+    private static readonly PdfName PronunciationLexiconName = Name("PronunciationLexicon");
+    private static readonly PdfName StructureKidsName = Name("K");
+    private static readonly PdfName PageName = Name("Pg");
+    private static readonly PdfName TypeName = Name("Type");
+    private static readonly PdfName StructureElementName = Name("StructElem");
+    private static readonly PdfName MarkedContentReferenceName = Name("MCR");
+    private static readonly PdfName ObjectReferenceName = Name("OBJR");
     private static readonly PdfName MarkInfoName = Name("MarkInfo");
     private static readonly PdfName MetadataName = Name("Metadata");
     private static readonly PdfName LanguageName = Name("Lang");
     private static readonly PdfName ViewerPreferencesName = Name("ViewerPreferences");
     private static readonly PdfName OptionalContentPropertiesName = Name("OCProperties");
     private static readonly PdfName OutputIntentsName = Name("OutputIntents");
+    private static readonly PdfName ExtensionsName = Name("Extensions");
+    private static readonly PdfName PermissionsName = Name("Perms");
+    private static readonly PdfName NeedsRenderingName = Name("NeedsRendering");
     private static readonly PdfName AcroFormName = Name("AcroForm");
     private static readonly PdfName FieldsName = Name("Fields");
     private static readonly PdfName DefaultResourcesName = Name("DR");
@@ -32,6 +55,7 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName SignatureFlagsName = Name("SigFlags");
     private static readonly PdfName CalculationOrderName = Name("CO");
     private static readonly PdfName QuaddingName = Name("Q");
+    private static readonly PdfName XfaName = Name("XFA");
     private static readonly PdfName FieldTypeName = Name("FT");
     private static readonly PdfName FieldName = Name("T");
     private static readonly PdfName KidsName = Name("Kids");
@@ -193,8 +217,11 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
-    public byte[] Build()
+    public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
+        if (PdfSignatureReader.ReadCertificationPermission(_document).HasValue)
+            throw new InvalidOperationException(
+                "The document certification signature prohibits page-tree changes.");
         if (!_orderChanged && !_rotationChanged && !_pageBoxesChanged)
             throw new InvalidOperationException("The incremental page update is empty.");
         var update = new PdfIncrementalUpdateBuilder(_document);
@@ -202,7 +229,7 @@ public sealed class PdfIncrementalPageEditor
             BuildReorderedTree(update);
         else
             BuildPageChanges(update);
-        return update.Build();
+        return update.Build(options);
     }
 
     private PdfIncrementalPageEditor Rotate(int pageIndex, int delta)
@@ -236,7 +263,6 @@ public sealed class PdfIncrementalPageEditor
     private void BuildReorderedTree(PdfIncrementalUpdateBuilder update)
     {
         ValidateExistingStructureTreePageSet();
-        ValidateExistingOptionalContentPageSet();
         PdfIndirectReference newRoot = update.ReserveObject();
         var references = new Dictionary<PageState, PdfIndirectReference>();
         foreach (PageState state in _pages)
@@ -253,6 +279,8 @@ public sealed class PdfIncrementalPageEditor
             var importer = new PdfObjectGraphImporter(
                 first.ImportedDocument!, update,
                 first.ImportedTree!.Pages.Select(page => page.Reference.ObjectNumber));
+            importer.SeedReference(
+                first.ImportedTree.CatalogReference, _tree.CatalogReference);
             foreach (PageState state in group)
             {
                 importer.SeedPage(state.ImportedEntry!.Reference, references[state]);
@@ -263,12 +291,17 @@ public sealed class PdfIncrementalPageEditor
         update.SetObject(newRoot, Dictionary(
             ("Type", Name("Pages")), ("Kids", kids), ("Count", new PdfInteger(_pages.Count))));
         var catalogReplacements = new Dictionary<PdfName, PdfObject> { [PagesName] = newRoot };
-        AddImportedDocumentProperties(importedGroups, importers, catalogReplacements);
-        AddImportedStructureTree(importedGroups, importers, catalogReplacements);
+        StructureRewriteState? structureRewrite = RewriteExistingStructureTree(
+            update, catalogReplacements);
+        AddImportedDocumentProperties(update, importedGroups, importers, catalogReplacements);
+        AddImportedCatalogExtensions(importedGroups, importers, catalogReplacements);
+        AddImportedStructureTree(
+            update, importedGroups, importers, catalogReplacements, structureRewrite);
         AddImportedOptionalContent(importedGroups, importers, catalogReplacements);
         AddImportedAcroForm(importedGroups, importers, catalogReplacements);
         AddImportedNamedDestinations(importedGroups, importers, catalogReplacements);
         AddImportedEmbeddedFiles(importedGroups, importers, catalogReplacements);
+        AddImportedNameTreeCategories(importedGroups, importers, catalogReplacements);
         AddImportedLegacyDestinations(importedGroups, importers, catalogReplacements);
         AddImportedOutlines(update, importedGroups, importers, catalogReplacements);
         bool removePageLabels = AddPageLabels(importedGroups, catalogReplacements);
@@ -333,8 +366,12 @@ public sealed class PdfIncrementalPageEditor
             RequireCompleteImport(group, group[0].ImportedTree!, "AcroForms");
         if (!_tree.Catalog.ContainsKey(AcroFormName) && formGroups.Length == 1)
         {
-            catalogReplacements[AcroFormName] = importers[formGroups[0][0]].Import(
-                formGroups[0][0].ImportedTree!.Catalog[AcroFormName]);
+            PageState first = formGroups[0][0];
+            catalogReplacements[AcroFormName] = importers[first].Import(
+                first.ImportedTree!.Catalog[AcroFormName]);
+            if (first.ImportedTree.Catalog.TryGetValue(
+                    NeedsRenderingName, out PdfObject? needsRendering))
+                catalogReplacements[NeedsRenderingName] = importers[first].Import(needsRendering);
             return;
         }
 
@@ -350,9 +387,14 @@ public sealed class PdfIncrementalPageEditor
         PdfName[] supportedFormKeys =
             [FieldsName, DefaultResourcesName, DefaultAppearanceName, NeedAppearancesName,
                 SignatureFlagsName, CalculationOrderName, QuaddingName];
-        if (formsToMerge.SelectMany(form => form.Keys).Any(key => !supportedFormKeys.Contains(key)))
+        if (formsToMerge.Any(form => form.ContainsKey(XfaName)))
             throw new NotSupportedException(
-                "Merging AcroForms with XFA or unknown catalog-level extensions is not yet supported.");
+                "Merging AcroForms containing XFA packets is not supported because their templates and datasets cannot be combined safely.");
+        var extensionEntries = new Dictionary<PdfName, PdfObject>();
+        if (targetForm is not null)
+            foreach (var entry in targetForm.Where(entry =>
+                         !supportedFormKeys.Contains(entry.Key)))
+                extensionEntries.Add(entry.Key, entry.Value);
         bool hasNeedAppearances = false;
         bool needAppearances = false;
         long signatureFlags = 0;
@@ -401,6 +443,14 @@ public sealed class PdfIncrementalPageEditor
                 QuaddingName, out PdfObject? q) ? q as PdfInteger : null;
             importer.AddDictionaryTransform((_, dictionary) =>
                 TransformFormDictionary(dictionary, renames, defaultAppearance, defaultQuadding));
+            foreach (var entry in form.Where(entry =>
+                         !supportedFormKeys.Contains(entry.Key)))
+            {
+                if (extensionEntries.ContainsKey(entry.Key))
+                    throw new NotSupportedException(
+                        $"Multiple AcroForms define the catalog-level /{entry.Key.ValueAsLatin1()} extension and cannot be merged without extension-specific semantics.");
+                extensionEntries.Add(entry.Key, importer.Import(entry.Value));
+            }
             AddResources(source, form, importer, renames);
             mergedFields.AddRange(FormFields(source, form).Select(importer.Import));
             signatureFlags |= ReadSignatureFlags(form);
@@ -414,7 +464,8 @@ public sealed class PdfIncrementalPageEditor
         PdfObjectGraphImporter? baseImporter = targetForm is null ? sourceForms[0].Importer : null;
         Dictionary<PdfName, PdfName>? baseRenames = targetForm is null ? sourceForms[0].Renames : null;
         var formEntries = baseForm
-            .Where(entry => !entry.Key.Equals(FieldsName)
+            .Where(entry => supportedFormKeys.Contains(entry.Key)
+                && !entry.Key.Equals(FieldsName)
                 && !entry.Key.Equals(DefaultResourcesName)
                 && !entry.Key.Equals(NeedAppearancesName)
                 && !entry.Key.Equals(SignatureFlagsName)
@@ -424,6 +475,8 @@ public sealed class PdfIncrementalPageEditor
                     ? RewriteDefaultAppearance(appearance, baseRenames)
                     : baseImporter?.Import(entry.Value) ?? entry.Value))
             .ToList();
+        formEntries.AddRange(extensionEntries.Select(entry =>
+            new KeyValuePair<PdfName, PdfObject>(entry.Key, entry.Value)));
         formEntries.Add(new KeyValuePair<PdfName, PdfObject>(
             FieldsName, new PdfArray(mergedFields)));
         if (hasNeedAppearances)
@@ -613,6 +666,7 @@ public sealed class PdfIncrementalPageEditor
         PdfDocument document, PdfDictionary form, ISet<string> names)
     {
         var active = new HashSet<int>();
+        var visited = new HashSet<int>();
         foreach (PdfObject field in FormFields(document, form)) Visit(field, 0, []);
 
         void Visit(PdfObject value, int depth, IReadOnlyList<string> parentPath)
@@ -625,6 +679,12 @@ public sealed class PdfIncrementalPageEditor
                 objectNumber = reference.ObjectNumber;
                 if (!active.Add(reference.ObjectNumber))
                     throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
+                if (!visited.Add(reference.ObjectNumber))
+                {
+                    active.Remove(reference.ObjectNumber);
+                    throw new InvalidOperationException(
+                        "The AcroForm field tree references the same field more than once.");
+                }
                 value = document.Resolve(reference);
             }
             try
@@ -956,11 +1016,19 @@ public sealed class PdfIncrementalPageEditor
             {
                 foreach (PdfNameTreeEntry entry in entries)
                 {
-                    if (!keys.Add(Convert.ToBase64String(entry.Key.Bytes.Span)))
+                    PdfString key = entry.Key;
+                    if (importer is null
+                        && !keys.Add(Convert.ToBase64String(key.Bytes.Span)))
                         throw new NotSupportedException(
-                            "Embedded files from merged documents must have unique names.");
+                            "The destination embedded-files name tree contains duplicate names.");
+                    if (importer is not null)
+                    {
+                        int suffix = 2;
+                        while (!keys.Add(Convert.ToBase64String(key.Bytes.Span)))
+                            key = AppendDestinationSuffix(entry.Key, suffix++);
+                    }
                     files.Add(new PdfNameTreeEntry(
-                        entry.Key, importer?.Import(entry.Value) ?? entry.Value));
+                        key, importer?.Import(entry.Value) ?? entry.Value));
                 }
             }
         }
@@ -982,6 +1050,71 @@ public sealed class PdfIncrementalPageEditor
             }
             catalogReplacements[AssociatedFilesName] = new PdfArray(associated);
         }
+    }
+
+    private void AddImportedNameTreeCategories(
+        IEnumerable<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        PageState[][] groups = importedGroups.ToArray();
+        var sourceCategories = new HashSet<PdfName>();
+        foreach (PageState[] group in groups)
+        {
+            PdfDocument source = group[0].ImportedDocument!;
+            PdfPageTree tree = group[0].ImportedTree!;
+            if (!tree.Catalog.TryGetValue(NamesName, out PdfObject? namesValue)) continue;
+            PdfDictionary names = ResolveDictionary(
+                source, namesValue, "A source catalog /Names value");
+            foreach (PdfName category in names.Keys.Where(name =>
+                         !name.Equals(DestsName) && !name.Equals(EmbeddedFilesName)))
+                sourceCategories.Add(category);
+        }
+        if (sourceCategories.Count == 0) return;
+
+        PdfDictionary currentNames = CurrentNamesDictionary(catalogReplacements);
+        var mergedCategories = currentNames.ToDictionary(entry => entry.Key, entry => entry.Value);
+        foreach (PdfName category in sourceCategories)
+        {
+            var entries = new List<PdfNameTreeEntry>();
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            if (currentNames.TryGetValue(category, out PdfObject? targetValue))
+                Add(PdfNameTree.Read(_document, targetValue), null);
+            foreach (PageState[] group in groups)
+            {
+                PdfDocument source = group[0].ImportedDocument!;
+                PdfPageTree tree = group[0].ImportedTree!;
+                if (!tree.Catalog.TryGetValue(NamesName, out PdfObject? namesValue)) continue;
+                PdfDictionary names = ResolveDictionary(
+                    source, namesValue, "A source catalog /Names value");
+                if (!names.TryGetValue(category, out PdfObject? sourceValue)) continue;
+                RequireCompleteImport(group, tree,
+                    $"The /Names /{category.ValueAsLatin1()} name tree");
+                Add(PdfNameTree.Read(source, sourceValue), importers[group[0]]);
+            }
+            entries.Sort((left, right) =>
+                left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
+            var values = new List<PdfObject>(entries.Count * 2);
+            foreach (PdfNameTreeEntry entry in entries)
+            {
+                values.Add(entry.Key);
+                values.Add(entry.Value);
+            }
+            mergedCategories[category] = Dictionary(("Names", new PdfArray(values)));
+
+            void Add(IEnumerable<PdfNameTreeEntry> additions, PdfObjectGraphImporter? importer)
+            {
+                foreach (PdfNameTreeEntry entry in additions)
+                {
+                    if (!keys.Add(Convert.ToBase64String(entry.Key.Bytes.Span)))
+                        throw new NotSupportedException(
+                            $"The /Names /{category.ValueAsLatin1()} name tree contains a duplicate key across merged documents.");
+                    entries.Add(new PdfNameTreeEntry(
+                        entry.Key, importer?.Import(entry.Value) ?? entry.Value));
+                }
+            }
+        }
+        catalogReplacements[NamesName] = new PdfDictionary(mergedCategories);
     }
 
     private void AddImportedOutlines(
@@ -1208,9 +1341,11 @@ public sealed class PdfIncrementalPageEditor
         group.Length == sourceTree.Pages.Count && group.All(page => page.ImportedWholeDocument);
 
     private void AddImportedStructureTree(
+        PdfIncrementalUpdateBuilder update,
         IReadOnlyList<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        IDictionary<PdfName, PdfObject> catalogReplacements,
+        StructureRewriteState? rewriteState)
     {
         PageState[][] taggedGroups = importedGroups.Where(group =>
         {
@@ -1219,32 +1354,436 @@ public sealed class PdfIncrementalPageEditor
                 || group.Any(page => page.ImportedEntry!.Dictionary.ContainsKey(StructParentsName));
         }).ToArray();
         if (taggedGroups.Length == 0) return;
-
-        PageState[] group = taggedGroups[0];
-        PdfPageTree tree = group[0].ImportedTree!;
-        bool isOnlyPageSet = taggedGroups.Length == 1
-            && _tree.Pages.Count == 0
-            && _pages.Count == group.Length
-            && _pages.All(group.Contains);
-        if (!isOnlyPageSet || !IsCompleteImport(group, tree))
-            throw new NotSupportedException(
-                "Tagged PDF structure can be preserved only when one complete source document is imported into an empty destination without adding or removing pages.");
-        if (!tree.Catalog.ContainsKey(StructTreeRootName))
-            throw new InvalidOperationException(
-                "An imported page has /StructParents but its source catalog has no /StructTreeRoot.");
-
-        PdfObjectGraphImporter importer = importers[group[0]];
-        foreach (PdfName name in new[]
-                 {
-                     StructTreeRootName, MarkInfoName
-                 })
+        foreach (PageState[] taggedGroup in taggedGroups)
         {
-            if (tree.Catalog.TryGetValue(name, out PdfObject? value))
-                catalogReplacements[name] = importer.Import(value);
+            PdfPageTree taggedTree = taggedGroup[0].ImportedTree!;
+            RequireCompleteImport(taggedGroup, taggedTree, "Tagged PDF structure");
+            if (!taggedTree.Catalog.ContainsKey(StructTreeRootName))
+                throw new InvalidOperationException(
+                    "An imported page has /StructParents but its source catalog has no /StructTreeRoot.");
         }
+
+        bool destinationIsEmpty = _tree.Pages.Count == 0;
+        if (!_tree.Catalog.ContainsKey(StructTreeRootName))
+        {
+            PageState[] group = taggedGroups[0];
+            PdfPageTree tree = group[0].ImportedTree!;
+            bool isOnlyPageSet = taggedGroups.Length == 1 && destinationIsEmpty
+                && _pages.Count == group.Length && _pages.All(group.Contains);
+            if (!isOnlyPageSet)
+                throw new NotSupportedException(
+                    "Tagged content can be introduced only as one complete document into an empty untagged destination.");
+            PdfObjectGraphImporter importer = importers[group[0]];
+            foreach (PdfName name in new[] { StructTreeRootName, MarkInfoName })
+                if (tree.Catalog.TryGetValue(name, out PdfObject? value))
+                    catalogReplacements[name] = importer.Import(value);
+            return;
+        }
+        PdfObject targetRootValue = _tree.Catalog[StructTreeRootName];
+        PdfDictionary targetRoot = rewriteState?.Root ?? ResolveDictionary(
+            _document, targetRootValue, "The destination /StructTreeRoot");
+        PdfIndirectReference targetRootReference;
+        bool targetRootIsNew = false;
+        if (targetRootValue is PdfIndirectReference existingReference)
+            targetRootReference = existingReference;
+        else
+        {
+            targetRootReference = FindStructureRootParentReference(_document, targetRoot)
+                ?? update.ReserveObject();
+            targetRootIsNew = _document.Resolve(targetRootReference) is PdfNull;
+            catalogReplacements[StructTreeRootName] = targetRootReference;
+        }
+
+        var parentEntries = rewriteState is not null
+            ? rewriteState.ParentEntries.ToList()
+            : targetRoot.TryGetValue(ParentTreeName, out PdfObject? targetParentTree)
+                ? PdfNumberTree.Read(_document, targetParentTree).ToList()
+                : [];
+        long nextKey = parentEntries.Select(entry => entry.Key).DefaultIfEmpty(-1).Max() + 1;
+        if (targetRoot.TryGetValue(ParentTreeNextKeyName, out PdfObject? nextValue))
+        {
+            long declared = (nextValue as PdfInteger)?.Value
+                ?? throw new InvalidOperationException("The /ParentTreeNextKey value is not an integer.");
+            nextKey = Math.Max(nextKey, declared);
+        }
+        var structureKids = new List<PdfObject>();
+        if (targetRoot.TryGetValue(StructureKidsName, out PdfObject? targetKids))
+            structureKids.AddRange(targetKids is PdfArray array ? array : [targetKids]);
+        PdfIndirectReference? targetDocumentReference = null;
+        PdfDictionary? targetDocument = null;
+        var targetDocumentKids = new List<PdfObject>();
+        if (structureKids.Count == 1
+            && structureKids[0] is PdfIndirectReference documentReference)
+        {
+            PdfDictionary candidate = ResolveEffectiveDictionary(
+                documentReference, "The destination top-level structure element");
+            if (IsDocumentElement(candidate))
+            {
+                targetDocumentReference = documentReference;
+                targetDocument = candidate;
+                if (candidate.TryGetValue(StructureKidsName, out PdfObject? documentKids))
+                    targetDocumentKids.AddRange(documentKids is PdfArray documentArray
+                        ? documentArray : [documentKids]);
+            }
+        }
+        var namespaces = new List<PdfObject>();
+        if (targetRoot.TryGetValue(NamespacesName, out PdfObject? targetNamespaces))
+            namespaces.AddRange(ResolveArray(
+                _document, targetNamespaces, "The destination /StructTreeRoot /Namespaces"));
+        var roleEntries = targetRoot.TryGetValue(RoleMapName, out PdfObject? targetRoleMap)
+            ? ResolveDictionary(_document, targetRoleMap,
+                "The destination /StructTreeRoot /RoleMap").ToList()
+            : [];
+        var classEntries = targetRoot.TryGetValue(ClassMapName, out PdfObject? targetClassMap)
+            ? ResolveDictionary(_document, targetClassMap,
+                "The destination /StructTreeRoot /ClassMap").ToList()
+            : [];
+        var usedRoleNames = roleEntries.Select(entry => entry.Key).ToHashSet();
+        var usedClassNames = classEntries.Select(entry => entry.Key).ToHashSet();
+        var idEntries = targetRoot.TryGetValue(IdTreeName, out PdfObject? targetIdTree)
+            ? PdfNameTree.Read(_document, targetIdTree).ToList()
+            : [];
+        var usedIds = idEntries.Select(entry => Convert.ToBase64String(entry.Key.Bytes.Span))
+            .ToHashSet(StringComparer.Ordinal);
+        var structureAssociatedFiles = ReadOptionalArray(
+            _document, targetRoot, StructureAssociatedFilesName,
+            "The destination /StructTreeRoot /AF");
+        var pronunciationLexicons = ReadOptionalArray(
+            _document, targetRoot, PronunciationLexiconName,
+            "The destination /StructTreeRoot /PronunciationLexicon");
+        int nextRoleName = 1;
+        int nextClassName = 1;
+        int nextId = 1;
+
+        foreach (PageState[] group in taggedGroups)
+        {
+            PdfDocument source = group[0].ImportedDocument!;
+            PdfPageTree tree = group[0].ImportedTree!;
+            PdfObject sourceRootValue = tree.Catalog[StructTreeRootName];
+            PdfDictionary sourceRoot = ResolveDictionary(
+                source, sourceRootValue, "The source /StructTreeRoot");
+            PdfName[] supportedSourceRootKeys =
+            [TypeName, StructureKidsName, ParentTreeName, ParentTreeNextKeyName,
+                NamespacesName, RoleMapName, ClassMapName, IdTreeName,
+                StructureAssociatedFilesName, PronunciationLexiconName];
+            PdfName? unsupportedRootKey = sourceRoot.Keys.FirstOrDefault(
+                key => !supportedSourceRootKeys.Contains(key));
+            if (unsupportedRootKey is not null)
+                throw new NotSupportedException(
+                    $"Merging a tagged structure root containing /{unsupportedRootKey.ValueAsLatin1()} is not yet supported.");
+            PdfObjectGraphImporter importer = importers[group[0]];
+            if (sourceRootValue is PdfIndirectReference sourceRootReference)
+                importer.SeedReference(sourceRootReference, targetRootReference);
+            else
+            {
+                PdfIndirectReference sourceParent = FindStructureRootParentReference(
+                    source, sourceRoot)
+                    ?? throw new InvalidOperationException(
+                        "A direct source structure-tree root has no identifiable top-level parent reference.");
+                importer.SeedReference(sourceParent, targetRootReference);
+            }
+
+            var keyMap = new Dictionary<long, long>();
+            IReadOnlyList<PdfNumberTreeEntry> sourceEntries = sourceRoot.TryGetValue(
+                ParentTreeName, out PdfObject? sourceParentTree)
+                ? PdfNumberTree.Read(source, sourceParentTree) : [];
+            foreach (PdfNumberTreeEntry entry in sourceEntries.OrderBy(entry => entry.Key))
+                keyMap[entry.Key] = nextKey++;
+            var roleRenames = new Dictionary<PdfName, PdfName>();
+            var classRenames = new Dictionary<PdfName, PdfName>();
+            var idRenames = new Dictionary<string, PdfString>(StringComparer.Ordinal);
+            PdfDictionary? sourceRoleMap = sourceRoot.TryGetValue(
+                RoleMapName, out PdfObject? sourceRoles)
+                ? ResolveDictionary(source, sourceRoles, "A source /StructTreeRoot /RoleMap") : null;
+            PdfDictionary? sourceClassMap = sourceRoot.TryGetValue(
+                ClassMapName, out PdfObject? sourceClasses)
+                ? ResolveDictionary(source, sourceClasses, "A source /StructTreeRoot /ClassMap") : null;
+            PrepareNames(sourceRoleMap, usedRoleNames, roleRenames, "KPRole", ref nextRoleName);
+            PrepareNames(sourceClassMap, usedClassNames, classRenames, "KPClass", ref nextClassName);
+            IReadOnlyList<PdfNameTreeEntry> sourceIds = sourceRoot.TryGetValue(
+                IdTreeName, out PdfObject? sourceIdTree)
+                ? PdfNameTree.Read(source, sourceIdTree) : [];
+            foreach (PdfNameTreeEntry entry in sourceIds)
+            {
+                string sourceKey = Convert.ToBase64String(entry.Key.Bytes.Span);
+                PdfString destinationId = entry.Key;
+                if (usedIds.Contains(sourceKey))
+                {
+                    byte[] suffix;
+                    string candidate;
+                    do
+                    {
+                        suffix = Encoding.ASCII.GetBytes($"-KP{nextId++}");
+                        destinationId = new PdfString(
+                            [.. entry.Key.Bytes.Span, .. suffix], PdfStringForm.Hexadecimal);
+                        candidate = Convert.ToBase64String(destinationId.Bytes.Span);
+                    }
+                    while (usedIds.Contains(candidate));
+                    idRenames[sourceKey] = destinationId;
+                    sourceKey = candidate;
+                }
+                usedIds.Add(sourceKey);
+            }
+            importer.AddDictionaryTransform((_, dictionary) =>
+                RemapStructureDictionary(
+                    dictionary, keyMap, roleRenames, classRenames, idRenames));
+            if (sourceRoleMap is not null)
+                roleEntries.AddRange(sourceRoleMap.Select(entry =>
+                    new KeyValuePair<PdfName, PdfObject>(
+                        roleRenames.GetValueOrDefault(entry.Key, entry.Key),
+                        importer.Import(entry.Value))));
+            if (sourceClassMap is not null)
+                classEntries.AddRange(sourceClassMap.Select(entry =>
+                    new KeyValuePair<PdfName, PdfObject>(
+                        classRenames.GetValueOrDefault(entry.Key, entry.Key),
+                        importer.Import(entry.Value))));
+            bool mergedIntoDocument = false;
+            if (targetDocumentReference is not null
+                && sourceRoot.TryGetValue(StructureKidsName, out PdfObject? sourceTopLevel)
+                && SingleItem(sourceTopLevel) is PdfIndirectReference sourceDocumentReference)
+            {
+                PdfDictionary sourceDocument = ResolveDictionary(
+                    source, sourceDocumentReference, "The source top-level structure element");
+                if (IsDocumentElement(sourceDocument))
+                {
+                    importer.SeedReference(sourceDocumentReference, targetDocumentReference);
+                    if (sourceDocument.TryGetValue(StructureKidsName, out PdfObject? sourceDocumentKids))
+                    {
+                        PdfObject importedDocumentKids = importer.Import(sourceDocumentKids);
+                        targetDocumentKids.AddRange(importedDocumentKids is PdfArray importedArray
+                            ? importedArray : [importedDocumentKids]);
+                    }
+                    mergedIntoDocument = true;
+                }
+            }
+            if (!mergedIntoDocument
+                && sourceRoot.TryGetValue(StructureKidsName, out PdfObject? sourceKids))
+            {
+                PdfObject importedKids = importer.Import(sourceKids);
+                structureKids.AddRange(importedKids is PdfArray importedArray
+                    ? importedArray : [importedKids]);
+            }
+            foreach (PdfNameTreeEntry entry in sourceIds)
+            {
+                string sourceKey = Convert.ToBase64String(entry.Key.Bytes.Span);
+                PdfString key = idRenames.GetValueOrDefault(sourceKey, entry.Key);
+                idEntries.Add(new PdfNameTreeEntry(key, importer.Import(entry.Value)));
+            }
+            foreach (PdfNumberTreeEntry entry in sourceEntries)
+                parentEntries.Add(new PdfNumberTreeEntry(
+                    keyMap[entry.Key], importer.Import(entry.Value)));
+            if (sourceRoot.TryGetValue(NamespacesName, out PdfObject? sourceNamespaces))
+                namespaces.AddRange(ResolveArray(source, sourceNamespaces,
+                    "A source /StructTreeRoot /Namespaces").Select(importer.Import));
+            AddImportedArray(StructureAssociatedFilesName, structureAssociatedFiles,
+                "A source /StructTreeRoot /AF");
+            AddImportedArray(PronunciationLexiconName, pronunciationLexicons,
+                "A source /StructTreeRoot /PronunciationLexicon");
+
+            void AddImportedArray(PdfName name, ICollection<PdfObject> destination, string description)
+            {
+                if (sourceRoot.TryGetValue(name, out PdfObject? value))
+                    foreach (PdfObject item in ResolveArray(source, value, description))
+                        destination.Add(importer.Import(item));
+            }
+        }
+
+        var parentNumbers = new List<PdfObject>(parentEntries.Count * 2);
+        foreach (PdfNumberTreeEntry entry in parentEntries.OrderBy(entry => entry.Key))
+        {
+            parentNumbers.Add(new PdfInteger(entry.Key));
+            parentNumbers.Add(entry.Value);
+        }
+        PdfDictionary rebuiltParentTree = Dictionary(("Nums", new PdfArray(parentNumbers)));
+        PdfObject parentTreeForRoot = rebuiltParentTree;
+        if (targetRoot.TryGetValue(ParentTreeName, out targetParentTree)
+            && targetParentTree is PdfIndirectReference parentReference)
+        {
+            update.ReplaceObject(parentReference.ObjectNumber, rebuiltParentTree);
+            parentTreeForRoot = parentReference;
+        }
+        var replacements = new Dictionary<PdfName, PdfObject>
+        {
+            [StructureKidsName] = new PdfArray(structureKids),
+            [ParentTreeName] = parentTreeForRoot,
+            [ParentTreeNextKeyName] = new PdfInteger(nextKey)
+        };
+        if (namespaces.Count > 0) replacements[NamespacesName] = new PdfArray(namespaces);
+        if (roleEntries.Count > 0) replacements[RoleMapName] = new PdfDictionary(roleEntries);
+        if (classEntries.Count > 0) replacements[ClassMapName] = new PdfDictionary(classEntries);
+        if (idEntries.Count > 0)
+        {
+            var names = new List<PdfObject>(idEntries.Count * 2);
+            foreach (PdfNameTreeEntry entry in idEntries.OrderBy(
+                         entry => Convert.ToBase64String(entry.Key.Bytes.Span),
+                         StringComparer.Ordinal))
+            {
+                names.Add(entry.Key);
+                names.Add(entry.Value);
+            }
+            replacements[IdTreeName] = Dictionary(("Names", new PdfArray(names)));
+        }
+        if (structureAssociatedFiles.Count > 0)
+            replacements[StructureAssociatedFilesName] = new PdfArray(structureAssociatedFiles);
+        if (pronunciationLexicons.Count > 0)
+            replacements[PronunciationLexiconName] = new PdfArray(pronunciationLexicons);
+        if (targetDocumentReference is not null && targetDocument is not null)
+            update.ReplaceObject(targetDocumentReference.ObjectNumber,
+                ReplaceMany(targetDocument, new Dictionary<PdfName, PdfObject>
+                {
+                    [StructureKidsName] = new PdfArray(targetDocumentKids)
+                }));
+        PdfDictionary mergedRoot = ReplaceMany(targetRoot, replacements);
+        if (targetRootIsNew) update.SetObject(targetRootReference, mergedRoot);
+        else update.ReplaceObject(targetRootReference.ObjectNumber, mergedRoot);
+        if (_tree.Catalog.TryGetValue(MarkInfoName, out PdfObject? markInfo))
+            catalogReplacements[MarkInfoName] = markInfo;
+
+        PdfDictionary ResolveEffectiveDictionary(PdfObject value, string description)
+        {
+            if (value is PdfIndirectReference reference
+                && rewriteState is not null
+                && rewriteState.RewrittenObjects.TryGetValue(
+                    reference.ObjectNumber, out PdfDictionary? rewritten))
+                return rewritten;
+            return ResolveDictionary(_document, value, description);
+        }
+
+        static PdfObject? SingleItem(PdfObject value) => value switch
+        {
+            PdfArray { Count: 1 } array => array[0],
+            PdfArray => null,
+            _ => value
+        };
+
+        static bool IsDocumentElement(PdfDictionary dictionary) =>
+            dictionary.TryGetValue(Name("S"), out PdfObject? value)
+            && value is PdfName name && name.ValueAsLatin1() == "Document";
+
+        static void PrepareNames(
+            PdfDictionary? sourceMap, ISet<PdfName> used,
+            IDictionary<PdfName, PdfName> renames, string prefix, ref int next)
+        {
+            if (sourceMap is null) return;
+            foreach (PdfName sourceName in sourceMap.Keys)
+            {
+                PdfName destinationName = sourceName;
+                if (used.Contains(destinationName))
+                {
+                    do destinationName = Name($"{prefix}{next++}");
+                    while (used.Contains(destinationName));
+                    renames[sourceName] = destinationName;
+                }
+                used.Add(destinationName);
+            }
+        }
+
+        static List<PdfObject> ReadOptionalArray(
+            PdfDocument document, PdfDictionary dictionary, PdfName name, string description) =>
+            dictionary.TryGetValue(name, out PdfObject? value)
+                ? ResolveArray(document, value, description).ToList() : [];
+    }
+
+    private static PdfIndirectReference? FindStructureRootParentReference(
+        PdfDocument document, PdfDictionary root)
+    {
+        if (!root.TryGetValue(StructureKidsName, out PdfObject? kids)) return null;
+        IEnumerable<PdfObject> values = kids is PdfArray array ? array : [kids];
+        PdfIndirectReference? result = null;
+        foreach (PdfObject value in values)
+        {
+            PdfDictionary child = ResolveDictionary(
+                document, value, "A top-level structure element");
+            if (!child.TryGetValue(StructureElementParentName, out PdfObject? parent)
+                || parent is not PdfIndirectReference parentReference)
+                return null;
+            if (result is not null && (result.ObjectNumber != parentReference.ObjectNumber
+                || result.Generation != parentReference.Generation)) return null;
+            result = parentReference;
+        }
+        return result;
+    }
+
+    private static PdfDictionary RemapStructureDictionary(
+        PdfDictionary dictionary, IReadOnlyDictionary<long, long> keyMap,
+        IReadOnlyDictionary<PdfName, PdfName> roleRenames,
+        IReadOnlyDictionary<PdfName, PdfName> classRenames,
+        IReadOnlyDictionary<string, PdfString> idRenames)
+    {
+        var replacements = new Dictionary<PdfName, PdfObject>();
+        foreach (PdfName name in new[] { StructParentsName, StructureParentName })
+            if (dictionary.TryGetValue(name, out PdfObject? value))
+            {
+                long key = (value as PdfInteger)?.Value
+                    ?? throw new InvalidOperationException($"/{name.ValueAsLatin1()} is not an integer.");
+                if (!keyMap.TryGetValue(key, out long replacement))
+                    throw new InvalidOperationException(
+                        $"Structure-parent key {key} has no ParentTree entry.");
+                replacements[name] = new PdfInteger(replacement);
+            }
+        bool isStructureElement = dictionary.TryGetValue(TypeName, out PdfObject? type)
+            && type is PdfName typeName && typeName.Equals(StructureElementName);
+        if (isStructureElement
+            && dictionary.TryGetValue(StructureTypeName, out PdfObject? structureType)
+            && structureType is PdfName role
+            && roleRenames.TryGetValue(role, out PdfName? renamedRole))
+            replacements[StructureTypeName] = renamedRole;
+        if (isStructureElement
+            && dictionary.TryGetValue(StructureClassName, out PdfObject? structureClass))
+        {
+            PdfObject renamedClass = structureClass switch
+            {
+                PdfName name when classRenames.TryGetValue(name, out PdfName? replacement) => replacement,
+                PdfArray array => new PdfArray(array.Select(item => item is PdfName name
+                    && classRenames.TryGetValue(name, out PdfName? replacement)
+                        ? replacement : item)),
+                _ => structureClass
+            };
+            replacements[StructureClassName] = renamedClass;
+        }
+        if (isStructureElement
+            && dictionary.TryGetValue(StructureIdName, out PdfObject? structureId)
+            && structureId is PdfString id
+            && idRenames.TryGetValue(Convert.ToBase64String(id.Bytes.Span), out PdfString? renamedId))
+            replacements[StructureIdName] = renamedId;
+        return replacements.Count == 0 ? dictionary : ReplaceMany(dictionary, replacements);
+    }
+
+    private void AddImportedCatalogExtensions(
+        IEnumerable<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        var entries = _tree.Catalog.TryGetValue(ExtensionsName, out PdfObject? targetValue)
+            ? ResolveDictionary(_document, targetValue,
+                "The destination catalog /Extensions value").ToList()
+            : [];
+        var names = entries.Select(entry => entry.Key).ToHashSet();
+        bool importedAny = false;
+        foreach (PageState[] group in importedGroups)
+        {
+            PdfPageTree tree = group[0].ImportedTree!;
+            if (!tree.Catalog.TryGetValue(ExtensionsName, out PdfObject? sourceValue)) continue;
+            RequireCompleteImport(group, tree, "The catalog /Extensions dictionary");
+            PdfDocument source = group[0].ImportedDocument!;
+            PdfDictionary extensions = ResolveDictionary(
+                source, sourceValue, "A source catalog /Extensions value");
+            foreach (var entry in extensions)
+            {
+                if (!names.Add(entry.Key))
+                    throw new NotSupportedException(
+                        $"Multiple documents define the /Extensions /{entry.Key.ValueAsLatin1()} namespace and cannot be merged safely.");
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, importers[group[0]].Import(entry.Value)));
+            }
+            importedAny = true;
+        }
+        if (importedAny)
+            catalogReplacements[ExtensionsName] = new PdfDictionary(entries);
     }
 
     private void AddImportedDocumentProperties(
+        PdfIncrementalUpdateBuilder update,
         IReadOnlyList<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
         IDictionary<PdfName, PdfObject> catalogReplacements)
@@ -1256,26 +1795,179 @@ public sealed class PdfIncrementalPageEditor
             || !IsCompleteImport(group, tree)) return;
 
         PdfObjectGraphImporter importer = importers[group[0]];
-        foreach (PdfName name in new[]
-                 {
-                     MetadataName, LanguageName, ViewerPreferencesName, OutputIntentsName
-                 })
-        {
-            if (tree.Catalog.TryGetValue(name, out PdfObject? value))
-                catalogReplacements[name] = importer.Import(value);
-        }
+        if (group[0].ImportedDocument!.CrossReferences.TryGetTrailerValue(
+                Name("Info"), out PdfObject? information))
+            update.SetDocumentInformation(importer.Import(information));
+        else
+            update.SetDocumentInformation(null);
+        foreach (var entry in tree.Catalog.Where(entry =>
+                     !entry.Key.Equals(TypeName)
+                     && !entry.Key.Equals(PagesName)
+                     && !entry.Key.Equals(PermissionsName)))
+            catalogReplacements[entry.Key] = importer.Import(entry.Value);
     }
 
     private void ValidateExistingStructureTreePageSet()
     {
         if (!_tree.Catalog.ContainsKey(StructTreeRootName)) return;
-        bool retainsEveryOriginalPage = _pages.Count == _tree.Pages.Count
-            && _pages.All(page => page.Entry is not null)
-            && _pages.Select(page => page.Entry!.Reference.ObjectNumber).Order()
-                .SequenceEqual(_tree.Pages.Select(page => page.Reference.ObjectNumber).Order());
-        if (!retainsEveryOriginalPage)
+        bool additionsAreSupported = _pages.Where(page => page.Entry is null)
+            .All(page => page.ImportedDocument is null
+                || page.ImportedTree!.Catalog.ContainsKey(StructTreeRootName));
+        if (!additionsAreSupported)
             throw new NotSupportedException(
-                "Adding or removing pages in an existing tagged PDF requires structure-tree editing, which is not yet supported. Reordering the complete existing page set is supported.");
+                "Untagged content cannot be imported into an existing tagged PDF. Reordering, removing, adding blank pages, and merging complete tagged documents are supported.");
+    }
+
+    private StructureRewriteState? RewriteExistingStructureTree(
+        PdfIncrementalUpdateBuilder update,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        if (!_tree.Catalog.TryGetValue(StructTreeRootName, out PdfObject? rootValue)) return null;
+        var retainedPages = _pages.Where(page => page.Entry is not null)
+            .Select(page => page.Entry!.Reference.ObjectNumber).ToHashSet();
+        var removedPages = _tree.Pages.Select(page => page.Reference.ObjectNumber)
+            .Where(number => !retainedPages.Contains(number)).ToHashSet();
+        if (removedPages.Count == 0) return null;
+
+        var active = new HashSet<int>();
+        var visited = new HashSet<int>();
+        var rewrittenObjects = new Dictionary<int, PdfDictionary>();
+        IReadOnlyList<PdfNumberTreeEntry> retainedParentEntries = [];
+        PdfObject? rewrittenRootValue = Rewrite(rootValue, inheritedPage: null, isRoot: true);
+        if (rewrittenRootValue is null)
+            throw new InvalidOperationException("Removing pages cannot remove the structure-tree root.");
+
+        PdfDictionary root = ResolveDictionary(_document, rootValue, "The /StructTreeRoot");
+        if (root.TryGetValue(ParentTreeName, out PdfObject? parentTreeValue))
+        {
+            var removedKeys = _tree.Pages
+                .Where(page => removedPages.Contains(page.Reference.ObjectNumber))
+                .Select(page => page.Dictionary.TryGetValue(StructParentsName, out PdfObject? value)
+                    ? (value as PdfInteger)?.Value : null)
+                .Where(value => value.HasValue).Select(value => value!.Value).ToHashSet();
+            retainedParentEntries = PdfNumberTree.Read(
+                _document, parentTreeValue).Where(entry => !removedKeys.Contains(entry.Key)).ToArray();
+            var numbers = new List<PdfObject>(retainedParentEntries.Count * 2);
+            foreach (PdfNumberTreeEntry entry in retainedParentEntries.OrderBy(entry => entry.Key))
+            {
+                numbers.Add(new PdfInteger(entry.Key));
+                numbers.Add(entry.Value);
+            }
+            var rebuilt = Dictionary(("Nums", new PdfArray(numbers)));
+            if (parentTreeValue is PdfIndirectReference parentTreeReference)
+            {
+                update.ReplaceObject(parentTreeReference.ObjectNumber, rebuilt);
+                rewrittenObjects[parentTreeReference.ObjectNumber] = rebuilt;
+            }
+            else
+            {
+                PdfDictionary currentRoot = ResolveDictionary(
+                    _document, rewrittenRootValue, "The rewritten /StructTreeRoot");
+                PdfDictionary replacedRoot = ReplaceMany(currentRoot,
+                    new Dictionary<PdfName, PdfObject> { [ParentTreeName] = rebuilt });
+                ReplaceRoot(rootValue, replacedRoot);
+                rewrittenRootValue = rootValue is PdfIndirectReference ? rootValue : replacedRoot;
+            }
+        }
+        if (rootValue is PdfIndirectReference rootReference
+            && rewrittenRootValue is PdfDictionary rewrittenRoot)
+        {
+            update.ReplaceObject(rootReference.ObjectNumber, rewrittenRoot);
+            rewrittenObjects[rootReference.ObjectNumber] = rewrittenRoot;
+        }
+        if (rootValue is not PdfIndirectReference)
+            catalogReplacements[StructTreeRootName] = rewrittenRootValue;
+
+        PdfDictionary effectiveRoot = rewrittenRootValue as PdfDictionary
+            ?? (rootValue is PdfIndirectReference rootReferenceValue
+                && rewrittenObjects.TryGetValue(
+                    rootReferenceValue.ObjectNumber, out PdfDictionary? recordedRoot)
+                    ? recordedRoot
+                    : root);
+
+        PdfObject? Rewrite(PdfObject value, int? inheritedPage, bool isRoot = false)
+        {
+            if (value is PdfArray array)
+            {
+                var children = new List<PdfObject>();
+                foreach (PdfObject child in array)
+                {
+                    PdfObject? rewritten = Rewrite(child, inheritedPage);
+                    if (rewritten is not null) children.Add(rewritten);
+                }
+                return children.Count == 0 ? null : new PdfArray(children);
+            }
+            if (value is PdfInteger)
+                return inheritedPage.HasValue && removedPages.Contains(inheritedPage.Value)
+                    ? null : value;
+
+            PdfIndirectReference? reference = value as PdfIndirectReference;
+            PdfObject resolved = reference is null ? value : _document.Resolve(reference);
+            if (resolved is not PdfDictionary dictionary) return value;
+            if (reference is not null && !active.Add(reference.ObjectNumber))
+                throw new InvalidOperationException("The structure tree contains a cycle.");
+            if (reference is not null && !visited.Add(reference.ObjectNumber))
+            {
+                active.Remove(reference.ObjectNumber);
+                throw new InvalidOperationException(
+                    "The structure tree references the same element more than once.");
+            }
+            try
+            {
+                int? explicitPage = PageObjectNumber(dictionary);
+                int? effectivePage = explicitPage ?? inheritedPage;
+                string? type = dictionary.TryGetValue(TypeName, out PdfObject? typeValue)
+                    && typeValue is PdfName typeName ? typeName.ValueAsLatin1() : null;
+                if (type is "MCR" or "OBJR")
+                    return effectivePage.HasValue && removedPages.Contains(effectivePage.Value)
+                        ? null : value;
+
+                bool hadKids = dictionary.TryGetValue(StructureKidsName, out PdfObject? kids);
+                PdfObject? rewrittenKids = hadKids ? Rewrite(kids!, effectivePage) : null;
+                bool pageWasRemoved = explicitPage.HasValue && removedPages.Contains(explicitPage.Value);
+                if (!isRoot && pageWasRemoved && rewrittenKids is null) return null;
+                var replacements = new Dictionary<PdfName, PdfObject>();
+                var removals = new List<PdfName>();
+                if (hadKids)
+                {
+                    if (rewrittenKids is null) removals.Add(StructureKidsName);
+                    else replacements[StructureKidsName] = rewrittenKids;
+                }
+                if (pageWasRemoved && rewrittenKids is not null) removals.Add(PageName);
+                if (replacements.Count == 0 && removals.Count == 0) return value;
+                PdfDictionary rewritten = ReplaceMany(dictionary, replacements, removals);
+                if (reference is not null)
+                {
+                    if (isRoot) return rewritten;
+                    update.ReplaceObject(reference.ObjectNumber, rewritten);
+                    rewrittenObjects[reference.ObjectNumber] = rewritten;
+                    return reference;
+                }
+                return rewritten;
+            }
+            finally
+            {
+                if (reference is not null) active.Remove(reference.ObjectNumber);
+            }
+        }
+
+        int? PageObjectNumber(PdfDictionary dictionary) =>
+            dictionary.TryGetValue(PageName, out PdfObject? page)
+                && page is PdfIndirectReference reference ? reference.ObjectNumber : null;
+
+        void ReplaceRoot(PdfObject currentValue, PdfDictionary replacement)
+        {
+            if (currentValue is PdfIndirectReference reference)
+            {
+                update.ReplaceObject(reference.ObjectNumber, replacement);
+                rewrittenObjects[reference.ObjectNumber] = replacement;
+            }
+            else
+                catalogReplacements[StructTreeRootName] = replacement;
+        }
+
+        return new StructureRewriteState(
+            effectiveRoot, rewrittenObjects, retainedParentEntries);
     }
 
     private void AddImportedOptionalContent(
@@ -1286,30 +1978,123 @@ public sealed class PdfIncrementalPageEditor
         PageState[][] layeredGroups = importedGroups.Where(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(OptionalContentPropertiesName)).ToArray();
         if (layeredGroups.Length == 0) return;
+        foreach (PageState[] layeredGroup in layeredGroups)
+            RequireCompleteImport(
+                layeredGroup, layeredGroup[0].ImportedTree!, "Optional-content layers");
 
-        PageState[] group = layeredGroups[0];
-        PdfPageTree tree = group[0].ImportedTree!;
-        bool isOnlyPageSet = layeredGroups.Length == 1
-            && _tree.Pages.Count == 0
-            && _pages.Count == group.Length
-            && _pages.All(group.Contains);
-        if (!isOnlyPageSet || !IsCompleteImport(group, tree))
-            throw new NotSupportedException(
-                "Optional-content layers can be preserved only when one complete source document is imported into an empty destination without adding or removing pages.");
+        if (!_tree.Catalog.TryGetValue(
+                OptionalContentPropertiesName, out PdfObject? targetPropertiesValue))
+        {
+            PageState[] group = layeredGroups[0];
+            if (layeredGroups.Length != 1)
+                throw new NotSupportedException(
+                    "Multiple layered documents cannot be introduced together into a destination without an optional-content configuration.");
+            catalogReplacements[OptionalContentPropertiesName] =
+                importers[group[0]].Import(
+                    group[0].ImportedTree!.Catalog[OptionalContentPropertiesName]);
+            return;
+        }
+
+        PdfDictionary targetProperties = ResolveDictionary(
+            _document, targetPropertiesValue, "The destination /OCProperties");
+        var groups = ResolveArray(_document, targetProperties[Name("OCGs")],
+            "The destination /OCProperties /OCGs").ToList();
+        PdfDictionary targetDefault = ResolveDictionary(
+            _document, targetProperties[Name("D")], "The destination optional-content default configuration");
+        var defaultArrays = new Dictionary<PdfName, List<PdfObject>>();
+        foreach (string key in new[] { "Order", "ON", "OFF", "Locked", "RBGroups", "AS" })
+        {
+            PdfName name = Name(key);
+            defaultArrays[name] = targetDefault.TryGetValue(name, out PdfObject? value)
+                ? ResolveArray(_document, value, $"The destination optional-content /{key} array").ToList()
+                : [];
+        }
+        var configurations = targetProperties.TryGetValue(Name("Configs"), out PdfObject? targetConfigs)
+            ? ResolveArray(_document, targetConfigs, "The destination /OCProperties /Configs").ToList()
+            : [];
+        string targetBaseState = OptionalContentBaseState(targetDefault);
+
+        foreach (PageState[] group in layeredGroups)
+        {
+            PdfDocument source = group[0].ImportedDocument!;
+            PdfObjectGraphImporter importer = importers[group[0]];
+            PdfDictionary sourceProperties = ResolveDictionary(source,
+                group[0].ImportedTree!.Catalog[OptionalContentPropertiesName],
+                "A source /OCProperties");
+            PdfArray sourceGroups = ResolveArray(source, sourceProperties[Name("OCGs")],
+                "A source /OCProperties /OCGs");
+            groups.AddRange(sourceGroups.Select(importer.Import));
+            PdfDictionary sourceDefault = ResolveDictionary(source, sourceProperties[Name("D")],
+                "A source optional-content default configuration");
+            string sourceBaseState = OptionalContentBaseState(sourceDefault);
+            var sourceOn = OptionalContentReferenceSet(source, sourceDefault, "ON");
+            var sourceOff = OptionalContentReferenceSet(source, sourceDefault, "OFF");
+            foreach (PdfObject sourceGroup in sourceGroups)
+            {
+                if (sourceGroup is not PdfIndirectReference sourceReference)
+                    throw new InvalidOperationException("An /OCProperties /OCGs entry is not an indirect reference.");
+                bool explicitlyOn = sourceOn.Contains(sourceReference.ObjectNumber);
+                bool explicitlyOff = sourceOff.Contains(sourceReference.ObjectNumber);
+                if (explicitlyOn && explicitlyOff)
+                    throw new InvalidOperationException(
+                        "An optional-content group appears in both /ON and /OFF.");
+                if (sourceBaseState == "Unchanged" && !explicitlyOn && !explicitlyOff)
+                    throw new NotSupportedException(
+                        "A source optional-content configuration with /BaseState /Unchanged must explicitly list every imported group in /ON or /OFF.");
+                bool visible = explicitlyOn || !explicitlyOff && sourceBaseState == "ON";
+                bool targetDefaultVisible = targetBaseState == "ON";
+                if (targetBaseState == "Unchanged" || visible != targetDefaultVisible)
+                    defaultArrays[Name(visible ? "ON" : "OFF")].Add(importer.Import(sourceGroup));
+            }
+            foreach (string key in new[] { "Order", "Locked", "RBGroups", "AS" })
+            {
+                PdfName name = Name(key);
+                if (sourceDefault.TryGetValue(name, out PdfObject? value))
+                    defaultArrays[name].AddRange(ResolveArray(source, value,
+                        $"A source optional-content /{key} array").Select(importer.Import));
+            }
+            if (sourceProperties.TryGetValue(Name("Configs"), out PdfObject? sourceConfigs))
+                configurations.AddRange(ResolveArray(source, sourceConfigs,
+                    "A source /OCProperties /Configs").Select(importer.Import));
+        }
+
+        var defaultReplacements = defaultArrays
+            .Where(entry => entry.Value.Count > 0)
+            .ToDictionary(entry => entry.Key, entry => (PdfObject)new PdfArray(entry.Value));
+        PdfDictionary mergedDefault = ReplaceMany(targetDefault, defaultReplacements,
+            defaultArrays.Where(entry => entry.Value.Count == 0)
+                .Select(entry => entry.Key).ToArray());
+        var propertyReplacements = new Dictionary<PdfName, PdfObject>
+        {
+            [Name("OCGs")] = new PdfArray(groups), [Name("D")] = mergedDefault
+        };
+        if (configurations.Count > 0)
+            propertyReplacements[Name("Configs")] = new PdfArray(configurations);
         catalogReplacements[OptionalContentPropertiesName] =
-            importers[group[0]].Import(tree.Catalog[OptionalContentPropertiesName]);
-    }
+            ReplaceMany(targetProperties, propertyReplacements);
 
-    private void ValidateExistingOptionalContentPageSet()
-    {
-        if (!_tree.Catalog.ContainsKey(OptionalContentPropertiesName)) return;
-        bool retainsEveryOriginalPage = _pages.Count == _tree.Pages.Count
-            && _pages.All(page => page.Entry is not null)
-            && _pages.Select(page => page.Entry!.Reference.ObjectNumber).Order()
-                .SequenceEqual(_tree.Pages.Select(page => page.Reference.ObjectNumber).Order());
-        if (!retainsEveryOriginalPage)
-            throw new NotSupportedException(
-                "Adding or removing pages in a PDF with optional-content layers requires layer-configuration editing, which is not yet supported. Reordering the complete existing page set is supported.");
+        static string OptionalContentBaseState(PdfDictionary configuration)
+        {
+            string state = configuration.TryGetValue(Name("BaseState"), out PdfObject? value)
+                ? (value as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException("An optional-content /BaseState is not a name.")
+                : "ON";
+            return state is "ON" or "OFF" or "Unchanged" ? state
+                : throw new InvalidOperationException(
+                    $"Optional-content /BaseState /{state} is not defined.");
+        }
+
+        static HashSet<int> OptionalContentReferenceSet(
+            PdfDocument document, PdfDictionary configuration, string key)
+        {
+            PdfName name = Name(key);
+            if (!configuration.TryGetValue(name, out PdfObject? value)) return [];
+            return ResolveArray(document, value, $"An optional-content /{key} array")
+                .Select(item => item as PdfIndirectReference
+                    ?? throw new InvalidOperationException(
+                        $"An optional-content /{key} entry is not an indirect reference."))
+                .Select(reference => reference.ObjectNumber).ToHashSet();
+        }
     }
 
     private static bool DestinationsStayWithinImportedPages(
@@ -1473,7 +2258,8 @@ public sealed class PdfIncrementalPageEditor
         if (!entries.Any(entry => entry.Key.Equals(MediaBoxName)))
             throw new InvalidOperationException(
                 $"Imported page {source.Index + 1} has no effective /MediaBox.");
-        update.SetObject(destinationReference, new PdfDictionary(entries));
+        update.SetObject(destinationReference,
+            importer.ApplyDictionaryTransform(new PdfDictionary(entries)));
     }
 
     private static int CurrentRotation(PageState state)
@@ -1585,6 +2371,10 @@ public sealed class PdfIncrementalPageEditor
         PdfIndirectReference[] TopLevel,
         Dictionary<string, PdfIndirectReference> Mapped,
         long Count);
+    private sealed record StructureRewriteState(
+        PdfDictionary Root,
+        IReadOnlyDictionary<int, PdfDictionary> RewrittenObjects,
+        IReadOnlyList<PdfNumberTreeEntry> ParentEntries);
 
     private sealed class PageState
     {

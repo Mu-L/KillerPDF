@@ -12,7 +12,17 @@ public sealed class PdfOutputIntentTests
     [Theory]
     [InlineData("GRAY", 1)]
     [InlineData("RGB ", 3)]
+    [InlineData("XYZ ", 3)]
+    [InlineData("Lab ", 3)]
+    [InlineData("Luv ", 3)]
+    [InlineData("YCbr", 3)]
+    [InlineData("Yxy ", 3)]
+    [InlineData("HSV ", 3)]
+    [InlineData("HLS ", 3)]
+    [InlineData("CMY ", 3)]
+    [InlineData("3CLR", 3)]
     [InlineData("CMYK", 4)]
+    [InlineData("4CLR", 4)]
     public void IccProfile_ReadsSupportedComponentCounts(string colorSpace, int expectedComponents)
     {
         PdfIccProfile profile = PdfIccProfile.Load(BuildProfile(colorSpace));

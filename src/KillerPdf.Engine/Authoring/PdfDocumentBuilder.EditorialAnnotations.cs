@@ -84,7 +84,8 @@ public sealed partial class PdfDocumentBuilder
 
     private static void AddRedactionAnnotationObjects(
         ICollection<PdfIndirectObject> objects, AllocatedRedactionAnnotation allocated,
-        IReadOnlyList<AllocatedPage> pages, int sequence, PdfName? fontResource, int? fontNumber)
+        IReadOnlyList<AllocatedPage> pages, int sequence, PdfName? fontResource, int? fontNumber,
+        EmbeddedFontUsage? fontUsage)
     {
         RedactionAnnotationDefinition value = allocated.Definition;
         (double minX, double minY, double maxX, double maxY) = EditorialQuadBounds(value.Quads);
@@ -156,7 +157,7 @@ public sealed partial class PdfDocumentBuilder
                     .Append(" Tf\n1 1 1 rg\n1 0 0 1 ").Append(FormatNumber(textX)).Append(' ')
                     .Append(FormatNumber(textY)).Append(" Tm\n");
                 using var shown = new MemoryStream();
-                WriteShownText(shown, value.OverlayText, value.OverlayFont);
+                WriteShownText(shown, value.OverlayText, value.OverlayFont, fontUsage);
                 drawing.Append(Encoding.ASCII.GetString(shown.ToArray())).Append("ET\n");
             }
         }

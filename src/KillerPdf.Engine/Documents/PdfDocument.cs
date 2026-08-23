@@ -14,6 +14,8 @@ namespace KillerPdf.Engine.Documents;
 /// </summary>
 public sealed class PdfDocument
 {
+    public const int MaximumObjectsPerObjectStream = 1_000_000;
+
     private static readonly PdfName TypeName = new("Type"u8);
     private static readonly PdfName ObjectStreamTypeName = new("ObjStm"u8);
     private static readonly PdfName ObjectCountName = new("N"u8);
@@ -188,6 +190,10 @@ public sealed class PdfDocument
         RequireObjectStreamDictionary(stream.Dictionary, EntryOffset(entry));
 
         int objectCount = RequiredNonNegativeInt(stream.Dictionary, ObjectCountName, EntryOffset(entry));
+        if (objectCount > MaximumObjectsPerObjectStream)
+            throw Error(
+                $"An object stream cannot contain more than {MaximumObjectsPerObjectStream:N0} objects",
+                EntryOffset(entry));
         int firstObjectOffset = RequiredNonNegativeInt(stream.Dictionary, FirstObjectOffsetName, EntryOffset(entry));
         byte[] decoded = PdfStreamDecoder.Decode(stream);
         if (firstObjectOffset > decoded.Length)

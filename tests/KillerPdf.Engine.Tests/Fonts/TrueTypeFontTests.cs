@@ -34,6 +34,90 @@ public sealed class TrueTypeFontTests
         Assert.Equal((ushort)0, font.GetGlyphId('A'));
     }
 
+    [Theory]
+    [InlineData(0, 0x0041)]
+    [InlineData(2, 0x1234)]
+    [InlineData(6, 0x0041)]
+    [InlineData(8, 0x1F600)]
+    [InlineData(10, 0x1F600)]
+    [InlineData(13, 0x1F600)]
+    public void Load_ReadsAdditionalUnicodeCmapFormats(int format, int scalar)
+    {
+        byte[] cmap = format switch
+        {
+            0 => Cmap0(),
+            2 => Cmap2(),
+            6 => Cmap6(),
+            8 => Cmap8(),
+            10 => Cmap10(),
+            13 => Cmap13(),
+            _ => throw new InvalidOperationException()
+        };
+        TrueTypeFont font = TrueTypeFont.Load(
+            BuildTestFont(format12: false, cmap: cmap));
+
+        Assert.Equal((ushort)1, font.GetGlyphId(scalar));
+        Assert.Equal((ushort)0, font.GetGlyphId(scalar + 1));
+    }
+
+    [Fact]
+    public void Load_RejectsInvalidFormat2SubheaderKeyAndGlyphRange()
+    {
+        byte[] invalidKey = Cmap2();
+        U16(invalidKey, 12 + 6 + 0x12 * 2, 7);
+        Assert.Throws<FormatException>(() => TrueTypeFont.Load(
+            BuildTestFont(format12: false, cmap: invalidKey)));
+
+        byte[] invalidRange = Cmap2();
+        U16(invalidRange, 12 + 518 + 14, ushort.MaxValue);
+        Assert.Throws<FormatException>(() => TrueTypeFont.Load(
+            BuildTestFont(format12: false, cmap: invalidRange)));
+    }
+
+    [Fact]
+    public void Load_ReadsFormat8MixedBmpAndSupplementaryMappings()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            BuildTestFont(format12: false, cmap: Cmap8()));
+
+        Assert.Equal((ushort)1, font.GetGlyphId('A'));
+        Assert.Equal((ushort)1, font.GetGlyphId(0x1F600));
+    }
+
+    [Fact]
+    public void Load_RejectsFormat8SupplementaryGroupWithoutIs32Marker()
+    {
+        byte[] cmap = Cmap8();
+        int high = 0xD83D;
+        cmap[12 + 12 + high / 8] = 0;
+
+        Assert.Throws<FormatException>(() => TrueTypeFont.Load(
+            BuildTestFont(format12: false, cmap: cmap)));
+    }
+
+    [Fact]
+    public void Load_ReadsFormat14DefaultAndNonDefaultVariationSequences()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            BuildTestFont(format12: false, cmap: Cmap14()));
+
+        Assert.Equal((ushort)1, font.GetGlyphId('A', 0xFE0F));
+        Assert.Equal((ushort)1, font.GetGlyphId('B', 0xFE0F));
+        Assert.Equal((ushort)0, font.GetGlyphId('C', 0xFE0F));
+        Assert.Equal((ushort)0, font.GetGlyphId('A', 0xFE0E));
+        Assert.Throws<ArgumentOutOfRangeException>(() => font.GetGlyphId('A', 'B'));
+    }
+
+    [Fact]
+    public void Load_RejectsOutOfBoundsFormat14VariationTable()
+    {
+        byte[] cmap = Cmap14();
+        U32(cmap, 52 + 13, 1_000);
+
+        Assert.Throws<FormatException>(() => TrueTypeFont.Load(
+            BuildTestFont(format12: false, cmap: cmap)));
+    }
+
     [Fact]
     public void Load_ReadsCffFlavouredOpenTypeMetricsAndMappings()
     {
@@ -80,11 +164,11 @@ public sealed class TrueTypeFontTests
 
     internal static byte[] BuildTestFont(
         bool format12, ushort embeddingFlags = 0, bool includeOutlines = false,
-        bool cffOutlines = false)
+        bool cffOutlines = false, byte[]? cmap = null)
     {
         var tables = new Dictionary<string, byte[]>
         {
-            ["cmap"] = format12 ? Cmap12() : Cmap4(),
+            ["cmap"] = cmap ?? (format12 ? Cmap12() : Cmap4()),
             ["head"] = Bytes(54, bytes =>
             {
                 U16(bytes, 18, 1000);
@@ -181,6 +265,129 @@ public sealed class TrueTypeFontTests
         return result;
     }
 
+    private static byte[] Cmap6()
+    {
+        byte[] result = new byte[24];
+        U16(result, 2, 1);
+        U16(result, 4, 3);
+        U16(result, 6, 1);
+        U32(result, 8, 12);
+        U16(result, 12, 6);
+        U16(result, 14, 12);
+        U16(result, 18, 0x0041);
+        U16(result, 20, 1);
+        U16(result, 22, 1);
+        return result;
+    }
+
+    private static byte[] Cmap0()
+    {
+        byte[] result = new byte[274];
+        U16(result, 2, 1);
+        U16(result, 4, 0);
+        U16(result, 6, 0);
+        U32(result, 8, 12);
+        U16(result, 12, 0);
+        U16(result, 14, 262);
+        result[18 + 0x41] = 1;
+        return result;
+    }
+
+    private static byte[] Cmap2()
+    {
+        const int subtable = 12;
+        const int length = 536;
+        byte[] result = new byte[subtable + length];
+        U16(result, 2, 1);
+        U16(result, 4, 0);
+        U16(result, 6, 3);
+        U32(result, 8, subtable);
+        U16(result, subtable, 2);
+        U16(result, subtable + 2, length);
+        U16(result, subtable + 6 + 0x12 * 2, 8);
+        int subHeaders = subtable + 518;
+        U16(result, subHeaders + 8, 0x34);
+        U16(result, subHeaders + 10, 1);
+        U16(result, subHeaders + 14, 2);
+        U16(result, subHeaders + 16, 1);
+        return result;
+    }
+
+    private static byte[] Cmap10()
+    {
+        byte[] result = new byte[34];
+        U16(result, 2, 1);
+        U16(result, 4, 3);
+        U16(result, 6, 10);
+        U32(result, 8, 12);
+        U16(result, 12, 10);
+        U32(result, 16, 22);
+        U32(result, 24, 0x1F600);
+        U32(result, 28, 1);
+        U16(result, 32, 1);
+        return result;
+    }
+
+    private static byte[] Cmap8()
+    {
+        const int subtable = 12;
+        const int length = 8_232;
+        byte[] result = new byte[subtable + length];
+        U16(result, 2, 1);
+        U16(result, 4, 3);
+        U16(result, 6, 10);
+        U32(result, 8, subtable);
+        U16(result, subtable, 8);
+        U32(result, subtable + 4, length);
+        int high = 0xD83D;
+        result[subtable + 12 + high / 8] |= (byte)(1 << (7 - high % 8));
+        U32(result, subtable + 8_204, 2);
+        U32(result, subtable + 8_208, 0x0041);
+        U32(result, subtable + 8_212, 0x0041);
+        U32(result, subtable + 8_216, 1);
+        U32(result, subtable + 8_220, 0xD83DDE00);
+        U32(result, subtable + 8_224, 0xD83DDE00);
+        U32(result, subtable + 8_228, 1);
+        return result;
+    }
+
+    private static byte[] Cmap13()
+    {
+        byte[] result = Cmap12();
+        U16(result, 12, 13);
+        return result;
+    }
+
+    internal static byte[] Cmap14()
+    {
+        byte[] format4 = Cmap4()[12..];
+        const int baseOffset = 20;
+        int variationOffset = baseOffset + 32;
+        const int variationLength = 38;
+        byte[] result = new byte[variationOffset + variationLength];
+        U16(result, 2, 2);
+        U16(result, 4, 3);
+        U16(result, 6, 1);
+        U32(result, 8, baseOffset);
+        U16(result, 12, 0);
+        U16(result, 14, 5);
+        U32(result, 16, variationOffset);
+        format4.CopyTo(result, baseOffset);
+        U16(result, variationOffset, 14);
+        U32(result, variationOffset + 2, variationLength);
+        U32(result, variationOffset + 6, 1);
+        U24(result, variationOffset + 10, 0xFE0F);
+        U32(result, variationOffset + 13, 21);
+        U32(result, variationOffset + 17, 29);
+        U32(result, variationOffset + 21, 1);
+        U24(result, variationOffset + 25, 0x0041);
+        result[variationOffset + 28] = 0;
+        U32(result, variationOffset + 29, 1);
+        U24(result, variationOffset + 33, 0x0042);
+        U16(result, variationOffset + 36, 1);
+        return result;
+    }
+
     private static byte[] NameTable()
     {
         byte[] name = Encoding.BigEndianUnicode.GetBytes("KillerTest");
@@ -206,6 +413,12 @@ public sealed class TrueTypeFontTests
     private static int Align4(int value) => (value + 3) & ~3;
     private static void U16(byte[] target, int offset, int value) =>
         BinaryPrimitives.WriteUInt16BigEndian(target.AsSpan(offset, 2), checked((ushort)value));
+    private static void U24(byte[] target, int offset, int value)
+    {
+        target[offset] = checked((byte)(value >> 16));
+        target[offset + 1] = (byte)(value >> 8);
+        target[offset + 2] = (byte)value;
+    }
     private static void S16(byte[] target, int offset, int value) =>
         BinaryPrimitives.WriteInt16BigEndian(target.AsSpan(offset, 2), checked((short)value));
     private static void U32(byte[] target, int offset, int value) => U32(target, offset, checked((uint)value));

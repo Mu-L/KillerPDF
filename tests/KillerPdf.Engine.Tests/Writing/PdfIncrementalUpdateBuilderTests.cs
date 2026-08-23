@@ -1,5 +1,6 @@
 using System.Text;
 using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
@@ -64,6 +65,25 @@ public sealed class PdfIncrementalUpdateBuilderTests
             Assert.IsType<PdfIndirectReference>(secondValue[Name("Prev")]).ObjectNumber);
     }
 
+    [Theory]
+    [InlineData(PdfCrossReferenceFormat.Table)]
+    [InlineData(PdfCrossReferenceFormat.Stream)]
+    public void Build_PreservesApplicationTrailerEntriesAndDropsStaleChecksum(
+        PdfCrossReferenceFormat format)
+    {
+        PdfDocument source = PdfDocument.Open(SourceWithTrailerState());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.AddObject(new PdfInteger(1));
+
+        PdfDocument reopened = PdfDocument.Open(update.Build(
+            new PdfIncrementalUpdateWriteOptions { CrossReferenceFormat = format }));
+
+        PdfDictionary state = Assert.IsType<PdfDictionary>(
+            reopened.Trailer[Name("PrivateState")]);
+        Assert.True(Assert.IsType<PdfBoolean>(state[Name("Enabled")]).Value);
+        Assert.False(reopened.Trailer.ContainsKey(Name("DocChecksum")));
+    }
+
     [Fact]
     public void ReplacingAnObject_PreservesItsCurrentGeneration()
     {
@@ -79,6 +99,146 @@ public sealed class PdfIncrementalUpdateBuilderTests
     }
 
     [Fact]
+    public void ReplacingAnObjectAgain_ComposesToTheLatestValue()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary root = Assert.IsType<PdfDictionary>(original.Resolve(rootReference));
+        var update = new PdfIncrementalUpdateBuilder(original);
+        update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Stage"), new PdfInteger(1)))));
+        update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Stage"), new PdfInteger(2)))));
+
+        PdfDictionary reopened = Assert.IsType<PdfDictionary>(
+            PdfDocument.Open(update.Build()).Resolve(rootReference));
+
+        Assert.Equal(2, Assert.IsType<PdfInteger>(reopened[Name("Stage")]).Value);
+    }
+
+    [Theory]
+    [InlineData(PdfCrossReferenceFormat.Table)]
+    [InlineData(PdfCrossReferenceFormat.Stream)]
+    public void FreeObject_EmitsLinkedFreeEntryWithAdvancedGeneration(
+        PdfCrossReferenceFormat format)
+    {
+        PdfDocument original = PdfDocument.Open(SourceWithGenerationTwo());
+
+        byte[] bytes = new PdfIncrementalUpdateBuilder(original)
+            .FreeObject(1)
+            .Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = format,
+                CompressCrossReferenceStream = format == PdfCrossReferenceFormat.Stream
+            });
+        PdfDocument reopened = PdfDocument.Open(bytes);
+        PdfCrossReferenceSection newest = reopened.CrossReferences.Sections[0];
+
+        Assert.Equal(PdfCrossReferenceEntryType.Free, newest[1].Type);
+        Assert.Equal(3, newest[1].Field2);
+        Assert.Equal(1, newest[0].Field1);
+        Assert.IsType<PdfNull>(reopened.Resolve(new PdfIndirectReference(1, 2)));
+    }
+
+    [Fact]
+    public void ReplaceAndFreeObject_ComposeToTheFinalAction()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfIndirectReference root = Assert.IsType<PdfIndirectReference>(original.Trailer[Name("Root")]);
+        var update = new PdfIncrementalUpdateBuilder(original);
+        update.FreeObject(root.ObjectNumber);
+        update.ReplaceObject(root.ObjectNumber, new PdfDictionary([
+            new(Name("Type"), Name("Catalog"))
+        ]));
+
+        PdfDocument reopened = PdfDocument.Open(update.Build());
+
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[root.ObjectNumber].Type);
+        Assert.IsType<PdfDictionary>(reopened.Resolve(root));
+    }
+
+    [Fact]
+    public void FreeObject_CanSupersedeACompressedObject()
+    {
+        PdfDocument original = PdfDocument.Open(ObjectStreamPdf());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+            .FreeObject(2)
+            .Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                CompressCrossReferenceStream = true
+            }));
+
+        Assert.Equal(PdfCrossReferenceEntryType.Free,
+            reopened.CrossReferences[2].Type);
+        Assert.Equal(1, reopened.CrossReferences[2].Field2);
+        Assert.IsType<PdfNull>(reopened.Resolve(2));
+    }
+
+    [Fact]
+    public void FreeObject_ProtectsPermanentTrailerRootsAndRemovesInheritedInfo()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfIndirectReference root = Assert.IsType<PdfIndirectReference>(original.Trailer[Name("Root")]);
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalUpdateBuilder(original).FreeObject(root.ObjectNumber).Build());
+
+        var addInfo = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference info = addInfo.AddObject(new PdfDictionary([
+            new(Name("Title"), Latin1("temporary"))
+        ]));
+        PdfDocument withInfo = PdfDocument.Open(addInfo.SetDocumentInformation(info).Build());
+        PdfDocument withoutInfo = PdfDocument.Open(new PdfIncrementalUpdateBuilder(withInfo)
+            .FreeObject(info.ObjectNumber).Build());
+
+        Assert.False(withoutInfo.Trailer.ContainsKey(Name("Info")));
+        Assert.Equal(PdfCrossReferenceEntryType.Free,
+            withoutInfo.CrossReferences[info.ObjectNumber].Type);
+    }
+
+    [Fact]
+    public void FreeObject_LinksNewEntriesToTheInheritedFreeChain()
+    {
+        PdfDocument original = PdfDocument.Open(SourceWithExistingFreeHead());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+            .FreeObject(2)
+            .Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream
+            }));
+        PdfCrossReferenceSection newest = reopened.CrossReferences.Sections[0];
+
+        Assert.Equal(2, newest[0].Field1);
+        Assert.Equal(1, newest[2].Field1);
+        Assert.Equal(PdfCrossReferenceEntryType.Free, reopened.CrossReferences[1].Type);
+    }
+
+    [Fact]
+    public void DistinctFreeOnlyRevisions_ReceiveDistinctRevisionIdentifiers()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        var seed = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference first = seed.AddObject(new PdfInteger(1));
+        PdfIndirectReference second = seed.AddObject(new PdfInteger(2));
+        PdfDocument seeded = PdfDocument.Open(seed.Build());
+
+        PdfDocument freedFirst = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(seeded).FreeObject(first.ObjectNumber).Build());
+        PdfDocument freedSecond = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(seeded).FreeObject(second.ObjectNumber).Build());
+        PdfArray firstIds = Assert.IsType<PdfArray>(freedFirst.Trailer[Name("ID")]);
+        PdfArray secondIds = Assert.IsType<PdfArray>(freedSecond.Trailer[Name("ID")]);
+
+        Assert.NotEqual(
+            Assert.IsType<PdfString>(firstIds[1]).Bytes.ToArray(),
+            Assert.IsType<PdfString>(secondIds[1]).Bytes.ToArray());
+    }
+
+    [Fact]
     public void Build_IsDeterministicForTheSameSourceAndChanges()
     {
         PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
@@ -86,6 +246,29 @@ public sealed class PdfIncrementalUpdateBuilderTests
             .AddAndBuild(new PdfInteger(42));
 
         Assert.Equal(Update(original), Update(original));
+    }
+
+    [Fact]
+    public void Build_CanReplaceAndRemoveDocumentInformation()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        var firstUpdate = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference information = firstUpdate.AddObject(new PdfDictionary([
+            new(Name("Title"), Latin1("Replacement title"))
+        ]));
+        PdfDocument replaced = PdfDocument.Open(
+            firstUpdate.SetDocumentInformation(information).Build());
+        PdfDictionary replacedInformation = Assert.IsType<PdfDictionary>(replaced.Resolve(
+            Assert.IsType<PdfIndirectReference>(replaced.Trailer[Name("Info")])));
+
+        var secondUpdate = new PdfIncrementalUpdateBuilder(replaced);
+        secondUpdate.AddObject(new PdfInteger(1));
+        PdfDocument removed = PdfDocument.Open(
+            secondUpdate.SetDocumentInformation(null).Build());
+
+        Assert.Equal("Replacement title", DecodeLatin1(
+            Assert.IsType<PdfString>(replacedInformation[Name("Title")])));
+        Assert.False(removed.Trailer.ContainsKey(Name("Info")));
     }
 
     [Fact]
@@ -120,22 +303,231 @@ public sealed class PdfIncrementalUpdateBuilderTests
             Assert.IsType<PdfInteger>(reopened.Trailer[Name("Prev")]).Value);
     }
 
+    [Fact]
+    public void Build_AppendsCompressedSparseCrossReferenceStream()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        var rootReference = Assert.IsType<PdfIndirectReference>(original.Trailer[Name("Root")]);
+        var root = Assert.IsType<PdfDictionary>(original.Resolve(rootReference));
+        var update = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference added = update.AddObject(Latin1("stream revision"));
+        update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("KillerTest"), added))));
+
+        byte[] result = update.Build(new PdfIncrementalUpdateWriteOptions
+        {
+            CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+            CompressCrossReferenceStream = true
+        });
+        PdfDocument reopened = PdfDocument.Open(result);
+        PdfCrossReferenceSection newest = reopened.CrossReferences.Sections[0];
+        PdfDictionary reopenedRoot = Assert.IsType<PdfDictionary>(reopened.Resolve(rootReference));
+
+        Assert.True(newest.IsStream);
+        Assert.Equal(original.CrossReferences.StartXref.Offset, newest.PreviousOffset);
+        Assert.Equal("stream revision", DecodeLatin1(Assert.IsType<PdfString>(
+            reopened.Resolve(Assert.IsType<PdfIndirectReference>(reopenedRoot[Name("KillerTest")])))));
+        PdfArray index = Assert.IsType<PdfArray>(newest.Trailer[Name("Index")]);
+        Assert.True(index.Count >= 4);
+        Assert.Equal("/FlateDecode", Assert.IsType<PdfName>(newest.Trailer[Name("Filter")]).ToString());
+    }
+
+    [Fact]
+    public void CrossReferenceStreamBuild_IsDeterministic()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        static byte[] Update(PdfDocument document)
+        {
+            var update = new PdfIncrementalUpdateBuilder(document);
+            update.AddObject(new PdfInteger(42));
+            return update.Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                CompressCrossReferenceStream = true
+            });
+        }
+
+        Assert.Equal(Update(original), Update(original));
+    }
+
+    [Fact]
+    public void CrossReferenceStreamCompression_RequiresStreamFormat()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        var update = new PdfIncrementalUpdateBuilder(original);
+        update.AddObject(new PdfInteger(1));
+
+        Assert.Throws<InvalidOperationException>(() => update.Build(
+            new PdfIncrementalUpdateWriteOptions { CompressCrossReferenceStream = true }));
+    }
+
+    [Fact]
+    public void CrossReferenceStream_RequiresPdf15OrLater()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        source[5] = (byte)'1';
+        source[7] = (byte)'4';
+        PdfDocument original = PdfDocument.Open(source);
+        var update = new PdfIncrementalUpdateBuilder(original);
+        update.AddObject(new PdfInteger(1));
+
+        Assert.Throws<InvalidOperationException>(() => update.Build(
+            new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream
+            }));
+    }
+
+    [Fact]
+    public void CrossReferenceStream_HonorsCatalogVersionOverride()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        source[5] = (byte)'1';
+        source[7] = (byte)'4';
+        PdfDocument original = PdfDocument.Open(source);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary root = Assert.IsType<PdfDictionary>(original.Resolve(rootReference));
+        var update = new PdfIncrementalUpdateBuilder(original);
+        update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Version"), Name("1.5")))));
+
+        PdfDocument reopened = PdfDocument.Open(update.Build(
+            new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream
+            }));
+
+        Assert.True(reopened.CrossReferences.Sections[0].IsStream);
+    }
+
+    [Fact]
+    public void CrossReferenceStream_CanPackBoundedIncrementalObjectStreams()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        var update = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference[] references = Enumerable.Range(0, 205)
+            .Select(value => update.AddObject(new PdfInteger(value))).ToArray();
+
+        byte[] bytes = update.Build(new PdfIncrementalUpdateWriteOptions
+        {
+            CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+            UseObjectStreams = true,
+            CompressObjectStreams = true,
+            CompressCrossReferenceStream = true
+        });
+        PdfDocument reopened = PdfDocument.Open(bytes);
+        PdfCrossReferenceSection newest = reopened.CrossReferences.Sections[0];
+
+        Assert.Equal(204, Assert.IsType<PdfInteger>(reopened.Resolve(references[^1])).Value);
+        Assert.All(references, reference => Assert.Equal(
+            PdfCrossReferenceEntryType.Compressed, newest[reference.ObjectNumber].Type));
+        Assert.Equal(3, newest.Values.Count(entry =>
+            entry.Type == PdfCrossReferenceEntryType.InUse
+            && reopened.Resolve(entry.ObjectNumber) is PdfStream stream
+            && stream.Dictionary.TryGetValue(Name("Type"), out PdfObject? type)
+            && type is PdfName name && name.Equals(Name("ObjStm"))));
+    }
+
+    [Fact]
+    public void ObjectStreamOptions_RequireCompatibleSettings()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        var tableUpdate = new PdfIncrementalUpdateBuilder(original);
+        tableUpdate.AddObject(new PdfInteger(1));
+        Assert.Throws<InvalidOperationException>(() => tableUpdate.Build(
+            new PdfIncrementalUpdateWriteOptions { UseObjectStreams = true }));
+
+        var compressionUpdate = new PdfIncrementalUpdateBuilder(original);
+        compressionUpdate.AddObject(new PdfInteger(1));
+        Assert.Throws<InvalidOperationException>(() => compressionUpdate.Build(
+            new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                CompressObjectStreams = true
+            }));
+    }
+
+    [Fact]
+    public void IncrementalObjectStream_CanSupersedeAnExistingGenerationZeroObjectDeterministically()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary root = Assert.IsType<PdfDictionary>(original.Resolve(rootReference));
+        var replacement = new PdfDictionary(root.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Packed"), new PdfBoolean(true))));
+        static PdfIncrementalUpdateWriteOptions Options() => new()
+        {
+            CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+            UseObjectStreams = true,
+            CompressObjectStreams = true,
+            CompressCrossReferenceStream = true
+        };
+        byte[] Build() => new PdfIncrementalUpdateBuilder(original)
+            .ReplaceObject(rootReference.ObjectNumber, replacement).Build(Options());
+
+        byte[] first = Build();
+        byte[] second = Build();
+        PdfDocument reopened = PdfDocument.Open(first);
+        PdfDictionary reopenedRoot = Assert.IsType<PdfDictionary>(reopened.Resolve(rootReference));
+
+        Assert.Equal(first, second);
+        Assert.Equal(PdfCrossReferenceEntryType.Compressed,
+            reopened.CrossReferences[rootReference.ObjectNumber].Type);
+        Assert.True(Assert.IsType<PdfBoolean>(reopenedRoot[Name("Packed")]).Value);
+    }
+
     private static byte[] SourceWithGenerationTwo()
     {
         var source = new StringBuilder("%PDF-2.0\n");
         int objectOffset = source.Length;
         source.Append("1 2 obj\n7\nendobj\n");
+        int catalogOffset = source.Length;
+        source.Append("2 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 3\n0000000000 65535 f \n");
+        source.Append($"{objectOffset:0000000000} 00002 n \n");
+        source.Append($"{catalogOffset:0000000000} 00000 n \n");
+        source.Append("trailer\n<< /Size 3 /Root 2 0 R >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
+    private static byte[] SourceWithTrailerState()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int catalogOffset = source.Length;
+        source.Append("1 0 obj\n<< /Type /Catalog >>\nendobj\n");
         int xrefOffset = source.Length;
         source.Append("xref\n0 2\n0000000000 65535 f \n");
-        source.Append($"{objectOffset:0000000000} 00002 n \n");
-        source.Append("trailer\n<< /Size 2 /Root 1 2 R >>\n");
+        source.Append($"{catalogOffset:0000000000} 00000 n \n");
+        source.Append("trailer\n<< /Size 2 /Root 1 0 R " +
+            "/PrivateState << /Enabled true >> /DocChecksum <01020304> >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
+    private static byte[] SourceWithExistingFreeHead()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int valueOffset = source.Length;
+        source.Append("2 0 obj\n7\nendobj\n");
+        int catalogOffset = source.Length;
+        source.Append("3 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 4\n0000000001 65535 f \n");
+        source.Append("0000000000 00001 f \n");
+        source.Append($"{valueOffset:0000000000} 00000 n \n");
+        source.Append($"{catalogOffset:0000000000} 00000 n \n");
+        source.Append("trailer\n<< /Size 4 /Root 3 0 R >>\n");
         source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
     }
 
     private static byte[] ObjectStreamPdf()
     {
-        byte[] header = "1 0 2 7 "u8.ToArray();
+        byte[] header = "1 0 2 6 "u8.ToArray();
         byte[] body = "(root)<< /Answer 42 >>"u8.ToArray();
         byte[] objectStreamData = [.. header, .. body];
         using var output = new MemoryStream();

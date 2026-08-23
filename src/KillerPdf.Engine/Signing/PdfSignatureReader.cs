@@ -10,6 +10,30 @@ namespace KillerPdf.Engine.Signing;
 /// <summary>Inspects signature fields and structurally validates their signed byte ranges.</summary>
 public static class PdfSignatureReader
 {
+    internal static PdfSignatureCertificationPermission? ReadCertificationPermission(
+        PdfDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (!document.CrossReferences.TryGetTrailerValue(Name("Root"), out PdfObject rootValue))
+            return null;
+        PdfDictionary catalog = ResolveDictionary(document, rootValue, "The document catalog");
+        if (!catalog.TryGetValue(Name("Perms"), out PdfObject permissionsValue))
+            return null;
+        PdfDictionary permissions = ResolveDictionary(
+            document, permissionsValue, "The catalog /Perms value");
+        if (!permissions.TryGetValue(Name("DocMDP"), out PdfObject signatureValue))
+            return null;
+        if (signatureValue is not PdfIndirectReference)
+            throw new InvalidOperationException(
+                "The catalog /Perms /DocMDP value is not an indirect reference.");
+        PdfDictionary signature = ResolveDictionary(
+            document, signatureValue, "The certification signature");
+        SignatureTransforms transforms = ReadTransforms(document, signature);
+        return transforms.CertificationPermission
+            ?? throw new InvalidOperationException(
+                "The catalog certification signature has no DocMDP transform.");
+    }
+
     private static readonly PdfName AcroFormName = Name("AcroForm");
     private static readonly PdfName FieldsName = Name("Fields");
     private static readonly PdfName FieldTypeName = Name("FT");

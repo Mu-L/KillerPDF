@@ -73,6 +73,17 @@ public sealed class PdfDocumentTests
     }
 
     [Fact]
+    public void Resolve_RejectsOversizedObjectStreamBeforeAllocatingHeaders()
+    {
+        PdfDocument document = PdfDocument.Open(ObjectStreamPdf(
+            objectCount: PdfDocument.MaximumObjectsPerObjectStream + 1));
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() => document.Resolve(1));
+
+        Assert.Contains("cannot contain more than", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Resolve_RejectsCyclicIndirectStreamLengths()
     {
         var source = new StringBuilder("%PDF-2.0\n");
@@ -90,7 +101,10 @@ public sealed class PdfDocumentTests
         Assert.Contains("cycle", error.Message, StringComparison.Ordinal);
     }
 
-    private static byte[] ObjectStreamPdf(int firstCompressedIndex = 0, string header = "1 0 2 7 ")
+    private static byte[] ObjectStreamPdf(
+        int firstCompressedIndex = 0,
+        string header = "1 0 2 7 ",
+        int objectCount = 2)
     {
         byte[] body = "(hello)<< /Answer 42 >>"u8.ToArray();
         byte[] objectStreamData = [.. Encoding.ASCII.GetBytes(header), .. body];
@@ -99,7 +113,7 @@ public sealed class PdfDocumentTests
         int objectStreamOffset = checked((int)output.Position);
         WriteAscii(
             output,
-            $"5 0 obj << /Type /ObjStm /N 2 /First {header.Length} /Length {objectStreamData.Length} >> stream\n");
+            $"5 0 obj << /Type /ObjStm /N {objectCount} /First {header.Length} /Length {objectStreamData.Length} >> stream\n");
         output.Write(objectStreamData);
         WriteAscii(output, "\nendstream endobj\n");
 

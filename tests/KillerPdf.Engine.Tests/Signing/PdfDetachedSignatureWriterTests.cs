@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Signing;
@@ -14,6 +15,65 @@ namespace KillerPdf.Engine.Tests.Signing;
 
 public sealed class PdfDetachedSignatureWriterTests
 {
+    [Fact]
+    public void Sign_CanEmitCompressedCrossReferenceStreamRevision()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        var options = new PdfSignatureOptions
+        {
+            ReservedSignatureSize = 16,
+            IncrementalWriteOptions = new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                CompressCrossReferenceStream = true
+            }
+        };
+
+        PdfDocument reopened = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [0x30, 0x00], options));
+        Assert.Single(PdfSignatureReader.Read(reopened));
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfIndirectReference signatureReference = Assert.IsType<PdfIndirectReference>(field[Name("V")]);
+
+        Assert.True(reopened.CrossReferences.Sections[0].IsStream);
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[signatureReference.ObjectNumber].Type);
+    }
+
+    [Fact]
+    public void Sign_PacksEligibleRevisionObjectsButKeepsSignatureDictionaryDirect()
+    {
+        PdfDocument document = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            document, _ => [1], new PdfSignatureOptions
+            {
+                ReservedSignatureSize = 8,
+                IncrementalWriteOptions = new PdfIncrementalUpdateWriteOptions
+                {
+                    CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                    UseObjectStreams = true,
+                    CompressObjectStreams = true,
+                    CompressCrossReferenceStream = true
+                }
+            }));
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary field = ResolveDictionary(reopened, fieldReference);
+        PdfIndirectReference signatureReference = Assert.IsType<PdfIndirectReference>(field[Name("V")]);
+
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[signatureReference.ObjectNumber].Type);
+        Assert.Contains(reopened.CrossReferences.Sections[0].Values,
+            entry => entry.Type == PdfCrossReferenceEntryType.Compressed);
+    }
+
     [Fact]
     public void Sign_WritesApprovalFieldAndExactDetachedByteRange()
     {

@@ -17,6 +17,7 @@ internal static class PdfNumberTree
         var result = new List<PdfNumberTreeEntry>();
         var keys = new HashSet<long>();
         var active = new HashSet<int>();
+        var visited = new HashSet<int>();
         Visit(root, 0);
         return result;
 
@@ -30,6 +31,12 @@ internal static class PdfNumberTree
                 referenceNumber = reference.ObjectNumber;
                 if (!active.Add(reference.ObjectNumber))
                     throw new InvalidOperationException("The number tree contains a cycle.");
+                if (!visited.Add(reference.ObjectNumber))
+                {
+                    active.Remove(reference.ObjectNumber);
+                    throw new InvalidOperationException(
+                        "The number tree references the same node more than once.");
+                }
                 value = document.Resolve(reference);
             }
             try

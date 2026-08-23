@@ -8,10 +8,10 @@ namespace KillerPdf.Engine.Authoring;
 internal static class PdfEmbeddedTrueTypeFontFactory
 {
     internal static EmbeddedTrueTypeFontObjects Create(
-        TrueTypeFont font, IReadOnlyDictionary<ushort, int> mappings,
+        TrueTypeFont font, IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> mappings,
         PdfIndirectReference type0Reference, PdfIndirectReference cidFontReference,
         PdfIndirectReference descriptorReference, PdfIndirectReference fontFileReference,
-        PdfIndirectReference toUnicodeReference)
+        PdfIndirectReference toUnicodeReference, PdfIndirectReference encodingReference)
     {
         byte[] fontProgram = font.FontData.ToArray();
         bool subset = false;
@@ -19,7 +19,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
         {
             try
             {
-                fontProgram = font.CreateSubset(mappings.Keys);
+                fontProgram = font.CreateSubset(mappings.Values.Select(mapping => mapping.Glyph));
                 subset = true;
             }
             catch (NotSupportedException)
@@ -29,7 +29,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
         }
         string baseName = SanitizeFontName(font.PostScriptName);
         if (subset)
-            baseName = $"{TrueTypeSubsetter.Prefix(font.FontData.ToArray(), mappings.Keys)}+{baseName}";
+            baseName = $"{TrueTypeSubsetter.Prefix(font.FontData.ToArray(), mappings.Values.Select(mapping => mapping.Glyph))}+{baseName}";
         PdfName baseFont = Name(baseName);
         PdfDictionary fontFileDictionary = font.HasCffOutlines
             ? Dictionary(("Subtype", Name("OpenType")))
@@ -57,7 +57,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
         PdfDictionary descriptor = Dictionary(descriptorEntries.ToArray());
 
         var widths = new List<PdfObject>();
-        foreach (ushort glyph in mappings.Keys)
+        foreach (ushort glyph in mappings.Values.Select(mapping => mapping.Glyph).Distinct().Order())
         {
             widths.Add(new PdfInteger(glyph));
             widths.Add(new PdfArray([new PdfInteger(font.GetPdfAdvanceWidth(glyph))]));
@@ -77,32 +77,53 @@ internal static class PdfEmbeddedTrueTypeFontFactory
             cidEntries.Add(("CIDToGIDMap", Name("Identity")));
         PdfDictionary cidFont = Dictionary(cidEntries.ToArray());
         var toUnicode = new PdfStream(Dictionary(), BuildToUnicodeMap(mappings));
+        var encoding = new PdfStream(Dictionary(), BuildEncodingMap(mappings));
         PdfDictionary type0 = Dictionary(
             ("Type", Name("Font")), ("Subtype", Name("Type0")),
-            ("BaseFont", baseFont), ("Encoding", Name("Identity-H")),
+            ("BaseFont", baseFont), ("Encoding", encodingReference),
             ("DescendantFonts", new PdfArray([cidFontReference])),
             ("ToUnicode", toUnicodeReference));
-        return new EmbeddedTrueTypeFontObjects(type0, cidFont, descriptor, fontFile, toUnicode);
+        return new EmbeddedTrueTypeFontObjects(type0, cidFont, descriptor, fontFile, toUnicode, encoding);
     }
 
-    private static byte[] BuildToUnicodeMap(IReadOnlyDictionary<ushort, int> mappings)
+    private static byte[] BuildToUnicodeMap(IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> mappings)
     {
         var text = new StringBuilder(
             "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n" +
             "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n" +
             "/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n" +
             "1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n");
-        foreach (KeyValuePair<ushort, int>[] chunk in mappings.Chunk(100))
+        foreach (KeyValuePair<ushort, EmbeddedCharacterMapping>[] chunk in mappings.Chunk(100))
         {
             text.Append(chunk.Length).Append(" beginbfchar\n");
-            foreach ((ushort glyph, int scalar) in chunk)
+            foreach ((ushort code, EmbeddedCharacterMapping mapping) in chunk)
             {
-                text.Append('<').Append(glyph.ToString("X4", CultureInfo.InvariantCulture)).Append("> <");
-                foreach (byte value in Encoding.BigEndianUnicode.GetBytes(char.ConvertFromUtf32(scalar)))
+                text.Append('<').Append(code.ToString("X4", CultureInfo.InvariantCulture)).Append("> <");
+                foreach (byte value in Encoding.BigEndianUnicode.GetBytes(mapping.UnicodeSequence))
                     text.Append(value.ToString("X2", CultureInfo.InvariantCulture));
                 text.Append(">\n");
             }
             text.Append("endbfchar\n");
+        }
+        text.Append("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n");
+        return Encoding.ASCII.GetBytes(text.ToString());
+    }
+
+    private static byte[] BuildEncodingMap(
+        IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> mappings)
+    {
+        var text = new StringBuilder(
+            "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n" +
+            "/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> def\n" +
+            "/CMapName /KillerPDF-Identity def\n/CMapType 1 def\n/WMode 0 def\n" +
+            "1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n");
+        foreach (KeyValuePair<ushort, EmbeddedCharacterMapping>[] chunk in mappings.Chunk(100))
+        {
+            text.Append(chunk.Length).Append(" begincidchar\n");
+            foreach ((ushort code, EmbeddedCharacterMapping mapping) in chunk)
+                text.Append('<').Append(code.ToString("X4", CultureInfo.InvariantCulture))
+                    .Append("> ").Append(mapping.Glyph).Append('\n');
+            text.Append("endcidchar\n");
         }
         text.Append("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n");
         return Encoding.ASCII.GetBytes(text.ToString());
@@ -128,4 +149,4 @@ internal static class PdfEmbeddedTrueTypeFontFactory
 
 internal sealed record EmbeddedTrueTypeFontObjects(
     PdfDictionary Type0, PdfDictionary CidFont, PdfDictionary Descriptor,
-    PdfStream FontFile, PdfStream ToUnicode);
+    PdfStream FontFile, PdfStream ToUnicode, PdfStream Encoding);

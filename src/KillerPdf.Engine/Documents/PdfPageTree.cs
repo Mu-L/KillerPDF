@@ -49,7 +49,7 @@ internal sealed class PdfPageTree
 
         var pages = new List<PdfPageTreeEntry>();
         var active = new HashSet<int>();
-        var visitedPages = new HashSet<int>();
+        var visitedNodes = new HashSet<int>();
         Visit(rootReference, 0, new Dictionary<PdfName, PdfObject>());
         return new PdfPageTree(catalogReference, catalog, rootReference, pages);
 
@@ -61,6 +61,12 @@ internal sealed class PdfPageTree
                 throw new InvalidOperationException("The page tree exceeds the supported nesting depth.");
             if (!active.Add(reference.ObjectNumber))
                 throw new InvalidOperationException("The page tree contains a cycle.");
+            if (!visitedNodes.Add(reference.ObjectNumber))
+            {
+                active.Remove(reference.ObjectNumber);
+                throw new InvalidOperationException(
+                    "The page tree references the same node more than once.");
+            }
             try
             {
                 PdfDictionary node = document.Resolve(reference) as PdfDictionary
@@ -71,8 +77,6 @@ internal sealed class PdfPageTree
                 if (node.TryGetValue(TypeName, out PdfObject type)
                     && type is PdfName typeName && typeName.Equals(PageName))
                 {
-                    if (!visitedPages.Add(reference.ObjectNumber))
-                        throw new InvalidOperationException("The page tree references the same page more than once.");
                     if (pages.Count >= MaximumPageCount)
                         throw new InvalidOperationException("The PDF contains too many pages.");
                     pages.Add(new PdfPageTreeEntry(pages.Count, reference, node, effective));

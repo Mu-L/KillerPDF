@@ -23,12 +23,13 @@ public static class PdfStreamDecoder
 
         IReadOnlyList<PdfName> filters = ReadFilters(stream.Dictionary);
         IReadOnlyList<PdfDictionary?> parameters = ReadParameters(stream.Dictionary, filters.Count);
-        byte[] current = stream.EncodedData.ToArray();
         if (filters.Count == 0)
         {
-            EnsureWithinLimit(current.Length, maximumDecodedBytes);
-            return current;
+            EnsureWithinLimit(stream.EncodedData.Length, maximumDecodedBytes);
+            return stream.EncodedData.ToArray();
         }
+
+        byte[] current = stream.EncodedData.ToArray();
 
         for (int i = 0; i < filters.Count; i++)
         {
@@ -36,14 +37,201 @@ public static class PdfStreamDecoder
             current = filter switch
             {
                 "FlateDecode" or "Fl" => DecodeFlate(current, maximumDecodedBytes),
+                "ASCIIHexDecode" or "AHx" => DecodeAsciiHex(current, maximumDecodedBytes),
+                "ASCII85Decode" or "A85" => DecodeAscii85(current, maximumDecodedBytes),
+                "RunLengthDecode" or "RL" => DecodeRunLength(current, maximumDecodedBytes),
+                "LZWDecode" or "LZW" => DecodeLzw(
+                    current, parameters[i], maximumDecodedBytes),
+                "Crypt" => current,
                 _ => throw new PdfFilterException($"The PDF stream filter /{filter} is not supported yet.")
             };
 
+            // /Crypt is intentionally a no-op here because decryption belongs to the
+            // security handler. It must still obey the same expansion boundary as
+            // every decoding filter, including when it is the only filter.
+            EnsureWithinLimit(current.Length, maximumDecodedBytes);
             current = ReversePredictor(current, parameters[i], maximumDecodedBytes);
         }
 
         return current;
     }
+
+    private static byte[] DecodeAsciiHex(ReadOnlySpan<byte> encoded, int maximumDecodedBytes)
+    {
+        var output = new List<byte>();
+        int high = -1;
+        bool ended = false;
+        foreach (byte value in encoded)
+        {
+            if (IsWhiteSpace(value)) continue;
+            if (value == '>') { ended = true; break; }
+            int digit = value switch
+            {
+                >= (byte)'0' and <= (byte)'9' => value - '0',
+                >= (byte)'A' and <= (byte)'F' => value - 'A' + 10,
+                >= (byte)'a' and <= (byte)'f' => value - 'a' + 10,
+                _ => throw new PdfFilterException("ASCIIHex data contains a non-hexadecimal byte.")
+            };
+            if (high < 0) high = digit;
+            else { AddBounded(output, (byte)((high << 4) | digit), maximumDecodedBytes); high = -1; }
+        }
+        if (!ended) throw new PdfFilterException("ASCIIHex data has no end marker.");
+        if (high >= 0) AddBounded(output, (byte)(high << 4), maximumDecodedBytes);
+        return output.ToArray();
+    }
+
+    private static byte[] DecodeAscii85(ReadOnlySpan<byte> encoded, int maximumDecodedBytes)
+    {
+        var output = new List<byte>();
+        Span<byte> tuple = stackalloc byte[5];
+        int count = 0;
+        bool ended = false;
+        for (int index = 0; index < encoded.Length; index++)
+        {
+            byte value = encoded[index];
+            if (IsWhiteSpace(value)) continue;
+            if (value == '~')
+            {
+                int next = index + 1;
+                while (next < encoded.Length && IsWhiteSpace(encoded[next])) next++;
+                if (next >= encoded.Length || encoded[next] != '>')
+                    throw new PdfFilterException("ASCII85 data has an invalid end marker.");
+                ended = true;
+                break;
+            }
+            if (value == 'z')
+            {
+                if (count != 0) throw new PdfFilterException("ASCII85 'z' appears inside a tuple.");
+                for (int item = 0; item < 4; item++) AddBounded(output, 0, maximumDecodedBytes);
+                continue;
+            }
+            if (value is < (byte)'!' or > (byte)'u')
+                throw new PdfFilterException("ASCII85 data contains an invalid byte.");
+            tuple[count++] = value;
+            if (count == 5) { WriteAscii85Tuple(tuple, 4, output, maximumDecodedBytes); count = 0; }
+        }
+        if (!ended) throw new PdfFilterException("ASCII85 data has no end marker.");
+        if (count == 1) throw new PdfFilterException("ASCII85 data ends with an incomplete tuple.");
+        if (count > 1)
+        {
+            tuple[count..].Fill((byte)'u');
+            WriteAscii85Tuple(tuple, count - 1, output, maximumDecodedBytes);
+        }
+        return output.ToArray();
+    }
+
+    private static void WriteAscii85Tuple(
+        ReadOnlySpan<byte> tuple, int bytesToWrite, ICollection<byte> output, int maximumDecodedBytes)
+    {
+        ulong value = 0;
+        for (int index = 0; index < 5; index++) value = value * 85 + (uint)(tuple[index] - '!');
+        if (value > uint.MaxValue) throw new PdfFilterException("ASCII85 tuple exceeds 32 bits.");
+        for (int shift = 24; bytesToWrite > 0; shift -= 8, bytesToWrite--)
+            AddBounded(output, (byte)(value >> shift), maximumDecodedBytes);
+    }
+
+    private static byte[] DecodeRunLength(ReadOnlySpan<byte> encoded, int maximumDecodedBytes)
+    {
+        var output = new List<byte>();
+        int offset = 0;
+        while (offset < encoded.Length)
+        {
+            int length = encoded[offset++];
+            if (length == 128) return output.ToArray();
+            if (length <= 127)
+            {
+                int count = length + 1;
+                if (offset + count > encoded.Length)
+                    throw new PdfFilterException("RunLength literal run exceeds the encoded data.");
+                for (int index = 0; index < count; index++)
+                    AddBounded(output, encoded[offset++], maximumDecodedBytes);
+            }
+            else
+            {
+                if (offset >= encoded.Length)
+                    throw new PdfFilterException("RunLength repeat run has no source byte.");
+                byte value = encoded[offset++];
+                for (int index = 0; index < 257 - length; index++)
+                    AddBounded(output, value, maximumDecodedBytes);
+            }
+        }
+        throw new PdfFilterException("RunLength data has no end marker.");
+    }
+
+    private static byte[] DecodeLzw(
+        ReadOnlySpan<byte> encoded, PdfDictionary? parameters, int maximumDecodedBytes)
+    {
+        int earlyChange = GetOptionalInteger(parameters, new PdfName("EarlyChange"u8), 1);
+        if (earlyChange is not (0 or 1))
+            throw new PdfFilterException("LZW EarlyChange must be 0 or 1.");
+        var dictionary = new byte[4096][];
+        var output = new List<byte>();
+        int bitOffset = 0;
+        int width = 9;
+        int nextCode = 258;
+        byte[]? previous = null;
+        Reset();
+        while (TryReadCode(encoded, ref bitOffset, width, out int code))
+        {
+            if (code == 256) { Reset(); previous = null; continue; }
+            if (code == 257) return output.ToArray();
+            byte[] current;
+            if (code < nextCode && dictionary[code] is not null)
+                current = dictionary[code];
+            else if (code == nextCode && previous is not null)
+                current = [.. previous, previous[0]];
+            else
+                throw new PdfFilterException("LZW data contains an invalid dictionary code.");
+            foreach (byte value in current) AddBounded(output, value, maximumDecodedBytes);
+            if (previous is not null && nextCode < 4096)
+            {
+                dictionary[nextCode++] = [.. previous, current[0]];
+                if (width < 12 && nextCode == (1 << width) - earlyChange) width++;
+            }
+            previous = current;
+        }
+        throw new PdfFilterException("LZW data has no end-of-data code.");
+
+        void Reset()
+        {
+            Array.Clear(dictionary);
+            for (int value = 0; value < 256; value++) dictionary[value] = [(byte)value];
+            width = 9;
+            nextCode = 258;
+        }
+    }
+
+    private static bool TryReadCode(
+        ReadOnlySpan<byte> encoded, ref int bitOffset, int width, out int code)
+    {
+        if (bitOffset + width > encoded.Length * 8) { code = 0; return false; }
+        code = 0;
+        for (int bit = 0; bit < width; bit++)
+        {
+            int absolute = bitOffset + bit;
+            code = (code << 1) | ((encoded[absolute / 8] >> (7 - absolute % 8)) & 1);
+        }
+        bitOffset += width;
+        return true;
+    }
+
+    private static int GetOptionalInteger(PdfDictionary? dictionary, PdfName name, int defaultValue)
+    {
+        if (dictionary is null || !dictionary.TryGetValue(name, out PdfObject value))
+            return defaultValue;
+        return value is PdfInteger integer && integer.Value is >= int.MinValue and <= int.MaxValue
+            ? (int)integer.Value
+            : throw new PdfFilterException($"Decode parameter /{name.ValueAsLatin1()} must be an integer.");
+    }
+
+    private static void AddBounded(ICollection<byte> output, byte value, int maximumDecodedBytes)
+    {
+        if (output.Count >= maximumDecodedBytes)
+            throw new PdfFilterException("Decoded stream exceeds the configured safety limit.");
+        output.Add(value);
+    }
+
+    private static bool IsWhiteSpace(byte value) => value is 0 or 9 or 10 or 12 or 13 or 32;
 
     private static IReadOnlyList<PdfName> ReadFilters(PdfDictionary dictionary)
     {
@@ -135,8 +323,8 @@ public static class PdfStreamDecoder
         int colors = GetPositiveInteger(parameters, ColorsName, 1);
         int bitsPerComponent = GetPositiveInteger(parameters, BitsPerComponentName, 8);
         int columns = GetPositiveInteger(parameters, ColumnsName, 1);
-        if (bitsPerComponent != 8)
-            throw new PdfFilterException("Predictor reversal currently requires 8 bits per component.");
+        if (bitsPerComponent is not (1 or 2 or 4 or 8 or 16))
+            throw new PdfFilterException("Predictor BitsPerComponent must be 1, 2, 4, 8, or 16.");
 
         int bytesPerPixel;
         int rowLength;
@@ -151,25 +339,63 @@ public static class PdfStreamDecoder
         }
 
         if (predictor == 2)
-            return ReverseTiffPredictor(data, rowLength, bytesPerPixel);
+            return ReverseTiffPredictor(
+                data, rowLength, colors, columns, bitsPerComponent);
         if (predictor is >= 10 and <= 15)
             return ReversePngPredictor(data, rowLength, bytesPerPixel, maximumDecodedBytes);
 
         throw new PdfFilterException($"Predictor {predictor} is not defined by PDF.");
     }
 
-    private static byte[] ReverseTiffPredictor(byte[] data, int rowLength, int bytesPerPixel)
+    private static byte[] ReverseTiffPredictor(
+        byte[] data, int rowLength, int colors, int columns, int bitsPerComponent)
     {
         if (rowLength == 0 || data.Length % rowLength != 0)
             throw new PdfFilterException("TIFF predictor data does not contain complete rows.");
 
         byte[] decoded = (byte[])data.Clone();
+        int samplesPerRow = checked(colors * columns);
+        int mask = (1 << bitsPerComponent) - 1;
         for (int row = 0; row < decoded.Length; row += rowLength)
         {
-            for (int column = bytesPerPixel; column < rowLength; column++)
-                decoded[row + column] = unchecked((byte)(decoded[row + column] + decoded[row + column - bytesPerPixel]));
+            for (int sample = colors; sample < samplesPerRow; sample++)
+            {
+                int value = (ReadBits(decoded, row, sample * bitsPerComponent, bitsPerComponent)
+                    + ReadBits(decoded, row, (sample - colors) * bitsPerComponent,
+                        bitsPerComponent)) & mask;
+                WriteBits(decoded, row, sample * bitsPerComponent, bitsPerComponent, value);
+            }
         }
         return decoded;
+    }
+
+    private static int ReadBits(
+        ReadOnlySpan<byte> data, int rowOffset, int bitOffset, int bitCount)
+    {
+        int value = 0;
+        for (int bit = 0; bit < bitCount; bit++)
+        {
+            int position = bitOffset + bit;
+            value = (value << 1)
+                | ((data[rowOffset + position / 8] >> (7 - position % 8)) & 1);
+        }
+        return value;
+    }
+
+    private static void WriteBits(
+        Span<byte> data, int rowOffset, int bitOffset, int bitCount, int value)
+    {
+        for (int bit = 0; bit < bitCount; bit++)
+        {
+            int position = bitOffset + bit;
+            int shift = 7 - position % 8;
+            byte mask = (byte)(1 << shift);
+            int sourceShift = bitCount - bit - 1;
+            if (((value >> sourceShift) & 1) != 0)
+                data[rowOffset + position / 8] |= mask;
+            else
+                data[rowOffset + position / 8] &= (byte)~mask;
+        }
     }
 
     private static byte[] ReversePngPredictor(

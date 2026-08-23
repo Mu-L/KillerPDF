@@ -122,6 +122,17 @@ public sealed class PdfCrossReferenceReaderTests
             PdfCrossReferenceReader.ReadSection(Encoding.ASCII.GetBytes(source), 0));
     }
 
+    [Fact]
+    public void ReadSection_RejectsOversizedClassicSectionBeforeReadingEntries()
+    {
+        string source = $"xref\n0 {PdfCrossReferenceReader.MaximumEntriesPerSection + 1}\n";
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceReader.ReadSection(Encoding.ASCII.GetBytes(source), 0));
+
+        Assert.Contains("cannot contain more than", error.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("<< /Type /Other /Size 1 /W [1 2 1] /Length 4 >>")]
     [InlineData("<< /Type /XRef /Size 1 /W [1 2] /Length 4 >>")]
@@ -133,6 +144,18 @@ public sealed class PdfCrossReferenceReaderTests
         byte[] source = XrefStream([0, 0, 0, 0], dictionary);
 
         Assert.Throws<PdfSyntaxException>(() => PdfCrossReferenceReader.ReadSection(source, 0));
+    }
+
+    [Fact]
+    public void ReadSection_RejectsOversizedCrossReferenceStreamIndexBeforeDecodingRows()
+    {
+        int count = PdfCrossReferenceReader.MaximumEntriesPerSection + 1;
+        byte[] source = XrefStream([], $"<< /Type /XRef /Size {count} /W [1 0 0] /Length 0 >>");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceReader.ReadSection(source, 0));
+
+        Assert.Contains("cannot contain more than", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

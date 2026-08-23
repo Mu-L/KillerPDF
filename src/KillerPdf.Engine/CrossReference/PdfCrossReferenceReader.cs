@@ -9,6 +9,8 @@ namespace KillerPdf.Engine.CrossReference;
 /// <summary>Reads one classic cross-reference table or one PDF 1.5+ cross-reference stream.</summary>
 public static class PdfCrossReferenceReader
 {
+    public const int MaximumEntriesPerSection = 1_000_000;
+
     private static readonly PdfName TypeName = new("Type"u8);
     private static readonly PdfName XRefName = new("XRef"u8);
     private static readonly PdfName SizeName = new("Size"u8);
@@ -52,6 +54,10 @@ public static class PdfCrossReferenceReader
             if (firstObject < 0 || firstObject > int.MaxValue
                 || count < 0 || count > int.MaxValue - firstObject)
                 throw Error("The xref subsection range is outside the supported object-number range", first.Offset);
+            if (count > MaximumEntriesPerSection - entries.Count)
+                throw Error(
+                    $"A cross-reference section cannot contain more than {MaximumEntriesPerSection:N0} entries",
+                    first.Offset);
 
             for (long index = 0; index < count; index++)
             {
@@ -114,6 +120,10 @@ public static class PdfCrossReferenceReader
         byte[] decoded = PdfStreamDecoder.Decode(stream);
         int rowWidth = checked(widths[0] + widths[1] + widths[2]);
         long rowCount = ranges.Sum(range => (long)range.Count);
+        if (rowCount > MaximumEntriesPerSection)
+            throw Error(
+                $"A cross-reference section cannot contain more than {MaximumEntriesPerSection:N0} entries",
+                offset);
         long expectedLength = checked(rowCount * rowWidth);
         if (decoded.LongLength != expectedLength)
             throw Error("The decoded xref stream length does not match its /W and /Index entries", offset);

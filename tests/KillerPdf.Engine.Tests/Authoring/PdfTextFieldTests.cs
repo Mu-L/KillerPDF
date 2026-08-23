@@ -429,6 +429,34 @@ public sealed class PdfTextFieldTests
     }
 
     [Fact]
+    public void AddTextField_DistinguishesBaseAndVariationSequenceSharingOneGlyph()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(
+            format12: false, cmap: TrueTypeFontTests.Cmap14()));
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "variation", 0, 0, 100, 20, "AA\uFE0F", 12,
+                embeddedFont: font)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary acroForm = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary type0 = ResolveDictionary(document,
+            Assert.IsType<PdfDictionary>(
+                Assert.IsType<PdfDictionary>(acroForm[Name("DR")])[Name("Font")])[Name("FormF1")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(acroForm[Name("Fields")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        PdfStream toUnicode = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(type0[Name("ToUnicode")])));
+
+        Assert.Contains("<00010002> Tj", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+        Assert.Contains("<0002> <0041FE0F>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+    }
+
+    [Fact]
     public void PdfA4Mode_AcceptsTextFieldWithEmbeddedFont()
     {
         TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));

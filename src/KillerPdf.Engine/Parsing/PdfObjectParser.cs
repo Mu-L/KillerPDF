@@ -199,12 +199,14 @@ public sealed class PdfObjectParser
 
         if (first == (byte)'\n')
             return;
-        if (first == (byte)'\r'
-            && _tokenizer.TryReadRawByte(out byte second)
-            && second == (byte)'\n')
+        if (first == (byte)'\r')
+        {
+            if (_tokenizer.TryPeekRawByte(out byte second) && second == (byte)'\n')
+                _tokenizer.TryReadRawByte(out _);
             return;
+        }
 
-        throw Error("The stream keyword must be followed by LF or CRLF", offset);
+        throw Error("The stream keyword must be followed by CR, LF, or CRLF", offset);
     }
 
     private void ConsumeStreamClosingLineEnding(int offset)

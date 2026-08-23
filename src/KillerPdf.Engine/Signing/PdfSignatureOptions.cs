@@ -1,6 +1,7 @@
 namespace KillerPdf.Engine.Signing;
 
 using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Writing;
 
 /// <summary>Descriptive values written into an approval-signature dictionary.</summary>
 public sealed record PdfSignatureOptions
@@ -28,4 +29,9 @@ public sealed record PdfSignatureOptions
     public string? CertificateAcquisitionUrl { get; init; }
     public string? TimestampServerUrl { get; init; }
     public PdfSignatureCertificationPermission? CertificationPermission { get; init; }
+    /// <summary>
+    /// Optional structural policy for the signature revision. The signature dictionary remains
+    /// direct and patchable even when other eligible revision objects are packed.
+    /// </summary>
+    public PdfIncrementalUpdateWriteOptions? IncrementalWriteOptions { get; init; }
 }

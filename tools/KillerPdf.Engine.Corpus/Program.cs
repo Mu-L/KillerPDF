@@ -8,6 +8,30 @@ using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
 using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Signing;
+using KillerPdf.Engine.Security;
+using KillerPdf.Engine.Syntax;
+
+if (args.Length == 2 && args[0] == "--incremental-xref-stream-smoke")
+{
+    byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+    var firstUpdate = new PdfIncrementalUpdateBuilder(PdfDocument.Open(source));
+    PdfIndirectReference temporary = firstUpdate.AddObject(new PdfInteger(18));
+    PdfDocument document = PdfDocument.Open(firstUpdate.Build());
+    var update = new PdfIncrementalUpdateBuilder(document).FreeObject(temporary.ObjectNumber);
+    update.AddObject(new PdfString("incremental xref stream"u8, PdfStringForm.Literal));
+    byte[] pdf = update.Build(new PdfIncrementalUpdateWriteOptions
+    {
+        CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+        CompressCrossReferenceStream = true,
+        UseObjectStreams = true,
+        CompressObjectStreams = true
+    });
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte incremental xref-stream PDF to {destination}");
+    return 0;
+}
 
 if (args.Length == 2 && args[0] == "--font-info")
 {
@@ -364,6 +388,25 @@ if (args.Length == 3 && args[0] == "--layers-smoke")
     return 0;
 }
 
+if (args.Length == 2 && args[0] == "--layered-occupied-merge-smoke")
+{
+    var layer = new PdfOptionalContentGroup("Imported artwork");
+    byte[] source = new PdfDocumentBuilder()
+        .AddPage(200, 200, new PdfContentStreamBuilder()
+            .BeginOptionalContent(layer)
+            .SetFillRgb(0.15, 0.45, 0.85).Rectangle(20, 20, 80, 80).Fill()
+            .EndMarkedContent())
+        .Build();
+    byte[] target = new PdfDocumentBuilder().AddBlankPage(200, 200).Build();
+    byte[] merged = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(PdfDocument.Open(source)).Build();
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, merged);
+    Console.WriteLine($"Wrote {merged.Length:N0} byte occupied layered merge PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 4 && args[0] == "--signature-smoke")
 {
     string openSsl = Path.GetFullPath(args[1]);
@@ -431,7 +474,14 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
                 SigningTime = DateTimeOffset.UtcNow,
                 SignerCertificate = signerCertificateDer,
                 CertificationPermission =
-                    PdfSignatureCertificationPermission.FormFillingAndSignatures
+                    PdfSignatureCertificationPermission.FormFillingAndSignatures,
+                IncrementalWriteOptions = new PdfIncrementalUpdateWriteOptions
+                {
+                    CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                    CompressCrossReferenceStream = true,
+                    UseObjectStreams = true,
+                    CompressObjectStreams = true
+                }
             });
         RunOpenSsl("cms", "-verify", "-binary", "-inform", "DER",
             "-in", signaturePath, "-content", contentPath,
@@ -492,6 +542,171 @@ if (args.Length == 4 && args[0] == "--encrypted-rewrite-smoke")
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, rewritten);
     Console.WriteLine($"Wrote {rewritten.Length:N0} byte encrypted PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 4 && args[0] == "--encrypted-structural-rewrite-smoke")
+{
+    string source = Path.GetFullPath(args[1]);
+    string destination = Path.GetFullPath(args[3]);
+    PdfDocument encrypted = PdfDocument.Open(File.ReadAllBytes(source), args[2]);
+    byte[] rewritten = PdfDocumentWriter.Write(encrypted, new PdfDocumentWriteOptions
+    {
+        TargetVersion = encrypted.Header.Version.CompareTo(new PdfVersion(1, 5)) < 0
+            ? new PdfVersion(1, 5) : null,
+        CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+        UseObjectStreams = true,
+        CompressStructuralStreams = true,
+        AllowSignatureInvalidation = true
+    });
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, rewritten);
+    Console.WriteLine($"Wrote {rewritten.Length:N0} byte encrypted object-stream PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 4 && args[0] == "--encrypted-incremental-structural-smoke")
+{
+    byte[] source = File.ReadAllBytes(args[1]);
+    PdfDocument document = PdfDocument.Open(source, args[2]);
+    var update = new PdfIncrementalUpdateBuilder(document);
+    update.AddObject(new PdfString(
+        "encrypted incremental structural marker"u8, PdfStringForm.Literal));
+    byte[] pdf = update.Build(new PdfIncrementalUpdateWriteOptions
+    {
+        CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+        UseObjectStreams = true,
+        CompressObjectStreams = true,
+        CompressCrossReferenceStream = true
+    });
+    if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
+        throw new InvalidDataException("The encrypted incremental update changed source bytes.");
+    string destination = Path.GetFullPath(args[3]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length - source.Length:N0} encrypted structural bytes to {destination}");
+    return 0;
+}
+
+if (args.Length == 3 && args[0] == "--structural-rewrite-smoke")
+{
+    string source = Path.GetFullPath(args[1]);
+    string destination = Path.GetFullPath(args[2]);
+    PdfDocument document = PdfDocument.Open(File.ReadAllBytes(source));
+    byte[] rewritten = PdfDocumentWriter.Write(document, new PdfDocumentWriteOptions
+    {
+        TargetVersion = document.Header.Version.CompareTo(new PdfVersion(1, 5)) < 0
+            ? new PdfVersion(1, 5) : null,
+        CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+        UseObjectStreams = true,
+        CompressStructuralStreams = true,
+        AllowSignatureInvalidation = true
+    });
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, rewritten);
+    Console.WriteLine($"Wrote {rewritten.Length:N0} byte object-stream PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 4 && args[0] == "--encrypted-authoring-smoke")
+{
+    string destination = Path.GetFullPath(args[1]);
+    byte[] encrypted = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "Encrypted KillerPDF smoke test" })
+        .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+        {
+            UserPassword = args[2],
+            OwnerPassword = args[3]
+        })
+        .AddPage(612, 792, new PdfContentStreamBuilder()
+            .BeginText().SetFont(PdfStandardFont.Helvetica, 18)
+            .MoveText(72, 720).ShowLatin1Text("Encrypted by KillerPDF").EndText())
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, encrypted);
+    Console.WriteLine($"Wrote {encrypted.Length:N0} byte authored encrypted PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--tagged-removal-smoke")
+{
+    static PdfContentStreamBuilder TaggedSquare() => new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .Rectangle(10, 10, 20, 20).Fill().EndMarkedContent();
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "Tagged page-removal smoke test", Language = "en-US"
+        })
+        .EnablePdfUa2Conformance()
+        .AddPage(100, 100, TaggedSquare()).AddPage(100, 100, TaggedSquare())
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "Removed square")
+        .AddStructureElement(PdfStructureType.Figure, 1, 0, 1,
+            alternateDescription: "Retained square")
+        .Build();
+    byte[] edited = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+        .RemovePage(0).Build();
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, edited);
+    Console.WriteLine($"Wrote {edited.Length:N0} byte tagged page-removal PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--tagged-merge-smoke")
+{
+    static byte[] Tagged(string title, string description)
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Figure, 0)
+            .Rectangle(10, 10, 20, 20).Fill().EndMarkedContent();
+        return new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = title, Language = "en-US" })
+            .EnablePdfUa2Conformance().AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+                alternateDescription: description).Build();
+    }
+    PdfDocument target = PdfDocument.Open(Tagged("Tagged merge target", "Target square"));
+    PdfDocument source = PdfDocument.Open(Tagged("Tagged merge source", "Source square"));
+    byte[] merged = new PdfIncrementalPageEditor(target)
+        .AddImportedDocument(source).Build();
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, merged);
+    Console.WriteLine($"Wrote {merged.Length:N0} byte tagged merge PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--tagged-remove-merge-smoke")
+{
+    static byte[] Tagged(string title, params string[] descriptions)
+    {
+        var builder = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = title, Language = "en-US" })
+            .EnablePdfUa2Conformance();
+        for (int index = 0; index < descriptions.Length; index++)
+            builder.AddPage(100, 100, new PdfContentStreamBuilder()
+                .BeginMarkedContent(PdfStructureType.Figure, 0)
+                .Rectangle(10, 10, 20, 20).Fill().EndMarkedContent());
+        builder.AddStructureContainer(PdfStructureType.Document);
+        for (int index = 0; index < descriptions.Length; index++)
+            builder.AddStructureElement(PdfStructureType.Figure, index, 0, 1,
+                alternateDescription: descriptions[index]);
+        return builder.Build();
+    }
+    PdfDocument target = PdfDocument.Open(Tagged(
+        "Tagged removal and merge target", "Removed target square", "Retained target square"));
+    PdfDocument source = PdfDocument.Open(Tagged(
+        "Tagged removal and merge source", "Imported source square"));
+    byte[] merged = new PdfIncrementalPageEditor(target)
+        .RemovePage(0).AddImportedDocument(source).Build();
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, merged);
+    Console.WriteLine($"Wrote {merged.Length:N0} byte tagged removal-and-merge PDF to {destination}");
     return 0;
 }
 
@@ -1193,7 +1408,13 @@ if (args.Length == 3 && args[0] == "--incremental-annotation-smoke")
         .AddUnderline(0, 360, 620, 160, 20, "Incrementally appended underline")
         .AddStrikeOut(0, 360, 590, 160, 20, "Incrementally appended strikeout")
         .AddSquiggly(0, 360, 560, 160, 20, "Incrementally appended squiggly")
-        .Build();
+        .Build(new PdfIncrementalUpdateWriteOptions
+        {
+            CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+            UseObjectStreams = true,
+            CompressObjectStreams = true,
+            CompressCrossReferenceStream = true
+        });
     if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
         throw new InvalidDataException("The incremental annotation update changed source bytes.");
     string destination = Path.GetFullPath(args[2]);
@@ -1427,13 +1648,21 @@ if (args.Length == 3 && args[0] == "--pdfa-navigation-smoke")
 
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
-    Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
+    Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>] [--structural|--incremental-structural]");
     Console.WriteLine("       KillerPdf.Engine.Corpus --authoring-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --layers-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --layered-occupied-merge-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --signature-smoke <openssl.exe> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --encrypted-rewrite-smoke <input.pdf> <password> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --encrypted-structural-rewrite-smoke <input.pdf> <password> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --encrypted-incremental-structural-smoke <input.pdf> <password> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --structural-rewrite-smoke <input.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --encrypted-authoring-smoke <output.pdf> <user-password> <owner-password>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-removal-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-merge-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-remove-merge-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --transparency-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --gradient-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-xobject-smoke <profile.icc> <output.pdf>");
@@ -1471,8 +1700,20 @@ if (!Directory.Exists(root))
 }
 
 int maximum = int.MaxValue;
+bool structural = false;
+bool incrementalStructural = false;
 for (int index = 1; index < args.Length; index++)
 {
+    if (args[index] == "--structural")
+    {
+        structural = true;
+        continue;
+    }
+    if (args[index] == "--incremental-structural")
+    {
+        incrementalStructural = true;
+        continue;
+    }
     if (args[index] != "--max" || index + 1 >= args.Length
         || !int.TryParse(args[++index], out maximum) || maximum < 1)
     {
@@ -1493,7 +1734,52 @@ foreach (string file in files)
 {
     try
     {
-        PdfRoundTripResult result = PdfRoundTripValidator.Validate(File.ReadAllBytes(file));
+        byte[] sourceBytes = File.ReadAllBytes(file);
+        if (incrementalStructural)
+        {
+            PdfDocument source = PdfDocument.Open(sourceBytes);
+            var update = new PdfIncrementalUpdateBuilder(source);
+            PdfIndirectReference marker = update.AddObject(new PdfString(
+                "KillerPDF incremental corpus marker"u8, PdfStringForm.Literal));
+            bool supportsStreams = source.Header.Version.CompareTo(new PdfVersion(1, 5)) >= 0;
+            byte[] updated = update.Build(supportsStreams
+                ? new PdfIncrementalUpdateWriteOptions
+                {
+                    CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                    UseObjectStreams = true,
+                    CompressObjectStreams = true,
+                    CompressCrossReferenceStream = true
+                }
+                : null);
+            PdfDocument reopened = PdfDocument.Open(updated);
+            PdfString value = reopened.Resolve(marker) as PdfString
+                ?? throw new InvalidDataException("The incremental corpus marker did not resolve.");
+            if (!value.Bytes.Span.SequenceEqual("KillerPDF incremental corpus marker"u8))
+                throw new InvalidDataException("The incremental corpus marker changed.");
+            if (!updated.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes))
+                throw new InvalidDataException("The incremental update changed source bytes.");
+            passed++;
+            Console.WriteLine($"PASS  {Path.GetRelativePath(root, file)}  incremental");
+            continue;
+        }
+        PdfDocumentWriteOptions? options = new()
+        {
+            AllowSignatureInvalidation = true
+        };
+        if (structural)
+        {
+            PdfVersion sourceVersion = PdfDocument.Open(sourceBytes).Header.Version;
+            options = new PdfDocumentWriteOptions
+            {
+                TargetVersion = sourceVersion.CompareTo(new PdfVersion(1, 5)) < 0
+                    ? new PdfVersion(1, 5) : null,
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressStructuralStreams = true,
+                AllowSignatureInvalidation = true
+            };
+        }
+        PdfRoundTripResult result = PdfRoundTripValidator.Validate(sourceBytes, options);
         if (result.Succeeded)
         {
             passed++;

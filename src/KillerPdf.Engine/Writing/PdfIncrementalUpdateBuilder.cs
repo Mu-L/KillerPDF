@@ -2,7 +2,9 @@ using System.Globalization;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Syntax;
 using System.Security.Cryptography;
+using System.IO.Compression;
 
 namespace KillerPdf.Engine.Writing;
 
@@ -13,12 +15,26 @@ namespace KillerPdf.Engine.Writing;
 /// </summary>
 public sealed class PdfIncrementalUpdateBuilder
 {
+    private const int MaximumObjectsPerObjectStream = 100;
     private static readonly PdfName SizeName = new("Size"u8);
     private static readonly PdfName PrevName = new("Prev"u8);
     private static readonly PdfName XRefStmName = new("XRefStm"u8);
     private static readonly PdfName RootName = new("Root"u8);
     private static readonly PdfName InfoName = new("Info"u8);
+    private static readonly PdfName EncryptName = new("Encrypt"u8);
     private static readonly PdfName IdName = new("ID"u8);
+    private static readonly PdfName VersionName = new("Version"u8);
+    private static readonly PdfName TypeName = new("Type"u8);
+    private static readonly PdfName XRefName = new("XRef"u8);
+    private static readonly PdfName WName = new("W"u8);
+    private static readonly PdfName IndexName = new("Index"u8);
+    private static readonly PdfName LengthName = new("Length"u8);
+    private static readonly PdfName FilterName = new("Filter"u8);
+    private static readonly PdfName FlateDecodeName = new("FlateDecode"u8);
+    private static readonly PdfName DocChecksumName = new("DocChecksum"u8);
+    private static readonly PdfName ObjStmName = new("ObjStm"u8);
+    private static readonly PdfName NName = new("N"u8);
+    private static readonly PdfName FirstName = new("First"u8);
     private static readonly HashSet<PdfName> XrefStreamOnlyNames =
     [
         new("Type"u8), new("W"u8), new("Index"u8), new("Length"u8),
@@ -27,8 +43,13 @@ public sealed class PdfIncrementalUpdateBuilder
 
     private readonly PdfDocument _document;
     private readonly SortedDictionary<int, PendingObject> _objects = [];
+    private readonly SortedDictionary<int, FreedObject> _freed = [];
     private readonly HashSet<int> _reserved = [];
+    private readonly HashSet<int> _directObjectNumbers = [];
     private int _nextObjectNumber;
+    private bool _documentInformationSpecified;
+    private PdfObject? _documentInformation;
+    private bool _documentInformationRemovedByFree;
 
     public PdfIncrementalUpdateBuilder(PdfDocument document)
     {
@@ -79,19 +100,82 @@ public sealed class PdfIncrementalUpdateBuilder
             || entry.Type is not (PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed))
             throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));
         int generation = entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0;
-        if (!_objects.TryAdd(objectNumber, new PendingObject(objectNumber, generation, value)))
-            throw new InvalidOperationException($"Object {objectNumber} is already part of this update.");
+        if (_documentInformationRemovedByFree
+            && IsInheritedTrailerReference(InfoName, objectNumber))
+        {
+            _documentInformationSpecified = false;
+            _documentInformationRemovedByFree = false;
+        }
+        _freed.Remove(objectNumber);
+        _objects[objectNumber] = new PendingObject(objectNumber, generation, value);
         return this;
     }
 
-    public byte[] Build()
+    /// <summary>Marks an existing indirect object free in the appended revision.</summary>
+    public PdfIncrementalUpdateBuilder FreeObject(int objectNumber)
     {
+        if (objectNumber <= 0)
+            throw new ArgumentOutOfRangeException(nameof(objectNumber));
+        if (!_document.CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry)
+            || entry.Type is not (PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed))
+            throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));
+        if (IsInheritedTrailerReference(InfoName, objectNumber)
+            && !_documentInformationSpecified)
+        {
+            _documentInformationSpecified = true;
+            _documentInformation = null;
+            _documentInformationRemovedByFree = true;
+        }
+        int generation = entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0;
+        generation = Math.Min(65_535, checked(generation + 1));
+        _objects.Remove(objectNumber);
+        _freed[objectNumber] = new FreedObject(objectNumber, generation);
+        return this;
+    }
+
+    /// <summary>Replaces the inherited trailer /Info value, or removes it when null.</summary>
+    public PdfIncrementalUpdateBuilder SetDocumentInformation(PdfObject? value)
+    {
+        _documentInformationSpecified = true;
+        _documentInformation = value;
+        _documentInformationRemovedByFree = false;
+        return this;
+    }
+
+    internal PdfIncrementalUpdateBuilder KeepObjectDirect(PdfIndirectReference reference)
+    {
+        _directObjectNumbers.Add(reference.ObjectNumber);
+        return this;
+    }
+
+    public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
+    {
+        options ??= new PdfIncrementalUpdateWriteOptions();
+        if (options.CompressCrossReferenceStream
+            && options.CrossReferenceFormat != PdfCrossReferenceFormat.Stream)
+            throw new InvalidOperationException(
+                "Cross-reference-stream compression requires the stream format.");
+        if ((options.UseObjectStreams || options.CompressObjectStreams)
+            && options.CrossReferenceFormat != PdfCrossReferenceFormat.Stream)
+            throw new InvalidOperationException(
+                "Object streams require the cross-reference-stream format.");
+        if (options.CompressObjectStreams && !options.UseObjectStreams)
+            throw new InvalidOperationException(
+                "Object-stream compression requires object streams to be enabled.");
+        if (options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream
+            && EffectiveVersion().CompareTo(new PdfVersion(1, 5)) < 0)
+            throw new InvalidOperationException(
+                "Cross-reference streams require PDF 1.5 or later.");
         int[] unassigned = _reserved.Where(number => !_objects.ContainsKey(number)).Order().ToArray();
         if (unassigned.Length > 0)
             throw new InvalidOperationException(
                 $"Reserved object {unassigned[0]} has not been assigned a value.");
-        if (_objects.Count == 0)
+        if (_objects.Count == 0 && _freed.Count == 0)
             throw new InvalidOperationException("An incremental update must contain at least one object.");
+        if (_freed.Keys.Any(number => IsInheritedTrailerReference(RootName, number)
+                || IsInheritedTrailerReference(EncryptName, number)))
+            throw new InvalidOperationException(
+                "The document catalog or encryption dictionary cannot be freed.");
 
         using var output = new MemoryStream();
         output.Write(_document.Source.Span);
@@ -99,8 +183,24 @@ public sealed class PdfIncrementalUpdateBuilder
         if (source.Length > 0 && source[^1] is not ((byte)'\r') and not ((byte)'\n'))
             output.WriteByte((byte)'\n');
 
-        var written = new List<WrittenObject>(_objects.Count);
-        foreach (PendingObject pending in _objects.Values)
+        int? encryptionObjectNumber = _document.EncryptionObjectNumber;
+        List<PendingObject> packed = options.UseObjectStreams
+            ? _objects.Values.Where(item => item.Generation == 0 && item.Value is not PdfStream
+                && item.ObjectNumber != encryptionObjectNumber
+                && !_directObjectNumbers.Contains(item.ObjectNumber)).ToList()
+            : [];
+        var packedNumbers = packed.Select(item => item.ObjectNumber).ToHashSet();
+        List<PendingObject[]> chunks = packed.Chunk(MaximumObjectsPerObjectStream)
+            .Select(chunk => chunk.ToArray()).ToList();
+        if (_nextObjectNumber > int.MaxValue - chunks.Count - 1)
+            throw new NotSupportedException(
+                "The PDF object-number range has no room for incremental structural streams.");
+        int firstObjectStreamNumber = _nextObjectNumber;
+        int xrefObjectNumber = checked(firstObjectStreamNumber + chunks.Count);
+
+        var written = new List<WrittenObject>(_objects.Count + chunks.Count);
+        foreach (PendingObject pending in _objects.Values.Where(
+                     item => !packedNumbers.Contains(item.ObjectNumber)))
         {
             if (output.Position > 9_999_999_999L)
                 throw new NotSupportedException("Classic cross-reference offsets cannot exceed ten digits.");
@@ -111,42 +211,239 @@ public sealed class PdfIncrementalUpdateBuilder
             PdfObjectWriter.Write(output,
                 new PdfIndirectObject(pending.ObjectNumber, pending.Generation, value, offset));
         }
-
-        byte[] revisionIdentifier = SHA256.HashData(
-            output.GetBuffer().AsSpan(0, checked((int)output.Length)))[..16];
-
-        int xrefOffset = checked((int)output.Position);
-        output.Write("xref\n"u8);
-        foreach (WrittenObject item in written)
+        var compressed = new List<CompressedObject>(packed.Count);
+        for (int chunkIndex = 0; chunkIndex < chunks.Count; chunkIndex++)
         {
-            WriteAscii(output, $"{item.ObjectNumber} 1\n");
-            WriteAscii(output, $"{item.Offset:0000000000} {item.Generation:00000} n \n");
+            PendingObject[] chunk = chunks[chunkIndex];
+            int objectNumber = checked(firstObjectStreamNumber + chunkIndex);
+            int offset = checked((int)output.Position);
+            written.Add(new WrittenObject(objectNumber, 0, offset));
+            for (int index = 0; index < chunk.Length; index++)
+                compressed.Add(new CompressedObject(
+                    chunk[index].ObjectNumber, objectNumber, index));
+            PdfStream stream = BuildObjectStream(chunk, options.CompressObjectStreams);
+            PdfObjectWriter.Write(output, new PdfIndirectObject(objectNumber, 0,
+                _document.EncryptObject(objectNumber, stream), offset));
         }
 
-        output.Write("trailer\n"u8);
-        PdfObjectWriter.Write(output, BuildTrailer(revisionIdentifier));
-        output.Write("\nstartxref\n"u8);
+        byte[] revisionIdentifier = CreateRevisionIdentifier(output);
+
+        int xrefOffset = checked((int)output.Position);
+        if (options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream)
+        {
+            WriteCrossReferenceStream(output, written, compressed, xrefObjectNumber, xrefOffset,
+                revisionIdentifier, options.CompressCrossReferenceStream);
+        }
+        else
+        {
+            output.Write("xref\n"u8);
+            WriteClassicFreeEntries(output);
+            foreach (WrittenObject item in written)
+            {
+                WriteAscii(output, $"{item.ObjectNumber} 1\n");
+                WriteAscii(output, $"{item.Offset:0000000000} {item.Generation:00000} n \n");
+            }
+
+            output.Write("trailer\n"u8);
+            PdfObjectWriter.Write(output, BuildTrailer(
+                revisionIdentifier, _nextObjectNumber,
+                stripCrossReferenceStreamNames: _document.CrossReferences.Sections[0].IsStream));
+            output.WriteByte((byte)'\n');
+        }
+        output.Write("startxref\n"u8);
         WriteAscii(output, xrefOffset.ToString(CultureInfo.InvariantCulture));
         output.Write("\n%%EOF\n"u8);
         return output.ToArray();
     }
 
-    private PdfDictionary BuildTrailer(byte[] revisionIdentifier)
+    private void WriteCrossReferenceStream(
+        Stream output, IReadOnlyList<WrittenObject> written,
+        IReadOnlyList<CompressedObject> compressed, int objectNumber, int xrefOffset,
+        byte[] revisionIdentifier, bool compress)
+    {
+        int size = checked(objectNumber + 1);
+        int[] numbers = written.Select(item => item.ObjectNumber)
+            .Concat(compressed.Select(item => item.ObjectNumber))
+            .Concat(_freed.Keys)
+            .Append(0)
+            .Append(objectNumber).Order().ToArray();
+        var byNumber = written.ToDictionary(item => item.ObjectNumber);
+        var compressedByNumber = compressed.ToDictionary(item => item.ObjectNumber);
+        var rows = new byte[checked(numbers.Length * 9)];
+        Dictionary<int, int> nextFree = BuildNextFreeChain();
+        for (int index = 0; index < numbers.Length; index++)
+        {
+            int number = numbers[index];
+            if (number == 0)
+                WriteXrefRow(rows, index, 0, nextFree[0], 65_535);
+            else if (_freed.TryGetValue(number, out FreedObject? freed))
+                WriteXrefRow(rows, index, 0, nextFree[number], freed.Generation);
+            else if (number == objectNumber)
+                WriteXrefRow(rows, index, 1, xrefOffset, 0);
+            else if (compressedByNumber.TryGetValue(number, out CompressedObject? item))
+                WriteXrefRow(rows, index, 2, item.ObjectStreamNumber, item.Index);
+            else
+            {
+                WrittenObject direct = byNumber[number];
+                WriteXrefRow(rows, index, 1, direct.Offset, direct.Generation);
+            }
+        }
+        PdfArray indexRanges = BuildIndexRanges(numbers);
+        byte[] encoded = compress ? Compress(rows) : rows;
+        var entries = BuildTrailer(
+            revisionIdentifier, size, stripCrossReferenceStreamNames: true).ToList();
+        entries.Add(new(TypeName, XRefName));
+        entries.Add(new(WName, new PdfArray([
+            new PdfInteger(1), new PdfInteger(4), new PdfInteger(4)])));
+        entries.Add(new(IndexName, indexRanges));
+        if (compress) entries.Add(new(FilterName, FlateDecodeName));
+        entries.Add(new(LengthName, new PdfInteger(encoded.Length)));
+        PdfObjectWriter.Write(output, new PdfIndirectObject(
+            objectNumber, 0, new PdfStream(new PdfDictionary(entries), encoded), xrefOffset));
+    }
+
+    private void WriteClassicFreeEntries(Stream output)
+    {
+        Dictionary<int, int> nextFree = BuildNextFreeChain();
+        WriteAscii(output, "0 1\n");
+        WriteAscii(output, $"{nextFree[0]:0000000000} 65535 f \n");
+        foreach (FreedObject item in _freed.Values)
+        {
+            WriteAscii(output, $"{item.ObjectNumber} 1\n");
+            WriteAscii(output,
+                $"{nextFree[item.ObjectNumber]:0000000000} {item.Generation:00000} f \n");
+        }
+    }
+
+    private Dictionary<int, int> BuildNextFreeChain()
+    {
+        int previousHead = _document.CrossReferences.TryGetValue(0, out PdfCrossReferenceEntry zero)
+            && zero.Type == PdfCrossReferenceEntryType.Free ? checked((int)zero.Field1) : 0;
+        int[] numbers = _freed.Keys.ToArray();
+        var result = new Dictionary<int, int> { [0] = numbers.FirstOrDefault() };
+        for (int index = 0; index < numbers.Length; index++)
+            result[numbers[index]] = index + 1 < numbers.Length
+                ? numbers[index + 1] : previousHead;
+        return result;
+    }
+
+    private byte[] CreateRevisionIdentifier(MemoryStream output)
+    {
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(output.GetBuffer().AsSpan(0, checked((int)output.Length)));
+        Span<byte> action = stackalloc byte[9];
+        foreach (FreedObject item in _freed.Values)
+        {
+            action[0] = (byte)'F';
+            WriteInt32BigEndian(action[1..5], item.ObjectNumber);
+            WriteInt32BigEndian(action[5..9], item.Generation);
+            hash.AppendData(action);
+        }
+        return hash.GetHashAndReset()[..16];
+    }
+
+    private static void WriteInt32BigEndian(Span<byte> destination, int value)
+    {
+        destination[0] = (byte)(value >> 24);
+        destination[1] = (byte)(value >> 16);
+        destination[2] = (byte)(value >> 8);
+        destination[3] = (byte)value;
+    }
+
+    private static PdfArray BuildIndexRanges(IReadOnlyList<int> numbers)
+    {
+        var ranges = new List<PdfObject>();
+        for (int start = 0; start < numbers.Count;)
+        {
+            int end = start + 1;
+            while (end < numbers.Count && numbers[end] == numbers[end - 1] + 1) end++;
+            ranges.Add(new PdfInteger(numbers[start]));
+            ranges.Add(new PdfInteger(end - start));
+            start = end;
+        }
+        return new PdfArray(ranges);
+    }
+
+    private static PdfStream BuildObjectStream(
+        IReadOnlyList<PendingObject> objects, bool compress)
+    {
+        using var body = new MemoryStream();
+        var offsets = new int[objects.Count];
+        for (int index = 0; index < objects.Count; index++)
+        {
+            offsets[index] = checked((int)body.Position);
+            PdfObjectWriter.Write(body, objects[index].Value);
+            body.WriteByte((byte)'\n');
+        }
+        using var header = new MemoryStream();
+        for (int index = 0; index < objects.Count; index++)
+            WriteAscii(header, $"{objects[index].ObjectNumber} {offsets[index]} ");
+        int first = checked((int)header.Length);
+        header.Write(body.ToArray());
+        byte[] data = header.ToArray();
+        var entries = new List<KeyValuePair<PdfName, PdfObject>>
+        {
+            new(TypeName, ObjStmName),
+            new(NName, new PdfInteger(objects.Count)),
+            new(FirstName, new PdfInteger(first))
+        };
+        if (compress)
+        {
+            data = Compress(data);
+            entries.Add(new(FilterName, FlateDecodeName));
+        }
+        entries.Add(new(LengthName, new PdfInteger(data.Length)));
+        return new PdfStream(new PdfDictionary(entries), data);
+    }
+
+    private static void WriteXrefRow(
+        byte[] rows, int index, byte type, int field1, int field2)
+    {
+        int position = checked(index * 9);
+        rows[position] = type;
+        rows[position + 1] = (byte)(field1 >> 24);
+        rows[position + 2] = (byte)(field1 >> 16);
+        rows[position + 3] = (byte)(field1 >> 8);
+        rows[position + 4] = (byte)field1;
+        rows[position + 5] = (byte)(field2 >> 24);
+        rows[position + 6] = (byte)(field2 >> 16);
+        rows[position + 7] = (byte)(field2 >> 8);
+        rows[position + 8] = (byte)field2;
+    }
+
+    private static byte[] Compress(ReadOnlySpan<byte> data)
+    {
+        using var output = new MemoryStream();
+        using (var zlib = new ZLibStream(output, CompressionLevel.Optimal, leaveOpen: true))
+            zlib.Write(data);
+        return output.ToArray();
+    }
+
+    private PdfDictionary BuildTrailer(
+        byte[] revisionIdentifier, int size, bool stripCrossReferenceStreamNames)
     {
         var entries = new List<KeyValuePair<PdfName, PdfObject>>();
         foreach ((PdfName name, PdfObject value) in _document.Trailer)
         {
             if (name.Equals(SizeName) || name.Equals(PrevName) || name.Equals(XRefStmName)
-                || name.Equals(IdName))
+                || name.Equals(IdName) || name.Equals(DocChecksumName)
+                || _documentInformationSpecified && name.Equals(InfoName))
                 continue;
-            if (_document.CrossReferences.Sections[0].IsStream && XrefStreamOnlyNames.Contains(name))
+            if (stripCrossReferenceStreamNames && XrefStreamOnlyNames.Contains(name))
                 continue;
             entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
         }
         AddInheritedIfMissing(entries, RootName);
-        AddInheritedIfMissing(entries, InfoName);
+        if (_documentInformationSpecified)
+        {
+            if (_documentInformation is not null)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    InfoName, _documentInformation));
+        }
+        else
+            AddInheritedIfMissing(entries, InfoName);
         AddUpdatedIdentifier(entries, revisionIdentifier);
-        entries.Add(new KeyValuePair<PdfName, PdfObject>(SizeName, new PdfInteger(_nextObjectNumber)));
+        entries.Add(new KeyValuePair<PdfName, PdfObject>(SizeName, new PdfInteger(size)));
         entries.Add(new KeyValuePair<PdfName, PdfObject>(
             PrevName, new PdfInteger(_document.CrossReferences.StartXref.Offset)));
         return new PdfDictionary(entries);
@@ -174,6 +471,37 @@ public sealed class PdfIncrementalUpdateBuilder
             entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
     }
 
+    private bool IsInheritedTrailerReference(PdfName name, int objectNumber) =>
+        _document.CrossReferences.TryGetTrailerValue(name, out PdfObject value)
+        && value is PdfIndirectReference reference
+        && reference.ObjectNumber == objectNumber;
+
+    private PdfVersion EffectiveVersion()
+    {
+        PdfVersion version = _document.Header.Version;
+        if (!_document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject rootValue)
+            || rootValue is not PdfIndirectReference rootReference)
+            return version;
+        PdfObject root = _objects.TryGetValue(rootReference.ObjectNumber, out PendingObject? pending)
+            ? pending.Value : _document.Resolve(rootReference);
+        if (root is not PdfDictionary catalog
+            || !catalog.TryGetValue(VersionName, out PdfObject catalogVersionValue))
+            return version;
+        if (catalogVersionValue is not PdfName catalogVersion)
+            throw new InvalidOperationException("The catalog /Version value is not a name.");
+        string text = catalogVersion.ValueAsLatin1();
+        if (text.Length != 3 || text[1] != '.'
+            || text[0] is < '0' or > '9' || text[2] is < '0' or > '9')
+            throw new InvalidOperationException("The catalog /Version value is not a PDF version.");
+        int major = text[0] - '0';
+        int minor = text[2] - '0';
+        if (!PdfVersion.IsDefined(major, minor))
+            throw new InvalidOperationException(
+                $"The catalog /Version PDF {major}.{minor} is not defined.");
+        PdfVersion declared = new(major, minor);
+        return declared.CompareTo(version) > 0 ? declared : version;
+    }
+
     private static int InitialSize(PdfDocument document)
     {
         long declaredSize = 0;
@@ -195,4 +523,6 @@ public sealed class PdfIncrementalUpdateBuilder
 
     private sealed record PendingObject(int ObjectNumber, int Generation, PdfObject Value);
     private sealed record WrittenObject(int ObjectNumber, int Generation, int Offset);
+    private sealed record CompressedObject(int ObjectNumber, int ObjectStreamNumber, int Index);
+    private sealed record FreedObject(int ObjectNumber, int Generation);
 }

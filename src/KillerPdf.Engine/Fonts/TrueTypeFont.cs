@@ -10,6 +10,7 @@ public sealed class TrueTypeFont
     private readonly byte[] _data;
     private readonly Dictionary<uint, Table> _tables;
     private readonly ICmap _cmap;
+    private readonly VariationCmap? _variationCmap;
     private readonly ushort[] _advanceWidths;
 
     private TrueTypeFont(byte[] data, Dictionary<uint, Table> tables, bool hasCffOutlines)
@@ -32,7 +33,9 @@ public sealed class TrueTypeFont
         if (GlyphCount == 0 || horizontalMetricCount is < 1 || horizontalMetricCount > GlyphCount)
             throw Error("The horizontal metric count is invalid");
         _advanceWidths = ReadWidths(hmtx, GlyphCount, horizontalMetricCount);
-        _cmap = ReadCmap(Required("cmap"));
+        Table cmap = Required("cmap");
+        _cmap = ReadCmap(cmap);
+        _variationCmap = ReadVariationCmap(cmap);
         PostScriptName = ReadPostScriptName(Required("name"));
 
         if (TryTable("OS/2", out Table os2) && os2.Length >= 10)
@@ -92,6 +95,36 @@ public sealed class TrueTypeFont
         return _cmap.Map(unicodeScalar);
     }
 
+    /// <summary>Maps a Unicode variation sequence, returning zero when the sequence is unsupported.</summary>
+    public ushort GetGlyphId(int unicodeScalar, int variationSelector)
+    {
+        if (!Rune.IsValid(unicodeScalar))
+            throw new ArgumentOutOfRangeException(nameof(unicodeScalar));
+        if (!IsVariationSelector(variationSelector))
+            throw new ArgumentOutOfRangeException(nameof(variationSelector));
+        return _variationCmap?.Map(unicodeScalar, variationSelector, _cmap) ?? 0;
+    }
+
+    internal IReadOnlyList<FontGlyphMapping> MapText(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        Rune[] runes = text.EnumerateRunes().ToArray();
+        var result = new List<FontGlyphMapping>(runes.Length);
+        for (int index = 0; index < runes.Length; index++)
+        {
+            Rune current = runes[index];
+            if (index + 1 < runes.Length && IsVariationSelector(runes[index + 1].Value))
+            {
+                Rune selector = runes[++index];
+                result.Add(new FontGlyphMapping(
+                    GetGlyphId(current.Value, selector.Value), current.ToString() + selector));
+            }
+            else
+                result.Add(new FontGlyphMapping(GetGlyphId(current.Value), current.ToString()));
+        }
+        return result;
+    }
+
     public int GetPdfAdvanceWidth(ushort glyphId)
     {
         if (glyphId >= _advanceWidths.Length)
@@ -149,19 +182,177 @@ public sealed class TrueTypeFont
             int score = (platform, encoding, format) switch
             {
                 (3, 10, 12) => 500,
+                (3, 10, 13) => 490,
+                (3, 10, 10) => 480,
+                (3, 10, 8) => 470,
                 (0, _, 12) => 450,
+                (0, _, 13) => 440,
+                (0, _, 10) => 430,
+                (0, _, 8) => 420,
                 (3, 1, 4) => 400,
                 (0, _, 4) => 350,
+                (3, 1, 6) => 340,
+                (0, _, 6) => 330,
+                (0, _, 0) => 320,
+                (0, _, 2) => 310,
                 _ => 0
             };
             if (score > 0 && (!best.HasValue || score > best.Value.Score))
                 best = (score, subtable, format);
         }
         if (!best.HasValue)
-            throw new NotSupportedException("The font has no supported Unicode cmap format 4 or 12 subtable.");
-        return best.Value.Format == 12
-            ? ReadFormat12(best.Value.Offset, cmap)
-            : ReadFormat4(best.Value.Offset, cmap);
+            throw new NotSupportedException(
+                "The font has no supported Unicode cmap format 0, 2, 4, 6, 8, 10, 12, or 13 subtable.");
+        return best.Value.Format switch
+        {
+            0 => ReadFormat0(best.Value.Offset, cmap),
+            2 => ReadFormat2(best.Value.Offset, cmap),
+            4 => ReadFormat4(best.Value.Offset, cmap),
+            6 => ReadFormat6(best.Value.Offset, cmap),
+            8 => ReadFormat8(best.Value.Offset, cmap),
+            10 => ReadFormat10(best.Value.Offset, cmap),
+            12 => ReadFormat12(best.Value.Offset, cmap),
+            13 => ReadFormat13(best.Value.Offset, cmap),
+            _ => throw new InvalidOperationException()
+        };
+    }
+
+    private VariationCmap? ReadVariationCmap(Table cmap)
+    {
+        int count = U16(cmap, 2);
+        for (int index = 0; index < count; index++)
+        {
+            int record = 4 + index * 8;
+            if (U16(cmap, record) != 0 || U16(cmap, record + 2) != 5)
+                continue;
+            uint relative = U32(cmap, record + 4);
+            if (relative > cmap.Length - 10) continue;
+            int offset = checked(cmap.Offset + (int)relative);
+            if (ReadU16(_data, offset) == 14)
+                return ReadFormat14(offset, cmap);
+        }
+        return null;
+    }
+
+    private VariationCmap ReadFormat14(int offset, Table parent)
+    {
+        if (offset + 10 > parent.End || ReadU16(_data, offset) != 14)
+            throw Error("The cmap format 14 header is truncated");
+        uint length = ReadU32(_data, offset + 2);
+        uint recordCount = ReadU32(_data, offset + 6);
+        if (length < 10 || length > parent.End - offset
+            || recordCount > (length - 10) / 11 || recordCount > 1_000_000)
+            throw Error("The cmap format 14 selector records are invalid");
+        var records = new VariationSelectorRecord[recordCount];
+        uint minimumDataOffset = checked(10u + recordCount * 11u);
+        int previousSelector = -1;
+        for (int index = 0; index < records.Length; index++)
+        {
+            int position = offset + 10 + index * 11;
+            int selector = ReadU24(_data, position);
+            uint defaultOffset = ReadU32(_data, position + 3);
+            uint nonDefaultOffset = ReadU32(_data, position + 7);
+            if (selector <= previousSelector || !IsVariationSelector(selector)
+                || defaultOffset != 0 && (defaultOffset < minimumDataOffset || defaultOffset >= length)
+                || nonDefaultOffset != 0 && (nonDefaultOffset < minimumDataOffset || nonDefaultOffset >= length))
+                throw Error("The cmap format 14 selector records are not ordered or bounded");
+            UnicodeRange[] defaults = defaultOffset == 0 ? []
+                : ReadDefaultVariationRanges(offset, checked((int)defaultOffset), checked((int)length));
+            VariationMapping[] mappings = nonDefaultOffset == 0 ? []
+                : ReadNonDefaultVariationMappings(offset, checked((int)nonDefaultOffset), checked((int)length));
+            records[index] = new VariationSelectorRecord(selector, defaults, mappings);
+            previousSelector = selector;
+        }
+        return new VariationCmap(records);
+    }
+
+    private UnicodeRange[] ReadDefaultVariationRanges(int offset, int relative, int length)
+    {
+        if (relative > length - 4)
+            throw Error("A cmap format 14 default UVS table is truncated");
+        uint count = ReadU32(_data, offset + relative);
+        if (count > (length - relative - 4) / 4 || count > 1_000_000)
+            throw Error("A cmap format 14 default UVS table is invalid");
+        var ranges = new UnicodeRange[count];
+        int previousEnd = -1;
+        for (int index = 0; index < ranges.Length; index++)
+        {
+            int position = offset + relative + 4 + index * 4;
+            int start = ReadU24(_data, position);
+            int end = start + _data[position + 3];
+            if (start <= previousEnd || end > 0x10FFFF
+                || !Rune.IsValid(start) || !Rune.IsValid(end)
+                || start <= 0xDFFF && end >= 0xD800)
+                throw Error("Cmap format 14 default UVS ranges overlap or exceed Unicode");
+            ranges[index] = new UnicodeRange(start, end);
+            previousEnd = end;
+        }
+        return ranges;
+    }
+
+    private VariationMapping[] ReadNonDefaultVariationMappings(
+        int offset, int relative, int length)
+    {
+        if (relative > length - 4)
+            throw Error("A cmap format 14 non-default UVS table is truncated");
+        uint count = ReadU32(_data, offset + relative);
+        if (count > (length - relative - 4) / 5 || count > 1_000_000)
+            throw Error("A cmap format 14 non-default UVS table is invalid");
+        var mappings = new VariationMapping[count];
+        int previous = -1;
+        for (int index = 0; index < mappings.Length; index++)
+        {
+            int position = offset + relative + 4 + index * 5;
+            int scalar = ReadU24(_data, position);
+            int glyph = ReadU16(_data, position + 3);
+            if (scalar <= previous || !Rune.IsValid(scalar) || glyph >= GlyphCount)
+                throw Error("Cmap format 14 non-default UVS mappings are invalid");
+            mappings[index] = new VariationMapping(scalar, checked((ushort)glyph));
+            previous = scalar;
+        }
+        return mappings;
+    }
+
+    private ICmap ReadFormat0(int offset, Table parent)
+    {
+        if (offset + 262 > parent.End || ReadU16(_data, offset) != 0
+            || ReadU16(_data, offset + 2) < 262)
+            throw Error("The cmap format 0 glyph array is truncated");
+        return new ByteCmap(_data, offset + 6, GlyphCount);
+    }
+
+    private ICmap ReadFormat2(int offset, Table parent)
+    {
+        const int keysLength = 512;
+        const int subHeadersOffset = 6 + keysLength;
+        if (offset + subHeadersOffset + 8 > parent.End || ReadU16(_data, offset) != 2)
+            throw Error("The cmap format 2 header is truncated");
+        int length = ReadU16(_data, offset + 2);
+        if (length < subHeadersOffset + 8 || offset + length > parent.End)
+            throw Error("The cmap format 2 length is invalid");
+        int maximumKey = 0;
+        for (int index = 0; index < 256; index++)
+        {
+            int key = ReadU16(_data, offset + 6 + index * 2);
+            if (key % 8 != 0)
+                throw Error("The cmap format 2 subheader keys are invalid");
+            maximumKey = Math.Max(maximumKey, key);
+        }
+        int subHeaderCount = maximumKey / 8 + 1;
+        if (subHeadersOffset + subHeaderCount * 8L > length)
+            throw Error("The cmap format 2 subheaders are truncated");
+        for (int index = 0; index < subHeaderCount; index++)
+        {
+            int position = offset + subHeadersOffset + index * 8;
+            int first = ReadU16(_data, position);
+            int count = ReadU16(_data, position + 2);
+            int range = ReadU16(_data, position + 6);
+            long glyphStart = (long)position + 6 + range;
+            if (first + count > 256 || count > 0
+                && (glyphStart < offset || glyphStart + count * 2L > offset + length))
+                throw Error("The cmap format 2 glyph ranges are invalid");
+        }
+        return new Format2Cmap(_data, offset, length, GlyphCount);
     }
 
     private ICmap ReadFormat12(int offset, Table parent)
@@ -182,7 +373,7 @@ public sealed class TrueTypeFont
             uint end = ReadU32(_data, position + 4);
             uint glyph = ReadU32(_data, position + 8);
             if (start > end || end > 0x10FFFF || (index > 0 && start <= previousEnd)
-                || glyph + (end - start) >= GlyphCount)
+                || glyph >= GlyphCount || end - start >= GlyphCount - glyph)
                 throw Error("The cmap format 12 groups are not ordered valid glyph ranges");
             groups[index] = new Format12Group(start, end, glyph);
             previousEnd = end;
@@ -200,6 +391,109 @@ public sealed class TrueTypeFont
             || 16 + segmentCount * 8 > length)
             throw Error("The cmap format 4 segments are invalid");
         return new Format4Cmap(_data, offset, length, segmentCount, GlyphCount);
+    }
+
+    private ICmap ReadFormat6(int offset, Table parent)
+    {
+        if (offset + 10 > parent.End || ReadU16(_data, offset) != 6)
+            throw Error("The cmap format 6 header is truncated");
+        int length = ReadU16(_data, offset + 2);
+        int first = ReadU16(_data, offset + 6);
+        int count = ReadU16(_data, offset + 8);
+        if (length < 10 || offset + length > parent.End || 10L + count * 2L > length)
+            throw Error("The cmap format 6 glyph array is invalid");
+        return new TrimmedCmap(_data, offset + 10, first, count, GlyphCount);
+    }
+
+    private ICmap ReadFormat8(int offset, Table parent)
+    {
+        const int groupsOffset = 8_208;
+        if (offset + groupsOffset > parent.End || ReadU16(_data, offset) != 8
+            || ReadU16(_data, offset + 2) != 0)
+            throw Error("The cmap format 8 header is truncated or invalid");
+        uint length = ReadU32(_data, offset + 4);
+        uint groupCount = ReadU32(_data, offset + 8_204);
+        if (length < groupsOffset || length > parent.End - offset
+            || groupCount > (length - groupsOffset) / 12 || groupCount > 1_000_000)
+            throw Error("The cmap format 8 groups are invalid");
+        var groups = new Format12Group[groupCount];
+        uint previousEnd = 0;
+        for (int index = 0; index < groups.Length; index++)
+        {
+            int position = offset + groupsOffset + index * 12;
+            uint start = ReadU32(_data, position);
+            uint end = ReadU32(_data, position + 4);
+            uint glyph = ReadU32(_data, position + 8);
+            if (start > end || index > 0 && start <= previousEnd
+                || glyph >= GlyphCount || end - start >= GlyphCount - glyph
+                || !ValidFormat8Range(offset, start, end))
+                throw Error("The cmap format 8 groups are not ordered valid character ranges");
+            groups[index] = new Format12Group(start, end, glyph);
+            previousEnd = end;
+        }
+        return new Format8Cmap(_data, offset, groups);
+    }
+
+    private bool ValidFormat8Range(int offset, uint start, uint end)
+    {
+        if (end <= ushort.MaxValue)
+        {
+            for (uint value = start; value <= end; value++)
+                if (IsFormat8Start(_data, offset, checked((int)value))) return false;
+            return true;
+        }
+        int startHigh = (int)(start >> 16);
+        int endHigh = (int)(end >> 16);
+        int startLow = (int)(start & 0xFFFF);
+        int endLow = (int)(end & 0xFFFF);
+        return startHigh == endHigh && startHigh is >= 0xD800 and <= 0xDBFF
+            && startLow is >= 0xDC00 and <= 0xDFFF
+            && endLow is >= 0xDC00 and <= 0xDFFF
+            && IsFormat8Start(_data, offset, startHigh);
+    }
+
+    private static bool IsFormat8Start(byte[] data, int offset, int value) =>
+        (data[offset + 12 + value / 8] & (1 << (7 - value % 8))) != 0;
+
+    private ICmap ReadFormat10(int offset, Table parent)
+    {
+        if (offset + 20 > parent.End || ReadU16(_data, offset) != 10)
+            throw Error("The cmap format 10 header is truncated");
+        uint length = ReadU32(_data, offset + 4);
+        uint first = ReadU32(_data, offset + 12);
+        uint count = ReadU32(_data, offset + 16);
+        if (length < 20 || length > parent.End - offset || count > (length - 20) / 2
+            || count > 1_000_000 || first > 0x10FFFF
+            || count > 0 && first + count - 1 > 0x10FFFF)
+            throw Error("The cmap format 10 glyph array is invalid");
+        return new TrimmedCmap(
+            _data, offset + 20, checked((int)first), checked((int)count), GlyphCount);
+    }
+
+    private ICmap ReadFormat13(int offset, Table parent)
+    {
+        if (offset + 16 > parent.End || ReadU16(_data, offset) != 13)
+            throw Error("The cmap format 13 header is truncated");
+        uint length = ReadU32(_data, offset + 4);
+        uint groupCount = ReadU32(_data, offset + 12);
+        if (length < 16 || length > parent.End - offset
+            || groupCount > (length - 16) / 12 || groupCount > 1_000_000)
+            throw Error("The cmap format 13 groups are invalid");
+        var groups = new Format13Group[groupCount];
+        uint previousEnd = 0;
+        for (int index = 0; index < groups.Length; index++)
+        {
+            int position = offset + 16 + index * 12;
+            uint start = ReadU32(_data, position);
+            uint end = ReadU32(_data, position + 4);
+            uint glyph = ReadU32(_data, position + 8);
+            if (start > end || end > 0x10FFFF || index > 0 && start <= previousEnd
+                || glyph >= GlyphCount)
+                throw Error("The cmap format 13 groups are not ordered valid glyph ranges");
+            groups[index] = new Format13Group(start, end, checked((ushort)glyph));
+            previousEnd = end;
+        }
+        return new Format13Cmap(groups);
     }
 
     private string ReadPostScriptName(Table name)
@@ -253,6 +547,10 @@ public sealed class TrueTypeFont
         BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
     private static uint ReadU32(ReadOnlySpan<byte> data, int offset) =>
         BinaryPrimitives.ReadUInt32BigEndian(data.Slice(offset, 4));
+    private static int ReadU24(ReadOnlySpan<byte> data, int offset) =>
+        data[offset] << 16 | data[offset + 1] << 8 | data[offset + 2];
+    private static bool IsVariationSelector(int scalar) =>
+        scalar is >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF;
     private static uint Tag(string value) =>
         value.Length == 4 ? BinaryPrimitives.ReadUInt32BigEndian(Encoding.ASCII.GetBytes(value)) : throw new ArgumentException("A font tag has four bytes.");
     private static string TagText(uint value) => Encoding.ASCII.GetString([
@@ -262,6 +560,51 @@ public sealed class TrueTypeFont
     private readonly record struct Table(int Offset, int Length) { public int End => Offset + Length; }
     private interface ICmap { ushort Map(int scalar); }
     private readonly record struct Format12Group(uint Start, uint End, uint StartGlyph);
+    private readonly record struct Format13Group(uint Start, uint End, ushort Glyph);
+    private readonly record struct UnicodeRange(int Start, int End);
+    private readonly record struct VariationMapping(int Scalar, ushort Glyph);
+    private sealed record VariationSelectorRecord(
+        int Selector, UnicodeRange[] Defaults, VariationMapping[] Mappings);
+
+    private sealed class VariationCmap(VariationSelectorRecord[] records)
+    {
+        public ushort Map(int scalar, int selector, ICmap baseCmap)
+        {
+            int recordIndex = BinarySearch(records.Length,
+                index => selector.CompareTo(records[index].Selector));
+            if (recordIndex < 0) return 0;
+            VariationSelectorRecord record = records[recordIndex];
+            int mappingIndex = BinarySearch(record.Mappings.Length,
+                index => scalar.CompareTo(record.Mappings[index].Scalar));
+            if (mappingIndex >= 0) return record.Mappings[mappingIndex].Glyph;
+            int low = 0;
+            int high = record.Defaults.Length - 1;
+            while (low <= high)
+            {
+                int middle = low + ((high - low) / 2);
+                UnicodeRange range = record.Defaults[middle];
+                if (scalar < range.Start) high = middle - 1;
+                else if (scalar > range.End) low = middle + 1;
+                else return baseCmap.Map(scalar);
+            }
+            return 0;
+        }
+
+        private static int BinarySearch(int count, Func<int, int> compare)
+        {
+            int low = 0;
+            int high = count - 1;
+            while (low <= high)
+            {
+                int middle = low + ((high - low) / 2);
+                int result = compare(middle);
+                if (result < 0) high = middle - 1;
+                else if (result > 0) low = middle + 1;
+                else return middle;
+            }
+            return -1;
+        }
+    }
 
     private sealed class Format12Cmap(Format12Group[] groups) : ICmap
     {
@@ -278,6 +621,106 @@ public sealed class TrueTypeFont
                 else return checked((ushort)(group.StartGlyph + (uint)scalar - group.Start));
             }
             return 0;
+        }
+    }
+
+    private sealed class Format8Cmap(
+        byte[] data, int offset, Format12Group[] groups) : ICmap
+    {
+        public ushort Map(int scalar)
+        {
+            if ((uint)scalar > 0x10FFFF || scalar is >= 0xD800 and <= 0xDFFF)
+                return 0;
+            uint code;
+            if (scalar <= ushort.MaxValue)
+            {
+                if (IsFormat8Start(data, offset, scalar)) return 0;
+                code = (uint)scalar;
+            }
+            else
+            {
+                int value = scalar - 0x10000;
+                int high = 0xD800 + (value >> 10);
+                int low = 0xDC00 + (value & 0x3FF);
+                if (!IsFormat8Start(data, offset, high)) return 0;
+                code = ((uint)high << 16) | (uint)low;
+            }
+            int left = 0;
+            int right = groups.Length - 1;
+            while (left <= right)
+            {
+                int middle = left + ((right - left) / 2);
+                Format12Group group = groups[middle];
+                if (code < group.Start) right = middle - 1;
+                else if (code > group.End) left = middle + 1;
+                else return checked((ushort)(group.StartGlyph + code - group.Start));
+            }
+            return 0;
+        }
+    }
+
+    private sealed class Format13Cmap(Format13Group[] groups) : ICmap
+    {
+        public ushort Map(int scalar)
+        {
+            int low = 0;
+            int high = groups.Length - 1;
+            while (low <= high)
+            {
+                int middle = low + ((high - low) / 2);
+                Format13Group group = groups[middle];
+                if ((uint)scalar < group.Start) high = middle - 1;
+                else if ((uint)scalar > group.End) low = middle + 1;
+                else return group.Glyph;
+            }
+            return 0;
+        }
+    }
+
+    private sealed class TrimmedCmap(
+        byte[] data, int glyphOffset, int firstScalar, int count, int glyphCount) : ICmap
+    {
+        public ushort Map(int scalar)
+        {
+            int index = scalar - firstScalar;
+            if (index < 0 || index >= count) return 0;
+            ushort glyph = ReadU16(data, glyphOffset + index * 2);
+            return glyph < glyphCount ? glyph : (ushort)0;
+        }
+    }
+
+    private sealed class ByteCmap(byte[] data, int glyphOffset, int glyphCount) : ICmap
+    {
+        public ushort Map(int scalar)
+        {
+            if ((uint)scalar > byte.MaxValue) return 0;
+            byte glyph = data[glyphOffset + scalar];
+            return glyph < glyphCount ? glyph : (ushort)0;
+        }
+    }
+
+    private sealed class Format2Cmap(
+        byte[] data, int offset, int length, int glyphCount) : ICmap
+    {
+        private const int SubHeadersOffset = 518;
+
+        public ushort Map(int scalar)
+        {
+            if ((uint)scalar > ushort.MaxValue) return 0;
+            int high = scalar >> 8;
+            int low = scalar & 0xFF;
+            int key = ReadU16(data, offset + 6 + high * 2);
+            int subHeader = offset + SubHeadersOffset + key;
+            int first = ReadU16(data, subHeader);
+            int count = ReadU16(data, subHeader + 2);
+            if (low < first || low - first >= count) return 0;
+            int delta = unchecked((short)ReadU16(data, subHeader + 4));
+            int range = ReadU16(data, subHeader + 6);
+            int address = subHeader + 6 + range + (low - first) * 2;
+            if (address < offset || address + 2 > offset + length) return 0;
+            int glyph = ReadU16(data, address);
+            if (glyph != 0) glyph = (glyph + delta) & 0xFFFF;
+            return glyph < glyphCount ? (ushort)glyph : (ushort)0;
         }
     }
 
@@ -321,3 +764,4 @@ public sealed class TrueTypeFont
 }
 
 public readonly record struct TrueTypeBounds(int XMin, int YMin, int XMax, int YMax);
+internal readonly record struct FontGlyphMapping(ushort Glyph, string UnicodeSequence);

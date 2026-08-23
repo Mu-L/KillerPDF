@@ -1,5 +1,6 @@
 using System.Text;
 using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Signing;
@@ -69,7 +70,10 @@ public sealed class PdfSignatureReaderTests
     [Fact]
     public void Read_DistinguishesValidEarlierRevisionCoverageFromWholeDocumentCoverage()
     {
-        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] initial = new PdfDocumentBuilder().AddBlankPage().Build();
+        var seed = new PdfIncrementalUpdateBuilder(PdfDocument.Open(initial));
+        PdfIndirectReference freedObject = seed.AddObject(new PdfInteger(99));
+        byte[] source = seed.Build();
         byte[] signed = PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
             {
@@ -82,7 +86,14 @@ public sealed class PdfSignatureReaderTests
             signedDocument.Trailer[new PdfName("Root"u8)]);
         update.ReplaceObject(catalogReference.ObjectNumber,
             signedDocument.Resolve(catalogReference));
-        byte[] withLaterBytes = update.Build();
+        update.FreeObject(freedObject.ObjectNumber);
+        byte[] withLaterBytes = update.Build(new PdfIncrementalUpdateWriteOptions
+        {
+            CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+            UseObjectStreams = true,
+            CompressObjectStreams = true,
+            CompressCrossReferenceStream = true
+        });
         PdfDocument document = PdfDocument.Open(withLaterBytes);
         PdfSignatureInfo signature = Assert.Single(PdfSignatureReader.Read(document));
         PdfSignedRevisionAnalysis analysis =
@@ -96,7 +107,9 @@ public sealed class PdfSignatureReaderTests
         Assert.Contains(addedObject.ObjectNumber, analysis.ChangedObjectNumbers);
         Assert.Contains(addedObject.ObjectNumber, analysis.AddedObjectNumbers);
         Assert.Contains(catalogReference.ObjectNumber, analysis.UpdatedObjectNumbers);
-        Assert.Empty(analysis.FreedObjectNumbers);
+        Assert.Contains(freedObject.ObjectNumber, analysis.FreedObjectNumbers);
+        Assert.Equal(PdfCrossReferenceEntryType.Compressed,
+            document.CrossReferences[addedObject.ObjectNumber].Type);
         Assert.Equal(PdfSignedRevisionPermissionAssessment.NotCertified,
             analysis.PermissionAssessment);
     }

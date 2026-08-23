@@ -86,6 +86,7 @@ public static class PdfDetachedSignatureWriter
 
         var update = new PdfIncrementalUpdateBuilder(document);
         PdfIndirectReference signatureReference = update.ReserveObject();
+        update.KeepObjectDirect(signatureReference);
         update.SetObject(signatureReference,
             BuildSignatureDictionary(options, fieldMdpParameters));
         PdfDictionary catalogReplacement = tree.Catalog;
@@ -168,7 +169,7 @@ public static class PdfDetachedSignatureWriter
         }
         if (catalogChanged)
             update.ReplaceObject(tree.CatalogReference.ObjectNumber, catalogReplacement);
-        byte[] prepared = update.Build();
+        byte[] prepared = update.Build(options.IncrementalWriteOptions);
         FillSignature(prepared, options.ReservedSignatureSize,
             createDetachedCms, evidenceRequirements, options.SignerCertificate);
         return prepared;

@@ -42,6 +42,20 @@ public sealed class PdfStreamParserTests
     }
 
     [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    [InlineData("\r")]
+    public void ParseIndirectObject_AcceptsPdfLineEndingsAfterStreamKeyword(
+        string openingLineEnding)
+    {
+        string source = $"1 0 obj << /Length 5 >> stream{openingLineEnding}Hello\nendstream endobj";
+
+        var stream = Assert.IsType<PdfStream>(Parser(source).ParseIndirectObject().Value);
+
+        Assert.Equal("Hello", Encoding.Latin1.GetString(stream.EncodedData.Span));
+    }
+
+    [Theory]
     [InlineData("1 0 obj << >> stream\n\nendstream endobj")]
     [InlineData("1 0 obj << /Length -1 >> stream\n\nendstream endobj")]
     [InlineData("1 0 obj << /Length /Five >> stream\nHello\nendstream endobj")]

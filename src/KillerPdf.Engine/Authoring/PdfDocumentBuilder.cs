@@ -2,6 +2,7 @@ using System.Globalization;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Writing;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Fonts;
 using System.Text;
 using System.Security.Cryptography;
@@ -31,6 +32,7 @@ public sealed partial class PdfDocumentBuilder
     private OutputIntentDefinition? _outputIntent;
     private PdfA4Flavor _pdfA4Flavor;
     private bool _pdfUa2Conformance;
+    private PdfPasswordEncryptionOptions? _encryption;
     private PdfPageLayout? _pageLayout;
     private PdfPageMode? _pageMode;
     private PdfViewerPreferences? _viewerPreferences;
@@ -47,6 +49,12 @@ public sealed partial class PdfDocumentBuilder
     public PdfDocumentBuilder SetMetadata(PdfDocumentMetadata metadata)
     {
         Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
+        return this;
+    }
+
+    public PdfDocumentBuilder SetPasswordEncryption(PdfPasswordEncryptionOptions options)
+    {
+        _encryption = options ?? throw new ArgumentNullException(nameof(options));
         return this;
     }
 
@@ -1366,6 +1374,8 @@ public sealed partial class PdfDocumentBuilder
     public byte[] Build()
     {
         bool pdfA4 = _pdfA4Flavor != PdfA4Flavor.None;
+        if (pdfA4 && _encryption is not null)
+            throw new InvalidOperationException("PDF/A documents cannot be encrypted.");
         var forms = new List<PdfFormXObject>();
         var patterns = new List<PdfTilingPattern>();
         var knownForms = new HashSet<PdfFormXObject>();
@@ -1627,25 +1637,29 @@ public sealed partial class PdfDocumentBuilder
             requestedStandardFonts = requestedStandardFonts.Append(PdfStandardFont.Helvetica);
         foreach (PdfStandardFont font in requestedStandardFonts.Distinct().Order())
             fontNumbers.Add(font, nextObjectNumber++);
-        var embeddedFonts = new List<AllocatedEmbeddedFont>();
-        foreach (IGrouping<TrueTypeFont, EmbeddedFontUsage> group in
+        var embeddedFontUsageGroups = new List<List<EmbeddedFontUsage>>();
+        foreach (EmbeddedFontUsage usage in
             _pages.SelectMany(page => page.EmbeddedFonts)
                 .Concat(forms.SelectMany(form => form.EmbeddedFonts))
                 .Concat(patterns.SelectMany(pattern => pattern.EmbeddedFonts))
-                .Concat(formFontUsages)
-                .GroupBy(usage => usage.Font))
+                .Concat(formFontUsages))
         {
-            var mappings = new SortedDictionary<ushort, int>();
-            foreach ((ushort glyph, int scalar) in group.SelectMany(usage => usage.UnicodeByGlyph))
-            {
-                if (mappings.TryGetValue(glyph, out int existing) && existing != scalar)
-                    throw new InvalidOperationException($"Glyph {glyph} has conflicting Unicode mappings.");
-                mappings[glyph] = scalar;
-            }
+            List<EmbeddedFontUsage>? compatible = embeddedFontUsageGroups.FirstOrDefault(group =>
+                ReferenceEquals(group[0].Font, usage.Font)
+                && EmbeddedMappingsEqual(group[0].Mappings, usage.Mappings));
+            if (compatible is null)
+                embeddedFontUsageGroups.Add([usage]);
+            else
+                compatible.Add(usage);
+        }
+        var embeddedFonts = new List<AllocatedEmbeddedFont>();
+        foreach (List<EmbeddedFontUsage> usages in embeddedFontUsageGroups)
+        {
+            EmbeddedFontUsage usage = usages[0];
             embeddedFonts.Add(new AllocatedEmbeddedFont(
-                group.Key, mappings,
+                usages, usage.Mappings,
                 nextObjectNumber++, nextObjectNumber++, nextObjectNumber++,
-                nextObjectNumber++, nextObjectNumber++));
+                nextObjectNumber++, nextObjectNumber++, nextObjectNumber++));
         }
         var imageNumbers = new Dictionary<PdfImage, int>();
         foreach (PdfImage image in _pages.SelectMany(page => page.Images.Keys)
@@ -2058,11 +2072,11 @@ public sealed partial class PdfDocumentBuilder
                 allocated, index + 1, attachmentFileSpecificationNumbers);
         foreach (AllocatedTextField allocatedTextField in allocatedTextFields)
         {
-            (PdfName resource, int number) = FormFontBinding(
+            (PdfName resource, int number, EmbeddedFontUsage? usage) = FormFontBinding(
                 allocatedTextField.Definition.EmbeddedFont,
                 fontNumbers, formFontResources, embeddedFonts);
             AddTextFieldObjects(
-                objects, allocatedTextField, allocated, resource, number);
+                objects, allocatedTextField, allocated, resource, number, usage);
         }
         foreach (AllocatedCheckBox allocatedCheckBox in allocatedCheckBoxes)
             AddCheckBoxObjects(objects, allocatedCheckBox, allocated);
@@ -2070,33 +2084,33 @@ public sealed partial class PdfDocumentBuilder
             AddRadioGroupObjects(objects, allocatedRadioGroup, allocated);
         foreach (AllocatedChoiceField allocatedChoiceField in allocatedChoiceFields)
         {
-            (PdfName resource, int number) = FormFontBinding(
+            (PdfName resource, int number, EmbeddedFontUsage? usage) = FormFontBinding(
                 allocatedChoiceField.Definition.EmbeddedFont,
                 fontNumbers, formFontResources, embeddedFonts);
             AddChoiceFieldObjects(
-                objects, allocatedChoiceField, allocated, resource, number);
+                objects, allocatedChoiceField, allocated, resource, number, usage);
         }
         foreach (AllocatedPushButton allocatedPushButton in allocatedPushButtons)
         {
-            (PdfName resource, int number) = FormFontBinding(
+            (PdfName resource, int number, EmbeddedFontUsage? usage) = FormFontBinding(
                 allocatedPushButton.Definition.EmbeddedFont,
                 fontNumbers, formFontResources, embeddedFonts);
             PdfPushButtonAppearanceOptions appearance =
                 allocatedPushButton.Definition.AppearanceOptions;
-            AddPushButtonObjects(objects, allocatedPushButton, allocated, resource, number,
+            AddPushButtonObjects(objects, allocatedPushButton, allocated, resource, number, usage,
                 appearance.Icon is null ? null : imageNumbers[appearance.Icon],
                 appearance.RolloverIcon is null ? null : imageNumbers[appearance.RolloverIcon],
                 appearance.DownIcon is null ? null : imageNumbers[appearance.DownIcon]);
         }
         foreach (AllocatedSignatureField allocatedSignatureField in allocatedSignatureFields)
         {
-            (PdfName resource, int number) = allocatedSignatureField.Definition.AppearanceText is null
-                ? (Name("Helv"), 0)
+            (PdfName resource, int number, EmbeddedFontUsage? usage) = allocatedSignatureField.Definition.AppearanceText is null
+                ? (Name("Helv"), 0, null)
                 : FormFontBinding(
                     allocatedSignatureField.Definition.EmbeddedFont,
                     fontNumbers, formFontResources, embeddedFonts);
             AddSignatureFieldObject(
-                objects, allocatedSignatureField, allocated, resource, number);
+                objects, allocatedSignatureField, allocated, resource, number, usage);
         }
         if (_outputIntent is not null)
             AddOutputIntentObjects(
@@ -2166,18 +2180,20 @@ public sealed partial class PdfDocumentBuilder
             RedactionAnnotationDefinition redaction = allocatedRedactionAnnotations[index].Definition;
             PdfName? resource = null;
             int? number = null;
+            EmbeddedFontUsage? usage = null;
             if (redaction.OverlayText is not null)
-                (resource, number) = FormFontBinding(
+                (resource, number, usage) = FormFontBinding(
                     redaction.OverlayFont, fontNumbers, formFontResources, embeddedFonts);
             AddRedactionAnnotationObjects(objects, allocatedRedactionAnnotations[index], allocated,
-                index + 1, resource, number);
+                index + 1, resource, number, usage);
         }
         for (int index = 0; index < allocatedFreeTexts.Length; index++)
         {
             FreeTextDefinition freeText = allocatedFreeTexts[index].Definition;
-            (PdfName resource, int number) = FormFontBinding(
+            (PdfName resource, int number, EmbeddedFontUsage? usage) = FormFontBinding(
                 freeText.Font, fontNumbers, formFontResources, embeddedFonts);
-            AddFreeTextObjects(objects, allocatedFreeTexts[index], allocated, index + 1, resource, number);
+            AddFreeTextObjects(objects, allocatedFreeTexts[index], allocated, index + 1,
+                resource, number, usage);
         }
         for (int index = 0; index < allocatedVisualAnnotations.Length; index++)
             AddVisualAnnotationObjects(objects, allocatedVisualAnnotations[index], allocated, index + 1);
@@ -2384,6 +2400,17 @@ public sealed partial class PdfDocumentBuilder
 
     private byte[] Assemble(List<PdfIndirectObject> objects, int rootNumber, int? infoNumber)
     {
+        byte[] identifier = DocumentIdentifier(objects);
+        PdfStandardSecurityHandler? security = null;
+        int? encryptionNumber = null;
+        if (_encryption is not null)
+        {
+            (security, PdfDictionary encryptionDictionary) =
+                PdfStandardSecurityHandler.CreateRevision6(_encryption);
+            encryptionNumber = checked(objects.Max(item => item.ObjectNumber) + 1);
+            objects.Add(new PdfIndirectObject(
+                encryptionNumber.Value, 0, encryptionDictionary, 0));
+        }
         using var output = new MemoryStream();
         WriteAscii(output, $"%PDF-{Version}\n");
         output.Write([(byte)'%', 0xE2, 0xE3, 0xCF, 0xD3, (byte)'\n']);
@@ -2392,7 +2419,11 @@ public sealed partial class PdfDocumentBuilder
         {
             int offset = checked((int)output.Position);
             offsets.Add((value.ObjectNumber, offset));
-            PdfObjectWriter.Write(output, value);
+            PdfObject written = security is not null && value.ObjectNumber != encryptionNumber
+                ? security.Encrypt(value.Value, value.ObjectNumber, value.Generation)
+                : value.Value;
+            PdfObjectWriter.Write(output, new PdfIndirectObject(
+                value.ObjectNumber, value.Generation, written, offset));
         }
 
         int xrefOffset = checked((int)output.Position);
@@ -2400,7 +2431,6 @@ public sealed partial class PdfDocumentBuilder
         foreach ((int number, int offset) in offsets)
             WriteAscii(output, $"{number} 1\n{offset:0000000000} 00000 n \n");
         output.Write("trailer\n"u8);
-        byte[] identifier = DocumentIdentifier(objects);
         var trailerEntries = new List<KeyValuePair<PdfName, PdfObject>>
         {
             new(SizeName, new PdfInteger(objects.Max(item => item.ObjectNumber) + 1)),
@@ -2411,6 +2441,9 @@ public sealed partial class PdfDocumentBuilder
         };
         if (infoNumber.HasValue)
             trailerEntries.Add(new(Name("Info"), new PdfIndirectReference(infoNumber.Value, 0)));
+        if (encryptionNumber.HasValue)
+            trailerEntries.Add(new(Name("Encrypt"),
+                new PdfIndirectReference(encryptionNumber.Value, 0)));
         PdfObjectWriter.Write(output, new PdfDictionary(trailerEntries));
         output.Write("\nstartxref\n"u8);
         WriteAscii(output, xrefOffset.ToString(CultureInfo.InvariantCulture));
@@ -2537,7 +2570,8 @@ public sealed partial class PdfDocumentBuilder
         AllocatedTextField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
-        int fontNumber)
+        int fontNumber,
+        EmbeddedFontUsage? fontUsage)
     {
         TextFieldDefinition field = allocatedField.Definition;
         int pageNumber = pages[field.PageIndex].PageNumber;
@@ -2575,7 +2609,7 @@ public sealed partial class PdfDocumentBuilder
         objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
             Dictionary(fieldEntries.ToArray()), 0));
 
-        byte[] appearance = BuildTextFieldAppearance(field, fontResource);
+        byte[] appearance = BuildTextFieldAppearance(field, fontResource, fontUsage);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -2891,7 +2925,8 @@ public sealed partial class PdfDocumentBuilder
         AllocatedChoiceField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
-        int fontNumber)
+        int fontNumber,
+        EmbeddedFontUsage? fontUsage)
     {
         ChoiceFieldDefinition field = allocatedField.Definition;
         int flags = (field.IsComboBox ? 1 << 17 : 0)
@@ -2954,8 +2989,8 @@ public sealed partial class PdfDocumentBuilder
             allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
         byte[] appearance = field.IsComboBox
-            ? BuildChoiceTextAppearance(field, fontResource)
-            : BuildListBoxAppearance(field, fontResource);
+            ? BuildChoiceTextAppearance(field, fontResource, fontUsage)
+            : BuildListBoxAppearance(field, fontResource, fontUsage);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -2978,7 +3013,8 @@ public sealed partial class PdfDocumentBuilder
         PdfName fontResource,
         TrueTypeFont? embeddedFont,
         PdfFormFieldAppearanceStyle style,
-        PdfTextFieldAlignment alignment)
+        PdfTextFieldAlignment alignment,
+        EmbeddedFontUsage? fontUsage)
     {
         using var output = new MemoryStream();
         WriteFormFieldBackgroundAndBorder(output, width, height, style, clip: false);
@@ -2987,7 +3023,7 @@ public sealed partial class PdfDocumentBuilder
             $"{ColorOperands(style.TextColor)} rg\n" +
             $"{FormatNumber(SimpleTextX(width, fontSize, value, embeddedFont, alignment))} " +
             $"{FormatNumber(Math.Max(1, (height - fontSize) / 2))} Td\n");
-        WriteShownText(output, value, embeddedFont);
+        WriteShownText(output, value, embeddedFont, fontUsage);
         output.Write("ET\nQ\n"u8);
         return output.ToArray();
     }
@@ -2998,8 +3034,8 @@ public sealed partial class PdfDocumentBuilder
     {
         double textWidth = embeddedFont is null
             ? value.EnumerateRunes().Count() * fontSize * 0.55
-            : value.EnumerateRunes().Sum(rune =>
-                embeddedFont.GetPdfAdvanceWidth(embeddedFont.GetGlyphId(rune.Value)))
+            : embeddedFont.MapText(value).Sum(mapping =>
+                embeddedFont.GetPdfAdvanceWidth(mapping.Glyph))
                 * fontSize / 1000;
         return alignment switch
         {
@@ -3011,12 +3047,12 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static byte[] BuildTextFieldAppearance(
-        TextFieldDefinition field, PdfName fontResource)
+        TextFieldDefinition field, PdfName fontResource, EmbeddedFontUsage? fontUsage)
     {
         if (field.Options.Comb)
-            return BuildCombTextFieldAppearance(field, fontResource);
+            return BuildCombTextFieldAppearance(field, fontResource, fontUsage);
         if (!field.Options.Multiline)
-            return BuildAlignedTextFieldAppearance(field, fontResource);
+            return BuildAlignedTextFieldAppearance(field, fontResource, fontUsage);
 
         using var output = new MemoryStream();
         WriteFormFieldBackgroundAndBorder(
@@ -3032,7 +3068,7 @@ public sealed partial class PdfDocumentBuilder
                 $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
                 $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
                 $"{FormatNumber(x)} {FormatNumber(baseline)} Td\n");
-            WriteShownText(output, line, field.EmbeddedFont);
+            WriteShownText(output, line, field.EmbeddedFont, fontUsage);
             output.Write("ET\n"u8);
             baseline -= leading;
         }
@@ -3046,7 +3082,7 @@ public sealed partial class PdfDocumentBuilder
             : field.Value;
 
     private static byte[] BuildAlignedTextFieldAppearance(
-        TextFieldDefinition field, PdfName fontResource)
+        TextFieldDefinition field, PdfName fontResource, EmbeddedFontUsage? fontUsage)
     {
         string value = TextFieldAppearanceValue(field);
         using var output = new MemoryStream();
@@ -3057,7 +3093,7 @@ public sealed partial class PdfDocumentBuilder
             $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
             $"{FormatNumber(TextFieldTextX(field, value))} " +
             $"{FormatNumber(Math.Max(1, (field.Height - field.FontSize) / 2))} Td\n");
-        WriteShownText(output, value, field.EmbeddedFont);
+        WriteShownText(output, value, field.EmbeddedFont, fontUsage);
         output.Write("ET\nQ\n"u8);
         return output.ToArray();
     }
@@ -3077,8 +3113,8 @@ public sealed partial class PdfDocumentBuilder
     private static double MeasureTextFieldText(TextFieldDefinition field, string value) =>
         field.EmbeddedFont is null
             ? value.EnumerateRunes().Count() * field.FontSize * 0.55
-            : value.EnumerateRunes().Sum(rune =>
-                field.EmbeddedFont.GetPdfAdvanceWidth(field.EmbeddedFont.GetGlyphId(rune.Value)))
+            : field.EmbeddedFont.MapText(value).Sum(mapping =>
+                field.EmbeddedFont.GetPdfAdvanceWidth(mapping.Glyph))
                 * field.FontSize / 1000;
 
     private static IReadOnlyList<string> WrapTextFieldLines(TextFieldDefinition field)
@@ -3107,13 +3143,16 @@ public sealed partial class PdfDocumentBuilder
                     lines.Add(current);
                     current = string.Empty;
                 }
-                foreach (Rune rune in word.EnumerateRunes())
+                IEnumerable<string> textElements = field.EmbeddedFont is null
+                    ? word.EnumerateRunes().Select(rune => rune.ToString())
+                    : field.EmbeddedFont.MapText(word).Select(mapping => mapping.UnicodeSequence);
+                foreach (string textElement in textElements)
                 {
-                    string next = current + rune.ToString();
+                    string next = current + textElement;
                     if (current.Length != 0 && MeasureTextFieldText(field, next) > availableWidth)
                     {
                         lines.Add(current);
-                        current = rune.ToString();
+                        current = textElement;
                     }
                     else
                     {
@@ -3152,7 +3191,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static byte[] BuildCombTextFieldAppearance(
-        TextFieldDefinition field, PdfName fontResource)
+        TextFieldDefinition field, PdfName fontResource, EmbeddedFontUsage? fontUsage)
     {
         int cells = field.Options.MaximumLength!.Value;
         double cellWidth = field.Width / cells;
@@ -3173,7 +3212,8 @@ public sealed partial class PdfDocumentBuilder
                     $"{FormatNumber(Math.Max(0.5, field.Height - 0.5))} l\nS\n");
             }
         }
-        int glyphCount = field.Value.EnumerateRunes().Count();
+        int glyphCount = field.EmbeddedFont?.MapText(field.Value).Count
+            ?? field.Value.EnumerateRunes().Count();
         int cell = field.Options.Alignment switch
         {
             PdfTextFieldAlignment.Left => 0,
@@ -3181,7 +3221,10 @@ public sealed partial class PdfDocumentBuilder
             PdfTextFieldAlignment.Right => cells - glyphCount,
             _ => throw new ArgumentOutOfRangeException(nameof(field.Options.Alignment))
         };
-        foreach (Rune rune in field.Value.EnumerateRunes())
+        IEnumerable<string> shownValues = field.EmbeddedFont is null
+            ? field.Value.EnumerateRunes().Select(rune => rune.ToString())
+            : field.EmbeddedFont.MapText(field.Value).Select(mapping => mapping.UnicodeSequence);
+        foreach (string shownValue in shownValues)
         {
             double x = cellWidth * cell + Math.Max(1, (cellWidth - field.FontSize * 0.55) / 2);
             double y = Math.Max(1, (field.Height - field.FontSize) / 2);
@@ -3189,7 +3232,7 @@ public sealed partial class PdfDocumentBuilder
                 $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
                 $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
                 $"{FormatNumber(x)} {FormatNumber(y)} Td\n");
-            WriteShownText(output, rune.ToString(), field.EmbeddedFont);
+            WriteShownText(output, shownValue, field.EmbeddedFont, fontUsage);
             output.Write("ET\n"u8);
             cell++;
         }
@@ -3203,6 +3246,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
         int fontNumber,
+        EmbeddedFontUsage? fontUsage,
         int? iconNumber,
         int? rolloverIconNumber,
         int? downIconNumber)
@@ -3250,7 +3294,7 @@ public sealed partial class PdfDocumentBuilder
             allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
         byte[] appearance = BuildPushButtonAppearance(
-            field, field.Label, fontResource, iconNumber);
+            field, field.Label, fontResource, iconNumber, fontUsage);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -3265,11 +3309,11 @@ public sealed partial class PdfDocumentBuilder
         AddAlternatePushButtonAppearance(
             objects, allocatedField.RolloverAppearanceNumber,
             field.AppearanceOptions.RolloverLabel ?? field.Label,
-            field, fontResource, fontNumber, rolloverIconNumber ?? iconNumber);
+            field, fontResource, fontNumber, rolloverIconNumber ?? iconNumber, fontUsage);
         AddAlternatePushButtonAppearance(
             objects, allocatedField.DownAppearanceNumber,
             field.AppearanceOptions.DownLabel ?? field.Label,
-            field, fontResource, fontNumber, downIconNumber ?? iconNumber);
+            field, fontResource, fontNumber, downIconNumber ?? iconNumber, fontUsage);
     }
 
     private static PdfDictionary PushButtonAppearanceDictionary(AllocatedPushButton field)
@@ -3304,7 +3348,8 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static byte[] BuildPushButtonAppearance(
-        PushButtonDefinition field, string label, PdfName fontResource, int? iconNumber)
+        PushButtonDefinition field, string label, PdfName fontResource, int? iconNumber,
+        EmbeddedFontUsage? fontUsage)
     {
         using var output = new MemoryStream();
         WriteFormFieldBackgroundAndBorder(
@@ -3370,7 +3415,7 @@ public sealed partial class PdfDocumentBuilder
                 $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
                 $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
                 $"{FormatNumber(captionX)} {FormatNumber(baseline)} Td\n");
-            WriteShownText(output, label, field.EmbeddedFont);
+            WriteShownText(output, label, field.EmbeddedFont, fontUsage);
             output.Write("ET\n"u8);
         }
         output.Write("Q\n"u8);
@@ -3415,11 +3460,13 @@ public sealed partial class PdfDocumentBuilder
 
     private static void AddAlternatePushButtonAppearance(
         ICollection<PdfIndirectObject> objects, int? objectNumber, string label,
-        PushButtonDefinition field, PdfName fontResource, int fontNumber, int? iconNumber)
+        PushButtonDefinition field, PdfName fontResource, int fontNumber, int? iconNumber,
+        EmbeddedFontUsage? fontUsage)
     {
         if (!objectNumber.HasValue)
             return;
-        byte[] appearance = BuildPushButtonAppearance(field, label, fontResource, iconNumber);
+        byte[] appearance = BuildPushButtonAppearance(
+            field, label, fontResource, iconNumber, fontUsage);
         objects.Add(new PdfIndirectObject(objectNumber.Value, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -3650,7 +3697,8 @@ public sealed partial class PdfDocumentBuilder
         AllocatedSignatureField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
-        int fontNumber)
+        int fontNumber,
+        EmbeddedFontUsage? fontUsage)
     {
         SignatureFieldDefinition field = allocatedField.Definition;
         var entries = new List<(string Name, PdfObject Value)>
@@ -3705,7 +3753,7 @@ public sealed partial class PdfDocumentBuilder
             appearance = BuildSimpleTextAppearance(
                 field.Width, field.Height, field.FontSize, field.AppearanceText,
                 fontResource, field.EmbeddedFont, field.AppearanceStyle,
-                field.AppearanceAlignment);
+                field.AppearanceAlignment, fontUsage);
             resources = Dictionary(("Font", new PdfDictionary([
                 new KeyValuePair<PdfName, PdfObject>(
                     fontResource, new PdfIndirectReference(fontNumber, 0))])));
@@ -3721,7 +3769,8 @@ public sealed partial class PdfDocumentBuilder
                 ("Resources", resources)), appearance), 0));
     }
 
-    private static byte[] BuildListBoxAppearance(ChoiceFieldDefinition field, PdfName fontResource)
+    private static byte[] BuildListBoxAppearance(
+        ChoiceFieldDefinition field, PdfName fontResource, EmbeddedFontUsage? fontUsage)
     {
         using var output = new MemoryStream();
         PdfFormFieldAppearanceStyle style = field.ChoiceOptions.AppearanceStyle!;
@@ -3745,7 +3794,7 @@ public sealed partial class PdfDocumentBuilder
                 $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
                 $"{ColorOperands(style.TextColor)} rg\n" +
                 $"{FormatNumber(textX)} {FormatNumber(Math.Max(1, rowBottom + (rowHeight - field.FontSize) / 2))} Td\n");
-            WriteShownText(output, option.DisplayValue, field.EmbeddedFont);
+            WriteShownText(output, option.DisplayValue, field.EmbeddedFont, fontUsage);
             output.Write("ET\n"u8);
             rowTop = rowBottom;
         }
@@ -3754,7 +3803,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static byte[] BuildChoiceTextAppearance(
-        ChoiceFieldDefinition field, PdfName fontResource)
+        ChoiceFieldDefinition field, PdfName fontResource, EmbeddedFontUsage? fontUsage)
     {
         string value = ChoiceDisplayValue(field, field.SelectedValues[0]);
         using var output = new MemoryStream();
@@ -3766,7 +3815,7 @@ public sealed partial class PdfDocumentBuilder
             $"{ColorOperands(style.TextColor)} rg\n" +
             $"{FormatNumber(ChoiceTextX(field, value))} " +
             $"{FormatNumber(Math.Max(1, (field.Height - field.FontSize) / 2))} Td\n");
-        WriteShownText(output, value, field.EmbeddedFont);
+        WriteShownText(output, value, field.EmbeddedFont, fontUsage);
         output.Write("ET\nQ\n"u8);
         return output.ToArray();
     }
@@ -3775,8 +3824,8 @@ public sealed partial class PdfDocumentBuilder
     {
         double textWidth = field.EmbeddedFont is null
             ? value.EnumerateRunes().Count() * field.FontSize * 0.55
-            : value.EnumerateRunes().Sum(rune =>
-                field.EmbeddedFont.GetPdfAdvanceWidth(field.EmbeddedFont.GetGlyphId(rune.Value)))
+            : field.EmbeddedFont.MapText(value).Sum(mapping =>
+                field.EmbeddedFont.GetPdfAdvanceWidth(mapping.Glyph))
                 * field.FontSize / 1000;
         return field.ChoiceOptions.Alignment switch
         {
@@ -4057,21 +4106,23 @@ public sealed partial class PdfDocumentBuilder
 
     private static void AddTextMappings(EmbeddedFontUsage usage, string value)
     {
-        foreach (Rune rune in value.EnumerateRunes())
-            usage.AddMapping(usage.Font.GetGlyphId(rune.Value), rune.Value);
+        foreach (FontGlyphMapping mapping in usage.Font.MapText(value))
+            usage.AddMapping(mapping.Glyph, mapping.UnicodeSequence);
     }
 
     private static void AddDrawableTextMappings(EmbeddedFontUsage usage, string value)
     {
-        foreach (Rune rune in value.EnumerateRunes())
+        foreach (FontGlyphMapping mapping in usage.Font.MapText(value))
         {
-            if (rune.Value is '\r' or '\n')
+            if (mapping.UnicodeSequence is "\r" or "\n")
                 continue;
-            usage.AddMapping(usage.Font.GetGlyphId(rune.Value), rune.Value);
+            usage.AddMapping(mapping.Glyph, mapping.UnicodeSequence);
         }
     }
 
-    private static void WriteShownText(Stream output, string value, TrueTypeFont? embeddedFont)
+    private static void WriteShownText(
+        Stream output, string value, TrueTypeFont? embeddedFont,
+        EmbeddedFontUsage? usage = null)
     {
         if (embeddedFont is null)
         {
@@ -4081,27 +4132,40 @@ public sealed partial class PdfDocumentBuilder
         else
         {
             output.WriteByte((byte)'<');
-            foreach (Rune rune in value.EnumerateRunes())
+            foreach (FontGlyphMapping mapping in embeddedFont.MapText(value))
             {
-                ushort glyph = embeddedFont.GetGlyphId(rune.Value);
-                WriteAscii(output, glyph.ToString("X4", CultureInfo.InvariantCulture));
+                ushort code = usage?.AddMapping(mapping.Glyph, mapping.UnicodeSequence)
+                    ?? mapping.Glyph;
+                WriteAscii(output, code.ToString("X4", CultureInfo.InvariantCulture));
             }
             output.WriteByte((byte)'>');
         }
         output.Write(" Tj\n"u8);
     }
 
-    private static (PdfName Resource, int ObjectNumber) FormFontBinding(
+    private static (PdfName Resource, int ObjectNumber, EmbeddedFontUsage? Usage) FormFontBinding(
         TrueTypeFont? embeddedFont,
         IReadOnlyDictionary<PdfStandardFont, int> standardFonts,
         IReadOnlyDictionary<TrueTypeFont, PdfName> formFontResources,
         IReadOnlyList<AllocatedEmbeddedFont> embeddedFonts)
     {
         if (embeddedFont is null)
-            return (Name("Helv"), standardFonts[PdfStandardFont.Helvetica]);
-        return (formFontResources[embeddedFont],
-            embeddedFonts.Single(value => ReferenceEquals(value.Font, embeddedFont)).Type0Number);
+            return (Name("Helv"), standardFonts[PdfStandardFont.Helvetica], null);
+        AllocatedEmbeddedFont allocated = embeddedFonts.Single(value =>
+            ReferenceEquals(value.Font, embeddedFont)
+            && value.Usages.Any(usage =>
+                usage.ResourceName.Equals(formFontResources[embeddedFont])));
+        EmbeddedFontUsage usage = allocated.Usages.Single(value =>
+            value.ResourceName.Equals(formFontResources[embeddedFont]));
+        return (formFontResources[embeddedFont], allocated.Type0Number, usage);
     }
+
+    private static bool EmbeddedMappingsEqual(
+        IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> left,
+        IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> right) =>
+        left.Count == right.Count && left.All(entry =>
+            right.TryGetValue(entry.Key, out EmbeddedCharacterMapping? value)
+            && value == entry.Value);
 
     private void ValidateUniqueFieldName(string name)
     {
@@ -4745,15 +4809,18 @@ public sealed partial class PdfDocumentBuilder
     {
         if (!font.EmbeddingAllowed)
             throw new ArgumentException($"Font {font.PostScriptName} prohibits PDF embedding.", parameterName);
-        foreach (Rune rune in value.EnumerateRunes())
+        foreach (FontGlyphMapping mapping in font.MapText(value))
         {
-            if (rune.Value is '\r' or '\n')
+            if (mapping.UnicodeSequence is "\r" or "\n")
                 continue;
-            if (font.GetGlyphId(rune.Value) == 0 && rune.Value != 0)
+            if (mapping.Glyph == 0 && mapping.UnicodeSequence != "\0")
                 throw new ArgumentException(
-                    $"Font {font.PostScriptName} has no glyph for U+{rune.Value:X4}.", parameterName);
+                    $"Font {font.PostScriptName} has no glyph for {FormatUnicodeSequence(mapping.UnicodeSequence)}.", parameterName);
         }
     }
+
+    private static string FormatUnicodeSequence(string value) =>
+        string.Join(" ", value.EnumerateRunes().Select(rune => $"U+{rune.Value:X4}"));
 
     private static void AddEmbeddedFontObjects(
         ICollection<PdfIndirectObject> objects, AllocatedEmbeddedFont allocated)
@@ -4763,12 +4830,15 @@ public sealed partial class PdfDocumentBuilder
         var descriptor = new PdfIndirectReference(allocated.DescriptorNumber, 0);
         var fontFile = new PdfIndirectReference(allocated.FontFileNumber, 0);
         var toUnicode = new PdfIndirectReference(allocated.ToUnicodeNumber, 0);
+        var encoding = new PdfIndirectReference(allocated.EncodingNumber, 0);
         EmbeddedTrueTypeFontObjects values = PdfEmbeddedTrueTypeFontFactory.Create(
-            allocated.Font, allocated.Mappings, type0, cidFont, descriptor, fontFile, toUnicode);
+            allocated.Font, allocated.Mappings, type0, cidFont, descriptor, fontFile, toUnicode,
+            encoding);
         objects.Add(new PdfIndirectObject(allocated.FontFileNumber, 0, values.FontFile, 0));
         objects.Add(new PdfIndirectObject(allocated.DescriptorNumber, 0, values.Descriptor, 0));
         objects.Add(new PdfIndirectObject(allocated.CidFontNumber, 0, values.CidFont, 0));
         objects.Add(new PdfIndirectObject(allocated.ToUnicodeNumber, 0, values.ToUnicode, 0));
+        objects.Add(new PdfIndirectObject(allocated.EncodingNumber, 0, values.Encoding, 0));
         objects.Add(new PdfIndirectObject(allocated.Type0Number, 0, values.Type0, 0));
     }
 
@@ -4968,7 +5038,7 @@ public sealed partial class PdfDocumentBuilder
             values.AddRange(embeddedFontUsages.Select(usage =>
                 new KeyValuePair<PdfName, PdfObject>(usage.ResourceName,
                     new PdfIndirectReference(embeddedFonts.Single(font =>
-                        ReferenceEquals(font.Font, usage.Font)).Type0Number, 0))));
+                        font.Usages.Contains(usage)).Type0Number, 0))));
             entries.Add(("Font", new PdfDictionary(values)));
         }
         if (images.Count > 0 || forms.Count > 0)
@@ -5453,11 +5523,15 @@ public sealed partial class PdfDocumentBuilder
     private sealed record AllocatedTextMarkup(
         TextMarkupDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record AllocatedEmbeddedFont(
-        TrueTypeFont Font,
-        IReadOnlyDictionary<ushort, int> Mappings,
+        IReadOnlyList<EmbeddedFontUsage> Usages,
+        IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> Mappings,
         int Type0Number,
         int CidFontNumber,
         int DescriptorNumber,
         int FontFileNumber,
-        int ToUnicodeNumber);
+        int ToUnicodeNumber,
+        int EncodingNumber)
+    {
+        public TrueTypeFont Font => Usages[0].Font;
+    }
 }

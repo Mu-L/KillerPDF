@@ -44,6 +44,11 @@ public static class PdfDocumentInspector
             diagnostics.Add(Diagnostic(PdfDiagnosticCode.InvalidCrossReference, error.Message));
             return Report(version, startXrefOffset, null, 0, diagnostics);
         }
+        catch (Exception error) when (IsStructuralFailure(error))
+        {
+            diagnostics.Add(Diagnostic(PdfDiagnosticCode.InvalidCrossReference, error.Message));
+            return Report(version, startXrefOffset, null, 0, diagnostics);
+        }
 
         PdfDocument document;
         try
@@ -173,7 +178,8 @@ public static class PdfDocumentInspector
     }
 
     private static bool IsStructuralFailure(Exception error) =>
-        error is FormatException or NotSupportedException or PdfFilterException or OverflowException;
+        error is ArgumentException or InvalidOperationException or FormatException
+            or NotSupportedException or PdfFilterException or OverflowException;
 
     private static PdfDiagnostic Diagnostic(
         PdfDiagnosticCode code,
