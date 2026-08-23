@@ -22,6 +22,8 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName MetadataName = Name("Metadata");
     private static readonly PdfName LanguageName = Name("Lang");
     private static readonly PdfName ViewerPreferencesName = Name("ViewerPreferences");
+    private static readonly PdfName OptionalContentPropertiesName = Name("OCProperties");
+    private static readonly PdfName OutputIntentsName = Name("OutputIntents");
     private static readonly PdfName AcroFormName = Name("AcroForm");
     private static readonly PdfName FieldsName = Name("Fields");
     private static readonly PdfName DefaultResourcesName = Name("DR");
@@ -118,6 +120,9 @@ public sealed class PdfIncrementalPageEditor
         if (sourcePageIndex < 0 || sourcePageIndex >= sourceTree.Pages.Count)
             throw new ArgumentOutOfRangeException(nameof(sourcePageIndex));
         PdfPageTreeEntry sourcePage = sourceTree.Pages[sourcePageIndex];
+        if (sourceTree.Catalog.ContainsKey(OptionalContentPropertiesName))
+            throw new NotSupportedException(
+                "Pages using optional-content layers must be imported as a complete document into an empty destination.");
         ValidateImportablePage(source, sourcePage,
             allowFormWidgets: false, allowTaggedPage: false);
         int batchId = _nextImportBatchId++;
@@ -231,6 +236,7 @@ public sealed class PdfIncrementalPageEditor
     private void BuildReorderedTree(PdfIncrementalUpdateBuilder update)
     {
         ValidateExistingStructureTreePageSet();
+        ValidateExistingOptionalContentPageSet();
         PdfIndirectReference newRoot = update.ReserveObject();
         var references = new Dictionary<PageState, PdfIndirectReference>();
         foreach (PageState state in _pages)
@@ -257,7 +263,9 @@ public sealed class PdfIncrementalPageEditor
         update.SetObject(newRoot, Dictionary(
             ("Type", Name("Pages")), ("Kids", kids), ("Count", new PdfInteger(_pages.Count))));
         var catalogReplacements = new Dictionary<PdfName, PdfObject> { [PagesName] = newRoot };
+        AddImportedDocumentProperties(importedGroups, importers, catalogReplacements);
         AddImportedStructureTree(importedGroups, importers, catalogReplacements);
+        AddImportedOptionalContent(importedGroups, importers, catalogReplacements);
         AddImportedAcroForm(importedGroups, importers, catalogReplacements);
         AddImportedNamedDestinations(importedGroups, importers, catalogReplacements);
         AddImportedEmbeddedFiles(importedGroups, importers, catalogReplacements);
@@ -1210,8 +1218,29 @@ public sealed class PdfIncrementalPageEditor
         PdfObjectGraphImporter importer = importers[group[0]];
         foreach (PdfName name in new[]
                  {
-                     StructTreeRootName, MarkInfoName, MetadataName,
-                     LanguageName, ViewerPreferencesName
+                     StructTreeRootName, MarkInfoName
+                 })
+        {
+            if (tree.Catalog.TryGetValue(name, out PdfObject? value))
+                catalogReplacements[name] = importer.Import(value);
+        }
+    }
+
+    private void AddImportedDocumentProperties(
+        IReadOnlyList<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        if (importedGroups.Count != 1 || _tree.Pages.Count != 0) return;
+        PageState[] group = importedGroups[0];
+        PdfPageTree tree = group[0].ImportedTree!;
+        if (_pages.Count != group.Length || !_pages.All(group.Contains)
+            || !IsCompleteImport(group, tree)) return;
+
+        PdfObjectGraphImporter importer = importers[group[0]];
+        foreach (PdfName name in new[]
+                 {
+                     MetadataName, LanguageName, ViewerPreferencesName, OutputIntentsName
                  })
         {
             if (tree.Catalog.TryGetValue(name, out PdfObject? value))
@@ -1229,6 +1258,40 @@ public sealed class PdfIncrementalPageEditor
         if (!retainsEveryOriginalPage)
             throw new NotSupportedException(
                 "Adding or removing pages in an existing tagged PDF requires structure-tree editing, which is not yet supported. Reordering the complete existing page set is supported.");
+    }
+
+    private void AddImportedOptionalContent(
+        IReadOnlyList<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        PageState[][] layeredGroups = importedGroups.Where(group =>
+            group[0].ImportedTree!.Catalog.ContainsKey(OptionalContentPropertiesName)).ToArray();
+        if (layeredGroups.Length == 0) return;
+
+        PageState[] group = layeredGroups[0];
+        PdfPageTree tree = group[0].ImportedTree!;
+        bool isOnlyPageSet = layeredGroups.Length == 1
+            && _tree.Pages.Count == 0
+            && _pages.Count == group.Length
+            && _pages.All(group.Contains);
+        if (!isOnlyPageSet || !IsCompleteImport(group, tree))
+            throw new NotSupportedException(
+                "Optional-content layers can be preserved only when one complete source document is imported into an empty destination without adding or removing pages.");
+        catalogReplacements[OptionalContentPropertiesName] =
+            importers[group[0]].Import(tree.Catalog[OptionalContentPropertiesName]);
+    }
+
+    private void ValidateExistingOptionalContentPageSet()
+    {
+        if (!_tree.Catalog.ContainsKey(OptionalContentPropertiesName)) return;
+        bool retainsEveryOriginalPage = _pages.Count == _tree.Pages.Count
+            && _pages.All(page => page.Entry is not null)
+            && _pages.Select(page => page.Entry!.Reference.ObjectNumber).Order()
+                .SequenceEqual(_tree.Pages.Select(page => page.Reference.ObjectNumber).Order());
+        if (!retainsEveryOriginalPage)
+            throw new NotSupportedException(
+                "Adding or removing pages in a PDF with optional-content layers requires layer-configuration editing, which is not yet supported. Reordering the complete existing page set is supported.");
     }
 
     private static bool DestinationsStayWithinImportedPages(

@@ -189,6 +189,50 @@ if (args.Length == 2 && args[0] == "--tagged-import-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--layers-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    var artwork = new PdfOptionalContentGroup("Artwork");
+    var review = new PdfOptionalContentGroup("Review notes", initiallyVisible: false);
+    var content = new PdfContentStreamBuilder()
+        .BeginOptionalContent(artwork)
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .SetFillRgb(0.15, 0.45, 0.85).Rectangle(72, 560, 240, 140).Fill()
+        .EndMarkedContent()
+        .EndMarkedContent()
+        .BeginOptionalContent(review)
+        .BeginMarkedContent(PdfStructureType.Figure, 1)
+        .SetStrokeRgb(0.9, 0.15, 0.3).SetLineWidth(4)
+        .Rectangle(96, 584, 192, 92).Stroke()
+        .EndMarkedContent()
+        .EndMarkedContent();
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF optional-content layer smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "A blue rectangle")
+        .AddStructureElement(PdfStructureType.Figure, 0, 1, 1,
+            alternateDescription: "A red review outline")
+        .Build();
+    byte[] target = new PdfDocumentBuilder().Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(PdfDocument.Open(source))
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte layered PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--form-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -555,6 +599,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --authoring-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --layers-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");

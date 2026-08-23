@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
 using KillerPdf.Engine.Authoring;
@@ -321,6 +322,103 @@ public sealed class PdfIncrementalPageEditorTests
                 .AddImportedDocument(PdfDocument.Open(
                     new PdfDocumentBuilder().AddBlankPage().Build()))
                 .Build());
+    }
+
+    [Fact]
+    public void Build_PreservesCompleteOptionalContentConfigurationAndLayerReferences()
+    {
+        byte[] source = BuildLayeredDocument();
+        byte[] target = new PdfDocumentBuilder().Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(PdfDocument.Open(source))
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary optionalContent = Assert.IsType<PdfDictionary>(
+            catalog[Name("OCProperties")]);
+        PdfIndirectReference groupReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(optionalContent[Name("OCGs")])[0]);
+        (_, _, PdfDictionary[] pages) = FlatPages(reopened);
+
+        Assert.Equal("Review layer", DecodeUnicode(Assert.IsType<PdfString>(
+            ResolveDictionary(reopened, groupReference)[Name("Name")])));
+        foreach (PdfDictionary page in pages)
+        {
+            PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
+            PdfDictionary properties = Assert.IsType<PdfDictionary>(resources[Name("Properties")]);
+            Assert.Equal(groupReference.ObjectNumber,
+                Assert.IsType<PdfIndirectReference>(properties[Name("OC1")]).ObjectNumber);
+        }
+    }
+
+    [Fact]
+    public void Build_PreservesMetadataLanguageAndOutputIntentForSoleCompleteImport()
+    {
+        PdfIccProfile profile = PdfIccProfile.Load(BuildRgbProfile());
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Imported archival document",
+                Language = "en-US"
+            })
+            .SetOutputIntent(profile, "Test RGB")
+            .EnablePdfA4Conformance()
+            .AddBlankPage()
+            .Build();
+        byte[] target = new PdfDocumentBuilder().Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(PdfDocument.Open(source))
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfStream metadata = ResolveStream(reopened, catalog[Name("Metadata")]);
+        PdfDictionary outputIntent = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(catalog[Name("OutputIntents")])[0]);
+        PdfStream importedProfile = ResolveStream(reopened,
+            outputIntent[Name("DestOutputProfile")]);
+
+        Assert.Equal("en-US", DecodeUnicode(Assert.IsType<PdfString>(catalog[Name("Lang")])));
+        Assert.Contains("pdfaid:part", Encoding.UTF8.GetString(metadata.EncodedData.Span));
+        Assert.Equal(3, Assert.IsType<PdfInteger>(
+            importedProfile.Dictionary[Name("N")]).Value);
+        Assert.Equal(profile.Data.ToArray(), importedProfile.EncodedData.ToArray());
+    }
+
+    [Fact]
+    public void LayeredDocuments_RejectPartialOrCombinedPageSets()
+    {
+        byte[] source = BuildLayeredDocument();
+        PdfDocument layered = PdfDocument.Open(source);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+        PdfDocument occupied = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty).AddImportedPage(layered, 0));
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(layered).RemovePage(1).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(layered).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(layered)
+                .AddImportedDocument(layered)
+                .Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .RemovePage(0)
+                .Build());
+
+        PdfDocument reordered = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .MovePage(0, 1)
+                .Build());
+        Assert.True(ResolveDictionary(reordered, reordered.Trailer[Name("Root")])
+            .ContainsKey(Name("OCProperties")));
     }
 
     [Fact]
@@ -1026,6 +1124,29 @@ public sealed class PdfIncrementalPageEditorTests
             .AddStructureElement(PdfStructureType.Figure, 1, 0, 1,
                 alternateDescription: "Second square")
             .Build();
+    }
+
+    private static byte[] BuildLayeredDocument()
+    {
+        var layer = new PdfOptionalContentGroup("Review layer", initiallyVisible: false);
+        PdfContentStreamBuilder Content() => new PdfContentStreamBuilder()
+            .BeginOptionalContent(layer)
+            .Rectangle(10, 10, 20, 20).Stroke()
+            .EndMarkedContent();
+
+        return new PdfDocumentBuilder()
+            .AddPage(100, 100, Content())
+            .AddPage(100, 100, Content())
+            .Build();
+    }
+
+    private static byte[] BuildRgbProfile()
+    {
+        byte[] result = new byte[128];
+        BinaryPrimitives.WriteUInt32BigEndian(result, 128);
+        "RGB "u8.CopyTo(result.AsSpan(16, 4));
+        "acsp"u8.CopyTo(result.AsSpan(36, 4));
+        return result;
     }
 
     private static byte[] BuildNestedPageTree()

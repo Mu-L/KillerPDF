@@ -12,8 +12,10 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<PdfStandardFont, PdfName> _fonts = [];
     private readonly Dictionary<TrueTypeFont, EmbeddedFontUsage> _embeddedFonts = [];
     private readonly Dictionary<PdfImage, PdfName> _images = [];
+    private readonly Dictionary<PdfOptionalContentGroup, PdfName> _optionalContentGroups = [];
     private int _savedStateDepth;
-    private int _markedContentDepth;
+    private readonly Stack<bool> _markedContentStack = [];
+    private int _accessibleMarkedContentDepth;
     private bool _insideText;
     private bool _hasUntaggedContent;
     private int _nextFontResource = 1;
@@ -23,6 +25,8 @@ public sealed class PdfContentStreamBuilder
     internal IReadOnlyDictionary<PdfStandardFont, PdfName> FontResources => _fonts;
     internal IReadOnlyCollection<EmbeddedFontUsage> EmbeddedFontResources => _embeddedFonts.Values;
     internal IReadOnlyDictionary<PdfImage, PdfName> ImageResources => _images;
+    internal IReadOnlyDictionary<PdfOptionalContentGroup, PdfName> OptionalContentResources =>
+        _optionalContentGroups;
     internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
     internal bool HasUntaggedContent => _hasUntaggedContent;
 
@@ -44,7 +48,8 @@ public sealed class PdfContentStreamBuilder
             new KeyValuePair<PdfName, PdfObject>(
                 new PdfName("MCID"u8), new PdfInteger(markedContentId))])));
         _output.Write(" BDC\n"u8);
-        _markedContentDepth++;
+        _markedContentStack.Push(true);
+        _accessibleMarkedContentDepth++;
         return this;
     }
 
@@ -52,16 +57,34 @@ public sealed class PdfContentStreamBuilder
     public PdfContentStreamBuilder BeginArtifact()
     {
         _output.Write("/Artifact BMC\n"u8);
-        _markedContentDepth++;
+        _markedContentStack.Push(true);
+        _accessibleMarkedContentDepth++;
+        return this;
+    }
+
+    /// <summary>Begins content controlled by a named PDF layer.</summary>
+    public PdfContentStreamBuilder BeginOptionalContent(PdfOptionalContentGroup group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+        if (!_optionalContentGroups.TryGetValue(group, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes(
+                $"OC{_optionalContentGroups.Count + 1}"));
+            _optionalContentGroups.Add(group, resource);
+        }
+        _output.Write("/OC "u8);
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" BDC\n"u8);
+        _markedContentStack.Push(false);
         return this;
     }
 
     public PdfContentStreamBuilder EndMarkedContent()
     {
-        if (_markedContentDepth == 0)
+        if (_markedContentStack.Count == 0)
             throw new InvalidOperationException("The marked-content stack is empty.");
         WriteOperator("EMC"u8);
-        _markedContentDepth--;
+        if (_markedContentStack.Pop()) _accessibleMarkedContentDepth--;
         return this;
     }
 
@@ -252,7 +275,7 @@ public sealed class PdfContentStreamBuilder
             throw new InvalidOperationException("Every saved graphics state must be restored before building.");
         if (_insideText)
             throw new InvalidOperationException("The text object must be ended before building.");
-        if (_markedContentDepth != 0)
+        if (_markedContentStack.Count != 0)
             throw new InvalidOperationException(
                 "Every marked-content sequence must be ended before building.");
         return _output.ToArray();
@@ -283,7 +306,7 @@ public sealed class PdfContentStreamBuilder
 
     private void RecordPaintedContent()
     {
-        if (_markedContentDepth == 0) _hasUntaggedContent = true;
+        if (_accessibleMarkedContentDepth == 0) _hasUntaggedContent = true;
     }
 
     private void WriteNumber(double value)

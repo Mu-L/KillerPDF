@@ -93,7 +93,8 @@ public sealed partial class PdfDocumentBuilder
         ValidateDimension(height, nameof(height));
         _pages.Add(new PageDefinition(width, height, content.ToArray(),
             new Dictionary<PdfStandardFont, PdfName>(), [],
-            new Dictionary<PdfImage, PdfName>(), [], [], content.Length > 0));
+            new Dictionary<PdfImage, PdfName>(),
+            new Dictionary<PdfOptionalContentGroup, PdfName>(), [], [], content.Length > 0));
         return this;
     }
 
@@ -108,7 +109,8 @@ public sealed partial class PdfDocumentBuilder
             content.Build(),
             content.FontResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.EmbeddedFontResources.ToArray(),
-            content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.OptionalContentResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent));
         return this;
     }
@@ -570,6 +572,19 @@ public sealed partial class PdfDocumentBuilder
             new AllocatedImageStamp(stamp, nextObjectNumber++, nextObjectNumber++)).ToArray();
         int? iccProfileNumber = _outputIntent is null ? null : nextObjectNumber++;
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
+        PdfOptionalContentGroup[] optionalContentGroups = _pages
+            .SelectMany(page => page.OptionalContentGroups.Keys)
+            .Distinct()
+            .OrderBy(group => group.Name, StringComparer.Ordinal)
+            .ToArray();
+        string? duplicateLayerName = optionalContentGroups
+            .GroupBy(group => group.Name, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1)?.Key;
+        if (duplicateLayerName is not null)
+            throw new InvalidOperationException(
+                $"Optional-content group name '{duplicateLayerName}' is used by more than one group.");
+        var optionalContentNumbers = optionalContentGroups
+            .ToDictionary(group => group, _ => nextObjectNumber++);
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
             .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
@@ -760,6 +775,27 @@ public sealed partial class PdfDocumentBuilder
         if (outputIntentNumber.HasValue)
             catalogEntries.Add(("OutputIntents", new PdfArray([
                 new PdfIndirectReference(outputIntentNumber.Value, 0)])));
+        if (optionalContentGroups.Length > 0)
+        {
+            PdfObject[] groupReferences = optionalContentGroups.Select(group =>
+                (PdfObject)new PdfIndirectReference(optionalContentNumbers[group], 0)).ToArray();
+            PdfObject[] initiallyHidden = optionalContentGroups
+                .Where(group => !group.InitiallyVisible)
+                .Select(group => (PdfObject)new PdfIndirectReference(
+                    optionalContentNumbers[group], 0))
+                .ToArray();
+            var defaultConfiguration = new List<(string Name, PdfObject Value)>
+            {
+                ("Name", UnicodeString("KillerPDF Layers")),
+                ("BaseState", Name("ON")),
+                ("Order", new PdfArray(groupReferences))
+            };
+            if (initiallyHidden.Length > 0)
+                defaultConfiguration.Add(("OFF", new PdfArray(initiallyHidden)));
+            catalogEntries.Add(("OCProperties", Dictionary(
+                ("OCGs", new PdfArray(groupReferences)),
+                ("D", Dictionary(defaultConfiguration.ToArray())))));
+        }
         var catalog = Dictionary(catalogEntries.ToArray());
         var pages = Dictionary(
             ("Type", Name("Pages")),
@@ -970,6 +1006,12 @@ public sealed partial class PdfDocumentBuilder
         if (_outputIntent is not null)
             AddOutputIntentObjects(
                 objects, _outputIntent, iccProfileNumber!.Value, outputIntentNumber!.Value);
+        foreach (PdfOptionalContentGroup group in optionalContentGroups)
+            objects.Add(new PdfIndirectObject(optionalContentNumbers[group], 0,
+                Dictionary(
+                    ("Type", Name("OCG")),
+                    ("Name", UnicodeString(group.Name)),
+                    ("Intent", new PdfArray([Name("View"), Name("Design")]))), 0));
         for (int index = 0; index < allocatedTextNotes.Length; index++)
             AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1);
         for (int index = 0; index < allocatedTextMarkups.Length; index++)
@@ -1017,6 +1059,13 @@ public sealed partial class PdfDocumentBuilder
                     new KeyValuePair<PdfName, PdfObject>(entry.Value,
                         new PdfIndirectReference(imageNumbers[entry.Key], 0)));
                 resourceEntries.Add(("XObject", new PdfDictionary(imageEntries)));
+            }
+            if (allocatedPage.Definition.OptionalContentGroups.Count > 0)
+            {
+                var propertyEntries = allocatedPage.Definition.OptionalContentGroups.Select(entry =>
+                    new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                        new PdfIndirectReference(optionalContentNumbers[entry.Key], 0)));
+                resourceEntries.Add(("Properties", new PdfDictionary(propertyEntries)));
             }
             resources = Dictionary(resourceEntries.ToArray());
             var entries = new List<(string Name, PdfObject Value)>
@@ -1909,6 +1958,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfStandardFont, PdfName> Fonts,
         IReadOnlyList<EmbeddedFontUsage> EmbeddedFonts,
         IReadOnlyDictionary<PdfImage, PdfName> Images,
+        IReadOnlyDictionary<PdfOptionalContentGroup, PdfName> OptionalContentGroups,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
         bool HasUntaggedContent);
