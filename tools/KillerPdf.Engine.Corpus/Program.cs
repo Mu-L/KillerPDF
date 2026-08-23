@@ -266,6 +266,34 @@ if (args.Length == 4 && args[0] == "--incremental-visual-annotation-smoke")
     return 0;
 }
 
+if (args.Length == 4 && args[0] == "--pdfa-page-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string sourcePath = Path.GetFullPath(args[2]);
+    string destination = Path.GetFullPath(args[3]);
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A page operations smoke test", Language = "en-US" })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddPage(600, 400, new PdfContentStreamBuilder()
+            .SetFillRgb(0.9, 0.15, 0.25).Rectangle(50, 50, 500, 300).Fill())
+        .AddPage(400, 600, new PdfContentStreamBuilder()
+            .SetFillRgb(0.1, 0.4, 0.9).Rectangle(50, 50, 300, 500).Fill())
+        .Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+        .RotateClockwise(0)
+        .MovePage(0, 1)
+        .Build();
+    if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
+        throw new InvalidDataException("The incremental page update changed source bytes.");
+    Directory.CreateDirectory(Path.GetDirectoryName(sourcePath)!);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(sourcePath, source);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Reordered two pages and rotated one in {pdf.Length - source.Length:N0} appended bytes to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -281,6 +309,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-smoke <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-annotation-smoke <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-visual-annotation-smoke <font.ttf> <input.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-page-smoke <profile.icc> <source.pdf> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 

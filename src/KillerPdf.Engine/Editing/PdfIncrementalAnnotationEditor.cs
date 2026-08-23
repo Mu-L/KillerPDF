@@ -14,23 +14,16 @@ namespace KillerPdf.Engine.Editing;
 /// </summary>
 public sealed class PdfIncrementalAnnotationEditor
 {
-    private static readonly PdfName RootName = new("Root"u8);
-    private static readonly PdfName PagesName = new("Pages"u8);
-    private static readonly PdfName KidsName = new("Kids"u8);
-    private static readonly PdfName TypeName = new("Type"u8);
-    private static readonly PdfName PageName = new("Page"u8);
     private static readonly PdfName AnnotsName = new("Annots"u8);
-    private const int MaximumPageTreeDepth = 256;
-    private const int MaximumPageCount = 1_000_000;
 
     private readonly PdfDocument _document;
-    private readonly IReadOnlyList<PageEntry> _pages;
+    private readonly IReadOnlyList<PdfPageTreeEntry> _pages;
     private readonly List<PendingAnnotation> _annotations = [];
 
     public PdfIncrementalAnnotationEditor(PdfDocument document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
-        _pages = ReadPages(document);
+        _pages = PdfPageTree.Read(document).Pages;
     }
 
     public int PageCount => _pages.Count;
@@ -189,7 +182,7 @@ public sealed class PdfIncrementalAnnotationEditor
 
         foreach (AllocatedAnnotation item in allocated)
         {
-            PageEntry page = _pages[item.Definition.PageIndex];
+            PdfPageTreeEntry page = _pages[item.Definition.PageIndex];
             switch (item.Definition)
             {
                 case PendingTextNote note:
@@ -295,7 +288,7 @@ public sealed class PdfIncrementalAnnotationEditor
     }
 
     private void AppendPageAnnotations(
-        PdfIncrementalUpdateBuilder update, PageEntry page,
+        PdfIncrementalUpdateBuilder update, PdfPageTreeEntry page,
         IEnumerable<PdfIndirectReference> additions)
     {
         var values = new List<PdfObject>();
@@ -688,57 +681,6 @@ public sealed class PdfIncrementalAnnotationEditor
             ("BBox", new PdfArray([new PdfInteger(0), new PdfInteger(0), Number(width), Number(height)])),
             ("Resources", resources)), content);
 
-    private static IReadOnlyList<PageEntry> ReadPages(PdfDocument document)
-    {
-        PdfIndirectReference rootReference = document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject root)
-            ? root as PdfIndirectReference
-                ?? throw new InvalidOperationException("The trailer /Root is not an indirect reference.")
-            : throw new InvalidOperationException("The PDF trailer has no /Root.");
-        PdfDictionary catalog = document.Resolve(rootReference) as PdfDictionary
-            ?? throw new InvalidOperationException("The document catalog is not a dictionary.");
-        PdfIndirectReference pagesReference = catalog.TryGetValue(PagesName, out PdfObject pages)
-            ? pages as PdfIndirectReference
-                ?? throw new InvalidOperationException("The catalog /Pages is not an indirect reference.")
-            : throw new InvalidOperationException("The document catalog has no /Pages tree.");
-
-        var result = new List<PageEntry>();
-        var active = new HashSet<int>();
-        Visit(pagesReference, 0);
-        return result;
-
-        void Visit(PdfIndirectReference reference, int depth)
-        {
-            if (depth > MaximumPageTreeDepth)
-                throw new InvalidOperationException("The page tree exceeds the supported nesting depth.");
-            if (!active.Add(reference.ObjectNumber))
-                throw new InvalidOperationException("The page tree contains a cycle.");
-            try
-            {
-                PdfDictionary node = document.Resolve(reference) as PdfDictionary
-                    ?? throw new InvalidOperationException("A page-tree reference is not a dictionary.");
-                if (node.TryGetValue(TypeName, out PdfObject type)
-                    && type is PdfName typeName && typeName.Equals(PageName))
-                {
-                    if (result.Count >= MaximumPageCount)
-                        throw new InvalidOperationException("The PDF contains too many pages.");
-                    result.Add(new PageEntry(result.Count, reference, node));
-                    return;
-                }
-                PdfArray kids = node.TryGetValue(KidsName, out PdfObject kidsValue)
-                    ? kidsValue as PdfArray
-                        ?? throw new InvalidOperationException("A page-tree /Kids value is not an array.")
-                    : throw new InvalidOperationException("A page-tree node has neither /Type /Page nor /Kids.");
-                foreach (PdfObject kid in kids)
-                    Visit(kid as PdfIndirectReference
-                        ?? throw new InvalidOperationException("A page-tree kid is not an indirect reference."), depth + 1);
-            }
-            finally
-            {
-                active.Remove(reference.ObjectNumber);
-            }
-        }
-    }
-
     private void ValidatePage(int pageIndex)
     {
         if (pageIndex < 0 || pageIndex >= _pages.Count)
@@ -800,7 +742,6 @@ public sealed class PdfIncrementalAnnotationEditor
         foreach (char character in value) output.WriteByte(checked((byte)character));
     }
 
-    private sealed record PageEntry(int Index, PdfIndirectReference Reference, PdfDictionary Dictionary);
     private abstract record PendingAnnotation(int PageIndex);
     private sealed record PendingTextNote(
         int PageIndex, double X, double Y, double Size, string Contents, PdfRgbColor Color, bool Open)
