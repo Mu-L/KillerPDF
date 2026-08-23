@@ -4,5 +4,6 @@ namespace KillerPdf.Engine.Authoring;
 public enum PdfSignatureSeedParserVersion
 {
     Pdf15 = 1,
-    Pdf17 = 2
+    Pdf17 = 2,
+    Pdf20 = 3
 }

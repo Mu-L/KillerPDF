@@ -393,6 +393,17 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
             .SetOutputIntent(profile, "sRGB IEC61966-2.1")
             .EnablePdfA4Conformance()
             .AddBlankPage()
+            .AddSignatureField(0, "ReleaseApproval", 72, 680, 220, 44,
+                fieldLock: new PdfSignatureFieldLock(
+                    PdfSignatureLockAction.All,
+                    Permission: PdfSignatureLockPermission.NoChanges),
+                seedValue: new PdfSignatureSeedValue
+                {
+                    SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
+                    RequireSubFilter = true,
+                    DigestMethods = [PdfSignatureDigestMethod.Sha256],
+                    RequireDigestMethod = true
+                })
             .Build();
         byte[] pdf = PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(source), content =>
@@ -408,7 +419,9 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
                 FieldName = "ReleaseApproval",
                 SignerName = "KillerPDF Signature Smoke",
                 Reason = "Engine validation",
-                SigningTime = DateTimeOffset.UtcNow
+                SigningTime = DateTimeOffset.UtcNow,
+                CertificationPermission =
+                    PdfSignatureCertificationPermission.FormFillingAndSignatures
             });
         RunOpenSsl("cms", "-verify", "-binary", "-inform", "DER",
             "-in", signaturePath, "-content", contentPath,
@@ -712,12 +725,13 @@ if (args.Length == 2 && args[0] == "--form-smoke")
         .AddSignatureField(0, "customer.signature", 300, 470, 180, 52,
             new PdfFormFieldMetadata { Tooltip = "Customer signature" },
             fieldLock: new PdfSignatureFieldLock(
-                PdfSignatureLockAction.Include, ["customer.name", "customer.approved"]),
+                PdfSignatureLockAction.Include, ["customer.name", "customer.approved"],
+                PdfSignatureLockPermission.FormFillingAndSignatures),
             seedValue: new PdfSignatureSeedValue
             {
                 Handler = PdfSignatureHandler.AdobePpkLite,
                 RequireHandler = true,
-                ParserVersion = PdfSignatureSeedParserVersion.Pdf17,
+                ParserVersion = PdfSignatureSeedParserVersion.Pdf20,
                 RequireParserVersion = true,
                 SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
                 RequireSubFilter = true,
@@ -726,6 +740,26 @@ if (args.Length == 2 && args[0] == "--form-smoke")
                 AddRevocationInformation = true,
                 RequireRevocationInformation = true,
                 Reasons = ["Approved", "Reviewed"],
+                LegalAttestations = ["I have reviewed the document"],
+                RequireLegalAttestation = true,
+                Timestamp = new PdfSignatureTimestamp(
+                    "https://timestamp.example.test/rfc3161", Required: true),
+                DocumentLockIntent = PdfSignatureDocumentLockIntent.Lock,
+                RequireDocumentLockIntent = true,
+                AppearanceName = "KillerPDF Approval",
+                RequireAppearance = true,
+                Certificate = new PdfSignatureCertificateSeed
+                {
+                    KeyUsages = [new PdfCertificateKeyUsage { DigitalSignature = true }],
+                    RequireKeyUsage = true,
+                    SubjectDistinguishedNames =
+                    [
+                        new PdfCertificateDistinguishedName(
+                            new Dictionary<string, string> { ["o"] = "Killer Tools" })
+                    ],
+                    EnrollmentUrl = "https://signing.example.test/enroll",
+                    EnrollmentUrlType = PdfCertificateEnrollmentUrlType.SignatureService
+                },
                 CertificationPermission = PdfSignatureCertificationPermission.ApprovalSignature
             }, appearanceText: "Sign here", appearanceStyle: new PdfFormFieldAppearanceStyle
             {
@@ -875,12 +909,13 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .AddSignatureField(0, "customer.signature", 72, 470, 180, 52,
             new PdfFormFieldMetadata { Tooltip = "Customer signature", MappingName = "customer_signature" },
             fieldLock: new PdfSignatureFieldLock(
-                PdfSignatureLockAction.Exclude, ["customer.theme"]),
+                PdfSignatureLockAction.Exclude, ["customer.theme"],
+                PdfSignatureLockPermission.NoChanges),
             seedValue: new PdfSignatureSeedValue
             {
                 Handler = PdfSignatureHandler.AdobePpkLite,
                 RequireHandler = true,
-                ParserVersion = PdfSignatureSeedParserVersion.Pdf17,
+                ParserVersion = PdfSignatureSeedParserVersion.Pdf20,
                 RequireParserVersion = true,
                 SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
                 RequireSubFilter = true,
@@ -890,6 +925,26 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
                 RequireRevocationInformation = true,
                 Reasons = ["Approved for archival"],
                 RequireReason = true,
+                LegalAttestations = ["I have reviewed the archival copy"],
+                RequireLegalAttestation = true,
+                Timestamp = new PdfSignatureTimestamp(
+                    "https://timestamp.example.test/rfc3161", Required: true),
+                DocumentLockIntent = PdfSignatureDocumentLockIntent.Lock,
+                RequireDocumentLockIntent = true,
+                AppearanceName = "KillerPDF Archival Approval",
+                RequireAppearance = true,
+                Certificate = new PdfSignatureCertificateSeed
+                {
+                    KeyUsages = [new PdfCertificateKeyUsage { DigitalSignature = true }],
+                    RequireKeyUsage = true,
+                    SubjectDistinguishedNames =
+                    [
+                        new PdfCertificateDistinguishedName(
+                            new Dictionary<string, string> { ["o"] = "Killer Tools" })
+                    ],
+                    EnrollmentUrl = "https://signing.example.test/enroll",
+                    EnrollmentUrlType = PdfCertificateEnrollmentUrlType.SignatureService
+                },
                 CertificationPermission =
                     PdfSignatureCertificationPermission.FormFillingAndSignatures
             }, appearanceText: "Sign for archival", embeddedFont: font,

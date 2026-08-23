@@ -15,5 +15,13 @@ public sealed record PdfSignatureSeedValue
     public bool RequireRevocationInformation { get; init; }
     public IReadOnlyList<string>? Reasons { get; init; }
     public bool RequireReason { get; init; }
+    public IReadOnlyList<string>? LegalAttestations { get; init; }
+    public bool RequireLegalAttestation { get; init; }
     public PdfSignatureCertificationPermission? CertificationPermission { get; init; }
+    public PdfSignatureTimestamp? Timestamp { get; init; }
+    public PdfSignatureCertificateSeed? Certificate { get; init; }
+    public PdfSignatureDocumentLockIntent? DocumentLockIntent { get; init; }
+    public bool RequireDocumentLockIntent { get; init; }
+    public string? AppearanceName { get; init; }
+    public bool RequireAppearance { get; init; }
 }

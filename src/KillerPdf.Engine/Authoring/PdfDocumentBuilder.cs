@@ -5,6 +5,7 @@ using KillerPdf.Engine.Writing;
 using KillerPdf.Engine.Fonts;
 using System.Text;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Xml;
 
 namespace KillerPdf.Engine.Authoring;
@@ -1504,7 +1505,9 @@ public sealed partial class PdfDocumentBuilder
                 field.AppearanceOptions.DownLabel is null
                     && field.AppearanceOptions.DownIcon is null ? null : nextObjectNumber++)).ToArray();
         var allocatedSignatureFields = _signatureFields.Select(field =>
-            new AllocatedSignatureField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
+            new AllocatedSignatureField(field, nextObjectNumber++, nextObjectNumber++,
+                field.FieldLock is null ? null : nextObjectNumber++,
+                field.SeedValue is null ? null : nextObjectNumber++)).ToArray();
         var allocatedTextNotes = _textNotes.Select(note =>
             new AllocatedTextNote(note, nextObjectNumber++, nextObjectNumber++,
                 note.Popup is null ? null : nextObjectNumber++)).ToArray();
@@ -3481,12 +3484,17 @@ public sealed partial class PdfDocumentBuilder
         if (fieldLock.Fields is not null)
             entries.Add(("Fields", new PdfArray(
                 fieldLock.Fields.Select(field => (PdfObject)UnicodeString(field)))));
+        if (fieldLock.Permission.HasValue)
+            entries.Add(("P", new PdfInteger((int)fieldLock.Permission.Value)));
         return Dictionary(entries.ToArray());
     }
 
     private static PdfDictionary SignatureSeedValueDictionary(PdfSignatureSeedValue seedValue)
     {
-        var entries = new List<(string Name, PdfObject Value)>();
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("SV"))
+        };
         int flags = 0;
         if (seedValue.Handler.HasValue)
         {
@@ -3521,9 +3529,78 @@ public sealed partial class PdfDocumentBuilder
                 (PdfObject)UnicodeString(reason)))));
             if (seedValue.RequireReason) flags |= 1 << 3;
         }
+        if (seedValue.LegalAttestations is not null)
+        {
+            entries.Add(("LegalAttestation", new PdfArray(seedValue.LegalAttestations.Select(
+                attestation => (PdfObject)UnicodeString(attestation)))));
+            if (seedValue.RequireLegalAttestation) flags |= 1 << 4;
+        }
         if (seedValue.CertificationPermission.HasValue)
             entries.Add(("MDP", Dictionary(("P", new PdfInteger(
                 (int)seedValue.CertificationPermission.Value)))));
+        if (seedValue.Timestamp is not null)
+            entries.Add(("TimeStamp", Dictionary(
+                ("URL", Latin1String(seedValue.Timestamp.ServerUrl)),
+                ("Ff", new PdfInteger(seedValue.Timestamp.Required ? 1 : 0)))));
+        if (seedValue.Certificate is not null)
+        {
+            var certificateEntries = new List<(string Name, PdfObject Value)>
+            {
+                ("Type", Name("SVCert"))
+            };
+            if (seedValue.Certificate.SubjectCertificates is not null)
+                certificateEntries.Add(("Subject", new PdfArray(
+                    seedValue.Certificate.SubjectCertificates.Select(certificate =>
+                        (PdfObject)new PdfString(certificate, PdfStringForm.Hexadecimal)))));
+            if (seedValue.Certificate.IssuerCertificates is not null)
+                certificateEntries.Add(("Issuer", new PdfArray(
+                    seedValue.Certificate.IssuerCertificates.Select(certificate =>
+                        (PdfObject)new PdfString(certificate, PdfStringForm.Hexadecimal)))));
+            if (seedValue.Certificate.CertificatePolicyObjectIdentifiers is not null)
+                certificateEntries.Add(("OID", new PdfArray(
+                    seedValue.Certificate.CertificatePolicyObjectIdentifiers.Select(oid =>
+                        (PdfObject)Latin1String(oid)))));
+            if (seedValue.Certificate.SubjectDistinguishedNames is not null)
+                certificateEntries.Add(("SubjectDN", new PdfArray(
+                    seedValue.Certificate.SubjectDistinguishedNames.Select(distinguishedName =>
+                        (PdfObject)Dictionary(distinguishedName.Attributes.Select(attribute =>
+                            (attribute.Key, (PdfObject)UnicodeString(attribute.Value))).ToArray())))));
+            if (seedValue.Certificate.KeyUsages is not null)
+                certificateEntries.Add(("KeyUsage", new PdfArray(
+                    seedValue.Certificate.KeyUsages.Select(usage =>
+                        (PdfObject)Latin1String(CertificateKeyUsagePattern(usage))))));
+            if (seedValue.Certificate.EnrollmentUrl is not null)
+                certificateEntries.Add(("URL", Latin1String(seedValue.Certificate.EnrollmentUrl)));
+            if (seedValue.Certificate.EnrollmentUrlType.HasValue)
+                certificateEntries.Add(("URLType", Name(seedValue.Certificate.EnrollmentUrlType.Value
+                    == PdfCertificateEnrollmentUrlType.Html ? "HTML" : "ASSP")));
+            int certificateFlags = 0;
+            if (seedValue.Certificate.RequireSubject) certificateFlags |= 1;
+            if (seedValue.Certificate.RequireIssuer) certificateFlags |= 1 << 1;
+            if (seedValue.Certificate.RequireCertificatePolicy) certificateFlags |= 1 << 2;
+            if (seedValue.Certificate.RequireSubjectDistinguishedName) certificateFlags |= 1 << 3;
+            if (seedValue.Certificate.RequireKeyUsage) certificateFlags |= 1 << 5;
+            if (seedValue.Certificate.RequireEnrollmentUrl) certificateFlags |= 1 << 6;
+            if (certificateFlags != 0)
+                certificateEntries.Add(("Ff", new PdfInteger(certificateFlags)));
+            entries.Add(("Cert", Dictionary(certificateEntries.ToArray())));
+        }
+        if (seedValue.DocumentLockIntent.HasValue)
+        {
+            entries.Add(("LockDocument", Name(seedValue.DocumentLockIntent.Value switch
+            {
+                PdfSignatureDocumentLockIntent.Automatic => "auto",
+                PdfSignatureDocumentLockIntent.Lock => "true",
+                PdfSignatureDocumentLockIntent.DoNotLock => "false",
+                _ => throw new ArgumentOutOfRangeException(nameof(seedValue))
+            })));
+            if (seedValue.RequireDocumentLockIntent) flags |= 1 << 7;
+        }
+        if (seedValue.AppearanceName is not null)
+        {
+            entries.Add(("AppearanceFilter", UnicodeString(seedValue.AppearanceName)));
+            if (seedValue.RequireAppearance) flags |= 1 << 8;
+        }
         if (flags != 0)
             entries.Add(("Ff", new PdfInteger(flags)));
         return Dictionary(entries.ToArray());
@@ -3548,6 +3625,24 @@ public sealed partial class PdfDocumentBuilder
         PdfSignatureDigestMethod.Sha384 => "SHA384",
         PdfSignatureDigestMethod.Sha512 => "SHA512",
         _ => throw new ArgumentOutOfRangeException(nameof(method))
+    };
+
+    private static string CertificateKeyUsagePattern(PdfCertificateKeyUsage usage) => string.Concat(
+        KeyUsageCharacter(usage.DigitalSignature),
+        KeyUsageCharacter(usage.NonRepudiation),
+        KeyUsageCharacter(usage.KeyEncipherment),
+        KeyUsageCharacter(usage.DataEncipherment),
+        KeyUsageCharacter(usage.KeyAgreement),
+        KeyUsageCharacter(usage.KeyCertificateSigning),
+        KeyUsageCharacter(usage.CertificateRevocationListSigning),
+        KeyUsageCharacter(usage.EncipherOnly),
+        KeyUsageCharacter(usage.DecipherOnly));
+
+    private static char KeyUsageCharacter(bool? value) => value switch
+    {
+        true => '1',
+        false => '0',
+        null => 'X'
     };
 
     private static void AddSignatureFieldObject(
@@ -3576,9 +3671,19 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Ff", new PdfInteger(flags)));
         AddFieldMetadata(entries, field.Metadata);
         if (field.FieldLock is not null)
-            entries.Add(("Lock", SignatureFieldLockDictionary(field.FieldLock)));
+        {
+            entries.Add(("Lock", new PdfIndirectReference(
+                allocatedField.FieldLockNumber!.Value, 0)));
+            objects.Add(new PdfIndirectObject(allocatedField.FieldLockNumber.Value, 0,
+                SignatureFieldLockDictionary(field.FieldLock), 0));
+        }
         if (field.SeedValue is not null)
-            entries.Add(("SV", SignatureSeedValueDictionary(field.SeedValue)));
+        {
+            entries.Add(("SV", new PdfIndirectReference(
+                allocatedField.SeedValueNumber!.Value, 0)));
+            objects.Add(new PdfIndirectObject(allocatedField.SeedValueNumber.Value, 0,
+                SignatureSeedValueDictionary(field.SeedValue), 0));
+        }
         entries.Add(("MK", FormFieldAppearanceCharacteristics(field.AppearanceStyle)));
         entries.Add(("BS", FormFieldBorderDictionary(field.AppearanceStyle)));
         objects.Add(new PdfIndirectObject(
@@ -4343,6 +4448,8 @@ public sealed partial class PdfDocumentBuilder
             return null;
         if (!Enum.IsDefined(fieldLock.Action))
             throw new ArgumentOutOfRangeException(nameof(fieldLock));
+        if (fieldLock.Permission.HasValue && !Enum.IsDefined(fieldLock.Permission.Value))
+            throw new ArgumentOutOfRangeException(nameof(fieldLock));
         string[]? fields = fieldLock.Fields?.ToArray();
         if (fieldLock.Action == PdfSignatureLockAction.All && fields is not null)
             throw new ArgumentException("An all-fields signature lock cannot list fields.", nameof(fieldLock));
@@ -4369,6 +4476,21 @@ public sealed partial class PdfDocumentBuilder
         PdfSignatureSubFilter[]? subFilters = seedValue.SubFilters?.ToArray();
         PdfSignatureDigestMethod[]? methods = seedValue.DigestMethods?.ToArray();
         string[]? reasons = seedValue.Reasons?.ToArray();
+        string[]? legalAttestations = seedValue.LegalAttestations?.ToArray();
+        PdfCertificateKeyUsage[]? keyUsages = seedValue.Certificate?.KeyUsages?.ToArray();
+        byte[][]? subjectCertificates = seedValue.Certificate?.SubjectCertificates?
+            .Select(certificate => certificate?.ToArray() ?? []).ToArray();
+        byte[][]? issuerCertificates = seedValue.Certificate?.IssuerCertificates?
+            .Select(certificate => certificate?.ToArray() ?? []).ToArray();
+        string[]? policyOids = seedValue.Certificate?.CertificatePolicyObjectIdentifiers?.ToArray();
+        PdfCertificateDistinguishedName[]? subjectDistinguishedNames =
+            seedValue.Certificate?.SubjectDistinguishedNames?.Select(distinguishedName =>
+                distinguishedName is null
+                    ? new PdfCertificateDistinguishedName(
+                        new Dictionary<string, string>(StringComparer.Ordinal))
+                    : new PdfCertificateDistinguishedName(
+                        new Dictionary<string, string>(distinguishedName.Attributes,
+                            StringComparer.Ordinal))).ToArray();
         if (subFilters is { Length: 0 }
             || subFilters?.Any(subFilter => !Enum.IsDefined(subFilter)) == true
             || subFilters?.Distinct().Count() != subFilters?.Length)
@@ -4384,6 +4506,12 @@ public sealed partial class PdfDocumentBuilder
             || reasons?.Distinct(StringComparer.Ordinal).Count() != reasons?.Length)
             throw new ArgumentException(
                 "Signature reasons must be non-empty and unique.", nameof(seedValue));
+        if (legalAttestations is { Length: 0 }
+            || legalAttestations?.Any(string.IsNullOrWhiteSpace) == true
+            || legalAttestations?.Distinct(StringComparer.Ordinal).Count()
+                != legalAttestations?.Length)
+            throw new ArgumentException(
+                "Signature legal attestations must be non-empty and unique.", nameof(seedValue));
         if (seedValue.RequireDigestMethod && methods is null)
             throw new ArgumentException(
                 "A required signature digest method needs an allowed-method list.", nameof(seedValue));
@@ -4402,11 +4530,121 @@ public sealed partial class PdfDocumentBuilder
         if (seedValue.RequireReason && reasons is null)
             throw new ArgumentException(
                 "A required signature reason needs an allowed-reason list.", nameof(seedValue));
+        if (seedValue.RequireLegalAttestation && legalAttestations is null)
+            throw new ArgumentException(
+                "A required legal attestation needs an allowed-attestation list.", nameof(seedValue));
+        if (seedValue.Timestamp is not null
+            && (!Uri.TryCreate(seedValue.Timestamp.ServerUrl, UriKind.Absolute, out Uri? timestampUri)
+                || timestampUri.Scheme is not ("http" or "https")
+                || !seedValue.Timestamp.ServerUrl.All(character => character <= 0x7f)))
+            throw new ArgumentException(
+                "A signature timestamp server must be an absolute ASCII HTTP or HTTPS URL.",
+                nameof(seedValue));
+        if (seedValue.Certificate is not null)
+        {
+            ValidateCertificateSeedCertificates(subjectCertificates, "subject", nameof(seedValue));
+            ValidateCertificateSeedCertificates(issuerCertificates, "issuer", nameof(seedValue));
+            if (policyOids is { Length: 0 }
+                || policyOids?.Any(oid => !IsValidObjectIdentifier(oid)) == true
+                || policyOids?.Distinct(StringComparer.Ordinal).Count() != policyOids?.Length)
+                throw new ArgumentException(
+                    "Certificate policy object identifiers must be valid and unique.",
+                    nameof(seedValue));
+            if (policyOids is not null && issuerCertificates is null)
+                throw new ArgumentException(
+                    "Certificate policy constraints require acceptable issuer certificates.",
+                    nameof(seedValue));
+            if (seedValue.Certificate.RequireIssuer && issuerCertificates is null)
+                throw new ArgumentException(
+                    "A required certificate issuer needs an acceptable-certificate list.",
+                    nameof(seedValue));
+            if (seedValue.Certificate.RequireSubject && subjectCertificates is null)
+                throw new ArgumentException(
+                    "A required certificate subject needs an acceptable-certificate list.",
+                    nameof(seedValue));
+            if (seedValue.Certificate.RequireCertificatePolicy && policyOids is null)
+                throw new ArgumentException(
+                    "A required certificate policy needs an object-identifier list.",
+                    nameof(seedValue));
+            if (subjectDistinguishedNames is { Length: 0 }
+                || subjectDistinguishedNames?.Any(distinguishedName =>
+                    distinguishedName.Attributes.Count == 0
+                    || distinguishedName.Attributes.Any(attribute =>
+                        attribute.Key.Length == 0
+                        || attribute.Key.Any(character => !char.IsAsciiLetterOrDigit(character)
+                            && character != '.')
+                        || string.IsNullOrWhiteSpace(attribute.Value))) == true)
+                throw new ArgumentException(
+                    "Certificate subject distinguished names require valid attributes and values.",
+                    nameof(seedValue));
+            if (seedValue.Certificate.RequireSubjectDistinguishedName
+                && subjectDistinguishedNames is null)
+                throw new ArgumentException(
+                    "A required subject distinguished name needs an allowed-name list.",
+                    nameof(seedValue));
+            if (keyUsages is { Length: 0 })
+                throw new ArgumentException(
+                    "Certificate key-usage constraints cannot be empty.", nameof(seedValue));
+            if (seedValue.Certificate.RequireKeyUsage && keyUsages is null)
+                throw new ArgumentException(
+                    "A required certificate key usage needs an allowed-usage list.",
+                    nameof(seedValue));
+            if (keyUsages?.Any(usage => CertificateKeyUsagePattern(usage) == "XXXXXXXXX") == true)
+                throw new ArgumentException(
+                    "Each certificate key-usage constraint must restrict at least one usage.",
+                    nameof(seedValue));
+            if (keyUsages?.Select(CertificateKeyUsagePattern).Distinct(StringComparer.Ordinal).Count()
+                != keyUsages?.Length)
+                throw new ArgumentException(
+                    "Certificate key-usage constraints must be unique.", nameof(seedValue));
+            if (seedValue.Certificate.EnrollmentUrl is not null
+                && (!Uri.TryCreate(seedValue.Certificate.EnrollmentUrl, UriKind.Absolute,
+                        out Uri? enrollmentUri)
+                    || enrollmentUri.Scheme is not ("http" or "https")
+                    || !seedValue.Certificate.EnrollmentUrl.All(character => character <= 0x7f)))
+                throw new ArgumentException(
+                    "A certificate enrollment URL must be an absolute ASCII HTTP or HTTPS URL.",
+                    nameof(seedValue));
+            if (seedValue.Certificate.EnrollmentUrlType.HasValue
+                && !Enum.IsDefined(seedValue.Certificate.EnrollmentUrlType.Value))
+                throw new ArgumentOutOfRangeException(nameof(seedValue));
+            if (seedValue.Certificate.EnrollmentUrlType.HasValue
+                && seedValue.Certificate.EnrollmentUrl is null)
+                throw new ArgumentException(
+                    "A certificate enrollment URL type requires an enrollment URL.",
+                    nameof(seedValue));
+            if (seedValue.Certificate.RequireEnrollmentUrl
+                && seedValue.Certificate.EnrollmentUrl is null)
+                throw new ArgumentException(
+                    "A required certificate enrollment URL needs a URL value.", nameof(seedValue));
+            if (subjectCertificates is null && issuerCertificates is null && policyOids is null
+                && subjectDistinguishedNames is null && keyUsages is null
+                && seedValue.Certificate.EnrollmentUrl is null)
+                throw new ArgumentException(
+                    "A certificate seed value must define at least one constraint.",
+                    nameof(seedValue));
+        }
+        if (seedValue.DocumentLockIntent.HasValue
+            && !Enum.IsDefined(seedValue.DocumentLockIntent.Value))
+            throw new ArgumentOutOfRangeException(nameof(seedValue));
+        if (seedValue.RequireDocumentLockIntent && !seedValue.DocumentLockIntent.HasValue)
+            throw new ArgumentException(
+                "A required document-lock intent needs an intent value.", nameof(seedValue));
+        if (seedValue.AppearanceName is not null
+            && string.IsNullOrWhiteSpace(seedValue.AppearanceName))
+            throw new ArgumentException(
+                "A signature appearance name cannot be empty.", nameof(seedValue));
+        if (seedValue.RequireAppearance && seedValue.AppearanceName is null)
+            throw new ArgumentException(
+                "A required signature appearance needs an appearance name.", nameof(seedValue));
         if (seedValue.CertificationPermission.HasValue
             && !Enum.IsDefined(seedValue.CertificationPermission.Value))
             throw new ArgumentOutOfRangeException(nameof(seedValue));
         if (!seedValue.Handler.HasValue && !seedValue.ParserVersion.HasValue
             && subFilters is null && methods is null && reasons is null
+            && legalAttestations is null && seedValue.Timestamp is null
+            && seedValue.Certificate is null
+            && !seedValue.DocumentLockIntent.HasValue && seedValue.AppearanceName is null
             && !seedValue.AddRevocationInformation
             && !seedValue.CertificationPermission.HasValue)
             throw new ArgumentException(
@@ -4415,8 +4653,64 @@ public sealed partial class PdfDocumentBuilder
         {
             SubFilters = subFilters,
             DigestMethods = methods,
-            Reasons = reasons
+            Reasons = reasons,
+            LegalAttestations = legalAttestations,
+            Certificate = seedValue.Certificate is null ? null : seedValue.Certificate with
+            {
+                SubjectCertificates = subjectCertificates,
+                IssuerCertificates = issuerCertificates,
+                CertificatePolicyObjectIdentifiers = policyOids,
+                SubjectDistinguishedNames = subjectDistinguishedNames,
+                KeyUsages = keyUsages
+            }
         };
+    }
+
+    private static void ValidateCertificateSeedCertificates(
+        byte[][]? certificates, string constraintName, string parameterName)
+    {
+        if (certificates is null) return;
+        if (certificates.Length == 0 || certificates.Any(certificate => certificate.Length == 0))
+            throw new ArgumentException(
+                $"Certificate {constraintName} constraints must contain DER-encoded certificates.",
+                parameterName);
+        if (certificates.Select(Convert.ToHexString).Distinct(StringComparer.Ordinal).Count()
+            != certificates.Length)
+            throw new ArgumentException(
+                $"Certificate {constraintName} constraints must be unique.", parameterName);
+        foreach (byte[] certificateBytes in certificates)
+        {
+            try
+            {
+                using X509Certificate2 certificate =
+                    X509CertificateLoader.LoadCertificate(certificateBytes);
+                if (certificate.Version != 3)
+                    throw new ArgumentException(
+                        $"Certificate {constraintName} constraints require X.509v3 certificates.",
+                        parameterName);
+            }
+            catch (CryptographicException exception)
+            {
+                throw new ArgumentException(
+                    $"Certificate {constraintName} constraints must contain valid DER certificates.",
+                    parameterName, exception);
+            }
+        }
+    }
+
+    private static bool IsValidObjectIdentifier(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        string[] arcs = value.Split('.');
+        if (arcs.Length < 2 || arcs.Any(arc => arc.Length == 0
+            || (arc.Length > 1 && arc[0] == '0')
+            || arc.Any(character => character is < '0' or > '9')))
+            return false;
+        if (!int.TryParse(arcs[0], NumberStyles.None, CultureInfo.InvariantCulture,
+                out int first) || first is < 0 or > 2)
+            return false;
+        return first == 2 || int.TryParse(arcs[1], NumberStyles.None,
+            CultureInfo.InvariantCulture, out int second) && second <= 39;
     }
 
     private static PdfFormFieldMetadata? ValidateFieldMetadata(PdfFormFieldMetadata? metadata)
@@ -5137,7 +5431,8 @@ public sealed partial class PdfDocumentBuilder
         PdfFormFieldAppearanceStyle AppearanceStyle,
         PdfTextFieldAlignment AppearanceAlignment);
     private sealed record AllocatedSignatureField(
-        SignatureFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
+        SignatureFieldDefinition Definition, int FieldNumber, int AppearanceNumber,
+        int? FieldLockNumber, int? SeedValueNumber);
     private sealed record OutputIntentDefinition(
         PdfIccProfile Profile,
         string Identifier,

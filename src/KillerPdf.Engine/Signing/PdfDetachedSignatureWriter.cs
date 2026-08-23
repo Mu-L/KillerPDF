@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
 
@@ -18,6 +19,7 @@ public static class PdfDetachedSignatureWriter
     private static readonly PdfName SignatureFlagsName = Name("SigFlags");
     private static readonly PdfName StructureTreeRootName = Name("StructTreeRoot");
     private static readonly PdfName PermissionsName = Name("Perms");
+    private static readonly PdfName DocMdpName = Name("DocMDP");
     private static readonly PdfName FieldNameName = Name("T");
     private static readonly PdfName KidsName = Name("Kids");
     private const long RangeSentinel1 = 1_111_111_111;
@@ -37,49 +39,118 @@ public static class PdfDetachedSignatureWriter
         ValidateOptions(options);
 
         PdfPageTree tree = PdfPageTree.Read(document);
-        if (options.PageIndex < 0 || options.PageIndex >= tree.Pages.Count)
-            throw new ArgumentOutOfRangeException(nameof(options), "The signature page index is outside the document.");
-        if (tree.Catalog.ContainsKey(StructureTreeRootName))
+        ExistingFormField? existingField = FindField(document, tree, options.FieldName);
+        if (existingField is null && options.FieldName.Contains('.'))
+            throw new ArgumentException(
+                "A new signature field name cannot contain a period.", nameof(options));
+        if (existingField is null
+            && (options.PageIndex < 0 || options.PageIndex >= tree.Pages.Count))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "The signature page index is outside the document.");
+        if (existingField is null && tree.Catalog.ContainsKey(StructureTreeRootName))
             throw new NotSupportedException(
                 "Signing a tagged PDF requires an accessible signature-field structure association, which is not yet supported.");
-        if (tree.Catalog.ContainsKey(PermissionsName))
-            throw new NotSupportedException(
-                "Signing a document with certification permissions requires DocMDP permission analysis, which is not yet supported.");
+        int? certificationPermission = ReadCertificationPermission(document, tree);
+        if (options.CertificationPermission.HasValue && certificationPermission.HasValue)
+            throw new InvalidOperationException(
+                "The document already contains a certification signature.");
+        if (options.CertificationPermission.HasValue
+            && HasSignedSignatureField(document, tree))
+            throw new InvalidOperationException(
+                "A certification signature must be the first signed field in the document.");
+        if (certificationPermission == 1)
+            throw new InvalidOperationException(
+                "The document certification signature prohibits all subsequent changes.");
+        if (certificationPermission.HasValue && existingField is null)
+            throw new InvalidOperationException(
+                "A certified document can only be signed through an existing signature field.");
+
+        PdfDictionary? fieldMdpParameters = existingField is null
+            ? null : ReadFieldMdpParameters(document, existingField);
 
         var update = new PdfIncrementalUpdateBuilder(document);
         PdfIndirectReference signatureReference = update.ReserveObject();
-        PdfIndirectReference fieldReference = update.ReserveObject();
-        PdfPageTreeEntry page = tree.Pages[options.PageIndex];
-
-        update.SetObject(signatureReference, BuildSignatureDictionary(options));
-        update.SetObject(fieldReference, Dictionary(
-            ("Type", Name("Annot")),
-            ("Subtype", Name("Widget")),
-            ("FT", Name("Sig")),
-            ("T", UnicodeString(options.FieldName)),
-            ("V", signatureReference),
-            ("Rect", new PdfArray([
-                new PdfInteger(0), new PdfInteger(0),
-                new PdfInteger(0), new PdfInteger(0)])),
-            ("F", new PdfInteger(4)),
-            ("P", page.Reference)));
-
-        PdfArray annotations = page.Dictionary.TryGetValue(AnnotsName, out PdfObject? annotationsValue)
-            ? ResolveArray(document, annotationsValue, "The signature page /Annots value")
-            : new PdfArray([]);
-        update.ReplaceObject(page.Reference.ObjectNumber,
-            ReplaceMany(page.Dictionary, new Dictionary<PdfName, PdfObject>
+        update.SetObject(signatureReference,
+            BuildSignatureDictionary(options, fieldMdpParameters));
+        PdfDictionary catalogReplacement = tree.Catalog;
+        bool catalogChanged = false;
+        if (existingField is not null)
+        {
+            if (!existingField.FieldType.Equals(Name("Sig")))
+                throw new InvalidOperationException(
+                    $"The AcroForm field '{options.FieldName}' is not a signature field.");
+            if (existingField.Dictionary.TryGetValue(Name("V"), out PdfObject? existingValue))
             {
-                [AnnotsName] = new PdfArray(annotations.Append(fieldReference))
-            }));
+                PdfObject resolvedValue = existingValue is PdfIndirectReference valueReference
+                    ? document.Resolve(valueReference) : existingValue;
+                if (resolvedValue is not PdfNull)
+                    throw new InvalidOperationException(
+                        $"The signature field '{options.FieldName}' is already signed.");
+            }
+            update.ReplaceObject(existingField.Reference.ObjectNumber,
+                ReplaceMany(existingField.Dictionary, new Dictionary<PdfName, PdfObject>
+                {
+                    [Name("V")] = signatureReference
+                }));
+            PdfDictionary? replacement = UpdateSignatureFlags(document, tree, update);
+            if (replacement is not null)
+            {
+                catalogReplacement = replacement;
+                catalogChanged = true;
+            }
+        }
+        else
+        {
+            PdfIndirectReference fieldReference = update.ReserveObject();
+            PdfPageTreeEntry page = tree.Pages[options.PageIndex];
+            update.SetObject(fieldReference, Dictionary(
+                ("Type", Name("Annot")),
+                ("Subtype", Name("Widget")),
+                ("FT", Name("Sig")),
+                ("T", UnicodeString(options.FieldName)),
+                ("V", signatureReference),
+                ("Rect", new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(0), new PdfInteger(0)])),
+                ("F", new PdfInteger(4)),
+                ("P", page.Reference)));
 
-        AddSignatureField(document, tree, update, fieldReference, options.FieldName);
+            PdfArray annotations = page.Dictionary.TryGetValue(
+                    AnnotsName, out PdfObject? annotationsValue)
+                ? ResolveArray(document, annotationsValue, "The signature page /Annots value")
+                : new PdfArray([]);
+            update.ReplaceObject(page.Reference.ObjectNumber,
+                ReplaceMany(page.Dictionary, new Dictionary<PdfName, PdfObject>
+                {
+                    [AnnotsName] = new PdfArray(annotations.Append(fieldReference))
+                }));
+            PdfDictionary? replacement = AddSignatureField(
+                document, tree, update, fieldReference, options.FieldName);
+            if (replacement is not null)
+            {
+                catalogReplacement = replacement;
+                catalogChanged = true;
+            }
+        }
+        if (options.CertificationPermission.HasValue)
+        {
+            PdfDictionary? replacement = AddCertificationPermission(
+                document, tree, update, catalogReplacement, signatureReference);
+            if (replacement is not null)
+            {
+                catalogReplacement = replacement;
+                catalogChanged = true;
+            }
+        }
+        if (catalogChanged)
+            update.ReplaceObject(tree.CatalogReference.ObjectNumber, catalogReplacement);
         byte[] prepared = update.Build();
         FillSignature(prepared, options.ReservedSignatureSize, createDetachedCms);
         return prepared;
     }
 
-    private static PdfDictionary BuildSignatureDictionary(PdfSignatureOptions options)
+    private static PdfDictionary BuildSignatureDictionary(
+        PdfSignatureOptions options, PdfDictionary? fieldMdpParameters)
     {
         var entries = new List<(string Name, PdfObject Value)>
         {
@@ -98,10 +169,26 @@ public static class PdfDetachedSignatureWriter
         AddOptionalText(entries, "ContactInfo", options.ContactInformation);
         if (options.SigningTime.HasValue)
             entries.Add(("M", Latin1String(PdfDate(options.SigningTime.Value))));
+        var references = new List<PdfObject>();
+        if (options.CertificationPermission.HasValue)
+            references.Add(Dictionary(
+                    ("Type", Name("SigRef")),
+                    ("TransformMethod", Name("DocMDP")),
+                    ("TransformParams", Dictionary(
+                        ("Type", Name("TransformParams")),
+                        ("P", new PdfInteger((int)options.CertificationPermission.Value)),
+                        ("V", Name("1.2"))))));
+        if (fieldMdpParameters is not null)
+            references.Add(Dictionary(
+                ("Type", Name("SigRef")),
+                ("TransformMethod", Name("FieldMDP")),
+                ("TransformParams", fieldMdpParameters)));
+        if (references.Count > 0)
+            entries.Add(("Reference", new PdfArray(references)));
         return Dictionary(entries.ToArray());
     }
 
-    private static void AddSignatureField(
+    private static PdfDictionary? AddSignatureField(
         PdfDocument document,
         PdfPageTree tree,
         PdfIncrementalUpdateBuilder update,
@@ -139,13 +226,12 @@ public static class PdfDetachedSignatureWriter
         if (formReference is not null)
         {
             update.ReplaceObject(formReference.ObjectNumber, replacement);
-            return;
+            return null;
         }
-        update.ReplaceObject(tree.CatalogReference.ObjectNumber,
-            ReplaceMany(tree.Catalog, new Dictionary<PdfName, PdfObject>
-            {
-                [AcroFormName] = replacement
-            }));
+        return ReplaceMany(tree.Catalog, new Dictionary<PdfName, PdfObject>
+        {
+            [AcroFormName] = replacement
+        });
     }
 
     private static void EnsureFieldNameAvailable(
@@ -170,6 +256,59 @@ public static class PdfDetachedSignatureWriter
             }
             PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
             string? fullName = parentName;
+            bool definesName = false;
+            if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
+            {
+                definesName = true;
+                string partialName = nameValue is PdfString name
+                    ? DecodeString(name)
+                    : throw new InvalidOperationException("An AcroForm field /T value is not a string.");
+                fullName = string.IsNullOrEmpty(parentName)
+                    ? partialName : $"{parentName}.{partialName}";
+            }
+            if (definesName && fullName == fieldName)
+                throw new InvalidOperationException($"The AcroForm already contains a field named '{fieldName}'.");
+            if (field.TryGetValue(KidsName, out PdfObject? kidsValue))
+            {
+                PdfArray kids = ResolveArray(document, kidsValue, "An AcroForm field /Kids value");
+                foreach (PdfObject kid in kids) Visit(kid, fullName, depth + 1);
+            }
+            if (reference is not null) active.Remove(reference.ObjectNumber);
+        }
+    }
+
+    private static ExistingFormField? FindField(
+        PdfDocument document, PdfPageTree tree, string fieldName)
+    {
+        if (!tree.Catalog.TryGetValue(AcroFormName, out PdfObject? formValue)) return null;
+        PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
+        if (!form.TryGetValue(FieldsName, out PdfObject? fieldsValue)) return null;
+        PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
+        var active = new HashSet<int>();
+        var visited = new HashSet<int>();
+        ExistingFormField? match = null;
+        foreach (PdfObject value in fields) Visit(value, null, null, 0);
+        return match;
+
+        void Visit(PdfObject value, string? parentName, PdfName? inheritedType, int depth)
+        {
+            if (depth >= PdfObjectWriter.MaximumNestingDepth)
+                throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            PdfIndirectReference? reference = value as PdfIndirectReference;
+            if (reference is not null)
+            {
+                if (!active.Add(reference.ObjectNumber))
+                    throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
+                if (!visited.Add(reference.ObjectNumber))
+                    throw new InvalidOperationException(
+                        "The AcroForm field tree references the same field more than once.");
+            }
+            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            PdfName? fieldType = inheritedType;
+            if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
+                fieldType = typeValue as PdfName
+                    ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
+            string? fullName = parentName;
             if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
             {
                 string partialName = nameValue is PdfString name
@@ -179,14 +318,231 @@ public static class PdfDetachedSignatureWriter
                     ? partialName : $"{parentName}.{partialName}";
             }
             if (fullName == fieldName)
-                throw new InvalidOperationException($"The AcroForm already contains a field named '{fieldName}'.");
+            {
+                if (match is not null)
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{fieldName}'.");
+                if (reference is null)
+                    throw new NotSupportedException(
+                        "Signing a direct AcroForm field requires rewriting its containing field tree.");
+                match = new ExistingFormField(reference, field, fieldType
+                    ?? throw new InvalidOperationException(
+                        $"The AcroForm field '{fieldName}' has no field type."));
+            }
             if (field.TryGetValue(KidsName, out PdfObject? kidsValue))
             {
                 PdfArray kids = ResolveArray(document, kidsValue, "An AcroForm field /Kids value");
-                foreach (PdfObject kid in kids) Visit(kid, fullName, depth + 1);
+                foreach (PdfObject kid in kids) Visit(kid, fullName, fieldType, depth + 1);
             }
             if (reference is not null) active.Remove(reference.ObjectNumber);
         }
+    }
+
+    private static PdfDictionary? ReadFieldMdpParameters(
+        PdfDocument document, ExistingFormField field)
+    {
+        if (!field.Dictionary.TryGetValue(Name("Lock"), out PdfObject? lockValue))
+            return null;
+        if (lockValue is not PdfIndirectReference)
+            throw new InvalidOperationException(
+                "A signature field /Lock value is not an indirect reference.");
+        PdfDictionary fieldLock = ResolveDictionary(
+            document, lockValue, "The signature field /Lock value");
+        if (!fieldLock.TryGetValue(Name("Action"), out PdfObject? actionValue)
+            || actionValue is not PdfName action
+            || action.ValueAsLatin1() is not ("All" or "Include" or "Exclude"))
+            throw new InvalidOperationException(
+                "A signature field lock has no valid /Action value.");
+        string actionName = action.ValueAsLatin1();
+        PdfArray? fields = null;
+        if (fieldLock.TryGetValue(Name("Fields"), out PdfObject? fieldsValue))
+        {
+            fields = ResolveArray(document, fieldsValue, "The signature field lock /Fields value");
+            if (fields.Count == 0 || fields.Any(value => value is not PdfString))
+                throw new InvalidOperationException(
+                    "A signature field lock /Fields array must contain field-name strings.");
+        }
+        if (actionName == "All" && fields is not null)
+            throw new InvalidOperationException(
+                "An all-fields signature lock cannot contain a /Fields array.");
+        if (actionName != "All" && fields is null)
+            throw new InvalidOperationException(
+                "An include or exclude signature lock requires a /Fields array.");
+
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("TransformParams")),
+            ("Action", action),
+            ("V", Name("1.2"))
+        };
+        if (fields is not null) entries.Add(("Fields", fields));
+        if (fieldLock.TryGetValue(Name("P"), out PdfObject? permissionValue))
+        {
+            if (permissionValue is not PdfInteger permission || permission.Value is < 1 or > 3)
+                throw new InvalidOperationException(
+                    "A signature field lock /P value is not an integer from 1 through 3.");
+            entries.Add(("P", permission));
+        }
+        return Dictionary(entries.ToArray());
+    }
+
+    private static int? ReadCertificationPermission(
+        PdfDocument document, PdfPageTree tree)
+    {
+        if (!tree.Catalog.TryGetValue(PermissionsName, out PdfObject? permissionsValue))
+            return null;
+        PdfDictionary permissions = ResolveDictionary(
+            document, permissionsValue, "The catalog /Perms value");
+        if (!permissions.TryGetValue(DocMdpName, out PdfObject? signatureValue))
+            return null;
+        if (signatureValue is not PdfIndirectReference)
+            throw new InvalidOperationException(
+                "The certification /Perms /DocMDP value is not an indirect reference.");
+        PdfDictionary signature = ResolveDictionary(
+            document, signatureValue, "The certification signature");
+        if (!signature.TryGetValue(Name("Reference"), out PdfObject? referencesValue))
+            throw new InvalidOperationException(
+                "The certification signature has no /Reference array.");
+        PdfArray references = ResolveArray(
+            document, referencesValue, "The certification signature /Reference value");
+        PdfDictionary? transformParameters = null;
+        foreach (PdfObject referenceValue in references)
+        {
+            PdfDictionary reference = ResolveDictionary(
+                document, referenceValue, "A certification signature reference");
+            if (!reference.TryGetValue(Name("TransformMethod"), out PdfObject? methodValue))
+                continue;
+            if (methodValue is not PdfName method)
+                throw new InvalidOperationException(
+                    "A certification signature /TransformMethod value is not a name.");
+            if (!method.Equals(DocMdpName)) continue;
+            if (transformParameters is not null)
+                throw new InvalidOperationException(
+                    "The certification signature has more than one DocMDP transform.");
+            if (!reference.TryGetValue(Name("TransformParams"), out PdfObject? parametersValue))
+                throw new InvalidOperationException(
+                    "The certification signature DocMDP transform has no parameters.");
+            transformParameters = ResolveDictionary(
+                document, parametersValue, "The DocMDP transform parameters");
+        }
+        if (transformParameters is null)
+            throw new InvalidOperationException(
+                "The certification signature has no DocMDP transform.");
+        if (!transformParameters.TryGetValue(Name("P"), out PdfObject? permissionValue))
+            return 2;
+        if (permissionValue is not PdfInteger permission || permission.Value is < 1 or > 3)
+            throw new InvalidOperationException(
+                "The DocMDP transform permission is not an integer from 1 through 3.");
+        return (int)permission.Value;
+    }
+
+    private static bool HasSignedSignatureField(PdfDocument document, PdfPageTree tree)
+    {
+        if (!tree.Catalog.TryGetValue(AcroFormName, out PdfObject? formValue)) return false;
+        PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
+        if (!form.TryGetValue(FieldsName, out PdfObject? fieldsValue)) return false;
+        PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
+        var active = new HashSet<int>();
+        var visited = new HashSet<int>();
+        foreach (PdfObject field in fields)
+            if (Visit(field, null, 0)) return true;
+        return false;
+
+        bool Visit(PdfObject value, PdfName? inheritedType, int depth)
+        {
+            if (depth >= PdfObjectWriter.MaximumNestingDepth)
+                throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            PdfIndirectReference? reference = value as PdfIndirectReference;
+            if (reference is not null)
+            {
+                if (!active.Add(reference.ObjectNumber))
+                    throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
+                if (!visited.Add(reference.ObjectNumber))
+                    throw new InvalidOperationException(
+                        "The AcroForm field tree references the same field more than once.");
+            }
+            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            PdfName? fieldType = inheritedType;
+            if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
+                fieldType = typeValue as PdfName
+                    ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
+            if (fieldType?.Equals(Name("Sig")) == true
+                && field.TryGetValue(Name("V"), out PdfObject? signatureValue))
+            {
+                PdfObject resolved = signatureValue is PdfIndirectReference signatureReference
+                    ? document.Resolve(signatureReference) : signatureValue;
+                if (resolved is not PdfNull) return true;
+            }
+            if (field.TryGetValue(KidsName, out PdfObject? kidsValue))
+            {
+                PdfArray kids = ResolveArray(document, kidsValue, "An AcroForm field /Kids value");
+                foreach (PdfObject kid in kids)
+                    if (Visit(kid, fieldType, depth + 1)) return true;
+            }
+            if (reference is not null) active.Remove(reference.ObjectNumber);
+            return false;
+        }
+    }
+
+    private static PdfDictionary? AddCertificationPermission(
+        PdfDocument document,
+        PdfPageTree tree,
+        PdfIncrementalUpdateBuilder update,
+        PdfDictionary catalog,
+        PdfIndirectReference signatureReference)
+    {
+        if (!tree.Catalog.TryGetValue(PermissionsName, out PdfObject? permissionsValue))
+            return ReplaceMany(catalog, new Dictionary<PdfName, PdfObject>
+            {
+                [PermissionsName] = Dictionary(("DocMDP", signatureReference))
+            });
+
+        PdfIndirectReference? permissionsReference = permissionsValue as PdfIndirectReference;
+        PdfDictionary permissions = ResolveDictionary(
+            document, permissionsValue, "The catalog /Perms value");
+        if (permissions.ContainsKey(DocMdpName))
+            throw new InvalidOperationException(
+                "The document already contains a certification signature.");
+        PdfDictionary replacement = ReplaceMany(permissions, new Dictionary<PdfName, PdfObject>
+        {
+            [DocMdpName] = signatureReference
+        });
+        if (permissionsReference is not null)
+        {
+            update.ReplaceObject(permissionsReference.ObjectNumber, replacement);
+            return null;
+        }
+        return ReplaceMany(catalog, new Dictionary<PdfName, PdfObject>
+        {
+            [PermissionsName] = replacement
+        });
+    }
+
+    private static PdfDictionary? UpdateSignatureFlags(
+        PdfDocument document, PdfPageTree tree, PdfIncrementalUpdateBuilder update)
+    {
+        PdfObject formValue = tree.Catalog[AcroFormName];
+        PdfIndirectReference? formReference = formValue as PdfIndirectReference;
+        PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
+        long flags = 0;
+        if (form.TryGetValue(SignatureFlagsName, out PdfObject? flagsValue))
+            flags = flagsValue is PdfInteger integer && integer.Value >= 0
+                ? integer.Value
+                : throw new InvalidOperationException(
+                    "The AcroForm /SigFlags value is not a non-negative integer.");
+        PdfDictionary replacement = ReplaceMany(form, new Dictionary<PdfName, PdfObject>
+        {
+            [SignatureFlagsName] = new PdfInteger(flags | 3)
+        });
+        if (formReference is not null)
+        {
+            update.ReplaceObject(formReference.ObjectNumber, replacement);
+            return null;
+        }
+        return ReplaceMany(tree.Catalog, new Dictionary<PdfName, PdfObject>
+        {
+            [AcroFormName] = replacement
+        });
     }
 
     private static void FillSignature(
@@ -258,12 +614,18 @@ public static class PdfDetachedSignatureWriter
 
     private static void ValidateOptions(PdfSignatureOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.FieldName) || options.FieldName.Contains('.'))
-            throw new ArgumentException(
-                "A signature field name must be non-empty and cannot contain a period.", nameof(options));
+        if (string.IsNullOrWhiteSpace(options.FieldName))
+            throw new ArgumentException("A signature field name must be non-empty.", nameof(options));
         if (options.ReservedSignatureSize is <= 0 or > MaximumReservedSignatureSize)
             throw new ArgumentOutOfRangeException(nameof(options),
                 $"The reserved signature size must be between 1 and {MaximumReservedSignatureSize} bytes.");
+        if (options.CertificationPermission.HasValue
+            && options.CertificationPermission.Value is not
+                (PdfSignatureCertificationPermission.NoChanges
+                or PdfSignatureCertificationPermission.FormFillingAndSignatures
+                or PdfSignatureCertificationPermission.FormFillingSignaturesAndAnnotations))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "A certification permission must be one of the three DocMDP permission levels.");
     }
 
     private static PdfDictionary ResolveDictionary(
@@ -322,4 +684,7 @@ public static class PdfDetachedSignatureWriter
     {
         if (!string.IsNullOrEmpty(value)) entries.Add((name, UnicodeString(value)));
     }
+
+    private sealed record ExistingFormField(
+        PdfIndirectReference Reference, PdfDictionary Dictionary, PdfName FieldType);
 }
