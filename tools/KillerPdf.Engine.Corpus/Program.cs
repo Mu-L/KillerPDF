@@ -498,6 +498,10 @@ if (args.Length == 3 && args[0] == "--gradient-smoke")
     {
         245, 80, 55, 35, 125, 235, 245, 215, 55
     });
+    var calGray = new PdfCalGrayColorSpace(gamma: 2.2);
+    var calRgb = new PdfCalRgbColorSpace(
+        gamma: [2.2, 2.2, 2.2],
+        matrix: [0.4124, 0.3576, 0.1805, 0.2126, 0.7152, 0.0722, 0.0193, 0.1192, 0.9505]);
     var content = new PdfContentStreamBuilder()
         .BeginArtifact()
         .SetStrokeIccColor(profile, 0.2, 0.75, 0.9).SetLineWidth(5)
@@ -506,6 +510,8 @@ if (args.Length == 3 && args[0] == "--gradient-smoke")
         .Rectangle(60, 488, 492, 244).Stroke()
         .SetFillLabColor(lab, 72, 38, 54).Rectangle(276, 500, 60, 20).Fill()
         .SetFillIndexedColor(indexed, 1).Rectangle(346, 500, 60, 20).Fill()
+        .SetFillCalibratedColor(calGray, 0.45).Rectangle(416, 500, 60, 20).Fill()
+        .SetFillCalibratedColor(calRgb, 0.2, 0.65, 0.35).Rectangle(486, 500, 60, 20).Fill()
         .EndMarkedContent()
         .BeginMarkedContent(PdfStructureType.Figure, 0)
         .SaveState().Rectangle(72, 560, 228, 140).Clip().PaintShading(axial).RestoreState()

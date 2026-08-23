@@ -35,6 +35,7 @@ public sealed class PdfFormXObject
         SpotColors = content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         LabColorSpaces = content.LabColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         IndexedColorSpaces = content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        CalibratedColorSpaces = content.CalibratedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         IsolatedTransparencyGroup = isolatedTransparencyGroup;
         KnockoutTransparencyGroup = knockoutTransparencyGroup;
     }
@@ -57,6 +58,7 @@ public sealed class PdfFormXObject
     internal IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColors { get; }
     internal IReadOnlyDictionary<PdfLabColorSpace, PdfName> LabColorSpaces { get; }
     internal IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> IndexedColorSpaces { get; }
+    internal IReadOnlyDictionary<PdfCalibratedColorSpace, PdfName> CalibratedColorSpaces { get; }
 
     private static double Dimension(double value, string name)
     {

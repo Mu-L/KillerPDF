@@ -133,7 +133,8 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfIccProfile, PdfName>(),
             new Dictionary<PdfSpotColor, PdfName>(),
             new Dictionary<PdfLabColorSpace, PdfName>(),
-            new Dictionary<PdfIndexedColorSpace, PdfName>(), [], [], content.Length > 0,
+            new Dictionary<PdfIndexedColorSpace, PdfName>(),
+            new Dictionary<PdfCalibratedColorSpace, PdfName>(), [], [], content.Length > 0,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
     }
@@ -158,7 +159,8 @@ public sealed partial class PdfDocumentBuilder
             content.IccColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.LabColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
-            content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.CalibratedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
@@ -1283,6 +1285,7 @@ public sealed partial class PdfDocumentBuilder
                     form.OptionalContentGroups, form.GraphicsStates,
                     form.Shadings, form.Forms, form.Patterns, form.IccColorSpaces,
                     form.SpotColors, form.LabColorSpaces, form.IndexedColorSpaces,
+                    form.CalibratedColorSpaces,
                     fontNumbers, embeddedFonts, imageNumbers,
                     optionalContentNumbers, graphicsStateNumbers,
                     shadingNumbers, formNumbers, patternNumbers, iccProfileNumbers))
@@ -1317,7 +1320,7 @@ public sealed partial class PdfDocumentBuilder
                         pattern.OptionalContentGroups, pattern.GraphicsStates,
                         pattern.Shadings, pattern.Forms, pattern.Patterns,
                         pattern.IccColorSpaces, pattern.SpotColors, pattern.LabColorSpaces,
-                        pattern.IndexedColorSpaces,
+                        pattern.IndexedColorSpaces, pattern.CalibratedColorSpaces,
                         fontNumbers, embeddedFonts, imageNumbers,
                         optionalContentNumbers, graphicsStateNumbers,
                         shadingNumbers, formNumbers, patternNumbers, iccProfileNumbers))), pattern.Content), 0));
@@ -1331,6 +1334,7 @@ public sealed partial class PdfDocumentBuilder
                 allocatedPage.Definition.Forms, allocatedPage.Definition.Patterns,
                 allocatedPage.Definition.IccColorSpaces, allocatedPage.Definition.SpotColors,
                 allocatedPage.Definition.LabColorSpaces, allocatedPage.Definition.IndexedColorSpaces,
+                allocatedPage.Definition.CalibratedColorSpaces,
                 fontNumbers, embeddedFonts, imageNumbers, optionalContentNumbers,
                 graphicsStateNumbers, shadingNumbers, formNumbers, patternNumbers,
                 iccProfileNumbers);
@@ -2241,6 +2245,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfSpotColor, PdfName> spotColors,
         IReadOnlyDictionary<PdfLabColorSpace, PdfName> labColorSpaces,
         IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> indexedColorSpaces,
+        IReadOnlyDictionary<PdfCalibratedColorSpace, PdfName> calibratedColorSpaces,
         IReadOnlyDictionary<PdfStandardFont, int> fontNumbers,
         IReadOnlyCollection<AllocatedEmbeddedFont> embeddedFonts,
         IReadOnlyDictionary<PdfImage, int> imageNumbers,
@@ -2287,7 +2292,7 @@ public sealed partial class PdfDocumentBuilder
                 new KeyValuePair<PdfName, PdfObject>(entry.Value,
                     new PdfIndirectReference(patternNumbers[entry.Key], 0))))));
         if (iccColorSpaces.Count > 0 || spotColors.Count > 0 || labColorSpaces.Count > 0
-            || indexedColorSpaces.Count > 0)
+            || indexedColorSpaces.Count > 0 || calibratedColorSpaces.Count > 0)
         {
             var colorSpaces = iccColorSpaces.Select(entry =>
                 new KeyValuePair<PdfName, PdfObject>(entry.Value,
@@ -2304,6 +2309,9 @@ public sealed partial class PdfDocumentBuilder
             colorSpaces.AddRange(indexedColorSpaces.Select(entry =>
                 new KeyValuePair<PdfName, PdfObject>(entry.Value,
                     IndexedColorSpace(entry.Key))));
+            colorSpaces.AddRange(calibratedColorSpaces.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    CalibratedColorSpace(entry.Key))));
             entries.Add(("ColorSpace", new PdfDictionary(colorSpaces)));
         }
         return Dictionary(entries.ToArray());
@@ -2368,6 +2376,34 @@ public sealed partial class PdfDocumentBuilder
         }),
         new PdfInteger(colorSpace.EntryCount - 1),
         new PdfString(colorSpace.Palette.Span, PdfStringForm.Hexadecimal) ]);
+
+    private static PdfArray CalibratedColorSpace(PdfCalibratedColorSpace colorSpace)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("WhitePoint", new PdfArray([
+                Number(colorSpace.WhiteX), Number(colorSpace.WhiteY), Number(colorSpace.WhiteZ)])),
+            ("BlackPoint", new PdfArray([
+                Number(colorSpace.BlackX), Number(colorSpace.BlackY), Number(colorSpace.BlackZ)]))
+        };
+        string name;
+        switch (colorSpace)
+        {
+            case PdfCalGrayColorSpace gray:
+                name = "CalGray";
+                entries.Add(("Gamma", Number(gray.Gamma)));
+                break;
+            case PdfCalRgbColorSpace rgb:
+                name = "CalRGB";
+                entries.Add(("Gamma", new PdfArray(rgb.Gamma.Select(Number))));
+                entries.Add(("Matrix", new PdfArray(rgb.Matrix.Select(Number))));
+                break;
+            default:
+                throw new NotSupportedException(
+                    $"Calibrated color space {colorSpace.GetType().FullName} cannot be authored.");
+        }
+        return new PdfArray([Name(name), Dictionary(entries.ToArray())]);
+    }
 
     private static PdfDictionary GradientFunction(IReadOnlyList<PdfGradientStop> stops)
     {
@@ -2551,6 +2587,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColors,
         IReadOnlyDictionary<PdfLabColorSpace, PdfName> LabColorSpaces,
         IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> IndexedColorSpaces,
+        IReadOnlyDictionary<PdfCalibratedColorSpace, PdfName> CalibratedColorSpaces,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
         bool HasUntaggedContent,
