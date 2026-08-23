@@ -607,6 +607,8 @@ if (args.Length == 3 && args[0] == "--tiling-pattern-smoke")
         .SetFillRgb(0.08, 0.12, 0.22).Rectangle(72, 500, 468, 220).Fill()
         .SetFillPattern(pattern, new PdfRgbColor(0.95, 0.3, 0.2))
         .Rectangle(72, 500, 468, 220).Fill()
+        .SetStrokePattern(pattern, profile, 0.2, 0.65, 0.95).SetLineWidth(12)
+        .Rectangle(84, 512, 444, 196).Stroke()
         .EndMarkedContent();
     byte[] pdf = new PdfDocumentBuilder()
         .SetMetadata(new PdfDocumentMetadata

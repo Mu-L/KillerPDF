@@ -140,6 +140,30 @@ public sealed class PdfShadingTests
     }
 
     [Fact]
+    public void Build_WritesShadingBoundsAndAntialiasingPreference()
+    {
+        var gradient = new PdfAxialGradient(0, 0, 100, 0, [
+            new PdfGradientStop(0, 0.1),
+            new PdfGradientStop(1, 0.9)],
+            bounds: new PdfShadingBounds(10, 20, 90, 80),
+            antiAlias: false,
+            background: new PdfGradientBackground(0.25));
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder().PaintShading(gradient))
+            .Build());
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(
+            FirstPage(document)[Name("Resources")]);
+        PdfDictionary shading = ResolveDictionary(document,
+            Assert.IsType<PdfDictionary>(resources[Name("Shading")])[Name("Sh1")]);
+
+        Assert.Equal([10d, 20d, 90d, 80d],
+            Assert.IsType<PdfArray>(shading[Name("BBox")]).Select(Number));
+        Assert.False(Assert.IsType<PdfBoolean>(shading[Name("AntiAlias")]).Value);
+        Assert.Equal([0.25],
+            Assert.IsType<PdfArray>(shading[Name("Background")]).Select(Number));
+    }
+
+    [Fact]
     public void Gradients_RejectInvalidStopsCoordinatesAndCircles()
     {
         PdfGradientStop black = new(0, new PdfRgbColor(0, 0, 0));
@@ -148,10 +172,17 @@ public sealed class PdfShadingTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new PdfGradientStop(double.NaN, new PdfRgbColor(0, 0, 0)));
         Assert.Throws<ArgumentOutOfRangeException>(() => new PdfGradientStop(0, 1.01));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfShadingBounds(0, 0, 0, 10));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfShadingBounds(0, 0, 10, double.PositiveInfinity));
         Assert.Throws<ArgumentException>(() =>
             new PdfAxialGradient(0, 0, 10, 10, [
                 new PdfGradientStop(0, 0.1),
                 new PdfGradientStop(1, new PdfRgbColor(1, 1, 1))]));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfAxialGradient(0, 0, 10, 10, [black, white],
+                background: new PdfGradientBackground(0.5)));
         Assert.Throws<ArgumentException>(() =>
             new PdfAxialGradient(0, 0, 10, 10, [white, black]));
         Assert.Throws<ArgumentException>(() =>

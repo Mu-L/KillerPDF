@@ -6,7 +6,8 @@ public abstract class PdfShading
     private readonly PdfGradientStop[] _stops;
 
     private protected PdfShading(
-        IEnumerable<PdfGradientStop> stops, bool extendStart, bool extendEnd)
+        IEnumerable<PdfGradientStop> stops, bool extendStart, bool extendEnd,
+        PdfShadingBounds? bounds, bool antiAlias, PdfGradientBackground? background)
     {
         ArgumentNullException.ThrowIfNull(stops);
         _stops = stops.ToArray();
@@ -26,12 +27,22 @@ public abstract class PdfShading
         }
         ExtendStart = extendStart;
         ExtendEnd = extendEnd;
+        Bounds = bounds;
+        AntiAlias = antiAlias;
+        if (background is not null && background.ColorSpace != _stops[0].ColorSpace)
+            throw new ArgumentException(
+                "A shading background must use the same color space as its stops.",
+                nameof(background));
+        Background = background;
     }
 
     public IReadOnlyList<PdfGradientStop> Stops => _stops;
     public PdfGradientColorSpace ColorSpace => _stops[0].ColorSpace;
     public bool ExtendStart { get; }
     public bool ExtendEnd { get; }
+    public PdfShadingBounds? Bounds { get; }
+    public bool AntiAlias { get; }
+    public PdfGradientBackground? Background { get; }
 
     protected static double Coordinate(double value, string name)
     {
@@ -46,8 +57,10 @@ public sealed class PdfAxialGradient : PdfShading
     public PdfAxialGradient(
         double startX, double startY, double endX, double endY,
         IEnumerable<PdfGradientStop> stops,
-        bool extendStart = false, bool extendEnd = false)
-        : base(stops, extendStart, extendEnd)
+        bool extendStart = false, bool extendEnd = false,
+        PdfShadingBounds? bounds = null, bool antiAlias = true,
+        PdfGradientBackground? background = null)
+        : base(stops, extendStart, extendEnd, bounds, antiAlias, background)
     {
         StartX = Coordinate(startX, nameof(startX));
         StartY = Coordinate(startY, nameof(startY));
@@ -69,8 +82,10 @@ public sealed class PdfRadialGradient : PdfShading
         double startX, double startY, double startRadius,
         double endX, double endY, double endRadius,
         IEnumerable<PdfGradientStop> stops,
-        bool extendStart = false, bool extendEnd = false)
-        : base(stops, extendStart, extendEnd)
+        bool extendStart = false, bool extendEnd = false,
+        PdfShadingBounds? bounds = null, bool antiAlias = true,
+        PdfGradientBackground? background = null)
+        : base(stops, extendStart, extendEnd, bounds, antiAlias, background)
     {
         StartX = Coordinate(startX, nameof(startX));
         StartY = Coordinate(startY, nameof(startY));
@@ -96,4 +111,27 @@ public sealed class PdfRadialGradient : PdfShading
                 "A radial-gradient radius must be finite and non-negative.");
         return value;
     }
+}
+
+/// <summary>An optional rectangular boundary for evaluating a shading.</summary>
+public readonly record struct PdfShadingBounds
+{
+    public PdfShadingBounds(double minimumX, double minimumY, double maximumX, double maximumY)
+    {
+        if (!double.IsFinite(minimumX)) throw new ArgumentOutOfRangeException(nameof(minimumX));
+        if (!double.IsFinite(minimumY)) throw new ArgumentOutOfRangeException(nameof(minimumY));
+        if (!double.IsFinite(maximumX) || maximumX <= minimumX)
+            throw new ArgumentOutOfRangeException(nameof(maximumX));
+        if (!double.IsFinite(maximumY) || maximumY <= minimumY)
+            throw new ArgumentOutOfRangeException(nameof(maximumY));
+        MinimumX = minimumX;
+        MinimumY = minimumY;
+        MaximumX = maximumX;
+        MaximumY = maximumY;
+    }
+
+    public double MinimumX { get; }
+    public double MinimumY { get; }
+    public double MaximumX { get; }
+    public double MaximumY { get; }
 }

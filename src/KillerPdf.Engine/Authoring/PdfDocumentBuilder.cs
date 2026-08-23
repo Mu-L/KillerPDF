@@ -2330,7 +2330,8 @@ public sealed partial class PdfDocumentBuilder
             _ => throw new NotSupportedException(
                 $"Shading type {shading.GetType().FullName} cannot be authored.")
         };
-        return Dictionary(
+        var entries = new List<(string Name, PdfObject Value)>
+        {
             ("ShadingType", new PdfInteger(shading is PdfAxialGradient ? 2 : 3)),
             ("ColorSpace", Name(shading.ColorSpace switch
             {
@@ -2343,7 +2344,16 @@ public sealed partial class PdfDocumentBuilder
             ("Function", GradientFunction(shading.Stops)),
             ("Extend", new PdfArray([
                 new PdfBoolean(shading.ExtendStart), new PdfBoolean(shading.ExtendEnd)])),
-            ("AntiAlias", new PdfBoolean(true)));
+            ("AntiAlias", new PdfBoolean(shading.AntiAlias))
+        };
+        if (shading.Bounds is PdfShadingBounds bounds)
+            entries.Add(("BBox", new PdfArray([
+                Number(bounds.MinimumX), Number(bounds.MinimumY),
+                Number(bounds.MaximumX), Number(bounds.MaximumY)])));
+        if (shading.Background is not null)
+            entries.Add(("Background", new PdfArray(
+                shading.Background.Components.Select(Number))));
+        return Dictionary(entries.ToArray());
     }
 
     private static PdfArray SpotColorSpace(PdfSpotColor color) => new([

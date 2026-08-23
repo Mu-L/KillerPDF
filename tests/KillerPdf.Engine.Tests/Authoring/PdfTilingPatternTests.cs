@@ -89,6 +89,76 @@ public sealed class PdfTilingPatternTests
     }
 
     [Fact]
+    public void Build_UsesColoredPatternForStroke()
+    {
+        var pattern = new PdfTilingPattern(5, 5, new PdfContentStreamBuilder()
+            .SetFillRgb(0.8, 0.2, 0.1).Rectangle(0, 0, 3, 3).Fill());
+
+        Assert.Equal("/Pattern CS\n/P1 SCN\n0 0 20 20 re\nS\n",
+            Encoding.ASCII.GetString(new PdfContentStreamBuilder()
+                .SetStrokePattern(pattern).Rectangle(0, 0, 20, 20).Stroke().Build()));
+    }
+
+    [Fact]
+    public void Build_UsesDeviceAndCalibratedBaseColorsForPatternStrokes()
+    {
+        var stencil = new PdfTilingPattern(6, 6,
+            new PdfContentStreamBuilder().Rectangle(1, 1, 4, 4).Fill(),
+            paintType: PdfTilingPatternPaintType.Uncolored);
+        var calibrated = new PdfCalRgbColorSpace();
+        var content = new PdfContentStreamBuilder()
+            .SetStrokePattern(stencil, new PdfRgbColor(0.1, 0.3, 0.7))
+            .SetStrokePattern(stencil, new PdfCmykColor(0.1, 0.2, 0.3, 0.4))
+            .SetStrokePattern(stencil, calibrated, 0.2, 0.4, 0.6);
+
+        Assert.Equal(
+            "[/Pattern /DeviceRGB] CS\n0.1 0.3 0.7 /P1 SCN\n" +
+            "[/Pattern /DeviceCMYK] CS\n0.1 0.2 0.3 0.4 /P1 SCN\n" +
+            "[/Pattern /CS1] CS\n0.2 0.4 0.6 /P1 SCN\n",
+            Encoding.ASCII.GetString(content.Build()));
+    }
+
+    [Fact]
+    public void Build_UsesSpotLabAndIndexedPatternBaseColors()
+    {
+        var stencil = new PdfTilingPattern(6, 6,
+            new PdfContentStreamBuilder().Rectangle(1, 1, 4, 4).Fill(),
+            paintType: PdfTilingPatternPaintType.Uncolored);
+        var spot = new PdfSpotColor("Killer Orange", new PdfCmykColor(0, 0.65, 1, 0));
+        var lab = new PdfLabColorSpace();
+        var indexed = new PdfIndexedColorSpace(
+            PdfIndexedBaseColorSpace.Rgb, new byte[] { 255, 0, 0, 0, 0, 255 });
+        var content = new PdfContentStreamBuilder()
+            .SetFillPattern(stencil, spot, 0.75)
+            .SetStrokePattern(stencil, lab, 60, 25, -30)
+            .SetFillPattern(stencil, indexed, 1);
+
+        Assert.Equal(
+            "[/Pattern /CS1] cs\n0.75 /P1 scn\n" +
+            "[/Pattern /CS2] CS\n60 25 -30 /P1 SCN\n" +
+            "[/Pattern /CS3] cs\n1 /P1 scn\n",
+            Encoding.ASCII.GetString(content.Build()));
+    }
+
+    [Fact]
+    public void Build_UsesDeviceGrayPatternBaseColorForFillAndStroke()
+    {
+        var stencil = new PdfTilingPattern(6, 6,
+            new PdfContentStreamBuilder().Rectangle(1, 1, 4, 4).Fill(),
+            paintType: PdfTilingPatternPaintType.Uncolored);
+        var content = new PdfContentStreamBuilder()
+            .SetFillPattern(stencil, 0.2)
+            .SetStrokePattern(stencil, 0.8);
+
+        Assert.Equal(
+            "[/Pattern /DeviceGray] cs\n0.2 /P1 scn\n" +
+            "[/Pattern /DeviceGray] CS\n0.8 /P1 SCN\n",
+            Encoding.ASCII.GetString(content.Build()));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfContentStreamBuilder().SetFillPattern(stencil, -0.1));
+    }
+
+    [Fact]
     public void Pattern_RejectsInvalidGeometryAndTaggedContent()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

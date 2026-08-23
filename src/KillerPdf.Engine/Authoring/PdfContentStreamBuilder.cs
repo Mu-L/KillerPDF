@@ -308,6 +308,14 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Selects an uncoloured stencil pattern and supplies its DeviceGray base colour.</summary>
+    public PdfContentStreamBuilder SetFillPattern(PdfTilingPattern pattern, double gray)
+    {
+        ValidateColorComponent(gray, nameof(gray));
+        ValidateUncoloredPattern(pattern);
+        return SetPattern(pattern, new PdfName("DeviceGray"u8), [gray], stroke: false);
+    }
+
     /// <summary>Selects an uncoloured stencil pattern and supplies its DeviceCMYK base colour.</summary>
     public PdfContentStreamBuilder SetFillPattern(PdfTilingPattern pattern, PdfCmykColor color)
     {
@@ -383,6 +391,159 @@ public sealed class PdfContentStreamBuilder
         _output.Write(PdfObjectWriter.Write(patternResource));
         _output.Write(" scn\n"u8);
         return this;
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern with a Separation spot base colour.</summary>
+    public PdfContentStreamBuilder SetFillPattern(
+        PdfTilingPattern pattern, PdfSpotColor color, double tint)
+    {
+        ValidateUncoloredPattern(pattern);
+        ValidateSpotTint(color, tint);
+        return SetPattern(pattern, SpotColorResource(color), [tint], stroke: false);
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern with a CIE L*a*b* base colour.</summary>
+    public PdfContentStreamBuilder SetFillPattern(
+        PdfTilingPattern pattern, PdfLabColorSpace colorSpace,
+        double lightness, double a, double b)
+    {
+        ValidateUncoloredPattern(pattern);
+        ValidateLabComponents(colorSpace, lightness, a, b);
+        return SetPattern(pattern, LabColorSpaceResource(colorSpace),
+            [lightness, a, b], stroke: false);
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern with an Indexed base colour.</summary>
+    public PdfContentStreamBuilder SetFillPattern(
+        PdfTilingPattern pattern, PdfIndexedColorSpace colorSpace, int index)
+    {
+        ValidateUncoloredPattern(pattern);
+        ValidateIndexedColor(colorSpace, index);
+        return SetPattern(pattern, IndexedColorSpaceResource(colorSpace), [index], stroke: false);
+    }
+
+    /// <summary>Selects a reusable coloured tiling pattern for subsequent strokes.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(PdfTilingPattern pattern)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        if (pattern.PaintType != PdfTilingPatternPaintType.Colored)
+            throw new ArgumentException(
+                "An uncolored pattern must be selected together with a base color.", nameof(pattern));
+        PdfName resource = PatternResource(pattern);
+        _hasColorOperators = true;
+        _output.Write("/Pattern CS\n"u8);
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" SCN\n"u8);
+        return this;
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern and supplies its DeviceRGB stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(PdfTilingPattern pattern, PdfRgbColor color) =>
+        SetStrokePattern(pattern, "DeviceRGB", [color.Red, color.Green, color.Blue]);
+
+    /// <summary>Selects an uncoloured stencil pattern and supplies its DeviceGray stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(PdfTilingPattern pattern, double gray)
+    {
+        ValidateColorComponent(gray, nameof(gray));
+        return SetStrokePattern(pattern, "DeviceGray", [gray]);
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern and supplies its DeviceCMYK stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(PdfTilingPattern pattern, PdfCmykColor color) =>
+        SetStrokePattern(pattern, "DeviceCMYK",
+            [color.Cyan, color.Magenta, color.Yellow, color.Black]);
+
+    /// <summary>Selects an uncoloured stencil pattern with an ICCBased stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(
+        PdfTilingPattern pattern, PdfIccProfile profile, params double[] components)
+    {
+        ValidateUncoloredPattern(pattern);
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(components);
+        ValidateIccComponents(profile, components);
+        return SetStrokePattern(pattern, IccColorSpaceResource(profile), components);
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern with a calibrated stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(
+        PdfTilingPattern pattern, PdfCalibratedColorSpace colorSpace, params double[] components)
+    {
+        ValidateUncoloredPattern(pattern);
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        ArgumentNullException.ThrowIfNull(components);
+        ValidateCalibratedComponents(colorSpace, components);
+        return SetStrokePattern(pattern, CalibratedColorSpaceResource(colorSpace), components);
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern with a Separation spot stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(
+        PdfTilingPattern pattern, PdfSpotColor color, double tint)
+    {
+        ValidateUncoloredPattern(pattern);
+        ValidateSpotTint(color, tint);
+        return SetStrokePattern(pattern, SpotColorResource(color), [tint]);
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern with a CIE L*a*b* stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(
+        PdfTilingPattern pattern, PdfLabColorSpace colorSpace,
+        double lightness, double a, double b)
+    {
+        ValidateUncoloredPattern(pattern);
+        ValidateLabComponents(colorSpace, lightness, a, b);
+        return SetStrokePattern(pattern, LabColorSpaceResource(colorSpace),
+            [lightness, a, b]);
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern with an Indexed stroke colour.</summary>
+    public PdfContentStreamBuilder SetStrokePattern(
+        PdfTilingPattern pattern, PdfIndexedColorSpace colorSpace, int index)
+    {
+        ValidateUncoloredPattern(pattern);
+        ValidateIndexedColor(colorSpace, index);
+        return SetStrokePattern(pattern, IndexedColorSpaceResource(colorSpace), [index]);
+    }
+
+    private PdfContentStreamBuilder SetStrokePattern(
+        PdfTilingPattern pattern, string baseColorSpace, IReadOnlyList<double> components) =>
+        SetStrokePattern(pattern, new PdfName(Encoding.ASCII.GetBytes(baseColorSpace)), components);
+
+    private PdfContentStreamBuilder SetStrokePattern(
+        PdfTilingPattern pattern, PdfName baseColorSpace, IReadOnlyList<double> components)
+        => SetPattern(pattern, baseColorSpace, components, stroke: true);
+
+    private PdfContentStreamBuilder SetPattern(
+        PdfTilingPattern pattern, PdfName baseColorSpace,
+        IReadOnlyList<double> components, bool stroke)
+    {
+        ValidateUncoloredPattern(pattern);
+        PdfName patternResource = PatternResource(pattern);
+        _hasColorOperators = true;
+        _output.Write("[/Pattern "u8);
+        _output.Write(PdfObjectWriter.Write(baseColorSpace));
+        _output.Write(stroke ? "] CS\n"u8 : "] cs\n"u8);
+        foreach (double component in components)
+        {
+            WriteNumber(component);
+            _output.WriteByte((byte)' ');
+        }
+        _output.Write(PdfObjectWriter.Write(patternResource));
+        _output.Write(stroke ? " SCN\n"u8 : " scn\n"u8);
+        return this;
+    }
+
+    private static void ValidateUncoloredPattern(PdfTilingPattern pattern)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        if (pattern.PaintType != PdfTilingPatternPaintType.Uncolored)
+            throw new ArgumentException(
+                "A base color can only be supplied for an uncolored pattern.", nameof(pattern));
+    }
+
+    private static void ValidateColorComponent(double value, string name)
+    {
+        if (!double.IsFinite(value) || value is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(name);
     }
 
     private PdfName PatternResource(PdfTilingPattern pattern)
@@ -768,14 +929,8 @@ public sealed class PdfContentStreamBuilder
     private PdfContentStreamBuilder SetSpotColor(
         PdfSpotColor color, double tint, bool stroke)
     {
-        ArgumentNullException.ThrowIfNull(color);
-        if (!double.IsFinite(tint) || tint is < 0 or > 1)
-            throw new ArgumentOutOfRangeException(nameof(tint));
-        if (!_spotColors.TryGetValue(color, out PdfName? resource))
-        {
-            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
-            _spotColors.Add(color, resource);
-        }
+        ValidateSpotTint(color, tint);
+        PdfName resource = SpotColorResource(color);
         _hasColorOperators = true;
         _output.Write(PdfObjectWriter.Write(resource));
         _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
@@ -787,18 +942,8 @@ public sealed class PdfContentStreamBuilder
     private PdfContentStreamBuilder SetLabColor(
         PdfLabColorSpace colorSpace, double lightness, double a, double b, bool stroke)
     {
-        ArgumentNullException.ThrowIfNull(colorSpace);
-        if (!double.IsFinite(lightness) || lightness is < 0 or > 100)
-            throw new ArgumentOutOfRangeException(nameof(lightness));
-        if (!double.IsFinite(a) || a < colorSpace.MinimumA || a > colorSpace.MaximumA)
-            throw new ArgumentOutOfRangeException(nameof(a));
-        if (!double.IsFinite(b) || b < colorSpace.MinimumB || b > colorSpace.MaximumB)
-            throw new ArgumentOutOfRangeException(nameof(b));
-        if (!_labColorSpaces.TryGetValue(colorSpace, out PdfName? resource))
-        {
-            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
-            _labColorSpaces.Add(colorSpace, resource);
-        }
+        ValidateLabComponents(colorSpace, lightness, a, b);
+        PdfName resource = LabColorSpaceResource(colorSpace);
         _hasColorOperators = true;
         _output.Write(PdfObjectWriter.Write(resource));
         _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
@@ -812,20 +957,70 @@ public sealed class PdfContentStreamBuilder
     private PdfContentStreamBuilder SetIndexedColor(
         PdfIndexedColorSpace colorSpace, int index, bool stroke)
     {
-        ArgumentNullException.ThrowIfNull(colorSpace);
-        if ((uint)index >= (uint)colorSpace.EntryCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
-        if (!_indexedColorSpaces.TryGetValue(colorSpace, out PdfName? resource))
-        {
-            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
-            _indexedColorSpaces.Add(colorSpace, resource);
-        }
+        ValidateIndexedColor(colorSpace, index);
+        PdfName resource = IndexedColorSpaceResource(colorSpace);
         _hasColorOperators = true;
         _output.Write(PdfObjectWriter.Write(resource));
         _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
         WriteNumber(index);
         _output.Write(stroke ? " SCN\n"u8 : " scn\n"u8);
         return this;
+    }
+
+    private static void ValidateSpotTint(PdfSpotColor color, double tint)
+    {
+        ArgumentNullException.ThrowIfNull(color);
+        if (!double.IsFinite(tint) || tint is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(tint));
+    }
+
+    private PdfName SpotColorResource(PdfSpotColor color)
+    {
+        if (!_spotColors.TryGetValue(color, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
+            _spotColors.Add(color, resource);
+        }
+        return resource;
+    }
+
+    private static void ValidateLabComponents(
+        PdfLabColorSpace colorSpace, double lightness, double a, double b)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        if (!double.IsFinite(lightness) || lightness is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(lightness));
+        if (!double.IsFinite(a) || a < colorSpace.MinimumA || a > colorSpace.MaximumA)
+            throw new ArgumentOutOfRangeException(nameof(a));
+        if (!double.IsFinite(b) || b < colorSpace.MinimumB || b > colorSpace.MaximumB)
+            throw new ArgumentOutOfRangeException(nameof(b));
+    }
+
+    private PdfName LabColorSpaceResource(PdfLabColorSpace colorSpace)
+    {
+        if (!_labColorSpaces.TryGetValue(colorSpace, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
+            _labColorSpaces.Add(colorSpace, resource);
+        }
+        return resource;
+    }
+
+    private static void ValidateIndexedColor(PdfIndexedColorSpace colorSpace, int index)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        if ((uint)index >= (uint)colorSpace.EntryCount)
+            throw new ArgumentOutOfRangeException(nameof(index));
+    }
+
+    private PdfName IndexedColorSpaceResource(PdfIndexedColorSpace colorSpace)
+    {
+        if (!_indexedColorSpaces.TryGetValue(colorSpace, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
+            _indexedColorSpaces.Add(colorSpace, resource);
+        }
+        return resource;
     }
 
     private PdfContentStreamBuilder SetCalibratedColor(
