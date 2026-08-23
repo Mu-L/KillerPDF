@@ -1,0 +1,130 @@
+using System.Text;
+using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Objects;
+using Xunit;
+
+namespace KillerPdf.Engine.Tests.Authoring;
+
+public sealed class PdfTilingPatternTests
+{
+    [Fact]
+    public void Build_ReusesOneColoredPatternAcrossPages()
+    {
+        var pattern = new PdfTilingPattern(8, 8, new PdfContentStreamBuilder()
+            .SetFillRgb(0.1, 0.6, 0.9).Rectangle(0, 0, 4, 4).Fill());
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, Fill(pattern, 10, 20, 60, 40))
+            .AddPage(100, 100, Fill(pattern, 0, 0, 100, 100))
+            .Build());
+        PdfDictionary[] pages = Pages(document);
+        PdfIndirectReference first = PatternReference(pages[0]);
+        PdfIndirectReference second = PatternReference(pages[1]);
+        PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(first));
+
+        Assert.Equal(first.ObjectNumber, second.ObjectNumber);
+        Assert.Equal(1, Assert.IsType<PdfInteger>(stream.Dictionary[Name("PatternType")]).Value);
+        Assert.Equal(1, Assert.IsType<PdfInteger>(stream.Dictionary[Name("PaintType")]).Value);
+        Assert.Equal(8, Assert.IsType<PdfInteger>(stream.Dictionary[Name("XStep")]).Value);
+        Assert.Equal("0.1 0.6 0.9 rg\n0 0 4 4 re\nf\n",
+            Encoding.ASCII.GetString(stream.EncodedData.Span));
+    }
+
+    [Fact]
+    public void Build_WritesPatternResourcesAndCustomSpacing()
+    {
+        var mark = new PdfFormXObject(3, 3, new PdfContentStreamBuilder()
+            .SetFillGray(0).Rectangle(0, 0, 3, 3).Fill());
+        var pattern = new PdfTilingPattern(6, 6,
+            new PdfContentStreamBuilder().DrawForm(mark, 1, 1),
+            horizontalStep: 9, verticalStep: -12,
+            tilingType: PdfTilingPatternType.NoDistortion,
+            matrix: new PdfPatternMatrix(0, 1, -1, 0, 40, 0));
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(40, 40, Fill(pattern, 0, 0, 40, 40)).Build());
+        PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(
+            PatternReference(Pages(document)[0])));
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(stream.Dictionary[Name("Resources")]);
+
+        Assert.True(resources.ContainsKey(Name("XObject")));
+        Assert.Equal(2, Assert.IsType<PdfInteger>(stream.Dictionary[Name("TilingType")]).Value);
+        Assert.Equal(9, Assert.IsType<PdfInteger>(stream.Dictionary[Name("XStep")]).Value);
+        Assert.Equal(-12, Assert.IsType<PdfInteger>(stream.Dictionary[Name("YStep")]).Value);
+        PdfArray matrix = Assert.IsType<PdfArray>(stream.Dictionary[Name("Matrix")]);
+        Assert.Equal([0L, 1L, -1L, 0L, 40L, 0L],
+            matrix.Select(value => Assert.IsType<PdfInteger>(value).Value));
+    }
+
+    [Fact]
+    public void Build_WritesUncoloredStencilWithDeviceRgbBaseColor()
+    {
+        var stencil = new PdfTilingPattern(12, 12, new PdfContentStreamBuilder()
+            .Rectangle(2, 2, 8, 8).Fill(),
+            paintType: PdfTilingPatternPaintType.Uncolored);
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(40, 40, new PdfContentStreamBuilder()
+                .SetFillPattern(stencil, new PdfRgbColor(0.2, 0.7, 0.4))
+                .Rectangle(0, 0, 40, 40).Fill())
+            .Build());
+        PdfDictionary page = Pages(document)[0];
+        PdfStream pageContent = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(page[Name("Contents")])));
+        PdfStream pattern = Assert.IsType<PdfStream>(document.Resolve(PatternReference(page)));
+
+        Assert.Equal(2, Assert.IsType<PdfInteger>(pattern.Dictionary[Name("PaintType")]).Value);
+        Assert.Equal("[/Pattern /DeviceRGB] cs\n0.2 0.7 0.4 /P1 scn\n0 0 40 40 re\nf\n",
+            Encoding.ASCII.GetString(pageContent.EncodedData.Span));
+    }
+
+    [Fact]
+    public void Pattern_RejectsInvalidGeometryAndTaggedContent()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfTilingPattern(0, 10, new PdfContentStreamBuilder()));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfTilingPattern(10, 10, new PdfContentStreamBuilder(), horizontalStep: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfTilingPattern(10, 10, new PdfContentStreamBuilder(),
+                tilingType: (PdfTilingPatternType)4));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfPatternMatrix(1, 2, 2, 4, 0, 0));
+        Assert.Throws<ArgumentException>(() => new PdfTilingPattern(10, 10,
+            new PdfContentStreamBuilder().SetFillRgb(1, 0, 0).Rectangle(0, 0, 1, 1).Fill(),
+            paintType: PdfTilingPatternPaintType.Uncolored));
+        var tagged = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Figure, 0).Rectangle(0, 0, 1, 1).Fill()
+            .EndMarkedContent();
+        Assert.Throws<ArgumentException>(() => new PdfTilingPattern(10, 10, tagged));
+
+        var colored = new PdfTilingPattern(2, 2, new PdfContentStreamBuilder());
+        var uncolored = new PdfTilingPattern(2, 2, new PdfContentStreamBuilder(),
+            paintType: PdfTilingPatternPaintType.Uncolored);
+        Assert.Throws<ArgumentException>(() =>
+            new PdfContentStreamBuilder().SetFillPattern(uncolored));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfContentStreamBuilder().SetFillPattern(colored, new PdfRgbColor(0, 0, 0)));
+    }
+
+    private static PdfContentStreamBuilder Fill(
+        PdfTilingPattern pattern, double x, double y, double width, double height) =>
+        new PdfContentStreamBuilder().SetFillPattern(pattern).Rectangle(x, y, width, height).Fill();
+
+    private static PdfIndirectReference PatternReference(PdfDictionary page)
+    {
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
+        PdfDictionary patterns = Assert.IsType<PdfDictionary>(resources[Name("Pattern")]);
+        return Assert.IsType<PdfIndirectReference>(patterns[Name("P1")]);
+    }
+
+    private static PdfDictionary[] Pages(PdfDocument document)
+    {
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        return Assert.IsType<PdfArray>(pages[Name("Kids")])
+            .Select(value => ResolveDictionary(document, value)).ToArray();
+    }
+
+    private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
+        Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
+    private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
+}

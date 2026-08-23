@@ -16,11 +16,13 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<PdfGraphicsState, PdfName> _graphicsStates = [];
     private readonly Dictionary<PdfShading, PdfName> _shadings = [];
     private readonly Dictionary<PdfFormXObject, PdfName> _forms = [];
+    private readonly Dictionary<PdfTilingPattern, PdfName> _patterns = [];
     private int _savedStateDepth;
     private readonly Stack<bool> _markedContentStack = [];
     private int _accessibleMarkedContentDepth;
     private bool _insideText;
     private bool _hasUntaggedContent;
+    private bool _hasColorOperators;
     private int _nextFontResource = 1;
     private EmbeddedFontUsage? _activeEmbeddedFont;
     private readonly HashSet<int> _markedContentIds = [];
@@ -34,8 +36,10 @@ public sealed class PdfContentStreamBuilder
         _graphicsStates;
     internal IReadOnlyDictionary<PdfShading, PdfName> ShadingResources => _shadings;
     internal IReadOnlyDictionary<PdfFormXObject, PdfName> FormResources => _forms;
+    internal IReadOnlyDictionary<PdfTilingPattern, PdfName> PatternResources => _patterns;
     internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
     internal bool HasUntaggedContent => _hasUntaggedContent;
+    internal bool HasColorOperators => _hasColorOperators;
 
     /// <summary>Begins tagged marked content associated with a page-local MCID.</summary>
     public PdfContentStreamBuilder BeginMarkedContent(
@@ -154,6 +158,7 @@ public sealed class PdfContentStreamBuilder
             _shadings.Add(shading, resource);
         }
         RecordPaintedContent();
+        _hasColorOperators = true;
         _output.Write(PdfObjectWriter.Write(resource));
         _output.Write(" sh\n"u8);
         return this;
@@ -189,6 +194,52 @@ public sealed class PdfContentStreamBuilder
         _output.Write(" Do\n"u8);
         WriteOperator("Q"u8);
         return this;
+    }
+
+    /// <summary>Selects a reusable coloured tiling pattern for subsequent fills.</summary>
+    public PdfContentStreamBuilder SetFillPattern(PdfTilingPattern pattern)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        if (pattern.PaintType != PdfTilingPatternPaintType.Colored)
+            throw new ArgumentException(
+                "An uncolored pattern must be selected together with a base color.", nameof(pattern));
+        PdfName resource = PatternResource(pattern);
+        _hasColorOperators = true;
+        _output.Write("/Pattern cs\n"u8);
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" scn\n"u8);
+        return this;
+    }
+
+    /// <summary>Selects an uncoloured stencil pattern and supplies its DeviceRGB base colour.</summary>
+    public PdfContentStreamBuilder SetFillPattern(PdfTilingPattern pattern, PdfRgbColor color)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        if (pattern.PaintType != PdfTilingPatternPaintType.Uncolored)
+            throw new ArgumentException(
+                "A base color can only be supplied for an uncolored pattern.", nameof(pattern));
+        PdfName resource = PatternResource(pattern);
+        _hasColorOperators = true;
+        _output.Write("[/Pattern /DeviceRGB] cs\n"u8);
+        WriteNumber(color.Red);
+        _output.WriteByte((byte)' ');
+        WriteNumber(color.Green);
+        _output.WriteByte((byte)' ');
+        WriteNumber(color.Blue);
+        _output.WriteByte((byte)' ');
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" scn\n"u8);
+        return this;
+    }
+
+    private PdfName PatternResource(PdfTilingPattern pattern)
+    {
+        if (!_patterns.TryGetValue(pattern, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"P{_patterns.Count + 1}"));
+            _patterns.Add(pattern, resource);
+        }
+        return resource;
     }
 
     public PdfContentStreamBuilder MoveTo(double x, double y) => Operator("m"u8, x, y);
@@ -242,14 +293,12 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
-    public PdfContentStreamBuilder SetStrokeGray(double gray) =>
-        Operator("G"u8, Component(gray, nameof(gray)));
-    public PdfContentStreamBuilder SetFillGray(double gray) =>
-        Operator("g"u8, Component(gray, nameof(gray)));
+    public PdfContentStreamBuilder SetStrokeGray(double gray) => ColorOperator("G"u8, Component(gray, nameof(gray)));
+    public PdfContentStreamBuilder SetFillGray(double gray) => ColorOperator("g"u8, Component(gray, nameof(gray)));
     public PdfContentStreamBuilder SetStrokeRgb(double red, double green, double blue) =>
-        Operator("RG"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
+        ColorOperator("RG"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
     public PdfContentStreamBuilder SetFillRgb(double red, double green, double blue) =>
-        Operator("rg"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
+        ColorOperator("rg"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
 
     public PdfContentStreamBuilder BeginText()
     {
@@ -386,6 +435,12 @@ public sealed class PdfContentStreamBuilder
     {
         WriteOperator(name);
         return this;
+    }
+
+    private PdfContentStreamBuilder ColorOperator(ReadOnlySpan<byte> name, params double[] operands)
+    {
+        _hasColorOperators = true;
+        return Operator(name, operands);
     }
 
     private PdfContentStreamBuilder PaintingOperator(ReadOnlySpan<byte> name)

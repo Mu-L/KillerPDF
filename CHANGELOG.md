@@ -14,6 +14,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added reusable page transparency through extended graphics-state resources, with independent fill and stroke opacity plus all sixteen standard separable and non-separable PDF blend modes shared deterministically within and across pages.
 - Added reusable axial and radial gradient shadings with clipping, arbitrary strictly ordered RGB color stops, two-color interpolation, multi-stop stitching functions, extension controls, and deterministic sharing across pages.
 - Added reusable Form XObjects for vector artwork, text, images, gradients, nested compositions, and isolated or knockout transparency groups. Forms keep their resources scoped, can be placed repeatedly at natural or scaled sizes, and are stored only once even when reused across pages.
+- Added reusable colored and uncolored stencil tiling patterns with configurable cells, horizontal and vertical spacing, tiling behavior, pattern-space transforms, nested resources, and deterministic sharing across pages.
 - Added PDF optional-content layers with Unicode names, deterministic viewer ordering, initial visibility controls, shared page-property resources, and complete layer-configuration preservation when whole documents are imported into empty destinations. Unsafe partial or combined layer imports now fail explicitly instead of leaving content tied to a missing catalog configuration.
 - Added positioned and escaped Latin-1 text with automatic resources for all 14 built-in Type 1 fonts.
 - Added bounded TrueType/OpenType inspection for names, metrics, embedding permissions, widths, Unicode cmap formats 4 and 12, deterministic glyf/loca subsetting with composite dependencies, full-file CFF-flavoured OpenType embedding, CIDFontType0 and CIDFontType2 descendants, and `ToUnicode` maps.
@@ -49,6 +50,9 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added deterministic full-file rewriting from the merged document view. Rewrites expand compressed objects, remove obsolete cross-reference containers, sanitize the trailer, preserve requested metadata and identifiers, and explicitly reject encryption until it is supported.
 - Added rewrite policy for preserving or upgrading the PDF header, retaining or removing document information, and independently retaining document identifiers, plus reusable round-trip and corpus validation.
 - Accepted the complete PDF 2.x header declaration range through `%PDF-2.9` and corrected classic cross-reference `/Size` handling for free boundary entries found in PDF/A-4 fixtures.
+
+### Added
+- Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Fixed
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.

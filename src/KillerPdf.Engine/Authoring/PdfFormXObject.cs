@@ -30,6 +30,7 @@ public sealed class PdfFormXObject
             .ToDictionary(entry => entry.Key, entry => entry.Value);
         Shadings = content.ShadingResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         Forms = content.FormResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        Patterns = content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         IsolatedTransparencyGroup = isolatedTransparencyGroup;
         KnockoutTransparencyGroup = knockoutTransparencyGroup;
     }
@@ -47,6 +48,7 @@ public sealed class PdfFormXObject
     internal IReadOnlyDictionary<PdfGraphicsState, PdfName> GraphicsStates { get; }
     internal IReadOnlyDictionary<PdfShading, PdfName> Shadings { get; }
     internal IReadOnlyDictionary<PdfFormXObject, PdfName> Forms { get; }
+    internal IReadOnlyDictionary<PdfTilingPattern, PdfName> Patterns { get; }
 
     private static double Dimension(double value, string name)
     {

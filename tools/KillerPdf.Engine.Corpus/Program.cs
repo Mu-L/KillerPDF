@@ -449,6 +449,40 @@ if (args.Length == 3 && args[0] == "--form-xobject-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--tiling-pattern-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    var pattern = new PdfTilingPattern(24, 24, new PdfContentStreamBuilder()
+        .Rectangle(3, 3, 6, 6).Fill().Rectangle(15, 15, 6, 6).Fill(),
+        paintType: PdfTilingPatternPaintType.Uncolored,
+        matrix: new PdfPatternMatrix(0.966, 0.259, -0.259, 0.966, 0, 0));
+    var content = new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .SetFillRgb(0.08, 0.12, 0.22).Rectangle(72, 500, 468, 220).Fill()
+        .SetFillPattern(pattern, new PdfRgbColor(0.95, 0.3, 0.2))
+        .Rectangle(72, 500, 468, 220).Fill()
+        .EndMarkedContent();
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF tiling pattern smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "A repeating red dot pattern on a dark blue field")
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte tiling-pattern PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--form-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -820,6 +854,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --transparency-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --gradient-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-xobject-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --tiling-pattern-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");
