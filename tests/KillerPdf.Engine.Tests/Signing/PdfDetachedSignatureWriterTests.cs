@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Formats.Asn1;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
@@ -176,6 +179,70 @@ public sealed class PdfDetachedSignatureWriterTests
     }
 
     [Theory]
+    [InlineData(false, "approval")]
+    [InlineData(true, "group.approval")]
+    public void Sign_FillsDirectSignatureFieldsAtRootOrInsideIndirectParent(
+        bool nested, string fieldName)
+    {
+        PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(BuildDirectSignatureFieldDocument(nested)), _ => [1],
+            new PdfSignatureOptions
+            {
+                FieldName = fieldName,
+                PageIndex = 999,
+                ReservedSignatureSize = 8
+            }));
+        PdfDictionary catalog = ResolveDictionary(signed, signed.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfObject rootFieldValue = Assert.IsType<PdfArray>(form[Name("Fields")])[0];
+        PdfDictionary rootField = rootFieldValue is PdfIndirectReference rootReference
+            ? ResolveDictionary(signed, rootReference)
+            : Assert.IsType<PdfDictionary>(rootFieldValue);
+        PdfDictionary field = nested
+            ? Assert.IsType<PdfDictionary>(Assert.Single(
+                Assert.IsType<PdfArray>(rootField[Name("Kids")])))
+            : rootField;
+
+        Assert.IsType<PdfIndirectReference>(field[Name("V")]);
+        Assert.Equal(3, Assert.IsType<PdfInteger>(form[Name("SigFlags")]).Value);
+        Assert.True(Assert.Single(PdfSignatureReader.Read(signed)).IsSigned);
+    }
+
+    [Fact]
+    public void Sign_FillsPreAuthoredFieldWithoutChangingTaggedPdfStructure()
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Figure, 0)
+            .Rectangle(10, 10, 20, 20).Fill()
+            .EndMarkedContent();
+        byte[] source = new PdfDocumentBuilder()
+            .AddPage(200, 300, content)
+            .AddSignatureField(0, "approval", 20, 40, 160, 40)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+                alternateDescription: "Square")
+            .Build();
+        PdfDocument original = PdfDocument.Open(source);
+        PdfDictionary originalCatalog = ResolveDictionary(
+            original, original.Trailer[Name("Root")]);
+        PdfIndirectReference structureReference = Assert.IsType<PdfIndirectReference>(
+            originalCatalog[Name("StructTreeRoot")]);
+
+        PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            original, _ => [1], new PdfSignatureOptions
+            {
+                FieldName = "approval",
+                PageIndex = 999,
+                ReservedSignatureSize = 8
+            }));
+        PdfDictionary catalog = ResolveDictionary(signed, signed.Trailer[Name("Root")]);
+
+        Assert.Equal(structureReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(catalog[Name("StructTreeRoot")]).ObjectNumber);
+        Assert.True(Assert.Single(PdfSignatureReader.Read(signed)).IsSigned);
+    }
+
+    [Theory]
     [InlineData(2)]
     [InlineData(3)]
     public void Sign_HonorsCertificationPermissionsThatAllowSigning(int permission)
@@ -340,6 +407,219 @@ public sealed class PdfDetachedSignatureWriterTests
     }
 
     [Fact]
+    public void Sign_EnforcesRequiredSeedValueConstraints()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40,
+                seedValue: new PdfSignatureSeedValue
+                {
+                    Handler = PdfSignatureHandler.AdobePpkLite,
+                    RequireHandler = true,
+                    ParserVersion = PdfSignatureSeedParserVersion.Pdf20,
+                    RequireParserVersion = true,
+                    SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
+                    RequireSubFilter = true,
+                    DigestMethods = [PdfSignatureDigestMethod.Sha384],
+                    RequireDigestMethod = true,
+                    AddRevocationInformation = true,
+                    RequireRevocationInformation = true,
+                    Reasons = ["Approved"],
+                    RequireReason = true,
+                    LegalAttestations = ["Reviewed"],
+                    RequireLegalAttestation = true,
+                    CertificationPermission =
+                        PdfSignatureCertificationPermission.FormFillingAndSignatures,
+                    DocumentLockIntent = PdfSignatureDocumentLockIntent.Lock,
+                    RequireDocumentLockIntent = true,
+                    AppearanceName = "Approval appearance",
+                    RequireAppearance = true
+                })
+            .Build();
+        var valid = new PdfSignatureOptions
+        {
+            FieldName = "approval",
+            DigestMethod = PdfSignatureDigestMethod.Sha384,
+            IncludesRevocationInformation = true,
+            Reason = "Approved",
+            LegalAttestation = "Reviewed",
+            CertificationPermission =
+                PdfSignatureCertificationPermission.FormFillingAndSignatures,
+            DocumentLockIntent = PdfSignatureDocumentLockIntent.Lock,
+            AppearanceName = "Approval appearance",
+            ReservedSignatureSize = 8
+        };
+
+        PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], valid));
+        Assert.True(ResolveDictionary(signed, signed.Trailer[Name("Root")])
+            .ContainsKey(Name("Perms")));
+
+        AssertRejected(valid with { DigestMethod = PdfSignatureDigestMethod.Sha256 });
+        AssertRejected(valid with { IncludesRevocationInformation = false });
+        AssertRejected(valid with { Reason = "Rejected" });
+        AssertRejected(valid with { LegalAttestation = "Not reviewed" });
+        AssertRejected(valid with { CertificationPermission = null });
+        AssertRejected(valid with { DocumentLockIntent = PdfSignatureDocumentLockIntent.DoNotLock });
+        AssertRejected(valid with { AppearanceName = "Other appearance" });
+
+        void AssertRejected(PdfSignatureOptions options) =>
+            Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
+                PdfDocument.Open(source), _ => [1], options));
+    }
+
+    [Fact]
+    public void Sign_RejectsRequiredSeedConstraintsWithoutVerifiableSignerInput()
+    {
+        byte[] timestampSource = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40,
+                seedValue: new PdfSignatureSeedValue
+                {
+                    Timestamp = new PdfSignatureTimestamp(
+                        "https://timestamp.example.test", Required: true)
+                })
+            .Build();
+        byte[] certificateSource = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40,
+                seedValue: new PdfSignatureSeedValue
+                {
+                    Certificate = new PdfSignatureCertificateSeed
+                    {
+                        KeyUsages = [new PdfCertificateKeyUsage { DigitalSignature = true }],
+                        RequireKeyUsage = true
+                    }
+                })
+            .Build();
+        var options = new PdfSignatureOptions
+        {
+            FieldName = "approval",
+            TimestampServerUrl = "https://timestamp.example.test",
+            ReservedSignatureSize = 8
+        };
+
+        Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(timestampSource), _ => [1], options));
+        Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(certificateSource), _ => [1], options));
+    }
+
+    [Fact]
+    public void Sign_AcceptsRequiredTimestampOnlyWhenCmsContainsTimestampToken()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40,
+                seedValue: new PdfSignatureSeedValue
+                {
+                    Timestamp = new PdfSignatureTimestamp(
+                        "https://timestamp.example.test", Required: true)
+                })
+            .Build();
+        var options = new PdfSignatureOptions
+        {
+            FieldName = "approval",
+            TimestampServerUrl = "https://timestamp.example.test",
+            ReservedSignatureSize = 256
+        };
+
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => BuildTimestampedCms(), options);
+
+        Assert.True(Assert.Single(PdfSignatureReader.Read(
+            PdfDocument.Open(signed))).HasValidByteRange);
+    }
+
+    [Fact]
+    public void Sign_ValidatesRequiredSignerCertificateConstraints()
+    {
+        using RSA rootKey = RSA.Create(2048);
+        var rootRequest = new CertificateRequest(
+            "CN=KillerPDF Test Root", rootKey, HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+        rootRequest.CertificateExtensions.Add(
+            new X509BasicConstraintsExtension(true, false, 0, true));
+        using X509Certificate2 root = rootRequest.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(2));
+        using RSA signerKey = RSA.Create(2048);
+        var signerRequest = new CertificateRequest(
+            "CN=Seed Signer,O=Killer Tools", signerKey, HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+        signerRequest.CertificateExtensions.Add(new X509KeyUsageExtension(
+            X509KeyUsageFlags.DigitalSignature, true));
+        var policyWriter = new AsnWriter(AsnEncodingRules.DER);
+        policyWriter.PushSequence();
+        policyWriter.PushSequence();
+        policyWriter.WriteObjectIdentifier("1.2.3.4");
+        policyWriter.PopSequence();
+        policyWriter.PopSequence();
+        signerRequest.CertificateExtensions.Add(new X509Extension(
+            "2.5.29.32", policyWriter.Encode(), false));
+        using X509Certificate2 signer = signerRequest.Create(
+            root, DateTimeOffset.UtcNow.AddHours(-1),
+            DateTimeOffset.UtcNow.AddDays(1), [1, 2, 3, 4]);
+        byte[] signerDer = signer.RawData;
+        byte[] rootDer = root.RawData;
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40,
+                seedValue: new PdfSignatureSeedValue
+                {
+                    Certificate = new PdfSignatureCertificateSeed
+                    {
+                        SubjectCertificates = [signerDer],
+                        RequireSubject = true,
+                        IssuerCertificates = [rootDer],
+                        RequireIssuer = true,
+                        CertificatePolicyObjectIdentifiers = ["1.2.3.4"],
+                        RequireCertificatePolicy = true,
+                        SubjectDistinguishedNames =
+                        [
+                            new PdfCertificateDistinguishedName(
+                                new Dictionary<string, string> { ["o"] = "Killer Tools" })
+                        ],
+                        RequireSubjectDistinguishedName = true,
+                        KeyUsages =
+                        [
+                            new PdfCertificateKeyUsage
+                            {
+                                DigitalSignature = true,
+                                KeyEncipherment = false
+                            }
+                        ],
+                        RequireKeyUsage = true,
+                        EnrollmentUrl = "https://signing.example.test/enroll",
+                        EnrollmentUrlType = PdfCertificateEnrollmentUrlType.SignatureService,
+                        RequireEnrollmentUrl = true
+                    }
+                })
+            .Build();
+        var valid = new PdfSignatureOptions
+        {
+            FieldName = "approval",
+            SignerCertificate = signerDer,
+            CertificateChain = [rootDer],
+            CertificateAcquisitionUrl = "https://signing.example.test/enroll",
+            ReservedSignatureSize = 2_048
+        };
+
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => BuildCmsWithCertificate(signerDer), valid);
+        Assert.True(Assert.Single(PdfSignatureReader.Read(
+            PdfDocument.Open(signed))).HasValidByteRange);
+        Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], valid with { CertificateChain = [] }));
+        Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], valid with
+            {
+                CertificateAcquisitionUrl = "https://wrong.example.test"
+            }));
+        Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => BuildCmsWithCertificate(rootDer), valid));
+    }
+
+    [Fact]
     public void Sign_UpdatesIndirectAcroFormAndFieldArrayWithoutReplacingTheCatalog()
     {
         byte[] source = BuildIndirectAcroFormDocument();
@@ -452,6 +732,38 @@ public sealed class PdfDetachedSignatureWriterTests
         }
     }
 
+    private static byte[] BuildDirectSignatureFieldDocument(bool nested)
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int objectCount = nested ? 5 : 4;
+        var offsets = new int[objectCount + 1];
+        string fields = nested
+            ? "[5 0 R]"
+            : "[<< /FT /Sig /T (approval) /V null >>]";
+        Add(1, $"<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields {fields} /SigFlags 1 >> >>");
+        Add(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        Add(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] /Resources <<>> >>");
+        Add(4, "<< /Length 0 >>\nstream\n\nendstream");
+        if (nested)
+            Add(5, "<< /T (group) /Kids [<< /FT /Sig /T (approval) /V null >>] >>");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 ").Append(objectCount + 1)
+            .Append("\n0000000000 65535 f \n");
+        for (int index = 1; index <= objectCount; index++)
+            source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
+                .Append(" 00000 n \n");
+        source.Append("trailer\n<< /Size ").Append(objectCount + 1)
+            .Append(" /Root 1 0 R >>\nstartxref\n")
+            .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+
+        void Add(int number, string value)
+        {
+            offsets[number] = source.Length;
+            source.Append(number).Append(" 0 obj\n").Append(value).Append("\nendobj\n");
+        }
+    }
+
     private static byte[] AddCertificationPermission(byte[] source, int permission)
     {
         PdfDocument document = PdfDocument.Open(source);
@@ -480,4 +792,90 @@ public sealed class PdfDetachedSignatureWriterTests
     private static PdfDictionary Dictionary(params (string Name, PdfObject Value)[] entries) =>
         new(entries.Select(entry =>
             new KeyValuePair<PdfName, PdfObject>(Name(entry.Name), entry.Value)));
+
+    private static byte[] BuildTimestampedCms()
+    {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence();
+        writer.WriteObjectIdentifier("1.2.840.113549.1.7.2");
+        writer.PushSequence(new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true));
+        writer.PushSequence();
+        writer.WriteInteger(1);
+        writer.PushSetOf();
+        writer.PopSetOf();
+        writer.PushSequence();
+        writer.WriteObjectIdentifier("1.2.840.113549.1.7.1");
+        writer.PopSequence();
+        writer.PushSetOf();
+        writer.PushSequence();
+        writer.WriteInteger(1);
+        writer.PushSequence();
+        writer.PopSequence();
+        writer.PushSequence();
+        writer.PopSequence();
+        writer.PushSequence();
+        writer.PopSequence();
+        writer.WriteOctetString([1]);
+        var unsignedTag = new Asn1Tag(TagClass.ContextSpecific, 1, isConstructed: true);
+        writer.PushSetOf(unsignedTag);
+        writer.PushSequence();
+        writer.WriteObjectIdentifier("1.2.840.113549.1.9.16.2.14");
+        writer.PushSetOf();
+        writer.WriteNull();
+        writer.PopSetOf();
+        writer.PopSequence();
+        writer.PopSetOf(unsignedTag);
+        writer.PopSequence();
+        writer.PopSetOf();
+        writer.PopSequence();
+        writer.PopSequence(new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true));
+        writer.PopSequence();
+        return writer.Encode();
+    }
+
+    private static byte[] BuildCmsWithCertificate(ReadOnlySpan<byte> certificate)
+    {
+        var certificateReader = new AsnReader(certificate.ToArray(), AsnEncodingRules.DER);
+        AsnReader certificateSequence = certificateReader.ReadSequence();
+        AsnReader tbs = certificateSequence.ReadSequence();
+        if (tbs.PeekTag().HasSameClassAndValue(
+            new Asn1Tag(TagClass.ContextSpecific, 0)))
+            tbs.ReadEncodedValue();
+        ReadOnlyMemory<byte> serial = tbs.ReadIntegerBytes();
+        tbs.ReadSequence();
+        ReadOnlyMemory<byte> issuer = tbs.ReadEncodedValue();
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence();
+        writer.WriteObjectIdentifier("1.2.840.113549.1.7.2");
+        writer.PushSequence(new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true));
+        writer.PushSequence();
+        writer.WriteInteger(1);
+        writer.PushSetOf();
+        writer.PopSetOf();
+        writer.PushSequence();
+        writer.WriteObjectIdentifier("1.2.840.113549.1.7.1");
+        writer.PopSequence();
+        var certificatesTag = new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true);
+        writer.PushSetOf(certificatesTag);
+        writer.WriteEncodedValue(certificate);
+        writer.PopSetOf(certificatesTag);
+        writer.PushSetOf();
+        writer.PushSequence();
+        writer.WriteInteger(1);
+        writer.PushSequence();
+        writer.WriteEncodedValue(issuer.Span);
+        writer.WriteInteger(serial.Span);
+        writer.PopSequence();
+        writer.PushSequence();
+        writer.PopSequence();
+        writer.PushSequence();
+        writer.PopSequence();
+        writer.WriteOctetString([1]);
+        writer.PopSequence();
+        writer.PopSetOf();
+        writer.PopSequence();
+        writer.PopSequence(new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true));
+        writer.PopSequence();
+        return writer.Encode();
+    }
 }

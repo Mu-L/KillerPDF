@@ -13,5 +13,19 @@ public sealed record PdfSignatureOptions
     public string? ContactInformation { get; init; }
     public DateTimeOffset? SigningTime { get; init; }
     public int ReservedSignatureSize { get; init; } = 32_768;
+    /// <summary>The digest algorithm the detached CMS callback commits to using.</summary>
+    public PdfSignatureDigestMethod DigestMethod { get; init; } =
+        PdfSignatureDigestMethod.Sha256;
+    /// <summary>Whether the detached CMS callback commits to embedding revocation information.</summary>
+    public bool IncludesRevocationInformation { get; init; }
+    public string? LegalAttestation { get; init; }
+    public PdfSignatureDocumentLockIntent? DocumentLockIntent { get; init; }
+    public string? AppearanceName { get; init; }
+    /// <summary>DER-encoded end-entity certificate used by the detached CMS callback.</summary>
+    public ReadOnlyMemory<byte> SignerCertificate { get; init; }
+    /// <summary>DER-encoded issuer certificates supplied with the signer certificate.</summary>
+    public IReadOnlyList<ReadOnlyMemory<byte>>? CertificateChain { get; init; }
+    public string? CertificateAcquisitionUrl { get; init; }
+    public string? TimestampServerUrl { get; init; }
     public PdfSignatureCertificationPermission? CertificationPermission { get; init; }
 }

@@ -31,6 +31,9 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     public PdfStartXref StartXref { get; }
     public IReadOnlyList<PdfCrossReferenceSection> Sections =>
         _revisions.Select(revision => revision.Primary).ToArray();
+    internal IEnumerable<PdfCrossReferenceSection> AllSections =>
+        _revisions.SelectMany(revision => revision.Hybrid is null
+            ? [revision.Primary] : new[] { revision.Primary, revision.Hybrid });
 
     public PdfDictionary LatestTrailer => _revisions[0].Primary.Trailer;
 

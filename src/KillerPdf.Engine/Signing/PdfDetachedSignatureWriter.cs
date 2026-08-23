@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Formats.Asn1;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Authoring;
@@ -40,6 +43,20 @@ public static class PdfDetachedSignatureWriter
 
         PdfPageTree tree = PdfPageTree.Read(document);
         ExistingFormField? existingField = FindField(document, tree, options.FieldName);
+        if (existingField is not null)
+        {
+            if (!existingField.FieldType.Equals(Name("Sig")))
+                throw new InvalidOperationException(
+                    $"The AcroForm field '{options.FieldName}' is not a signature field.");
+            if (existingField.Dictionary.TryGetValue(Name("V"), out PdfObject? existingValue))
+            {
+                PdfObject resolvedValue = existingValue is PdfIndirectReference valueReference
+                    ? document.Resolve(valueReference) : existingValue;
+                if (resolvedValue is not PdfNull)
+                    throw new InvalidOperationException(
+                        $"The signature field '{options.FieldName}' is already signed.");
+            }
+        }
         if (existingField is null && options.FieldName.Contains('.'))
             throw new ArgumentException(
                 "A new signature field name cannot contain a period.", nameof(options));
@@ -65,6 +82,8 @@ public static class PdfDetachedSignatureWriter
             throw new InvalidOperationException(
                 "A certified document can only be signed through an existing signature field.");
 
+        SeedEvidenceRequirements evidenceRequirements = existingField is not null
+            ? EnforceSeedValue(document, existingField, options) : default;
         PdfDictionary? fieldMdpParameters = existingField is null
             ? null : ReadFieldMdpParameters(document, existingField);
 
@@ -76,23 +95,16 @@ public static class PdfDetachedSignatureWriter
         bool catalogChanged = false;
         if (existingField is not null)
         {
-            if (!existingField.FieldType.Equals(Name("Sig")))
-                throw new InvalidOperationException(
-                    $"The AcroForm field '{options.FieldName}' is not a signature field.");
-            if (existingField.Dictionary.TryGetValue(Name("V"), out PdfObject? existingValue))
-            {
-                PdfObject resolvedValue = existingValue is PdfIndirectReference valueReference
-                    ? document.Resolve(valueReference) : existingValue;
-                if (resolvedValue is not PdfNull)
-                    throw new InvalidOperationException(
-                        $"The signature field '{options.FieldName}' is already signed.");
-            }
-            update.ReplaceObject(existingField.Reference.ObjectNumber,
-                ReplaceMany(existingField.Dictionary, new Dictionary<PdfName, PdfObject>
-                {
-                    [Name("V")] = signatureReference
-                }));
-            PdfDictionary? replacement = UpdateSignatureFlags(document, tree, update);
+            if (existingField.Reference is not null)
+                update.ReplaceObject(existingField.Reference.ObjectNumber,
+                    ReplaceMany(existingField.Dictionary, new Dictionary<PdfName, PdfObject>
+                    {
+                        [Name("V")] = signatureReference
+                    }));
+            PdfDictionary? replacement = existingField.Reference is null
+                ? UpdateDirectSignatureField(
+                    document, tree, update, options.FieldName, signatureReference)
+                : UpdateSignatureFlags(document, tree, update);
             if (replacement is not null)
             {
                 catalogReplacement = replacement;
@@ -145,7 +157,8 @@ public static class PdfDetachedSignatureWriter
         if (catalogChanged)
             update.ReplaceObject(tree.CatalogReference.ObjectNumber, catalogReplacement);
         byte[] prepared = update.Build();
-        FillSignature(prepared, options.ReservedSignatureSize, createDetachedCms);
+        FillSignature(prepared, options.ReservedSignatureSize,
+            createDetachedCms, evidenceRequirements, options.SignerCertificate);
         return prepared;
     }
 
@@ -309,22 +322,21 @@ public static class PdfDetachedSignatureWriter
                 fieldType = typeValue as PdfName
                     ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
             string? fullName = parentName;
+            bool definesName = false;
             if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
             {
+                definesName = true;
                 string partialName = nameValue is PdfString name
                     ? DecodeString(name)
                     : throw new InvalidOperationException("An AcroForm field /T value is not a string.");
                 fullName = string.IsNullOrEmpty(parentName)
                     ? partialName : $"{parentName}.{partialName}";
             }
-            if (fullName == fieldName)
+            if (definesName && fullName == fieldName)
             {
                 if (match is not null)
                     throw new InvalidOperationException(
                         $"The AcroForm contains more than one field named '{fieldName}'.");
-                if (reference is null)
-                    throw new NotSupportedException(
-                        "Signing a direct AcroForm field requires rewriting its containing field tree.");
                 match = new ExistingFormField(reference, field, fieldType
                     ?? throw new InvalidOperationException(
                         $"The AcroForm field '{fieldName}' has no field type."));
@@ -348,6 +360,11 @@ public static class PdfDetachedSignatureWriter
                 "A signature field /Lock value is not an indirect reference.");
         PdfDictionary fieldLock = ResolveDictionary(
             document, lockValue, "The signature field /Lock value");
+        if (!fieldLock.TryGetValue(Name("Type"), out PdfObject? lockTypeValue)
+            || lockTypeValue is not PdfName lockType
+            || lockType.ValueAsLatin1() != "SigFieldLock")
+            throw new InvalidOperationException(
+                "A signature field lock /Type is not /SigFieldLock.");
         if (!fieldLock.TryGetValue(Name("Action"), out PdfObject? actionValue)
             || actionValue is not PdfName action
             || action.ValueAsLatin1() is not ("All" or "Include" or "Exclude"))
@@ -384,6 +401,413 @@ public static class PdfDetachedSignatureWriter
             entries.Add(("P", permission));
         }
         return Dictionary(entries.ToArray());
+    }
+
+    private static SeedEvidenceRequirements EnforceSeedValue(
+        PdfDocument document, ExistingFormField field, PdfSignatureOptions options)
+    {
+        if (!field.Dictionary.TryGetValue(Name("SV"), out PdfObject? seedValue)) return default;
+        if (seedValue is not PdfIndirectReference)
+            throw new InvalidOperationException(
+                "A signature field /SV value is not an indirect reference.");
+        PdfDictionary seed = ResolveDictionary(document, seedValue, "The signature field /SV value");
+        if (!seed.TryGetValue(Name("Type"), out PdfObject? typeValue)
+            || typeValue is not PdfName type || type.ValueAsLatin1() != "SV")
+            throw new InvalidOperationException("A signature seed-value /Type is not /SV.");
+        long flags = 0;
+        if (seed.TryGetValue(Name("Ff"), out PdfObject? flagsValue))
+            flags = flagsValue is PdfInteger integer && integer.Value >= 0
+                ? integer.Value
+                : throw new InvalidOperationException(
+                    "A signature seed-value /Ff value is not a non-negative integer.");
+
+        if ((flags & 1) != 0)
+            RequireName(seed, "Filter", "Adobe.PPKLite",
+                "The signature seed value requires an unsupported signing handler.");
+        if ((flags & (1 << 1)) != 0)
+            RequireNameInArray(seed, document, "SubFilter", "ETSI.CAdES.detached",
+                "The signature seed value requires an unsupported signature encoding.");
+        if ((flags & (1 << 2)) != 0)
+        {
+            if (!seed.TryGetValue(Name("V"), out PdfObject? versionValue)
+                || versionValue is not PdfReal version || version.Value is < 1 or > 3)
+                throw new InvalidOperationException(
+                    "The signature seed value requires an unsupported parser version.");
+        }
+        if ((flags & (1 << 3)) != 0)
+            RequireStringInArray(seed, document, "Reasons", options.Reason,
+                "The signing reason does not satisfy the signature seed value.");
+        if ((flags & (1 << 4)) != 0)
+            RequireStringInArray(seed, document, "LegalAttestation",
+                options.LegalAttestation,
+                "The legal attestation does not satisfy the signature seed value.");
+        if ((flags & (1 << 5)) != 0)
+        {
+            if (!seed.TryGetValue(Name("AddRevInfo"), out PdfObject? revocationValue)
+                || revocationValue is not PdfBoolean { Value: true }
+                || !options.IncludesRevocationInformation)
+                throw new InvalidOperationException(
+                    "The signature seed value requires embedded revocation information.");
+        }
+        if ((flags & (1 << 6)) != 0)
+            RequireNameInArray(seed, document, "DigestMethod",
+                options.DigestMethod switch
+                {
+                    PdfSignatureDigestMethod.Sha256 => "SHA256",
+                    PdfSignatureDigestMethod.Sha384 => "SHA384",
+                    PdfSignatureDigestMethod.Sha512 => "SHA512",
+                    _ => throw new ArgumentOutOfRangeException(nameof(options))
+                }, "The selected digest method does not satisfy the signature seed value.");
+        if ((flags & (1 << 7)) != 0)
+        {
+            string required = options.DocumentLockIntent switch
+            {
+                PdfSignatureDocumentLockIntent.Automatic => "auto",
+                PdfSignatureDocumentLockIntent.Lock => "true",
+                PdfSignatureDocumentLockIntent.DoNotLock => "false",
+                _ => string.Empty
+            };
+            RequireName(seed, "LockDocument", required,
+                "The document-lock intent does not satisfy the signature seed value.");
+        }
+        if ((flags & (1 << 8)) != 0)
+        {
+            if (!seed.TryGetValue(Name("AppearanceFilter"), out PdfObject? appearanceValue)
+                || appearanceValue is not PdfString appearance
+                || options.AppearanceName is null
+                || DecodeString(appearance) != options.AppearanceName)
+                throw new InvalidOperationException(
+                    "The signing appearance does not satisfy the signature seed value.");
+        }
+
+        if (seed.TryGetValue(Name("MDP"), out PdfObject? mdpValue))
+        {
+            PdfDictionary mdp = ResolveDictionary(document, mdpValue,
+                "The signature seed-value /MDP value");
+            if (!mdp.TryGetValue(Name("P"), out PdfObject? permissionValue)
+                || permissionValue is not PdfInteger permission || permission.Value is < 0 or > 3
+                || (int?)permission.Value != (int?)(options.CertificationPermission
+                    ?? PdfSignatureCertificationPermission.ApprovalSignature))
+                throw new InvalidOperationException(
+                    "The signature type does not satisfy the signature seed value.");
+        }
+        bool requireTimestamp = false;
+        bool requireCertificate = false;
+        if (seed.TryGetValue(Name("TimeStamp"), out PdfObject? timestampValue))
+        {
+            PdfDictionary timestamp = ResolveDictionary(document, timestampValue,
+                "The signature seed-value /TimeStamp value");
+            if (timestamp.TryGetValue(Name("Ff"), out PdfObject? timestampFlags))
+            {
+                if (timestampFlags is not PdfInteger { Value: >= 0 } timestampFlagInteger)
+                    throw new InvalidOperationException(
+                        "The signature timestamp /Ff value is not a non-negative integer.");
+                if ((timestampFlagInteger.Value & 1) != 0)
+                {
+                    if (!timestamp.TryGetValue(Name("URL"), out PdfObject? timestampUrlValue)
+                        || timestampUrlValue is not PdfString timestampUrl
+                        || options.TimestampServerUrl is null
+                        || DecodeString(timestampUrl) != options.TimestampServerUrl)
+                        throw new InvalidOperationException(
+                            "The timestamp server does not satisfy the signature seed value.");
+                    requireTimestamp = true;
+                }
+            }
+        }
+        if (seed.TryGetValue(Name("Cert"), out PdfObject? certificateValue))
+        {
+            PdfDictionary certificate = ResolveDictionary(document, certificateValue,
+                "The signature seed-value /Cert value");
+            if (!certificate.TryGetValue(Name("Type"), out PdfObject? certificateTypeValue)
+                || certificateTypeValue is not PdfName certificateType
+                || certificateType.ValueAsLatin1() != "SVCert")
+                throw new InvalidOperationException(
+                    "A certificate seed-value /Type is not /SVCert.");
+            if (certificate.TryGetValue(Name("Ff"), out PdfObject? certificateFlags))
+            {
+                if (certificateFlags is not PdfInteger { Value: >= 0 } certificateFlagInteger)
+                    throw new InvalidOperationException(
+                        "The certificate seed-value /Ff value is not a non-negative integer.");
+                if (certificateFlagInteger.Value != 0)
+                {
+                    EnforceCertificateSeed(
+                        document, certificate, certificateFlagInteger.Value, options);
+                    requireCertificate = true;
+                }
+            }
+        }
+        return new SeedEvidenceRequirements(requireTimestamp, requireCertificate);
+    }
+
+    private static void EnforceCertificateSeed(
+        PdfDocument document, PdfDictionary seed, long flags, PdfSignatureOptions options)
+    {
+        if ((flags & (1 << 6)) != 0)
+        {
+            if (!seed.TryGetValue(Name("URL"), out PdfObject? urlValue)
+                || urlValue is not PdfString url
+                || options.CertificateAcquisitionUrl is null
+                || DecodeString(url) != options.CertificateAcquisitionUrl)
+                throw new InvalidOperationException(
+                    "The certificate-acquisition URL does not satisfy the signature seed value.");
+        }
+        long certificateFlags = flags & ((1 << 6) - 1);
+        if (certificateFlags == 0) return;
+        if (options.SignerCertificate.IsEmpty)
+            throw new InvalidOperationException(
+                "The signature seed value requires signer-certificate evidence.");
+        X509Certificate2 signer;
+        try
+        {
+            signer = X509CertificateLoader.LoadCertificate(options.SignerCertificate.Span);
+        }
+        catch (CryptographicException exception)
+        {
+            throw new ArgumentException(
+                "The signer certificate is not valid DER-encoded X.509 data.",
+                nameof(options), exception);
+        }
+        using (signer)
+        {
+            if ((flags & 1) != 0
+                && !CertificateArrayContains(
+                    document, seed, "Subject", options.SignerCertificate))
+                throw new InvalidOperationException(
+                    "The signer certificate does not satisfy the acceptable-subject constraint.");
+            if ((flags & (1 << 1)) != 0)
+            {
+                IReadOnlyList<ReadOnlyMemory<byte>> chain = options.CertificateChain ?? [];
+                if (!IssuerConstraintMatches(document, seed, signer, chain))
+                    throw new InvalidOperationException(
+                        "The signer certificate chain does not satisfy the acceptable-issuer constraint.");
+            }
+            if ((flags & (1 << 2)) != 0
+                && !CertificatePolicyMatches(document, seed, signer))
+                throw new InvalidOperationException(
+                    "The signer certificate does not satisfy the certificate-policy constraint.");
+            if ((flags & (1 << 3)) != 0
+                && !SubjectDistinguishedNameMatches(document, seed, signer))
+                throw new InvalidOperationException(
+                    "The signer certificate does not satisfy the subject-name constraint.");
+            if ((flags & (1 << 5)) != 0
+                && !KeyUsageMatches(document, seed, signer))
+                throw new InvalidOperationException(
+                    "The signer certificate does not satisfy the key-usage constraint.");
+        }
+    }
+
+    private static bool CertificateArrayContains(
+        PdfDocument document, PdfDictionary seed, string key, ReadOnlyMemory<byte> expected)
+    {
+        if (!seed.TryGetValue(Name(key), out PdfObject? value)) return false;
+        PdfArray certificates = ResolveArray(document, value,
+            $"The certificate seed-value /{key} value");
+        if (certificates.Any(item => item is not PdfString))
+            throw new InvalidOperationException(
+                $"The certificate seed-value /{key} array contains a non-string value.");
+        return certificates.Cast<PdfString>()
+            .Any(item => item.Bytes.Span.SequenceEqual(expected.Span));
+    }
+
+    private static bool IssuerConstraintMatches(
+        PdfDocument document,
+        PdfDictionary seed,
+        X509Certificate2 signer,
+        IReadOnlyList<ReadOnlyMemory<byte>> chain)
+    {
+        if (!seed.TryGetValue(Name("Issuer"), out PdfObject? value)) return false;
+        PdfArray acceptable = ResolveArray(document, value,
+            "The certificate seed-value /Issuer value");
+        if (acceptable.Any(item => item is not PdfString))
+            throw new InvalidOperationException(
+                "The certificate seed-value /Issuer array contains a non-string value.");
+        foreach (ReadOnlyMemory<byte> candidateBytes in chain)
+        {
+            if (!acceptable.Cast<PdfString>().Any(item =>
+                item.Bytes.Span.SequenceEqual(candidateBytes.Span))) continue;
+            try
+            {
+                using X509Certificate2 candidate =
+                    X509CertificateLoader.LoadCertificate(candidateBytes.Span);
+                if (candidate.SubjectName.RawData.AsSpan()
+                    .SequenceEqual(signer.IssuerName.RawData)) return true;
+            }
+            catch (CryptographicException exception)
+            {
+                throw new ArgumentException(
+                    "The signer certificate chain contains invalid DER-encoded X.509 data.",
+                    nameof(chain), exception);
+            }
+        }
+        return false;
+    }
+
+    private static bool CertificatePolicyMatches(
+        PdfDocument document, PdfDictionary seed, X509Certificate2 signer)
+    {
+        if (!seed.TryGetValue(Name("OID"), out PdfObject? value)) return false;
+        PdfArray required = ResolveArray(document, value, "The certificate seed-value /OID value");
+        if (required.Any(item => item is not PdfString))
+            throw new InvalidOperationException(
+                "The certificate seed-value /OID array contains a non-string value.");
+        var policies = new HashSet<string>(StringComparer.Ordinal);
+        X509Extension? extension = signer.Extensions["2.5.29.32"];
+        if (extension is not null)
+        {
+            try
+            {
+                var reader = new AsnReader(extension.RawData, AsnEncodingRules.DER);
+                AsnReader sequence = reader.ReadSequence();
+                while (sequence.HasData)
+                {
+                    AsnReader policy = sequence.ReadSequence();
+                    policies.Add(policy.ReadObjectIdentifier());
+                }
+            }
+            catch (AsnContentException)
+            {
+                return false;
+            }
+        }
+        return required.Cast<PdfString>()
+            .Any(item => policies.Contains(Encoding.Latin1.GetString(item.Bytes.Span)));
+    }
+
+    private static bool SubjectDistinguishedNameMatches(
+        PdfDocument document, PdfDictionary seed, X509Certificate2 signer)
+    {
+        if (!seed.TryGetValue(Name("SubjectDN"), out PdfObject? value)) return false;
+        PdfArray alternatives = ResolveArray(
+            document, value, "The certificate seed-value /SubjectDN value");
+        Dictionary<string, List<string>> subject = ReadDistinguishedName(signer.SubjectName.RawData);
+        foreach (PdfObject alternativeValue in alternatives)
+        {
+            PdfDictionary alternative = ResolveDictionary(
+                document, alternativeValue, "A certificate subject-name constraint");
+            bool matches = true;
+            foreach ((PdfName key, PdfObject expectedValue) in alternative)
+            {
+                if (expectedValue is not PdfString expected
+                    || !subject.TryGetValue(key.ValueAsLatin1(), out List<string>? actual)
+                    || !actual.Contains(DecodeString(expected), StringComparer.OrdinalIgnoreCase))
+                {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) return true;
+        }
+        return false;
+    }
+
+    private static Dictionary<string, List<string>> ReadDistinguishedName(ReadOnlyMemory<byte> raw)
+    {
+        var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var reader = new AsnReader(raw, AsnEncodingRules.DER);
+            AsnReader name = reader.ReadSequence();
+            while (name.HasData)
+            {
+                AsnReader set = name.ReadSetOf();
+                while (set.HasData)
+                {
+                    AsnReader attribute = set.ReadSequence();
+                    string oid = attribute.ReadObjectIdentifier();
+                    string key = oid switch
+                    {
+                        "2.5.4.3" => "cn",
+                        "2.5.4.5" => "serialnumber",
+                        "2.5.4.6" => "c",
+                        "2.5.4.7" => "l",
+                        "2.5.4.8" => "st",
+                        "2.5.4.10" => "o",
+                        "2.5.4.11" => "ou",
+                        "1.2.840.113549.1.9.1" => "emailaddress",
+                        _ => oid
+                    };
+                    Asn1Tag tag = attribute.PeekTag();
+                    UniversalTagNumber stringType = (UniversalTagNumber)tag.TagValue;
+                    string text = attribute.ReadCharacterString(stringType);
+                    if (!result.TryGetValue(key, out List<string>? values))
+                        result.Add(key, values = []);
+                    values.Add(text);
+                }
+            }
+        }
+        catch (AsnContentException)
+        {
+            return [];
+        }
+        return result;
+    }
+
+    private static bool KeyUsageMatches(
+        PdfDocument document, PdfDictionary seed, X509Certificate2 signer)
+    {
+        if (!seed.TryGetValue(Name("KeyUsage"), out PdfObject? value)) return false;
+        PdfArray patterns = ResolveArray(document, value,
+            "The certificate seed-value /KeyUsage value");
+        if (patterns.Any(item => item is not PdfString))
+            throw new InvalidOperationException(
+                "The certificate seed-value /KeyUsage array contains a non-string value.");
+        X509KeyUsageFlags actual = signer.Extensions.OfType<X509KeyUsageExtension>()
+            .Select(extension => extension.KeyUsages).FirstOrDefault();
+        X509KeyUsageFlags[] bits =
+        [
+            X509KeyUsageFlags.DigitalSignature,
+            X509KeyUsageFlags.NonRepudiation,
+            X509KeyUsageFlags.KeyEncipherment,
+            X509KeyUsageFlags.DataEncipherment,
+            X509KeyUsageFlags.KeyAgreement,
+            X509KeyUsageFlags.KeyCertSign,
+            X509KeyUsageFlags.CrlSign,
+            X509KeyUsageFlags.EncipherOnly,
+            X509KeyUsageFlags.DecipherOnly
+        ];
+        return patterns.Cast<PdfString>().Any(patternValue =>
+        {
+            string pattern = Encoding.Latin1.GetString(patternValue.Bytes.Span);
+            return pattern.Length == bits.Length && pattern.Select((constraint, index) =>
+            {
+                bool present = (actual & bits[index]) != 0;
+                return constraint == 'X' || constraint == '1' && present
+                    || constraint == '0' && !present;
+            }).All(matches => matches);
+        });
+    }
+
+    private static void RequireName(
+        PdfDictionary dictionary, string key, string expected, string message)
+    {
+        if (expected.Length == 0
+            || !dictionary.TryGetValue(Name(key), out PdfObject? value)
+            || value is not PdfName name || name.ValueAsLatin1() != expected)
+            throw new InvalidOperationException(message);
+    }
+
+    private static void RequireNameInArray(
+        PdfDictionary dictionary, PdfDocument document, string key,
+        string expected, string message)
+    {
+        if (!dictionary.TryGetValue(Name(key), out PdfObject? value))
+            throw new InvalidOperationException(message);
+        PdfArray values = ResolveArray(document, value, $"The signature seed-value /{key} value");
+        if (!values.OfType<PdfName>().Any(name => name.ValueAsLatin1() == expected)
+            || values.Any(item => item is not PdfName))
+            throw new InvalidOperationException(message);
+    }
+
+    private static void RequireStringInArray(
+        PdfDictionary dictionary, PdfDocument document, string key,
+        string? expected, string message)
+    {
+        if (expected is null || !dictionary.TryGetValue(Name(key), out PdfObject? value))
+            throw new InvalidOperationException(message);
+        PdfArray values = ResolveArray(document, value, $"The signature seed-value /{key} value");
+        if (!values.OfType<PdfString>().Any(item => DecodeString(item) == expected)
+            || values.Any(item => item is not PdfString))
+            throw new InvalidOperationException(message);
     }
 
     private static int? ReadCertificationPermission(
@@ -545,10 +969,134 @@ public static class PdfDetachedSignatureWriter
         });
     }
 
+    private static PdfDictionary? UpdateDirectSignatureField(
+        PdfDocument document,
+        PdfPageTree tree,
+        PdfIncrementalUpdateBuilder update,
+        string targetName,
+        PdfIndirectReference signatureReference)
+    {
+        PdfObject formValue = tree.Catalog[AcroFormName];
+        PdfIndirectReference? formReference = formValue as PdfIndirectReference;
+        PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
+        PdfObject fieldsValue = form[FieldsName];
+        RewriteResult rewrittenFields = RewriteArray(fieldsValue, null, null, 0);
+        if (!rewrittenFields.Found)
+            throw new InvalidOperationException(
+                $"The AcroForm field '{targetName}' could not be rewritten.");
+        PdfDictionary rewrittenForm = rewrittenFields.ContainerChanged
+            ? ReplaceMany(form, new Dictionary<PdfName, PdfObject>
+            {
+                [FieldsName] = rewrittenFields.Value
+            }) : form;
+        rewrittenForm = WithSignatureFlags(rewrittenForm);
+        if (formReference is not null)
+        {
+            update.ReplaceObject(formReference.ObjectNumber, rewrittenForm);
+            return null;
+        }
+        return ReplaceMany(tree.Catalog, new Dictionary<PdfName, PdfObject>
+        {
+            [AcroFormName] = rewrittenForm
+        });
+
+        RewriteResult RewriteArray(
+            PdfObject value, string? parentName, PdfName? inheritedType, int depth)
+        {
+            PdfIndirectReference? reference = value as PdfIndirectReference;
+            PdfArray array = ResolveArray(document, value, "An AcroForm field array");
+            var rewritten = new List<PdfObject>(array.Count);
+            bool changed = false;
+            bool found = false;
+            foreach (PdfObject item in array)
+            {
+                RewriteResult result = RewriteField(item, parentName, inheritedType, depth);
+                rewritten.Add(result.Value);
+                changed |= result.ContainerChanged;
+                found |= result.Found;
+            }
+            if (!changed) return new RewriteResult(value, false, found);
+            var replacement = new PdfArray(rewritten);
+            if (reference is not null)
+            {
+                update.ReplaceObject(reference.ObjectNumber, replacement);
+                return new RewriteResult(value, false, found);
+            }
+            return new RewriteResult(replacement, true, found);
+        }
+
+        RewriteResult RewriteField(
+            PdfObject value, string? parentName, PdfName? inheritedType, int depth)
+        {
+            if (depth >= PdfObjectWriter.MaximumNestingDepth)
+                throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            PdfIndirectReference? reference = value as PdfIndirectReference;
+            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            PdfName? fieldType = inheritedType;
+            if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
+                fieldType = typeValue as PdfName
+                    ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
+            string? fullName = parentName;
+            bool definesName = false;
+            if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
+            {
+                definesName = true;
+                string partialName = nameValue is PdfString name
+                    ? DecodeString(name)
+                    : throw new InvalidOperationException("An AcroForm field /T value is not a string.");
+                fullName = string.IsNullOrEmpty(parentName)
+                    ? partialName : $"{parentName}.{partialName}";
+            }
+            bool found = reference is null && definesName && fullName == targetName;
+            bool changed = found;
+            PdfDictionary replacement = found
+                ? ReplaceMany(field, new Dictionary<PdfName, PdfObject>
+                {
+                    [Name("V")] = signatureReference
+                }) : field;
+            if (field.TryGetValue(KidsName, out PdfObject? kidsValue))
+            {
+                RewriteResult kids = RewriteArray(kidsValue, fullName, fieldType, depth + 1);
+                found |= kids.Found;
+                if (kids.ContainerChanged)
+                {
+                    replacement = ReplaceMany(replacement, new Dictionary<PdfName, PdfObject>
+                    {
+                        [KidsName] = kids.Value
+                    });
+                    changed = true;
+                }
+            }
+            if (!changed) return new RewriteResult(value, false, found);
+            if (reference is not null)
+            {
+                update.ReplaceObject(reference.ObjectNumber, replacement);
+                return new RewriteResult(value, false, found);
+            }
+            return new RewriteResult(replacement, true, found);
+        }
+    }
+
+    private static PdfDictionary WithSignatureFlags(PdfDictionary form)
+    {
+        long flags = 0;
+        if (form.TryGetValue(SignatureFlagsName, out PdfObject? flagsValue))
+            flags = flagsValue is PdfInteger integer && integer.Value >= 0
+                ? integer.Value
+                : throw new InvalidOperationException(
+                    "The AcroForm /SigFlags value is not a non-negative integer.");
+        return ReplaceMany(form, new Dictionary<PdfName, PdfObject>
+        {
+            [SignatureFlagsName] = new PdfInteger(flags | 3)
+        });
+    }
+
     private static void FillSignature(
         byte[] prepared,
         int reservedSize,
-        Func<ReadOnlyMemory<byte>, byte[]> createDetachedCms)
+        Func<ReadOnlyMemory<byte>, byte[]> createDetachedCms,
+        SeedEvidenceRequirements evidenceRequirements,
+        ReadOnlyMemory<byte> signerCertificate)
     {
         byte[] rangeMarker = Encoding.ASCII.GetBytes(
             $"/ByteRange [{RangeSentinel1} {RangeSentinel2} {RangeSentinel3} {RangeSentinel4}]");
@@ -589,6 +1137,13 @@ public static class PdfDetachedSignatureWriter
         if (cms.Length > reservedSize)
             throw new InvalidOperationException(
                 $"The detached CMS signature requires {cms.Length} bytes but only {reservedSize} were reserved.");
+        if (evidenceRequirements.Timestamp && !ContainsRfc3161TimestampToken(cms))
+            throw new InvalidOperationException(
+                "The detached CMS signature does not contain the required RFC 3161 timestamp token.");
+        if (evidenceRequirements.Certificate
+            && !CmsUsesCertificate(cms, signerCertificate))
+            throw new InvalidOperationException(
+                "The detached CMS signature was not created by the constrained signer certificate.");
         WriteHex(prepared.AsSpan(contentsHexStart, reservedSize * 2), cms);
     }
 
@@ -598,6 +1153,166 @@ public static class PdfDetachedSignatureWriter
         if (text.Length != destination.Length)
             throw new NotSupportedException("Signed PDF byte offsets cannot exceed ten digits.");
         Encoding.ASCII.GetBytes(text, destination);
+    }
+
+    private static bool ContainsRfc3161TimestampToken(ReadOnlyMemory<byte> cms)
+    {
+        const string signedDataOid = "1.2.840.113549.1.7.2";
+        const string timestampTokenOid = "1.2.840.113549.1.9.16.2.14";
+        try
+        {
+            var reader = new AsnReader(cms, AsnEncodingRules.BER);
+            AsnReader contentInfo = reader.ReadSequence();
+            if (contentInfo.ReadObjectIdentifier() != signedDataOid) return false;
+            AsnReader explicitContent = contentInfo.ReadSequence(
+                new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true));
+            AsnReader signedData = explicitContent.ReadSequence();
+            signedData.ReadInteger();
+            signedData.ReadSetOf();
+            signedData.ReadSequence();
+            if (signedData.HasData
+                && signedData.PeekTag().HasSameClassAndValue(
+                    new Asn1Tag(TagClass.ContextSpecific, 0)))
+                signedData.ReadEncodedValue();
+            if (signedData.HasData
+                && signedData.PeekTag().HasSameClassAndValue(
+                    new Asn1Tag(TagClass.ContextSpecific, 1)))
+                signedData.ReadEncodedValue();
+            AsnReader signerInfos = signedData.ReadSetOf();
+            while (signerInfos.HasData)
+            {
+                AsnReader signerInfo = signerInfos.ReadSequence();
+                signerInfo.ReadInteger();
+                signerInfo.ReadEncodedValue();
+                signerInfo.ReadSequence();
+                if (signerInfo.HasData
+                    && signerInfo.PeekTag().HasSameClassAndValue(
+                        new Asn1Tag(TagClass.ContextSpecific, 0)))
+                    signerInfo.ReadEncodedValue();
+                signerInfo.ReadSequence();
+                signerInfo.ReadOctetString();
+                if (!signerInfo.HasData
+                    || !signerInfo.PeekTag().HasSameClassAndValue(
+                        new Asn1Tag(TagClass.ContextSpecific, 1)))
+                    continue;
+                AsnReader unsignedAttributes = signerInfo.ReadSetOf(
+                    new Asn1Tag(TagClass.ContextSpecific, 1, isConstructed: true));
+                while (unsignedAttributes.HasData)
+                {
+                    AsnReader attribute = unsignedAttributes.ReadSequence();
+                    if (attribute.ReadObjectIdentifier() == timestampTokenOid)
+                        return true;
+                    attribute.ReadEncodedValue();
+                }
+            }
+            return false;
+        }
+        catch (AsnContentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool CmsUsesCertificate(
+        ReadOnlyMemory<byte> cms, ReadOnlyMemory<byte> certificate)
+    {
+        if (certificate.IsEmpty) return false;
+        try
+        {
+            (ReadOnlyMemory<byte> issuer, ReadOnlyMemory<byte> serial) =
+                ReadCertificateIssuerAndSerial(certificate);
+            byte[]? subjectKeyIdentifier = null;
+            using (X509Certificate2 parsedCertificate =
+                X509CertificateLoader.LoadCertificate(certificate.Span))
+            {
+                string? identifier = parsedCertificate.Extensions
+                    .OfType<X509SubjectKeyIdentifierExtension>()
+                    .Select(extension => extension.SubjectKeyIdentifier)
+                    .FirstOrDefault(value => value is not null);
+                if (identifier is not null)
+                    subjectKeyIdentifier = Convert.FromHexString(identifier);
+            }
+            var reader = new AsnReader(cms, AsnEncodingRules.BER);
+            AsnReader contentInfo = reader.ReadSequence();
+            if (contentInfo.ReadObjectIdentifier() != "1.2.840.113549.1.7.2") return false;
+            AsnReader explicitContent = contentInfo.ReadSequence(
+                new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true));
+            AsnReader signedData = explicitContent.ReadSequence();
+            signedData.ReadInteger();
+            signedData.ReadSetOf();
+            signedData.ReadSequence();
+            if (!signedData.HasData
+                || !signedData.PeekTag().HasSameClassAndValue(
+                    new Asn1Tag(TagClass.ContextSpecific, 0)))
+                return false;
+            AsnReader certificates = signedData.ReadSetOf(
+                new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true));
+            bool containsCertificate = false;
+            while (certificates.HasData)
+            {
+                ReadOnlyMemory<byte> encoded = certificates.ReadEncodedValue();
+                if (encoded.Span.SequenceEqual(certificate.Span)) containsCertificate = true;
+            }
+            if (!containsCertificate) return false;
+            if (signedData.HasData
+                && signedData.PeekTag().HasSameClassAndValue(
+                    new Asn1Tag(TagClass.ContextSpecific, 1)))
+                signedData.ReadEncodedValue();
+            AsnReader signerInfos = signedData.ReadSetOf();
+            while (signerInfos.HasData)
+            {
+                AsnReader signerInfo = signerInfos.ReadSequence();
+                signerInfo.ReadInteger();
+                if (signerInfo.PeekTag().HasSameClassAndValue(
+                    new Asn1Tag(TagClass.ContextSpecific, 0)))
+                {
+                    byte[] signerKeyIdentifier = signerInfo.ReadOctetString(
+                        new Asn1Tag(TagClass.ContextSpecific, 0));
+                    if (subjectKeyIdentifier is not null
+                        && signerKeyIdentifier.AsSpan().SequenceEqual(subjectKeyIdentifier))
+                        return true;
+                    continue;
+                }
+                if (!signerInfo.PeekTag().HasSameClassAndValue(Asn1Tag.Sequence))
+                {
+                    signerInfo.ReadEncodedValue();
+                    continue;
+                }
+                AsnReader signerIdentifier = signerInfo.ReadSequence();
+                ReadOnlyMemory<byte> signerIssuer = signerIdentifier.ReadEncodedValue();
+                ReadOnlyMemory<byte> signerSerial = signerIdentifier.ReadIntegerBytes();
+                if (signerIssuer.Span.SequenceEqual(issuer.Span)
+                    && NormalizeInteger(signerSerial.Span)
+                        .SequenceEqual(NormalizeInteger(serial.Span)))
+                    return true;
+            }
+            return false;
+        }
+        catch (AsnContentException)
+        {
+            return false;
+        }
+    }
+
+    private static (ReadOnlyMemory<byte> Issuer, ReadOnlyMemory<byte> Serial)
+        ReadCertificateIssuerAndSerial(ReadOnlyMemory<byte> certificate)
+    {
+        var reader = new AsnReader(certificate, AsnEncodingRules.DER);
+        AsnReader certificateSequence = reader.ReadSequence();
+        AsnReader tbsCertificate = certificateSequence.ReadSequence();
+        if (tbsCertificate.PeekTag().HasSameClassAndValue(
+            new Asn1Tag(TagClass.ContextSpecific, 0)))
+            tbsCertificate.ReadEncodedValue();
+        ReadOnlyMemory<byte> serial = tbsCertificate.ReadIntegerBytes();
+        tbsCertificate.ReadSequence();
+        ReadOnlyMemory<byte> issuer = tbsCertificate.ReadEncodedValue();
+        return (issuer, serial);
+    }
+
+    private static ReadOnlySpan<byte> NormalizeInteger(ReadOnlySpan<byte> value)
+    {
+        while (value.Length > 1 && value[0] == 0) value = value[1..];
+        return value;
     }
 
     private static void WriteHex(Span<byte> destination, ReadOnlySpan<byte> value)
@@ -619,6 +1334,13 @@ public static class PdfDetachedSignatureWriter
         if (options.ReservedSignatureSize is <= 0 or > MaximumReservedSignatureSize)
             throw new ArgumentOutOfRangeException(nameof(options),
                 $"The reserved signature size must be between 1 and {MaximumReservedSignatureSize} bytes.");
+        if (!Enum.IsDefined(options.DigestMethod))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "The signature digest method is not supported.");
+        if (options.DocumentLockIntent.HasValue
+            && !Enum.IsDefined(options.DocumentLockIntent.Value))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "The document-lock intent is not supported.");
         if (options.CertificationPermission.HasValue
             && options.CertificationPermission.Value is not
                 (PdfSignatureCertificationPermission.NoChanges
@@ -686,5 +1408,8 @@ public static class PdfDetachedSignatureWriter
     }
 
     private sealed record ExistingFormField(
-        PdfIndirectReference Reference, PdfDictionary Dictionary, PdfName FieldType);
+        PdfIndirectReference? Reference, PdfDictionary Dictionary, PdfName FieldType);
+    private readonly record struct RewriteResult(
+        PdfObject Value, bool ContainerChanged, bool Found);
+    private readonly record struct SeedEvidenceRequirements(bool Timestamp, bool Certificate);
 }

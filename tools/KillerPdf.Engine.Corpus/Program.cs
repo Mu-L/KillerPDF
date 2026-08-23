@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
 using KillerPdf.Engine.Validation;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Fonts;
@@ -383,6 +384,9 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
         RunOpenSsl("req", "-x509", "-newkey", "rsa:2048",
             "-keyout", keyPath, "-out", certificatePath,
             "-days", "1", "-nodes", "-subj", "/CN=KillerPDF Signature Smoke");
+        using X509Certificate2 signerCertificate =
+            X509CertificateLoader.LoadCertificateFromFile(certificatePath);
+        byte[] signerCertificateDer = signerCertificate.RawData;
 
         byte[] source = new PdfDocumentBuilder()
             .SetMetadata(new PdfDocumentMetadata
@@ -402,7 +406,12 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
                     SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
                     RequireSubFilter = true,
                     DigestMethods = [PdfSignatureDigestMethod.Sha256],
-                    RequireDigestMethod = true
+                    RequireDigestMethod = true,
+                    Certificate = new PdfSignatureCertificateSeed
+                    {
+                        SubjectCertificates = [signerCertificateDer],
+                        RequireSubject = true
+                    }
                 })
             .Build();
         byte[] pdf = PdfDetachedSignatureWriter.Sign(
@@ -420,6 +429,7 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
                 SignerName = "KillerPDF Signature Smoke",
                 Reason = "Engine validation",
                 SigningTime = DateTimeOffset.UtcNow,
+                SignerCertificate = signerCertificateDer,
                 CertificationPermission =
                     PdfSignatureCertificationPermission.FormFillingAndSignatures
             });
@@ -429,6 +439,19 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
         if (!File.ReadAllBytes(contentPath).AsSpan()
             .SequenceEqual(File.ReadAllBytes(verifiedPath)))
             throw new InvalidOperationException("OpenSSL returned different verified signature content.");
+        PdfDocument signedDocument = PdfDocument.Open(pdf);
+        PdfSignatureInfo inspectedSignature = PdfSignatureReader.Read(signedDocument).Single();
+        PdfSignatureVerificationResult verification =
+            PdfSignatureVerifier.VerifyIntegrity(signedDocument, inspectedSignature);
+        if (!inspectedSignature.IsCertificationSignature
+            || !inspectedSignature.HasValidByteRange
+            || !inspectedSignature.CoversWholeDocument
+            || !inspectedSignature.HasValidCmsEncoding
+            || !verification.IsCryptographicallyValid
+            || !PdfSignatureReader.GetSignedContent(signedDocument, inspectedSignature)
+                .AsSpan().SequenceEqual(File.ReadAllBytes(contentPath)))
+            throw new InvalidOperationException(
+                "The signed PDF did not pass KillerPDF signature inspection.");
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         File.WriteAllBytes(destination, pdf);
         Console.WriteLine($"Wrote {pdf.Length:N0} byte CMS-signed PDF to {destination}");
