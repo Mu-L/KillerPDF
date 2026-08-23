@@ -299,6 +299,60 @@ if (args.Length == 4 && args[0] == "--pdfa-page-smoke")
     return 0;
 }
 
+if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    byte[] importSource = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF page import source", Language = "en-US" })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddPage(400, 600, new PdfContentStreamBuilder()
+            .SetFillRgb(0.1, 0.4, 0.9).Rectangle(50, 50, 300, 500).Fill())
+        .AddPage(600, 400, new PdfContentStreamBuilder()
+            .SetFillRgb(0.9, 0.15, 0.25).Rectangle(50, 50, 500, 300).Fill())
+        .AddTextNote(0, 340, 540, "Imported archival annotation")
+        .AddPageLink(0, 20, 20, 40, 20, 1)
+        .Build();
+    byte[] target = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A page import smoke test", Language = "en-US" })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddPage(300, 300, new PdfContentStreamBuilder()
+            .SetFillRgb(0.55, 0.2, 0.75).Rectangle(40, 40, 220, 220).Fill())
+        .Build();
+    PdfDocument sourceDocument = PdfDocument.Open(importSource);
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(sourceDocument)
+        .Build();
+    if (!pdf.AsSpan(0, target.Length).SequenceEqual(target))
+        throw new InvalidDataException("The incremental page import changed target source bytes.");
+    string sourcePath = Path.GetFullPath(args[2]);
+    string destination = Path.GetFullPath(args[3]);
+    Directory.CreateDirectory(Path.GetDirectoryName(sourcePath)!);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(sourcePath, target);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Imported two linked PDF/A pages in {pdf.Length - target.Length:N0} appended bytes to {destination}");
+    return 0;
+}
+
+if (args.Length == 4 && args[0] == "--import-document")
+{
+    PdfDocument importSource = PdfDocument.Open(File.ReadAllBytes(args[1]));
+    byte[] target = File.ReadAllBytes(args[2]);
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(importSource)
+        .Build();
+    if (!pdf.AsSpan(0, target.Length).SequenceEqual(target))
+        throw new InvalidDataException("The incremental document import changed target source bytes.");
+    string destination = Path.GetFullPath(args[3]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Imported {new PdfIncrementalPageEditor(importSource).PageCount:N0} pages in " +
+        $"{pdf.Length - target.Length:N0} appended bytes to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -315,6 +369,8 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-annotation-smoke <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-visual-annotation-smoke <font.ttf> <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-page-smoke <profile.icc> <source.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-import-smoke <profile.icc> <target.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --import-document <source.pdf> <target.pdf> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 

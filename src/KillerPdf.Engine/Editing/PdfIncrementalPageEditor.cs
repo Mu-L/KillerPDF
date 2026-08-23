@@ -13,6 +13,10 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName RotateName = Name("Rotate");
     private static readonly PdfName MediaBoxName = Name("MediaBox");
     private static readonly PdfName CropBoxName = Name("CropBox");
+    private static readonly PdfName AnnotsName = Name("Annots");
+    private static readonly PdfName SubtypeName = Name("Subtype");
+    private static readonly PdfName WidgetName = Name("Widget");
+    private static readonly PdfName StructParentsName = Name("StructParents");
     private static readonly PdfName[] InheritableNames =
     [
         Name("Resources"), MediaBoxName, Name("CropBox"), RotateName
@@ -69,6 +73,49 @@ public sealed class PdfIncrementalPageEditor
     /// <summary>Appends a blank page to the current page order.</summary>
     public PdfIncrementalPageEditor AddBlankPage(double width = 612, double height = 792) =>
         InsertBlankPage(_pages.Count, width, height);
+
+    /// <summary>Copies a page from another document into the current page order.</summary>
+    public PdfIncrementalPageEditor InsertImportedPage(
+        int pageIndex, PdfDocument source, int sourcePageIndex)
+    {
+        ValidateInsertionIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(source);
+        PdfPageTree sourceTree = PdfPageTree.Read(source);
+        if (sourcePageIndex < 0 || sourcePageIndex >= sourceTree.Pages.Count)
+            throw new ArgumentOutOfRangeException(nameof(sourcePageIndex));
+        PdfPageTreeEntry sourcePage = sourceTree.Pages[sourcePageIndex];
+        ValidateImportablePage(source, sourcePage);
+        EnsureNotAlreadyImported(source, sourcePage);
+        _pages.Insert(pageIndex, new PageState(source, sourceTree, sourcePage));
+        _orderChanged = true;
+        return this;
+    }
+
+    /// <summary>Copies a page from another document to the end of the current page order.</summary>
+    public PdfIncrementalPageEditor AddImportedPage(PdfDocument source, int sourcePageIndex) =>
+        InsertImportedPage(_pages.Count, source, sourcePageIndex);
+
+    /// <summary>Copies every page from another document into the current page order.</summary>
+    public PdfIncrementalPageEditor InsertImportedDocument(int pageIndex, PdfDocument source)
+    {
+        ValidateInsertionIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(source);
+        PdfPageTree sourceTree = PdfPageTree.Read(source);
+        foreach (PdfPageTreeEntry page in sourceTree.Pages)
+        {
+            ValidateImportablePage(source, page);
+            EnsureNotAlreadyImported(source, page);
+        }
+        if (sourceTree.Pages.Count == 0) return this;
+        _pages.InsertRange(pageIndex,
+            sourceTree.Pages.Select(page => new PageState(source, sourceTree, page)));
+        _orderChanged = true;
+        return this;
+    }
+
+    /// <summary>Copies every page from another document to the end of the current page order.</summary>
+    public PdfIncrementalPageEditor AddImportedDocument(PdfDocument source) =>
+        InsertImportedDocument(_pages.Count, source);
 
     public PdfIncrementalPageEditor RotateClockwise(int pageIndex) => Rotate(pageIndex, 90);
     public PdfIncrementalPageEditor RotateCounterClockwise(int pageIndex) => Rotate(pageIndex, -90);
@@ -149,6 +196,21 @@ public sealed class PdfIncrementalPageEditor
         var references = new Dictionary<PageState, PdfIndirectReference>();
         foreach (PageState state in _pages)
             references[state] = state.Entry?.Reference ?? update.ReserveObject();
+        var importers = new Dictionary<PageState, PdfObjectGraphImporter>();
+        foreach (IGrouping<PdfDocument, PageState> group in _pages
+                     .Where(page => page.ImportedDocument is not null)
+                     .GroupBy(page => page.ImportedDocument!))
+        {
+            PageState first = group.First();
+            var importer = new PdfObjectGraphImporter(
+                group.Key, update,
+                first.ImportedTree!.Pages.Select(page => page.Reference.ObjectNumber));
+            foreach (PageState state in group)
+            {
+                importer.SeedPage(state.ImportedEntry!.Reference, references[state]);
+                importers[state] = importer;
+            }
+        }
         var kids = new PdfArray(_pages.Select(page => (PdfObject)references[page]));
         update.SetObject(newRoot, Dictionary(
             ("Type", Name("Pages")), ("Kids", kids), ("Count", new PdfInteger(_pages.Count))));
@@ -157,6 +219,11 @@ public sealed class PdfIncrementalPageEditor
 
         foreach (PageState state in _pages)
         {
+            if (state.ImportedEntry is not null)
+            {
+                BuildImportedPage(update, state, references[state], newRoot, importers[state]);
+                continue;
+            }
             if (state.Entry is null)
             {
                 var entries = new List<(string Name, PdfObject Value)>
@@ -195,15 +262,51 @@ public sealed class PdfIncrementalPageEditor
         }
     }
 
+    private static void BuildImportedPage(
+        PdfIncrementalUpdateBuilder update,
+        PageState state,
+        PdfIndirectReference destinationReference,
+        PdfIndirectReference newRoot,
+        PdfObjectGraphImporter importer)
+    {
+        PdfPageTreeEntry source = state.ImportedEntry!;
+        var entries = source.Dictionary
+            .Where(entry => !entry.Key.Equals(ParentName)
+                && !InheritableNames.Contains(entry.Key))
+            .Select(entry => new KeyValuePair<PdfName, PdfObject>(
+                entry.Key, importer.Import(entry.Value)))
+            .ToList();
+        entries.Add(new KeyValuePair<PdfName, PdfObject>(ParentName, newRoot));
+        foreach (PdfName name in InheritableNames)
+        {
+            PdfObject? value = name.Equals(MediaBoxName) && state.MediaBox is not null
+                ? state.MediaBox
+                : name.Equals(CropBoxName) && state.CropBox is not null
+                    ? state.CropBox
+                    : name.Equals(RotateName) && state.Rotation.HasValue
+                        ? new PdfInteger(state.Rotation.Value)
+                        : source.InheritedValues.TryGetValue(name, out PdfObject? inherited)
+                            ? importer.Import(inherited)
+                            : null;
+            if (value is not null)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
+        }
+        if (!entries.Any(entry => entry.Key.Equals(MediaBoxName)))
+            throw new InvalidOperationException(
+                $"Imported page {source.Index + 1} has no effective /MediaBox.");
+        update.SetObject(destinationReference, new PdfDictionary(entries));
+    }
+
     private static int CurrentRotation(PageState state)
     {
         if (state.Rotation.HasValue) return state.Rotation.Value;
-        if (state.Entry is null
-            || !state.Entry.InheritedValues.TryGetValue(RotateName, out PdfObject? value)) return 0;
+        PdfPageTreeEntry? entry = state.Entry ?? state.ImportedEntry;
+        if (entry is null
+            || !entry.InheritedValues.TryGetValue(RotateName, out PdfObject? value)) return 0;
         if (value is not PdfInteger rotation || rotation.Value is < int.MinValue or > int.MaxValue
             || rotation.Value % 90 != 0)
             throw new InvalidOperationException(
-                $"Page {state.Entry.Index + 1} has an invalid inherited /Rotate value.");
+                $"Page {entry.Index + 1} has an invalid inherited /Rotate value.");
         return NormalizeRotation((int)rotation.Value);
     }
 
@@ -250,6 +353,39 @@ public sealed class PdfIncrementalPageEditor
             throw new ArgumentOutOfRangeException(parameterName);
     }
 
+    private static void ValidateImportablePage(PdfDocument source, PdfPageTreeEntry page)
+    {
+        if (page.Dictionary.ContainsKey(StructParentsName))
+            throw new NotSupportedException(
+                "Tagged pages require structure-tree import, which is not yet supported.");
+        if (!page.Dictionary.TryGetValue(AnnotsName, out PdfObject? annotationsValue)) return;
+        PdfObject annotations = annotationsValue is PdfIndirectReference reference
+            ? source.Resolve(reference)
+            : annotationsValue;
+        if (annotations is not PdfArray array) return;
+        foreach (PdfObject item in array)
+        {
+            PdfObject resolved = item is PdfIndirectReference annotationReference
+                ? source.Resolve(annotationReference)
+                : item;
+            if (resolved is PdfDictionary annotation
+                && annotation.TryGetValue(SubtypeName, out PdfObject? subtype)
+                && subtype is PdfName name && name.Equals(WidgetName))
+                throw new NotSupportedException(
+                    "Pages containing form widgets require AcroForm import, which is not yet supported.");
+        }
+    }
+
+    private void EnsureNotAlreadyImported(PdfDocument source, PdfPageTreeEntry page)
+    {
+        if (_pages.Any(existing => ReferenceEquals(existing.ImportedDocument, source)
+            && existing.ImportedEntry is PdfPageTreeEntry imported
+            && imported.Reference.ObjectNumber == page.Reference.ObjectNumber
+            && imported.Reference.Generation == page.Reference.Generation))
+            throw new NotSupportedException(
+                "Importing the same source page more than once in one update is not yet supported.");
+    }
+
     private static PdfDictionary ReplaceMany(
         PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements) =>
         new(source.Where(entry => !replacements.ContainsKey(entry.Key)).Concat(replacements));
@@ -269,7 +405,17 @@ public sealed class PdfIncrementalPageEditor
     {
         internal PageState(PdfPageTreeEntry entry) => Entry = entry;
         internal PageState(PdfArray mediaBox) => MediaBox = mediaBox;
+        internal PageState(
+            PdfDocument importedDocument, PdfPageTree importedTree, PdfPageTreeEntry importedEntry)
+        {
+            ImportedDocument = importedDocument;
+            ImportedTree = importedTree;
+            ImportedEntry = importedEntry;
+        }
         internal PdfPageTreeEntry? Entry { get; }
+        internal PdfDocument? ImportedDocument { get; }
+        internal PdfPageTree? ImportedTree { get; }
+        internal PdfPageTreeEntry? ImportedEntry { get; }
         internal int? Rotation { get; set; }
         internal PdfArray? MediaBox { get; set; }
         internal PdfArray? CropBox { get; set; }

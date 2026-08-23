@@ -21,6 +21,7 @@ public sealed class PdfLinkAnnotationTests
         var border = Assert.IsType<PdfArray>(annotation[Name("Border")]);
 
         Assert.Equal("Link", Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal(4, Assert.IsType<PdfInteger>(annotation[Name("F")]).Value);
         Assert.Equal("URI", Assert.IsType<PdfName>(action[Name("S")]).ValueAsLatin1());
         Assert.Equal("https://killerpdf.net/docs?q=2",
             Encoding.UTF8.GetString(Assert.IsType<PdfString>(action[Name("URI")]).Bytes.Span));

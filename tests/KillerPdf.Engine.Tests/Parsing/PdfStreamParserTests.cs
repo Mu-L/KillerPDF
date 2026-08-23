@@ -47,7 +47,6 @@ public sealed class PdfStreamParserTests
     [InlineData("1 0 obj << /Length /Five >> stream\nHello\nendstream endobj")]
     [InlineData("1 0 obj << /Length 5 >> stream Hello\nendstream endobj")]
     [InlineData("1 0 obj << /Length 8 >> stream\nHello\nendstream endobj")]
-    [InlineData("1 0 obj << /Length 5 >> stream\nHelloendstream endobj")]
     [InlineData("1 0 obj << /Length 5 >> stream\nHello\nendobj")]
     public void ParseIndirectObject_RejectsMalformedStreamBoundaries(string source)
     {
@@ -74,6 +73,15 @@ public sealed class PdfStreamParserTests
         var stream = Assert.IsType<PdfStream>(Parser(source).ParseIndirectObject().Value);
 
         Assert.Equal("X", Encoding.Latin1.GetString(stream.EncodedData.Span));
+    }
+
+    [Fact]
+    public void ParseIndirectObject_AcceptsQpdfStreamWithClosingLineEndingIncludedInLength()
+    {
+        var stream = Assert.IsType<PdfStream>(Parser(
+            "1 0 obj << /Length 5 >> stream\nHelloendstream endobj").ParseIndirectObject().Value);
+
+        Assert.Equal("Hello", Encoding.Latin1.GetString(stream.EncodedData.Span));
     }
 
     private static PdfObjectParser Parser(

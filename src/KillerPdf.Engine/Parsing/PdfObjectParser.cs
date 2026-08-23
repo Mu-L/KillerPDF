@@ -209,20 +209,23 @@ public sealed class PdfObjectParser
 
     private void ConsumeStreamClosingLineEnding(int offset)
     {
-        if (!_tokenizer.TryReadRawByte(out byte first))
-            throw Error("The stream payload must be followed by a line ending", offset);
-
+        if (!_tokenizer.TryPeekRawByte(out byte first))
+            throw Error("The stream payload must be followed by endstream", offset);
         if (first == (byte)'\n')
+        {
+            _tokenizer.TryReadRawByte(out _);
             return;
+        }
         if (first == (byte)'\r')
         {
+            _tokenizer.TryReadRawByte(out _);
             // CR, LF, and CRLF are all PDF line endings here. If this is CRLF, consume the LF.
             if (_tokenizer.TryPeekRawByte(out byte second) && second == (byte)'\n')
                 _tokenizer.TryReadRawByte(out _);
-            return;
         }
-
-        throw Error("The stream payload must be followed by a line ending", offset);
+        // qpdf and other widely used producers can include the closing EOL in /Length. In that
+        // case the tokenizer is already positioned at endstream; its exact keyword is still
+        // required immediately below, so accepting the omitted separator is unambiguous.
     }
 
     private static long ParseRequiredInteger(PdfToken token, string message)

@@ -693,6 +693,7 @@ public sealed partial class PdfDocumentBuilder
                     ("Rect", new PdfArray([
                         Number(link.X), Number(link.Y),
                         Number(link.X + link.Width), Number(link.Y + link.Height)])),
+                    ("F", new PdfInteger(4)),
                     ("Border", new PdfArray([
                         new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)]))
                 };

@@ -184,6 +184,100 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ImportsPageContentResourcesAndAnnotationsWithRemappedReferences()
+    {
+        PdfImage image = PdfImage.FromRgba(1, 1, new byte[] { 20, 80, 220, 180 });
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddPage(200, 300, new PdfContentStreamBuilder().DrawImage(image, 20, 30, 160, 240))
+            .AddTextNote(0, 150, 250, "Imported note")
+            .Build();
+        PdfDocument source = PdfDocument.Open(sourceBytes);
+        byte[] targetBytes = new PdfDocumentBuilder().AddBlankPage(100, 100).Build();
+        PdfDocument target = PdfDocument.Open(targetBytes);
+        PdfIndirectReference targetPage = FlatPages(target).References[0];
+
+        byte[] result = new PdfIncrementalPageEditor(target).AddImportedPage(source, 0).Build();
+        PdfDocument reopened = PdfDocument.Open(result);
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfDictionary imported = pages[1];
+        PdfStream content = ResolveStream(reopened, imported[Name("Contents")]);
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(imported[Name("Resources")]);
+        PdfDictionary xObjects = Assert.IsType<PdfDictionary>(resources[Name("XObject")]);
+        PdfStream importedImage = ResolveStream(reopened, xObjects[Name("Im1")]);
+        PdfArray annotations = Assert.IsType<PdfArray>(imported[Name("Annots")]);
+        PdfDictionary note = ResolveDictionary(reopened, annotations[0]);
+
+        Assert.Equal(targetPage.ObjectNumber, references[0].ObjectNumber);
+        Assert.NotEqual(targetPage.ObjectNumber, references[1].ObjectNumber);
+        Assert.True(content.EncodedData.Length > 0);
+        Assert.True(importedImage.EncodedData.Length > 0);
+        Assert.Equal(references[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(note[Name("P")]).ObjectNumber);
+        Assert.Equal("Text", Assert.IsType<PdfName>(note[Name("Subtype")]).ValueAsLatin1());
+        Assert.IsType<PdfString>(note[Name("Contents")]);
+        Assert.True(result.AsSpan(0, targetBytes.Length).SequenceEqual(targetBytes));
+    }
+
+    [Fact]
+    public void Build_PreservesLinksBetweenPagesImportedTogether()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .AddBlankPage(400, 500)
+            .AddPageLink(0, 10, 10, 40, 20, 1)
+            .Build());
+        byte[] targetBytes = new PdfDocumentBuilder().Build();
+        var editor = new PdfIncrementalPageEditor(PdfDocument.Open(targetBytes))
+            .AddImportedDocument(source);
+
+        PdfDocument reopened = PdfDocument.Open(editor.Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfDictionary link = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[0][Name("Annots")])[0]);
+        PdfArray destination = Assert.IsType<PdfArray>(link[Name("Dest")]);
+
+        Assert.Equal(references[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
+        Assert.Equal([200d, 400d], pages.Select(BoxWidth));
+    }
+
+    [Fact]
+    public void Import_RejectsDependenciesThatNeedDocumentLevelMerging()
+    {
+        PdfDocument linkedPages = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage().AddPageLink(0, 0, 0, 20, 20, 1).Build());
+        PdfDocument formPage = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddTextField(0, "name", 10, 10, 100, 20).Build());
+        byte[] target = new PdfDocumentBuilder().Build();
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedPage(linkedPages, 0).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedPage(formPage, 0));
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedPage(linkedPages, 0)
+                .AddImportedPage(linkedPages, 0));
+    }
+
+    [Fact]
+    public void ImportedPageGraphs_AreDeterministic()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(200, 300, new PdfContentStreamBuilder()
+                .SetFillRgb(0.2, 0.4, 0.8).Rectangle(20, 20, 160, 260).Fill())
+            .AddTextNote(0, 150, 250, "Import")
+            .Build());
+        byte[] target = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] Import() => new PdfIncrementalPageEditor(PdfDocument.Open(target))
+            .AddImportedPage(source, 0).Build();
+
+        Assert.Equal(Import(), Import());
+    }
+
+    [Fact]
     public void ArgumentsAndEmptyUpdates_AreRejected()
     {
         var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
@@ -194,6 +288,8 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.RemovePage(1));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.InsertBlankPage(2));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddBlankPage(double.PositiveInfinity, 100));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddImportedPage(
+            PdfDocument.Open(new PdfDocumentBuilder().Build()), 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetRotation(0, 45));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetMediaBox(0, 0, 0, 0, 100));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetCropBox(0, 0, 0, 100, double.NaN));
@@ -269,5 +365,7 @@ public sealed class PdfIncrementalPageEditorTests
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
+    private static PdfStream ResolveStream(PdfDocument document, PdfObject value) =>
+        Assert.IsType<PdfStream>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 }

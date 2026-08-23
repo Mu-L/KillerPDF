@@ -37,9 +37,12 @@ KillerPDF 1.8 development has begun with the first boundary for a new, independe
 - Extended incremental editing to embedded-font multiline free-text boxes, lines, rectangles, ellipses, and multi-stroke ink. Free-text boxes in one save share a deterministic Unicode TrueType subset, while every visual annotation retains editable geometry plus an explicit appearance with configurable fills, borders, widths, colors, and opacity. The combined byte-preserving update renders correctly and passes qpdf and PDF/A-4 validation.
 - Added image-stamp annotations for new and existing PDFs, providing the editable placement path for pictures and scanned signatures without conflating them with cryptographic signing. JPEG data remains lossless passthrough, repeated stamps share one image XObject, and RGBA images share a grayscale soft mask that preserves transparency. New-document and byte-preserving incremental stamp files render correctly and pass PDF/A-4 validation.
 - Added byte-preserving blank-page insertion, page rotation, reordering, deletion, resizing, and cropping for existing PDFs. Retained page identities and contents remain intact, nested page trees are safely flattened, and inherited resources, media boxes, crop boxes, and rotations are materialized before reparenting so pages retain their effective properties. Incrementally rearranged files render correctly and remain structurally valid and PDF/A-4 conforming.
+- Added cross-document page import as the foundation for merge and split workflows. A deterministic object-graph copier remaps indirect references while preserving encoded streams, content, fonts, images, resources, and ordinary annotations; page back-references and links among pages imported together remain valid. Unsupported encrypted, tagged, partial linked-page, and AcroForm-widget imports fail explicitly rather than producing damaged files.
 - Documented the engine boundary: new PDF 2.0 authoring work remains independent from the legacy application pipeline and can be migrated into the app incrementally.
 
 ### Fixed
+- Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.
+- Link annotations now include the print flag required for PDF/A-4 annotation conformance.
 - The About card's update button now keeps readable text on hover and uses the correct beveled button treatment in the 98SE theme.
 
 ## [1.7.5] - 2026-08-22
