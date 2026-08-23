@@ -4,6 +4,7 @@ using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
+using KillerPdf.Engine.Editing;
 
 if (args.Length == 2 && args[0] == "--font-info")
 {
@@ -206,6 +207,25 @@ if (args.Length == 3 && args[0] == "--incremental-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--incremental-annotation-smoke")
+{
+    byte[] source = File.ReadAllBytes(args[1]);
+    byte[] pdf = new PdfIncrementalAnnotationEditor(PdfDocument.Open(source))
+        .AddTextNote(0, 500, 700, "Incrementally appended note", PdfRgbColor.NoteYellow, open: true)
+        .AddHighlight(0, 360, 650, 160, 24, "Incrementally appended highlight")
+        .AddUnderline(0, 360, 620, 160, 20, "Incrementally appended underline")
+        .AddStrikeOut(0, 360, 590, 160, 20, "Incrementally appended strikeout")
+        .AddSquiggly(0, 360, 560, 160, 20, "Incrementally appended squiggly")
+        .Build();
+    if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
+        throw new InvalidDataException("The incremental annotation update changed source bytes.");
+    string destination = Path.GetFullPath(args[2]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote five annotations in {pdf.Length - source.Length:N0} appended bytes to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -219,6 +239,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-annotation-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-visual-annotation-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-smoke <input.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-annotation-smoke <input.pdf> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 
