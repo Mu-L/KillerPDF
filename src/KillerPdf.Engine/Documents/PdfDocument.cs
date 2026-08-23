@@ -4,6 +4,7 @@ using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Parsing;
 using KillerPdf.Engine.Syntax;
+using KillerPdf.Engine.Security;
 
 namespace KillerPdf.Engine.Documents;
 
@@ -22,6 +23,8 @@ public sealed class PdfDocument
     private readonly Dictionary<int, PdfObject> _objects = [];
     private readonly Dictionary<int, ObjectStreamContents> _objectStreams = [];
     private readonly HashSet<int> _resolving = [];
+    private PdfStandardSecurityHandler? _security;
+    private int? _encryptionObjectNumber;
 
     private PdfDocument(ReadOnlyMemory<byte> source, PdfCrossReferenceTable crossReferences)
     {
@@ -33,12 +36,45 @@ public sealed class PdfDocument
     public PdfHeader Header => CrossReferences.Header;
     public PdfDictionary Trailer => CrossReferences.LatestTrailer;
     internal ReadOnlyMemory<byte> Source => _source;
+    public bool IsEncrypted => CrossReferences.TryGetTrailerValue(new PdfName("Encrypt"u8), out _);
+    public bool IsDecrypted => !IsEncrypted || _security is not null;
+    internal int? EncryptionObjectNumber => _encryptionObjectNumber;
+    internal PdfObject EncryptObject(int objectNumber, PdfObject value) =>
+        _security is not null && objectNumber != _encryptionObjectNumber
+            ? _security.Encrypt(value, objectNumber,
+                CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry)
+                    && entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0)
+            : value;
 
     public static PdfDocument Open(ReadOnlyMemory<byte> source)
     {
         // Own the bytes so lazy resolution cannot observe caller mutations after validation.
         byte[] ownedSource = source.ToArray();
         return new PdfDocument(ownedSource, PdfCrossReferenceTable.Read(ownedSource));
+    }
+
+    /// <summary>Opens and authenticates a password-encrypted PDF.</summary>
+    public static PdfDocument Open(ReadOnlyMemory<byte> source, string password)
+    {
+        PdfDocument document = Open(source);
+        if (!document.CrossReferences.TryGetTrailerValue(
+                new PdfName("Encrypt"u8), out PdfObject? encryptionValue))
+            return document;
+        PdfIndirectReference encryptionReference = encryptionValue as PdfIndirectReference
+            ?? throw new InvalidOperationException("The trailer /Encrypt value is not indirect.");
+        PdfDictionary encryption = document.Resolve(encryptionReference) as PdfDictionary
+            ?? throw new InvalidOperationException("The trailer /Encrypt value is not a dictionary.");
+        document._encryptionObjectNumber = encryptionReference.ObjectNumber;
+        ReadOnlyMemory<byte> permanentIdentifier = ReadOnlyMemory<byte>.Empty;
+        if (document.CrossReferences.TryGetTrailerValue(new PdfName("ID"u8), out PdfObject? idValue)
+            && idValue is PdfArray { Count: > 0 } identifiers
+            && identifiers[0] is PdfString identifier)
+            permanentIdentifier = identifier.Bytes;
+        document._security = PdfStandardSecurityHandler.Create(
+            encryption, password, permanentIdentifier);
+        document._objects.Clear();
+        document._objectStreams.Clear();
+        return document;
     }
 
     /// <summary>
@@ -108,7 +144,9 @@ public sealed class PdfDocument
                 $"object {indirect.ObjectNumber} {indirect.Generation}",
                 checked((int)entry.Field1));
         }
-        return indirect.Value;
+        return _security is not null && entry.ObjectNumber != _encryptionObjectNumber
+            ? _security.Decrypt(indirect.Value, entry.ObjectNumber, entry.Field2)
+            : indirect.Value;
     }
 
     private long ResolveStreamLength(PdfIndirectReference reference)

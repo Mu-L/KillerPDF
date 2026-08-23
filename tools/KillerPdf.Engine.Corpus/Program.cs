@@ -483,6 +483,18 @@ if (args.Length == 4 && args[0] == "--signature-smoke")
     }
 }
 
+if (args.Length == 4 && args[0] == "--encrypted-rewrite-smoke")
+{
+    string source = Path.GetFullPath(args[1]);
+    string destination = Path.GetFullPath(args[3]);
+    PdfDocument encrypted = PdfDocument.Open(File.ReadAllBytes(source), args[2]);
+    byte[] rewritten = PdfDocumentWriter.Write(encrypted);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, rewritten);
+    Console.WriteLine($"Wrote {rewritten.Length:N0} byte encrypted PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 3 && args[0] == "--transparency-smoke")
 {
     PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
@@ -1421,6 +1433,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --layers-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --signature-smoke <openssl.exe> <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --encrypted-rewrite-smoke <input.pdf> <password> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --transparency-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --gradient-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-xobject-smoke <profile.icc> <output.pdf>");

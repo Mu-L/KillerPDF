@@ -5,6 +5,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Writing;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Editing;
@@ -899,6 +900,44 @@ public sealed class PdfIncrementalPageEditorTests
             Assert.IsType<PdfIndirectReference>(child[Name("Parent")]).ObjectNumber);
         Assert.Equal(pages[2].ObjectNumber, Assert.IsType<PdfIndirectReference>(
             Assert.IsType<PdfArray>(child[Name("Dest")])[0]).ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_IndirectsDirectBookmarkRootWhenMergingTrees()
+    {
+        PdfDocument authoredTarget = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBookmark("Target", 0).Build());
+        PdfDictionary targetCatalog = ResolveDictionary(
+            authoredTarget, authoredTarget.Trailer[Name("Root")]);
+        PdfDictionary directRoot = ResolveDictionary(
+            authoredTarget, targetCatalog[Name("Outlines")]);
+        var update = new PdfIncrementalUpdateBuilder(authoredTarget);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authoredTarget.Trailer[Name("Root")]);
+        update.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(targetCatalog
+                .Where(entry => !entry.Key.Equals(Name("Outlines")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Outlines"), directRoot))));
+        PdfDocument directTarget = PdfDocument.Open(update.Build());
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBookmark("Source", 0).Build());
+
+        PdfDocument merged = PdfDocument.Open(new PdfIncrementalPageEditor(directTarget)
+            .AddImportedDocument(source).Build());
+        PdfDictionary catalog = ResolveDictionary(merged, merged.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("Outlines")]);
+        PdfDictionary root = ResolveDictionary(merged, rootReference);
+        PdfDictionary first = ResolveDictionary(merged, root[Name("First")]);
+        PdfDictionary second = ResolveDictionary(merged, first[Name("Next")]);
+
+        Assert.Equal("Target", DecodeUnicode(Assert.IsType<PdfString>(first[Name("Title")])));
+        Assert.Equal("Source", DecodeUnicode(Assert.IsType<PdfString>(second[Name("Title")])));
+        Assert.Equal(rootReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(first[Name("Parent")]).ObjectNumber);
+        Assert.Equal(rootReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(second[Name("Parent")]).ObjectNumber);
+        Assert.Equal(2, Assert.IsType<PdfInteger>(root[Name("Count")]).Value);
     }
 
     [Fact]

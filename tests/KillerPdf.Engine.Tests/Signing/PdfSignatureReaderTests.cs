@@ -59,6 +59,8 @@ public sealed class PdfSignatureReaderTests
         Assert.Equal([0x30, 0x01, 0x00], certification.Cms.ToArray());
         Assert.Equal(callbackContent, PdfSignatureReader.GetSignedContent(
             document, certification));
+        Assert.Equal(PdfSignedRevisionPermissionAssessment.NoLaterChanges,
+            PdfSignedRevisionAnalyzer.Analyze(document, certification).PermissionAssessment);
         Assert.False(approval.IsSigned);
         Assert.False(approval.IsCertificationSignature);
         Assert.Null(approval.ByteRange);
@@ -95,6 +97,30 @@ public sealed class PdfSignatureReaderTests
         Assert.Contains(addedObject.ObjectNumber, analysis.AddedObjectNumbers);
         Assert.Contains(catalogReference.ObjectNumber, analysis.UpdatedObjectNumbers);
         Assert.Empty(analysis.FreedObjectNumbers);
+        Assert.Equal(PdfSignedRevisionPermissionAssessment.NotCertified,
+            analysis.PermissionAssessment);
+    }
+
+    [Fact]
+    public void Analyze_ReportsLaterChangesAsProhibitedByNoChangesCertification()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [0x30, 0x00], new PdfSignatureOptions
+            {
+                CertificationPermission = PdfSignatureCertificationPermission.NoChanges,
+                ReservedSignatureSize = 8
+            });
+        var update = new PdfIncrementalUpdateBuilder(PdfDocument.Open(signed));
+        update.AddObject(new PdfInteger(1));
+        PdfDocument changed = PdfDocument.Open(update.Build());
+        PdfSignatureInfo signature = Assert.Single(PdfSignatureReader.Read(changed));
+
+        PdfSignedRevisionAnalysis analysis =
+            PdfSignedRevisionAnalyzer.Analyze(changed, signature);
+
+        Assert.Equal(PdfSignedRevisionPermissionAssessment.Prohibited,
+            analysis.PermissionAssessment);
     }
 
     [Fact]

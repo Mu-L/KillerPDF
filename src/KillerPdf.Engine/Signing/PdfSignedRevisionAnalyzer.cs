@@ -1,5 +1,6 @@
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.CrossReference;
+using KillerPdf.Engine.Authoring;
 
 namespace KillerPdf.Engine.Signing;
 
@@ -47,6 +48,16 @@ public static class PdfSignedRevisionAnalyzer
             && entry.Type is PdfCrossReferenceEntryType.InUse
                 or PdfCrossReferenceEntryType.Compressed).ToArray();
         int[] addedObjects = changedObjects.Except(freedObjects).Except(updatedObjects).ToArray();
+        bool hasLaterChanges = document.Source.Length > signedLength;
+        PdfSignedRevisionPermissionAssessment permissionAssessment =
+            signature.CertificationPermission switch
+            {
+                null => PdfSignedRevisionPermissionAssessment.NotCertified,
+                _ when !hasLaterChanges => PdfSignedRevisionPermissionAssessment.NoLaterChanges,
+                PdfSignatureCertificationPermission.NoChanges =>
+                    PdfSignedRevisionPermissionAssessment.Prohibited,
+                _ => PdfSignedRevisionPermissionAssessment.RequiresSemanticReview
+            };
         return new PdfSignedRevisionAnalysis
         {
             SignedRevisionLength = signedLength,
@@ -56,7 +67,8 @@ public static class PdfSignedRevisionAnalyzer
             ChangedObjectNumbers = changedObjects,
             AddedObjectNumbers = addedObjects,
             UpdatedObjectNumbers = updatedObjects,
-            FreedObjectNumbers = freedObjects
+            FreedObjectNumbers = freedObjects,
+            PermissionAssessment = permissionAssessment
         };
     }
 }

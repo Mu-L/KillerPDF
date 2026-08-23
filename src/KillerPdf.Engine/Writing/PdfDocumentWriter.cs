@@ -25,8 +25,9 @@ public static class PdfDocumentWriter
         PdfVersion outputVersion = options.TargetVersion ?? document.Header.Version;
         if (outputVersion.CompareTo(document.Header.Version) < 0)
             throw new NotSupportedException("A full rewrite cannot downgrade the source PDF version without feature analysis.");
-        if (document.CrossReferences.TryGetTrailerValue(EncryptName, out _))
-            throw new NotSupportedException("Encrypted PDF rewriting requires the encryption writer milestone.");
+        if (document.IsEncrypted && !document.IsDecrypted)
+            throw new InvalidOperationException(
+                "An encrypted PDF must be opened with a password before it can be rewritten.");
         if (!document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject root))
             throw new InvalidOperationException("A full rewrite requires a trailer /Root reference.");
 
@@ -44,9 +45,10 @@ public static class PdfDocumentWriter
         {
             int offset = checked((int)output.Position);
             offsets.Add(new WrittenOffset(item.ObjectNumber, item.Generation, offset));
+            PdfObject value = document.EncryptObject(item.ObjectNumber, item.Value);
             PdfObjectWriter.Write(
                 output,
-                new PdfIndirectObject(item.ObjectNumber, item.Generation, item.Value, offset));
+                new PdfIndirectObject(item.ObjectNumber, item.Generation, value, offset));
         }
 
         int xrefOffset = checked((int)output.Position);
@@ -104,6 +106,12 @@ public static class PdfDocumentWriter
             AddInherited(document, entries, InfoName);
         if (options.PreserveDocumentIdentifiers)
             AddInherited(document, entries, IdName);
+        if (document.IsEncrypted)
+        {
+            if (!entries.Any(entry => entry.Key.Equals(IdName)))
+                AddInherited(document, entries, IdName);
+            AddInherited(document, entries, EncryptName);
+        }
         return new PdfDictionary(entries);
     }
 

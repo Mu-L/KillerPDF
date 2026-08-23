@@ -19,7 +19,6 @@ public sealed class PdfIncrementalUpdateBuilder
     private static readonly PdfName RootName = new("Root"u8);
     private static readonly PdfName InfoName = new("Info"u8);
     private static readonly PdfName IdName = new("ID"u8);
-    private static readonly PdfName EncryptName = new("Encrypt"u8);
     private static readonly HashSet<PdfName> XrefStreamOnlyNames =
     [
         new("Type"u8), new("W"u8), new("Index"u8), new("Length"u8),
@@ -34,9 +33,9 @@ public sealed class PdfIncrementalUpdateBuilder
     public PdfIncrementalUpdateBuilder(PdfDocument document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
-        if (document.CrossReferences.TryGetTrailerValue(EncryptName, out _))
-            throw new NotSupportedException(
-                "Encrypted PDF incremental updates require the encryption writer milestone.");
+        if (document.IsEncrypted && !document.IsDecrypted)
+            throw new InvalidOperationException(
+                "An encrypted PDF must be opened with a password before it can be updated.");
         _nextObjectNumber = InitialSize(document);
     }
 
@@ -107,8 +106,10 @@ public sealed class PdfIncrementalUpdateBuilder
                 throw new NotSupportedException("Classic cross-reference offsets cannot exceed ten digits.");
             int offset = checked((int)output.Position);
             written.Add(new WrittenObject(pending.ObjectNumber, pending.Generation, offset));
+            PdfObject value = _document.EncryptObject(
+                pending.ObjectNumber, pending.Value);
             PdfObjectWriter.Write(output,
-                new PdfIndirectObject(pending.ObjectNumber, pending.Generation, pending.Value, offset));
+                new PdfIndirectObject(pending.ObjectNumber, pending.Generation, value, offset));
         }
 
         byte[] revisionIdentifier = SHA256.HashData(

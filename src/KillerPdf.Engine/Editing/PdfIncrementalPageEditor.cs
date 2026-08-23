@@ -1001,12 +1001,13 @@ public sealed class PdfIncrementalPageEditor
         PdfIndirectReference? targetFirst = null;
         PdfIndirectReference? targetLast = null;
         long targetCount = 0;
+        bool targetRootWasDirect = false;
         if (_tree.Catalog.TryGetValue(OutlinesName, out PdfObject? targetOutlineValue))
         {
-            targetRootReference = targetOutlineValue as PdfIndirectReference
-                ?? throw new NotSupportedException(
-                    "Merging into a direct bookmark root is not yet supported.");
-            targetRoot = ResolveDictionary(_document, targetRootReference, "The destination bookmark root");
+            targetRootReference = targetOutlineValue as PdfIndirectReference;
+            targetRootWasDirect = targetRootReference is null;
+            targetRoot = ResolveDictionary(
+                _document, targetOutlineValue, "The destination bookmark root");
             PdfIndirectReference[] targetTopLevel = ReadTopLevelOutlines(_document, targetRoot);
             if (targetTopLevel.Length > 0)
             {
@@ -1078,11 +1079,28 @@ public sealed class PdfIncrementalPageEditor
         if (targetLast is not null)
         {
             PdfDictionary last = ResolveDictionary(_document, targetLast, "The final destination bookmark");
+            var replacements = new Dictionary<PdfName, PdfObject>
+            {
+                [NextName] = segmentStarts[offset]
+            };
+            if (targetRootWasDirect) replacements[ParentName] = mergedRoot;
             update.ReplaceObject(targetLast.ObjectNumber,
-                ReplaceMany(last, new Dictionary<PdfName, PdfObject>
-                {
-                    [NextName] = segmentStarts[offset]
-                }));
+                ReplaceMany(last, replacements));
+        }
+        if (targetRootWasDirect)
+        {
+            foreach (PdfIndirectReference itemReference in ReadTopLevelOutlines(
+                         _document, targetRoot!).Where(reference =>
+                         targetLast is null || OutlineKey(reference) != OutlineKey(targetLast)))
+            {
+                PdfDictionary item = ResolveDictionary(
+                    _document, itemReference, "A destination bookmark");
+                update.ReplaceObject(itemReference.ObjectNumber,
+                    ReplaceMany(item, new Dictionary<PdfName, PdfObject>
+                    {
+                        [ParentName] = mergedRoot
+                    }));
+            }
         }
         long mergedCount = checked(targetCount + importedSegments.Sum(segment => segment.Count));
         PdfDictionary rootValue = targetRoot is null

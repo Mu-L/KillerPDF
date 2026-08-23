@@ -11,5 +11,6 @@ public sealed record PdfSignedRevisionAnalysis
     public IReadOnlyList<int> AddedObjectNumbers { get; init; } = [];
     public IReadOnlyList<int> UpdatedObjectNumbers { get; init; } = [];
     public IReadOnlyList<int> FreedObjectNumbers { get; init; } = [];
+    public PdfSignedRevisionPermissionAssessment PermissionAssessment { get; init; }
     public bool HasLaterChanges => CurrentDocumentLength > SignedRevisionLength;
 }

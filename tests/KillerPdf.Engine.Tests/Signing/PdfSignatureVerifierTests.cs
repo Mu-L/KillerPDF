@@ -5,12 +5,38 @@ using System.Text;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Signing;
+using KillerPdf.Engine.Tests.Security;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Signing;
 
 public sealed class PdfSignatureVerifierTests
 {
+    [Fact]
+    public void VerifyIntegrity_AcceptsSignatureAddedToEncryptedDocument()
+    {
+        using RSA key = RSA.Create(2048);
+        var request = new CertificateRequest(
+            "CN=KillerPDF Encrypted Signing Test", key, HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+        using X509Certificate2 certificate = request.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+        PdfDocument source = PdfDocument.Open(
+            PdfEncryptionTests.Revision6Fixture(), "owner-password");
+
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            source, content => Sign(content, certificate),
+            new PdfSignatureOptions { ReservedSignatureSize = 4_096 });
+        PdfDocument reopened = PdfDocument.Open(signed, "user-password");
+        PdfSignatureVerificationResult result = PdfSignatureVerifier.VerifyIntegrity(
+            reopened, Assert.Single(PdfSignatureReader.Read(reopened)));
+
+        Assert.True(reopened.IsEncrypted);
+        Assert.True(result.IsStructurallyValid);
+        Assert.True(result.IsCryptographicallyValid);
+        Assert.Null(result.Error);
+    }
+
     [Fact]
     public void VerifyIntegrity_AcceptsValidDetachedCmsAndRejectsChangedSignedBytes()
     {

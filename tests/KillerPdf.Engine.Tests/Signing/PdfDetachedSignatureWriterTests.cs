@@ -242,6 +242,59 @@ public sealed class PdfDetachedSignatureWriterTests
         Assert.True(Assert.Single(PdfSignatureReader.Read(signed)).IsSigned);
     }
 
+    [Fact]
+    public void Sign_CreatesAccessibleSignatureFieldInTaggedPdf()
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Figure, 0)
+            .Rectangle(10, 10, 20, 20).Fill()
+            .EndMarkedContent();
+        byte[] source = new PdfDocumentBuilder()
+            .AddPage(200, 300, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+                alternateDescription: "Square")
+            .Build();
+
+        PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
+            {
+                FieldName = "approval",
+                ReservedSignatureSize = 8
+            }));
+        PdfDictionary catalog = ResolveDictionary(signed, signed.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(signed,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        long structureParentKey = Assert.IsType<PdfInteger>(
+            field[Name("StructParent")]).Value;
+        PdfDictionary structureRoot = ResolveDictionary(
+            signed, catalog[Name("StructTreeRoot")]);
+        PdfArray structureKids = Assert.IsType<PdfArray>(structureRoot[Name("K")]);
+        PdfIndirectReference structureElementReference = Assert.IsType<PdfIndirectReference>(
+            structureKids[^1]);
+        PdfDictionary structureElement = ResolveDictionary(signed, structureElementReference);
+        PdfDictionary objectReference = Assert.IsType<PdfDictionary>(
+            structureElement[Name("K")]);
+        PdfDictionary parentTree = ResolveDictionary(
+            signed, structureRoot[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        int keyIndex = Enumerable.Range(0, numbers.Count / 2)
+            .Select(index => index * 2)
+            .Single(index => Assert.IsType<PdfInteger>(numbers[index]).Value
+                == structureParentKey);
+
+        Assert.Equal("Form", Assert.IsType<PdfName>(
+            structureElement[Name("S")]).ValueAsLatin1());
+        Assert.Equal("OBJR", Assert.IsType<PdfName>(
+            objectReference[Name("Type")]).ValueAsLatin1());
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(objectReference[Name("Obj")]).ObjectNumber);
+        Assert.Equal(structureElementReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(numbers[keyIndex + 1]).ObjectNumber);
+    }
+
     [Theory]
     [InlineData(2)]
     [InlineData(3)]
@@ -682,7 +735,7 @@ public sealed class PdfDetachedSignatureWriterTests
 
         Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(duplicateField), _ => [1]));
-        Assert.Throws<NotSupportedException>(() => PdfDetachedSignatureWriter.Sign(
+        Assert.NotEmpty(PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(tagged), _ => [1]));
         Assert.Throws<ArgumentException>(() => PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(ordinary), _ => [1],

@@ -36,11 +36,11 @@ public sealed class PdfDocumentWriterTests
     }
 
     [Fact]
-    public void Write_RefusesToEmitAnUnimplementedEncryptedRewrite()
+    public void Write_RequiresPasswordBeforeEncryptedRewrite()
     {
         PdfDocument document = PdfDocument.Open(SourcePdf(" /Encrypt 9 0 R"));
 
-        Assert.Throws<NotSupportedException>(() => PdfDocumentWriter.Write(document));
+        Assert.Throws<InvalidOperationException>(() => PdfDocumentWriter.Write(document));
     }
 
     [Fact]

@@ -64,9 +64,6 @@ public static class PdfDetachedSignatureWriter
             && (options.PageIndex < 0 || options.PageIndex >= tree.Pages.Count))
             throw new ArgumentOutOfRangeException(nameof(options),
                 "The signature page index is outside the document.");
-        if (existingField is null && tree.Catalog.ContainsKey(StructureTreeRootName))
-            throw new NotSupportedException(
-                "Signing a tagged PDF requires an accessible signature-field structure association, which is not yet supported.");
         int? certificationPermission = ReadCertificationPermission(document, tree);
         if (options.CertificationPermission.HasValue && certificationPermission.HasValue)
             throw new InvalidOperationException(
@@ -115,7 +112,24 @@ public static class PdfDetachedSignatureWriter
         {
             PdfIndirectReference fieldReference = update.ReserveObject();
             PdfPageTreeEntry page = tree.Pages[options.PageIndex];
-            update.SetObject(fieldReference, Dictionary(
+            PdfDictionary? formCatalogReplacement = AddSignatureField(
+                document, tree, update, fieldReference, options.FieldName);
+            if (formCatalogReplacement is not null)
+            {
+                catalogReplacement = formCatalogReplacement;
+                catalogChanged = true;
+            }
+            TaggedSignatureAssociation association = tree.Catalog.ContainsKey(StructureTreeRootName)
+                ? AddTaggedSignatureAssociation(document, tree, update,
+                    catalogReplacement, fieldReference, page.Reference, options.FieldName)
+                : default;
+            if (association.CatalogChanged)
+            {
+                catalogReplacement = association.Catalog;
+                catalogChanged = true;
+            }
+            var fieldEntries = new List<(string Name, PdfObject Value)>
+            {
                 ("Type", Name("Annot")),
                 ("Subtype", Name("Widget")),
                 ("FT", Name("Sig")),
@@ -125,7 +139,12 @@ public static class PdfDetachedSignatureWriter
                     new PdfInteger(0), new PdfInteger(0),
                     new PdfInteger(0), new PdfInteger(0)])),
                 ("F", new PdfInteger(4)),
-                ("P", page.Reference)));
+                ("P", page.Reference)
+            };
+            if (association.StructureParentKey.HasValue)
+                fieldEntries.Add(("StructParent",
+                    new PdfInteger(association.StructureParentKey.Value)));
+            update.SetObject(fieldReference, Dictionary(fieldEntries.ToArray()));
 
             PdfArray annotations = page.Dictionary.TryGetValue(
                     AnnotsName, out PdfObject? annotationsValue)
@@ -136,13 +155,6 @@ public static class PdfDetachedSignatureWriter
                 {
                     [AnnotsName] = new PdfArray(annotations.Append(fieldReference))
                 }));
-            PdfDictionary? replacement = AddSignatureField(
-                document, tree, update, fieldReference, options.FieldName);
-            if (replacement is not null)
-            {
-                catalogReplacement = replacement;
-                catalogChanged = true;
-            }
         }
         if (options.CertificationPermission.HasValue)
         {
@@ -942,6 +954,103 @@ public static class PdfDetachedSignatureWriter
         });
     }
 
+    private static TaggedSignatureAssociation AddTaggedSignatureAssociation(
+        PdfDocument document,
+        PdfPageTree tree,
+        PdfIncrementalUpdateBuilder update,
+        PdfDictionary catalog,
+        PdfIndirectReference fieldReference,
+        PdfIndirectReference pageReference,
+        string fieldName)
+    {
+        PdfObject rootValue = tree.Catalog[StructureTreeRootName];
+        PdfIndirectReference? existingRootReference = rootValue as PdfIndirectReference;
+        PdfDictionary root = ResolveDictionary(
+            document, rootValue, "The catalog /StructTreeRoot value");
+        if (!root.TryGetValue(Name("ParentTree"), out PdfObject? parentTreeValue))
+            throw new InvalidOperationException(
+                "The tagged PDF structure root has no /ParentTree value.");
+        IReadOnlyList<PdfNumberTreeEntry> entries = PdfNumberTree.Read(document, parentTreeValue);
+        long minimumNextKey = entries.Count == 0 ? 0 : checked(entries.Max(entry => entry.Key) + 1);
+        long structureParentKey = minimumNextKey;
+        if (root.TryGetValue(Name("ParentTreeNextKey"), out PdfObject? nextKeyValue))
+        {
+            if (nextKeyValue is not PdfInteger nextKey || nextKey.Value < minimumNextKey)
+                throw new InvalidOperationException(
+                    "The structure root /ParentTreeNextKey value is not a valid next key.");
+            structureParentKey = nextKey.Value;
+        }
+        PdfIndirectReference structureElementReference = update.ReserveObject();
+        PdfIndirectReference structureRootReference = existingRootReference ?? update.ReserveObject();
+        var parentNumbers = new List<PdfObject>((entries.Count + 1) * 2);
+        foreach (PdfNumberTreeEntry entry in entries.Append(
+                     new PdfNumberTreeEntry(structureParentKey, structureElementReference))
+                     .OrderBy(entry => entry.Key))
+        {
+            parentNumbers.Add(new PdfInteger(entry.Key));
+            parentNumbers.Add(entry.Value);
+        }
+        PdfDictionary parentTreeReplacement = Dictionary(
+            ("Nums", new PdfArray(parentNumbers)));
+        PdfDictionary rootReplacement = root;
+        if (parentTreeValue is PdfIndirectReference parentTreeReference)
+            update.ReplaceObject(parentTreeReference.ObjectNumber, parentTreeReplacement);
+        else
+            rootReplacement = ReplaceMany(rootReplacement, new Dictionary<PdfName, PdfObject>
+            {
+                [Name("ParentTree")] = parentTreeReplacement
+            });
+        PdfObject structureKids = rootReplacement.TryGetValue(Name("K"), out PdfObject? kidsValue)
+            ? kidsValue is PdfArray kids
+                ? new PdfArray(kids.Append(structureElementReference))
+                : new PdfArray([kidsValue, structureElementReference])
+            : structureElementReference;
+        rootReplacement = ReplaceMany(rootReplacement, new Dictionary<PdfName, PdfObject>
+        {
+            [Name("K")] = structureKids,
+            [Name("ParentTreeNextKey")] = new PdfInteger(checked(structureParentKey + 1))
+        });
+        update.SetObject(structureElementReference, Dictionary(
+            ("Type", Name("StructElem")),
+            ("S", Name("Form")),
+            ("P", structureRootReference),
+            ("Pg", pageReference),
+            ("Alt", UnicodeString(fieldName)),
+            ("K", Dictionary(
+                ("Type", Name("OBJR")),
+                ("Obj", fieldReference),
+                ("Pg", pageReference)))));
+        if (existingRootReference is not null)
+        {
+            update.ReplaceObject(existingRootReference.ObjectNumber, rootReplacement);
+            return new TaggedSignatureAssociation(structureParentKey, catalog, false);
+        }
+        if (root.TryGetValue(Name("K"), out PdfObject? existingKids))
+        {
+            IEnumerable<PdfObject> topLevelKids = existingKids is PdfArray array
+                ? array : [existingKids];
+            foreach (PdfObject kidValue in topLevelKids)
+            {
+                PdfIndirectReference kidReference = kidValue as PdfIndirectReference
+                    ?? throw new InvalidOperationException(
+                        "A direct structure root contains a non-indirect top-level element.");
+                PdfDictionary kid = ResolveDictionary(
+                    document, kidReference, "A top-level structure element");
+                update.ReplaceObject(kidReference.ObjectNumber,
+                    ReplaceMany(kid, new Dictionary<PdfName, PdfObject>
+                    {
+                        [Name("P")] = structureRootReference
+                    }));
+            }
+        }
+        update.SetObject(structureRootReference, rootReplacement);
+        return new TaggedSignatureAssociation(structureParentKey,
+            ReplaceMany(catalog, new Dictionary<PdfName, PdfObject>
+            {
+                [StructureTreeRootName] = structureRootReference
+            }), true);
+    }
+
     private static PdfDictionary? UpdateSignatureFlags(
         PdfDocument document, PdfPageTree tree, PdfIncrementalUpdateBuilder update)
     {
@@ -1411,5 +1520,7 @@ public static class PdfDetachedSignatureWriter
         PdfIndirectReference? Reference, PdfDictionary Dictionary, PdfName FieldType);
     private readonly record struct RewriteResult(
         PdfObject Value, bool ContainerChanged, bool Found);
+    private readonly record struct TaggedSignatureAssociation(
+        long? StructureParentKey, PdfDictionary Catalog, bool CatalogChanged);
     private readonly record struct SeedEvidenceRequirements(bool Timestamp, bool Certificate);
 }
