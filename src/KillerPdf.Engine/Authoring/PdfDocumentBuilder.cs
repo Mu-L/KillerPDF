@@ -20,6 +20,7 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<PageLabelDefinition> _pageLabels = [];
     private readonly List<StructureElementDefinition> _structureElements = [];
     private readonly List<AttachmentDefinition> _attachments = [];
+    private readonly List<FileAttachmentAnnotationDefinition> _fileAttachmentAnnotations = [];
     private readonly List<TextFieldDefinition> _textFields = [];
     private readonly List<CheckBoxDefinition> _checkBoxes = [];
     private readonly List<RadioGroupDefinition> _radioGroups = [];
@@ -427,6 +428,32 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    public PdfDocumentBuilder AddFileAttachmentAnnotation(
+        int pageIndex,
+        double x,
+        double y,
+        double size,
+        string fileName,
+        string? contents = null,
+        PdfFileAttachmentIcon icon = PdfFileAttachmentIcon.Paperclip,
+        PdfRgbColor? color = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (!double.IsFinite(x)) throw new ArgumentOutOfRangeException(nameof(x));
+        if (!double.IsFinite(y)) throw new ArgumentOutOfRangeException(nameof(y));
+        if (!double.IsFinite(size) || size <= 0) throw new ArgumentOutOfRangeException(nameof(size));
+        if (string.IsNullOrWhiteSpace(fileName)) throw new ArgumentException("A file name is required.", nameof(fileName));
+        if (!_attachments.Any(item => string.Equals(item.FileName, fileName, StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException(
+                $"The attachment '{fileName}' must be added before placing it on a page.", nameof(fileName));
+        if (!Enum.IsDefined(icon)) throw new ArgumentOutOfRangeException(nameof(icon));
+        _fileAttachmentAnnotations.Add(new FileAttachmentAnnotationDefinition(
+            pageIndex, x, y, size, fileName, contents, icon,
+            color ?? new PdfRgbColor(0.2, 0.45, 0.85), annotationMetadata));
+        return this;
+    }
+
     public PdfDocumentBuilder AddTextField(
         int pageIndex,
         string name,
@@ -566,7 +593,11 @@ public sealed partial class PdfDocumentBuilder
         double size = 24,
         PdfAnnotationMetadata? annotationMetadata = null,
         PdfTextNoteIcon icon = PdfTextNoteIcon.Note,
-        PdfTextNoteState? state = null)
+        PdfTextNoteState? state = null,
+        string? name = null,
+        string? inReplyTo = null,
+        PdfAnnotationReplyType replyType = PdfAnnotationReplyType.Reply,
+        PdfAnnotationPopup? popup = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(contents);
@@ -576,9 +607,26 @@ public sealed partial class PdfDocumentBuilder
         if (!Enum.IsDefined(icon)) throw new ArgumentOutOfRangeException(nameof(icon));
         if (state is not null && !Enum.IsDefined(state.Value))
             throw new ArgumentOutOfRangeException(nameof(state));
+        if (!Enum.IsDefined(replyType)) throw new ArgumentOutOfRangeException(nameof(replyType));
+        if (name is not null)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Annotation names cannot be empty.", nameof(name));
+            if (_textNotes.Any(note => string.Equals(note.Name, name, StringComparison.Ordinal)))
+                throw new ArgumentException($"A text-note annotation named '{name}' already exists.", nameof(name));
+        }
+        if (inReplyTo is not null)
+        {
+            if (string.IsNullOrWhiteSpace(inReplyTo))
+                throw new ArgumentException("Reply targets cannot be empty.", nameof(inReplyTo));
+            if (!_textNotes.Any(note => string.Equals(note.Name, inReplyTo, StringComparison.Ordinal)))
+                throw new ArgumentException(
+                    $"The reply target '{inReplyTo}' must name an earlier text-note annotation.", nameof(inReplyTo));
+        }
+        else if (replyType != PdfAnnotationReplyType.Reply)
+            throw new ArgumentException("A grouped reply requires an annotation target.", nameof(replyType));
         _textNotes.Add(new TextNoteDefinition(
             pageIndex, x, y, size, contents, color ?? PdfRgbColor.NoteYellow, open,
-            annotationMetadata, icon, state));
+            annotationMetadata, icon, state, name, inReplyTo, replyType, popup));
         return this;
     }
 
@@ -772,6 +820,12 @@ public sealed partial class PdfDocumentBuilder
         int[] structureElementNumbers = _structureElements.Select(_ => nextObjectNumber++).ToArray();
         var allocatedAttachments = _attachments.Select(attachment =>
             new AllocatedAttachment(attachment, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        IReadOnlyDictionary<string, int> attachmentFileSpecificationNumbers = allocatedAttachments
+            .ToDictionary(attachment => attachment.Definition.FileName,
+                attachment => attachment.FileSpecificationNumber, StringComparer.OrdinalIgnoreCase);
+        var allocatedFileAttachmentAnnotations = _fileAttachmentAnnotations.Select(annotation =>
+            new AllocatedFileAttachmentAnnotation(
+                annotation, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedTextFields = _textFields.Select(field =>
             new AllocatedTextField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedCheckBoxes = _checkBoxes.Select(field =>
@@ -788,7 +842,12 @@ public sealed partial class PdfDocumentBuilder
         var allocatedChoiceFields = _choiceFields.Select(field =>
             new AllocatedChoiceField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedTextNotes = _textNotes.Select(note =>
-            new AllocatedTextNote(note, nextObjectNumber++, nextObjectNumber++)).ToArray();
+            new AllocatedTextNote(note, nextObjectNumber++, nextObjectNumber++,
+                note.Popup is null ? null : nextObjectNumber++)).ToArray();
+        IReadOnlyDictionary<string, int> textNoteNumbersByName = allocatedTextNotes
+            .Where(note => note.Definition.Name is not null)
+            .ToDictionary(note => note.Definition.Name!, note => note.AnnotationNumber,
+                StringComparer.Ordinal);
         var allocatedTextMarkups = _textMarkups.Select(markup =>
             new AllocatedTextMarkup(markup, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedFreeTexts = _freeTexts.Select(freeText =>
@@ -925,7 +984,12 @@ public sealed partial class PdfDocumentBuilder
                 .. allocatedChoiceFields.Where(field => field.Definition.PageIndex == pageIndex)
                     .Select(field => field.FieldNumber),
                 .. allocatedTextNotes.Where(note => note.Definition.PageIndex == pageIndex)
-                    .Select(note => note.AnnotationNumber),
+                    .SelectMany(note => note.PopupNumber is null
+                        ? [note.AnnotationNumber]
+                        : new[] { note.AnnotationNumber, note.PopupNumber.Value }),
+                .. allocatedFileAttachmentAnnotations
+                    .Where(annotation => annotation.Definition.PageIndex == pageIndex)
+                    .Select(annotation => annotation.AnnotationNumber),
                 .. allocatedTextMarkups.Where(markup => markup.Definition.PageIndex == pageIndex)
                     .Select(markup => markup.AnnotationNumber),
                 .. allocatedFreeTexts.Where(freeText => freeText.Definition.PageIndex == pageIndex)
@@ -1258,6 +1322,9 @@ public sealed partial class PdfDocumentBuilder
         }
         foreach (AllocatedAttachment allocatedAttachment in allocatedAttachments)
             AddAttachmentObjects(objects, allocatedAttachment);
+        for (int index = 0; index < allocatedFileAttachmentAnnotations.Length; index++)
+            AddFileAttachmentAnnotationObjects(objects, allocatedFileAttachmentAnnotations[index],
+                allocated, index + 1, attachmentFileSpecificationNumbers);
         foreach (AllocatedTextField allocatedTextField in allocatedTextFields)
         {
             (PdfName resource, int number) = FormFontBinding(
@@ -1335,7 +1402,8 @@ public sealed partial class PdfDocumentBuilder
                         _ => throw new NotSupportedException()
                     }))), profile.Data.Span), 0));
         for (int index = 0; index < allocatedTextNotes.Length; index++)
-            AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1);
+            AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1,
+                textNoteNumbersByName);
         for (int index = 0; index < allocatedTextMarkups.Length; index++)
             AddTextMarkupObjects(objects, allocatedTextMarkups[index], allocated, index + 1);
         for (int index = 0; index < allocatedFreeTexts.Length; index++)
@@ -1633,6 +1701,52 @@ public sealed partial class PdfDocumentBuilder
             fileEntries.Add(("Desc", UnicodeString(attachment.Description)));
         objects.Add(new PdfIndirectObject(allocated.FileSpecificationNumber, 0,
             Dictionary(fileEntries.ToArray()), 0));
+    }
+
+    private static void AddFileAttachmentAnnotationObjects(
+        ICollection<PdfIndirectObject> objects,
+        AllocatedFileAttachmentAnnotation allocated,
+        IReadOnlyList<AllocatedPage> pages,
+        int sequence,
+        IReadOnlyDictionary<string, int> fileSpecificationNumbers)
+    {
+        FileAttachmentAnnotationDefinition value = allocated.Definition;
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("Annot")),
+            ("Subtype", Name("FileAttachment")),
+            ("Rect", new PdfArray([
+                Number(value.X), Number(value.Y),
+                Number(value.X + value.Size), Number(value.Y + value.Size)])),
+            ("P", new PdfIndirectReference(pages[value.PageIndex].PageNumber, 0)),
+            ("F", new PdfInteger((int)(value.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
+            ("NM", Latin1String($"KillerPDF-FileAttachment-{sequence}")),
+            ("Name", Name(value.Icon.ToString())),
+            ("C", ColorArray(value.Color)),
+            ("FS", new PdfIndirectReference(fileSpecificationNumbers[value.FileName], 0)),
+            ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))
+        };
+        if (!string.IsNullOrEmpty(value.Contents))
+            entries.Add(("Contents", UnicodeString(value.Contents)));
+        AddAnnotationMetadata(entries, value.Metadata);
+        objects.Add(new PdfIndirectObject(
+            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+
+        double inset = value.Size * 0.15;
+        double fold = value.Size * 0.28;
+        using var appearance = new MemoryStream();
+        WriteAscii(appearance,
+            $"q\n{ColorOperands(value.Color)} rg\n0 G\n1 w\n" +
+            $"{FormatNumber(inset)} {FormatNumber(inset)} m\n" +
+            $"{FormatNumber(value.Size - inset - fold)} {FormatNumber(inset)} l\n" +
+            $"{FormatNumber(value.Size - inset)} {FormatNumber(inset + fold)} l\n" +
+            $"{FormatNumber(value.Size - inset)} {FormatNumber(value.Size - inset)} l\n" +
+            $"{FormatNumber(inset)} {FormatNumber(value.Size - inset)} l\nh\nB\n" +
+            $"{FormatNumber(value.Size - inset - fold)} {FormatNumber(inset)} m\n" +
+            $"{FormatNumber(value.Size - inset - fold)} {FormatNumber(inset + fold)} l\n" +
+            $"{FormatNumber(value.Size - inset)} {FormatNumber(inset + fold)} l\nS\nQ\n");
+        objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
+            AnnotationAppearance(value.Size, value.Size, Dictionary(), appearance.ToArray()), 0));
     }
 
     private static void AddTextFieldObjects(
@@ -1933,7 +2047,8 @@ public sealed partial class PdfDocumentBuilder
         ICollection<PdfIndirectObject> objects,
         AllocatedTextNote allocated,
         IReadOnlyList<AllocatedPage> pages,
-        int sequence)
+        int sequence,
+        IReadOnlyDictionary<string, int> textNoteNumbersByName)
     {
         TextNoteDefinition note = allocated.Definition;
         var annotationEntries = new List<(string Name, PdfObject Value)>
@@ -1946,7 +2061,9 @@ public sealed partial class PdfDocumentBuilder
                 ("P", new PdfIndirectReference(pages[note.PageIndex].PageNumber, 0)),
                 ("F", new PdfInteger((int)(note.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
                 ("Contents", UnicodeString(note.Contents)),
-                ("NM", Latin1String($"KillerPDF-Note-{sequence}")),
+                ("NM", note.Name is null
+                    ? Latin1String($"KillerPDF-Note-{sequence}")
+                    : UnicodeString(note.Name)),
                 ("Name", Name(PdfTextNoteIconNames.Name(note.Icon))),
                 ("Open", new PdfBoolean(note.Open)),
                 ("C", ColorArray(note.Color)),
@@ -1957,6 +2074,14 @@ public sealed partial class PdfDocumentBuilder
             annotationEntries.Add(("State", Name(PdfTextNoteStateNames.State(note.State.Value))));
             annotationEntries.Add(("StateModel", Name(PdfTextNoteStateNames.Model(note.State.Value))));
         }
+        if (note.InReplyTo is not null)
+        {
+            annotationEntries.Add(("IRT", new PdfIndirectReference(
+                textNoteNumbersByName[note.InReplyTo], 0)));
+            annotationEntries.Add(("RT", Name(PdfAnnotationReplyTypeNames.Name(note.ReplyType))));
+        }
+        if (allocated.PopupNumber is not null)
+            annotationEntries.Add(("Popup", new PdfIndirectReference(allocated.PopupNumber.Value, 0)));
         AddAnnotationMetadata(annotationEntries, note.Metadata);
         objects.Add(new PdfIndirectObject(
             allocated.AnnotationNumber, 0, Dictionary(annotationEntries.ToArray()), 0));
@@ -1976,6 +2101,21 @@ public sealed partial class PdfDocumentBuilder
             $"{FormatNumber(note.Size * 0.62)} {FormatNumber(note.Size * 0.38)} l\nS\nQ\n");
         objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
             AnnotationAppearance(note.Size, note.Size, Dictionary(), appearance.ToArray()), 0));
+
+        if (allocated.PopupNumber is not null)
+        {
+            PdfAnnotationPopup popup = note.Popup!;
+            objects.Add(new PdfIndirectObject(allocated.PopupNumber.Value, 0, Dictionary(
+                ("Type", Name("Annot")),
+                ("Subtype", Name("Popup")),
+                ("Rect", new PdfArray([
+                    Number(popup.X), Number(popup.Y),
+                    Number(popup.X + popup.Width), Number(popup.Y + popup.Height)])),
+                ("P", new PdfIndirectReference(pages[note.PageIndex].PageNumber, 0)),
+                ("F", new PdfInteger((int)(note.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
+                ("Parent", new PdfIndirectReference(allocated.AnnotationNumber, 0)),
+                ("Open", new PdfBoolean(popup.Open))), 0));
+        }
     }
 
     private static void AddTextMarkupObjects(
@@ -2808,6 +2948,11 @@ public sealed partial class PdfDocumentBuilder
         DateTimeOffset? ModificationDate);
     private sealed record AllocatedAttachment(
         AttachmentDefinition Definition, int EmbeddedFileNumber, int FileSpecificationNumber);
+    private sealed record FileAttachmentAnnotationDefinition(
+        int PageIndex, double X, double Y, double Size, string FileName, string? Contents,
+        PdfFileAttachmentIcon Icon, PdfRgbColor Color, PdfAnnotationMetadata? Metadata);
+    private sealed record AllocatedFileAttachmentAnnotation(
+        FileAttachmentAnnotationDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record TextFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         string Value, double FontSize, PdfTextFieldOptions Options, TrueTypeFont? EmbeddedFont);
@@ -2845,9 +2990,11 @@ public sealed partial class PdfDocumentBuilder
     private sealed record TextNoteDefinition(
         int PageIndex, double X, double Y, double Size, string Contents,
         PdfRgbColor Color, bool Open, PdfAnnotationMetadata? Metadata, PdfTextNoteIcon Icon,
-        PdfTextNoteState? State);
+        PdfTextNoteState? State, string? Name, string? InReplyTo,
+        PdfAnnotationReplyType ReplyType, PdfAnnotationPopup? Popup);
     private sealed record AllocatedTextNote(
-        TextNoteDefinition Definition, int AnnotationNumber, int AppearanceNumber);
+        TextNoteDefinition Definition, int AnnotationNumber, int AppearanceNumber,
+        int? PopupNumber);
     private sealed record TextMarkupDefinition(
         PdfTextMarkupType Type, int PageIndex, IReadOnlyList<PdfTextQuad> Quads,
         string? Contents, PdfRgbColor Color, double Opacity, PdfAnnotationMetadata? Metadata);

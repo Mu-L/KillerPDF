@@ -18,7 +18,10 @@ public sealed partial class PdfDocumentBuilder
         PdfRgbColor? borderColor = null, double borderWidth = 1, double opacity = 1,
         PdfAnnotationMetadata? annotationMetadata = null,
         PdfTextAlignment alignment = PdfTextAlignment.Left,
-        IReadOnlyList<double>? dashPattern = null)
+        IReadOnlyList<double>? dashPattern = null,
+        PdfFreeTextIntent intent = PdfFreeTextIntent.FreeText,
+        IReadOnlyList<PdfPoint>? calloutLine = null,
+        PdfLineEndingStyle calloutEnding = PdfLineEndingStyle.OpenArrow)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -28,13 +31,19 @@ public sealed partial class PdfDocumentBuilder
         ValidateStroke(borderWidth, opacity);
         if (!Enum.IsDefined(alignment))
             throw new ArgumentOutOfRangeException(nameof(alignment));
+        if (!Enum.IsDefined(intent)) throw new ArgumentOutOfRangeException(nameof(intent));
+        ValidateLineEnding(calloutEnding, nameof(calloutEnding));
+        if (intent == PdfFreeTextIntent.Callout && calloutLine?.Count is not (2 or 3))
+            throw new ArgumentException("Callout free text requires two or three callout points.", nameof(calloutLine));
+        if (intent != PdfFreeTextIntent.Callout && calloutLine is not null)
+            throw new ArgumentException("Callout points require callout free-text intent.", nameof(calloutLine));
         double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         ValidateDrawableText(font, contents, nameof(contents));
         _freeTexts.Add(new FreeTextDefinition(
             pageIndex, x, y, width, height, contents, font, fontSize,
             textColor ?? new PdfRgbColor(0, 0, 0), fillColor,
             borderColor ?? new PdfRgbColor(0, 0, 0), borderWidth, opacity,
-            annotationMetadata, alignment, dash));
+            annotationMetadata, alignment, dash, intent, calloutLine?.ToArray(), calloutEnding));
         return this;
     }
 
@@ -45,17 +54,20 @@ public sealed partial class PdfDocumentBuilder
         PdfLineEndingStyle endEnding = PdfLineEndingStyle.None,
         IReadOnlyList<double>? dashPattern = null,
         PdfRgbColor? interiorColor = null,
-        PdfAnnotationMetadata? annotationMetadata = null)
+        PdfAnnotationMetadata? annotationMetadata = null,
+        PdfLineAnnotationIntent? intent = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateStroke(lineWidth, opacity);
         ValidateLineEnding(startEnding, nameof(startEnding));
         ValidateLineEnding(endEnding, nameof(endEnding));
+        if (intent is not null && !Enum.IsDefined(intent.Value))
+            throw new ArgumentOutOfRangeException(nameof(intent));
         double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         if (start == end) throw new ArgumentException("A line must have two distinct endpoints.", nameof(end));
         _visualAnnotations.Add(new LineAnnotationDefinition(
             pageIndex, start, end, color ?? new PdfRgbColor(0, 0, 0), lineWidth, opacity, contents,
-            startEnding, endEnding, dash, interiorColor, annotationMetadata));
+            startEnding, endEnding, dash, interiorColor, annotationMetadata, intent));
         return this;
     }
 
@@ -86,21 +98,23 @@ public sealed partial class PdfDocumentBuilder
         PdfLineEndingStyle endEnding = PdfLineEndingStyle.None,
         IReadOnlyList<double>? dashPattern = null,
         PdfRgbColor? interiorColor = null,
-        PdfAnnotationMetadata? annotationMetadata = null)
+        PdfAnnotationMetadata? annotationMetadata = null,
+        PdfVertexAnnotationIntent? intent = null)
         => AddVertexAnnotation(
             pageIndex, vertices, closed: false, color, null, lineWidth, opacity, contents,
-            startEnding, endEnding, dashPattern, interiorColor, annotationMetadata);
+            startEnding, endEnding, dashPattern, interiorColor, annotationMetadata, intent);
 
     public PdfDocumentBuilder AddPolygonAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> vertices,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
         double lineWidth = 1, double opacity = 1, string? contents = null,
         IReadOnlyList<double>? dashPattern = null,
-        PdfAnnotationMetadata? annotationMetadata = null)
+        PdfAnnotationMetadata? annotationMetadata = null,
+        PdfVertexAnnotationIntent? intent = null)
         => AddVertexAnnotation(
             pageIndex, vertices, closed: true, strokeColor, fillColor,
             lineWidth, opacity, contents, PdfLineEndingStyle.None, PdfLineEndingStyle.None,
-            dashPattern, null, annotationMetadata);
+            dashPattern, null, annotationMetadata, intent);
 
     public PdfDocumentBuilder AddInkAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> points, PdfRgbColor? color = null,
@@ -133,13 +147,15 @@ public sealed partial class PdfDocumentBuilder
     public PdfDocumentBuilder AddImageStamp(
         int pageIndex, double x, double y, double width, double height,
         PdfImage image, string? contents = null,
-        PdfAnnotationMetadata? annotationMetadata = null)
+        PdfAnnotationMetadata? annotationMetadata = null,
+        PdfStampIcon icon = PdfStampIcon.Image)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
         ArgumentNullException.ThrowIfNull(image);
+        if (!Enum.IsDefined(icon)) throw new ArgumentOutOfRangeException(nameof(icon));
         _imageStamps.Add(new ImageStampDefinition(
-            pageIndex, x, y, width, height, image, contents, annotationMetadata));
+            pageIndex, x, y, width, height, image, contents, annotationMetadata, icon));
         return this;
     }
 
@@ -165,13 +181,17 @@ public sealed partial class PdfDocumentBuilder
         double lineWidth, double opacity, string? contents,
         PdfLineEndingStyle startEnding, PdfLineEndingStyle endEnding,
         IReadOnlyList<double>? dashPattern, PdfRgbColor? interiorColor,
-        PdfAnnotationMetadata? annotationMetadata)
+        PdfAnnotationMetadata? annotationMetadata, PdfVertexAnnotationIntent? intent)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(vertices);
         ValidateStroke(lineWidth, opacity);
         ValidateLineEnding(startEnding, nameof(startEnding));
         ValidateLineEnding(endEnding, nameof(endEnding));
+        if (intent is not null && !Enum.IsDefined(intent.Value))
+            throw new ArgumentOutOfRangeException(nameof(intent));
+        if (!closed && intent == PdfVertexAnnotationIntent.Cloud)
+            throw new ArgumentException("Cloud intent is only valid for polygons.", nameof(intent));
         double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         int minimum = closed ? 3 : 2;
         if (vertices.Count < minimum)
@@ -184,7 +204,7 @@ public sealed partial class PdfDocumentBuilder
             pageIndex, vertices.ToArray(), closed,
             strokeColor ?? new PdfRgbColor(0, 0, 0), fillColor,
             lineWidth, opacity, contents, startEnding, endEnding, dash, interiorColor,
-            annotationMetadata));
+            annotationMetadata, intent));
         return this;
     }
 
@@ -228,14 +248,22 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyList<AllocatedPage> pages, int sequence, PdfName fontResource, int fontNumber)
     {
         FreeTextDefinition value = allocated.Definition;
+        Bounds bounds = FreeTextBounds(value);
         string defaultAppearance =
             $"{NameToken(fontResource)} {FormatNumber(value.FontSize)} Tf {ColorOperands(value.TextColor)} rg";
         var entries = CommonAnnotationEntries(
-            "FreeText", value.PageIndex, value.X, value.Y, value.Width, value.Height,
+            "FreeText", value.PageIndex, bounds.X, bounds.Y, bounds.Width, bounds.Height,
             pages, $"KillerPDF-FreeText-{sequence}", value.BorderColor, value.Opacity,
             value.Contents, allocated.AppearanceNumber, value.Metadata);
         entries.Add(("DA", Latin1String(defaultAppearance)));
         entries.Add(("Q", new PdfInteger((int)value.Alignment)));
+        entries.Add(("IT", Name(PdfAnnotationIntentNames.Name(value.Intent))));
+        if (value.CalloutLine is not null)
+        {
+            entries.Add(("CL", new PdfArray(value.CalloutLine.SelectMany(point =>
+                new PdfObject[] { Number(point.X), Number(point.Y) }))));
+            entries.Add(("LE", Name(PdfLineEndingStyleNames.Name(value.CalloutEnding))));
+        }
         entries.Add(("BS", BorderStyle(value.BorderWidth, value.DashPattern)));
         if (value.FillColor.HasValue) entries.Add(("IC", ColorArray(value.FillColor.Value)));
         objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
@@ -245,12 +273,44 @@ public sealed partial class PdfDocumentBuilder
         using var appearance = new MemoryStream();
         WriteAscii(appearance, $"q\n/GS1 gs\n");
         WriteAscii(appearance, DashOperator(value.DashPattern));
+        if (value.CalloutLine is not null)
+            WriteFreeTextCallout(appearance, value, bounds);
+        WriteAscii(appearance,
+            $"q\n1 0 0 1 {FormatNumber(value.X - bounds.X)} {FormatNumber(value.Y - bounds.Y)} cm\n");
         WriteBox(appearance, value.Width, value.Height, value.BorderWidth,
             value.BorderColor, value.FillColor, ellipse: false);
         WriteFreeText(appearance, value, fontResource);
-        appearance.Write("Q\n"u8);
+        appearance.Write("Q\nQ\n"u8);
         objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
-            AnnotationAppearance(value.Width, value.Height, resources, appearance.ToArray()), 0));
+            AnnotationAppearance(bounds.Width, bounds.Height, resources, appearance.ToArray()), 0));
+    }
+
+    private static Bounds FreeTextBounds(FreeTextDefinition value)
+    {
+        if (value.CalloutLine is null)
+            return new Bounds(value.X, value.Y, value.Width, value.Height);
+        PdfPoint[] points =
+        [
+            new(value.X, value.Y), new(value.X + value.Width, value.Y + value.Height),
+            .. value.CalloutLine
+        ];
+        return PointBounds(points, Math.Max(value.BorderWidth, 1));
+    }
+
+    private static void WriteFreeTextCallout(Stream output, FreeTextDefinition value, Bounds bounds)
+    {
+        PdfPoint[] points = value.CalloutLine!
+            .Select(point => new PdfPoint(point.X - bounds.X, point.Y - bounds.Y)).ToArray();
+        WriteAscii(output,
+            $"{ColorOperands(value.BorderColor)} RG\n{FormatNumber(value.BorderWidth)} w\n" +
+            $"{FormatNumber(points[0].X)} {FormatNumber(points[0].Y)} m\n");
+        foreach (PdfPoint point in points.Skip(1))
+            WriteAscii(output, $"{FormatNumber(point.X)} {FormatNumber(point.Y)} l\n");
+        output.Write("S\n"u8);
+        PdfPoint tip = points[0];
+        PdfPoint next = points[1];
+        WriteLineEnding(output, tip.X, tip.Y, next.X, next.Y,
+            value.CalloutEnding, value.BorderWidth, value.BorderColor, null);
     }
 
     private static void AddVisualAnnotationObjects(
@@ -290,7 +350,7 @@ public sealed partial class PdfDocumentBuilder
             ("P", new PdfIndirectReference(pages[stamp.PageIndex].PageNumber, 0)),
             ("F", new PdfInteger((int)(stamp.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
             ("NM", Latin1String($"KillerPDF-Image-{sequence}")),
-            ("Name", Name("Image")),
+            ("Name", Name(PdfStampIconNames.Name(stamp.Icon))),
             ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))
         };
         if (!string.IsNullOrEmpty(stamp.Contents))
@@ -320,6 +380,8 @@ public sealed partial class PdfDocumentBuilder
             line.Contents, allocated.AppearanceNumber, line.Metadata);
         entries.Add(("L", new PdfArray([
             Number(line.Start.X), Number(line.Start.Y), Number(line.End.X), Number(line.End.Y)])));
+        if (line.Intent is not null)
+            entries.Add(("IT", Name(PdfAnnotationIntentNames.Name(line.Intent.Value))));
         entries.Add(("LE", new PdfArray([
             Name(PdfLineEndingStyleNames.Name(line.StartEnding)),
             Name(PdfLineEndingStyleNames.Name(line.EndEnding))])));
@@ -418,6 +480,8 @@ public sealed partial class PdfDocumentBuilder
             vertex.Contents, allocated.AppearanceNumber, vertex.Metadata);
         entries.Add(("Vertices", new PdfArray(vertex.Vertices.SelectMany(point =>
             new PdfObject[] { Number(point.X), Number(point.Y) }))));
+        if (vertex.Intent is not null)
+            entries.Add(("IT", Name(PdfAnnotationIntentNames.Name(vertex.Intent.Value, vertex.Closed))));
         entries.Add(("BS", BorderStyle(vertex.LineWidth, vertex.DashPattern)));
         if (vertex.Closed && vertex.FillColor.HasValue)
             entries.Add(("IC", ColorArray(vertex.FillColor.Value)));
@@ -739,7 +803,8 @@ public sealed partial class PdfDocumentBuilder
         TrueTypeFont Font, double FontSize, PdfRgbColor TextColor, PdfRgbColor? FillColor,
         PdfRgbColor BorderColor, double BorderWidth, double Opacity,
         PdfAnnotationMetadata? Metadata, PdfTextAlignment Alignment,
-        IReadOnlyList<double>? DashPattern);
+        IReadOnlyList<double>? DashPattern, PdfFreeTextIntent Intent,
+        IReadOnlyList<PdfPoint>? CalloutLine, PdfLineEndingStyle CalloutEnding);
     private sealed record AllocatedFreeText(
         FreeTextDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private abstract record VisualAnnotationDefinition(
@@ -750,7 +815,7 @@ public sealed partial class PdfDocumentBuilder
         double LineWidth, double Opacity, string? Contents,
         PdfLineEndingStyle StartEnding, PdfLineEndingStyle EndEnding,
         IReadOnlyList<double>? DashPattern, PdfRgbColor? InteriorColor,
-        PdfAnnotationMetadata? Metadata)
+        PdfAnnotationMetadata? Metadata, PdfLineAnnotationIntent? Intent)
         : VisualAnnotationDefinition(
             PageIndex, Color, LineWidth, Opacity, Contents, DashPattern, Metadata);
     private sealed record ShapeAnnotationDefinition(
@@ -771,14 +836,14 @@ public sealed partial class PdfDocumentBuilder
         double LineWidth, double Opacity, string? Contents,
         PdfLineEndingStyle StartEnding, PdfLineEndingStyle EndEnding,
         IReadOnlyList<double>? DashPattern, PdfRgbColor? InteriorColor,
-        PdfAnnotationMetadata? Metadata)
+        PdfAnnotationMetadata? Metadata, PdfVertexAnnotationIntent? Intent)
         : VisualAnnotationDefinition(
             PageIndex, Color, LineWidth, Opacity, Contents, DashPattern, Metadata);
     private sealed record AllocatedVisualAnnotation(
         VisualAnnotationDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record ImageStampDefinition(
         int PageIndex, double X, double Y, double Width, double Height,
-        PdfImage Image, string? Contents, PdfAnnotationMetadata? Metadata);
+        PdfImage Image, string? Contents, PdfAnnotationMetadata? Metadata, PdfStampIcon Icon);
     private sealed record AllocatedImageStamp(
         ImageStampDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record Bounds(double X, double Y, double Width, double Height);

@@ -68,6 +68,45 @@ public sealed class PdfVisualAnnotationAuthoringTests
     }
 
     [Theory]
+    [InlineData(PdfFreeTextIntent.FreeText, "FreeText")]
+    [InlineData(PdfFreeTextIntent.Callout, "FreeTextCallout")]
+    [InlineData(PdfFreeTextIntent.TypeWriter, "FreeTextTypeWriter")]
+    public void AddFreeText_WritesStandardIntent(PdfFreeTextIntent intent, string expectedName)
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        IReadOnlyList<PdfPoint>? callout = intent == PdfFreeTextIntent.Callout
+            ? [new PdfPoint(5, 10), new PdfPoint(15, 20), new PdfPoint(20, 30)]
+            : null;
+        PdfDictionary annotation = Annotation(Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddFreeText(0, 20, 30, 180, 60, "AA", font,
+                intent: intent, calloutLine: callout)));
+
+        Assert.Equal(expectedName,
+            Assert.IsType<PdfName>(annotation[Name("IT")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void AddFreeTextCallout_WritesGeometryEndingAndExpandedAppearance()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddFreeText(0, 100, 100, 180, 60, "AA", font,
+                intent: PdfFreeTextIntent.Callout,
+                calloutLine: [new PdfPoint(20, 40), new PdfPoint(60, 80), new PdfPoint(100, 100)],
+                calloutEnding: PdfLineEndingStyle.ClosedArrow));
+        PdfDictionary annotation = Annotation(document);
+        PdfStream appearance = Appearance(document, annotation);
+
+        Assert.Equal(6, Assert.IsType<PdfArray>(annotation[Name("CL")]).Count);
+        Assert.Equal("ClosedArrow",
+            Assert.IsType<PdfName>(annotation[Name("LE")]).ValueAsLatin1());
+        Assert.Contains(" l\nS\n", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+        Assert.True(Assert.IsType<PdfArray>(appearance.Dictionary[Name("BBox")]).Count == 4);
+    }
+
+    [Theory]
     [InlineData("Square")]
     [InlineData("Circle")]
     public void ShapeAnnotations_WriteStandardSubtypeFillAndAppearance(string subtype)
@@ -106,6 +145,38 @@ public sealed class PdfVisualAnnotationAuthoringTests
         Assert.Equal("ClosedArrow", Assert.IsType<PdfName>(endings[1]).ValueAsLatin1());
         Assert.Equal(3, Assert.IsType<PdfArray>(annotation[Name("IC")]).Count);
         Assert.Contains("h\nB\n", appearance);
+    }
+
+    [Theory]
+    [InlineData(PdfLineAnnotationIntent.Arrow, "LineArrow")]
+    [InlineData(PdfLineAnnotationIntent.Dimension, "LineDimension")]
+    public void LineAnnotation_WritesStandardIntent(
+        PdfLineAnnotationIntent intent, string expectedName)
+    {
+        PdfDictionary annotation = Annotation(Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddLineAnnotation(0, new PdfPoint(20, 30), new PdfPoint(120, 80), intent: intent)));
+
+        Assert.Equal(expectedName,
+            Assert.IsType<PdfName>(annotation[Name("IT")]).ValueAsLatin1());
+    }
+
+    [Theory]
+    [InlineData(false, PdfVertexAnnotationIntent.Dimension, "PolyLineDimension")]
+    [InlineData(true, PdfVertexAnnotationIntent.Dimension, "PolygonDimension")]
+    [InlineData(true, PdfVertexAnnotationIntent.Cloud, "PolygonCloud")]
+    public void VertexAnnotation_WritesStandardIntent(
+        bool closed, PdfVertexAnnotationIntent intent, string expectedName)
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+        PdfPoint[] points = [new(10, 10), new(60, 40), new(100, 10)];
+        _ = closed
+            ? builder.AddPolygonAnnotation(0, points, intent: intent)
+            : builder.AddPolylineAnnotation(0, points, intent: intent);
+        PdfDictionary annotation = Annotation(Open(builder));
+
+        Assert.Equal(expectedName,
+            Assert.IsType<PdfName>(annotation[Name("IT")]).ValueAsLatin1());
     }
 
     [Theory]
@@ -240,6 +311,33 @@ public sealed class PdfVisualAnnotationAuthoringTests
         Assert.Contains("/Im1 Do", Encoding.ASCII.GetString(appearance.EncodedData.Span));
     }
 
+    [Theory]
+    [InlineData(PdfStampIcon.Image, "Image")]
+    [InlineData(PdfStampIcon.Approved, "Approved")]
+    [InlineData(PdfStampIcon.Experimental, "Experimental")]
+    [InlineData(PdfStampIcon.NotApproved, "NotApproved")]
+    [InlineData(PdfStampIcon.AsIs, "AsIs")]
+    [InlineData(PdfStampIcon.Expired, "Expired")]
+    [InlineData(PdfStampIcon.NotForPublicRelease, "NotForPublicRelease")]
+    [InlineData(PdfStampIcon.Confidential, "Confidential")]
+    [InlineData(PdfStampIcon.Final, "Final")]
+    [InlineData(PdfStampIcon.Sold, "Sold")]
+    [InlineData(PdfStampIcon.Departmental, "Departmental")]
+    [InlineData(PdfStampIcon.ForComment, "ForComment")]
+    [InlineData(PdfStampIcon.TopSecret, "TopSecret")]
+    [InlineData(PdfStampIcon.Draft, "Draft")]
+    [InlineData(PdfStampIcon.ForPublicRelease, "ForPublicRelease")]
+    public void ImageStamp_WritesStandardSemanticName(PdfStampIcon icon, string expectedName)
+    {
+        PdfImage image = PdfImage.FromRgb(1, 1, new byte[] { 20, 40, 60 });
+        PdfDictionary annotation = Annotation(Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddImageStamp(0, 20, 30, 100, 50, image, icon: icon)));
+
+        Assert.Equal(expectedName,
+            Assert.IsType<PdfName>(annotation[Name("Name")]).ValueAsLatin1());
+    }
+
     [Fact]
     public void VisualAnnotationArguments_AreValidated()
     {
@@ -252,6 +350,9 @@ public sealed class PdfVisualAnnotationAuthoringTests
         Assert.Throws<ArgumentException>(() => builder.AddInkAnnotation(0, Array.Empty<PdfPoint>()));
         Assert.Throws<ArgumentException>(() => builder.AddPolylineAnnotation(
             0, [new PdfPoint(1, 1)]));
+        Assert.Throws<ArgumentException>(() => builder.AddPolylineAnnotation(
+            0, [new PdfPoint(1, 1), new PdfPoint(2, 2)],
+            intent: PdfVertexAnnotationIntent.Cloud));
         Assert.Throws<ArgumentException>(() => builder.AddPolygonAnnotation(
             0, [new PdfPoint(1, 1), new PdfPoint(2, 2)]));
         Assert.Throws<ArgumentException>(() => builder.AddPolygonAnnotation(
@@ -264,10 +365,16 @@ public sealed class PdfVisualAnnotationAuthoringTests
         Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddRectangleAnnotation(
             0, 0, 0, 10, 10, lineWidth: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => new PdfPoint(double.NaN, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddImageStamp(
+            0, 0, 0, 10, 10, PdfImage.FromRgb(1, 1, new byte[] { 0, 0, 0 }),
+            icon: (PdfStampIcon)99));
         TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             builder.AddFreeText(0, 0, 0, 100, 40, "AA", font,
                 alignment: (PdfTextAlignment)3));
+        Assert.Throws<ArgumentException>(() =>
+            builder.AddFreeText(0, 0, 0, 100, 40, "AA", font,
+                intent: PdfFreeTextIntent.Callout));
     }
 
     [Fact]

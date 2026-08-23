@@ -206,6 +206,13 @@ if (args.Length == 3 && args[0] == "--pdfa4f-attachment-smoke")
         .AddAttachment("evidence.txt", "KillerPDF PDF/A-4f attachment"u8.ToArray(),
             "text/plain", "PDF/A-4f validation payload", PdfAssociatedFileRelationship.Data,
             DateTimeOffset.UtcNow)
+        .AddFileAttachmentAnnotation(0, 72, 680, 28, "evidence.txt",
+            "Open the attached validation evidence", PdfFileAttachmentIcon.Paperclip,
+            annotationMetadata: new PdfAnnotationMetadata
+            {
+                Author = "KillerPDF",
+                Subject = "Validation evidence"
+            })
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
@@ -739,7 +746,13 @@ if (args.Length == 3 && args[0] == "--pdfa-annotation-smoke")
                 Subject = "Editorial review",
                 CreationDate = new DateTimeOffset(
                     2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(-7))
-            }, icon: PdfTextNoteIcon.Comment, state: PdfTextNoteState.Accepted)
+            }, icon: PdfTextNoteIcon.Comment, state: PdfTextNoteState.Accepted,
+            name: "editorial-root",
+            popup: new PdfAnnotationPopup(350, 690, 220, 80, open: true))
+        .AddTextNote(0, 475, 610, "Approved after revision", PdfRgbColor.NoteYellow,
+            annotationMetadata: new PdfAnnotationMetadata { Author = "Reviewer" },
+            icon: PdfTextNoteIcon.Insert, state: PdfTextNoteState.Completed,
+            name: "editorial-reply", inReplyTo: "editorial-root")
         .AddHighlight(0,
             [
                 new PdfTextQuad(new PdfPoint(90, 668), new PdfPoint(390, 668),
@@ -775,11 +788,18 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
         .AddBlankPage()
         .AddFreeText(0, 72, 660, 250, 70, "KillerPDF café Ω\nMultiline free text", font, 14,
             textColor: new PdfRgbColor(0.1, 0.1, 0.1), fillColor: new PdfRgbColor(1, 1, 0.8),
-            opacity: 0.9, alignment: PdfTextAlignment.Center, dashPattern: [6, 3])
+            opacity: 0.9, alignment: PdfTextAlignment.Center, dashPattern: [6, 3],
+            intent: PdfFreeTextIntent.Callout,
+            calloutLine:
+            [
+                new PdfPoint(40, 610), new PdfPoint(60, 640), new PdfPoint(72, 660)
+            ],
+            calloutEnding: PdfLineEndingStyle.ClosedArrow)
         .AddLineAnnotation(0, new PdfPoint(72, 620), new PdfPoint(320, 580),
             new PdfRgbColor(0.1, 0.35, 0.9), 3, 0.8, "Line annotation",
             PdfLineEndingStyle.OpenArrow, PdfLineEndingStyle.ClosedArrow,
-            interiorColor: new PdfRgbColor(0.75, 0.85, 1))
+            interiorColor: new PdfRgbColor(0.75, 0.85, 1),
+            intent: PdfLineAnnotationIntent.Arrow)
         .AddRectangleAnnotation(0, 72, 490, 110, 65,
             new PdfRgbColor(0.9, 0.1, 0.2), new PdfRgbColor(1, 0.8, 0.85), 3, 0.75, "Rectangle")
         .AddEllipseAnnotation(0, 210, 490, 110, 65,
@@ -795,7 +815,7 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
                 Subject = "Polygon annotation review",
                 CreationDate = new DateTimeOffset(
                     2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(-7))
-            })
+            }, intent: PdfVertexAnnotationIntent.Dimension)
         .AddPolylineAnnotation(0, [
             new PdfPoint(330, 455), new PdfPoint(370, 480),
             new PdfPoint(415, 450), new PdfPoint(465, 480)],
@@ -807,7 +827,8 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
             [new PdfPoint(72, 430), new PdfPoint(110, 455), new PdfPoint(150, 425)],
             [new PdfPoint(170, 430), new PdfPoint(210, 455), new PdfPoint(250, 425)]
         ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85, "Two ink strokes", [10, 4])
-        .AddImageStamp(0, 350, 390, 100, 60, stampImage, "RGBA image stamp")
+        .AddImageStamp(0, 350, 390, 100, 60, stampImage, "RGBA image stamp",
+            icon: PdfStampIcon.Final)
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);

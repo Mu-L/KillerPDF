@@ -57,9 +57,54 @@ public sealed class PdfAttachmentTests
             builder.AddAttachment("README.TXT", ReadOnlyMemory<byte>.Empty));
     }
 
+    [Theory]
+    [InlineData(PdfFileAttachmentIcon.Graph, "Graph")]
+    [InlineData(PdfFileAttachmentIcon.Paperclip, "Paperclip")]
+    [InlineData(PdfFileAttachmentIcon.PushPin, "PushPin")]
+    [InlineData(PdfFileAttachmentIcon.Tag, "Tag")]
+    public void AddFileAttachmentAnnotation_ReferencesEmbeddedFileAndWritesAppearance(
+        PdfFileAttachmentIcon icon, string expectedName)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddAttachment("evidence.txt", "payload"u8.ToArray(), "text/plain")
+            .AddFileAttachmentAnnotation(0, 20, 30, 24, "evidence.txt",
+                "Open evidence", icon)
+            .Build());
+        PdfDictionary annotation = Annotation(document);
+        PdfDictionary fileSpec = ResolveDictionary(document, annotation[Name("FS")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+
+        Assert.Equal("FileAttachment",
+            Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal(expectedName,
+            Assert.IsType<PdfName>(annotation[Name("Name")]).ValueAsLatin1());
+        Assert.Equal("evidence.txt",
+            DecodeUnicode(Assert.IsType<PdfString>(fileSpec[Name("UF")])));
+        Assert.Contains("B\n", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void AddFileAttachmentAnnotation_RequiresAnExistingAttachment()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+
+        Assert.Throws<ArgumentException>(() =>
+            builder.AddFileAttachmentAnnotation(0, 20, 30, 24, "missing.txt"));
+    }
+
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
+    private static PdfDictionary Annotation(PdfDocument document)
+    {
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(document, Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        return ResolveDictionary(document, Assert.IsType<PdfArray>(page[Name("Annots")])[0]);
+    }
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 }

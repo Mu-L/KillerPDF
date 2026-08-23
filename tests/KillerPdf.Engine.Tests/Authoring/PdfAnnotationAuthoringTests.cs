@@ -136,6 +136,66 @@ public sealed class PdfAnnotationAuthoringTests
             Assert.IsType<PdfName>(annotation[Name("StateModel")]).ValueAsLatin1());
     }
 
+    [Theory]
+    [InlineData(PdfAnnotationReplyType.Reply, "R")]
+    [InlineData(PdfAnnotationReplyType.Group, "Group")]
+    public void AddTextNote_WritesReplyRelationship(
+        PdfAnnotationReplyType replyType, string expectedName)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Original", name: "review-root")
+            .AddTextNote(0, 40, 10, "Response", name: "review-response",
+                inReplyTo: "review-root", replyType: replyType)
+            .Build());
+        PdfDictionary reply = Annotation(document, 1);
+        PdfDictionary parent = ResolveDictionary(document, reply[Name("IRT")]);
+
+        Assert.Equal("Original",
+            DecodeUnicode(Assert.IsType<PdfString>(parent[Name("Contents")])));
+        Assert.Equal(expectedName,
+            Assert.IsType<PdfName>(reply[Name("RT")]).ValueAsLatin1());
+        Assert.Equal("review-response",
+            DecodeUnicode(Assert.IsType<PdfString>(reply[Name("NM")])));
+    }
+
+    [Fact]
+    public void TextNoteReplyNames_AreValidatedBeforeAllocation()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextNote(0, 10, 10, "Original", name: "root");
+
+        Assert.Throws<ArgumentException>(() =>
+            builder.AddTextNote(0, 20, 10, "Duplicate", name: "root"));
+        Assert.Throws<ArgumentException>(() =>
+            builder.AddTextNote(0, 20, 10, "Dangling", inReplyTo: "missing"));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfDocumentBuilder().AddBlankPage().AddTextNote(
+                0, 20, 10, "Group", replyType: PdfAnnotationReplyType.Group));
+    }
+
+    [Fact]
+    public void AddTextNote_WithPopup_WritesBidirectionalParentRelationship()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 20, "Popup text",
+                popup: new PdfAnnotationPopup(100, 200, 240, 120, open: true))
+            .Build());
+        PdfDictionary note = Annotation(document, 0);
+        PdfDictionary popup = Annotation(document, 1);
+        PdfDictionary popupFromNote = ResolveDictionary(document, note[Name("Popup")]);
+        PdfDictionary noteFromPopup = ResolveDictionary(document, popup[Name("Parent")]);
+
+        Assert.Equal("Popup",
+            Assert.IsType<PdfName>(popup[Name("Subtype")]).ValueAsLatin1());
+        Assert.True(Assert.IsType<PdfBoolean>(popup[Name("Open")]).Value);
+        Assert.Same(popup, popupFromNote);
+        Assert.Same(note, noteFromPopup);
+        Assert.Equal([100d, 200d, 340d, 320d],
+            Assert.IsType<PdfArray>(popup[Name("Rect")]).Select(NumberValue));
+    }
+
     [Fact]
     public void AnnotationArguments_AreValidatedBeforeAllocation()
     {
