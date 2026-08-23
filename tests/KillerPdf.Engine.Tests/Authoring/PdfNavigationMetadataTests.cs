@@ -86,6 +86,59 @@ public sealed class PdfNavigationMetadataTests
         Assert.Equal(Build(), Build());
     }
 
+    [Fact]
+    public void Build_WritesInitialViewAndRichNamedDestinations()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(600, 800).AddBlankPage(600, 800)
+            .SetOpenAction(1, PdfDestination.At(72, 700, 1.5))
+            .AddNamedDestination("width", 0, PdfDestination.FitWidth(760))
+            .AddNamedDestination("detail", 1,
+                PdfDestination.FitRectangle(100, 200, 400, 650))
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfArray open = Assert.IsType<PdfArray>(catalog[Name("OpenAction")]);
+        PdfDictionary names = Assert.IsType<PdfDictionary>(catalog[Name("Names")]);
+        PdfArray destinations = Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(names[Name("Dests")])[Name("Names")]);
+        PdfArray detail = Assert.IsType<PdfArray>(destinations[1]);
+        PdfArray width = Assert.IsType<PdfArray>(destinations[3]);
+
+        Assert.Equal("XYZ", Assert.IsType<PdfName>(open[1]).ValueAsLatin1());
+        Assert.Equal(72, Assert.IsType<PdfInteger>(open[2]).Value);
+        Assert.Equal(700, Assert.IsType<PdfInteger>(open[3]).Value);
+        Assert.Equal(1.5, Assert.IsType<PdfReal>(open[4]).Value);
+        Assert.Equal("FitR", Assert.IsType<PdfName>(detail[1]).ValueAsLatin1());
+        Assert.Equal([100L, 200L, 400L, 650L],
+            detail.Skip(2).Select(value => Assert.IsType<PdfInteger>(value).Value));
+        Assert.Equal("FitH", Assert.IsType<PdfName>(width[1]).ValueAsLatin1());
+        Assert.Equal(760, Assert.IsType<PdfInteger>(width[2]).Value);
+    }
+
+    [Fact]
+    public void Destinations_ValidateCoordinatesZoomAndPages()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => PdfDestination.At(zoom: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PdfDestination.FitRectangle(10, 10, 5, 20));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfDocumentBuilder().AddBlankPage().SetOpenAction(1, PdfDestination.FitPage()));
+        Assert.Throws<ArgumentNullException>(() =>
+            new PdfDocumentBuilder().AddBlankPage().SetOpenAction(0, null!));
+    }
+
+    [Fact]
+    public void PdfUa2_RejectsUnstructuredOpenAction()
+    {
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "UA", Language = "en-US" })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .SetOpenAction(0, PdfDestination.FitPage())
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+    }
+
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

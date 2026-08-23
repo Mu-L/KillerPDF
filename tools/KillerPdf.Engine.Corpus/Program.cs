@@ -41,6 +41,11 @@ if (args.Length == 4 && args[0] == "--text-state-smoke")
     PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[2]));
     string destination = Path.GetFullPath(args[3]);
     var content = new PdfContentStreamBuilder()
+        .BeginArtifact()
+        .SetStrokeRgb(0.2, 0.7, 0.8).SetLineWidth(2)
+        .MoveTo(60, 520).CurveTo(120, 580, 180, 520).CurveToFinalControl(240, 460, 300, 520)
+        .CloseAndStroke()
+        .EndMarkedContent()
         .BeginMarkedContent(PdfStructureType.Paragraph, 0)
         .BeginText().SetFont(font, 28)
         .SetTextMatrix(0.966, 0.259, -0.259, 0.966, 90, 650)
@@ -59,6 +64,17 @@ if (args.Length == 4 && args[0] == "--text-state-smoke")
         .SetOutputIntent(profile, "sRGB IEC61966-2.1")
         .EnablePdfA4Conformance().EnablePdfUa2Conformance()
         .AddPage(612, 792, content)
+        .SetPageBox(0, PdfPageBox.Crop, 18, 18, 576, 756)
+        .SetPageBox(0, PdfPageBox.Bleed, 12, 12, 588, 768)
+        .SetPageBox(0, PdfPageBox.Trim, 24, 24, 564, 744)
+        .SetPageLayout(PdfPageLayout.SinglePage)
+        .SetPageMode(PdfPageMode.UseNone)
+        .SetViewerPreferences(new PdfViewerPreferences
+        {
+            FitWindow = true,
+            CenterWindow = true,
+            DisplayDocumentTitle = true
+        })
         .AddStructureContainer(PdfStructureType.Document)
         .AddStructureElement(PdfStructureType.Paragraph, 0, 0, 1)
         .Build();

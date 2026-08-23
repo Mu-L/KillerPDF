@@ -27,6 +27,10 @@ public sealed partial class PdfDocumentBuilder
     private OutputIntentDefinition? _outputIntent;
     private PdfA4Flavor _pdfA4Flavor;
     private bool _pdfUa2Conformance;
+    private PdfPageLayout? _pageLayout;
+    private PdfPageMode? _pageMode;
+    private PdfViewerPreferences? _viewerPreferences;
+    private OpenActionDefinition? _openAction;
     private readonly List<TextNoteDefinition> _textNotes = [];
     private readonly List<TextMarkupDefinition> _textMarkups = [];
 
@@ -84,6 +88,33 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    public PdfDocumentBuilder SetPageLayout(PdfPageLayout layout)
+    {
+        if (!Enum.IsDefined(layout)) throw new ArgumentOutOfRangeException(nameof(layout));
+        _pageLayout = layout;
+        return this;
+    }
+
+    public PdfDocumentBuilder SetPageMode(PdfPageMode mode)
+    {
+        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        _pageMode = mode;
+        return this;
+    }
+
+    public PdfDocumentBuilder SetViewerPreferences(PdfViewerPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        if (!Enum.IsDefined(preferences.ReadingDirection))
+            throw new ArgumentOutOfRangeException(nameof(preferences));
+        if (!Enum.IsDefined(preferences.PrintScaling))
+            throw new ArgumentOutOfRangeException(nameof(preferences));
+        if (!Enum.IsDefined(preferences.Duplex))
+            throw new ArgumentOutOfRangeException(nameof(preferences));
+        _viewerPreferences = preferences;
+        return this;
+    }
+
     public PdfDocumentBuilder AddBlankPage(double width = 612, double height = 792) =>
         AddPage(width, height, ReadOnlyMemory<byte>.Empty);
 
@@ -98,7 +129,8 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfGraphicsState, PdfName>(),
             new Dictionary<PdfShading, PdfName>(),
             new Dictionary<PdfFormXObject, PdfName>(),
-            new Dictionary<PdfTilingPattern, PdfName>(), [], [], content.Length > 0));
+            new Dictionary<PdfTilingPattern, PdfName>(), [], [], content.Length > 0,
+            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>()));
         return this;
     }
 
@@ -119,7 +151,46 @@ public sealed partial class PdfDocumentBuilder
             content.ShadingResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.FormResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
-            content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent));
+            content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
+            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>()));
+        return this;
+    }
+
+    /// <summary>Sets the clockwise page rotation shown by conforming viewers.</summary>
+    public PdfDocumentBuilder SetPageRotation(int pageIndex, int degrees)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (degrees is not (0 or 90 or 180 or 270))
+            throw new ArgumentOutOfRangeException(nameof(degrees),
+                "Page rotation must be 0, 90, 180, or 270 degrees.");
+        _pages[pageIndex] = _pages[pageIndex] with { Rotation = degrees };
+        return this;
+    }
+
+    /// <summary>Sets a visible, print-production, or artwork boundary within the media box.</summary>
+    public PdfDocumentBuilder SetPageBox(
+        int pageIndex, PdfPageBox box, double x, double y, double width, double height)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (!Enum.IsDefined(box)) throw new ArgumentOutOfRangeException(nameof(box));
+        ValidateRectangle(x, y, width, height);
+        PageDefinition page = _pages[pageIndex];
+        if (x < 0 || y < 0 || x + width > page.Width || y + height > page.Height)
+            throw new ArgumentOutOfRangeException(nameof(width),
+                "A page box must remain inside the page media box.");
+        var boxes = page.Boxes.ToDictionary(entry => entry.Key, entry => entry.Value);
+        boxes[box] = new PageBoxDefinition(x, y, width, height);
+        _pages[pageIndex] = page with { Boxes = boxes };
+        return this;
+    }
+
+    /// <summary>Scales default user-space units for unusually large or small pages.</summary>
+    public PdfDocumentBuilder SetPageUserUnit(int pageIndex, double userUnit)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (!double.IsFinite(userUnit) || userUnit is <= 0 or > 75_000)
+            throw new ArgumentOutOfRangeException(nameof(userUnit));
+        _pages[pageIndex] = _pages[pageIndex] with { UserUnit = userUnit };
         return this;
     }
 
@@ -173,15 +244,28 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
-    public PdfDocumentBuilder AddNamedDestination(string name, int pageIndex)
+    public PdfDocumentBuilder AddNamedDestination(string name, int pageIndex) =>
+        AddNamedDestination(name, pageIndex, PdfDestination.FitPage());
+
+    public PdfDocumentBuilder AddNamedDestination(
+        string name, int pageIndex, PdfDestination destination)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("A named destination cannot be empty.", nameof(name));
         ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(destination);
         if (_namedDestinations.Any(destination =>
                 string.Equals(destination.Name, name, StringComparison.Ordinal)))
             throw new ArgumentException("Named destinations must be unique.", nameof(name));
-        _namedDestinations.Add(new NamedDestinationDefinition(name, pageIndex));
+        _namedDestinations.Add(new NamedDestinationDefinition(name, pageIndex, destination));
+        return this;
+    }
+
+    public PdfDocumentBuilder SetOpenAction(int pageIndex, PdfDestination destination)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(destination);
+        _openAction = new OpenActionDefinition(pageIndex, destination);
         return this;
     }
 
@@ -532,7 +616,7 @@ public sealed partial class PdfDocumentBuilder
             throw new InvalidOperationException(
                 "PDF/UA-2 authoring requires all painted page content to be tagged or marked as an artifact.");
         if (_pdfUa2Conformance && (_pages.Any(page => page.Links.Count > 0)
-            || _bookmarks.Count > 0 || _namedDestinations.Count > 0
+            || _bookmarks.Count > 0 || _namedDestinations.Count > 0 || _openAction is not null
             || _textFields.Count > 0 || _checkBoxes.Count > 0 || _radioGroups.Count > 0
             || _choiceFields.Count > 0 || _textNotes.Count > 0 || _textMarkups.Count > 0
             || _freeTexts.Count > 0 || _visualAnnotations.Count > 0 || _imageStamps.Count > 0))
@@ -742,17 +826,26 @@ public sealed partial class PdfDocumentBuilder
         if (outlinesNumber.HasValue)
         {
             catalogEntries.Add(("Outlines", new PdfIndirectReference(outlinesNumber.Value, 0)));
-            catalogEntries.Add(("PageMode", Name("UseOutlines")));
         }
+        PdfPageMode? effectivePageMode = _pageMode
+            ?? (outlinesNumber.HasValue ? PdfPageMode.UseOutlines : null);
+        if (effectivePageMode.HasValue)
+            catalogEntries.Add(("PageMode", Name(PageModeName(effectivePageMode.Value))));
+        if (_pageLayout.HasValue)
+            catalogEntries.Add(("PageLayout", Name(PageLayoutName(_pageLayout.Value))));
+        if (_openAction is not null)
+            catalogEntries.Add(("OpenAction", DestinationArray(
+                new PdfIndirectReference(allocated[_openAction.PageIndex].PageNumber, 0),
+                _openAction.Destination)));
         if (structureRootNumber.HasValue)
         {
             catalogEntries.Add(("StructTreeRoot",
                 new PdfIndirectReference(structureRootNumber.Value, 0)));
             catalogEntries.Add(("MarkInfo", Dictionary(("Marked", new PdfBoolean(true)))));
         }
-        if (_pdfUa2Conformance)
+        if (_viewerPreferences is not null || _pdfUa2Conformance)
             catalogEntries.Add(("ViewerPreferences",
-                Dictionary(("DisplayDocTitle", new PdfBoolean(true)))));
+                ViewerPreferencesDictionary(_viewerPreferences, _pdfUa2Conformance)));
         var catalogNameEntries = new List<(string Name, PdfObject Value)>();
         if (allocatedAttachments.Length > 0)
         {
@@ -775,9 +868,9 @@ public sealed partial class PdfDocumentBuilder
                 .OrderBy(value => value.Name, StringComparer.Ordinal))
             {
                 names.Add(UnicodeString(destination.Name));
-                names.Add(new PdfArray([
+                names.Add(DestinationArray(
                     new PdfIndirectReference(allocated[destination.PageIndex].PageNumber, 0),
-                    Name("Fit")]));
+                    destination.Destination));
             }
             catalogNameEntries.Add(("Dests", Dictionary(("Names", new PdfArray(names)))));
         }
@@ -1174,6 +1267,14 @@ public sealed partial class PdfDocumentBuilder
             };
             if (allocatedPage.ContentNumber.HasValue)
                 entries.Add(("Contents", new PdfIndirectReference(allocatedPage.ContentNumber.Value, 0)));
+            if (allocatedPage.Definition.Rotation != 0)
+                entries.Add(("Rotate", new PdfInteger(allocatedPage.Definition.Rotation)));
+            if (allocatedPage.Definition.UserUnit != 1)
+                entries.Add(("UserUnit", Number(allocatedPage.Definition.UserUnit)));
+            foreach ((PdfPageBox box, PageBoxDefinition rectangle) in allocatedPage.Definition.Boxes.OrderBy(entry => entry.Key))
+                entries.Add((PageBoxName(box), new PdfArray([
+                    Number(rectangle.X), Number(rectangle.Y),
+                    Number(rectangle.X + rectangle.Width), Number(rectangle.Y + rectangle.Height)])));
             if (allocatedPage.AnnotationNumbers.Length > 0)
                 entries.Add(("Annots", new PdfArray(allocatedPage.AnnotationNumbers.Select(number =>
                     (PdfObject)new PdfIndirectReference(number, 0)))));
@@ -2153,6 +2254,88 @@ public sealed partial class PdfDocumentBuilder
         _ => throw new ArgumentOutOfRangeException(nameof(style))
     };
 
+    private static string PageBoxName(PdfPageBox box) => box switch
+    {
+        PdfPageBox.Crop => "CropBox",
+        PdfPageBox.Bleed => "BleedBox",
+        PdfPageBox.Trim => "TrimBox",
+        PdfPageBox.Art => "ArtBox",
+        _ => throw new ArgumentOutOfRangeException(nameof(box))
+    };
+
+    private static string PageLayoutName(PdfPageLayout layout) => layout switch
+    {
+        PdfPageLayout.SinglePage => "SinglePage",
+        PdfPageLayout.OneColumn => "OneColumn",
+        PdfPageLayout.TwoColumnLeft => "TwoColumnLeft",
+        PdfPageLayout.TwoColumnRight => "TwoColumnRight",
+        PdfPageLayout.TwoPageLeft => "TwoPageLeft",
+        PdfPageLayout.TwoPageRight => "TwoPageRight",
+        _ => throw new ArgumentOutOfRangeException(nameof(layout))
+    };
+
+    private static string PageModeName(PdfPageMode mode) => mode switch
+    {
+        PdfPageMode.UseNone => "UseNone",
+        PdfPageMode.UseOutlines => "UseOutlines",
+        PdfPageMode.UseThumbs => "UseThumbs",
+        PdfPageMode.FullScreen => "FullScreen",
+        PdfPageMode.UseOptionalContent => "UseOC",
+        PdfPageMode.UseAttachments => "UseAttachments",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
+
+    private static PdfDictionary ViewerPreferencesDictionary(
+        PdfViewerPreferences? preferences, bool requireDocumentTitle)
+    {
+        preferences ??= new PdfViewerPreferences();
+        var entries = new List<(string Name, PdfObject Value)>();
+        void AddTrue(string name, bool value)
+        {
+            if (value) entries.Add((name, new PdfBoolean(true)));
+        }
+        AddTrue("HideToolbar", preferences.HideToolbar);
+        AddTrue("HideMenubar", preferences.HideMenuBar);
+        AddTrue("HideWindowUI", preferences.HideWindowUi);
+        AddTrue("FitWindow", preferences.FitWindow);
+        AddTrue("CenterWindow", preferences.CenterWindow);
+        AddTrue("DisplayDocTitle", preferences.DisplayDocumentTitle || requireDocumentTitle);
+        AddTrue("PickTrayByPDFSize", preferences.PickTrayByPdfSize);
+        if (preferences.ReadingDirection == PdfReadingDirection.RightToLeft)
+            entries.Add(("Direction", Name("R2L")));
+        if (preferences.PrintScaling == PdfPrintScaling.None)
+            entries.Add(("PrintScaling", Name("None")));
+        if (preferences.Duplex != PdfDuplexMode.Default)
+            entries.Add(("Duplex", Name(preferences.Duplex switch
+            {
+                PdfDuplexMode.Simplex => "Simplex",
+                PdfDuplexMode.DuplexFlipShortEdge => "DuplexFlipShortEdge",
+                PdfDuplexMode.DuplexFlipLongEdge => "DuplexFlipLongEdge",
+                _ => throw new ArgumentOutOfRangeException(nameof(preferences))
+            })));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static PdfArray DestinationArray(
+        PdfIndirectReference page, PdfDestination destination)
+    {
+        var values = new List<PdfObject> { page, Name(destination.Kind switch
+        {
+            PdfDestinationKind.Xyz => "XYZ",
+            PdfDestinationKind.Fit => "Fit",
+            PdfDestinationKind.FitH => "FitH",
+            PdfDestinationKind.FitV => "FitV",
+            PdfDestinationKind.FitR => "FitR",
+            PdfDestinationKind.FitB => "FitB",
+            PdfDestinationKind.FitBH => "FitBH",
+            PdfDestinationKind.FitBV => "FitBV",
+            _ => throw new ArgumentOutOfRangeException(nameof(destination))
+        }) };
+        values.AddRange(destination.Values.Select(value =>
+            value.HasValue ? Number(value.Value) : PdfNull.Instance));
+        return new PdfArray(values);
+    }
+
     private sealed record PageDefinition(
         double Width,
         double Height,
@@ -2167,7 +2350,12 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfTilingPattern, PdfName> Patterns,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
-        bool HasUntaggedContent);
+        bool HasUntaggedContent,
+        int Rotation,
+        double UserUnit,
+        IReadOnlyDictionary<PdfPageBox, PageBoxDefinition> Boxes);
+    private sealed record PageBoxDefinition(
+        double X, double Y, double Width, double Height);
     private sealed record AllocatedPage(
         PageDefinition Definition, int PageNumber, int? ContentNumber, int[] AnnotationNumbers);
     private abstract record LinkDefinition(double X, double Y, double Width, double Height);
@@ -2188,7 +2376,9 @@ public sealed partial class PdfDocumentBuilder
         int? MarkedContentId,
         string? AlternateDescription,
         string? ActualText);
-    private sealed record NamedDestinationDefinition(string Name, int PageIndex);
+    private sealed record NamedDestinationDefinition(
+        string Name, int PageIndex, PdfDestination Destination);
+    private sealed record OpenActionDefinition(int PageIndex, PdfDestination Destination);
     private sealed record PageLabelDefinition(
         int PageIndex, PdfPageLabelStyle Style, string? Prefix, int StartNumber);
     private sealed record AttachmentDefinition(
