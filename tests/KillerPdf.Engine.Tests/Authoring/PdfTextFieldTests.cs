@@ -12,6 +12,36 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfTextFieldTests
 {
     [Fact]
+    public void AddTextField_WritesIndependentDefaultValueAndFileSelectFlag()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "attachment", 0, 0, 200, 20,
+                value: "C:/current.pdf",
+                options: new PdfTextFieldOptions { FileSelect = true },
+                defaultValue: "C:/default.pdf")
+            .Build());
+        PdfDictionary field = FirstField(document);
+
+        Assert.Equal("C:/current.pdf", DecodeUnicode(Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Equal("C:/default.pdf", DecodeUnicode(Assert.IsType<PdfString>(field[Name("DV")])));
+        Assert.Equal(1 << 20, Assert.IsType<PdfInteger>(field[Name("Ff")]).Value);
+    }
+
+    [Fact]
+    public void AddTextField_ValidatesDefaultValueAndFileSelectCombinations()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+
+        Assert.Throws<ArgumentException>(() => builder.AddTextField(
+            0, "long", 0, 0, 100, 20, options: new PdfTextFieldOptions { MaximumLength = 3 },
+            defaultValue: "four"));
+        Assert.Throws<ArgumentException>(() => builder.AddTextField(
+            0, "multiline-file", 0, 0, 100, 20,
+            options: new PdfTextFieldOptions { FileSelect = true, Multiline = true }));
+    }
+
+    [Fact]
     public void AddTextField_WritesAcroFormWidgetValueAndAppearance()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
@@ -294,6 +324,12 @@ public sealed class PdfTextFieldTests
 
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
+    private static PdfDictionary FirstField(PdfDocument document)
+    {
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary acroForm = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        return ResolveDictionary(document, Assert.IsType<PdfArray>(acroForm[Name("Fields")])[0]);
+    }
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

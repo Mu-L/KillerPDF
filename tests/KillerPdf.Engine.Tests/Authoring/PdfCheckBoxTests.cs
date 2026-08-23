@@ -8,6 +8,23 @@ namespace KillerPdf.Engine.Tests.Authoring;
 
 public sealed class PdfCheckBoxTests
 {
+    [Fact]
+    public void AddCheckBox_WritesIndependentDefaultState()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddCheckBox(0, "approved", 0, 0, 20, 20,
+                isChecked: true, defaultChecked: false)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary widget = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+
+        Assert.Equal("Yes", Assert.IsType<PdfName>(widget[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Off", Assert.IsType<PdfName>(widget[Name("DV")]).ValueAsLatin1());
+        Assert.Equal("Yes", Assert.IsType<PdfName>(widget[Name("AS")]).ValueAsLatin1());
+    }
+
     [Theory]
     [InlineData(true, "Approved")]
     [InlineData(false, "Off")]

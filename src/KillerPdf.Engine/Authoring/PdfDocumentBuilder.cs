@@ -587,18 +587,25 @@ public sealed partial class PdfDocumentBuilder
         double fontSize = 12,
         PdfTextFieldOptions? options = null,
         TrueTypeFont? embeddedFont = null,
-        PdfFormFieldMetadata? fieldMetadata = null)
+        PdfFormFieldMetadata? fieldMetadata = null,
+        string? defaultValue = null,
+        string? richTextValue = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(value);
-        if (embeddedFont is null && value.Any(character => character > 0xFF))
+        defaultValue ??= value;
+        if (embeddedFont is null && (value.Any(character => character > 0xFF)
+            || defaultValue.Any(character => character > 0xFF)))
             throw new ArgumentException(
-                "The baseline text-field appearance supports Latin-1 values; Unicode form fonts are a separate milestone.",
+                "Unicode text-field values require an embedded font.",
                 nameof(value));
         if (embeddedFont is not null)
+        {
             ValidateFormFontText(embeddedFont, value, nameof(value));
+            ValidateFormFontText(embeddedFont, defaultValue, nameof(defaultValue));
+        }
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         options ??= new PdfTextFieldOptions();
@@ -606,20 +613,38 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentOutOfRangeException(nameof(options), "Text alignment is invalid.");
         if (!options.Multiline && value.IndexOfAny(['\r', '\n']) >= 0)
             throw new ArgumentException("A single-line text field cannot contain line breaks.", nameof(value));
+        if (!options.Multiline && defaultValue.IndexOfAny(['\r', '\n']) >= 0)
+            throw new ArgumentException("A single-line default value cannot contain line breaks.", nameof(defaultValue));
         if (options.Password && options.Multiline)
             throw new ArgumentException("A password field cannot be multiline.", nameof(options));
+        if (options.FileSelect && (options.Multiline || options.Password || options.Comb))
+            throw new ArgumentException(
+                "A file-selection field cannot be multiline, a password field, or a comb field.",
+                nameof(options));
+        if (richTextValue is not null)
+        {
+            if (options.Password || options.FileSelect || options.Comb)
+                throw new ArgumentException(
+                    "Rich text cannot be combined with password, file-selection, or comb fields.",
+                    nameof(richTextValue));
+            ValidateRichTextValue(richTextValue);
+        }
         if (options.Password && embeddedFont is not null && embeddedFont.GetGlyphId('*') == 0)
             throw new ArgumentException("A password field font must contain the mask glyph U+002A.", nameof(embeddedFont));
         if (options.MaximumLength is <= 0)
             throw new ArgumentOutOfRangeException(nameof(options), "MaximumLength must be positive.");
         int valueCharacterCount = value.EnumerateRunes().Count();
+        int defaultCharacterCount = defaultValue.EnumerateRunes().Count();
         if (options.MaximumLength.HasValue && valueCharacterCount > options.MaximumLength.Value)
             throw new ArgumentException("The initial value exceeds the text field's maximum length.", nameof(value));
+        if (options.MaximumLength.HasValue && defaultCharacterCount > options.MaximumLength.Value)
+            throw new ArgumentException("The default value exceeds the text field's maximum length.", nameof(defaultValue));
         if (options.Comb && (!options.MaximumLength.HasValue || options.Multiline || options.Password))
             throw new ArgumentException(
                 "A comb field requires MaximumLength and cannot also be multiline or a password field.", nameof(options));
         var definition = new TextFieldDefinition(
-            pageIndex, name, x, y, width, height, value, fontSize, options, embeddedFont,
+            pageIndex, name, x, y, width, height, value, defaultValue, richTextValue,
+            fontSize, options, embeddedFont,
             ValidateFieldMetadata(fieldMetadata));
         ValidateInitialTextFieldFit(definition);
         _textFields.Add(definition);
@@ -637,7 +662,8 @@ public sealed partial class PdfDocumentBuilder
         string exportValue = "Yes",
         PdfFormFieldMetadata? fieldMetadata = null,
         PdfFormFieldOptions? options = null,
-        PdfCheckBoxMark mark = PdfCheckBoxMark.Check)
+        PdfCheckBoxMark mark = PdfCheckBoxMark.Check,
+        bool? defaultChecked = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -647,7 +673,7 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentException("A checkbox export value must contain printable ASCII characters.", nameof(exportValue));
         if (!Enum.IsDefined(mark)) throw new ArgumentOutOfRangeException(nameof(mark));
         _checkBoxes.Add(new CheckBoxDefinition(
-            pageIndex, name, x, y, width, height, isChecked, exportValue,
+            pageIndex, name, x, y, width, height, isChecked, defaultChecked ?? isChecked, exportValue,
             ValidateFieldMetadata(fieldMetadata), options ?? new PdfFormFieldOptions(), mark));
         return this;
     }
@@ -658,7 +684,8 @@ public sealed partial class PdfDocumentBuilder
         string? selectedValue = null,
         PdfFormFieldMetadata? fieldMetadata = null,
         PdfFormFieldOptions? fieldOptions = null,
-        PdfRadioGroupOptions? radioOptions = null)
+        PdfRadioGroupOptions? radioOptions = null,
+        string? defaultSelectedValue = null)
     {
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
@@ -680,8 +707,12 @@ public sealed partial class PdfDocumentBuilder
         }
         if (selectedValue is not null && !exportValues.Contains(selectedValue))
             throw new ArgumentException("The selected radio value must name one of the options.", nameof(selectedValue));
+        if (defaultSelectedValue is not null && !exportValues.Contains(defaultSelectedValue))
+            throw new ArgumentException(
+                "The default radio value must name one of the options.", nameof(defaultSelectedValue));
         _radioGroups.Add(new RadioGroupDefinition(
-            name, values, selectedValue, ValidateFieldMetadata(fieldMetadata),
+            name, values, selectedValue, defaultSelectedValue ?? selectedValue,
+            ValidateFieldMetadata(fieldMetadata),
             fieldOptions ?? new PdfFormFieldOptions(), radioOptions));
         return this;
     }
@@ -730,9 +761,11 @@ public sealed partial class PdfDocumentBuilder
         choiceOptions = ValidateChoiceFieldOptions(choiceOptions);
         if (choiceOptions.SortOptions)
             Array.Sort(values, (left, right) => StringComparer.Ordinal.Compare(left.DisplayValue, right.DisplayValue));
+        string[] selections = [selectedValue ?? values[0].ExportValue];
         _choiceFields.Add(new ChoiceFieldDefinition(
-            pageIndex, name, x, y, width, height, values,
-            [selectedValue ?? values[0].ExportValue], IsComboBox: true, IsMultiSelect: false, editable,
+            pageIndex, name, x, y, width, height, values, selections,
+            ResolveChoiceDefaultValues(values, selections, false, editable, embeddedFont, choiceOptions),
+            IsComboBox: true, IsMultiSelect: false, editable,
             TopIndex: 0, fontSize, embeddedFont,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(), choiceOptions));
         return this;
@@ -778,9 +811,11 @@ public sealed partial class PdfDocumentBuilder
         choiceOptions = ValidateChoiceFieldOptions(choiceOptions);
         if (choiceOptions.SortOptions)
             Array.Sort(values, (left, right) => StringComparer.Ordinal.Compare(left.DisplayValue, right.DisplayValue));
+        string[] selections = [selectedValue ?? values[0].ExportValue];
         _choiceFields.Add(new ChoiceFieldDefinition(
-            pageIndex, name, x, y, width, height, values,
-            [selectedValue ?? values[0].ExportValue], IsComboBox: false, IsMultiSelect: false, Editable: false,
+            pageIndex, name, x, y, width, height, values, selections,
+            ResolveChoiceDefaultValues(values, selections, false, false, embeddedFont, choiceOptions),
+            IsComboBox: false, IsMultiSelect: false, Editable: false,
             topIndex, fontSize, embeddedFont,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(), choiceOptions));
         return this;
@@ -818,9 +853,11 @@ public sealed partial class PdfDocumentBuilder
         if (choiceOptions.SortOptions)
             Array.Sort(values, (left, right) =>
                 StringComparer.Ordinal.Compare(left.DisplayValue, right.DisplayValue));
+        string[] selections = [selectedExportValue ?? values[0].ExportValue];
         _choiceFields.Add(new ChoiceFieldDefinition(
-            pageIndex, name, x, y, width, height, values,
-            [selectedExportValue ?? values[0].ExportValue], IsComboBox: true,
+            pageIndex, name, x, y, width, height, values, selections,
+            ResolveChoiceDefaultValues(values, selections, false, editable, embeddedFont, choiceOptions),
+            IsComboBox: true,
             IsMultiSelect: false, editable, TopIndex: 0, fontSize, embeddedFont,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
             choiceOptions));
@@ -875,6 +912,7 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentOutOfRangeException(nameof(topIndex));
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values, selections,
+            ResolveChoiceDefaultValues(values, selections, true, false, embeddedFont, choiceOptions),
             IsComboBox: false, IsMultiSelect: true, Editable: false, topIndex, fontSize, embeddedFont,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(), choiceOptions));
         return this;
@@ -903,9 +941,11 @@ public sealed partial class PdfDocumentBuilder
         if (choiceOptions.SortOptions)
             Array.Sort(values, (left, right) =>
                 StringComparer.Ordinal.Compare(left.DisplayValue, right.DisplayValue));
+        string[] selections = [selectedExportValue ?? values[0].ExportValue];
         _choiceFields.Add(new ChoiceFieldDefinition(
-            pageIndex, name, x, y, width, height, values,
-            [selectedExportValue ?? values[0].ExportValue], IsComboBox: false,
+            pageIndex, name, x, y, width, height, values, selections,
+            ResolveChoiceDefaultValues(values, selections, false, false, embeddedFont, choiceOptions),
+            IsComboBox: false,
             IsMultiSelect: false, Editable: false, topIndex, fontSize, embeddedFont,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
             choiceOptions));
@@ -943,6 +983,7 @@ public sealed partial class PdfDocumentBuilder
             .Select(value => value.ExportValue).ToArray();
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values, selections,
+            ResolveChoiceDefaultValues(values, selections, true, false, embeddedFont, choiceOptions),
             IsComboBox: false, IsMultiSelect: true, Editable: false, topIndex,
             fontSize, embeddedFont, ValidateFieldMetadata(fieldMetadata),
             fieldOptions ?? new PdfFormFieldOptions(), choiceOptions));
@@ -1506,10 +1547,12 @@ public sealed partial class PdfDocumentBuilder
         {
             var usage = new EmbeddedFontUsage(font, formFontResources[font]);
             foreach (string value in _textFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
-                .Select(TextFieldAppearanceValue)
+                .SelectMany(field => new[] { TextFieldAppearanceValue(field), field.DefaultValue })
                 .Concat(_choiceFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
                     .SelectMany(field => field.Options.Select(option => option.DisplayValue)
-                        .Concat(field.SelectedValues.Select(value => ChoiceDisplayValue(field, value)))))
+                        .Concat(field.SelectedValues.Select(value => ChoiceDisplayValue(field, value)))
+                        .Concat(field.DefaultSelectedValues.Select(value =>
+                            ChoiceDisplayValue(field, value)))))
                 .Concat(_pushButtons.Where(field => ReferenceEquals(field.EmbeddedFont, font))
                     .Select(field => field.Label))
                 .Concat(_signatureFields.Where(field =>
@@ -2449,7 +2492,7 @@ public sealed partial class PdfDocumentBuilder
                 ("FT", Name("Tx")),
                 ("T", UnicodeString(field.Name)),
                 ("V", UnicodeString(field.Value)),
-                ("DV", UnicodeString(field.Value)),
+                ("DV", UnicodeString(field.DefaultValue)),
                 ("Rect", new PdfArray([
                     Number(field.X), Number(field.Y),
                     Number(field.X + field.Width), Number(field.Y + field.Height)])),
@@ -2462,13 +2505,15 @@ public sealed partial class PdfDocumentBuilder
                 ("BS", Dictionary(("W", new PdfInteger(1)), ("S", Name("S")))),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
         };
-        int flags = TextFieldFlags(field.Options);
+        int flags = TextFieldFlags(field.Options, field.RichTextValue is not null);
         if (flags != 0)
             fieldEntries.Add(("Ff", new PdfInteger(flags)));
         if (field.Options.MaximumLength.HasValue)
             fieldEntries.Add(("MaxLen", new PdfInteger(field.Options.MaximumLength.Value)));
         if (field.Options.Alignment != PdfTextFieldAlignment.Left)
             fieldEntries.Add(("Q", new PdfInteger((int)field.Options.Alignment)));
+        if (field.RichTextValue is not null)
+            fieldEntries.Add(("RV", UnicodeString(field.RichTextValue)));
         AddFieldMetadata(fieldEntries, field.Metadata);
         objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
             Dictionary(fieldEntries.ToArray()), 0));
@@ -2488,7 +2533,7 @@ public sealed partial class PdfDocumentBuilder
                 appearance), 0));
     }
 
-    private static int TextFieldFlags(PdfTextFieldOptions options)
+    private static int TextFieldFlags(PdfTextFieldOptions options, bool hasRichText)
     {
         int flags = 0;
         if (options.ReadOnly) flags |= 1;
@@ -2496,9 +2541,11 @@ public sealed partial class PdfDocumentBuilder
         if (options.NoExport) flags |= 1 << 2;
         if (options.Multiline) flags |= 1 << 12;
         if (options.Password) flags |= 1 << 13;
+        if (options.FileSelect) flags |= 1 << 20;
         if (options.DoNotSpellCheck) flags |= 1 << 22;
         if (options.DoNotScroll) flags |= 1 << 23;
         if (options.Comb) flags |= 1 << 24;
+        if (hasRichText) flags |= 1 << 25;
         return flags;
     }
 
@@ -2510,6 +2557,7 @@ public sealed partial class PdfDocumentBuilder
         CheckBoxDefinition field = allocatedField.Definition;
         PdfName onState = Name(field.ExportValue);
         PdfName currentState = field.IsChecked ? onState : Name("Off");
+        PdfName defaultState = field.DefaultChecked ? onState : Name("Off");
         var entries = new List<(string Name, PdfObject Value)>
         {
                 ("Type", Name("Annot")),
@@ -2517,7 +2565,7 @@ public sealed partial class PdfDocumentBuilder
                 ("FT", Name("Btn")),
                 ("T", UnicodeString(field.Name)),
                 ("V", currentState),
-                ("DV", currentState),
+                ("DV", defaultState),
                 ("AS", currentState),
                 ("Rect", new PdfArray([
                     Number(field.X), Number(field.Y),
@@ -2647,6 +2695,7 @@ public sealed partial class PdfDocumentBuilder
     {
         RadioGroupDefinition group = allocatedGroup.Definition;
         PdfName selected = Name(group.SelectedValue ?? "Off");
+        PdfName defaultSelected = Name(group.DefaultSelectedValue ?? "Off");
         var groupEntries = new List<(string Name, PdfObject Value)>
         {
                 ("FT", Name("Btn")),
@@ -2656,7 +2705,7 @@ public sealed partial class PdfDocumentBuilder
                     | FormFieldFlags(group.FieldOptions))),
                 ("T", UnicodeString(group.Name)),
                 ("V", selected),
-                ("DV", selected),
+                ("DV", defaultSelected),
                 ("Kids", new PdfArray(allocatedGroup.Widgets.Select(widget =>
                     (PdfObject)new PdfIndirectReference(widget.WidgetNumber, 0))))
         };
@@ -2766,7 +2815,14 @@ public sealed partial class PdfDocumentBuilder
                 ? new PdfArray(field.SelectedValues.Select(value => (PdfObject)UnicodeString(value)))
                 : UnicodeString(field.SelectedValues[0]);
             entries.Add(("V", value));
-            entries.Add(("DV", value));
+        }
+        if (!field.IsMultiSelect || field.DefaultSelectedValues.Count != 0)
+        {
+            PdfObject defaultValue = field.IsMultiSelect
+                ? new PdfArray(field.DefaultSelectedValues.Select(value =>
+                    (PdfObject)UnicodeString(value)))
+                : UnicodeString(field.DefaultSelectedValues[0]);
+            entries.Add(("DV", defaultValue));
         }
         if (field.IsMultiSelect && field.SelectedValues.Count != 0)
         {
@@ -3656,6 +3712,65 @@ public sealed partial class PdfDocumentBuilder
         return options;
     }
 
+    private static void ValidateRichTextValue(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("A rich-text value cannot be empty.", nameof(value));
+        try
+        {
+            var document = new XmlDocument { XmlResolver = null };
+            document.LoadXml(value);
+            XmlElement? root = document.DocumentElement;
+            if (root is null || root.LocalName != "body"
+                || root.NamespaceURI != "http://www.w3.org/1999/xhtml")
+                throw new ArgumentException(
+                    "A rich-text value must have an XHTML body root.", nameof(value));
+        }
+        catch (XmlException error)
+        {
+            throw new ArgumentException("A rich-text value must be well-formed XHTML.", nameof(value), error);
+        }
+    }
+
+    private static string[] ResolveChoiceDefaultValues(
+        IReadOnlyList<PdfChoiceOption> options,
+        IReadOnlyList<string> selectedValues,
+        bool isMultiSelect,
+        bool editable,
+        TrueTypeFont? embeddedFont,
+        PdfChoiceFieldOptions choiceOptions)
+    {
+        string[] defaults = choiceOptions.DefaultSelectedExportValues?.ToArray()
+            ?? selectedValues.ToArray();
+        if (!isMultiSelect && defaults.Length != 1)
+            throw new ArgumentException(
+                "A single-select choice field requires exactly one default value.",
+                nameof(choiceOptions));
+        if (defaults.Distinct(StringComparer.Ordinal).Count() != defaults.Length)
+            throw new ArgumentException("Default choice values must be unique.", nameof(choiceOptions));
+        if (defaults.Any(value => string.IsNullOrEmpty(value)))
+            throw new ArgumentException("Default choice values cannot be empty.", nameof(choiceOptions));
+        foreach (string value in defaults)
+        {
+            bool isOption = options.Any(option => option.ExportValue == value);
+            if (!isOption && !editable)
+                throw new ArgumentException(
+                    "Every default choice value must name an option export value.",
+                    nameof(choiceOptions));
+            if (!isOption && embeddedFont is null && value.Any(character => character > 0xFF))
+                throw new ArgumentException(
+                    "An editable Unicode default choice value requires an embedded font.",
+                    nameof(choiceOptions));
+            if (!isOption && embeddedFont is not null)
+                ValidateFormFontText(embeddedFont, value, nameof(choiceOptions));
+        }
+        if (!isMultiSelect)
+            return defaults;
+        var defaultSet = defaults.ToHashSet(StringComparer.Ordinal);
+        return options.Where(option => defaultSet.Contains(option.ExportValue))
+            .Select(option => option.ExportValue).ToArray();
+    }
+
     private PdfSignatureFieldLock? ValidateSignatureFieldLock(PdfSignatureFieldLock? fieldLock)
     {
         if (fieldLock is null)
@@ -4381,13 +4496,15 @@ public sealed partial class PdfDocumentBuilder
         FileAttachmentAnnotationDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record TextFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        string Value, double FontSize, PdfTextFieldOptions Options, TrueTypeFont? EmbeddedFont,
+        string Value, string DefaultValue, string? RichTextValue,
+        double FontSize, PdfTextFieldOptions Options,
+        TrueTypeFont? EmbeddedFont,
         PdfFormFieldMetadata? Metadata);
     private sealed record AllocatedTextField(
         TextFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record CheckBoxDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        bool IsChecked, string ExportValue, PdfFormFieldMetadata? Metadata,
+        bool IsChecked, bool DefaultChecked, string ExportValue, PdfFormFieldMetadata? Metadata,
         PdfFormFieldOptions Options, PdfCheckBoxMark Mark);
     private sealed record AllocatedCheckBox(
         CheckBoxDefinition Definition,
@@ -4396,6 +4513,7 @@ public sealed partial class PdfDocumentBuilder
         int OnAppearanceNumber);
     private sealed record RadioGroupDefinition(
         string Name, IReadOnlyList<PdfRadioButtonOption> Options, string? SelectedValue,
+        string? DefaultSelectedValue,
         PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions,
         PdfRadioGroupOptions RadioOptions);
     private sealed record AllocatedRadioGroup(
@@ -4408,6 +4526,7 @@ public sealed partial class PdfDocumentBuilder
     private sealed record ChoiceFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         IReadOnlyList<PdfChoiceOption> Options, IReadOnlyList<string> SelectedValues,
+        IReadOnlyList<string> DefaultSelectedValues,
         bool IsComboBox, bool IsMultiSelect, bool Editable, int TopIndex, double FontSize,
         TrueTypeFont? EmbeddedFont, PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions,
         PdfChoiceFieldOptions ChoiceOptions);

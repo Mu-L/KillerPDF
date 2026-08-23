@@ -9,6 +9,34 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfRadioButtonTests
 {
     [Fact]
+    public void AddRadioGroup_WritesIndependentDefaultValue()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 0, 0, 20, 20, "Free"),
+                new PdfRadioButtonOption(0, 30, 0, 20, 20, "Pro")],
+                selectedValue: "Pro", defaultSelectedValue: "Free")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary parent = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+
+        Assert.Equal("Pro", Assert.IsType<PdfName>(parent[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Free", Assert.IsType<PdfName>(parent[Name("DV")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void AddRadioGroup_RejectsUnknownDefaultValue()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+        Assert.Throws<ArgumentException>(() => builder.AddRadioGroup("plan", [
+            new PdfRadioButtonOption(0, 0, 0, 20, 20, "Free"),
+            new PdfRadioButtonOption(0, 30, 0, 20, 20, "Pro")],
+            defaultSelectedValue: "Missing"));
+    }
+
+    [Fact]
     public void AddRadioGroup_WritesParentKidsSelectionAndWidgetAppearances()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()

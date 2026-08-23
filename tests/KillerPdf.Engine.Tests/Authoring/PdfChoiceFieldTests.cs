@@ -9,6 +9,56 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfChoiceFieldTests
 {
     [Fact]
+    public void ChoiceFields_WriteIndependentDefaultSelectionsInOptionOrder()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddComboBoxOptions(0, "combo", 0, 0, 120, 20,
+                [new PdfChoiceOption("a", "Alpha"), new PdfChoiceOption("b", "Beta")], "b",
+                choiceOptions: new PdfChoiceFieldOptions
+                {
+                    DefaultSelectedExportValues = ["a"]
+                })
+            .AddMultiSelectListBoxOptions(0, "list", 0, 30, 120, 60,
+                [new PdfChoiceOption("a", "Alpha"), new PdfChoiceOption("b", "Beta"),
+                 new PdfChoiceOption("c", "Gamma")], ["a"],
+                choiceOptions: new PdfChoiceFieldOptions
+                {
+                    DefaultSelectedExportValues = ["c", "b"]
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfArray fields = Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")]);
+        PdfDictionary combo = ResolveDictionary(document, fields[0]);
+        PdfDictionary list = ResolveDictionary(document, fields[1]);
+
+        Assert.Equal("b", DecodeUnicode(Assert.IsType<PdfString>(combo[Name("V")])));
+        Assert.Equal("a", DecodeUnicode(Assert.IsType<PdfString>(combo[Name("DV")])));
+        Assert.Equal(["b", "c"], Assert.IsType<PdfArray>(list[Name("DV")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+    }
+
+    [Fact]
+    public void ChoiceFields_ValidateIndependentDefaultSelections()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+
+        Assert.Throws<ArgumentException>(() => builder.AddListBox(
+            0, "single", 0, 0, 100, 40, ["A", "B"],
+            choiceOptions: new PdfChoiceFieldOptions
+            {
+                DefaultSelectedExportValues = ["A", "B"]
+            }));
+        Assert.Throws<ArgumentException>(() => builder.AddMultiSelectListBox(
+            0, "multiple", 0, 0, 100, 40, ["A", "B"],
+            choiceOptions: new PdfChoiceFieldOptions
+            {
+                DefaultSelectedExportValues = ["Missing"]
+            }));
+    }
+
+    [Fact]
     public void ChoiceFields_RejectInvalidAlignmentWhenAdded()
     {
         var invalid = new PdfChoiceFieldOptions

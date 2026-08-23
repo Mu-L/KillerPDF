@@ -7,6 +7,7 @@ public sealed record PdfTextFieldOptions
     public bool NoExport { get; init; }
     public bool Multiline { get; init; }
     public bool Password { get; init; }
+    public bool FileSelect { get; init; }
     public bool DoNotSpellCheck { get; init; }
     public bool DoNotScroll { get; init; }
     public bool Comb { get; init; }

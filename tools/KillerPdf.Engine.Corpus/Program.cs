@@ -670,11 +670,14 @@ if (args.Length == 2 && args[0] == "--form-smoke")
             new PdfTextFieldOptions { Comb = true, MaximumLength = 6 })
         .AddTextField(0, "customer.password", 72, 535, 160, 24, "secret", 12,
             new PdfTextFieldOptions { Password = true })
+        .AddTextField(0, "customer.attachment", 300, 620, 180, 24, "C:/current.pdf", 10,
+            new PdfTextFieldOptions { FileSelect = true }, defaultValue: "C:/default.pdf")
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
-            mark: PdfCheckBoxMark.Diamond)
+            mark: PdfCheckBoxMark.Diamond, defaultChecked: false)
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 600, 18, 18, "Free"),
-            new PdfRadioButtonOption(0, 120, 600, 18, 18, "Pro")], "Pro")
+            new PdfRadioButtonOption(0, 120, 600, 18, 18, "Pro")], "Pro",
+            defaultSelectedValue: "Free")
         .AddSignatureField(0, "customer.signature", 300, 470, 180, 52,
             new PdfFormFieldMetadata { Tooltip = "Customer signature" },
             fieldLock: new PdfSignatureFieldLock(
@@ -692,7 +695,11 @@ if (args.Length == 2 && args[0] == "--form-smoke")
             [new PdfChoiceOption("dark", "Dark"),
              new PdfChoiceOption("mourning", "Mourning"),
              new PdfChoiceOption("98se", "98SE")], "mourning",
-            choiceOptions: new PdfChoiceFieldOptions { Alignment = PdfTextFieldAlignment.Center })
+            choiceOptions: new PdfChoiceFieldOptions
+            {
+                Alignment = PdfTextFieldAlignment.Center,
+                DefaultSelectedExportValues = ["dark"]
+            })
         .AddUriPushButton(0, "customer.documentation", 300, 550, 180, 28,
             "Open KillerPDF docs", "https://killerpdf.com",
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Open KillerPDF documentation" })
@@ -737,12 +744,19 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .AddTextField(0, "customer.password", 300, 650, 160, 24, "secret", 12,
             new PdfTextFieldOptions { Password = true }, embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Password", MappingName = "customer_password" })
+        .AddTextField(0, "customer.attachment", 300, 620, 180, 24, "C:/current.pdf", 10,
+            new PdfTextFieldOptions { FileSelect = true }, embeddedFont: font,
+            defaultValue: "C:/default.pdf")
         .AddComboBoxOptions(0, "customer.theme", 72, 630, 180, 24,
             [new PdfChoiceOption("dark", "Dark"),
              new PdfChoiceOption("mourning", "Mourning"),
              new PdfChoiceOption("98se", "98SE")], "mourning", embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Theme", MappingName = "customer_theme" },
-            choiceOptions: new PdfChoiceFieldOptions { Alignment = PdfTextFieldAlignment.Right })
+            choiceOptions: new PdfChoiceFieldOptions
+            {
+                Alignment = PdfTextFieldAlignment.Right,
+                DefaultSelectedExportValues = ["dark"]
+            })
         .AddListBox(0, "customer.features", 300, 590, 180, 72,
             ["Annotations", "Forms", "PDF/A"], "Forms", embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Features", MappingName = "customer_features" })
@@ -750,14 +764,17 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
             [new PdfChoiceOption("pdf20", "PDF 2.0"),
              new PdfChoiceOption("pdfa4", "PDF/A-4"),
              new PdfChoiceOption("pdfua2", "PDF/UA-2")], ["pdfa4", "pdfua2"], embeddedFont: font,
-            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Formats", MappingName = "customer_formats" })
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Formats", MappingName = "customer_formats" },
+            choiceOptions: new PdfChoiceFieldOptions { DefaultSelectedExportValues = ["pdf20"] })
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
             mark: PdfCheckBoxMark.Circle,
-            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Approved", MappingName = "customer_approved" })
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Approved", MappingName = "customer_approved" },
+            defaultChecked: false)
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 550, 18, 18, "Free"),
             new PdfRadioButtonOption(0, 120, 550, 18, 18, "Pro")], "Pro",
-            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Plan", MappingName = "customer_plan" })
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Plan", MappingName = "customer_plan" },
+            defaultSelectedValue: "Free")
         .AddSignatureField(0, "customer.signature", 72, 470, 180, 52,
             new PdfFormFieldMetadata { Tooltip = "Customer signature", MappingName = "customer_signature" },
             fieldLock: new PdfSignatureFieldLock(

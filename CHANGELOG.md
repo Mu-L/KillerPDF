@@ -52,6 +52,10 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added push buttons targeting shared Unicode named destinations, with definition-order validation and compact GoTo actions.
 - Added reset-form push buttons for all fields or validated named subsets, including PDF exclusion semantics for resetting every field except the listed set.
 - Added default values matching authored initial values across text, checkbox, radio, combo, and list fields so reset actions restore deterministic initial state.
+- Added independent text-field default values so reset actions can restore a value other than the initially displayed one, with matching Unicode, line-break, and maximum-length validation.
+- Added independent checkbox and radio-group default states while preserving current widget appearance states, enabling reset actions to restore intentionally different selections.
+- Added independent combo-box and list-box default selections, including option-ordered multi-select defaults and export-value validation, so resets can restore a different choice state.
+- Added typed file-selection text fields with the PDF file-select flag and validation against incompatible multiline, password, or comb behavior.
 - Added full-PDF submit buttons restricted to HTTP or HTTPS endpoints, with URL file specifications and validated include or exclude field lists.
 - Added typed push-button highlighting for none, invert, outline, push, and toggle interaction modes.
 - Added typed checkbox marks with matching appearance characteristics and generated check, cross, circle, diamond, square, or star artwork.

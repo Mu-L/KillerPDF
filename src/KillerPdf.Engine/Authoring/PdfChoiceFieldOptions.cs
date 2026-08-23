@@ -7,4 +7,5 @@ public sealed record PdfChoiceFieldOptions
     public bool DoNotSpellCheck { get; init; }
     public bool CommitOnSelectionChange { get; init; }
     public PdfTextFieldAlignment Alignment { get; init; }
+    public IReadOnlyList<string>? DefaultSelectedExportValues { get; init; }
 }
