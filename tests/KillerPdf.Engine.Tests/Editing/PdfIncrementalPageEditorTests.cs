@@ -278,6 +278,65 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ImportsTheAcroFormWithACompleteSourceDocument()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(300, 400)
+            .AddBlankPage(400, 500)
+            .AddTextField(0, "customer.name", 20, 300, 180, 24, "Steve")
+            .AddCheckBox(1, "customer.approved", 20, 400, 18, 18, isChecked: true)
+            .Build());
+        byte[] target = new PdfDocumentBuilder().AddBlankPage(100, 100).Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source)
+                .Build());
+        (PdfIndirectReference _, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) =
+            FlatPages(reopened);
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary acroForm = catalog[Name("AcroForm")] is PdfIndirectReference acroFormReference
+            ? ResolveDictionary(reopened, acroFormReference)
+            : Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(acroForm[Name("Fields")]);
+        PdfArray textAnnotations = Assert.IsType<PdfArray>(pages[1][Name("Annots")]);
+        PdfArray checkAnnotations = Assert.IsType<PdfArray>(pages[2][Name("Annots")]);
+        PdfDictionary textWidget = ResolveDictionary(reopened, textAnnotations[0]);
+        PdfDictionary checkWidget = ResolveDictionary(reopened, checkAnnotations[0]);
+
+        Assert.Equal(3, pages.Length);
+        Assert.Equal(2, fields.Count);
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(fields[0]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(textAnnotations[0]).ObjectNumber);
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(fields[1]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(checkAnnotations[0]).ObjectNumber);
+        Assert.Equal(pageReferences[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(textWidget[Name("P")]).ObjectNumber);
+        Assert.Equal(pageReferences[2].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(checkWidget[Name("P")]).ObjectNumber);
+        Assert.IsType<PdfDictionary>(textWidget[Name("AP")]);
+        Assert.IsType<PdfDictionary>(checkWidget[Name("AP")]);
+    }
+
+    [Fact]
+    public void Build_RejectsAcroFormMergesThatNeedFieldTreeReconciliation()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddCheckBox(0, "source", 20, 20, 18, 18).Build());
+        byte[] targetWithForm = new PdfDocumentBuilder()
+            .AddBlankPage().AddCheckBox(0, "target", 20, 20, 18, 18).Build();
+        byte[] emptyTarget = new PdfDocumentBuilder().Build();
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(targetWithForm))
+                .AddImportedDocument(source).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
+                .AddImportedDocument(source).RemovePage(0).Build());
+    }
+
+    [Fact]
     public void ArgumentsAndEmptyUpdates_AreRejected()
     {
         var editor = new PdfIncrementalPageEditor(PdfDocument.Open(

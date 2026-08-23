@@ -312,6 +312,7 @@ if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
             .SetFillRgb(0.9, 0.15, 0.25).Rectangle(50, 50, 500, 300).Fill())
         .AddTextNote(0, 340, 540, "Imported archival annotation")
         .AddPageLink(0, 20, 20, 40, 20, 1)
+        .AddCheckBox(1, "import.approved", 520, 330, 18, 18, isChecked: true)
         .Build();
     byte[] target = new PdfDocumentBuilder()
         .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A page import smoke test", Language = "en-US" })
