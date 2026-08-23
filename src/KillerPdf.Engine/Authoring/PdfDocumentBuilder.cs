@@ -25,6 +25,8 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<CheckBoxDefinition> _checkBoxes = [];
     private readonly List<RadioGroupDefinition> _radioGroups = [];
     private readonly List<ChoiceFieldDefinition> _choiceFields = [];
+    private readonly List<PushButtonDefinition> _pushButtons = [];
+    private readonly List<SignatureFieldDefinition> _signatureFields = [];
     private OutputIntentDefinition? _outputIntent;
     private PdfA4Flavor _pdfA4Flavor;
     private bool _pdfUa2Conformance;
@@ -642,13 +644,15 @@ public sealed partial class PdfDocumentBuilder
         IEnumerable<PdfRadioButtonOption> options,
         string? selectedValue = null,
         PdfFormFieldMetadata? fieldMetadata = null,
-        PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfRadioGroupOptions? radioOptions = null)
     {
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
         PdfRadioButtonOption[] values = options.ToArray();
         if (values.Length < 2)
             throw new ArgumentException("A radio group requires at least two options.", nameof(options));
+        radioOptions ??= new PdfRadioGroupOptions();
         var exportValues = new HashSet<string>(StringComparer.Ordinal);
         foreach (PdfRadioButtonOption option in values)
         {
@@ -658,14 +662,14 @@ public sealed partial class PdfDocumentBuilder
             if (string.IsNullOrWhiteSpace(option.ExportValue)
                 || option.ExportValue.Any(character => character is < '!' or > '~'))
                 throw new ArgumentException("Radio export values must contain printable ASCII characters.", nameof(options));
-            if (!exportValues.Add(option.ExportValue))
+            if (!exportValues.Add(option.ExportValue) && !radioOptions.RadiosInUnison)
                 throw new ArgumentException("Radio export values must be unique within a group.", nameof(options));
         }
         if (selectedValue is not null && !exportValues.Contains(selectedValue))
             throw new ArgumentException("The selected radio value must name one of the options.", nameof(selectedValue));
         _radioGroups.Add(new RadioGroupDefinition(
             name, values, selectedValue, ValidateFieldMetadata(fieldMetadata),
-            fieldOptions ?? new PdfFormFieldOptions()));
+            fieldOptions ?? new PdfFormFieldOptions(), radioOptions));
         return this;
     }
 
@@ -682,7 +686,8 @@ public sealed partial class PdfDocumentBuilder
         double fontSize = 12,
         TrueTypeFont? embeddedFont = null,
         PdfFormFieldMetadata? fieldMetadata = null,
-        PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfChoiceFieldOptions? choiceOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -708,10 +713,14 @@ public sealed partial class PdfDocumentBuilder
         }
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
+        choiceOptions ??= new PdfChoiceFieldOptions();
+        if (choiceOptions.SortOptions)
+            Array.Sort(values, StringComparer.Ordinal);
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values,
-            selectedValue ?? values[0], IsComboBox: true, editable, fontSize, embeddedFont,
-            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+            [selectedValue ?? values[0]], IsComboBox: true, IsMultiSelect: false, editable,
+            TopIndex: 0, fontSize, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(), choiceOptions));
         return this;
     }
 
@@ -727,7 +736,9 @@ public sealed partial class PdfDocumentBuilder
         double fontSize = 12,
         TrueTypeFont? embeddedFont = null,
         PdfFormFieldMetadata? fieldMetadata = null,
-        PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldOptions? fieldOptions = null,
+        int topIndex = 0,
+        PdfChoiceFieldOptions? choiceOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -747,9 +758,130 @@ public sealed partial class PdfDocumentBuilder
                 ValidateFormFontText(embeddedFont, value, nameof(options));
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
+        if (topIndex < 0 || topIndex >= values.Length)
+            throw new ArgumentOutOfRangeException(nameof(topIndex));
+        choiceOptions ??= new PdfChoiceFieldOptions();
+        if (choiceOptions.SortOptions)
+            Array.Sort(values, StringComparer.Ordinal);
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values,
-            selectedValue ?? values[0], IsComboBox: false, Editable: false, fontSize, embeddedFont,
+            [selectedValue ?? values[0]], IsComboBox: false, IsMultiSelect: false, Editable: false,
+            topIndex, fontSize, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(), choiceOptions));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddMultiSelectListBox(
+        int pageIndex,
+        string name,
+        double x,
+        double y,
+        double width,
+        double height,
+        IEnumerable<string> options,
+        IEnumerable<string>? selectedValues = null,
+        double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        int topIndex = 0,
+        PdfChoiceFieldOptions? choiceOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        ArgumentNullException.ThrowIfNull(options);
+        string[] values = options.ToArray();
+        if (values.Length == 0 || values.Any(string.IsNullOrEmpty))
+            throw new ArgumentException("List-box options cannot be empty.", nameof(options));
+        if (values.Distinct(StringComparer.Ordinal).Count() != values.Length)
+            throw new ArgumentException("List-box options must be unique.", nameof(options));
+        string[] requestedSelections = selectedValues?.ToArray() ?? [];
+        if (requestedSelections.Distinct(StringComparer.Ordinal).Count() != requestedSelections.Length)
+            throw new ArgumentException("Selected list-box values must be unique.", nameof(selectedValues));
+        if (requestedSelections.Any(selection => !values.Contains(selection, StringComparer.Ordinal)))
+            throw new ArgumentException("Every selected list-box value must be one of its options.", nameof(selectedValues));
+        choiceOptions ??= new PdfChoiceFieldOptions();
+        if (choiceOptions.SortOptions)
+            Array.Sort(values, StringComparer.Ordinal);
+        var selectedSet = requestedSelections.ToHashSet(StringComparer.Ordinal);
+        string[] selections = values.Where(selectedSet.Contains).ToArray();
+        if (embeddedFont is null && values.Any(value => value.Any(character => character > 0xFF)))
+            throw new ArgumentException("List-box options require an embedded font for Unicode text.", nameof(options));
+        if (embeddedFont is not null)
+            foreach (string value in values)
+                ValidateFormFontText(embeddedFont, value, nameof(options));
+        if (!double.IsFinite(fontSize) || fontSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
+        if (topIndex < 0 || topIndex >= values.Length)
+            throw new ArgumentOutOfRangeException(nameof(topIndex));
+        _choiceFields.Add(new ChoiceFieldDefinition(
+            pageIndex, name, x, y, width, height, values, selections,
+            IsComboBox: false, IsMultiSelect: true, Editable: false, topIndex, fontSize, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(), choiceOptions));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddUriPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, string uri, double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        if (string.IsNullOrEmpty(label))
+            throw new ArgumentException("A push-button label cannot be empty.", nameof(label));
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed)
+            || parsed.Scheme is not ("http" or "https" or "mailto"))
+            throw new ArgumentException("A push-button URI must use http, https, or mailto.", nameof(uri));
+        if (embeddedFont is null && label.Any(character => character > 0xFF))
+            throw new ArgumentException("A Unicode push-button label requires an embedded font.", nameof(label));
+        if (embeddedFont is not null)
+            ValidateFormFontText(embeddedFont, label, nameof(label));
+        if (!double.IsFinite(fontSize) || fontSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
+        _pushButtons.Add(new PushButtonDefinition(
+            pageIndex, name, x, y, width, height, label, parsed.AbsoluteUri,
+            DestinationPageIndex: null, Destination: null, fontSize, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddPagePushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, int destinationPageIndex, PdfDestination? destination = null,
+        double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidatePageIndex(destinationPageIndex, nameof(destinationPageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        if (string.IsNullOrEmpty(label))
+            throw new ArgumentException("A push-button label cannot be empty.", nameof(label));
+        if (embeddedFont is null && label.Any(character => character > 0xFF))
+            throw new ArgumentException("A Unicode push-button label requires an embedded font.", nameof(label));
+        if (embeddedFont is not null)
+            ValidateFormFontText(embeddedFont, label, nameof(label));
+        if (!double.IsFinite(fontSize) || fontSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
+        _pushButtons.Add(new PushButtonDefinition(
+            pageIndex, name, x, y, width, height, label, Uri: null,
+            destinationPageIndex, destination ?? PdfDestination.FitPage(), fontSize, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddSignatureField(
+        int pageIndex, string name, double x, double y, double width, double height,
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        _signatureFields.Add(new SignatureFieldDefinition(
+            pageIndex, name, x, y, width, height,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -942,7 +1074,8 @@ public sealed partial class PdfDocumentBuilder
         if (_pdfUa2Conformance && (_pages.Any(page => page.Links.Count > 0)
             || _bookmarks.Count > 0 || _namedDestinations.Count > 0 || _openAction is not null
             || _textFields.Count > 0 || _checkBoxes.Count > 0 || _radioGroups.Count > 0
-            || _choiceFields.Count > 0 || _textNotes.Count > 0 || _textMarkups.Count > 0
+            || _choiceFields.Count > 0 || _pushButtons.Count > 0 || _signatureFields.Count > 0
+            || _textNotes.Count > 0 || _textMarkups.Count > 0
             || _freeTexts.Count > 0 || _visualAnnotations.Count > 0 || _imageStamps.Count > 0
             || _fileAttachmentAnnotations.Count > 0 || _caretAnnotations.Count > 0
             || _redactionAnnotations.Count > 0))
@@ -975,9 +1108,13 @@ public sealed partial class PdfDocumentBuilder
             || forms.Any(form => form.Fonts.Count > 0)))
             throw new InvalidOperationException("PDF/A-4 authoring requires embedded fonts; the 14 built-in PDF fonts are not embedded.");
         if (pdfA4 && (_textFields.Any(field => field.EmbeddedFont is null)
-            || _choiceFields.Any(field => field.EmbeddedFont is null)))
+            || _choiceFields.Any(field => field.EmbeddedFont is null)
+            || _pushButtons.Any(field => field.EmbeddedFont is null)))
             throw new InvalidOperationException(
                 "PDF/A-4 text and choice fields require an embedded TrueType form font.");
+        if (pdfA4 && _pushButtons.Count > 0)
+            throw new InvalidOperationException(
+                "PDF/A-4 widget annotations cannot contain the action required by a push button.");
         if (pdfA4 && _redactionAnnotations.Any(annotation =>
             annotation.OverlayText is not null && annotation.OverlayFont is null))
             throw new InvalidOperationException(
@@ -1018,6 +1155,10 @@ public sealed partial class PdfDocumentBuilder
         }
         var allocatedChoiceFields = _choiceFields.Select(field =>
             new AllocatedChoiceField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedPushButtons = _pushButtons.Select(field =>
+            new AllocatedPushButton(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedSignatureFields = _signatureFields.Select(field =>
+            new AllocatedSignatureField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedTextNotes = _textNotes.Select(note =>
             new AllocatedTextNote(note, nextObjectNumber++, nextObjectNumber++,
                 note.Popup is null ? null : nextObjectNumber++)).ToArray();
@@ -1085,6 +1226,7 @@ public sealed partial class PdfDocumentBuilder
         var patternNumbers = patterns.ToDictionary(pattern => pattern, _ => nextObjectNumber++);
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
+            .Concat(_pushButtons.Select(field => field.EmbeddedFont))
             .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
             .Concat(_redactionAnnotations.Select(redaction => redaction.OverlayFont))
             .Where(font => font is not null).Cast<TrueTypeFont>().Distinct().ToArray();
@@ -1098,7 +1240,9 @@ public sealed partial class PdfDocumentBuilder
             foreach (string value in _textFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
                 .Select(field => field.Value)
                 .Concat(_choiceFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
-                    .SelectMany(field => field.Options.Append(field.SelectedValue)))
+                    .SelectMany(field => field.Options.Concat(field.SelectedValues)))
+                .Concat(_pushButtons.Where(field => ReferenceEquals(field.EmbeddedFont, font))
+                    .Select(field => field.Label))
                 .Concat(_freeTexts.Where(freeText => ReferenceEquals(freeText.Font, font))
                     .Select(freeText => freeText.Contents))
                 .Concat(_redactionAnnotations
@@ -1114,6 +1258,7 @@ public sealed partial class PdfDocumentBuilder
             .Concat(patterns.SelectMany(pattern => pattern.Fonts.Keys));
         if (_textFields.Any(field => field.EmbeddedFont is null)
             || _choiceFields.Any(field => field.EmbeddedFont is null)
+            || _pushButtons.Any(field => field.EmbeddedFont is null)
             || _redactionAnnotations.Any(annotation =>
                 annotation.OverlayText is not null && annotation.OverlayFont is null))
             requestedStandardFonts = requestedStandardFonts.Append(PdfStandardFont.Helvetica);
@@ -1170,6 +1315,10 @@ public sealed partial class PdfDocumentBuilder
                     .Where(widget => widget.Option.PageIndex == pageIndex)
                     .Select(widget => widget.WidgetNumber),
                 .. allocatedChoiceFields.Where(field => field.Definition.PageIndex == pageIndex)
+                    .Select(field => field.FieldNumber),
+                .. allocatedPushButtons.Where(field => field.Definition.PageIndex == pageIndex)
+                    .Select(field => field.FieldNumber),
+                .. allocatedSignatureFields.Where(field => field.Definition.PageIndex == pageIndex)
                     .Select(field => field.FieldNumber),
                 .. allocatedTextNotes.Where(note => note.Definition.PageIndex == pageIndex)
                     .SelectMany(note => note.PopupNumber is null
@@ -1277,19 +1426,25 @@ public sealed partial class PdfDocumentBuilder
             catalogEntries.Add(("PageLabels", Dictionary(("Nums", new PdfArray(numbers)))));
         }
         if (allocatedTextFields.Length > 0 || allocatedCheckBoxes.Length > 0
-            || allocatedRadioGroups.Count > 0 || allocatedChoiceFields.Length > 0)
+            || allocatedRadioGroups.Count > 0 || allocatedChoiceFields.Length > 0
+            || allocatedPushButtons.Length > 0 || allocatedSignatureFields.Length > 0)
         {
             var fieldReferences = allocatedTextFields.Select(field => field.FieldNumber)
                 .Concat(allocatedCheckBoxes.Select(field => field.FieldNumber))
                 .Concat(allocatedRadioGroups.Select(field => field.ParentNumber))
                 .Concat(allocatedChoiceFields.Select(field => field.FieldNumber))
+                .Concat(allocatedPushButtons.Select(field => field.FieldNumber))
+                .Concat(allocatedSignatureFields.Select(field => field.FieldNumber))
                 .Select(number => (PdfObject)new PdfIndirectReference(number, 0));
             var formEntries = new List<(string Name, PdfObject Value)>
             {
                 ("Fields", new PdfArray(fieldReferences)),
                 ("NeedAppearances", new PdfBoolean(false))
             };
-            if (allocatedTextFields.Length > 0 || allocatedChoiceFields.Length > 0)
+            if (allocatedSignatureFields.Length > 0)
+                formEntries.Add(("SigFlags", new PdfInteger(1)));
+            if (allocatedTextFields.Length > 0 || allocatedChoiceFields.Length > 0
+                || allocatedPushButtons.Length > 0)
             {
                 var formFontEntries = new List<KeyValuePair<PdfName, PdfObject>>();
                 if (fontNumbers.TryGetValue(PdfStandardFont.Helvetica, out int helveticaNumber))
@@ -1551,6 +1706,15 @@ public sealed partial class PdfDocumentBuilder
             AddChoiceFieldObjects(
                 objects, allocatedChoiceField, allocated, resource, number);
         }
+        foreach (AllocatedPushButton allocatedPushButton in allocatedPushButtons)
+        {
+            (PdfName resource, int number) = FormFontBinding(
+                allocatedPushButton.Definition.EmbeddedFont,
+                fontNumbers, formFontResources, embeddedFonts);
+            AddPushButtonObjects(objects, allocatedPushButton, allocated, resource, number);
+        }
+        foreach (AllocatedSignatureField allocatedSignatureField in allocatedSignatureFields)
+            AddSignatureFieldObject(objects, allocatedSignatureField, allocated);
         if (_outputIntent is not null)
             AddOutputIntentObjects(
                 objects, _outputIntent, iccProfileNumber!.Value, outputIntentNumber!.Value);
@@ -2049,6 +2213,8 @@ public sealed partial class PdfDocumentBuilder
         if (options.NoExport) flags |= 1 << 2;
         if (options.Multiline) flags |= 1 << 12;
         if (options.Password) flags |= 1 << 13;
+        if (options.DoNotSpellCheck) flags |= 1 << 22;
+        if (options.DoNotScroll) flags |= 1 << 23;
         if (options.Comb) flags |= 1 << 24;
         return flags;
     }
@@ -2132,7 +2298,10 @@ public sealed partial class PdfDocumentBuilder
         var groupEntries = new List<(string Name, PdfObject Value)>
         {
                 ("FT", Name("Btn")),
-                ("Ff", new PdfInteger((1 << 15) | FormFieldFlags(group.FieldOptions))),
+                ("Ff", new PdfInteger((1 << 15)
+                    | (group.RadioOptions.NoToggleToOff ? 1 << 14 : 0)
+                    | (group.RadioOptions.RadiosInUnison ? 1 << 25 : 0)
+                    | FormFieldFlags(group.FieldOptions))),
                 ("T", UnicodeString(group.Name)),
                 ("V", selected),
                 ("Kids", new PdfArray(allocatedGroup.Widgets.Select(widget =>
@@ -2217,6 +2386,10 @@ public sealed partial class PdfDocumentBuilder
         ChoiceFieldDefinition field = allocatedField.Definition;
         int flags = (field.IsComboBox ? 1 << 17 : 0)
             | (field.Editable ? 1 << 18 : 0)
+            | (field.IsMultiSelect ? 1 << 21 : 0)
+            | (field.ChoiceOptions.SortOptions ? 1 << 19 : 0)
+            | (field.ChoiceOptions.DoNotSpellCheck ? 1 << 22 : 0)
+            | (field.ChoiceOptions.CommitOnSelectionChange ? 1 << 26 : 0)
             | FormFieldFlags(field.FieldOptions);
         var entries = new List<(string Name, PdfObject Value)>
         {
@@ -2225,7 +2398,6 @@ public sealed partial class PdfDocumentBuilder
                 ("FT", Name("Ch")),
                 ("Ff", new PdfInteger(flags)),
                 ("T", UnicodeString(field.Name)),
-                ("V", UnicodeString(field.SelectedValue)),
                 ("Opt", new PdfArray(field.Options.Select(value => (PdfObject)UnicodeString(value)))),
                 ("Rect", new PdfArray([
                     Number(field.X), Number(field.Y),
@@ -2235,13 +2407,27 @@ public sealed partial class PdfDocumentBuilder
                 ("DA", Latin1String($"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g")),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
         };
+        if (!field.IsMultiSelect || field.SelectedValues.Count != 0)
+        {
+            entries.Add(("V", field.IsMultiSelect
+                ? new PdfArray(field.SelectedValues.Select(value => (PdfObject)UnicodeString(value)))
+                : UnicodeString(field.SelectedValues[0])));
+        }
+        if (field.IsMultiSelect && field.SelectedValues.Count != 0)
+        {
+            entries.Add(("I", new PdfArray(field.SelectedValues
+                .Select(value => (PdfObject)new PdfInteger(
+                    Array.IndexOf(field.Options.ToArray(), value))))));
+        }
+        if (!field.IsComboBox && field.TopIndex != 0)
+            entries.Add(("TI", new PdfInteger(field.TopIndex)));
         AddFieldMetadata(entries, field.Metadata);
         objects.Add(new PdfIndirectObject(
             allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
         byte[] appearance = field.IsComboBox
             ? BuildSimpleTextAppearance(
-                field.Width, field.Height, field.FontSize, field.SelectedValue,
+                field.Width, field.Height, field.FontSize, field.SelectedValues[0],
                 fontResource, field.EmbeddedFont)
             : BuildListBoxAppearance(field, fontResource);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
@@ -2275,6 +2461,107 @@ public sealed partial class PdfDocumentBuilder
         return output.ToArray();
     }
 
+    private static void AddPushButtonObjects(
+        ICollection<PdfIndirectObject> objects,
+        AllocatedPushButton allocatedField,
+        IReadOnlyList<AllocatedPage> pages,
+        PdfName fontResource,
+        int fontNumber)
+    {
+        PushButtonDefinition field = allocatedField.Definition;
+        int flags = (1 << 16) | FormFieldFlags(field.FieldOptions);
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("Annot")),
+            ("Subtype", Name("Widget")),
+            ("FT", Name("Btn")),
+            ("Ff", new PdfInteger(flags)),
+            ("T", UnicodeString(field.Name)),
+            ("Rect", new PdfArray([
+                Number(field.X), Number(field.Y),
+                Number(field.X + field.Width), Number(field.Y + field.Height)])),
+            ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
+            ("F", new PdfInteger(4)),
+            ("AS", Name("Normal")),
+            ("DA", Latin1String($"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g")),
+            ("MK", Dictionary(
+                ("CA", UnicodeString(field.Label)),
+                ("BG", new PdfArray([new PdfInteger(1), new PdfInteger(1), new PdfInteger(1)])),
+                ("BC", new PdfArray([new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)])))),
+            ("BS", Dictionary(("W", new PdfInteger(1)), ("S", Name("S")))),
+            ("A", field.Uri is not null
+                ? Dictionary(("S", Name("URI")), ("URI", UnicodeString(field.Uri)))
+                : Dictionary(
+                    ("S", Name("GoTo")),
+                    ("D", DestinationArray(
+                        new PdfIndirectReference(pages[field.DestinationPageIndex!.Value].PageNumber, 0),
+                        field.Destination!)))),
+            ("AP", Dictionary(("N", Dictionary(
+                ("Normal", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))))
+        };
+        AddFieldMetadata(entries, field.Metadata);
+        objects.Add(new PdfIndirectObject(
+            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+
+        byte[] appearance = BuildSimpleTextAppearance(
+            field.Width, field.Height, field.FontSize, field.Label,
+            fontResource, field.EmbeddedFont);
+        objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
+            new PdfStream(Dictionary(
+                ("Type", Name("XObject")),
+                ("Subtype", Name("Form")),
+                ("FormType", new PdfInteger(1)),
+                ("BBox", new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    Number(field.Width), Number(field.Height)])),
+                ("Resources", Dictionary(("Font", new PdfDictionary([
+                    new KeyValuePair<PdfName, PdfObject>(
+                        fontResource, new PdfIndirectReference(fontNumber, 0))]))))),
+                appearance), 0));
+    }
+
+    private static void AddSignatureFieldObject(
+        ICollection<PdfIndirectObject> objects,
+        AllocatedSignatureField allocatedField,
+        IReadOnlyList<AllocatedPage> pages)
+    {
+        SignatureFieldDefinition field = allocatedField.Definition;
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("Annot")),
+            ("Subtype", Name("Widget")),
+            ("FT", Name("Sig")),
+            ("T", UnicodeString(field.Name)),
+            ("Rect", new PdfArray([
+                Number(field.X), Number(field.Y),
+                Number(field.X + field.Width), Number(field.Y + field.Height)])),
+            ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
+            ("F", new PdfInteger(4)),
+            ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
+        };
+        int flags = FormFieldFlags(field.FieldOptions);
+        if (flags != 0)
+            entries.Add(("Ff", new PdfInteger(flags)));
+        AddFieldMetadata(entries, field.Metadata);
+        objects.Add(new PdfIndirectObject(
+            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+
+        using var appearance = new MemoryStream();
+        WriteAscii(appearance,
+            $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
+            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} " +
+            $"{FormatNumber(Math.Max(0, field.Height - 1))} re\nS\nQ\n");
+        objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
+            new PdfStream(Dictionary(
+                ("Type", Name("XObject")),
+                ("Subtype", Name("Form")),
+                ("FormType", new PdfInteger(1)),
+                ("BBox", new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    Number(field.Width), Number(field.Height)])),
+                ("Resources", Dictionary())), appearance.ToArray()), 0));
+    }
+
     private static byte[] BuildListBoxAppearance(ChoiceFieldDefinition field, PdfName fontResource)
     {
         using var output = new MemoryStream();
@@ -2284,12 +2571,12 @@ public sealed partial class PdfDocumentBuilder
             $"1 1 {FormatNumber(Math.Max(0, field.Width - 2))} {FormatNumber(Math.Max(0, field.Height - 2))} re\nW\nn\n");
         double rowHeight = Math.Max(field.FontSize * 1.2, field.FontSize + 2);
         double rowTop = field.Height - 1;
-        foreach (string option in field.Options)
+        foreach (string option in field.Options.Skip(field.TopIndex))
         {
             double rowBottom = rowTop - rowHeight;
             if (rowTop <= 1)
                 break;
-            if (string.Equals(option, field.SelectedValue, StringComparison.Ordinal))
+            if (field.SelectedValues.Contains(option, StringComparer.Ordinal))
             {
                 WriteAscii(output,
                     $"0.75 g\n1 {FormatNumber(Math.Max(1, rowBottom))} " +
@@ -2619,7 +2906,9 @@ public sealed partial class PdfDocumentBuilder
         if (_textFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
             || _checkBoxes.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
             || _radioGroups.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-            || _choiceFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal)))
+            || _choiceFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
+            || _pushButtons.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
+            || _signatureFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal)))
             throw new ArgumentException("Form field names must be unique.", nameof(name));
     }
 
@@ -3294,7 +3583,8 @@ public sealed partial class PdfDocumentBuilder
         int OnAppearanceNumber);
     private sealed record RadioGroupDefinition(
         string Name, IReadOnlyList<PdfRadioButtonOption> Options, string? SelectedValue,
-        PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
+        PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions,
+        PdfRadioGroupOptions RadioOptions);
     private sealed record AllocatedRadioGroup(
         RadioGroupDefinition Definition, int ParentNumber, IReadOnlyList<AllocatedRadioWidget> Widgets);
     private sealed record AllocatedRadioWidget(
@@ -3304,10 +3594,24 @@ public sealed partial class PdfDocumentBuilder
         int OnAppearanceNumber);
     private sealed record ChoiceFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        IReadOnlyList<string> Options, string SelectedValue, bool IsComboBox, bool Editable, double FontSize,
-        TrueTypeFont? EmbeddedFont, PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
+        IReadOnlyList<string> Options, IReadOnlyList<string> SelectedValues,
+        bool IsComboBox, bool IsMultiSelect, bool Editable, int TopIndex, double FontSize,
+        TrueTypeFont? EmbeddedFont, PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions,
+        PdfChoiceFieldOptions ChoiceOptions);
     private sealed record AllocatedChoiceField(
         ChoiceFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
+    private sealed record PushButtonDefinition(
+        int PageIndex, string Name, double X, double Y, double Width, double Height,
+        string Label, string? Uri, int? DestinationPageIndex, PdfDestination? Destination,
+        double FontSize, TrueTypeFont? EmbeddedFont,
+        PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
+    private sealed record AllocatedPushButton(
+        PushButtonDefinition Definition, int FieldNumber, int AppearanceNumber);
+    private sealed record SignatureFieldDefinition(
+        int PageIndex, string Name, double X, double Y, double Width, double Height,
+        PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
+    private sealed record AllocatedSignatureField(
+        SignatureFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record OutputIntentDefinition(
         PdfIccProfile Profile,
         string Identifier,

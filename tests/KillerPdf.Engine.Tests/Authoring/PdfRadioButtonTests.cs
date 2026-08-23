@@ -52,6 +52,31 @@ public sealed class PdfRadioButtonTests
             new PdfRadioButtonOption(0, 20, 0, 10, 10, "B")], "C"));
     }
 
+    [Fact]
+    public void AddRadioGroup_WritesTypedBehaviorAndSupportsUnisonValues()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 0, 0, 10, 10, "Pro"),
+                new PdfRadioButtonOption(0, 20, 0, 10, 10, "Pro")], "Pro",
+                radioOptions: new PdfRadioGroupOptions
+                {
+                    NoToggleToOff = true,
+                    RadiosInUnison = true
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary acroForm = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary parent = ResolveDictionary(document, Assert.IsType<PdfArray>(acroForm[Name("Fields")])[0]);
+        PdfArray kids = Assert.IsType<PdfArray>(parent[Name("Kids")]);
+
+        Assert.Equal((1 << 15) | (1 << 14) | (1 << 25),
+            Assert.IsType<PdfInteger>(parent[Name("Ff")]).Value);
+        Assert.All(kids, kid => Assert.Equal("Pro",
+            Assert.IsType<PdfName>(ResolveDictionary(document, kid)[Name("AS")]).ValueAsLatin1()));
+    }
+
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

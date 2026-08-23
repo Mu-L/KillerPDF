@@ -108,6 +108,25 @@ public sealed class PdfTextFieldTests
     }
 
     [Fact]
+    public void AddTextField_WritesNoSpellCheckAndNoScrollFlags()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "fixed", 0, 0, 100, 20, options: new PdfTextFieldOptions
+            {
+                DoNotSpellCheck = true,
+                DoNotScroll = true
+            })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+
+        Assert.Equal((1 << 22) | (1 << 23),
+            Assert.IsType<PdfInteger>(field[Name("Ff")]).Value);
+    }
+
+    [Fact]
     public void AddTextField_EmbedsUnicodeFontInAppearanceAndAcroFormResources()
     {
         TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: true));

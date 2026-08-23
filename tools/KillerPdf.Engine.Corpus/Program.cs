@@ -666,8 +666,15 @@ if (args.Length == 2 && args[0] == "--form-smoke")
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 600, 18, 18, "Free"),
             new PdfRadioButtonOption(0, 120, 600, 18, 18, "Pro")], "Pro")
+        .AddSignatureField(0, "customer.signature", 300, 470, 180, 52,
+            new PdfFormFieldMetadata { Tooltip = "Customer signature" })
         .AddComboBox(0, "customer.theme", 72, 550, 180, 24,
             ["Dark", "Mourning", "98SE"], "Mourning")
+        .AddUriPushButton(0, "customer.documentation", 300, 550, 180, 28,
+            "Open KillerPDF docs", "https://killerpdf.com",
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Open KillerPDF documentation" })
+        .AddPagePushButton(0, "customer.top", 300, 515, 180, 28,
+            "Return to top", 0, PdfDestination.At(top: 760))
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
@@ -698,12 +705,17 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .AddListBox(0, "customer.features", 300, 590, 180, 72,
             ["Annotations", "Forms", "PDF/A"], "Forms", embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Features", MappingName = "customer_features" })
+        .AddMultiSelectListBox(0, "customer.formats", 300, 490, 180, 72,
+            ["PDF 2.0", "PDF/A-4", "PDF/UA-2"], ["PDF/A-4", "PDF/UA-2"], embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Formats", MappingName = "customer_formats" })
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Approved", MappingName = "customer_approved" })
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 550, 18, 18, "Free"),
             new PdfRadioButtonOption(0, 120, 550, 18, 18, "Pro")], "Pro",
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Plan", MappingName = "customer_plan" })
+        .AddSignatureField(0, "customer.signature", 72, 470, 180, 52,
+            new PdfFormFieldMetadata { Tooltip = "Customer signature", MappingName = "customer_signature" })
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
