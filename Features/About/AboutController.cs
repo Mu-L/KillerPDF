@@ -32,9 +32,8 @@ namespace KillerPDF.Features
 
         internal AboutController(IAboutHost host) => _host = host;
 
-        /// <summary>The running assembly's version, three parts.</summary>
-        internal static string Version =>
-            System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+        /// <summary>The running build's SemVer, including a prerelease label when present.</summary>
+        internal static string Version => AppVersion.Display;
 
         /// <summary>Release date baked in from the csproj's ReleaseDate property, so a user can see
         /// how old their build is. A file timestamp would not survive being copied and the PE linker

@@ -502,7 +502,6 @@ namespace KillerPDF
             {
                 try
                 {
-                    var ver    = Assembly.GetExecutingAssembly().GetName().Version;
                     var msgLen = Math.Min(80, ex.Message.Length);
                     var title  = Uri.EscapeDataString(
                         $"Crash: {ex.GetType().Name}: {ex.Message[..msgLen]}");
@@ -510,7 +509,7 @@ namespace KillerPDF
                         ? ex.StackTrace[..800] + "\n... (truncated)"
                         : ex.StackTrace ?? "(no stack trace)";
                     var body = Uri.EscapeDataString(
-                        $"**Version:** {ver?.ToString(3)}\n" +
+                        $"**Version:** {AppVersion.Display}\n" +
                         $"**OS:** {Environment.OSVersion}\n" +
                         $"**Exception:** `{ex.GetType().FullName}`\n" +
                         $"**Message:** {ex.Message}\n\n" +
@@ -627,8 +626,7 @@ namespace KillerPDF
         private static string BuildFullCrashReport(Exception ex)
         {
             var sb  = new StringBuilder();
-            var ver = Assembly.GetExecutingAssembly().GetName().Version;
-            sb.AppendLine($"KillerPDF v{ver?.ToString(3)}");
+            sb.AppendLine($"KillerPDF v{AppVersion.Display}");
             sb.AppendLine($"Time : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"OS   : {Environment.OSVersion}");
             sb.AppendLine();
@@ -1202,10 +1200,9 @@ namespace KillerPDF
                 Foreground = accent
             });
 
-            var version = Assembly.GetExecutingAssembly().GetName().Version;
             content.Children.Add(new TextBlock
             {
-                Text       = $"Version {version?.ToString(3)}",
+                Text       = $"Version {AppVersion.Display}",
                 Foreground = dimText,
                 FontSize   = 12,
                 Margin     = new Thickness(0, 2, 0, 18)
@@ -1403,8 +1400,7 @@ namespace KillerPDF
         internal static void ShowAboutDialog(Window owner)
         {
             // Gather info on a background thread so the UI isn't blocked by hashing
-            var version    = System.Reflection.Assembly.GetExecutingAssembly()
-                                   .GetName().Version?.ToString(3) ?? "?";
+            var version    = AppVersion.Display;
             var (sigValid, sigSubject, sigThumbprint) = GetExeSignerInfo();
             var sha256 = GetExeSha256();
 
@@ -1856,14 +1852,14 @@ namespace KillerPDF
             {
                 key.SetValue("Installed", 1);
                 key.SetValue("InstallPath", exePath);
-                key.SetValue("Version", Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "");
+                key.SetValue("Version", AppVersion.Display);
             }
 
             using (var key = registryRoot.CreateSubKey(
                 @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF"))
             {
                 key.SetValue("DisplayName", AppName);
-                key.SetValue("DisplayVersion", Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "");
+                key.SetValue("DisplayVersion", AppVersion.Display);
                 key.SetValue("Publisher", "Steve / thekiller.net");
                 key.SetValue("InstallLocation", installDirectory);
                 key.SetValue("DisplayIcon", $"{exePath},0");

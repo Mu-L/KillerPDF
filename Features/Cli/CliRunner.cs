@@ -95,7 +95,7 @@ namespace KillerPDF.Features
                         break;
                     case "--version":
                     case "-v":
-                        con.WriteLine(Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "unknown");
+                        con.WriteLine(AppVersion.Display);
                         break;
                     case "--merge":
                         exitCode = CliMerge(positionals, con);
@@ -140,7 +140,7 @@ namespace KillerPDF.Features
 
         private static string CliHelpText() => string.Join(Environment.NewLine,
         [
-            "KillerPDF " + (Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "") + " - command line usage",
+            "KillerPDF " + AppVersion.Display + " - command line usage",
             "",
             "  KillerPDF.exe <file.pdf>                                    open in the app",
             "  KillerPDF.exe --version | -v                                print version",

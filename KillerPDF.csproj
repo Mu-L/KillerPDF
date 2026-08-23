@@ -13,13 +13,13 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\kp-icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.7.5</Version>
-    <AssemblyVersion>1.7.5.0</AssemblyVersion>
-    <FileVersion>1.7.5.0</FileVersion>
-    <!-- Shown in the About card beside the version so a user can tell how old their build
-         is. Must match the date on this version's CHANGELOG section - release.ps1 preflight
-         fails the release if it does not. Bump it with the version. -->
-    <ReleaseDate>2026-08-22</ReleaseDate>
+    <Version>1.8.0-alpha.1</Version>
+    <AssemblyVersion>1.8.0.0</AssemblyVersion>
+    <FileVersion>1.8.0.0</FileVersion>
+    <!-- Shown in the About card beside the version so a user can tell how old their build.
+         Keep this as Unreleased during development. A final release must use the date on its
+         CHANGELOG section; release.ps1 enforces that before packaging. -->
+    <ReleaseDate>Unreleased</ReleaseDate>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
@@ -54,16 +54,28 @@
   <ItemGroup>
     <Compile Remove="third_party\**" />
     <Compile Remove="Packaging\**" />
+    <Compile Remove="src\**" />
+    <Compile Remove="tests\**" />
     <EmbeddedResource Remove="third_party\**" />
     <EmbeddedResource Remove="Packaging\**" />
+    <EmbeddedResource Remove="src\**" />
+    <EmbeddedResource Remove="tests\**" />
     <None Remove="third_party\**" />
     <None Remove="Packaging\**" />
+    <None Remove="src\**" />
+    <None Remove="tests\**" />
     <Content Remove="third_party\**" />
     <Content Remove="Packaging\**" />
+    <Content Remove="src\**" />
+    <Content Remove="tests\**" />
     <Page Remove="third_party\**" />
     <Page Remove="Packaging\**" />
+    <Page Remove="src\**" />
+    <Page Remove="tests\**" />
     <Resource Remove="third_party\**" />
     <Resource Remove="Packaging\**" />
+    <Resource Remove="src\**" />
+    <Resource Remove="tests\**" />
   </ItemGroup>
 
   <ItemGroup>

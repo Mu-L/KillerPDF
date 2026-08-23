@@ -301,8 +301,7 @@ namespace KillerPDF
         public MainWindow()
         {
             InitializeComponent();
-            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            if (v != null) VersionLabel.Text = $"v{v.Major}.{v.Minor}.{v.Build}";
+            VersionLabel.Text = $"v{AppVersion.Display}";
             // Accept dropped files/folders/archives anywhere on the window (not just the empty drop zone),
             // so dropping onto an open document works too. The empty-state DropZone marks its own drop
             // handled, so a drop there isn't processed twice.

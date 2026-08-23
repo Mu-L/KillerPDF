@@ -4,6 +4,17 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0-alpha.1] - Unreleased
+
+KillerPDF 1.8 development has begun with the first boundary for a new, independently authored PDF engine. This alpha is an engineering build, not a public release.
+
+### Added
+- Added a standalone .NET 10 PDF engine project and test project, beginning with strict PDF header parsing and explicit support for PDF versions through 2.0.
+- Documented the engine boundary: new PDF 2.0 authoring work remains independent from the legacy application pipeline and can be migrated into the app incrementally.
+
+### Fixed
+- The About card's update button now keeps readable text on hover and uses the correct beveled button treatment in the 98SE theme.
+
 ## [1.7.5] - 2026-08-22
 
 KillerPDF 1.7.5 is a small maintenance release that closes several visible annotation, scrolling, shortcut, theme, and localization regressions. It keeps the faster scrolling introduced in 1.7.4, makes Transform trustworthy with freshly placed text, and gives the text annotation toolbar a cleaner two-row layout.
