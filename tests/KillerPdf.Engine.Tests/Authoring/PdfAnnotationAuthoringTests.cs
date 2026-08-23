@@ -57,6 +57,42 @@ public sealed class PdfAnnotationAuthoringTests
         Assert.Contains("/GS1 gs", Encoding.ASCII.GetString(appearance.EncodedData.Span));
     }
 
+    [Fact]
+    public void AddHighlight_WithMultipleQuads_WritesUnionBoundsAndEveryTextRun()
+    {
+        PdfTextQuad[] quads =
+        [
+            new(new PdfPoint(10, 40), new PdfPoint(110, 40),
+                new PdfPoint(10, 25), new PdfPoint(110, 25)),
+            new(new PdfPoint(20, 20), new PdfPoint(80, 22),
+                new PdfPoint(20, 5), new PdfPoint(80, 7))
+        ];
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddHighlight(0, quads, "Wrapped selection")
+            .Build());
+        PdfDictionary annotation = Annotation(document, 0);
+        var quadPoints = Assert.IsType<PdfArray>(annotation[Name("QuadPoints")]);
+        var rectangle = Assert.IsType<PdfArray>(annotation[Name("Rect")]);
+        string appearance = Encoding.ASCII.GetString(
+            Appearance(document, annotation).EncodedData.Span);
+
+        Assert.Equal(16, quadPoints.Count);
+        Assert.Equal([10d, 5d, 110d, 40d], rectangle.Select(NumberValue));
+        Assert.Equal(2, appearance.Split("\nf\n").Length - 1);
+        Assert.Contains("10 0 m", appearance);
+    }
+
+    [Fact]
+    public void TextMarkupQuadArguments_AreValidated()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+        Assert.Throws<ArgumentException>(() => builder.AddHighlight(0, []));
+        Assert.Throws<ArgumentException>(() => new PdfTextQuad(
+            new PdfPoint(0, 0), new PdfPoint(10, 0),
+            new PdfPoint(20, 0), new PdfPoint(30, 0)));
+    }
+
     [Theory]
     [InlineData(PdfTextNoteIcon.Note, "Note")]
     [InlineData(PdfTextNoteIcon.Comment, "Comment")]
@@ -77,6 +113,29 @@ public sealed class PdfAnnotationAuthoringTests
             Annotation(document, 0)[Name("Name")]).ValueAsLatin1());
     }
 
+    [Theory]
+    [InlineData(PdfTextNoteState.Marked, "Marked", "Marked")]
+    [InlineData(PdfTextNoteState.Unmarked, "Unmarked", "Marked")]
+    [InlineData(PdfTextNoteState.Accepted, "Accepted", "Review")]
+    [InlineData(PdfTextNoteState.Rejected, "Rejected", "Review")]
+    [InlineData(PdfTextNoteState.Cancelled, "Cancelled", "Review")]
+    [InlineData(PdfTextNoteState.Completed, "Completed", "Review")]
+    [InlineData(PdfTextNoteState.NoReviewState, "None", "Review")]
+    public void AddTextNote_WritesStandardWorkflowState(
+        PdfTextNoteState state, string expectedState, string expectedModel)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Note", state: state)
+            .Build());
+        PdfDictionary annotation = Annotation(document, 0);
+
+        Assert.Equal(expectedState,
+            Assert.IsType<PdfName>(annotation[Name("State")]).ValueAsLatin1());
+        Assert.Equal(expectedModel,
+            Assert.IsType<PdfName>(annotation[Name("StateModel")]).ValueAsLatin1());
+    }
+
     [Fact]
     public void AnnotationArguments_AreValidatedBeforeAllocation()
     {
@@ -91,6 +150,8 @@ public sealed class PdfAnnotationAuthoringTests
             new PdfAnnotationMetadata { Flags = (PdfAnnotationFlags)1024 });
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             builder.AddTextNote(0, 0, 0, "note", icon: (PdfTextNoteIcon)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            builder.AddTextNote(0, 0, 0, "note", state: (PdfTextNoteState)99));
     }
 
     [Theory]
@@ -140,6 +201,12 @@ public sealed class PdfAnnotationAuthoringTests
             Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
+    private static double NumberValue(PdfObject value) => value switch
+    {
+        PdfInteger integer => integer.Value,
+        PdfReal real => real.Value,
+        _ => throw new InvalidOperationException()
+    };
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

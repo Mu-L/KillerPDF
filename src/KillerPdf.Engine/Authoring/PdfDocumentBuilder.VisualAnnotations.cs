@@ -17,7 +17,8 @@ public sealed partial class PdfDocumentBuilder
         PdfRgbColor? textColor = null, PdfRgbColor? fillColor = null,
         PdfRgbColor? borderColor = null, double borderWidth = 1, double opacity = 1,
         PdfAnnotationMetadata? annotationMetadata = null,
-        PdfTextAlignment alignment = PdfTextAlignment.Left)
+        PdfTextAlignment alignment = PdfTextAlignment.Left,
+        IReadOnlyList<double>? dashPattern = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -27,12 +28,13 @@ public sealed partial class PdfDocumentBuilder
         ValidateStroke(borderWidth, opacity);
         if (!Enum.IsDefined(alignment))
             throw new ArgumentOutOfRangeException(nameof(alignment));
+        double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         ValidateDrawableText(font, contents, nameof(contents));
         _freeTexts.Add(new FreeTextDefinition(
             pageIndex, x, y, width, height, contents, font, fontSize,
             textColor ?? new PdfRgbColor(0, 0, 0), fillColor,
             borderColor ?? new PdfRgbColor(0, 0, 0), borderWidth, opacity,
-            annotationMetadata, alignment));
+            annotationMetadata, alignment, dash));
         return this;
     }
 
@@ -234,7 +236,7 @@ public sealed partial class PdfDocumentBuilder
             value.Contents, allocated.AppearanceNumber, value.Metadata);
         entries.Add(("DA", Latin1String(defaultAppearance)));
         entries.Add(("Q", new PdfInteger((int)value.Alignment)));
-        entries.Add(("BS", BorderStyle(value.BorderWidth)));
+        entries.Add(("BS", BorderStyle(value.BorderWidth, value.DashPattern)));
         if (value.FillColor.HasValue) entries.Add(("IC", ColorArray(value.FillColor.Value)));
         objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
 
@@ -242,6 +244,7 @@ public sealed partial class PdfDocumentBuilder
             (fontResource, new PdfIndirectReference(fontNumber, 0)));
         using var appearance = new MemoryStream();
         WriteAscii(appearance, $"q\n/GS1 gs\n");
+        WriteAscii(appearance, DashOperator(value.DashPattern));
         WriteBox(appearance, value.Width, value.Height, value.BorderWidth,
             value.BorderColor, value.FillColor, ellipse: false);
         WriteFreeText(appearance, value, fontResource);
@@ -735,7 +738,8 @@ public sealed partial class PdfDocumentBuilder
         int PageIndex, double X, double Y, double Width, double Height, string Contents,
         TrueTypeFont Font, double FontSize, PdfRgbColor TextColor, PdfRgbColor? FillColor,
         PdfRgbColor BorderColor, double BorderWidth, double Opacity,
-        PdfAnnotationMetadata? Metadata, PdfTextAlignment Alignment);
+        PdfAnnotationMetadata? Metadata, PdfTextAlignment Alignment,
+        IReadOnlyList<double>? DashPattern);
     private sealed record AllocatedFreeText(
         FreeTextDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private abstract record VisualAnnotationDefinition(

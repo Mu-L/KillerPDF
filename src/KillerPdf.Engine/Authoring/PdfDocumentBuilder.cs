@@ -565,7 +565,8 @@ public sealed partial class PdfDocumentBuilder
         bool open = false,
         double size = 24,
         PdfAnnotationMetadata? annotationMetadata = null,
-        PdfTextNoteIcon icon = PdfTextNoteIcon.Note)
+        PdfTextNoteIcon icon = PdfTextNoteIcon.Note,
+        PdfTextNoteState? state = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(contents);
@@ -573,9 +574,11 @@ public sealed partial class PdfDocumentBuilder
         if (!double.IsFinite(y)) throw new ArgumentOutOfRangeException(nameof(y));
         if (!double.IsFinite(size) || size <= 0) throw new ArgumentOutOfRangeException(nameof(size));
         if (!Enum.IsDefined(icon)) throw new ArgumentOutOfRangeException(nameof(icon));
+        if (state is not null && !Enum.IsDefined(state.Value))
+            throw new ArgumentOutOfRangeException(nameof(state));
         _textNotes.Add(new TextNoteDefinition(
             pageIndex, x, y, size, contents, color ?? PdfRgbColor.NoteYellow, open,
-            annotationMetadata, icon));
+            annotationMetadata, icon, state));
         return this;
     }
 
@@ -592,12 +595,26 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, x, y, width, height,
             contents, color ?? PdfRgbColor.Yellow, opacity, annotationMetadata);
 
+    public PdfDocumentBuilder AddHighlight(
+        int pageIndex, IReadOnlyList<PdfTextQuad> quads,
+        string? contents = null, PdfRgbColor? color = null, double opacity = 0.35,
+        PdfAnnotationMetadata? annotationMetadata = null)
+        => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, quads, contents,
+            color ?? PdfRgbColor.Yellow, opacity, annotationMetadata);
+
     public PdfDocumentBuilder AddUnderline(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
         PdfAnnotationMetadata? annotationMetadata = null)
         => AddTextMarkup(PdfTextMarkupType.Underline, pageIndex, x, y, width, height,
             contents, color ?? new PdfRgbColor(0, 0.35, 0.9), opacity, annotationMetadata);
+
+    public PdfDocumentBuilder AddUnderline(
+        int pageIndex, IReadOnlyList<PdfTextQuad> quads,
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1,
+        PdfAnnotationMetadata? annotationMetadata = null)
+        => AddTextMarkup(PdfTextMarkupType.Underline, pageIndex, quads, contents,
+            color ?? new PdfRgbColor(0, 0.35, 0.9), opacity, annotationMetadata);
 
     public PdfDocumentBuilder AddStrikeOut(
         int pageIndex, double x, double y, double width, double height,
@@ -606,12 +623,26 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.StrikeOut, pageIndex, x, y, width, height,
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
 
+    public PdfDocumentBuilder AddStrikeOut(
+        int pageIndex, IReadOnlyList<PdfTextQuad> quads,
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1,
+        PdfAnnotationMetadata? annotationMetadata = null)
+        => AddTextMarkup(PdfTextMarkupType.StrikeOut, pageIndex, quads, contents,
+            color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
+
     public PdfDocumentBuilder AddSquiggly(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
         PdfAnnotationMetadata? annotationMetadata = null)
         => AddTextMarkup(PdfTextMarkupType.Squiggly, pageIndex, x, y, width, height,
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
+
+    public PdfDocumentBuilder AddSquiggly(
+        int pageIndex, IReadOnlyList<PdfTextQuad> quads,
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1,
+        PdfAnnotationMetadata? annotationMetadata = null)
+        => AddTextMarkup(PdfTextMarkupType.Squiggly, pageIndex, quads, contents,
+            color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
 
     private PdfDocumentBuilder AddTextMarkup(
         PdfTextMarkupType type, int pageIndex, double x, double y, double width, double height,
@@ -622,9 +653,22 @@ public sealed partial class PdfDocumentBuilder
         ValidateRectangle(x, y, width, height);
         if (!double.IsFinite(opacity) || opacity is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(opacity));
+        return AddTextMarkup(type, pageIndex, [PdfTextQuad.FromRectangle(x, y, width, height)],
+            contents, color, opacity, annotationMetadata);
+    }
+
+    private PdfDocumentBuilder AddTextMarkup(
+        PdfTextMarkupType type, int pageIndex, IReadOnlyList<PdfTextQuad> quads,
+        string? contents, PdfRgbColor color, double opacity,
+        PdfAnnotationMetadata? annotationMetadata)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(quads);
+        if (quads.Count == 0) throw new ArgumentException("At least one text quad is required.", nameof(quads));
+        if (!double.IsFinite(opacity) || opacity is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(opacity));
         _textMarkups.Add(new TextMarkupDefinition(
-            type, pageIndex, x, y, width, height, contents, color, opacity,
-            annotationMetadata));
+            type, pageIndex, [.. quads], contents, color, opacity, annotationMetadata));
         return this;
     }
 
@@ -1908,6 +1952,11 @@ public sealed partial class PdfDocumentBuilder
                 ("C", ColorArray(note.Color)),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))
         };
+        if (note.State is not null)
+        {
+            annotationEntries.Add(("State", Name(PdfTextNoteStateNames.State(note.State.Value))));
+            annotationEntries.Add(("StateModel", Name(PdfTextNoteStateNames.Model(note.State.Value))));
+        }
         AddAnnotationMetadata(annotationEntries, note.Metadata);
         objects.Add(new PdfIndirectObject(
             allocated.AnnotationNumber, 0, Dictionary(annotationEntries.ToArray()), 0));
@@ -1936,18 +1985,23 @@ public sealed partial class PdfDocumentBuilder
         int sequence)
     {
         TextMarkupDefinition highlight = allocated.Definition;
+        (double minX, double minY, double maxX, double maxY) = TextMarkupBounds(highlight.Quads);
+        var quadPoints = new List<PdfObject>(highlight.Quads.Count * 8);
+        foreach (PdfTextQuad quad in highlight.Quads)
+        {
+            quadPoints.AddRange([
+                Number(quad.UpperLeft.X), Number(quad.UpperLeft.Y),
+                Number(quad.UpperRight.X), Number(quad.UpperRight.Y),
+                Number(quad.LowerLeft.X), Number(quad.LowerLeft.Y),
+                Number(quad.LowerRight.X), Number(quad.LowerRight.Y)]);
+        }
         var entries = new List<(string Name, PdfObject Value)>
         {
             ("Type", Name("Annot")),
             ("Subtype", Name(highlight.Type.ToString())),
             ("Rect", new PdfArray([
-                Number(highlight.X), Number(highlight.Y),
-                Number(highlight.X + highlight.Width), Number(highlight.Y + highlight.Height)])),
-            ("QuadPoints", new PdfArray([
-                Number(highlight.X), Number(highlight.Y + highlight.Height),
-                Number(highlight.X + highlight.Width), Number(highlight.Y + highlight.Height),
-                Number(highlight.X), Number(highlight.Y),
-                Number(highlight.X + highlight.Width), Number(highlight.Y)])),
+                Number(minX), Number(minY), Number(maxX), Number(maxY)])),
+            ("QuadPoints", new PdfArray(quadPoints)),
             ("P", new PdfIndirectReference(pages[highlight.PageIndex].PageNumber, 0)),
             ("F", new PdfInteger((int)(highlight.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
             ("NM", Latin1String($"KillerPDF-{highlight.Type}-{sequence}")),
@@ -1970,48 +2024,94 @@ public sealed partial class PdfDocumentBuilder
             new KeyValuePair<PdfName, PdfObject>(Name("GS1"), graphicsState)])));
         byte[] appearance = TextMarkupAppearance(highlight);
         objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
-            AnnotationAppearance(highlight.Width, highlight.Height, resources, appearance), 0));
+            AnnotationAppearance(maxX - minX, maxY - minY, resources, appearance), 0));
     }
 
     private static byte[] TextMarkupAppearance(TextMarkupDefinition markup)
     {
-        string color = ColorOperands(markup.Color);
-        string width = FormatNumber(markup.Width);
-        string height = FormatNumber(markup.Height);
-        string drawing = markup.Type switch
+        (double minX, double minY, _, _) = TextMarkupBounds(markup.Quads);
+        var drawing = new StringBuilder();
+        foreach (PdfTextQuad source in markup.Quads)
         {
-            PdfTextMarkupType.Highlight => $"{color} rg\n0 0 {width} {height} re\nf\n",
-            PdfTextMarkupType.Underline => MarkupLine(markup, markup.Height * 0.08),
-            PdfTextMarkupType.StrikeOut => MarkupLine(markup, markup.Height * 0.48),
-            PdfTextMarkupType.Squiggly => SquigglyLine(markup),
-            _ => throw new ArgumentOutOfRangeException(nameof(markup.Type))
-        };
+            PdfTextQuad quad = OffsetQuad(source, -minX, -minY);
+            drawing.Append(markup.Type switch
+            {
+                PdfTextMarkupType.Highlight => MarkupFill(markup.Color, quad),
+                PdfTextMarkupType.Underline => MarkupLine(markup.Color, quad, 0.08),
+                PdfTextMarkupType.StrikeOut => MarkupLine(markup.Color, quad, 0.5),
+                PdfTextMarkupType.Squiggly => SquigglyLine(markup.Color, quad),
+                _ => throw new ArgumentOutOfRangeException(nameof(markup.Type))
+            });
+        }
         return Encoding.ASCII.GetBytes($"q\n/GS1 gs\n{drawing}Q\n");
     }
 
-    private static string MarkupLine(TextMarkupDefinition markup, double y)
+    private static string MarkupFill(PdfRgbColor color, PdfTextQuad quad) =>
+        $"{ColorOperands(color)} rg\n" +
+        $"{PointOperands(quad.LowerLeft)} m\n{PointOperands(quad.LowerRight)} l\n" +
+        $"{PointOperands(quad.UpperRight)} l\n{PointOperands(quad.UpperLeft)} l\nh\nf\n";
+
+    private static string MarkupLine(PdfRgbColor color, PdfTextQuad quad, double position)
     {
-        double lineWidth = Math.Max(0.75, markup.Height * 0.07);
-        return $"{ColorOperands(markup.Color)} RG\n{FormatNumber(lineWidth)} w\n" +
-            $"0 {FormatNumber(y)} m\n{FormatNumber(markup.Width)} {FormatNumber(y)} l\nS\n";
+        double height = (PointDistance(quad.UpperLeft, quad.LowerLeft) +
+            PointDistance(quad.UpperRight, quad.LowerRight)) / 2;
+        PdfPoint left = Interpolate(quad.LowerLeft, quad.UpperLeft, position);
+        PdfPoint right = Interpolate(quad.LowerRight, quad.UpperRight, position);
+        return $"{ColorOperands(color)} RG\n{FormatNumber(Math.Max(0.75, height * 0.07))} w\n" +
+            $"{PointOperands(left)} m\n{PointOperands(right)} l\nS\n";
     }
 
-    private static string SquigglyLine(TextMarkupDefinition markup)
+    private static string SquigglyLine(PdfRgbColor color, PdfTextQuad quad)
     {
-        double amplitude = Math.Max(0.75, markup.Height * 0.1);
+        double height = (PointDistance(quad.UpperLeft, quad.LowerLeft) +
+            PointDistance(quad.UpperRight, quad.LowerRight)) / 2;
+        double amplitude = Math.Max(0.75, height * 0.1);
         double step = Math.Max(1.5, amplitude * 2);
+        double dx = quad.LowerRight.X - quad.LowerLeft.X;
+        double dy = quad.LowerRight.Y - quad.LowerLeft.Y;
+        double length = PointDistance(quad.LowerLeft, quad.LowerRight);
+        double nx = length == 0 ? 0 : -dy / length;
+        double ny = length == 0 ? 1 : dx / length;
         var result = new StringBuilder(
-            $"{ColorOperands(markup.Color)} RG\n{FormatNumber(Math.Max(0.75, amplitude * 0.55))} w\n0 {FormatNumber(amplitude)} m\n");
+            $"{ColorOperands(color)} RG\n{FormatNumber(Math.Max(0.75, amplitude * 0.55))} w\n" +
+            $"{PointOperands(new PdfPoint(quad.LowerLeft.X + nx * amplitude, quad.LowerLeft.Y + ny * amplitude))} m\n");
         bool high = false;
-        for (double x = step; x < markup.Width; x += step)
+        for (double distance = step; distance < length; distance += step)
         {
-            result.Append(FormatNumber(x)).Append(' ')
-                .Append(FormatNumber(high ? amplitude * 2 : 0)).Append(" l\n");
+            double offset = high ? amplitude * 2 : 0;
+            result.Append(PointOperands(new PdfPoint(
+                quad.LowerLeft.X + dx * distance / length + nx * offset,
+                quad.LowerLeft.Y + dy * distance / length + ny * offset))).Append(" l\n");
             high = !high;
         }
-        result.Append(FormatNumber(markup.Width)).Append(' ')
-            .Append(FormatNumber(high ? amplitude * 2 : 0)).Append(" l\nS\n");
+        double finalOffset = high ? amplitude * 2 : 0;
+        result.Append(PointOperands(new PdfPoint(quad.LowerRight.X + nx * finalOffset,
+            quad.LowerRight.Y + ny * finalOffset))).Append(" l\nS\n");
         return result.ToString();
+    }
+
+    private static string PointOperands(PdfPoint point) =>
+        $"{FormatNumber(point.X)} {FormatNumber(point.Y)}";
+
+    private static double PointDistance(PdfPoint first, PdfPoint second) =>
+        Math.Sqrt(Math.Pow(second.X - first.X, 2) + Math.Pow(second.Y - first.Y, 2));
+
+    private static PdfPoint Interpolate(PdfPoint start, PdfPoint end, double amount) =>
+        new(start.X + ((end.X - start.X) * amount), start.Y + ((end.Y - start.Y) * amount));
+
+    private static PdfTextQuad OffsetQuad(PdfTextQuad quad, double x, double y) =>
+        new(new PdfPoint(quad.UpperLeft.X + x, quad.UpperLeft.Y + y),
+            new PdfPoint(quad.UpperRight.X + x, quad.UpperRight.Y + y),
+            new PdfPoint(quad.LowerLeft.X + x, quad.LowerLeft.Y + y),
+            new PdfPoint(quad.LowerRight.X + x, quad.LowerRight.Y + y));
+
+    private static (double MinX, double MinY, double MaxX, double MaxY) TextMarkupBounds(
+        IReadOnlyList<PdfTextQuad> quads)
+    {
+        IEnumerable<PdfPoint> points = quads.SelectMany(quad => new[]
+            { quad.UpperLeft, quad.UpperRight, quad.LowerLeft, quad.LowerRight });
+        return (points.Min(point => point.X), points.Min(point => point.Y),
+            points.Max(point => point.X), points.Max(point => point.Y));
     }
 
     private static PdfStream AnnotationAppearance(
@@ -2744,11 +2844,12 @@ public sealed partial class PdfDocumentBuilder
         string? Information);
     private sealed record TextNoteDefinition(
         int PageIndex, double X, double Y, double Size, string Contents,
-        PdfRgbColor Color, bool Open, PdfAnnotationMetadata? Metadata, PdfTextNoteIcon Icon);
+        PdfRgbColor Color, bool Open, PdfAnnotationMetadata? Metadata, PdfTextNoteIcon Icon,
+        PdfTextNoteState? State);
     private sealed record AllocatedTextNote(
         TextNoteDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record TextMarkupDefinition(
-        PdfTextMarkupType Type, int PageIndex, double X, double Y, double Width, double Height,
+        PdfTextMarkupType Type, int PageIndex, IReadOnlyList<PdfTextQuad> Quads,
         string? Contents, PdfRgbColor Color, double Opacity, PdfAnnotationMetadata? Metadata);
     private sealed record AllocatedTextMarkup(
         TextMarkupDefinition Definition, int AnnotationNumber, int AppearanceNumber);

@@ -50,6 +50,23 @@ public sealed class PdfVisualAnnotationAuthoringTests
         Assert.Contains(" Tm\n", appearance);
     }
 
+    [Fact]
+    public void AddFreeText_WritesDashedBorderStyleAndMatchingAppearance()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddFreeText(0, 20, 30, 180, 60, "AA", font, dashPattern: [4, 2]));
+        PdfDictionary annotation = Annotation(document);
+        var borderStyle = Assert.IsType<PdfDictionary>(annotation[Name("BS")]);
+        string appearance = Encoding.ASCII.GetString(
+            Appearance(document, annotation).EncodedData.Span);
+
+        Assert.Equal("D", Assert.IsType<PdfName>(borderStyle[Name("S")]).ValueAsLatin1());
+        Assert.Equal(2, Assert.IsType<PdfArray>(borderStyle[Name("D")]).Count);
+        Assert.Contains("[4 2] 0 d", appearance);
+    }
+
     [Theory]
     [InlineData("Square")]
     [InlineData("Circle")]

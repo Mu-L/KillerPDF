@@ -739,8 +739,15 @@ if (args.Length == 3 && args[0] == "--pdfa-annotation-smoke")
                 Subject = "Editorial review",
                 CreationDate = new DateTimeOffset(
                     2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(-7))
-            }, icon: PdfTextNoteIcon.Comment)
-        .AddHighlight(0, 90, 640, 300, 28, "Highlighted passage", PdfRgbColor.Yellow, 0.35)
+            }, icon: PdfTextNoteIcon.Comment, state: PdfTextNoteState.Accepted)
+        .AddHighlight(0,
+            [
+                new PdfTextQuad(new PdfPoint(90, 668), new PdfPoint(390, 668),
+                    new PdfPoint(90, 640), new PdfPoint(390, 640)),
+                new PdfTextQuad(new PdfPoint(90, 630), new PdfPoint(300, 630),
+                    new PdfPoint(90, 602), new PdfPoint(300, 602))
+            ],
+            "Highlighted wrapped passage", PdfRgbColor.Yellow, 0.35)
         .AddUnderline(0, 90, 590, 300, 28, "Underlined passage")
         .AddStrikeOut(0, 90, 540, 300, 28, "Struck passage")
         .AddSquiggly(0, 90, 490, 300, 28, "Spelling review")
@@ -768,7 +775,7 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
         .AddBlankPage()
         .AddFreeText(0, 72, 660, 250, 70, "KillerPDF café Ω\nMultiline free text", font, 14,
             textColor: new PdfRgbColor(0.1, 0.1, 0.1), fillColor: new PdfRgbColor(1, 1, 0.8),
-            opacity: 0.9, alignment: PdfTextAlignment.Center)
+            opacity: 0.9, alignment: PdfTextAlignment.Center, dashPattern: [6, 3])
         .AddLineAnnotation(0, new PdfPoint(72, 620), new PdfPoint(320, 580),
             new PdfRgbColor(0.1, 0.35, 0.9), 3, 0.8, "Line annotation",
             PdfLineEndingStyle.OpenArrow, PdfLineEndingStyle.ClosedArrow,
