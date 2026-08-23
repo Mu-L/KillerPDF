@@ -70,6 +70,13 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Enables the PDF/A-4e engineering-document conformance flavour.</summary>
+    public PdfDocumentBuilder EnablePdfA4eConformance()
+    {
+        _pdfA4Flavor = PdfA4Flavor.Engineering;
+        return this;
+    }
+
     /// <summary>Enables PDF/UA-2 identification and accessibility conformance checks.</summary>
     public PdfDocumentBuilder EnablePdfUa2Conformance()
     {
@@ -1782,8 +1789,13 @@ public sealed partial class PdfDocumentBuilder
             {
                 WriteSimple("pdfaid", "part", "http://www.aiim.org/pdfa/ns/id/", "4");
                 WriteSimple("pdfaid", "rev", "http://www.aiim.org/pdfa/ns/id/", "2020");
-                if (pdfA4Flavor == PdfA4Flavor.EmbeddedFiles)
-                    WriteSimple("pdfaid", "conformance", "http://www.aiim.org/pdfa/ns/id/", "F");
+                string? conformance = pdfA4Flavor switch
+                {
+                    PdfA4Flavor.EmbeddedFiles => "F",
+                    PdfA4Flavor.Engineering => "E",
+                    _ => null
+                };
+                WriteSimple("pdfaid", "conformance", "http://www.aiim.org/pdfa/ns/id/", conformance);
             }
             if (pdfUa2)
             {
@@ -1825,7 +1837,8 @@ public sealed partial class PdfDocumentBuilder
     {
         None,
         General,
-        EmbeddedFiles
+        EmbeddedFiles,
+        Engineering
     }
 
     private static byte[] DocumentIdentifier(IEnumerable<PdfIndirectObject> objects)

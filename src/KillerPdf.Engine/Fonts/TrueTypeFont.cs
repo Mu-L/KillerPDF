@@ -3,7 +3,7 @@ using System.Text;
 
 namespace KillerPdf.Engine.Fonts;
 
-/// <summary>A bounded reader for OpenType fonts that contain TrueType outlines.</summary>
+/// <summary>A bounded reader for OpenType fonts with TrueType or CFF outlines.</summary>
 public sealed class TrueTypeFont
 {
     private const int MaximumTableCount = 4_096;
@@ -12,10 +12,11 @@ public sealed class TrueTypeFont
     private readonly ICmap _cmap;
     private readonly ushort[] _advanceWidths;
 
-    private TrueTypeFont(byte[] data, Dictionary<uint, Table> tables)
+    private TrueTypeFont(byte[] data, Dictionary<uint, Table> tables, bool hasCffOutlines)
     {
         _data = data;
         _tables = tables;
+        HasCffOutlines = hasCffOutlines;
         Table head = Required("head");
         Table hhea = Required("hhea");
         Table maxp = Required("maxp");
@@ -50,6 +51,7 @@ public sealed class TrueTypeFont
     public double ItalicAngle { get; }
     public bool EmbeddingAllowed => (EmbeddingFlags & 0x0202) == 0;
     public bool SubsettingAllowed => (EmbeddingFlags & 0x0100) == 0;
+    public bool HasCffOutlines { get; }
     public ReadOnlyMemory<byte> FontData => _data;
 
     public static TrueTypeFont Load(ReadOnlyMemory<byte> source)
@@ -58,10 +60,9 @@ public sealed class TrueTypeFont
         if (data.Length < 12)
             throw Error("The font is shorter than an sfnt header");
         uint scaler = ReadU32(data, 0);
-        if (scaler == Tag("OTTO"))
-            throw new NotSupportedException("CFF-flavoured OpenType fonts require the CFF embedding milestone.");
-        if (scaler is not 0x00010000 && scaler != Tag("true"))
-            throw Error("The file is not an OpenType font with TrueType outlines");
+        bool hasCffOutlines = scaler == Tag("OTTO");
+        if (!hasCffOutlines && scaler is not 0x00010000 && scaler != Tag("true"))
+            throw Error("The file is not a supported OpenType font");
 
         int tableCount = ReadU16(data, 4);
         if (tableCount is < 1 or > MaximumTableCount || 12L + tableCount * 16L > data.Length)
@@ -78,7 +79,10 @@ public sealed class TrueTypeFont
             if (!tables.TryAdd(tag, new Table((int)offset, (int)length)))
                 throw Error($"Font table {TagText(tag)} is duplicated");
         }
-        return new TrueTypeFont(data, tables);
+        if (hasCffOutlines && !tables.ContainsKey(Tag("CFF "))
+            && !tables.ContainsKey(Tag("CFF2")))
+            throw Error("An OTTO font has no CFF or CFF2 outline table");
+        return new TrueTypeFont(data, tables, hasCffOutlines);
     }
 
     public ushort GetGlyphId(int unicodeScalar)
@@ -101,6 +105,9 @@ public sealed class TrueTypeFont
     public byte[] CreateSubset(IEnumerable<ushort> glyphIds)
     {
         ArgumentNullException.ThrowIfNull(glyphIds);
+        if (HasCffOutlines)
+            throw new NotSupportedException(
+                "CFF OpenType fonts are embedded in full because CFF subsetting is not yet available.");
         if (!SubsettingAllowed)
             throw new InvalidOperationException($"The embedding permissions in {PostScriptName} prohibit subsetting.");
         return TrueTypeSubsetter.Create(_data, GlyphCount, glyphIds);

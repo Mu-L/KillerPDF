@@ -15,7 +15,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
     {
         byte[] fontProgram = font.FontData.ToArray();
         bool subset = false;
-        if (font.SubsettingAllowed && mappings.Count > 0)
+        if (!font.HasCffOutlines && font.SubsettingAllowed && mappings.Count > 0)
         {
             try
             {
@@ -31,12 +31,15 @@ internal static class PdfEmbeddedTrueTypeFontFactory
         if (subset)
             baseName = $"{TrueTypeSubsetter.Prefix(font.FontData.ToArray(), mappings.Keys)}+{baseName}";
         PdfName baseFont = Name(baseName);
-        var fontFile = new PdfStream(
-            Dictionary(("Length1", new PdfInteger(fontProgram.Length))), fontProgram);
+        PdfDictionary fontFileDictionary = font.HasCffOutlines
+            ? Dictionary(("Subtype", Name("OpenType")))
+            : Dictionary(("Length1", new PdfInteger(fontProgram.Length)));
+        var fontFile = new PdfStream(fontFileDictionary, fontProgram);
 
         int flags = 32;
         if (font.ItalicAngle != 0) flags |= 64;
-        PdfDictionary descriptor = Dictionary(
+        var descriptorEntries = new List<(string Name, PdfObject Value)>
+        {
             ("Type", Name("FontDescriptor")), ("FontName", baseFont),
             ("Flags", new PdfInteger(flags)),
             ("FontBBox", new PdfArray([
@@ -48,7 +51,10 @@ internal static class PdfEmbeddedTrueTypeFontFactory
             ("Ascent", new PdfInteger(Scale(font.Ascender, font.UnitsPerEm))),
             ("Descent", new PdfInteger(Scale(font.Descender, font.UnitsPerEm))),
             ("CapHeight", new PdfInteger(Scale(font.Ascender, font.UnitsPerEm))),
-            ("StemV", new PdfInteger(80)), ("FontFile2", fontFileReference));
+            ("StemV", new PdfInteger(80)),
+            (font.HasCffOutlines ? "FontFile3" : "FontFile2", fontFileReference)
+        };
+        PdfDictionary descriptor = Dictionary(descriptorEntries.ToArray());
 
         var widths = new List<PdfObject>();
         foreach (ushort glyph in mappings.Keys)
@@ -56,14 +62,20 @@ internal static class PdfEmbeddedTrueTypeFontFactory
             widths.Add(new PdfInteger(glyph));
             widths.Add(new PdfArray([new PdfInteger(font.GetPdfAdvanceWidth(glyph))]));
         }
-        PdfDictionary cidFont = Dictionary(
-            ("Type", Name("Font")), ("Subtype", Name("CIDFontType2")),
+        var cidEntries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("Font")),
+            ("Subtype", Name(font.HasCffOutlines ? "CIDFontType0" : "CIDFontType2")),
             ("BaseFont", baseFont),
             ("CIDSystemInfo", Dictionary(
                 ("Registry", Latin1String("Adobe")), ("Ordering", Latin1String("Identity")),
                 ("Supplement", new PdfInteger(0)))),
             ("FontDescriptor", descriptorReference), ("DW", new PdfInteger(1000)),
-            ("W", new PdfArray(widths)), ("CIDToGIDMap", Name("Identity")));
+            ("W", new PdfArray(widths))
+        };
+        if (!font.HasCffOutlines)
+            cidEntries.Add(("CIDToGIDMap", Name("Identity")));
+        PdfDictionary cidFont = Dictionary(cidEntries.ToArray());
         var toUnicode = new PdfStream(Dictionary(), BuildToUnicodeMap(mappings));
         PdfDictionary type0 = Dictionary(
             ("Type", Name("Font")), ("Subtype", Name("Type0")),

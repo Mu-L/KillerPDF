@@ -174,6 +174,41 @@ public sealed class PdfContentStreamBuilderTests
     }
 
     [Fact]
+    public void CffOpenType_UsesCidFontType0AndFontFile3()
+    {
+        TrueTypeFont embedded = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: false, cffOutlines: true));
+        var content = new PdfContentStreamBuilder()
+            .BeginText().SetFont(embedded, 12).ShowUnicodeText("A").EndText();
+        PdfDocument document = PdfDocument.Open(
+            new PdfDocumentBuilder().AddPage(100, 100, content).Build());
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(document.Trailer[Name("Root")])));
+        PdfDictionary pages = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(catalog[Name("Pages")])));
+        PdfDictionary page = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfArray>(pages[Name("Kids")])[0])));
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
+        PdfDictionary fonts = Assert.IsType<PdfDictionary>(resources[Name("Font")]);
+        PdfDictionary type0 = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(fonts[Name("F1")])));
+        PdfDictionary cidFont = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfArray>(type0[Name("DescendantFonts")])[0])));
+        PdfDictionary descriptor = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(cidFont[Name("FontDescriptor")])));
+        PdfStream fontFile = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(descriptor[Name("FontFile3")])));
+
+        Assert.Equal("CIDFontType0", Assert.IsType<PdfName>(
+            cidFont[Name("Subtype")]).ValueAsLatin1());
+        Assert.False(cidFont.ContainsKey(Name("CIDToGIDMap")));
+        Assert.Equal("OpenType", Assert.IsType<PdfName>(
+            fontFile.Dictionary[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal(embedded.FontData.ToArray(), fontFile.EncodedData.ToArray());
+    }
+
+    [Fact]
     public void SetFont_RejectsRestrictedTrueTypeEmbedding()
     {
         TrueTypeFont restricted = TrueTypeFont.Load(

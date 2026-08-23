@@ -111,6 +111,26 @@ public sealed class PdfOutputIntentTests
     }
 
     [Fact]
+    public void PdfA4eMode_WritesEngineeringConformanceIdentification()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "PDF/A-4e" })
+            .SetOutputIntent(PdfIccProfile.Load(BuildProfile("RGB ")), "Test RGB")
+            .EnablePdfA4eConformance()
+            .AddBlankPage()
+            .AddAttachment("engineering.txt", "payload"u8.ToArray(), "text/plain")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfStream metadata = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(catalog[Name("Metadata")])));
+        string xmp = Encoding.UTF8.GetString(metadata.EncodedData.Span);
+
+        Assert.Contains("pdfaid:conformance", xmp);
+        Assert.Contains(">E<", xmp);
+        Assert.Single(Assert.IsType<PdfArray>(catalog[Name("AF")]));
+    }
+
+    [Fact]
     public void PdfA4Mode_RejectsKnownNonConformingAuthoringFeatures()
     {
         PdfDocumentBuilder Ready() => new PdfDocumentBuilder()

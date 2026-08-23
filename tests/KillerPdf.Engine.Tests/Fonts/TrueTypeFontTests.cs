@@ -35,6 +35,19 @@ public sealed class TrueTypeFontTests
     }
 
     [Fact]
+    public void Load_ReadsCffFlavouredOpenTypeMetricsAndMappings()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            BuildTestFont(format12: false, cffOutlines: true));
+
+        Assert.True(font.HasCffOutlines);
+        Assert.Equal("KillerTest", font.PostScriptName);
+        Assert.Equal((ushort)1, font.GetGlyphId('A'));
+        Assert.Equal(600, font.GetPdfAdvanceWidth(1));
+        Assert.Throws<NotSupportedException>(() => font.CreateSubset([1]));
+    }
+
+    [Fact]
     public void Load_RejectsTableThatPointsOutsideTheFile()
     {
         byte[] font = BuildTestFont(format12: false);
@@ -66,7 +79,8 @@ public sealed class TrueTypeFontTests
     }
 
     internal static byte[] BuildTestFont(
-        bool format12, ushort embeddingFlags = 0, bool includeOutlines = false)
+        bool format12, ushort embeddingFlags = 0, bool includeOutlines = false,
+        bool cffOutlines = false)
     {
         var tables = new Dictionary<string, byte[]>
         {
@@ -93,6 +107,8 @@ public sealed class TrueTypeFontTests
             ["maxp"] = Bytes(6, bytes => U16(bytes, 4, 2)),
             ["name"] = NameTable()
         };
+        if (cffOutlines)
+            tables["CFF "] = [1, 0, 4, 1];
         if (embeddingFlags != 0)
             tables["OS/2"] = Bytes(10, bytes => U16(bytes, 8, embeddingFlags));
         if (includeOutlines)
@@ -109,7 +125,8 @@ public sealed class TrueTypeFontTests
         int directoryLength = 12 + tables.Count * 16;
         int totalLength = directoryLength + tables.Values.Sum(value => Align4(value.Length));
         byte[] result = new byte[totalLength];
-        U32(result, 0, 0x00010000);
+        if (cffOutlines) Encoding.ASCII.GetBytes("OTTO").CopyTo(result, 0);
+        else U32(result, 0, 0x00010000);
         U16(result, 4, tables.Count);
         int record = 12;
         int offset = directoryLength;

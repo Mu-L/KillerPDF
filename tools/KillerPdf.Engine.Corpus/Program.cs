@@ -90,6 +90,31 @@ if (args.Length == 3 && args[0] == "--pdfa4f-attachment-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--pdfa4e-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF PDF/A-4e engineering smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4eConformance()
+        .AddPage(612, 792, new PdfContentStreamBuilder()
+            .SetStrokeRgb(0.2, 0.4, 0.8).SetLineWidth(2)
+            .Rectangle(72, 500, 468, 200).Stroke())
+        .AddAttachment("engineering-data.txt", "KillerPDF engineering data"u8.ToArray(),
+            "text/plain", "Engineering validation payload",
+            PdfAssociatedFileRelationship.Data, DateTimeOffset.UtcNow)
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4e engineering PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--authoring-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -175,6 +200,32 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
     Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4 AcroForm PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 4 && args[0] == "--pdfa-cff-smoke")
+{
+    TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
+    if (!font.HasCffOutlines)
+        throw new ArgumentException("The CFF smoke test requires an OTTO font with CFF outlines.");
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[2]));
+    string destination = Path.GetFullPath(args[3]);
+    var content = new PdfContentStreamBuilder()
+        .BeginText().SetFont(font, 24).MoveText(72, 700)
+        .ShowUnicodeText("KillerPDF").EndText();
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF CFF OpenType smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddPage(612, 792, content)
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4 with embedded {font.PostScriptName} to {destination}");
     return 0;
 }
 
@@ -478,7 +529,9 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa4f-attachment-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa4e-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-form-smoke <font.ttf> <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-cff-smoke <font.otf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-annotation-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-visual-annotation-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-smoke <input.pdf> <output.pdf>");
