@@ -385,6 +385,8 @@ public sealed partial class PdfDocumentBuilder
             new AllocatedFreeText(freeText, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedVisualAnnotations = _visualAnnotations.Select(annotation =>
             new AllocatedVisualAnnotation(annotation, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedImageStamps = _imageStamps.Select(stamp =>
+            new AllocatedImageStamp(stamp, nextObjectNumber++, nextObjectNumber++)).ToArray();
         int? iccProfileNumber = _outputIntent is null ? null : nextObjectNumber++;
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
@@ -432,7 +434,8 @@ public sealed partial class PdfDocumentBuilder
                 nextObjectNumber++, nextObjectNumber++));
         }
         var imageNumbers = new Dictionary<PdfImage, int>();
-        foreach (PdfImage image in _pages.SelectMany(page => page.Images.Keys).Distinct())
+        foreach (PdfImage image in _pages.SelectMany(page => page.Images.Keys)
+            .Concat(_imageStamps.Select(stamp => stamp.Image)).Distinct())
             AddImageAndMask(image);
         void AddImageAndMask(PdfImage image)
         {
@@ -466,7 +469,9 @@ public sealed partial class PdfDocumentBuilder
                 .. allocatedFreeTexts.Where(freeText => freeText.Definition.PageIndex == pageIndex)
                     .Select(freeText => freeText.AnnotationNumber),
                 .. allocatedVisualAnnotations.Where(annotation => annotation.Definition.PageIndex == pageIndex)
-                    .Select(annotation => annotation.AnnotationNumber)];
+                    .Select(annotation => annotation.AnnotationNumber),
+                .. allocatedImageStamps.Where(stamp => stamp.Definition.PageIndex == pageIndex)
+                    .Select(stamp => stamp.AnnotationNumber)];
             allocated.Add(new AllocatedPage(page, pageNumber, contentNumber, annotationNumbers));
         }
 
@@ -617,13 +622,17 @@ public sealed partial class PdfDocumentBuilder
         }
         for (int index = 0; index < allocatedVisualAnnotations.Length; index++)
             AddVisualAnnotationObjects(objects, allocatedVisualAnnotations[index], allocated, index + 1);
+        for (int index = 0; index < allocatedImageStamps.Length; index++)
+            AddImageStampObjects(objects, allocatedImageStamps[index], allocated, index + 1,
+                imageNumbers[allocatedImageStamps[index].Definition.Image]);
         foreach ((PdfStandardFont font, int number) in fontNumbers.OrderBy(entry => entry.Value))
             objects.Add(new PdfIndirectObject(number, 0, StandardFontDictionary(font), 0));
         foreach (AllocatedEmbeddedFont font in embeddedFonts)
             AddEmbeddedFontObjects(objects, font);
         foreach ((PdfImage image, int number) in imageNumbers.OrderBy(entry => entry.Value))
             objects.Add(new PdfIndirectObject(number, 0,
-                ImageStream(image, image.SoftMask is null ? null : imageNumbers[image.SoftMask]), 0));
+                PdfImageXObjectFactory.Create(image, image.SoftMask is null ? null
+                    : new PdfIndirectReference(imageNumbers[image.SoftMask], 0)), 0));
         foreach (AllocatedPage allocatedPage in allocated)
         {
             PdfDictionary resources = Dictionary();
@@ -778,33 +787,6 @@ public sealed partial class PdfDocumentBuilder
         if (font is not PdfStandardFont.Symbol and not PdfStandardFont.ZapfDingbats)
             entries.Add(("Encoding", Name("WinAnsiEncoding")));
         return Dictionary(entries.ToArray());
-    }
-
-    private static PdfStream ImageStream(PdfImage image, int? softMaskNumber)
-    {
-        string colorSpace = image.ColorSpace switch
-        {
-            PdfImageColorSpace.Gray => "DeviceGray",
-            PdfImageColorSpace.Rgb => "DeviceRGB",
-            PdfImageColorSpace.Cmyk => "DeviceCMYK",
-            _ => throw new ArgumentOutOfRangeException(nameof(image))
-        };
-        var entries = new List<(string Name, PdfObject Value)>
-        {
-            ("Type", Name("XObject")),
-            ("Subtype", Name("Image")),
-            ("Width", new PdfInteger(image.Width)),
-            ("Height", new PdfInteger(image.Height)),
-            ("ColorSpace", Name(colorSpace)),
-            ("BitsPerComponent", new PdfInteger(image.BitsPerComponent)),
-            ("Filter", Name(image.Filter))
-        };
-        if (image.InvertComponents)
-            entries.Add(("Decode", new PdfArray(Enumerable.Range(0, 4)
-                .SelectMany(_ => new PdfObject[] { new PdfInteger(1), new PdfInteger(0) }))));
-        if (softMaskNumber.HasValue)
-            entries.Add(("SMask", new PdfIndirectReference(softMaskNumber.Value, 0)));
-        return new PdfStream(Dictionary(entries.ToArray()), image.Data.Span);
     }
 
     private static void AddAttachmentObjects(

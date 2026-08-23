@@ -203,6 +203,34 @@ public sealed class PdfIncrementalAnnotationEditorTests
         Assert.Equal(first, Build());
     }
 
+    [Fact]
+    public void ImageStamps_ShareImageAndSoftMaskObjects()
+    {
+        PdfImage image = PdfImage.FromRgba(1, 1, new byte[] { 20, 40, 60, 96 });
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+            .AddImageStamp(0, 20, 600, 100, 50, image)
+            .AddImageStamp(0, 140, 600, 100, 50, image)
+            .Build());
+        PdfArray annotations = Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")]);
+        PdfIndirectReference ImageReference(PdfObject annotationReference)
+        {
+            PdfDictionary annotation = ResolveDictionary(reopened, annotationReference);
+            PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+                Assert.IsType<PdfIndirectReference>(
+                    Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+            PdfDictionary xobjects = Assert.IsType<PdfDictionary>(
+                Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")])[Name("XObject")]);
+            return Assert.IsType<PdfIndirectReference>(xobjects[Name("Im1")]);
+        }
+        PdfIndirectReference firstImage = ImageReference(annotations[0]);
+        PdfIndirectReference secondImage = ImageReference(annotations[1]);
+        PdfStream imageStream = Assert.IsType<PdfStream>(reopened.Resolve(firstImage));
+
+        Assert.Equal(firstImage.ObjectNumber, secondImage.ObjectNumber);
+        Assert.IsType<PdfIndirectReference>(imageStream.Dictionary[Name("SMask")]);
+    }
+
     private static IReadOnlyList<(PdfIndirectReference Reference, PdfDictionary Page)> Pages(
         PdfDocument document)
     {

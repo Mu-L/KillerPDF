@@ -139,6 +139,18 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    public PdfIncrementalAnnotationEditor AddImageStamp(
+        int pageIndex, double x, double y, double width, double height,
+        PdfImage image, string? contents = null)
+    {
+        ValidatePage(pageIndex);
+        ValidateRectangle(x, y, width, height);
+        ArgumentNullException.ThrowIfNull(image);
+        _annotations.Add(new PendingImageStamp(
+            pageIndex, x, y, width, height, image, contents));
+        return this;
+    }
+
     private PdfIncrementalAnnotationEditor AddShape(
         PendingShapeType type, int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor, PdfRgbColor? fillColor,
@@ -173,6 +185,7 @@ public sealed class PdfIncrementalAnnotationEditor
         var allocated = _annotations.Select(annotation => new AllocatedAnnotation(
             annotation, update.ReserveObject(), update.ReserveObject())).ToArray();
         Dictionary<TrueTypeFont, EditorFontBinding> fonts = AllocateFonts(update);
+        Dictionary<PdfImage, PdfIndirectReference> images = AllocateImages(update);
 
         foreach (AllocatedAnnotation item in allocated)
         {
@@ -211,6 +224,13 @@ public sealed class PdfIncrementalAnnotationEditor
                     update.SetObject(item.AnnotationReference,
                         InkDictionary(ink, page.Reference, item.AnnotationReference, item.AppearanceReference));
                     update.SetObject(item.AppearanceReference, InkAppearance(ink));
+                    break;
+                case PendingImageStamp stamp:
+                    update.SetObject(item.AnnotationReference,
+                        ImageStampDictionary(stamp, page.Reference, item.AnnotationReference,
+                            item.AppearanceReference));
+                    update.SetObject(item.AppearanceReference,
+                        ImageStampAppearance(stamp, images[stamp.Image]));
                     break;
                 default:
                     throw new InvalidOperationException("Unknown annotation definition.");
@@ -252,6 +272,26 @@ public sealed class PdfIncrementalAnnotationEditor
                 new PdfName(Encoding.ASCII.GetBytes($"KpF{++sequence}")), type0));
         }
         return result;
+    }
+
+    private Dictionary<PdfImage, PdfIndirectReference> AllocateImages(
+        PdfIncrementalUpdateBuilder update)
+    {
+        var result = new Dictionary<PdfImage, PdfIndirectReference>();
+        foreach (PdfImage image in _annotations.OfType<PendingImageStamp>()
+            .Select(value => value.Image).Distinct())
+            Add(image);
+        return result;
+
+        PdfIndirectReference Add(PdfImage image)
+        {
+            if (result.TryGetValue(image, out PdfIndirectReference? existing)) return existing;
+            PdfIndirectReference reference = update.ReserveObject();
+            result.Add(image, reference);
+            PdfIndirectReference? softMask = image.SoftMask is null ? null : Add(image.SoftMask);
+            update.SetObject(reference, PdfImageXObjectFactory.Create(image, softMask));
+            return reference;
+        }
     }
 
     private void AppendPageAnnotations(
@@ -482,6 +522,33 @@ public sealed class PdfIncrementalAnnotationEditor
         }
         output.Write("Q\n"u8);
         return Appearance(bounds.Width, bounds.Height, OpacityResources(ink.Opacity), output.ToArray());
+    }
+
+    private static PdfDictionary ImageStampDictionary(
+        PendingImageStamp stamp, PdfIndirectReference page, PdfIndirectReference annotation,
+        PdfIndirectReference appearance)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("Annot")), ("Subtype", Name("Stamp")),
+            ("Rect", Rectangle(stamp.X, stamp.Y, stamp.Width, stamp.Height)),
+            ("P", page), ("F", new PdfInteger(4)),
+            ("NM", Latin1String($"KillerPDF-Image-{annotation.ObjectNumber}")),
+            ("Name", Name("Image")), ("AP", Dictionary(("N", appearance)))
+        };
+        if (!string.IsNullOrEmpty(stamp.Contents))
+            entries.Add(("Contents", UnicodeString(stamp.Contents)));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static PdfStream ImageStampAppearance(
+        PendingImageStamp stamp, PdfIndirectReference imageReference)
+    {
+        PdfDictionary resources = Dictionary(("XObject", new PdfDictionary([
+            new KeyValuePair<PdfName, PdfObject>(Name("Im1"), imageReference)])));
+        byte[] content = Encoding.ASCII.GetBytes(
+            $"q\n{Format(stamp.Width)} 0 0 {Format(stamp.Height)} 0 0 cm\n/Im1 Do\nQ\n");
+        return Appearance(stamp.Width, stamp.Height, resources, content);
     }
 
     private static List<(string Name, PdfObject Value)> CommonEntries(
@@ -755,6 +822,9 @@ public sealed class PdfIncrementalAnnotationEditor
     private sealed record PendingInk(
         int PageIndex, IReadOnlyList<IReadOnlyList<PdfPoint>> Strokes, PdfRgbColor Color,
         double LineWidth, double Opacity, string? Contents) : PendingAnnotation(PageIndex);
+    private sealed record PendingImageStamp(
+        int PageIndex, double X, double Y, double Width, double Height,
+        PdfImage Image, string? Contents) : PendingAnnotation(PageIndex);
     private sealed record AllocatedAnnotation(
         PendingAnnotation Definition, PdfIndirectReference AnnotationReference,
         PdfIndirectReference AppearanceReference);

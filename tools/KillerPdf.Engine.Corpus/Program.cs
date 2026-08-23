@@ -157,6 +157,11 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
 {
     TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
     PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[2]));
+    PdfImage stampImage = PdfImage.FromRgba(2, 2, new byte[]
+    {
+        255, 40, 80, 230, 40, 120, 255, 150,
+        40, 220, 120, 150, 255, 180, 40, 230
+    });
     string destination = Path.GetFullPath(args[3]);
     byte[] pdf = new PdfDocumentBuilder()
         .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A visual annotation smoke test", Language = "en-US" })
@@ -176,6 +181,7 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
             [new PdfPoint(72, 430), new PdfPoint(110, 455), new PdfPoint(150, 425)],
             [new PdfPoint(170, 430), new PdfPoint(210, 455), new PdfPoint(250, 425)]
         ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85, "Two ink strokes")
+        .AddImageStamp(0, 350, 390, 100, 60, stampImage, "RGBA image stamp")
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
@@ -229,6 +235,11 @@ if (args.Length == 3 && args[0] == "--incremental-annotation-smoke")
 if (args.Length == 4 && args[0] == "--incremental-visual-annotation-smoke")
 {
     TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
+    PdfImage stampImage = PdfImage.FromRgba(2, 2, new byte[]
+    {
+        255, 40, 80, 230, 40, 120, 255, 150,
+        40, 220, 120, 150, 255, 180, 40, 230
+    });
     byte[] source = File.ReadAllBytes(args[2]);
     byte[] pdf = new PdfIncrementalAnnotationEditor(PdfDocument.Open(source))
         .AddFreeText(0, 350, 680, 170, 60, "Incremental café Ω\nEmbedded free text", font, 12,
@@ -244,13 +255,14 @@ if (args.Length == 4 && args[0] == "--incremental-visual-annotation-smoke")
             [new PdfPoint(350, 480), new PdfPoint(385, 500), new PdfPoint(420, 475)],
             [new PdfPoint(445, 480), new PdfPoint(480, 500), new PdfPoint(515, 475)]
         ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85)
+        .AddImageStamp(0, 460, 410, 100, 60, stampImage, "Incremental RGBA image stamp")
         .Build();
     if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
         throw new InvalidDataException("The incremental visual annotation update changed source bytes.");
     string destination = Path.GetFullPath(args[3]);
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
-    Console.WriteLine($"Wrote five visual annotations in {pdf.Length - source.Length:N0} appended bytes to {destination}");
+    Console.WriteLine($"Wrote six visual annotations in {pdf.Length - source.Length:N0} appended bytes to {destination}");
     return 0;
 }
 

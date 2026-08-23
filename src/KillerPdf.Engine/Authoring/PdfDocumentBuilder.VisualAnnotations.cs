@@ -9,6 +9,7 @@ public sealed partial class PdfDocumentBuilder
 {
     private readonly List<FreeTextDefinition> _freeTexts = [];
     private readonly List<VisualAnnotationDefinition> _visualAnnotations = [];
+    private readonly List<ImageStampDefinition> _imageStamps = [];
 
     public PdfDocumentBuilder AddFreeText(
         int pageIndex, double x, double y, double width, double height,
@@ -73,6 +74,18 @@ public sealed partial class PdfDocumentBuilder
         _visualAnnotations.Add(new InkAnnotationDefinition(
             pageIndex, strokes.Select(stroke => stroke.ToArray()).ToArray(),
             color ?? new PdfRgbColor(0, 0, 0), lineWidth, opacity, contents));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddImageStamp(
+        int pageIndex, double x, double y, double width, double height,
+        PdfImage image, string? contents = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ArgumentNullException.ThrowIfNull(image);
+        _imageStamps.Add(new ImageStampDefinition(
+            pageIndex, x, y, width, height, image, contents));
         return this;
     }
 
@@ -156,6 +169,37 @@ public sealed partial class PdfDocumentBuilder
             default:
                 throw new InvalidOperationException("Unknown visual annotation type.");
         }
+    }
+
+    private static void AddImageStampObjects(
+        ICollection<PdfIndirectObject> objects, AllocatedImageStamp allocated,
+        IReadOnlyList<AllocatedPage> pages, int sequence, int imageNumber)
+    {
+        ImageStampDefinition stamp = allocated.Definition;
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("Annot")), ("Subtype", Name("Stamp")),
+            ("Rect", new PdfArray([
+                Number(stamp.X), Number(stamp.Y),
+                Number(stamp.X + stamp.Width), Number(stamp.Y + stamp.Height)])),
+            ("P", new PdfIndirectReference(pages[stamp.PageIndex].PageNumber, 0)),
+            ("F", new PdfInteger(4)),
+            ("NM", Latin1String($"KillerPDF-Image-{sequence}")),
+            ("Name", Name("Image")),
+            ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))
+        };
+        if (!string.IsNullOrEmpty(stamp.Contents))
+            entries.Add(("Contents", UnicodeString(stamp.Contents)));
+        objects.Add(new PdfIndirectObject(
+            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+
+        PdfDictionary resources = Dictionary(("XObject", new PdfDictionary([
+            new KeyValuePair<PdfName, PdfObject>(Name("Im1"),
+                new PdfIndirectReference(imageNumber, 0))])));
+        byte[] content = Encoding.ASCII.GetBytes(
+            $"q\n{FormatNumber(stamp.Width)} 0 0 {FormatNumber(stamp.Height)} 0 0 cm\n/Im1 Do\nQ\n");
+        objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
+            AnnotationAppearance(stamp.Width, stamp.Height, resources, content), 0));
     }
 
     private static void AddLineObjects(
@@ -386,6 +430,11 @@ public sealed partial class PdfDocumentBuilder
         : VisualAnnotationDefinition(PageIndex, Color, LineWidth, Opacity, Contents);
     private sealed record AllocatedVisualAnnotation(
         VisualAnnotationDefinition Definition, int AnnotationNumber, int AppearanceNumber);
+    private sealed record ImageStampDefinition(
+        int PageIndex, double X, double Y, double Width, double Height,
+        PdfImage Image, string? Contents);
+    private sealed record AllocatedImageStamp(
+        ImageStampDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record Bounds(double X, double Y, double Width, double Height);
     private enum PdfShapeAnnotationType { Square, Circle }
 }

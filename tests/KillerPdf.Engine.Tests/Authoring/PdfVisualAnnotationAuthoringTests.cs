@@ -81,6 +81,28 @@ public sealed class PdfVisualAnnotationAuthoringTests
     }
 
     [Fact]
+    public void ImageStamp_PreservesRgbaTransparencyInItsAppearance()
+    {
+        PdfImage image = PdfImage.FromRgba(1, 1, new byte[] { 20, 40, 60, 96 });
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddImageStamp(0, 20, 30, 100, 50, image, "Signature image"));
+        PdfDictionary annotation = Annotation(document);
+        PdfStream appearance = Appearance(document, annotation);
+        PdfDictionary xobjects = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")])[Name("XObject")]);
+        PdfStream imageStream = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(xobjects[Name("Im1")])));
+        PdfStream mask = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(imageStream.Dictionary[Name("SMask")])));
+
+        Assert.Equal("Stamp", Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal("Image", Assert.IsType<PdfName>(annotation[Name("Name")]).ValueAsLatin1());
+        Assert.Equal("DeviceGray", Assert.IsType<PdfName>(mask.Dictionary[Name("ColorSpace")]).ValueAsLatin1());
+        Assert.Contains("/Im1 Do", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+    }
+
+    [Fact]
     public void VisualAnnotationArguments_AreValidated()
     {
         var builder = new PdfDocumentBuilder().AddBlankPage();
