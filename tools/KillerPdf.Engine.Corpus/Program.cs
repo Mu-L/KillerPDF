@@ -160,6 +160,7 @@ if (args.Length == 3 && args[0] == "--cmyk-smoke")
     var stencil = new PdfTilingPattern(18, 18,
         new PdfContentStreamBuilder().Rectangle(2, 2, 7, 7).Fill(),
         paintType: PdfTilingPatternPaintType.Uncolored);
+    var spot = new PdfSpotColor("Killer Orange", new PdfCmykColor(0, 0.72, 1, 0));
     var content = new PdfContentStreamBuilder()
         .BeginMarkedContent(PdfStructureType.Figure, 0)
         .SetRenderingIntent(PdfRenderingIntent.RelativeColorimetric)
@@ -167,6 +168,7 @@ if (args.Length == 3 && args[0] == "--cmyk-smoke")
         .SetFillCmyk(0.85, 0.2, 0, 0.1).Rectangle(72, 540, 210, 150).Fill()
         .SetFillPattern(stencil, new PdfCmykColor(0, 0.8, 0.9, 0.05))
         .Rectangle(330, 540, 210, 150).Fill()
+        .SetFillSpotColor(spot, 0.75).Rectangle(246, 480, 120, 36).Fill()
         .EndMarkedContent();
     byte[] pdf = new PdfDocumentBuilder()
         .SetMetadata(new PdfDocumentMetadata
@@ -493,7 +495,7 @@ if (args.Length == 3 && args[0] == "--gradient-smoke")
         new PdfGradientStop(1, new PdfRgbColor(0.2, 0.05, 0.3))]);
     var content = new PdfContentStreamBuilder()
         .BeginArtifact()
-        .SetStrokeRgb(0.2, 0.75, 0.9).SetLineWidth(5)
+        .SetStrokeIccColor(profile, 0.2, 0.75, 0.9).SetLineWidth(5)
         .SetLineCap(PdfLineCap.Round).SetLineJoin(PdfLineJoin.Bevel)
         .SetMiterLimit(6).SetDashPattern([18, 7, 3, 7], 2)
         .Rectangle(60, 488, 492, 244).Stroke()

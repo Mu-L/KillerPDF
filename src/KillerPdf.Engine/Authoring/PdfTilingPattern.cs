@@ -41,6 +41,8 @@ public sealed class PdfTilingPattern
         Shadings = content.ShadingResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         Forms = content.FormResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         Patterns = content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        IccColorSpaces = content.IccColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        SpotColors = content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value);
     }
 
     public double Width { get; }
@@ -60,6 +62,8 @@ public sealed class PdfTilingPattern
     internal IReadOnlyDictionary<PdfShading, PdfName> Shadings { get; }
     internal IReadOnlyDictionary<PdfFormXObject, PdfName> Forms { get; }
     internal IReadOnlyDictionary<PdfTilingPattern, PdfName> Patterns { get; }
+    internal IReadOnlyDictionary<PdfIccProfile, PdfName> IccColorSpaces { get; }
+    internal IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColors { get; }
 
     private static double Positive(double value, string name)
     {

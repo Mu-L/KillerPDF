@@ -17,6 +17,9 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<PdfShading, PdfName> _shadings = [];
     private readonly Dictionary<PdfFormXObject, PdfName> _forms = [];
     private readonly Dictionary<PdfTilingPattern, PdfName> _patterns = [];
+    private readonly Dictionary<PdfIccProfile, PdfName> _iccColorSpaces = [];
+    private readonly Dictionary<PdfSpotColor, PdfName> _spotColors = [];
+    private int _nextColorSpaceResource = 1;
     private int _savedStateDepth;
     private readonly Stack<bool> _markedContentStack = [];
     private int _accessibleMarkedContentDepth;
@@ -37,6 +40,8 @@ public sealed class PdfContentStreamBuilder
     internal IReadOnlyDictionary<PdfShading, PdfName> ShadingResources => _shadings;
     internal IReadOnlyDictionary<PdfFormXObject, PdfName> FormResources => _forms;
     internal IReadOnlyDictionary<PdfTilingPattern, PdfName> PatternResources => _patterns;
+    internal IReadOnlyDictionary<PdfIccProfile, PdfName> IccColorSpaceResources => _iccColorSpaces;
+    internal IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColorResources => _spotColors;
     internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
     internal bool HasUntaggedContent => _hasUntaggedContent;
     internal bool HasColorOperators => _hasColorOperators;
@@ -320,6 +325,33 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Selects an uncoloured stencil pattern with an ICCBased base colour.</summary>
+    public PdfContentStreamBuilder SetFillPattern(
+        PdfTilingPattern pattern, PdfIccProfile profile, params double[] components)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(components);
+        ValidateIccComponents(profile, components);
+        if (pattern.PaintType != PdfTilingPatternPaintType.Uncolored)
+            throw new ArgumentException(
+                "A base color can only be supplied for an uncolored pattern.", nameof(pattern));
+        PdfName patternResource = PatternResource(pattern);
+        PdfName colorSpaceResource = IccColorSpaceResource(profile);
+        _hasColorOperators = true;
+        _output.Write("[/Pattern "u8);
+        _output.Write(PdfObjectWriter.Write(colorSpaceResource));
+        _output.Write("] cs\n"u8);
+        foreach (double component in components)
+        {
+            WriteNumber(component);
+            _output.WriteByte((byte)' ');
+        }
+        _output.Write(PdfObjectWriter.Write(patternResource));
+        _output.Write(" scn\n"u8);
+        return this;
+    }
+
     private PdfName PatternResource(PdfTilingPattern pattern)
     {
         if (!_patterns.TryGetValue(pattern, out PdfName? resource))
@@ -403,6 +435,20 @@ public sealed class PdfContentStreamBuilder
     public PdfContentStreamBuilder SetFillCmyk(double cyan, double magenta, double yellow, double black) =>
         ColorOperator("k"u8, Component(cyan, nameof(cyan)), Component(magenta, nameof(magenta)),
             Component(yellow, nameof(yellow)), Component(black, nameof(black)));
+
+    public PdfContentStreamBuilder SetFillIccColor(
+        PdfIccProfile profile, params double[] components) =>
+        SetIccColor(profile, components, stroke: false);
+
+    public PdfContentStreamBuilder SetStrokeIccColor(
+        PdfIccProfile profile, params double[] components) =>
+        SetIccColor(profile, components, stroke: true);
+
+    public PdfContentStreamBuilder SetFillSpotColor(PdfSpotColor color, double tint) =>
+        SetSpotColor(color, tint, stroke: false);
+
+    public PdfContentStreamBuilder SetStrokeSpotColor(PdfSpotColor color, double tint) =>
+        SetSpotColor(color, tint, stroke: true);
 
     public PdfContentStreamBuilder BeginText()
     {
@@ -631,6 +677,65 @@ public sealed class PdfContentStreamBuilder
     {
         _hasColorOperators = true;
         return Operator(name, operands);
+    }
+
+    private PdfContentStreamBuilder SetIccColor(
+        PdfIccProfile profile, IReadOnlyList<double> components, bool stroke)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(components);
+        ValidateIccComponents(profile, components);
+        PdfName resource = IccColorSpaceResource(profile);
+        _hasColorOperators = true;
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
+        foreach (double component in components)
+        {
+            WriteNumber(component);
+            _output.WriteByte((byte)' ');
+        }
+        _output.Write(stroke ? "SCN\n"u8 : "scn\n"u8);
+        return this;
+    }
+
+    private PdfName IccColorSpaceResource(PdfIccProfile profile)
+    {
+        if (!_iccColorSpaces.TryGetValue(profile, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
+            _iccColorSpaces.Add(profile, resource);
+        }
+        return resource;
+    }
+
+    private PdfContentStreamBuilder SetSpotColor(
+        PdfSpotColor color, double tint, bool stroke)
+    {
+        ArgumentNullException.ThrowIfNull(color);
+        if (!double.IsFinite(tint) || tint is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(tint));
+        if (!_spotColors.TryGetValue(color, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
+            _spotColors.Add(color, resource);
+        }
+        _hasColorOperators = true;
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
+        WriteNumber(tint);
+        _output.Write(stroke ? " SCN\n"u8 : " scn\n"u8);
+        return this;
+    }
+
+    private static void ValidateIccComponents(
+        PdfIccProfile profile, IReadOnlyList<double> components)
+    {
+        if (components.Count != profile.ComponentCount)
+            throw new ArgumentException(
+                $"The {profile.ColorSpace} ICC profile requires {profile.ComponentCount} color components.",
+                nameof(components));
+        if (components.Any(value => !double.IsFinite(value) || value is < 0 or > 1))
+            throw new ArgumentOutOfRangeException(nameof(components));
     }
 
     private PdfContentStreamBuilder PaintingOperator(ReadOnlySpan<byte> name)

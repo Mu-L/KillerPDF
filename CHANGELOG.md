@@ -15,6 +15,8 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Completed PDF path construction and painting with both cubic Bézier shorthand forms, close-and-stroke, even-odd fill-and-stroke, and closed nonzero or even-odd fill-and-stroke operators.
 - Added complete stroke styling with butt, round, and projecting-square caps; miter, round, and bevel joins; validated miter limits; reusable dash sequences and phases; and solid-stroke reset.
 - Added native DeviceCMYK fill and stroke authoring plus validated CMYK base colors for uncolored stencil patterns, complementing existing grayscale and RGB graphics support.
+- Added reusable ICCBased Gray, RGB, and CMYK fill, stroke, and uncolored-pattern base colors with embedded profiles, device alternates, strict component validation, scoped page/form/pattern resources, deterministic sharing across pages, and safe output-intent object reuse.
+- Added reusable named Separation spot colors with process-CMYK alternates, tint-transform functions, validated fill and stroke tint values, and scoped page, form, and pattern resources.
 - Added all four standard color-rendering intents and validated curve-flatness tolerance controls for predictable screen and print painting behavior.
 - Added reusable page transparency through extended graphics-state resources, with independent fill and stroke opacity plus all sixteen standard separable and non-separable PDF blend modes shared deterministically within and across pages.
 - Added reusable axial and radial gradient shadings with clipping, arbitrary strictly ordered RGB color stops, two-color interpolation, multi-stop stitching functions, extension controls, and deterministic sharing across pages.

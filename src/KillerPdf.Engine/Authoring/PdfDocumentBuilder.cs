@@ -129,7 +129,9 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfGraphicsState, PdfName>(),
             new Dictionary<PdfShading, PdfName>(),
             new Dictionary<PdfFormXObject, PdfName>(),
-            new Dictionary<PdfTilingPattern, PdfName>(), [], [], content.Length > 0,
+            new Dictionary<PdfTilingPattern, PdfName>(),
+            new Dictionary<PdfIccProfile, PdfName>(),
+            new Dictionary<PdfSpotColor, PdfName>(), [], [], content.Length > 0,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
     }
@@ -150,7 +152,9 @@ public sealed partial class PdfDocumentBuilder
             content.GraphicsStateResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.ShadingResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.FormResources.ToDictionary(entry => entry.Key, entry => entry.Value),
-            content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.IccColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
@@ -670,6 +674,14 @@ public sealed partial class PdfDocumentBuilder
             throw new InvalidOperationException("PDF/A-4 authoring requires XMP document metadata.");
         if (pdfA4 && _outputIntent is null)
             throw new InvalidOperationException("PDF/A-4 authoring requires an ICC output intent.");
+        if (pdfA4 && _outputIntent?.Profile.ComponentCount == 4
+            && _pages.SelectMany(page => page.IccColorSpaces.Keys)
+                .Concat(forms.SelectMany(form => form.IccColorSpaces.Keys))
+                .Concat(patterns.SelectMany(pattern => pattern.IccColorSpaces.Keys))
+                .Any(profile => profile.ComponentCount == 4
+                    && profile.Data.Span.SequenceEqual(_outputIntent.Profile.Data.Span)))
+            throw new InvalidOperationException(
+                "PDF/A-4 forbids an ICCBased CMYK content space identical to the output-intent profile; use DeviceCMYK or a distinct source profile.");
         if (pdfA4 && (_pages.Any(page => page.Fonts.Count > 0)
             || forms.Any(form => form.Fonts.Count > 0)))
             throw new InvalidOperationException("PDF/A-4 authoring requires embedded fonts; the 14 built-in PDF fonts are not embedded.");
@@ -717,7 +729,18 @@ public sealed partial class PdfDocumentBuilder
             new AllocatedVisualAnnotation(annotation, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedImageStamps = _imageStamps.Select(stamp =>
             new AllocatedImageStamp(stamp, nextObjectNumber++, nextObjectNumber++)).ToArray();
-        int? iccProfileNumber = _outputIntent is null ? null : nextObjectNumber++;
+        PdfIccProfile[] authoredIccProfiles = _pages.SelectMany(page => page.IccColorSpaces.Keys)
+            .Concat(forms.SelectMany(form => form.IccColorSpaces.Keys))
+            .Concat(patterns.SelectMany(pattern => pattern.IccColorSpaces.Keys))
+            .Distinct().ToArray();
+        PdfIccProfile[] allIccProfiles = (_outputIntent is null
+                ? authoredIccProfiles
+                : authoredIccProfiles.Append(_outputIntent.Profile).Distinct())
+            .ToArray();
+        var iccProfileNumbers = allIccProfiles
+            .ToDictionary(profile => profile, _ => nextObjectNumber++);
+        int? iccProfileNumber = _outputIntent is null
+            ? null : iccProfileNumbers[_outputIntent.Profile];
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
         PdfOptionalContentGroup[] optionalContentGroups = _pages
             .SelectMany(page => page.OptionalContentGroups.Keys)
@@ -1206,6 +1229,17 @@ public sealed partial class PdfDocumentBuilder
         foreach (PdfShading shading in shadings)
             objects.Add(new PdfIndirectObject(
                 shadingNumbers[shading], 0, ShadingDictionary(shading), 0));
+        foreach (PdfIccProfile profile in allIccProfiles)
+            objects.Add(new PdfIndirectObject(iccProfileNumbers[profile], 0,
+                new PdfStream(Dictionary(
+                    ("N", new PdfInteger(profile.ComponentCount)),
+                    ("Alternate", Name(profile.ComponentCount switch
+                    {
+                        1 => "DeviceGray",
+                        3 => "DeviceRGB",
+                        4 => "DeviceCMYK",
+                        _ => throw new NotSupportedException()
+                    }))), profile.Data.Span), 0));
         for (int index = 0; index < allocatedTextNotes.Length; index++)
             AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1);
         for (int index = 0; index < allocatedTextMarkups.Length; index++)
@@ -1243,10 +1277,10 @@ public sealed partial class PdfDocumentBuilder
                 ("Resources", ResourceDictionary(
                     form.Fonts, form.EmbeddedFonts, form.Images,
                     form.OptionalContentGroups, form.GraphicsStates,
-                    form.Shadings, form.Forms, form.Patterns,
+                    form.Shadings, form.Forms, form.Patterns, form.IccColorSpaces, form.SpotColors,
                     fontNumbers, embeddedFonts, imageNumbers,
                     optionalContentNumbers, graphicsStateNumbers,
-                    shadingNumbers, formNumbers, patternNumbers))
+                    shadingNumbers, formNumbers, patternNumbers, iccProfileNumbers))
             };
             if (form.IsolatedTransparencyGroup || form.KnockoutTransparencyGroup)
                 entries.Add(("Group", Dictionary(
@@ -1277,9 +1311,10 @@ public sealed partial class PdfDocumentBuilder
                         pattern.Fonts, pattern.EmbeddedFonts, pattern.Images,
                         pattern.OptionalContentGroups, pattern.GraphicsStates,
                         pattern.Shadings, pattern.Forms, pattern.Patterns,
+                        pattern.IccColorSpaces, pattern.SpotColors,
                         fontNumbers, embeddedFonts, imageNumbers,
                         optionalContentNumbers, graphicsStateNumbers,
-                        shadingNumbers, formNumbers, patternNumbers))), pattern.Content), 0));
+                        shadingNumbers, formNumbers, patternNumbers, iccProfileNumbers))), pattern.Content), 0));
         }
         foreach (AllocatedPage allocatedPage in allocated)
         {
@@ -1288,8 +1323,10 @@ public sealed partial class PdfDocumentBuilder
                 allocatedPage.Definition.Images, allocatedPage.Definition.OptionalContentGroups,
                 allocatedPage.Definition.GraphicsStates, allocatedPage.Definition.Shadings,
                 allocatedPage.Definition.Forms, allocatedPage.Definition.Patterns,
+                allocatedPage.Definition.IccColorSpaces, allocatedPage.Definition.SpotColors,
                 fontNumbers, embeddedFonts, imageNumbers, optionalContentNumbers,
-                graphicsStateNumbers, shadingNumbers, formNumbers, patternNumbers);
+                graphicsStateNumbers, shadingNumbers, formNumbers, patternNumbers,
+                iccProfileNumbers);
             var entries = new List<(string Name, PdfObject Value)>
             {
                 ("Type", Name("Page")),
@@ -1767,10 +1804,6 @@ public sealed partial class PdfDocumentBuilder
         int profileNumber,
         int outputIntentNumber)
     {
-        objects.Add(new PdfIndirectObject(profileNumber, 0,
-            new PdfStream(Dictionary(
-                ("N", new PdfInteger(definition.Profile.ComponentCount))),
-                definition.Profile.Data.Span), 0));
         var entries = new List<(string Name, PdfObject Value)>
         {
             ("Type", Name("OutputIntent")),
@@ -2197,6 +2230,8 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfShading, PdfName> shadings,
         IReadOnlyDictionary<PdfFormXObject, PdfName> forms,
         IReadOnlyDictionary<PdfTilingPattern, PdfName> patterns,
+        IReadOnlyDictionary<PdfIccProfile, PdfName> iccColorSpaces,
+        IReadOnlyDictionary<PdfSpotColor, PdfName> spotColors,
         IReadOnlyDictionary<PdfStandardFont, int> fontNumbers,
         IReadOnlyCollection<AllocatedEmbeddedFont> embeddedFonts,
         IReadOnlyDictionary<PdfImage, int> imageNumbers,
@@ -2204,7 +2239,8 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfGraphicsState, int> graphicsStateNumbers,
         IReadOnlyDictionary<PdfShading, int> shadingNumbers,
         IReadOnlyDictionary<PdfFormXObject, int> formNumbers,
-        IReadOnlyDictionary<PdfTilingPattern, int> patternNumbers)
+        IReadOnlyDictionary<PdfTilingPattern, int> patternNumbers,
+        IReadOnlyDictionary<PdfIccProfile, int> iccProfileNumbers)
     {
         var entries = new List<(string Name, PdfObject Value)>();
         if (fonts.Count > 0 || embeddedFontUsages.Count > 0)
@@ -2241,6 +2277,19 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Pattern", new PdfDictionary(patterns.Select(entry =>
                 new KeyValuePair<PdfName, PdfObject>(entry.Value,
                     new PdfIndirectReference(patternNumbers[entry.Key], 0))))));
+        if (iccColorSpaces.Count > 0 || spotColors.Count > 0)
+        {
+            var colorSpaces = iccColorSpaces.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    new PdfArray([
+                        Name("ICCBased"),
+                        new PdfIndirectReference(iccProfileNumbers[entry.Key], 0)])))
+                .ToList();
+            colorSpaces.AddRange(spotColors.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    SpotColorSpace(entry.Key))));
+            entries.Add(("ColorSpace", new PdfDictionary(colorSpaces)));
+        }
         return Dictionary(entries.ToArray());
     }
 
@@ -2266,6 +2315,20 @@ public sealed partial class PdfDocumentBuilder
                 new PdfBoolean(shading.ExtendStart), new PdfBoolean(shading.ExtendEnd)])),
             ("AntiAlias", new PdfBoolean(true)));
     }
+
+    private static PdfArray SpotColorSpace(PdfSpotColor color) => new([
+        Name("Separation"),
+        new PdfName(Encoding.UTF8.GetBytes(color.Name)),
+        Name("DeviceCMYK"),
+        Dictionary(
+            ("FunctionType", new PdfInteger(2)),
+            ("Domain", new PdfArray([new PdfInteger(0), new PdfInteger(1)])),
+            ("C0", new PdfArray([
+                new PdfInteger(0), new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)])),
+            ("C1", new PdfArray([
+                Number(color.AlternateColor.Cyan), Number(color.AlternateColor.Magenta),
+                Number(color.AlternateColor.Yellow), Number(color.AlternateColor.Black)])),
+            ("N", new PdfInteger(1))) ]);
 
     private static PdfDictionary GradientFunction(IReadOnlyList<PdfGradientStop> stops)
     {
@@ -2445,6 +2508,8 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfShading, PdfName> Shadings,
         IReadOnlyDictionary<PdfFormXObject, PdfName> Forms,
         IReadOnlyDictionary<PdfTilingPattern, PdfName> Patterns,
+        IReadOnlyDictionary<PdfIccProfile, PdfName> IccColorSpaces,
+        IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColors,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
         bool HasUntaggedContent,
