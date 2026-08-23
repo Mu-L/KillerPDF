@@ -79,6 +79,67 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_RemovesPagesAndUpdatesTheFlattenedTreeCount()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage(100, 200)
+            .AddBlankPage(200, 300)
+            .AddBlankPage(300, 400)
+            .Build();
+        PdfDocument original = PdfDocument.Open(source);
+        PdfIndirectReference[] originalPages = FlatPages(original).References;
+        var editor = new PdfIncrementalPageEditor(original);
+
+        byte[] result = editor.RemovePage(1).Build();
+        PdfDocument reopened = PdfDocument.Open(result);
+        (PdfIndirectReference rootReference, PdfIndirectReference[] references, PdfDictionary[] pages) =
+            FlatPages(reopened);
+        PdfDictionary root = ResolveDictionary(reopened, rootReference);
+
+        Assert.Equal(2, editor.PageCount);
+        Assert.Equal(2, Assert.IsType<PdfInteger>(root[Name("Count")]).Value);
+        Assert.Equal([originalPages[0].ObjectNumber, originalPages[2].ObjectNumber],
+            references.Select(reference => reference.ObjectNumber));
+        Assert.Equal([100d, 300d], pages.Select(BoxWidth));
+        Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+    }
+
+    [Fact]
+    public void Build_CanCreateAnEmptyPageTree()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        var editor = new PdfIncrementalPageEditor(PdfDocument.Open(source));
+
+        PdfDocument reopened = PdfDocument.Open(editor.RemovePage(0).Build());
+        (_, PdfIndirectReference[] references, _) = FlatPages(reopened);
+
+        Assert.Empty(references);
+        Assert.Equal(0, editor.PageCount);
+    }
+
+    [Fact]
+    public void Build_ChangesMediaAndCropBoxesWithoutRebuildingThePageTree()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage(612, 792).Build();
+        PdfDocument original = PdfDocument.Open(source);
+        (PdfIndirectReference root, PdfIndirectReference[] references, _) = FlatPages(original);
+
+        byte[] result = new PdfIncrementalPageEditor(original)
+            .SetMediaBox(0, -10, -20, 500, 700)
+            .SetCropBox(0, 20, 30, 400, 600)
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(result);
+        (PdfIndirectReference reopenedRoot, PdfIndirectReference[] reopenedReferences,
+            PdfDictionary[] pages) = FlatPages(reopened);
+
+        Assert.Equal(root.ObjectNumber, reopenedRoot.ObjectNumber);
+        Assert.Equal(references[0].ObjectNumber, reopenedReferences[0].ObjectNumber);
+        Assert.Equal([-10d, -20d, 490d, 680d], Box(pages[0], "MediaBox"));
+        Assert.Equal([20d, 30d, 420d, 630d], Box(pages[0], "CropBox"));
+        Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+    }
+
+    [Fact]
     public void ArgumentsAndEmptyUpdates_AreRejected()
     {
         var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
@@ -86,7 +147,10 @@ public sealed class PdfIncrementalPageEditorTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.MovePage(-1, 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.MovePage(0, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.RemovePage(1));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetRotation(0, 45));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetMediaBox(0, 0, 0, 0, 100));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetCropBox(0, 0, 0, 100, double.NaN));
         Assert.Throws<InvalidOperationException>(() => editor.Build());
     }
 
@@ -119,6 +183,9 @@ public sealed class PdfIncrementalPageEditorTests
         PdfArray box = Assert.IsType<PdfArray>(page[Name("MediaBox")]);
         return Number(box[2]) - Number(box[0]);
     }
+
+    private static double[] Box(PdfDictionary page, string name) =>
+        Assert.IsType<PdfArray>(page[Name(name)]).Select(Number).ToArray();
 
     private static double Number(PdfObject value) => value switch
     {

@@ -277,11 +277,15 @@ if (args.Length == 4 && args[0] == "--pdfa-page-smoke")
         .EnablePdfA4Conformance()
         .AddPage(600, 400, new PdfContentStreamBuilder()
             .SetFillRgb(0.9, 0.15, 0.25).Rectangle(50, 50, 500, 300).Fill())
+        .AddPage(500, 500, new PdfContentStreamBuilder()
+            .SetFillRgb(0.15, 0.7, 0.3).Rectangle(50, 50, 400, 400).Fill())
         .AddPage(400, 600, new PdfContentStreamBuilder()
             .SetFillRgb(0.1, 0.4, 0.9).Rectangle(50, 50, 300, 500).Fill())
         .Build();
     byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+        .RemovePage(1)
         .RotateClockwise(0)
+        .SetCropBox(1, 25, 25, 350, 550)
         .MovePage(0, 1)
         .Build();
     if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
@@ -290,7 +294,7 @@ if (args.Length == 4 && args[0] == "--pdfa-page-smoke")
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(sourcePath, source);
     File.WriteAllBytes(destination, pdf);
-    Console.WriteLine($"Reordered two pages and rotated one in {pdf.Length - source.Length:N0} appended bytes to {destination}");
+    Console.WriteLine($"Removed one page, reordered two, rotated one, and cropped one in {pdf.Length - source.Length:N0} appended bytes to {destination}");
     return 0;
 }
 

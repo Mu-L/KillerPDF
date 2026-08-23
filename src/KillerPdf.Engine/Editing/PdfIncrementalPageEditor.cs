@@ -12,6 +12,7 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName ParentName = Name("Parent");
     private static readonly PdfName RotateName = Name("Rotate");
     private static readonly PdfName MediaBoxName = Name("MediaBox");
+    private static readonly PdfName CropBoxName = Name("CropBox");
     private static readonly PdfName[] InheritableNames =
     [
         Name("Resources"), MediaBoxName, Name("CropBox"), RotateName
@@ -22,6 +23,7 @@ public sealed class PdfIncrementalPageEditor
     private readonly List<PageState> _pages;
     private bool _orderChanged;
     private bool _rotationChanged;
+    private bool _pageBoxesChanged;
 
     public PdfIncrementalPageEditor(PdfDocument document)
     {
@@ -45,6 +47,15 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Removes a page from the current page order.</summary>
+    public PdfIncrementalPageEditor RemovePage(int pageIndex)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages.RemoveAt(pageIndex);
+        _orderChanged = true;
+        return this;
+    }
+
     public PdfIncrementalPageEditor RotateClockwise(int pageIndex) => Rotate(pageIndex, 90);
     public PdfIncrementalPageEditor RotateCounterClockwise(int pageIndex) => Rotate(pageIndex, -90);
 
@@ -58,15 +69,35 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Sets the page's media box from an origin, width, and height in PDF points.</summary>
+    public PdfIncrementalPageEditor SetMediaBox(
+        int pageIndex, double x, double y, double width, double height)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].MediaBox = Rectangle(x, y, width, height);
+        _pageBoxesChanged = true;
+        return this;
+    }
+
+    /// <summary>Sets the page's visible crop box from an origin, width, and height in PDF points.</summary>
+    public PdfIncrementalPageEditor SetCropBox(
+        int pageIndex, double x, double y, double width, double height)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].CropBox = Rectangle(x, y, width, height);
+        _pageBoxesChanged = true;
+        return this;
+    }
+
     public byte[] Build()
     {
-        if (!_orderChanged && !_rotationChanged)
+        if (!_orderChanged && !_rotationChanged && !_pageBoxesChanged)
             throw new InvalidOperationException("The incremental page update is empty.");
         var update = new PdfIncrementalUpdateBuilder(_document);
         if (_orderChanged)
             BuildReorderedTree(update);
         else
-            BuildRotations(update);
+            BuildPageChanges(update);
         return update.Build();
     }
 
@@ -79,11 +110,21 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
-    private void BuildRotations(PdfIncrementalUpdateBuilder update)
+    private void BuildPageChanges(PdfIncrementalUpdateBuilder update)
     {
-        foreach (PageState state in _pages.Where(page => page.Rotation.HasValue))
+        foreach (PageState state in _pages.Where(page =>
+                     page.Rotation.HasValue || page.MediaBox is not null || page.CropBox is not null))
+        {
+            var replacements = new Dictionary<PdfName, PdfObject>();
+            if (state.Rotation.HasValue)
+                replacements[RotateName] = new PdfInteger(state.Rotation.Value);
+            if (state.MediaBox is not null)
+                replacements[MediaBoxName] = state.MediaBox;
+            if (state.CropBox is not null)
+                replacements[CropBoxName] = state.CropBox;
             update.ReplaceObject(state.Entry.Reference.ObjectNumber,
-                Replace(state.Entry.Dictionary, RotateName, new PdfInteger(state.Rotation!.Value)));
+                ReplaceMany(state.Entry.Dictionary, replacements));
+        }
     }
 
     private void BuildReorderedTree(PdfIncrementalUpdateBuilder update)
@@ -109,6 +150,10 @@ public sealed class PdfIncrementalPageEditor
                     replacements[name] = value;
             if (state.Rotation.HasValue)
                 replacements[RotateName] = new PdfInteger(state.Rotation.Value);
+            if (state.MediaBox is not null)
+                replacements[MediaBoxName] = state.MediaBox;
+            if (state.CropBox is not null)
+                replacements[CropBoxName] = state.CropBox;
             update.ReplaceObject(state.Entry.Reference.ObjectNumber,
                 ReplaceMany(state.Entry.Dictionary, replacements));
         }
@@ -131,26 +176,57 @@ public sealed class PdfIncrementalPageEditor
         return normalized < 0 ? normalized + 360 : normalized;
     }
 
+    private static PdfArray Rectangle(double x, double y, double width, double height)
+    {
+        ValidateFinite(x, nameof(x));
+        ValidateFinite(y, nameof(y));
+        ValidatePositiveFinite(width, nameof(width));
+        ValidatePositiveFinite(height, nameof(height));
+        double right = x + width;
+        double top = y + height;
+        ValidateFinite(right, nameof(width));
+        ValidateFinite(top, nameof(height));
+        return new PdfArray([Number(x), Number(y), Number(right), Number(top)]);
+    }
+
+    private static void ValidateFinite(double value, string parameterName)
+    {
+        if (!double.IsFinite(value))
+            throw new ArgumentOutOfRangeException(parameterName, "Page-box coordinates must be finite.");
+    }
+
+    private static void ValidatePositiveFinite(double value, string parameterName)
+    {
+        if (!double.IsFinite(value) || value <= 0)
+            throw new ArgumentOutOfRangeException(parameterName, "Page-box dimensions must be finite and positive.");
+    }
+
     private void ValidateIndex(int pageIndex, string parameterName)
     {
         if (pageIndex < 0 || pageIndex >= _pages.Count)
             throw new ArgumentOutOfRangeException(parameterName);
     }
 
-    private static PdfDictionary Replace(PdfDictionary source, PdfName name, PdfObject value) =>
-        ReplaceMany(source, new Dictionary<PdfName, PdfObject> { [name] = value });
-
     private static PdfDictionary ReplaceMany(
         PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements) =>
         new(source.Where(entry => !replacements.ContainsKey(entry.Key)).Concat(replacements));
 
+    private static PdfDictionary Replace(PdfDictionary source, PdfName name, PdfObject value) =>
+        ReplaceMany(source, new Dictionary<PdfName, PdfObject> { [name] = value });
+
     private static PdfDictionary Dictionary(params (string Name, PdfObject Value)[] entries) =>
         new(entries.Select(entry => new KeyValuePair<PdfName, PdfObject>(Name(entry.Name), entry.Value)));
+    private static PdfObject Number(double value) => value == Math.Truncate(value)
+        && value >= long.MinValue && value <= long.MaxValue
+            ? new PdfInteger((long)value)
+            : new PdfReal(value);
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 
     private sealed class PageState(PdfPageTreeEntry entry)
     {
         internal PdfPageTreeEntry Entry { get; } = entry;
         internal int? Rotation { get; set; }
+        internal PdfArray? MediaBox { get; set; }
+        internal PdfArray? CropBox { get; set; }
     }
 }
