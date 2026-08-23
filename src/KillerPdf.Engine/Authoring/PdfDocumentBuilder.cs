@@ -96,7 +96,8 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfImage, PdfName>(),
             new Dictionary<PdfOptionalContentGroup, PdfName>(),
             new Dictionary<PdfGraphicsState, PdfName>(),
-            new Dictionary<PdfShading, PdfName>(), [], [], content.Length > 0));
+            new Dictionary<PdfShading, PdfName>(),
+            new Dictionary<PdfFormXObject, PdfName>(), [], [], content.Length > 0));
         return this;
     }
 
@@ -114,7 +115,8 @@ public sealed partial class PdfDocumentBuilder
             content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.OptionalContentResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.GraphicsStateResources.ToDictionary(entry => entry.Key, entry => entry.Value),
-            content.ShadingResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.ShadingResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.FormResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent));
         return this;
     }
@@ -490,6 +492,15 @@ public sealed partial class PdfDocumentBuilder
     public byte[] Build()
     {
         bool pdfA4 = _pdfA4Flavor != PdfA4Flavor.None;
+        var forms = new List<PdfFormXObject>();
+        var knownForms = new HashSet<PdfFormXObject>();
+        void AddForm(PdfFormXObject form)
+        {
+            if (!knownForms.Add(form)) return;
+            forms.Add(form);
+            foreach (PdfFormXObject nested in form.Forms.Keys) AddForm(nested);
+        }
+        foreach (PdfFormXObject form in _pages.SelectMany(page => page.Forms.Keys)) AddForm(form);
         if (_pdfUa2Conformance && (Metadata is null
             || string.IsNullOrWhiteSpace(Metadata.Title)
             || string.IsNullOrWhiteSpace(Metadata.Language)))
@@ -500,7 +511,8 @@ public sealed partial class PdfDocumentBuilder
             || _structureElements[0].Type != PdfStructureType.Document))
             throw new InvalidOperationException(
                 "PDF/UA-2 authoring requires one top-level Document structure element.");
-        if (_pdfUa2Conformance && _pages.Any(page => page.Fonts.Count > 0))
+        if (_pdfUa2Conformance && (_pages.Any(page => page.Fonts.Count > 0)
+            || forms.Any(form => form.Fonts.Count > 0)))
             throw new InvalidOperationException(
                 "PDF/UA-2 authoring requires embedded fonts for page text.");
         if (_pdfUa2Conformance && _pages.Any(page => page.HasUntaggedContent))
@@ -528,7 +540,8 @@ public sealed partial class PdfDocumentBuilder
             throw new InvalidOperationException("PDF/A-4 authoring requires XMP document metadata.");
         if (pdfA4 && _outputIntent is null)
             throw new InvalidOperationException("PDF/A-4 authoring requires an ICC output intent.");
-        if (pdfA4 && _pages.Any(page => page.Fonts.Count > 0))
+        if (pdfA4 && (_pages.Any(page => page.Fonts.Count > 0)
+            || forms.Any(form => form.Fonts.Count > 0)))
             throw new InvalidOperationException("PDF/A-4 authoring requires embedded fonts; the 14 built-in PDF fonts are not embedded.");
         if (pdfA4 && (_textFields.Any(field => field.EmbeddedFont is null)
             || _choiceFields.Any(field => field.EmbeddedFont is null)))
@@ -578,6 +591,7 @@ public sealed partial class PdfDocumentBuilder
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
         PdfOptionalContentGroup[] optionalContentGroups = _pages
             .SelectMany(page => page.OptionalContentGroups.Keys)
+            .Concat(forms.SelectMany(form => form.OptionalContentGroups.Keys))
             .Distinct()
             .OrderBy(group => group.Name, StringComparer.Ordinal)
             .ToArray();
@@ -591,6 +605,7 @@ public sealed partial class PdfDocumentBuilder
             .ToDictionary(group => group, _ => nextObjectNumber++);
         PdfGraphicsState[] graphicsStates = _pages
             .SelectMany(page => page.GraphicsStates.Keys)
+            .Concat(forms.SelectMany(form => form.GraphicsStates.Keys))
             .Distinct()
             .OrderBy(state => state.FillOpacity)
             .ThenBy(state => state.StrokeOpacity)
@@ -599,8 +614,10 @@ public sealed partial class PdfDocumentBuilder
         var graphicsStateNumbers = graphicsStates
             .ToDictionary(state => state, _ => nextObjectNumber++);
         PdfShading[] shadings = _pages.SelectMany(page => page.Shadings.Keys)
+            .Concat(forms.SelectMany(form => form.Shadings.Keys))
             .Distinct().ToArray();
         var shadingNumbers = shadings.ToDictionary(shading => shading, _ => nextObjectNumber++);
+        var formNumbers = forms.ToDictionary(form => form, _ => nextObjectNumber++);
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
             .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
@@ -622,7 +639,8 @@ public sealed partial class PdfDocumentBuilder
             formFontUsages.Add(usage);
         }
         var fontNumbers = new Dictionary<PdfStandardFont, int>();
-        IEnumerable<PdfStandardFont> requestedStandardFonts = _pages.SelectMany(page => page.Fonts.Keys);
+        IEnumerable<PdfStandardFont> requestedStandardFonts = _pages.SelectMany(page => page.Fonts.Keys)
+            .Concat(forms.SelectMany(form => form.Fonts.Keys));
         if (_textFields.Any(field => field.EmbeddedFont is null)
             || _choiceFields.Any(field => field.EmbeddedFont is null))
             requestedStandardFonts = requestedStandardFonts.Append(PdfStandardFont.Helvetica);
@@ -630,7 +648,9 @@ public sealed partial class PdfDocumentBuilder
             fontNumbers.Add(font, nextObjectNumber++);
         var embeddedFonts = new List<AllocatedEmbeddedFont>();
         foreach (IGrouping<TrueTypeFont, EmbeddedFontUsage> group in
-            _pages.SelectMany(page => page.EmbeddedFonts).Concat(formFontUsages)
+            _pages.SelectMany(page => page.EmbeddedFonts)
+                .Concat(forms.SelectMany(form => form.EmbeddedFonts))
+                .Concat(formFontUsages)
                 .GroupBy(usage => usage.Font))
         {
             var mappings = new SortedDictionary<ushort, int>();
@@ -647,6 +667,7 @@ public sealed partial class PdfDocumentBuilder
         }
         var imageNumbers = new Dictionary<PdfImage, int>();
         foreach (PdfImage image in _pages.SelectMany(page => page.Images.Keys)
+            .Concat(forms.SelectMany(form => form.Images.Keys))
             .Concat(_imageStamps.Select(stamp => stamp.Image)).Distinct())
             AddImageAndMask(image);
         void AddImageAndMask(PdfImage image)
@@ -1062,52 +1083,41 @@ public sealed partial class PdfDocumentBuilder
             objects.Add(new PdfIndirectObject(number, 0,
                 PdfImageXObjectFactory.Create(image, image.SoftMask is null ? null
                     : new PdfIndirectReference(imageNumbers[image.SoftMask], 0)), 0));
+        foreach (PdfFormXObject form in forms)
+        {
+            var entries = new List<(string Name, PdfObject Value)>
+            {
+                ("Type", Name("XObject")),
+                ("Subtype", Name("Form")),
+                ("FormType", new PdfInteger(1)),
+                ("BBox", new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    Number(form.Width), Number(form.Height)])),
+                ("Resources", ResourceDictionary(
+                    form.Fonts, form.EmbeddedFonts, form.Images,
+                    form.OptionalContentGroups, form.GraphicsStates,
+                    form.Shadings, form.Forms,
+                    fontNumbers, embeddedFonts, imageNumbers,
+                    optionalContentNumbers, graphicsStateNumbers,
+                    shadingNumbers, formNumbers))
+            };
+            if (form.IsolatedTransparencyGroup || form.KnockoutTransparencyGroup)
+                entries.Add(("Group", Dictionary(
+                    ("S", Name("Transparency")),
+                    ("I", new PdfBoolean(form.IsolatedTransparencyGroup)),
+                    ("K", new PdfBoolean(form.KnockoutTransparencyGroup)))));
+            objects.Add(new PdfIndirectObject(formNumbers[form], 0,
+                new PdfStream(Dictionary(entries.ToArray()), form.Content), 0));
+        }
         foreach (AllocatedPage allocatedPage in allocated)
         {
-            PdfDictionary resources = Dictionary();
-            var resourceEntries = new List<(string Name, PdfObject Value)>();
-            if (allocatedPage.Definition.Fonts.Count > 0 || allocatedPage.Definition.EmbeddedFonts.Count > 0)
-            {
-                var fontEntries = allocatedPage.Definition.Fonts.Select(entry =>
-                    new KeyValuePair<PdfName, PdfObject>(
-                        entry.Value,
-                        new PdfIndirectReference(fontNumbers[entry.Key], 0))).ToList();
-                fontEntries.AddRange(allocatedPage.Definition.EmbeddedFonts.Select(usage =>
-                    new KeyValuePair<PdfName, PdfObject>(
-                        usage.ResourceName,
-                        new PdfIndirectReference(
-                            embeddedFonts.Single(font => ReferenceEquals(font.Font, usage.Font)).Type0Number, 0))));
-                resourceEntries.Add(("Font", new PdfDictionary(fontEntries)));
-            }
-            if (allocatedPage.Definition.Images.Count > 0)
-            {
-                var imageEntries = allocatedPage.Definition.Images.Select(entry =>
-                    new KeyValuePair<PdfName, PdfObject>(entry.Value,
-                        new PdfIndirectReference(imageNumbers[entry.Key], 0)));
-                resourceEntries.Add(("XObject", new PdfDictionary(imageEntries)));
-            }
-            if (allocatedPage.Definition.OptionalContentGroups.Count > 0)
-            {
-                var propertyEntries = allocatedPage.Definition.OptionalContentGroups.Select(entry =>
-                    new KeyValuePair<PdfName, PdfObject>(entry.Value,
-                        new PdfIndirectReference(optionalContentNumbers[entry.Key], 0)));
-                resourceEntries.Add(("Properties", new PdfDictionary(propertyEntries)));
-            }
-            if (allocatedPage.Definition.GraphicsStates.Count > 0)
-            {
-                var stateEntries = allocatedPage.Definition.GraphicsStates.Select(entry =>
-                    new KeyValuePair<PdfName, PdfObject>(entry.Value,
-                        new PdfIndirectReference(graphicsStateNumbers[entry.Key], 0)));
-                resourceEntries.Add(("ExtGState", new PdfDictionary(stateEntries)));
-            }
-            if (allocatedPage.Definition.Shadings.Count > 0)
-            {
-                var shadingEntries = allocatedPage.Definition.Shadings.Select(entry =>
-                    new KeyValuePair<PdfName, PdfObject>(entry.Value,
-                        new PdfIndirectReference(shadingNumbers[entry.Key], 0)));
-                resourceEntries.Add(("Shading", new PdfDictionary(shadingEntries)));
-            }
-            resources = Dictionary(resourceEntries.ToArray());
+            PdfDictionary resources = ResourceDictionary(
+                allocatedPage.Definition.Fonts, allocatedPage.Definition.EmbeddedFonts,
+                allocatedPage.Definition.Images, allocatedPage.Definition.OptionalContentGroups,
+                allocatedPage.Definition.GraphicsStates, allocatedPage.Definition.Shadings,
+                allocatedPage.Definition.Forms,
+                fontNumbers, embeddedFonts, imageNumbers, optionalContentNumbers,
+                graphicsStateNumbers, shadingNumbers, formNumbers);
             var entries = new List<(string Name, PdfObject Value)>
             {
                 ("Type", Name("Page")),
@@ -1975,6 +1985,56 @@ public sealed partial class PdfDocumentBuilder
             output.WriteByte(checked((byte)character));
     }
 
+    private static PdfDictionary ResourceDictionary(
+        IReadOnlyDictionary<PdfStandardFont, PdfName> fonts,
+        IReadOnlyCollection<EmbeddedFontUsage> embeddedFontUsages,
+        IReadOnlyDictionary<PdfImage, PdfName> images,
+        IReadOnlyDictionary<PdfOptionalContentGroup, PdfName> optionalContentGroups,
+        IReadOnlyDictionary<PdfGraphicsState, PdfName> graphicsStates,
+        IReadOnlyDictionary<PdfShading, PdfName> shadings,
+        IReadOnlyDictionary<PdfFormXObject, PdfName> forms,
+        IReadOnlyDictionary<PdfStandardFont, int> fontNumbers,
+        IReadOnlyCollection<AllocatedEmbeddedFont> embeddedFonts,
+        IReadOnlyDictionary<PdfImage, int> imageNumbers,
+        IReadOnlyDictionary<PdfOptionalContentGroup, int> optionalContentNumbers,
+        IReadOnlyDictionary<PdfGraphicsState, int> graphicsStateNumbers,
+        IReadOnlyDictionary<PdfShading, int> shadingNumbers,
+        IReadOnlyDictionary<PdfFormXObject, int> formNumbers)
+    {
+        var entries = new List<(string Name, PdfObject Value)>();
+        if (fonts.Count > 0 || embeddedFontUsages.Count > 0)
+        {
+            var values = fonts.Select(entry => new KeyValuePair<PdfName, PdfObject>(
+                entry.Value, new PdfIndirectReference(fontNumbers[entry.Key], 0))).ToList();
+            values.AddRange(embeddedFontUsages.Select(usage =>
+                new KeyValuePair<PdfName, PdfObject>(usage.ResourceName,
+                    new PdfIndirectReference(embeddedFonts.Single(font =>
+                        ReferenceEquals(font.Font, usage.Font)).Type0Number, 0))));
+            entries.Add(("Font", new PdfDictionary(values)));
+        }
+        if (images.Count > 0 || forms.Count > 0)
+        {
+            var values = images.Select(entry => new KeyValuePair<PdfName, PdfObject>(
+                entry.Value, new PdfIndirectReference(imageNumbers[entry.Key], 0))).ToList();
+            values.AddRange(forms.Select(entry => new KeyValuePair<PdfName, PdfObject>(
+                entry.Value, new PdfIndirectReference(formNumbers[entry.Key], 0))));
+            entries.Add(("XObject", new PdfDictionary(values)));
+        }
+        if (optionalContentGroups.Count > 0)
+            entries.Add(("Properties", new PdfDictionary(optionalContentGroups.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    new PdfIndirectReference(optionalContentNumbers[entry.Key], 0))))));
+        if (graphicsStates.Count > 0)
+            entries.Add(("ExtGState", new PdfDictionary(graphicsStates.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    new PdfIndirectReference(graphicsStateNumbers[entry.Key], 0))))));
+        if (shadings.Count > 0)
+            entries.Add(("Shading", new PdfDictionary(shadings.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    new PdfIndirectReference(shadingNumbers[entry.Key], 0))))));
+        return Dictionary(entries.ToArray());
+    }
+
     private static PdfDictionary ShadingDictionary(PdfShading shading)
     {
         PdfArray coordinates = shading switch
@@ -2052,6 +2112,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfOptionalContentGroup, PdfName> OptionalContentGroups,
         IReadOnlyDictionary<PdfGraphicsState, PdfName> GraphicsStates,
         IReadOnlyDictionary<PdfShading, PdfName> Shadings,
+        IReadOnlyDictionary<PdfFormXObject, PdfName> Forms,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
         bool HasUntaggedContent);

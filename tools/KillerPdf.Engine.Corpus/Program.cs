@@ -405,6 +405,50 @@ if (args.Length == 3 && args[0] == "--gradient-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--form-xobject-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    var gradient = new PdfAxialGradient(0, 0, 180, 0, [
+        new PdfGradientStop(0, new PdfRgbColor(0.08, 0.2, 0.65)),
+        new PdfGradientStop(0.5, new PdfRgbColor(0.1, 0.75, 0.8)),
+        new PdfGradientStop(1, new PdfRgbColor(0.95, 0.75, 0.15))]);
+    var emblem = new PdfFormXObject(180, 80, new PdfContentStreamBuilder()
+        .SetOpacity(0.92)
+        .Rectangle(0, 0, 180, 80).Clip()
+        .PaintShading(gradient), isolatedTransparencyGroup: true);
+    var card = new PdfFormXObject(220, 120, new PdfContentStreamBuilder()
+        .SetFillRgb(0.12, 0.12, 0.16).Rectangle(0, 0, 220, 120).Fill()
+        .DrawForm(emblem, 20, 20));
+    var content = new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .DrawForm(card, 72, 560)
+        .DrawForm(card, 330, 560, 176, 96)
+        .EndMarkedContent();
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF reusable form smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "Two reusable gradient cards")
+        .Build();
+    byte[] target = new PdfDocumentBuilder().Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(PdfDocument.Open(source))
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte Form XObject PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--form-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -775,6 +819,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --signature-smoke <openssl.exe> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --transparency-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --gradient-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --form-xobject-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");

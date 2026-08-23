@@ -15,6 +15,7 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<PdfOptionalContentGroup, PdfName> _optionalContentGroups = [];
     private readonly Dictionary<PdfGraphicsState, PdfName> _graphicsStates = [];
     private readonly Dictionary<PdfShading, PdfName> _shadings = [];
+    private readonly Dictionary<PdfFormXObject, PdfName> _forms = [];
     private int _savedStateDepth;
     private readonly Stack<bool> _markedContentStack = [];
     private int _accessibleMarkedContentDepth;
@@ -32,6 +33,7 @@ public sealed class PdfContentStreamBuilder
     internal IReadOnlyDictionary<PdfGraphicsState, PdfName> GraphicsStateResources =>
         _graphicsStates;
     internal IReadOnlyDictionary<PdfShading, PdfName> ShadingResources => _shadings;
+    internal IReadOnlyDictionary<PdfFormXObject, PdfName> FormResources => _forms;
     internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
     internal bool HasUntaggedContent => _hasUntaggedContent;
 
@@ -154,6 +156,38 @@ public sealed class PdfContentStreamBuilder
         RecordPaintedContent();
         _output.Write(PdfObjectWriter.Write(resource));
         _output.Write(" sh\n"u8);
+        return this;
+    }
+
+    /// <summary>Places reusable form content at its natural size.</summary>
+    public PdfContentStreamBuilder DrawForm(PdfFormXObject form, double x, double y)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        return DrawForm(form, x, y, form.Width, form.Height);
+    }
+
+    /// <summary>Places reusable form content in the requested rectangle.</summary>
+    public PdfContentStreamBuilder DrawForm(
+        PdfFormXObject form, double x, double y, double width, double height)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        if (!double.IsFinite(x)) throw new ArgumentOutOfRangeException(nameof(x));
+        if (!double.IsFinite(y)) throw new ArgumentOutOfRangeException(nameof(y));
+        if (!double.IsFinite(width) || width == 0)
+            throw new ArgumentOutOfRangeException(nameof(width));
+        if (!double.IsFinite(height) || height == 0)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        if (!_forms.TryGetValue(form, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"Fm{_forms.Count + 1}"));
+            _forms.Add(form, resource);
+        }
+        RecordPaintedContent();
+        WriteOperator("q"u8);
+        Operator("cm"u8, width / form.Width, 0, 0, height / form.Height, x, y);
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" Do\n"u8);
+        WriteOperator("Q"u8);
         return this;
     }
 
