@@ -710,7 +710,46 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values,
-            selectedValue ?? values[0], editable, fontSize, embeddedFont,
+            selectedValue ?? values[0], IsComboBox: true, editable, fontSize, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddListBox(
+        int pageIndex,
+        string name,
+        double x,
+        double y,
+        double width,
+        double height,
+        IEnumerable<string> options,
+        string? selectedValue = null,
+        double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        ArgumentNullException.ThrowIfNull(options);
+        string[] values = options.ToArray();
+        if (values.Length == 0 || values.Any(string.IsNullOrEmpty))
+            throw new ArgumentException("List-box options cannot be empty.", nameof(options));
+        if (values.Distinct(StringComparer.Ordinal).Count() != values.Length)
+            throw new ArgumentException("List-box options must be unique.", nameof(options));
+        if (selectedValue is not null && !values.Contains(selectedValue, StringComparer.Ordinal))
+            throw new ArgumentException("A list-box value must be one of its options.", nameof(selectedValue));
+        if (embeddedFont is null && values.Any(value => value.Any(character => character > 0xFF)))
+            throw new ArgumentException("List-box options require an embedded font for Unicode text.", nameof(options));
+        if (embeddedFont is not null)
+            foreach (string value in values)
+                ValidateFormFontText(embeddedFont, value, nameof(options));
+        if (!double.IsFinite(fontSize) || fontSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
+        _choiceFields.Add(new ChoiceFieldDefinition(
+            pageIndex, name, x, y, width, height, values,
+            selectedValue ?? values[0], IsComboBox: false, Editable: false, fontSize, embeddedFont,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -2176,7 +2215,9 @@ public sealed partial class PdfDocumentBuilder
         int fontNumber)
     {
         ChoiceFieldDefinition field = allocatedField.Definition;
-        int flags = (1 << 17) | (field.Editable ? 1 << 18 : 0) | FormFieldFlags(field.FieldOptions);
+        int flags = (field.IsComboBox ? 1 << 17 : 0)
+            | (field.Editable ? 1 << 18 : 0)
+            | FormFieldFlags(field.FieldOptions);
         var entries = new List<(string Name, PdfObject Value)>
         {
                 ("Type", Name("Annot")),
@@ -2198,9 +2239,11 @@ public sealed partial class PdfDocumentBuilder
         objects.Add(new PdfIndirectObject(
             allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
-        byte[] appearance = BuildSimpleTextAppearance(
-            field.Width, field.Height, field.FontSize, field.SelectedValue,
-            fontResource, field.EmbeddedFont);
+        byte[] appearance = field.IsComboBox
+            ? BuildSimpleTextAppearance(
+                field.Width, field.Height, field.FontSize, field.SelectedValue,
+                fontResource, field.EmbeddedFont)
+            : BuildListBoxAppearance(field, fontResource);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -2229,6 +2272,37 @@ public sealed partial class PdfDocumentBuilder
         WriteAscii(output, $"BT\n{NameToken(fontResource)} {FormatNumber(fontSize)} Tf\n0 g\n3 {FormatNumber(Math.Max(1, (height - fontSize) / 2))} Td\n");
         WriteShownText(output, value, embeddedFont);
         output.Write("ET\nQ\n"u8);
+        return output.ToArray();
+    }
+
+    private static byte[] BuildListBoxAppearance(ChoiceFieldDefinition field, PdfName fontResource)
+    {
+        using var output = new MemoryStream();
+        WriteAscii(output,
+            $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
+            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} {FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n" +
+            $"1 1 {FormatNumber(Math.Max(0, field.Width - 2))} {FormatNumber(Math.Max(0, field.Height - 2))} re\nW\nn\n");
+        double rowHeight = Math.Max(field.FontSize * 1.2, field.FontSize + 2);
+        double rowTop = field.Height - 1;
+        foreach (string option in field.Options)
+        {
+            double rowBottom = rowTop - rowHeight;
+            if (rowTop <= 1)
+                break;
+            if (string.Equals(option, field.SelectedValue, StringComparison.Ordinal))
+            {
+                WriteAscii(output,
+                    $"0.75 g\n1 {FormatNumber(Math.Max(1, rowBottom))} " +
+                    $"{FormatNumber(Math.Max(0, field.Width - 2))} {FormatNumber(rowHeight)} re\nf\n");
+            }
+            WriteAscii(output,
+                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+                $"3 {FormatNumber(Math.Max(1, rowBottom + (rowHeight - field.FontSize) / 2))} Td\n");
+            WriteShownText(output, option, field.EmbeddedFont);
+            output.Write("ET\n"u8);
+            rowTop = rowBottom;
+        }
+        output.Write("Q\n"u8);
         return output.ToArray();
     }
 
@@ -3230,7 +3304,7 @@ public sealed partial class PdfDocumentBuilder
         int OnAppearanceNumber);
     private sealed record ChoiceFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        IReadOnlyList<string> Options, string SelectedValue, bool Editable, double FontSize,
+        IReadOnlyList<string> Options, string SelectedValue, bool IsComboBox, bool Editable, double FontSize,
         TrueTypeFont? EmbeddedFont, PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
     private sealed record AllocatedChoiceField(
         ChoiceFieldDefinition Definition, int FieldNumber, int AppearanceNumber);

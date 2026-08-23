@@ -695,6 +695,9 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .AddComboBox(0, "customer.theme", 72, 630, 180, 24,
             ["Dark", "Mourning", "98SE"], "Mourning", embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Theme", MappingName = "customer_theme" })
+        .AddListBox(0, "customer.features", 300, 590, 180, 72,
+            ["Annotations", "Forms", "PDF/A"], "Forms", embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Features", MappingName = "customer_features" })
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Approved", MappingName = "customer_approved" })
         .AddRadioGroup("customer.plan", [

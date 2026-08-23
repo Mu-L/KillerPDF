@@ -46,6 +46,41 @@ public sealed class PdfChoiceFieldTests
             0, "selection", 0, 0, 100, 20, ["A", "B"], "C"));
     }
 
+    [Fact]
+    public void AddListBox_WritesChoiceFieldWithoutComboFlag()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddListBox(0, "theme", 72, 600, 180, 72,
+                ["Dark", "Mourning", "98SE"], "98SE",
+                fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Theme list" },
+                fieldOptions: new PdfFormFieldOptions { Required = true })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+
+        Assert.Equal("Ch", Assert.IsType<PdfName>(field[Name("FT")]).ValueAsLatin1());
+        Assert.Equal(1 << 1, Assert.IsType<PdfInteger>(field[Name("Ff")]).Value);
+        Assert.Equal("98SE", DecodeUnicode(Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Equal("Theme list", DecodeUnicode(Assert.IsType<PdfString>(field[Name("TU")])));
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+        Assert.Contains("(Dark) Tj", content);
+        Assert.Contains("(Mourning) Tj", content);
+        Assert.Contains("(98SE) Tj", content);
+    }
+
+    [Fact]
+    public void AddListBox_ValidatesOptionsAndSelection()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+        Assert.Throws<ArgumentException>(() => builder.AddListBox(0, "empty", 0, 0, 100, 40, []));
+        Assert.Throws<ArgumentException>(() => builder.AddListBox(0, "duplicate", 0, 0, 100, 40, ["A", "A"]));
+        Assert.Throws<ArgumentException>(() => builder.AddListBox(0, "selection", 0, 0, 100, 40, ["A", "B"], "C"));
+    }
+
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
