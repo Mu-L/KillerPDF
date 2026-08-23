@@ -32,6 +32,7 @@ public sealed class PdfDocument
     public PdfCrossReferenceTable CrossReferences { get; }
     public PdfHeader Header => CrossReferences.Header;
     public PdfDictionary Trailer => CrossReferences.LatestTrailer;
+    internal ReadOnlyMemory<byte> Source => _source;
 
     public static PdfDocument Open(ReadOnlyMemory<byte> source)
     {
