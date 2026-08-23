@@ -158,6 +158,37 @@ if (args.Length == 2 && args[0] == "--tagged-smoke")
     return 0;
 }
 
+if (args.Length == 2 && args[0] == "--tagged-import-smoke")
+{
+    string destination = Path.GetFullPath(args[1]);
+    var content = new PdfContentStreamBuilder()
+        .BeginArtifact().SetStrokeGray(0.5).Rectangle(36, 36, 540, 720).Stroke()
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .SetFillRgb(0.9, 0.2, 0.4).Rectangle(72, 600, 240, 100).Fill()
+        .EndMarkedContent();
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF imported tagged document smoke test",
+            Language = "en-US"
+        })
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "A pink rectangle")
+        .Build();
+    byte[] target = new PdfDocumentBuilder().Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(PdfDocument.Open(source))
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte imported tagged PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--form-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -523,6 +554,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
     Console.WriteLine("       KillerPdf.Engine.Corpus --authoring-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");

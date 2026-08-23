@@ -219,6 +219,111 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_PreservesCompleteTaggedDocumentStructureAndAccessibilityMetadata()
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Figure, 0)
+            .Rectangle(10, 10, 20, 20).Fill()
+            .EndMarkedContent();
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Imported accessible document",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+                alternateDescription: "A square")
+            .Build();
+        byte[] targetBytes = new PdfDocumentBuilder().Build();
+
+        byte[] result = new PdfIncrementalPageEditor(PdfDocument.Open(targetBytes))
+            .AddImportedDocument(PdfDocument.Open(sourceBytes))
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(result);
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary structureRoot = ResolveDictionary(reopened, catalog[Name("StructTreeRoot")]);
+        PdfDictionary markInfo = Assert.IsType<PdfDictionary>(catalog[Name("MarkInfo")]);
+        PdfDictionary viewerPreferences = Assert.IsType<PdfDictionary>(
+            catalog[Name("ViewerPreferences")]);
+        PdfStream metadata = ResolveStream(reopened, catalog[Name("Metadata")]);
+        PdfDictionary page = FlatPages(reopened).Pages[0];
+        PdfDictionary parentTree = ResolveDictionary(reopened, structureRoot[Name("ParentTree")]);
+        PdfArray parentNumbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        PdfArray mapping = Assert.IsType<PdfArray>(parentNumbers[1]);
+        PdfDictionary documentElement = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(structureRoot[Name("K")])[0]);
+        PdfIndirectReference figureReference = Assert.IsType<PdfIndirectReference>(
+            documentElement[Name("K")]);
+        PdfDictionary figure = ResolveDictionary(reopened, figureReference);
+
+        Assert.True(result.AsSpan(0, targetBytes.Length).SequenceEqual(targetBytes));
+        Assert.True(Assert.IsType<PdfBoolean>(markInfo[Name("Marked")]).Value);
+        Assert.True(Assert.IsType<PdfBoolean>(
+            viewerPreferences[Name("DisplayDocTitle")]).Value);
+        Assert.Equal("en-US", DecodeUnicode(Assert.IsType<PdfString>(catalog[Name("Lang")])));
+        Assert.Contains("pdfuaid:part", Encoding.UTF8.GetString(metadata.EncodedData.Span));
+        Assert.Equal(0, Assert.IsType<PdfInteger>(page[Name("StructParents")]).Value);
+        Assert.Equal(0, Assert.IsType<PdfInteger>(parentNumbers[0]).Value);
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(mapping[0]).ObjectNumber,
+            figureReference.ObjectNumber);
+        Assert.Equal(FlatPages(reopened).References[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(figure[Name("Pg")]).ObjectNumber);
+        Assert.Equal("A square", DecodeUnicode(Assert.IsType<PdfString>(figure[Name("Alt")])));
+    }
+
+    [Fact]
+    public void TaggedImports_RejectPartialOrCombinedPageSets()
+    {
+        PdfDocument tagged = PdfDocument.Open(BuildTaggedDocument());
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+        PdfDocument occupied = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty).AddImportedPage(tagged, 0));
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(tagged).RemovePage(1).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(tagged).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(tagged)
+                .AddImportedDocument(tagged)
+                .Build());
+    }
+
+    [Fact]
+    public void ExistingTaggedDocument_AllowsCompleteReorderingButRejectsPageSetChanges()
+    {
+        byte[] source = BuildTaggedDocument();
+
+        PdfDocument reordered = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .MovePage(0, 1)
+                .Build());
+        Assert.True(ResolveDictionary(reordered, reordered.Trailer[Name("Root")])
+            .ContainsKey(Name("StructTreeRoot")));
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .RemovePage(0)
+                .Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddBlankPage()
+                .Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddImportedDocument(PdfDocument.Open(
+                    new PdfDocumentBuilder().AddBlankPage().Build()))
+                .Build());
+    }
+
+    [Fact]
     public void Build_PreservesLinksBetweenPagesImportedTogether()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -898,6 +1003,30 @@ public sealed class PdfIncrementalPageEditorTests
         PdfReal real => real.Value,
         _ => throw new Xunit.Sdk.XunitException("Expected a PDF number.")
     };
+
+    private static byte[] BuildTaggedDocument()
+    {
+        static PdfContentStreamBuilder TaggedPage() => new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Figure, 0)
+            .Rectangle(10, 10, 20, 20).Fill()
+            .EndMarkedContent();
+
+        return new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Tagged import test",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, TaggedPage())
+            .AddPage(100, 100, TaggedPage())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+                alternateDescription: "First square")
+            .AddStructureElement(PdfStructureType.Figure, 1, 0, 1,
+                alternateDescription: "Second square")
+            .Build();
+    }
 
     private static byte[] BuildNestedPageTree()
     {
