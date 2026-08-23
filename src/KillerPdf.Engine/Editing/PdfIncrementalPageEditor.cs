@@ -21,6 +21,10 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName NamesName = Name("Names");
     private static readonly PdfName DestsName = Name("Dests");
     private static readonly PdfName PageLabelsName = Name("PageLabels");
+    private static readonly PdfName OutlinesName = Name("Outlines");
+    private static readonly PdfName EmbeddedFilesName = Name("EmbeddedFiles");
+    private static readonly PdfName AssociatedFilesName = Name("AF");
+    private static readonly PdfName PageModeName = Name("PageMode");
     private static readonly PdfName DecimalName = Name("D");
     private static readonly PdfName StyleName = Name("S");
     private static readonly PdfName PrefixName = Name("P");
@@ -36,6 +40,7 @@ public sealed class PdfIncrementalPageEditor
     private bool _orderChanged;
     private bool _rotationChanged;
     private bool _pageBoxesChanged;
+    private int _nextImportBatchId;
 
     public PdfIncrementalPageEditor(PdfDocument document)
     {
@@ -93,8 +98,9 @@ public sealed class PdfIncrementalPageEditor
             throw new ArgumentOutOfRangeException(nameof(sourcePageIndex));
         PdfPageTreeEntry sourcePage = sourceTree.Pages[sourcePageIndex];
         ValidateImportablePage(source, sourcePage, allowFormWidgets: false);
-        EnsureNotAlreadyImported(source, sourcePage);
-        _pages.Insert(pageIndex, new PageState(source, sourceTree, sourcePage, wholeDocument: false));
+        int batchId = _nextImportBatchId++;
+        _pages.Insert(pageIndex,
+            new PageState(source, sourceTree, sourcePage, wholeDocument: false, batchId));
         _orderChanged = true;
         return this;
     }
@@ -111,14 +117,12 @@ public sealed class PdfIncrementalPageEditor
         PdfPageTree sourceTree = PdfPageTree.Read(source);
         bool hasAcroForm = sourceTree.Catalog.ContainsKey(AcroFormName);
         foreach (PdfPageTreeEntry page in sourceTree.Pages)
-        {
             ValidateImportablePage(source, page, allowFormWidgets: hasAcroForm);
-            EnsureNotAlreadyImported(source, page);
-        }
         if (sourceTree.Pages.Count == 0) return this;
+        int batchId = _nextImportBatchId++;
         _pages.InsertRange(pageIndex,
             sourceTree.Pages.Select(page =>
-                new PageState(source, sourceTree, page, wholeDocument: true)));
+                new PageState(source, sourceTree, page, wholeDocument: true, batchId)));
         _orderChanged = true;
         return this;
     }
@@ -209,7 +213,7 @@ public sealed class PdfIncrementalPageEditor
         var importers = new Dictionary<PageState, PdfObjectGraphImporter>();
         List<PageState[]> importedGroups = _pages
                      .Where(page => page.ImportedDocument is not null)
-                     .GroupBy(page => page.ImportedDocument!)
+                     .GroupBy(page => page.ImportBatchId)
                      .Select(group => group.ToArray())
                      .ToList();
         foreach (PageState[] group in importedGroups)
@@ -230,6 +234,9 @@ public sealed class PdfIncrementalPageEditor
         var catalogReplacements = new Dictionary<PdfName, PdfObject> { [PagesName] = newRoot };
         AddImportedAcroForm(importedGroups, importers, catalogReplacements);
         AddImportedNamedDestinations(importedGroups, importers, catalogReplacements);
+        AddImportedEmbeddedFiles(importedGroups, importers, catalogReplacements);
+        AddImportedLegacyDestinations(importedGroups, importers, catalogReplacements);
+        AddImportedOutlines(importedGroups, importers, catalogReplacements);
         bool removePageLabels = AddPageLabels(importedGroups, catalogReplacements);
         update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
             ReplaceMany(_tree.Catalog, catalogReplacements,
@@ -429,6 +436,174 @@ public sealed class PdfIncrementalPageEditor
         return false;
     }
 
+    private void AddImportedLegacyDestinations(
+        IEnumerable<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        var entries = new List<KeyValuePair<PdfName, PdfObject>>();
+        var names = new HashSet<PdfName>();
+        if (_tree.Catalog.TryGetValue(DestsName, out PdfObject? targetValue))
+            AddEntries(ResolveDictionary(
+                _document, targetValue, "The destination catalog /Dests value"), null);
+
+        bool importedAny = false;
+        foreach (PageState[] group in importedGroups)
+        {
+            PdfPageTree sourceTree = group[0].ImportedTree!;
+            if (!sourceTree.Catalog.TryGetValue(DestsName, out PdfObject? sourceValue))
+                continue;
+            RequireCompleteImport(group, sourceTree, "Legacy named destinations");
+            AddEntries(ResolveDictionary(group[0].ImportedDocument!, sourceValue,
+                "The source catalog /Dests value"), importers[group[0]]);
+            importedAny = true;
+        }
+        if (importedAny)
+            catalogReplacements[DestsName] = new PdfDictionary(entries);
+
+        void AddEntries(PdfDictionary dictionary, PdfObjectGraphImporter? importer)
+        {
+            foreach (var entry in dictionary)
+            {
+                if (!names.Add(entry.Key))
+                    throw new NotSupportedException(
+                        "Legacy named destinations from merged documents must have unique names.");
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, importer?.Import(entry.Value) ?? entry.Value));
+            }
+        }
+    }
+
+    private void AddImportedEmbeddedFiles(
+        IEnumerable<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        PageState[][] groups = importedGroups.ToArray();
+        bool hasImportedEmbeddedFiles = groups.Any(group => HasNameTreeCategory(
+            group[0].ImportedDocument!, group[0].ImportedTree!.Catalog, EmbeddedFilesName));
+        bool hasImportedAssociatedFiles = groups.Any(group =>
+            group[0].ImportedTree!.Catalog.ContainsKey(AssociatedFilesName));
+        if (!hasImportedEmbeddedFiles && !hasImportedAssociatedFiles) return;
+
+        if (hasImportedEmbeddedFiles)
+        {
+            PdfDictionary currentNames = CurrentNamesDictionary(catalogReplacements);
+            var nameEntries = currentNames
+                .Where(entry => !entry.Key.Equals(EmbeddedFilesName)).ToList();
+            var files = new List<PdfNameTreeEntry>();
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            if (currentNames.TryGetValue(EmbeddedFilesName, out PdfObject? targetFiles))
+                AddFiles(PdfNameTree.Read(_document, targetFiles), null);
+            foreach (PageState[] group in groups)
+            {
+                PdfDocument source = group[0].ImportedDocument!;
+                PdfPageTree sourceTree = group[0].ImportedTree!;
+                if (!TryGetNameTreeCategory(
+                    source, sourceTree.Catalog, EmbeddedFilesName, out PdfObject? sourceFiles))
+                    continue;
+                RequireCompleteImport(group, sourceTree, "Embedded files");
+                AddFiles(PdfNameTree.Read(source, sourceFiles!), importers[group[0]]);
+            }
+            files.Sort((left, right) =>
+                left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
+            var values = new List<PdfObject>(files.Count * 2);
+            foreach (PdfNameTreeEntry file in files)
+            {
+                values.Add(file.Key);
+                values.Add(file.Value);
+            }
+            nameEntries.Add(new KeyValuePair<PdfName, PdfObject>(
+                EmbeddedFilesName, Dictionary(("Names", new PdfArray(values)))));
+            catalogReplacements[NamesName] = new PdfDictionary(nameEntries);
+
+            void AddFiles(
+                IEnumerable<PdfNameTreeEntry> entries, PdfObjectGraphImporter? importer)
+            {
+                foreach (PdfNameTreeEntry entry in entries)
+                {
+                    if (!keys.Add(Convert.ToBase64String(entry.Key.Bytes.Span)))
+                        throw new NotSupportedException(
+                            "Embedded files from merged documents must have unique names.");
+                    files.Add(new PdfNameTreeEntry(
+                        entry.Key, importer?.Import(entry.Value) ?? entry.Value));
+                }
+            }
+        }
+
+        if (hasImportedAssociatedFiles)
+        {
+            var associated = new List<PdfObject>();
+            if (_tree.Catalog.TryGetValue(AssociatedFilesName, out PdfObject? targetAssociated))
+                associated.AddRange(ResolveArray(
+                    _document, targetAssociated, "The destination catalog /AF value"));
+            foreach (PageState[] group in groups)
+            {
+                PdfPageTree sourceTree = group[0].ImportedTree!;
+                if (!sourceTree.Catalog.TryGetValue(
+                    AssociatedFilesName, out PdfObject? sourceAssociated)) continue;
+                RequireCompleteImport(group, sourceTree, "Associated files");
+                associated.AddRange(ResolveArray(group[0].ImportedDocument!, sourceAssociated,
+                    "The source catalog /AF value").Select(importers[group[0]].Import));
+            }
+            catalogReplacements[AssociatedFilesName] = new PdfArray(associated);
+        }
+    }
+
+    private void AddImportedOutlines(
+        IEnumerable<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        PageState[][] outlineGroups = importedGroups.Where(group =>
+            group[0].ImportedTree!.Catalog.ContainsKey(OutlinesName)).ToArray();
+        if (outlineGroups.Length == 0) return;
+        if (_tree.Catalog.ContainsKey(OutlinesName) || outlineGroups.Length > 1)
+            throw new NotSupportedException(
+                "Merging bookmark trees from multiple documents is not yet supported.");
+        PageState[] group = outlineGroups[0];
+        PdfPageTree sourceTree = group[0].ImportedTree!;
+        RequireCompleteImport(group, sourceTree, "Bookmarks");
+        catalogReplacements[OutlinesName] = importers[group[0]]
+            .Import(sourceTree.Catalog[OutlinesName]);
+        if (!_tree.Catalog.ContainsKey(PageModeName)
+            && sourceTree.Catalog.TryGetValue(PageModeName, out PdfObject? pageMode))
+            catalogReplacements[PageModeName] = importers[group[0]].Import(pageMode);
+    }
+
+    private PdfDictionary CurrentNamesDictionary(
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        if (catalogReplacements.TryGetValue(NamesName, out PdfObject? replacement))
+            return replacement as PdfDictionary
+                ?? throw new InvalidOperationException("The replacement catalog /Names value is not a dictionary.");
+        return _tree.Catalog.TryGetValue(NamesName, out PdfObject? current)
+            ? ResolveDictionary(_document, current, "The destination catalog /Names value")
+            : new PdfDictionary([]);
+    }
+
+    private static bool HasNameTreeCategory(
+        PdfDocument document, PdfDictionary catalog, PdfName category) =>
+        TryGetNameTreeCategory(document, catalog, category, out _);
+
+    private static bool TryGetNameTreeCategory(
+        PdfDocument document, PdfDictionary catalog, PdfName category,
+        out PdfObject? value)
+    {
+        value = null;
+        if (!catalog.TryGetValue(NamesName, out PdfObject? namesValue)) return false;
+        PdfDictionary names = ResolveDictionary(document, namesValue, "The catalog /Names value");
+        return names.TryGetValue(category, out value);
+    }
+
+    private static void RequireCompleteImport(
+        PageState[] group, PdfPageTree sourceTree, string feature)
+    {
+        if (group.Length != sourceTree.Pages.Count || group.Any(page => !page.ImportedWholeDocument))
+            throw new NotSupportedException(
+                $"{feature} can be preserved only when all pages from their source document are retained.");
+    }
+
     private static IReadOnlyList<PageLabelSpec> ReadPageLabels(
         PdfDocument document, PdfPageTree tree)
     {
@@ -519,6 +694,16 @@ public sealed class PdfIncrementalPageEditor
             : value;
         return resolved as PdfDictionary
             ?? throw new InvalidOperationException($"{description} is not a dictionary.");
+    }
+
+    private static PdfArray ResolveArray(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? document.Resolve(reference)
+            : value;
+        return resolved as PdfArray
+            ?? throw new InvalidOperationException($"{description} is not an array.");
     }
 
     private static void BuildImportedPage(
@@ -639,16 +824,6 @@ public sealed class PdfIncrementalPageEditor
         }
     }
 
-    private void EnsureNotAlreadyImported(PdfDocument source, PdfPageTreeEntry page)
-    {
-        if (_pages.Any(existing => ReferenceEquals(existing.ImportedDocument, source)
-            && existing.ImportedEntry is PdfPageTreeEntry imported
-            && imported.Reference.ObjectNumber == page.Reference.ObjectNumber
-            && imported.Reference.Generation == page.Reference.Generation))
-            throw new NotSupportedException(
-                "Importing the same source page more than once in one update is not yet supported.");
-    }
-
     private static PdfDictionary ReplaceMany(
         PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements,
         IReadOnlyCollection<PdfName>? removals = null) =>
@@ -674,18 +849,20 @@ public sealed class PdfIncrementalPageEditor
         internal PageState(PdfArray mediaBox) => MediaBox = mediaBox;
         internal PageState(
             PdfDocument importedDocument, PdfPageTree importedTree,
-            PdfPageTreeEntry importedEntry, bool wholeDocument)
+            PdfPageTreeEntry importedEntry, bool wholeDocument, int importBatchId)
         {
             ImportedDocument = importedDocument;
             ImportedTree = importedTree;
             ImportedEntry = importedEntry;
             ImportedWholeDocument = wholeDocument;
+            ImportBatchId = importBatchId;
         }
         internal PdfPageTreeEntry? Entry { get; }
         internal PdfDocument? ImportedDocument { get; }
         internal PdfPageTree? ImportedTree { get; }
         internal PdfPageTreeEntry? ImportedEntry { get; }
         internal bool ImportedWholeDocument { get; }
+        internal int ImportBatchId { get; }
         internal int? Rotation { get; set; }
         internal PdfArray? MediaBox { get; set; }
         internal PdfArray? CropBox { get; set; }

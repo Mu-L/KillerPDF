@@ -256,10 +256,60 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<NotSupportedException>(() =>
             new PdfIncrementalPageEditor(PdfDocument.Open(target))
                 .AddImportedPage(formPage, 0));
-        Assert.Throws<NotSupportedException>(() =>
-            new PdfIncrementalPageEditor(PdfDocument.Open(target))
-                .AddImportedPage(linkedPages, 0)
-                .AddImportedPage(linkedPages, 0));
+    }
+
+    [Fact]
+    public void Build_CanImportTheSameIndependentPageMoreThanOnce()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .AddTextNote(0, 150, 250, "Copy me")
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .AddImportedPage(source, 0)
+                .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfIndirectReference firstAnnotation = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(pages[0][Name("Annots")])[0]);
+        PdfIndirectReference secondAnnotation = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(pages[1][Name("Annots")])[0]);
+        PdfDictionary firstNote = ResolveDictionary(reopened, firstAnnotation);
+        PdfDictionary secondNote = ResolveDictionary(reopened, secondAnnotation);
+
+        Assert.NotEqual(pageReferences[0].ObjectNumber, pageReferences[1].ObjectNumber);
+        Assert.NotEqual(firstAnnotation.ObjectNumber, secondAnnotation.ObjectNumber);
+        Assert.Equal(pageReferences[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(firstNote[Name("P")]).ObjectNumber);
+        Assert.Equal(pageReferences[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(secondNote[Name("P")]).ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_CanImportTheSameLinkedDocumentMoreThanOnce()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddPageLink(0, 10, 10, 40, 20, 1)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source)
+                .AddImportedDocument(source)
+                .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfDictionary firstLink = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[0][Name("Annots")])[0]);
+        PdfDictionary secondLink = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[2][Name("Annots")])[0]);
+
+        Assert.Equal(references[1].ObjectNumber, Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(firstLink[Name("Dest")])[0]).ObjectNumber);
+        Assert.Equal(references[3].ObjectNumber, Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(secondLink[Name("Dest")])[0]).ObjectNumber);
     }
 
     [Fact]
@@ -392,6 +442,102 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<NotSupportedException>(() =>
             new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
                 .AddImportedPage(source, 0).Build());
+    }
+
+    [Fact]
+    public void Build_PreservesLegacyNamedDestinationsDuringCompleteImports()
+    {
+        PdfDocument source = PdfDocument.Open(BuildLegacyDestinationDocument());
+        byte[] target = new PdfDocumentBuilder().AddBlankPage().Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source)
+                .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary destinations = DictionaryValue(reopened, catalog[Name("Dests")]);
+        PdfArray chapter = Assert.IsType<PdfArray>(destinations[Name("chapter")]);
+        PdfDictionary link = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[1][Name("Annots")])[0]);
+
+        Assert.Equal(pageReferences[2].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(chapter[0]).ObjectNumber);
+        Assert.Equal("chapter", Assert.IsType<PdfName>(link[Name("Dest")]).ValueAsLatin1());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedPage(source, 0)
+                .Build());
+    }
+
+    [Fact]
+    public void Build_PreservesBookmarksDuringACompleteDocumentImport()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddBookmark("Second page", 1)
+            .Build());
+        byte[] target = new PdfDocumentBuilder().AddBlankPage().Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source)
+                .Build());
+        (_, PdfIndirectReference[] pageReferences, _) = FlatPages(reopened);
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary outlines = DictionaryValue(reopened, catalog[Name("Outlines")]);
+        PdfDictionary first = ResolveDictionary(reopened, outlines[Name("First")]);
+        PdfArray destination = Assert.IsType<PdfArray>(first[Name("Dest")]);
+
+        Assert.Equal("Second page", DecodeUnicode(Assert.IsType<PdfString>(first[Name("Title")])));
+        Assert.Equal(pageReferences[2].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
+        Assert.Equal("UseOutlines",
+            Assert.IsType<PdfName>(catalog[Name("PageMode")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_MergesEmbeddedAndAssociatedFilesDuringCompleteImports()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddAttachment("source.txt", "source payload"u8.ToArray(), "text/plain")
+            .Build());
+        byte[] target = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddNamedDestination("target-page", 0)
+            .AddAttachment("target.txt", "target payload"u8.ToArray(), "text/plain")
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary names = DictionaryValue(reopened, catalog[Name("Names")]);
+        PdfDictionary embeddedFiles = DictionaryValue(reopened, names[Name("EmbeddedFiles")]);
+        PdfArray fileNames = Assert.IsType<PdfArray>(embeddedFiles[Name("Names")]);
+        PdfArray associatedFiles = Assert.IsType<PdfArray>(catalog[Name("AF")]);
+        PdfDictionary importedFile = ResolveDictionary(reopened, fileNames[1]);
+        PdfDictionary importedStreams = DictionaryValue(reopened, importedFile[Name("EF")]);
+        PdfStream importedPayload = ResolveStream(reopened, importedStreams[Name("UF")]);
+
+        Assert.True(names.ContainsKey(Name("Dests")));
+        Assert.Equal(["source.txt", "target.txt"], Enumerable.Range(0, fileNames.Count / 2)
+            .Select(index => DecodeUnicode(Assert.IsType<PdfString>(fileNames[index * 2]))));
+        Assert.Equal(2, associatedFiles.Count);
+        Assert.Equal("source payload"u8.ToArray(), importedPayload.EncodedData.ToArray());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        PdfDocument collision = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddAttachment("target.txt", ReadOnlyMemory<byte>.Empty).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(collision)
+                .Build());
     }
 
     [Fact]
@@ -561,6 +707,33 @@ public sealed class PdfIncrementalPageEditorTests
             "/MediaBox [0 0 200 300] /CropBox [10 10 190 290] /Resources <<>> /Rotate 90 >>");
         Add(4, "<< /Type /Page /Parent 3 0 R >>");
         Add(5, "<< /Type /Page /Parent 3 0 R >>");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 6\n0000000000 65535 f \n");
+        for (int index = 1; index <= 5; index++)
+            source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
+                .Append(" 00000 n \n");
+        source.Append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n")
+            .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+
+        void Add(int number, string value)
+        {
+            offsets[number] = source.Length;
+            source.Append(number).Append(" 0 obj\n").Append(value).Append("\nendobj\n");
+        }
+    }
+
+    private static byte[] BuildLegacyDestinationDocument()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        var offsets = new int[6];
+        Add(1, "<< /Type /Catalog /Pages 2 0 R /Dests << /chapter [4 0 R /Fit] >> >>");
+        Add(2, "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>");
+        Add(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] " +
+            "/Resources <<>> /Annots [5 0 R] >>");
+        Add(4, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] /Resources <<>> >>");
+        Add(5, "<< /Type /Annot /Subtype /Link /Rect [10 10 50 30] " +
+            "/Border [0 0 0] /Dest /chapter /P 3 0 R >>");
         int xrefOffset = source.Length;
         source.Append("xref\n0 6\n0000000000 65535 f \n");
         for (int index = 1; index <= 5; index++)

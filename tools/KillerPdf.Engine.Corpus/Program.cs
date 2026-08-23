@@ -317,6 +317,7 @@ if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
         .AddNamedDestination("imported-appendix", 1)
         .AddNamedDestinationLink(0, 72, 40, 120, 20, "imported-appendix")
         .AddPageLabelRange(0, PdfPageLabelStyle.Decimal, "Imported ")
+        .AddBookmark("Imported appendix", 1)
         .AddCheckBox(1, "import.approved", 520, 330, 18, 18, isChecked: true)
         .Build();
     byte[] target = new PdfDocumentBuilder()
@@ -341,6 +342,36 @@ if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
     File.WriteAllBytes(sourcePath, target);
     File.WriteAllBytes(destination, pdf);
     Console.WriteLine($"Imported two linked PDF/A pages in {pdf.Length - target.Length:N0} appended bytes to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--document-import-smoke")
+{
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF complete import source", Language = "en-US" })
+        .AddBlankPage(400, 600)
+        .AddBlankPage(600, 400)
+        .AddBookmark("Imported appendix", 1)
+        .AddNamedDestination("imported-appendix", 1)
+        .AddNamedDestinationLink(0, 40, 40, 120, 24, "imported-appendix")
+        .AddPageLabelRange(0, PdfPageLabelStyle.Decimal, "Imported ")
+        .AddAttachment("source.txt", "source attachment"u8.ToArray(), "text/plain")
+        .Build();
+    byte[] target = new PdfDocumentBuilder()
+        .AddBlankPage(300, 300)
+        .AddNamedDestination("target-cover", 0)
+        .AddPageLabelRange(0, PdfPageLabelStyle.None, "Cover")
+        .AddAttachment("target.txt", "target attachment"u8.ToArray(), "text/plain")
+        .Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(PdfDocument.Open(source))
+        .Build();
+    if (!pdf.AsSpan(0, target.Length).SequenceEqual(target))
+        throw new InvalidDataException("The complete document import changed target bytes.");
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Imported bookmarks, navigation metadata, and attachments in {pdf.Length - target.Length:N0} appended bytes to {destination}");
     return 0;
 }
 
@@ -399,6 +430,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-visual-annotation-smoke <font.ttf> <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-page-smoke <profile.icc> <source.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-import-smoke <profile.icc> <target.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --document-import-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --import-document <source.pdf> <target.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-navigation-smoke <profile.icc> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
