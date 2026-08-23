@@ -19,6 +19,8 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<PdfTilingPattern, PdfName> _patterns = [];
     private readonly Dictionary<PdfIccProfile, PdfName> _iccColorSpaces = [];
     private readonly Dictionary<PdfSpotColor, PdfName> _spotColors = [];
+    private readonly Dictionary<PdfLabColorSpace, PdfName> _labColorSpaces = [];
+    private readonly Dictionary<PdfIndexedColorSpace, PdfName> _indexedColorSpaces = [];
     private int _nextColorSpaceResource = 1;
     private int _savedStateDepth;
     private readonly Stack<bool> _markedContentStack = [];
@@ -42,6 +44,8 @@ public sealed class PdfContentStreamBuilder
     internal IReadOnlyDictionary<PdfTilingPattern, PdfName> PatternResources => _patterns;
     internal IReadOnlyDictionary<PdfIccProfile, PdfName> IccColorSpaceResources => _iccColorSpaces;
     internal IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColorResources => _spotColors;
+    internal IReadOnlyDictionary<PdfLabColorSpace, PdfName> LabColorSpaceResources => _labColorSpaces;
+    internal IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> IndexedColorSpaceResources => _indexedColorSpaces;
     internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
     internal bool HasUntaggedContent => _hasUntaggedContent;
     internal bool HasColorOperators => _hasColorOperators;
@@ -450,6 +454,22 @@ public sealed class PdfContentStreamBuilder
     public PdfContentStreamBuilder SetStrokeSpotColor(PdfSpotColor color, double tint) =>
         SetSpotColor(color, tint, stroke: true);
 
+    public PdfContentStreamBuilder SetFillLabColor(
+        PdfLabColorSpace colorSpace, double lightness, double a, double b) =>
+        SetLabColor(colorSpace, lightness, a, b, stroke: false);
+
+    public PdfContentStreamBuilder SetStrokeLabColor(
+        PdfLabColorSpace colorSpace, double lightness, double a, double b) =>
+        SetLabColor(colorSpace, lightness, a, b, stroke: true);
+
+    public PdfContentStreamBuilder SetFillIndexedColor(
+        PdfIndexedColorSpace colorSpace, int index) =>
+        SetIndexedColor(colorSpace, index, stroke: false);
+
+    public PdfContentStreamBuilder SetStrokeIndexedColor(
+        PdfIndexedColorSpace colorSpace, int index) =>
+        SetIndexedColor(colorSpace, index, stroke: true);
+
     public PdfContentStreamBuilder BeginText()
     {
         if (_insideText)
@@ -723,6 +743,50 @@ public sealed class PdfContentStreamBuilder
         _output.Write(PdfObjectWriter.Write(resource));
         _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
         WriteNumber(tint);
+        _output.Write(stroke ? " SCN\n"u8 : " scn\n"u8);
+        return this;
+    }
+
+    private PdfContentStreamBuilder SetLabColor(
+        PdfLabColorSpace colorSpace, double lightness, double a, double b, bool stroke)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        if (!double.IsFinite(lightness) || lightness is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(lightness));
+        if (!double.IsFinite(a) || a < colorSpace.MinimumA || a > colorSpace.MaximumA)
+            throw new ArgumentOutOfRangeException(nameof(a));
+        if (!double.IsFinite(b) || b < colorSpace.MinimumB || b > colorSpace.MaximumB)
+            throw new ArgumentOutOfRangeException(nameof(b));
+        if (!_labColorSpaces.TryGetValue(colorSpace, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
+            _labColorSpaces.Add(colorSpace, resource);
+        }
+        _hasColorOperators = true;
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
+        WriteNumber(lightness); _output.WriteByte((byte)' ');
+        WriteNumber(a); _output.WriteByte((byte)' ');
+        WriteNumber(b);
+        _output.Write(stroke ? " SCN\n"u8 : " scn\n"u8);
+        return this;
+    }
+
+    private PdfContentStreamBuilder SetIndexedColor(
+        PdfIndexedColorSpace colorSpace, int index, bool stroke)
+    {
+        ArgumentNullException.ThrowIfNull(colorSpace);
+        if ((uint)index >= (uint)colorSpace.EntryCount)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        if (!_indexedColorSpaces.TryGetValue(colorSpace, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"CS{_nextColorSpaceResource++}"));
+            _indexedColorSpaces.Add(colorSpace, resource);
+        }
+        _hasColorOperators = true;
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(stroke ? " CS\n"u8 : " cs\n"u8);
+        WriteNumber(index);
         _output.Write(stroke ? " SCN\n"u8 : " scn\n"u8);
         return this;
     }

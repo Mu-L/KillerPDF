@@ -17,6 +17,8 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added native DeviceCMYK fill and stroke authoring plus validated CMYK base colors for uncolored stencil patterns, complementing existing grayscale and RGB graphics support.
 - Added reusable ICCBased Gray, RGB, and CMYK fill, stroke, and uncolored-pattern base colors with embedded profiles, device alternates, strict component validation, scoped page/form/pattern resources, deterministic sharing across pages, and safe output-intent object reuse.
 - Added reusable named Separation spot colors with process-CMYK alternates, tint-transform functions, validated fill and stroke tint values, and scoped page, form, and pattern resources.
+- Added reusable CIE L*a*b* fill and stroke color spaces with explicit white and black points, configurable a*/b* ranges, strict component validation, and scoped page, form, and pattern resources.
+- Added reusable Indexed Gray, RGB, and CMYK palette color spaces with compact binary lookup tables, one-byte palette indices, strict entry bounds, and scoped page, form, and pattern resources.
 - Added all four standard color-rendering intents and validated curve-flatness tolerance controls for predictable screen and print painting behavior.
 - Added reusable page transparency through extended graphics-state resources, with independent fill and stroke opacity plus all sixteen standard separable and non-separable PDF blend modes shared deterministically within and across pages.
 - Added reusable axial and radial gradient shadings with clipping, arbitrary strictly ordered RGB color stops, two-color interpolation, multi-stop stitching functions, extension controls, and deterministic sharing across pages.

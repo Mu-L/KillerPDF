@@ -33,6 +33,8 @@ public sealed class PdfFormXObject
         Patterns = content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         IccColorSpaces = content.IccColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         SpotColors = content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        LabColorSpaces = content.LabColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        IndexedColorSpaces = content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         IsolatedTransparencyGroup = isolatedTransparencyGroup;
         KnockoutTransparencyGroup = knockoutTransparencyGroup;
     }
@@ -53,6 +55,8 @@ public sealed class PdfFormXObject
     internal IReadOnlyDictionary<PdfTilingPattern, PdfName> Patterns { get; }
     internal IReadOnlyDictionary<PdfIccProfile, PdfName> IccColorSpaces { get; }
     internal IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColors { get; }
+    internal IReadOnlyDictionary<PdfLabColorSpace, PdfName> LabColorSpaces { get; }
+    internal IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> IndexedColorSpaces { get; }
 
     private static double Dimension(double value, string name)
     {

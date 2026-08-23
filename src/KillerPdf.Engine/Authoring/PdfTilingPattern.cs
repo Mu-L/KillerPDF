@@ -43,6 +43,8 @@ public sealed class PdfTilingPattern
         Patterns = content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         IccColorSpaces = content.IccColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         SpotColors = content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        LabColorSpaces = content.LabColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        IndexedColorSpaces = content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
     }
 
     public double Width { get; }
@@ -64,6 +66,8 @@ public sealed class PdfTilingPattern
     internal IReadOnlyDictionary<PdfTilingPattern, PdfName> Patterns { get; }
     internal IReadOnlyDictionary<PdfIccProfile, PdfName> IccColorSpaces { get; }
     internal IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColors { get; }
+    internal IReadOnlyDictionary<PdfLabColorSpace, PdfName> LabColorSpaces { get; }
+    internal IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> IndexedColorSpaces { get; }
 
     private static double Positive(double value, string name)
     {

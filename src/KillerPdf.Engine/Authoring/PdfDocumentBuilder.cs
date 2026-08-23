@@ -131,7 +131,9 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfFormXObject, PdfName>(),
             new Dictionary<PdfTilingPattern, PdfName>(),
             new Dictionary<PdfIccProfile, PdfName>(),
-            new Dictionary<PdfSpotColor, PdfName>(), [], [], content.Length > 0,
+            new Dictionary<PdfSpotColor, PdfName>(),
+            new Dictionary<PdfLabColorSpace, PdfName>(),
+            new Dictionary<PdfIndexedColorSpace, PdfName>(), [], [], content.Length > 0,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
     }
@@ -154,7 +156,9 @@ public sealed partial class PdfDocumentBuilder
             content.FormResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.PatternResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.IccColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
-            content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.SpotColorResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.LabColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
         return this;
@@ -1277,7 +1281,8 @@ public sealed partial class PdfDocumentBuilder
                 ("Resources", ResourceDictionary(
                     form.Fonts, form.EmbeddedFonts, form.Images,
                     form.OptionalContentGroups, form.GraphicsStates,
-                    form.Shadings, form.Forms, form.Patterns, form.IccColorSpaces, form.SpotColors,
+                    form.Shadings, form.Forms, form.Patterns, form.IccColorSpaces,
+                    form.SpotColors, form.LabColorSpaces, form.IndexedColorSpaces,
                     fontNumbers, embeddedFonts, imageNumbers,
                     optionalContentNumbers, graphicsStateNumbers,
                     shadingNumbers, formNumbers, patternNumbers, iccProfileNumbers))
@@ -1311,7 +1316,8 @@ public sealed partial class PdfDocumentBuilder
                         pattern.Fonts, pattern.EmbeddedFonts, pattern.Images,
                         pattern.OptionalContentGroups, pattern.GraphicsStates,
                         pattern.Shadings, pattern.Forms, pattern.Patterns,
-                        pattern.IccColorSpaces, pattern.SpotColors,
+                        pattern.IccColorSpaces, pattern.SpotColors, pattern.LabColorSpaces,
+                        pattern.IndexedColorSpaces,
                         fontNumbers, embeddedFonts, imageNumbers,
                         optionalContentNumbers, graphicsStateNumbers,
                         shadingNumbers, formNumbers, patternNumbers, iccProfileNumbers))), pattern.Content), 0));
@@ -1324,6 +1330,7 @@ public sealed partial class PdfDocumentBuilder
                 allocatedPage.Definition.GraphicsStates, allocatedPage.Definition.Shadings,
                 allocatedPage.Definition.Forms, allocatedPage.Definition.Patterns,
                 allocatedPage.Definition.IccColorSpaces, allocatedPage.Definition.SpotColors,
+                allocatedPage.Definition.LabColorSpaces, allocatedPage.Definition.IndexedColorSpaces,
                 fontNumbers, embeddedFonts, imageNumbers, optionalContentNumbers,
                 graphicsStateNumbers, shadingNumbers, formNumbers, patternNumbers,
                 iccProfileNumbers);
@@ -2232,6 +2239,8 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfTilingPattern, PdfName> patterns,
         IReadOnlyDictionary<PdfIccProfile, PdfName> iccColorSpaces,
         IReadOnlyDictionary<PdfSpotColor, PdfName> spotColors,
+        IReadOnlyDictionary<PdfLabColorSpace, PdfName> labColorSpaces,
+        IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> indexedColorSpaces,
         IReadOnlyDictionary<PdfStandardFont, int> fontNumbers,
         IReadOnlyCollection<AllocatedEmbeddedFont> embeddedFonts,
         IReadOnlyDictionary<PdfImage, int> imageNumbers,
@@ -2277,7 +2286,8 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Pattern", new PdfDictionary(patterns.Select(entry =>
                 new KeyValuePair<PdfName, PdfObject>(entry.Value,
                     new PdfIndirectReference(patternNumbers[entry.Key], 0))))));
-        if (iccColorSpaces.Count > 0 || spotColors.Count > 0)
+        if (iccColorSpaces.Count > 0 || spotColors.Count > 0 || labColorSpaces.Count > 0
+            || indexedColorSpaces.Count > 0)
         {
             var colorSpaces = iccColorSpaces.Select(entry =>
                 new KeyValuePair<PdfName, PdfObject>(entry.Value,
@@ -2288,6 +2298,12 @@ public sealed partial class PdfDocumentBuilder
             colorSpaces.AddRange(spotColors.Select(entry =>
                 new KeyValuePair<PdfName, PdfObject>(entry.Value,
                     SpotColorSpace(entry.Key))));
+            colorSpaces.AddRange(labColorSpaces.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    LabColorSpace(entry.Key))));
+            colorSpaces.AddRange(indexedColorSpaces.Select(entry =>
+                new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                    IndexedColorSpace(entry.Key))));
             entries.Add(("ColorSpace", new PdfDictionary(colorSpaces)));
         }
         return Dictionary(entries.ToArray());
@@ -2329,6 +2345,29 @@ public sealed partial class PdfDocumentBuilder
                 Number(color.AlternateColor.Cyan), Number(color.AlternateColor.Magenta),
                 Number(color.AlternateColor.Yellow), Number(color.AlternateColor.Black)])),
             ("N", new PdfInteger(1))) ]);
+
+    private static PdfArray LabColorSpace(PdfLabColorSpace colorSpace) => new([
+        Name("Lab"),
+        Dictionary(
+            ("WhitePoint", new PdfArray([
+                Number(colorSpace.WhiteX), Number(colorSpace.WhiteY), Number(colorSpace.WhiteZ)])),
+            ("BlackPoint", new PdfArray([
+                Number(colorSpace.BlackX), Number(colorSpace.BlackY), Number(colorSpace.BlackZ)])),
+            ("Range", new PdfArray([
+                Number(colorSpace.MinimumA), Number(colorSpace.MaximumA),
+                Number(colorSpace.MinimumB), Number(colorSpace.MaximumB)]))) ]);
+
+    private static PdfArray IndexedColorSpace(PdfIndexedColorSpace colorSpace) => new([
+        Name("Indexed"),
+        Name(colorSpace.BaseColorSpace switch
+        {
+            PdfIndexedBaseColorSpace.Gray => "DeviceGray",
+            PdfIndexedBaseColorSpace.Rgb => "DeviceRGB",
+            PdfIndexedBaseColorSpace.Cmyk => "DeviceCMYK",
+            _ => throw new ArgumentOutOfRangeException(nameof(colorSpace))
+        }),
+        new PdfInteger(colorSpace.EntryCount - 1),
+        new PdfString(colorSpace.Palette.Span, PdfStringForm.Hexadecimal) ]);
 
     private static PdfDictionary GradientFunction(IReadOnlyList<PdfGradientStop> stops)
     {
@@ -2510,6 +2549,8 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfTilingPattern, PdfName> Patterns,
         IReadOnlyDictionary<PdfIccProfile, PdfName> IccColorSpaces,
         IReadOnlyDictionary<PdfSpotColor, PdfName> SpotColors,
+        IReadOnlyDictionary<PdfLabColorSpace, PdfName> LabColorSpaces,
+        IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> IndexedColorSpaces,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
         bool HasUntaggedContent,

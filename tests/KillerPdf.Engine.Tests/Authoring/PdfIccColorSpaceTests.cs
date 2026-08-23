@@ -117,6 +117,28 @@ public sealed class PdfIccColorSpaceTests
             Encoding.ASCII.GetString(content));
     }
 
+    [Fact]
+    public void Build_AssignsCollisionFreeMixedColorSpaceResources()
+    {
+        PdfIccProfile icc = Profile("RGB ");
+        var spot = new PdfSpotColor("Ink", new PdfCmykColor(0, 0.5, 1, 0));
+        var lab = new PdfLabColorSpace();
+        var indexed = new PdfIndexedColorSpace(
+            PdfIndexedBaseColorSpace.Rgb, new byte[] { 255, 0, 0, 0, 0, 255 });
+        PdfContentStreamBuilder content = new PdfContentStreamBuilder()
+            .SetFillIccColor(icc, 0.1, 0.2, 0.3)
+            .SetFillSpotColor(spot, 0.5)
+            .SetFillLabColor(lab, 50, 10, -10)
+            .SetFillIndexedColor(indexed, 1);
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(10, 10, content).Build());
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(Pages(document)[0][Name("Resources")]);
+        PdfDictionary spaces = Assert.IsType<PdfDictionary>(resources[Name("ColorSpace")]);
+
+        Assert.Equal(["CS1", "CS2", "CS3", "CS4"],
+            spaces.Keys.Select(name => name.ValueAsLatin1()).Order().ToArray());
+    }
+
     private static PdfIccProfile Profile(string colorSpace)
     {
         byte[] bytes = new byte[128];
