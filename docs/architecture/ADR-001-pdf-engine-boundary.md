@@ -1,4 +1,4 @@
-# ADR-001: Build the PDF 2.0 engine as an independent .NET 10 library
+# ADR-001: Build the PDF 2.0 document engine as an independent .NET 10 library
 
 **Status:** Accepted
 **Date:** 2026-08-22
@@ -8,7 +8,7 @@
 
 KillerPDF 1.7.x uses PDFium for rendering, PdfPig for text extraction, and a vendored PdfSharpCore writer. That combination is proven for the current Windows application and its preservation-focused save pipeline, but it cannot provide complete PDF 2.0 authoring.
 
-KillerPDF 1.8.0 needs an in-repository authoring engine that can eventually own PDF syntax, object graphs, cross-reference data, page content, resources, fonts, images, annotations, forms, metadata, encryption, signatures, and the PDF 2.0 features required by ISO 32000-2. The engine must also be reusable by future non-Windows KillerPDF applications.
+KillerPDF 1.8.0 needs an in-repository PDF document engine that can eventually own PDF syntax, object graphs, cross-reference data, page content, resources, fonts, images, annotations, forms, metadata, encryption, signatures, and the PDF 2.0 features required by ISO 32000-2. It does not render pages; PDFium retains that responsibility. The document engine must also be reusable by future non-Windows KillerPDF applications.
 
 Changing the WPF application from .NET Framework 4.8 to modern .NET at the same time would combine an engine rewrite with an application-platform migration. Those risks should be separated.
 
