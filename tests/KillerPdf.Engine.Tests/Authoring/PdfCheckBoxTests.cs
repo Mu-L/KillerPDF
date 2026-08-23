@@ -53,6 +53,7 @@ public sealed class PdfCheckBoxTests
     [InlineData(PdfCheckBoxMark.Circle, "l", " c\nh\nf")]
     [InlineData(PdfCheckBoxMark.Diamond, "u", " l\nh\nf")]
     [InlineData(PdfCheckBoxMark.Square, "n", " re\nf")]
+    [InlineData(PdfCheckBoxMark.Star, "H", " l\nh\nf")]
     public void AddCheckBox_WritesTypedMarkCaptionAndArtwork(
         PdfCheckBoxMark mark, string caption, string artwork)
     {

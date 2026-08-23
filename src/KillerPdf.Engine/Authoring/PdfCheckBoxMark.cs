@@ -6,5 +6,6 @@ public enum PdfCheckBoxMark
     Cross,
     Circle,
     Diamond,
-    Square
+    Square,
+    Star
 }

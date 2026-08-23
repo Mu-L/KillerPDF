@@ -137,6 +137,17 @@ public sealed class PdfTextFieldTests
     }
 
     [Fact]
+    public void AddTextField_NoScrollRejectsInitialContentOutsideVisibleArea()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "wide", 0, 0, 30, 20, "far too wide", options:
+                new PdfTextFieldOptions { DoNotScroll = true }));
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "tall", 0, 0, 80, 24, "one two three four five six", 10,
+                new PdfTextFieldOptions { Multiline = true, DoNotScroll = true }));
+    }
+
+    [Fact]
     public void AddTextField_RendersMultilineValueOnSeparateClippedBaselines()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
@@ -157,6 +168,27 @@ public sealed class PdfTextFieldTests
         Assert.Contains("(Second) Tj", content);
         Assert.Contains("(Third) Tj", content);
         Assert.Equal(3, content.Split("BT\n", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
+    public void AddTextField_WrapsMultilineWordsToAvailableWidth()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "wrapped", 0, 0, 70, 80,
+                "alpha beta extraordinarily", 10,
+                new PdfTextFieldOptions { Multiline = true })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+
+        Assert.Contains("(alpha beta) Tj", content);
+        Assert.DoesNotContain("(extraordinarily) Tj", content);
+        Assert.True(content.Split("BT\n", StringSplitOptions.None).Length - 1 >= 3);
     }
 
     [Fact]

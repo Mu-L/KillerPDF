@@ -8,6 +8,22 @@ namespace KillerPdf.Engine.Tests.Authoring;
 
 public sealed class PdfChoiceFieldTests
 {
+    [Fact]
+    public void ChoiceFields_RejectInvalidAlignmentWhenAdded()
+    {
+        var invalid = new PdfChoiceFieldOptions
+        {
+            Alignment = (PdfTextFieldAlignment)999
+        };
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddComboBox(
+            0, "combo", 0, 0, 100, 20, ["One"], choiceOptions: invalid));
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddListBoxOptions(
+            0, "list", 0, 30, 100, 40, [new PdfChoiceOption("one", "One")],
+            choiceOptions: invalid));
+    }
+
     [Theory]
     [InlineData(false, 1 << 17)]
     [InlineData(true, (1 << 17) | (1 << 18))]
@@ -181,6 +197,87 @@ public sealed class PdfChoiceFieldTests
             .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
         Assert.Equal([0L, 2L], Assert.IsType<PdfArray>(list[Name("I")])
             .Select(value => Assert.IsType<PdfInteger>(value).Value));
+    }
+
+    [Fact]
+    public void AddComboBox_WritesSeparateExportAndDisplayValues()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddComboBoxOptions(0, "country", 0, 0, 140, 20,
+                [new PdfChoiceOption("US", "United States"),
+                 new PdfChoiceOption("CA", "Canada")], "US")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfArray options = Assert.IsType<PdfArray>(field[Name("Opt")]);
+        PdfArray first = Assert.IsType<PdfArray>(options[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+
+        Assert.Equal("US", DecodeUnicode(Assert.IsType<PdfString>(first[0])));
+        Assert.Equal("United States", DecodeUnicode(Assert.IsType<PdfString>(first[1])));
+        Assert.Equal("US", DecodeUnicode(Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Contains("(United States) Tj", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void ListBoxes_WriteExportValuesAndDisplayLabels()
+    {
+        PdfChoiceOption[] options =
+        [
+            new("A", "Alpha label"),
+            new("B", "Beta label"),
+            new("C", "Gamma label")
+        ];
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddListBoxOptions(0, "single", 0, 0, 140, 50, options, "B")
+            .AddMultiSelectListBoxOptions(0, "multiple", 0, 60, 140, 60,
+                options, ["A", "C"])
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfArray fields = Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")]);
+        PdfDictionary single = ResolveDictionary(document, fields[0]);
+        PdfDictionary multiple = ResolveDictionary(document, fields[1]);
+
+        Assert.Equal("B", DecodeUnicode(Assert.IsType<PdfString>(single[Name("V")])));
+        Assert.Equal(["A", "C"], Assert.IsType<PdfArray>(multiple[Name("V")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+        Assert.Equal([0L, 2L], Assert.IsType<PdfArray>(multiple[Name("I")])
+            .Select(value => Assert.IsType<PdfInteger>(value).Value));
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(multiple[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+        Assert.Contains("(Alpha label) Tj", content);
+        Assert.Contains("(Gamma label) Tj", content);
+        Assert.DoesNotContain("(A) Tj", content);
+    }
+
+    [Theory]
+    [InlineData(PdfTextFieldAlignment.Center, 1)]
+    [InlineData(PdfTextFieldAlignment.Right, 2)]
+    public void ChoiceFields_WriteAlignmentAndMoveDisplayLabels(
+        PdfTextFieldAlignment alignment, int expectedQuadding)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddComboBoxOptions(0, "aligned", 0, 0, 180, 20,
+                [new PdfChoiceOption("value", "Display label")], "value",
+                choiceOptions: new PdfChoiceFieldOptions { Alignment = alignment })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+
+        Assert.Equal(expectedQuadding, Assert.IsType<PdfInteger>(field[Name("Q")]).Value);
+        Assert.Contains("(Display label) Tj", content);
+        Assert.DoesNotContain("3 4 Td", content);
     }
 
     private static string DecodeUnicode(PdfString value) =>

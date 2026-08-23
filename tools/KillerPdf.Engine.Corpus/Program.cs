@@ -676,9 +676,23 @@ if (args.Length == 2 && args[0] == "--form-smoke")
             new PdfRadioButtonOption(0, 72, 600, 18, 18, "Free"),
             new PdfRadioButtonOption(0, 120, 600, 18, 18, "Pro")], "Pro")
         .AddSignatureField(0, "customer.signature", 300, 470, 180, 52,
-            new PdfFormFieldMetadata { Tooltip = "Customer signature" })
-        .AddComboBox(0, "customer.theme", 72, 550, 180, 24,
-            ["Dark", "Mourning", "98SE"], "Mourning")
+            new PdfFormFieldMetadata { Tooltip = "Customer signature" },
+            fieldLock: new PdfSignatureFieldLock(
+                PdfSignatureLockAction.Include, ["customer.name", "customer.approved"]),
+            seedValue: new PdfSignatureSeedValue
+            {
+                SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
+                RequireSubFilter = true,
+                DigestMethods = [PdfSignatureDigestMethod.Sha256, PdfSignatureDigestMethod.Sha512],
+                RequireDigestMethod = true,
+                Reasons = ["Approved", "Reviewed"],
+                CertificationPermission = PdfSignatureCertificationPermission.ApprovalSignature
+            }, appearanceText: "Sign here")
+        .AddComboBoxOptions(0, "customer.theme", 72, 550, 180, 24,
+            [new PdfChoiceOption("dark", "Dark"),
+             new PdfChoiceOption("mourning", "Mourning"),
+             new PdfChoiceOption("98se", "98SE")], "mourning",
+            choiceOptions: new PdfChoiceFieldOptions { Alignment = PdfTextFieldAlignment.Center })
         .AddUriPushButton(0, "customer.documentation", 300, 550, 180, 28,
             "Open KillerPDF docs", "https://killerpdf.com",
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Open KillerPDF documentation" })
@@ -723,14 +737,19 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .AddTextField(0, "customer.password", 300, 650, 160, 24, "secret", 12,
             new PdfTextFieldOptions { Password = true }, embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Password", MappingName = "customer_password" })
-        .AddComboBox(0, "customer.theme", 72, 630, 180, 24,
-            ["Dark", "Mourning", "98SE"], "Mourning", embeddedFont: font,
-            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Theme", MappingName = "customer_theme" })
+        .AddComboBoxOptions(0, "customer.theme", 72, 630, 180, 24,
+            [new PdfChoiceOption("dark", "Dark"),
+             new PdfChoiceOption("mourning", "Mourning"),
+             new PdfChoiceOption("98se", "98SE")], "mourning", embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Theme", MappingName = "customer_theme" },
+            choiceOptions: new PdfChoiceFieldOptions { Alignment = PdfTextFieldAlignment.Right })
         .AddListBox(0, "customer.features", 300, 590, 180, 72,
             ["Annotations", "Forms", "PDF/A"], "Forms", embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Features", MappingName = "customer_features" })
-        .AddMultiSelectListBox(0, "customer.formats", 300, 490, 180, 72,
-            ["PDF 2.0", "PDF/A-4", "PDF/UA-2"], ["PDF/A-4", "PDF/UA-2"], embeddedFont: font,
+        .AddMultiSelectListBoxOptions(0, "customer.formats", 300, 490, 180, 72,
+            [new PdfChoiceOption("pdf20", "PDF 2.0"),
+             new PdfChoiceOption("pdfa4", "PDF/A-4"),
+             new PdfChoiceOption("pdfua2", "PDF/UA-2")], ["pdfa4", "pdfua2"], embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Formats", MappingName = "customer_formats" })
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
             mark: PdfCheckBoxMark.Circle,
@@ -740,7 +759,20 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
             new PdfRadioButtonOption(0, 120, 550, 18, 18, "Pro")], "Pro",
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Plan", MappingName = "customer_plan" })
         .AddSignatureField(0, "customer.signature", 72, 470, 180, 52,
-            new PdfFormFieldMetadata { Tooltip = "Customer signature", MappingName = "customer_signature" })
+            new PdfFormFieldMetadata { Tooltip = "Customer signature", MappingName = "customer_signature" },
+            fieldLock: new PdfSignatureFieldLock(
+                PdfSignatureLockAction.Exclude, ["customer.theme"]),
+            seedValue: new PdfSignatureSeedValue
+            {
+                SubFilters = [PdfSignatureSubFilter.EtsiCadesDetached],
+                RequireSubFilter = true,
+                DigestMethods = [PdfSignatureDigestMethod.Sha256, PdfSignatureDigestMethod.Sha384],
+                RequireDigestMethod = true,
+                Reasons = ["Approved for archival"],
+                RequireReason = true,
+                CertificationPermission =
+                    PdfSignatureCertificationPermission.FormFillingAndSignatures
+            }, appearanceText: "Sign for archival", embeddedFont: font)
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);

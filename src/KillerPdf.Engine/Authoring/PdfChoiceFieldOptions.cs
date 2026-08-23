@@ -6,4 +6,5 @@ public sealed record PdfChoiceFieldOptions
     public bool SortOptions { get; init; }
     public bool DoNotSpellCheck { get; init; }
     public bool CommitOnSelectionChange { get; init; }
+    public PdfTextFieldAlignment Alignment { get; init; }
 }

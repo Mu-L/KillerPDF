@@ -54,12 +54,19 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added default values matching authored initial values across text, checkbox, radio, combo, and list fields so reset actions restore deterministic initial state.
 - Added full-PDF submit buttons restricted to HTTP or HTTPS endpoints, with URL file specifications and validated include or exclude field lists.
 - Added typed push-button highlighting for none, invert, outline, push, and toggle interaction modes.
-- Added typed checkbox marks with matching appearance characteristics and generated check, cross, circle, diamond, or square artwork.
+- Added typed checkbox marks with matching appearance characteristics and generated check, cross, circle, diamond, square, or star artwork.
 - Added clipped multiline text-field appearances with normalized line endings, explicit baselines and leading, plus rejection of line breaks in single-line fields.
 - Added masked password-field appearances that never paint the original value, with embedded-font mask-glyph validation and rejection of incompatible multiline password fields.
 - Added comb-field appearances with evenly divided cells and independently positioned glyphs matching the declared maximum length.
 - Added left, centered, and right text-field alignment with matching `/Q` values and measured appearance positioning for embedded fonts.
+- Added width-aware multiline wrapping with preserved paragraph breaks and hard wrapping for individual words wider than the field.
+- Added initial-value fit validation for no-scroll single-line and multiline fields so authored content is not inaccessible from the outset.
+- Added combo-box and list-box options with separate export and display values, preserving compact scalar options when both values are identical.
+- Added left, centered, and right choice-field alignment with matching `/Q` values and measured combo or list appearance positioning.
+- Added typed signature-field locks for all fields or validated include and exclude subsets, ready to take effect when the field is signed.
+- Added typed signature seed values for detached PKCS#7 or CAdES encodings, validated SHA-256, SHA-384, or SHA-512 digest constraints, permitted signing reasons, and approval or certification-signature permissions, with independently enforceable required flags.
 - Added unsigned digital-signature fields with page-linked widgets, document signature flags, accessibility and mapping metadata, shared field behavior, and collision-safe names.
+- Added optional visible unsigned-signature prompts with generated border and text appearances, Latin-1 or embedded Unicode fonts, and PDF/A-safe embedded-font enforcement.
 - Added typed radio-group behavior for preventing toggle-to-off and selecting identically named controls in unison, serialized alongside common field flags.
 - Added typed choice-field behavior for sorted option arrays, spell-check suppression, and immediate commit on selection changes across combo and list fields.
 - Added typed text-field behavior for spell-check suppression and preventing scrolling beyond the visible field bounds.
