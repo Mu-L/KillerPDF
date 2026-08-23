@@ -128,6 +128,28 @@ public sealed class PdfNavigationMetadataTests
     }
 
     [Fact]
+    public void SetNamedOpenAction_WritesSharedUnicodeDestination()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddNamedDestination("résumé", 0, PdfDestination.FitWidth(700))
+            .SetNamedOpenAction("résumé")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+
+        Assert.Equal("résumé",
+            DecodeUnicode(Assert.IsType<PdfString>(catalog[Name("OpenAction")])));
+    }
+
+    [Fact]
+    public void SetNamedOpenAction_RejectsMissingDestination()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder()
+            .AddBlankPage()
+            .SetNamedOpenAction("missing"));
+    }
+
+    [Fact]
     public void PdfUa2_RejectsUnstructuredOpenAction()
     {
         Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()

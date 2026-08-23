@@ -1079,7 +1079,24 @@ if (args.Length == 3 && args[0] == "--pdfa-navigation-smoke")
         .AddBlankPage().AddBlankPage().AddBlankPage()
         .AddNamedDestination("appendix", 2)
         .AddNamedDestination("résumé", 1)
+        .SetNamedOpenAction("résumé")
         .AddNamedDestinationLink(0, 72, 680, 180, 24, "appendix")
+        .AddBookmark("Document overview", 0, options: new PdfBookmarkOptions
+        {
+            Style = PdfBookmarkStyle.Bold,
+            Color = new PdfRgbColor(0.12, 0.45, 0.2),
+            IsOpen = false,
+            Destination = PdfDestination.At(72, 720, 1.25)
+        })
+        .AddBookmark("Résumé", 1, 1, new PdfBookmarkOptions
+        {
+            Style = PdfBookmarkStyle.Italic,
+            Destination = PdfDestination.FitWidth(760)
+        })
+        .AddNamedDestinationBookmark("Appendix", "appendix", 1, new PdfBookmarkOptions
+        {
+            Color = new PdfRgbColor(0.2, 0.3, 0.75)
+        })
         .AddPageLabelRange(0, PdfPageLabelStyle.LowerRoman)
         .AddPageLabelRange(2, PdfPageLabelStyle.Decimal, "Appendix ", 1)
         .Build();

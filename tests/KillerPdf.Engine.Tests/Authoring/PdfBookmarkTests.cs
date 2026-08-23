@@ -88,6 +88,74 @@ public sealed class PdfBookmarkTests
             Assert.IsType<PdfIndirectReference>(root[Name("Last")]).ObjectNumber);
     }
 
+    [Fact]
+    public void AddBookmark_WritesPresentationDestinationAndCollapsedCounts()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddBookmark("Collapsed chapter", 0, options: new PdfBookmarkOptions
+            {
+                Style = PdfBookmarkStyle.Bold | PdfBookmarkStyle.Italic,
+                Color = new PdfRgbColor(0.1, 0.3, 0.8),
+                IsOpen = false,
+                Destination = PdfDestination.At(72, 700, 1.25)
+            })
+            .AddBookmark("Section", 1, 1)
+            .AddBookmark("Detail", 1, 2)
+            .AddBookmark("Next chapter", 1)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(document, catalog[Name("Outlines")]);
+        PdfDictionary chapter = ResolveDictionary(document, root[Name("First")]);
+        PdfArray destination = Assert.IsType<PdfArray>(chapter[Name("Dest")]);
+
+        Assert.Equal(2, Assert.IsType<PdfInteger>(root[Name("Count")]).Value);
+        Assert.Equal(-2, Assert.IsType<PdfInteger>(chapter[Name("Count")]).Value);
+        Assert.Equal(3, Assert.IsType<PdfInteger>(chapter[Name("F")]).Value);
+        Assert.Equal([0.1, 0.3, 0.8],
+            Assert.IsType<PdfArray>(chapter[Name("C")]).Select(NumberValue));
+        Assert.Equal("XYZ", Assert.IsType<PdfName>(destination[1]).ValueAsLatin1());
+        Assert.Equal(5, destination.Count);
+    }
+
+    [Fact]
+    public void BookmarkOptions_RejectUndefinedStyleFlags()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfBookmarkOptions { Style = (PdfBookmarkStyle)4 });
+    }
+
+    [Fact]
+    public void AddNamedDestinationBookmark_WritesSharedUnicodeDestination()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddNamedDestination("résumé", 0, PdfDestination.FitWidth(700))
+            .AddNamedDestinationBookmark("Résumé", "résumé")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(document, catalog[Name("Outlines")]);
+        PdfDictionary bookmark = ResolveDictionary(document, root[Name("First")]);
+
+        Assert.Equal("résumé",
+            DecodeUnicode(Assert.IsType<PdfString>(bookmark[Name("Dest")])));
+    }
+
+    [Fact]
+    public void AddNamedDestinationBookmark_RejectsMissingDestination()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddNamedDestinationBookmark("Missing", "missing"));
+    }
+
+    private static double NumberValue(PdfObject value) => value switch
+    {
+        PdfInteger integer => integer.Value,
+        PdfReal real => real.Value,
+        _ => throw new InvalidOperationException()
+    };
+
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

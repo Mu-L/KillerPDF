@@ -309,7 +309,18 @@ public sealed partial class PdfDocumentBuilder
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(destination);
-        _openAction = new OpenActionDefinition(pageIndex, destination);
+        _openAction = new OpenActionDefinition(pageIndex, null, destination);
+        return this;
+    }
+
+    public PdfDocumentBuilder SetNamedOpenAction(string destinationName)
+    {
+        if (string.IsNullOrWhiteSpace(destinationName)
+            || !_namedDestinations.Any(destination =>
+                string.Equals(destination.Name, destinationName, StringComparison.Ordinal)))
+            throw new ArgumentException(
+                "A named open action requires an existing destination.", nameof(destinationName));
+        _openAction = new OpenActionDefinition(null, destinationName, null);
         return this;
     }
 
@@ -332,7 +343,8 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
-    public PdfDocumentBuilder AddBookmark(string title, int pageIndex, int level = 0)
+    public PdfDocumentBuilder AddBookmark(
+        string title, int pageIndex, int level = 0, PdfBookmarkOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("A bookmark title cannot be empty.", nameof(title));
@@ -343,8 +355,36 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentException("The first bookmark must be at level zero.", nameof(level));
         if (_bookmarks.Count > 0 && level > _bookmarks[^1].Level + 1)
             throw new ArgumentException("A bookmark level cannot skip its parent level.", nameof(level));
-        _bookmarks.Add(new BookmarkDefinition(title, pageIndex, level));
+        options ??= new PdfBookmarkOptions();
+        ArgumentNullException.ThrowIfNull(options.Destination);
+        _bookmarks.Add(new BookmarkDefinition(title, pageIndex, null, level, options));
         return this;
+    }
+
+    public PdfDocumentBuilder AddNamedDestinationBookmark(
+        string title, string destinationName, int level = 0,
+        PdfBookmarkOptions? options = null)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("A bookmark title cannot be empty.", nameof(title));
+        if (string.IsNullOrWhiteSpace(destinationName)
+            || !_namedDestinations.Any(destination =>
+                string.Equals(destination.Name, destinationName, StringComparison.Ordinal)))
+            throw new ArgumentException(
+                "A named-destination bookmark requires an existing destination.", nameof(destinationName));
+        ValidateBookmarkLevel(level);
+        options ??= new PdfBookmarkOptions();
+        _bookmarks.Add(new BookmarkDefinition(title, null, destinationName, level, options));
+        return this;
+    }
+
+    private void ValidateBookmarkLevel(int level)
+    {
+        if (level < 0) throw new ArgumentOutOfRangeException(nameof(level));
+        if (_bookmarks.Count == 0 && level != 0)
+            throw new ArgumentException("The first bookmark must be at level zero.", nameof(level));
+        if (_bookmarks.Count > 0 && level > _bookmarks[^1].Level + 1)
+            throw new ArgumentException("A bookmark level cannot skip its parent level.", nameof(level));
     }
 
     /// <summary>Adds a logical structure container without direct page content.</summary>
@@ -1044,9 +1084,11 @@ public sealed partial class PdfDocumentBuilder
         if (_pageLayout.HasValue)
             catalogEntries.Add(("PageLayout", Name(PageLayoutName(_pageLayout.Value))));
         if (_openAction is not null)
-            catalogEntries.Add(("OpenAction", DestinationArray(
-                new PdfIndirectReference(allocated[_openAction.PageIndex].PageNumber, 0),
-                _openAction.Destination)));
+            catalogEntries.Add(("OpenAction", _openAction.NamedDestination is not null
+                ? UnicodeString(_openAction.NamedDestination)
+                : DestinationArray(
+                    new PdfIndirectReference(allocated[_openAction.PageIndex!.Value].PageNumber, 0),
+                    _openAction.Destination!)));
         if (structureRootNumber.HasValue)
         {
             catalogEntries.Add(("StructTreeRoot",
@@ -1203,7 +1245,9 @@ public sealed partial class PdfDocumentBuilder
                     ("Type", Name("Outlines")),
                     ("First", new PdfIndirectReference(bookmarkNumbers[topLevel[0]], 0)),
                     ("Last", new PdfIndirectReference(bookmarkNumbers[topLevel[^1]], 0)),
-                    ("Count", new PdfInteger(bookmarkNumbers.Length))), 0));
+                    ("Count", new PdfInteger(topLevel.Sum(index =>
+                        1 + (_bookmarks[index].Options.IsOpen
+                            ? VisibleDescendantCount(index) : 0))))), 0));
             for (int index = 0; index < _bookmarks.Count; index++)
             {
                 BookmarkDefinition bookmark = _bookmarks[index];
@@ -1213,10 +1257,17 @@ public sealed partial class PdfDocumentBuilder
                     ("Parent", parents[index].HasValue
                         ? new PdfIndirectReference(bookmarkNumbers[parents[index]!.Value], 0)
                         : new PdfIndirectReference(outlinesNumber.Value, 0)),
-                    ("Dest", new PdfArray([
-                        new PdfIndirectReference(allocated[bookmark.PageIndex].PageNumber, 0),
-                        Name("Fit")]))
+                    ("Dest", bookmark.NamedDestination is not null
+                        ? UnicodeString(bookmark.NamedDestination)
+                        : DestinationArray(
+                            new PdfIndirectReference(
+                                allocated[bookmark.PageIndex!.Value].PageNumber, 0),
+                            bookmark.Options.Destination))
                 };
+                if (bookmark.Options.Color.HasValue)
+                    entries.Add(("C", ColorArray(bookmark.Options.Color.Value)));
+                if (bookmark.Options.Style != PdfBookmarkStyle.Regular)
+                    entries.Add(("F", new PdfInteger((int)bookmark.Options.Style)));
                 List<int> siblings = parents[index].HasValue
                     ? children[parents[index]!.Value] : topLevel;
                 int siblingIndex = siblings.IndexOf(index);
@@ -1232,14 +1283,17 @@ public sealed partial class PdfDocumentBuilder
                         bookmarkNumbers[children[index][0]], 0)));
                     entries.Add(("Last", new PdfIndirectReference(
                         bookmarkNumbers[children[index][^1]], 0)));
-                    entries.Add(("Count", new PdfInteger(DescendantCount(index))));
+                    int visibleDescendants = VisibleDescendantCount(index);
+                    entries.Add(("Count", new PdfInteger(
+                        bookmark.Options.IsOpen ? visibleDescendants : -visibleDescendants)));
                 }
                 objects.Add(new PdfIndirectObject(
                     bookmarkNumbers[index], 0, Dictionary(entries.ToArray()), 0));
             }
 
-            int DescendantCount(int index) => children[index]
-                .Sum(child => 1 + DescendantCount(child));
+            int VisibleDescendantCount(int index) => children[index]
+                .Sum(child => 1 + (_bookmarks[child].Options.IsOpen
+                    ? VisibleDescendantCount(child) : 0));
         }
         var structureParentKeys = _structureElements
             .Where(element => element.PageIndex.HasValue)
@@ -2960,7 +3014,9 @@ public sealed partial class PdfDocumentBuilder
         double X, double Y, double Width, double Height, PdfLinkAppearance Appearance,
         string DestinationName)
         : LinkDefinition(X, Y, Width, Height, Appearance);
-    private sealed record BookmarkDefinition(string Title, int PageIndex, int Level);
+    private sealed record BookmarkDefinition(
+        string Title, int? PageIndex, string? NamedDestination, int Level,
+        PdfBookmarkOptions Options);
     private sealed record StructureElementDefinition(
         PdfStructureType Type,
         int Level,
@@ -2970,7 +3026,8 @@ public sealed partial class PdfDocumentBuilder
         string? ActualText);
     private sealed record NamedDestinationDefinition(
         string Name, int PageIndex, PdfDestination Destination);
-    private sealed record OpenActionDefinition(int PageIndex, PdfDestination Destination);
+    private sealed record OpenActionDefinition(
+        int? PageIndex, string? NamedDestination, PdfDestination? Destination);
     private sealed record PageLabelDefinition(
         int PageIndex, PdfPageLabelStyle Style, string? Prefix, int StartNumber);
     private sealed record AttachmentDefinition(
