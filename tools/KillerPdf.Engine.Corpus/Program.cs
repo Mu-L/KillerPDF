@@ -69,6 +69,43 @@ if (args.Length == 3 && args[0] == "--output-intent-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--cmyk-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    if (profile.ColorSpace != "CMYK")
+        throw new ArgumentException("The CMYK smoke test requires a CMYK ICC profile.");
+    string destination = Path.GetFullPath(args[2]);
+    var stencil = new PdfTilingPattern(18, 18,
+        new PdfContentStreamBuilder().Rectangle(2, 2, 7, 7).Fill(),
+        paintType: PdfTilingPatternPaintType.Uncolored);
+    var content = new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .SetRenderingIntent(PdfRenderingIntent.RelativeColorimetric)
+        .SetFlatnessTolerance(0.75)
+        .SetFillCmyk(0.85, 0.2, 0, 0.1).Rectangle(72, 540, 210, 150).Fill()
+        .SetFillPattern(stencil, new PdfCmykColor(0, 0.8, 0.9, 0.05))
+        .Rectangle(330, 540, 210, 150).Fill()
+        .EndMarkedContent();
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF CMYK authoring smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "CMYK press profile")
+        .EnablePdfA4Conformance()
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "CMYK solid and stencil-pattern samples")
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte CMYK PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 3 && args[0] == "--pdfa4f-attachment-smoke")
 {
     PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
@@ -373,6 +410,12 @@ if (args.Length == 3 && args[0] == "--gradient-smoke")
         new PdfGradientStop(0.55, new PdfRgbColor(0.95, 0.25, 0.5)),
         new PdfGradientStop(1, new PdfRgbColor(0.2, 0.05, 0.3))]);
     var content = new PdfContentStreamBuilder()
+        .BeginArtifact()
+        .SetStrokeRgb(0.2, 0.75, 0.9).SetLineWidth(5)
+        .SetLineCap(PdfLineCap.Round).SetLineJoin(PdfLineJoin.Bevel)
+        .SetMiterLimit(6).SetDashPattern([18, 7, 3, 7], 2)
+        .Rectangle(60, 488, 492, 244).Stroke()
+        .EndMarkedContent()
         .BeginMarkedContent(PdfStructureType.Figure, 0)
         .SaveState().Rectangle(72, 560, 228, 140).Clip().PaintShading(axial).RestoreState()
         .EndMarkedContent()
@@ -860,6 +903,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --cmyk-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa4f-attachment-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa4e-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-form-smoke <font.ttf> <profile.icc> <output.pdf>");

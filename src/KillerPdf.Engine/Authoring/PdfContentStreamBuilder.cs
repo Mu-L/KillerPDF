@@ -125,6 +125,71 @@ public sealed class PdfContentStreamBuilder
         return Operator("w"u8, width);
     }
 
+    public PdfContentStreamBuilder SetLineCap(PdfLineCap cap)
+    {
+        if (!Enum.IsDefined(cap)) throw new ArgumentOutOfRangeException(nameof(cap));
+        return Operator("J"u8, (int)cap);
+    }
+
+    public PdfContentStreamBuilder SetLineJoin(PdfLineJoin join)
+    {
+        if (!Enum.IsDefined(join)) throw new ArgumentOutOfRangeException(nameof(join));
+        return Operator("j"u8, (int)join);
+    }
+
+    public PdfContentStreamBuilder SetMiterLimit(double limit)
+    {
+        if (!double.IsFinite(limit) || limit < 1)
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        return Operator("M"u8, limit);
+    }
+
+    /// <summary>Sets the alternating painted and unpainted lengths used for stroked paths.</summary>
+    public PdfContentStreamBuilder SetDashPattern(
+        IReadOnlyList<double> lengths, double phase = 0)
+    {
+        ArgumentNullException.ThrowIfNull(lengths);
+        if (!double.IsFinite(phase) || phase < 0)
+            throw new ArgumentOutOfRangeException(nameof(phase));
+        if (lengths.Any(length => !double.IsFinite(length) || length < 0))
+            throw new ArgumentOutOfRangeException(nameof(lengths),
+                "Dash lengths must be finite and nonnegative.");
+        if (lengths.Count > 0 && lengths.All(length => length == 0))
+            throw new ArgumentException("A dash pattern cannot contain only zero lengths.", nameof(lengths));
+
+        _output.WriteByte((byte)'[');
+        for (int index = 0; index < lengths.Count; index++)
+        {
+            if (index > 0) _output.WriteByte((byte)' ');
+            WriteNumber(lengths[index]);
+        }
+        _output.Write("] "u8);
+        WriteNumber(phase);
+        _output.Write(" d\n"u8);
+        return this;
+    }
+
+    /// <summary>Restores solid strokes.</summary>
+    public PdfContentStreamBuilder SetSolidStroke() => SetDashPattern([]);
+
+    /// <summary>Selects the color-rendering intent used by subsequent painting operations.</summary>
+    public PdfContentStreamBuilder SetRenderingIntent(PdfRenderingIntent intent)
+    {
+        if (!Enum.IsDefined(intent)) throw new ArgumentOutOfRangeException(nameof(intent));
+        _output.Write(PdfObjectWriter.Write(new PdfName(Encoding.ASCII.GetBytes(
+            PdfRenderingIntentNames.Name(intent)))));
+        _output.Write(" ri\n"u8);
+        return this;
+    }
+
+    /// <summary>Sets the maximum device-pixel error used when approximating curves.</summary>
+    public PdfContentStreamBuilder SetFlatnessTolerance(double tolerance)
+    {
+        if (!double.IsFinite(tolerance) || tolerance is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(tolerance));
+        return Operator("i"u8, tolerance);
+    }
+
     /// <summary>Applies reusable fill opacity, stroke opacity, and blend-mode settings.</summary>
     public PdfContentStreamBuilder SetGraphicsState(PdfGraphicsState state)
     {
@@ -232,6 +297,29 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Selects an uncoloured stencil pattern and supplies its DeviceCMYK base colour.</summary>
+    public PdfContentStreamBuilder SetFillPattern(PdfTilingPattern pattern, PdfCmykColor color)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        if (pattern.PaintType != PdfTilingPatternPaintType.Uncolored)
+            throw new ArgumentException(
+                "A base color can only be supplied for an uncolored pattern.", nameof(pattern));
+        PdfName resource = PatternResource(pattern);
+        _hasColorOperators = true;
+        _output.Write("[/Pattern /DeviceCMYK] cs\n"u8);
+        WriteNumber(color.Cyan);
+        _output.WriteByte((byte)' ');
+        WriteNumber(color.Magenta);
+        _output.WriteByte((byte)' ');
+        WriteNumber(color.Yellow);
+        _output.WriteByte((byte)' ');
+        WriteNumber(color.Black);
+        _output.WriteByte((byte)' ');
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" scn\n"u8);
+        return this;
+    }
+
     private PdfName PatternResource(PdfTilingPattern pattern)
     {
         if (!_patterns.TryGetValue(pattern, out PdfName? resource))
@@ -299,6 +387,12 @@ public sealed class PdfContentStreamBuilder
         ColorOperator("RG"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
     public PdfContentStreamBuilder SetFillRgb(double red, double green, double blue) =>
         ColorOperator("rg"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
+    public PdfContentStreamBuilder SetStrokeCmyk(double cyan, double magenta, double yellow, double black) =>
+        ColorOperator("K"u8, Component(cyan, nameof(cyan)), Component(magenta, nameof(magenta)),
+            Component(yellow, nameof(yellow)), Component(black, nameof(black)));
+    public PdfContentStreamBuilder SetFillCmyk(double cyan, double magenta, double yellow, double black) =>
+        ColorOperator("k"u8, Component(cyan, nameof(cyan)), Component(magenta, nameof(magenta)),
+            Component(yellow, nameof(yellow)), Component(black, nameof(black)));
 
     public PdfContentStreamBuilder BeginText()
     {
@@ -363,6 +457,58 @@ public sealed class PdfContentStreamBuilder
     {
         RequireText();
         return Operator("Td"u8, x, y);
+    }
+
+    public PdfContentStreamBuilder SetTextMatrix(
+        double a, double b, double c, double d, double x, double y)
+    {
+        RequireText();
+        return Operator("Tm"u8, a, b, c, d, x, y);
+    }
+
+    public PdfContentStreamBuilder SetTextLeading(double leading)
+    {
+        RequireText();
+        return Operator("TL"u8, leading);
+    }
+
+    public PdfContentStreamBuilder MoveToNextTextLine()
+    {
+        RequireText();
+        return NoOperand("T*"u8);
+    }
+
+    public PdfContentStreamBuilder SetCharacterSpacing(double spacing)
+    {
+        RequireText();
+        return Operator("Tc"u8, spacing);
+    }
+
+    public PdfContentStreamBuilder SetWordSpacing(double spacing)
+    {
+        RequireText();
+        return Operator("Tw"u8, spacing);
+    }
+
+    public PdfContentStreamBuilder SetHorizontalTextScale(double percent)
+    {
+        RequireText();
+        if (!double.IsFinite(percent) || percent <= 0)
+            throw new ArgumentOutOfRangeException(nameof(percent));
+        return Operator("Tz"u8, percent);
+    }
+
+    public PdfContentStreamBuilder SetTextRise(double rise)
+    {
+        RequireText();
+        return Operator("Ts"u8, rise);
+    }
+
+    public PdfContentStreamBuilder SetTextRenderingMode(PdfTextRenderingMode mode)
+    {
+        RequireText();
+        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        return Operator("Tr"u8, (int)mode);
     }
 
     public PdfContentStreamBuilder ShowLatin1Text(string text)

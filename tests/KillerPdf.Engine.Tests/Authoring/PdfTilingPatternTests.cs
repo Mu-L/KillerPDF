@@ -77,6 +77,18 @@ public sealed class PdfTilingPatternTests
     }
 
     [Fact]
+    public void Build_WritesUncoloredStencilWithDeviceCmykBaseColor()
+    {
+        var stencil = new PdfTilingPattern(6, 6,
+            new PdfContentStreamBuilder().Rectangle(1, 1, 4, 4).Fill(),
+            paintType: PdfTilingPatternPaintType.Uncolored);
+
+        Assert.Equal("[/Pattern /DeviceCMYK] cs\n0.1 0.2 0.3 0.4 /P1 scn\n",
+            Encoding.ASCII.GetString(new PdfContentStreamBuilder()
+                .SetFillPattern(stencil, new PdfCmykColor(0.1, 0.2, 0.3, 0.4)).Build()));
+    }
+
+    [Fact]
     public void Pattern_RejectsInvalidGeometryAndTaggedContent()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

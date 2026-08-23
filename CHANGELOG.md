@@ -11,12 +11,16 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 ### PDF document engine development
 - Added a standalone, UI-free .NET 10 document-engine project and test project that will replace KillerPDF's PdfSharpCore document pipeline without replacing PDFium rendering.
 - Added from-scratch PDF 2.0 catalogs, page trees, arbitrary finite page sizes, content streams, graphics-state operations, transforms, paths, Bézier curves, rectangles, colors, fills, and strokes.
+- Added complete stroke styling with butt, round, and projecting-square caps; miter, round, and bevel joins; validated miter limits; reusable dash sequences and phases; and solid-stroke reset.
+- Added native DeviceCMYK fill and stroke authoring plus validated CMYK base colors for uncolored stencil patterns, complementing existing grayscale and RGB graphics support.
+- Added all four standard color-rendering intents and validated curve-flatness tolerance controls for predictable screen and print painting behavior.
 - Added reusable page transparency through extended graphics-state resources, with independent fill and stroke opacity plus all sixteen standard separable and non-separable PDF blend modes shared deterministically within and across pages.
 - Added reusable axial and radial gradient shadings with clipping, arbitrary strictly ordered RGB color stops, two-color interpolation, multi-stop stitching functions, extension controls, and deterministic sharing across pages.
 - Added reusable Form XObjects for vector artwork, text, images, gradients, nested compositions, and isolated or knockout transparency groups. Forms keep their resources scoped, can be placed repeatedly at natural or scaled sizes, and are stored only once even when reused across pages.
 - Added reusable colored and uncolored stencil tiling patterns with configurable cells, horizontal and vertical spacing, tiling behavior, pattern-space transforms, nested resources, and deterministic sharing across pages.
 - Added PDF optional-content layers with Unicode names, deterministic viewer ordering, initial visibility controls, shared page-property resources, and complete layer-configuration preservation when whole documents are imported into empty destinations. Unsafe partial or combined layer imports now fail explicitly instead of leaving content tied to a missing catalog configuration.
 - Added positioned and escaped Latin-1 text with automatic resources for all 14 built-in Type 1 fonts.
+- Added text matrices, line leading and next-line movement, character and word spacing, horizontal scaling, baseline rise, and all eight PDF text rendering and clipping modes.
 - Added bounded TrueType/OpenType inspection for names, metrics, embedding permissions, widths, Unicode cmap formats 4 and 12, deterministic glyf/loca subsetting with composite dependencies, full-file CFF-flavoured OpenType embedding, CIDFontType0 and CIDFontType2 descendants, and `ToUnicode` maps.
 - Added image XObjects with bounded JPEG inspection and lossless DCT passthrough for grayscale, RGB, and CMYK images, deterministic Flate compression for RGB/RGBA pixels, reusable resources, mirroring, and alpha soft masks.
 - Added Unicode metadata in both the information dictionary and XMP, document language, timezone-preserving dates, and stable content-derived trailer identifiers.

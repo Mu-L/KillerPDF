@@ -29,6 +29,75 @@ public sealed class PdfContentStreamBuilderTests
     }
 
     [Fact]
+    public void Build_WritesCompleteStrokeStyling()
+    {
+        byte[] content = new PdfContentStreamBuilder()
+            .SetLineWidth(3.5)
+            .SetLineCap(PdfLineCap.Round)
+            .SetLineJoin(PdfLineJoin.Bevel)
+            .SetMiterLimit(7)
+            .SetDashPattern([8, 3, 2, 3], 1.5)
+            .MoveTo(10, 10).LineTo(50, 50).Stroke()
+            .SetSolidStroke()
+            .Build();
+
+        Assert.Equal(
+            "3.5 w\n1 J\n2 j\n7 M\n[8 3 2 3] 1.5 d\n10 10 m\n50 50 l\nS\n[] 0 d\n",
+            Encoding.ASCII.GetString(content));
+    }
+
+    [Fact]
+    public void StrokeStyling_RejectsInvalidValues()
+    {
+        var content = new PdfContentStreamBuilder();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => content.SetLineCap((PdfLineCap)3));
+        Assert.Throws<ArgumentOutOfRangeException>(() => content.SetLineJoin((PdfLineJoin)(-1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => content.SetMiterLimit(0.99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => content.SetDashPattern([2, -1]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => content.SetDashPattern([2], double.NaN));
+        Assert.Throws<ArgumentException>(() => content.SetDashPattern([0, 0]));
+    }
+
+    [Fact]
+    public void Build_WritesRenderingIntentAndFlatness()
+    {
+        Assert.Equal("/RelativeColorimetric ri\n0.75 i\n",
+            Encoding.ASCII.GetString(new PdfContentStreamBuilder()
+                .SetRenderingIntent(PdfRenderingIntent.RelativeColorimetric)
+                .SetFlatnessTolerance(0.75).Build()));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfContentStreamBuilder().SetRenderingIntent((PdfRenderingIntent)4));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfContentStreamBuilder().SetFlatnessTolerance(100.1));
+    }
+
+    [Fact]
+    public void Build_WritesDeviceCmykFillAndStroke()
+    {
+        byte[] content = new PdfContentStreamBuilder()
+            .SetFillCmyk(0.8, 0.25, 0, 0.1).Rectangle(10, 10, 30, 20).Fill()
+            .SetStrokeCmyk(0, 0.7, 0.9, 0.05).Rectangle(50, 10, 30, 20).Stroke()
+            .Build();
+
+        Assert.Equal(
+            "0.8 0.25 0 0.1 k\n10 10 30 20 re\nf\n0 0.7 0.9 0.05 K\n50 10 30 20 re\nS\n",
+            Encoding.ASCII.GetString(content));
+    }
+
+    [Theory]
+    [InlineData(-0.1)]
+    [InlineData(1.1)]
+    [InlineData(double.PositiveInfinity)]
+    public void DeviceCmyk_RejectsInvalidComponents(double value)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfCmykColor(0, value, 0, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfContentStreamBuilder().SetFillCmyk(0, 0, value, 0));
+    }
+
+    [Fact]
     public void DocumentBuilder_EmbedsTypedContentAndReopensIt()
     {
         var content = new PdfContentStreamBuilder()
@@ -117,6 +186,46 @@ public sealed class PdfContentStreamBuilderTests
         var stream = Assert.IsType<PdfStream>(document.Resolve(
             Assert.IsType<PdfIndirectReference>(page[Name("Contents")])));
         Assert.Contains("(KillerPDF \\(2.0\\)) Tj", Encoding.ASCII.GetString(stream.EncodedData.Span));
+    }
+
+    [Fact]
+    public void TextOperators_WritePositioningSpacingAndRenderingState()
+    {
+        byte[] content = new PdfContentStreamBuilder()
+            .BeginText()
+            .SetFont(PdfStandardFont.Helvetica, 14)
+            .SetTextMatrix(0.866, 0.5, -0.5, 0.866, 72, 700)
+            .SetTextLeading(18)
+            .SetCharacterSpacing(0.25)
+            .SetWordSpacing(1.5)
+            .SetHorizontalTextScale(92)
+            .SetTextRise(3)
+            .SetTextRenderingMode(PdfTextRenderingMode.FillAndStroke)
+            .ShowLatin1Text("Raised text")
+            .MoveToNextTextLine()
+            .SetTextRise(0)
+            .ShowLatin1Text("Next line")
+            .EndText()
+            .Build();
+
+        Assert.Equal(
+            "BT\n/F1 14 Tf\n0.866 0.5 -0.5 0.866 72 700 Tm\n18 TL\n0.25 Tc\n1.5 Tw\n92 Tz\n3 Ts\n2 Tr\n(Raised text) Tj\nT*\n0 Ts\n(Next line) Tj\nET\n",
+            Encoding.ASCII.GetString(content));
+    }
+
+    [Fact]
+    public void TextState_RequiresTextObjectAndValidEnumerations()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfContentStreamBuilder().SetTextLeading(12));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfContentStreamBuilder().BeginText().SetHorizontalTextScale(0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfContentStreamBuilder().BeginText()
+                .SetTextRenderingMode((PdfTextRenderingMode)8));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfContentStreamBuilder().BeginText()
+                .SetTextMatrix(1, 0, 0, double.NaN, 0, 0));
     }
 
     [Fact]
