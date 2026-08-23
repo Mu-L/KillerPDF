@@ -95,7 +95,8 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfStandardFont, PdfName>(), [],
             new Dictionary<PdfImage, PdfName>(),
             new Dictionary<PdfOptionalContentGroup, PdfName>(),
-            new Dictionary<PdfGraphicsState, PdfName>(), [], [], content.Length > 0));
+            new Dictionary<PdfGraphicsState, PdfName>(),
+            new Dictionary<PdfShading, PdfName>(), [], [], content.Length > 0));
         return this;
     }
 
@@ -112,7 +113,8 @@ public sealed partial class PdfDocumentBuilder
             content.EmbeddedFontResources.ToArray(),
             content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.OptionalContentResources.ToDictionary(entry => entry.Key, entry => entry.Value),
-            content.GraphicsStateResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.GraphicsStateResources.ToDictionary(entry => entry.Key, entry => entry.Value),
+            content.ShadingResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent));
         return this;
     }
@@ -596,6 +598,9 @@ public sealed partial class PdfDocumentBuilder
             .ToArray();
         var graphicsStateNumbers = graphicsStates
             .ToDictionary(state => state, _ => nextObjectNumber++);
+        PdfShading[] shadings = _pages.SelectMany(page => page.Shadings.Keys)
+            .Distinct().ToArray();
+        var shadingNumbers = shadings.ToDictionary(shading => shading, _ => nextObjectNumber++);
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
             .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
@@ -1030,6 +1035,9 @@ public sealed partial class PdfDocumentBuilder
                     ("ca", Number(state.FillOpacity)),
                     ("CA", Number(state.StrokeOpacity)),
                     ("BM", Name(PdfBlendModeNames.Name(state.BlendMode)))), 0));
+        foreach (PdfShading shading in shadings)
+            objects.Add(new PdfIndirectObject(
+                shadingNumbers[shading], 0, ShadingDictionary(shading), 0));
         for (int index = 0; index < allocatedTextNotes.Length; index++)
             AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1);
         for (int index = 0; index < allocatedTextMarkups.Length; index++)
@@ -1091,6 +1099,13 @@ public sealed partial class PdfDocumentBuilder
                     new KeyValuePair<PdfName, PdfObject>(entry.Value,
                         new PdfIndirectReference(graphicsStateNumbers[entry.Key], 0)));
                 resourceEntries.Add(("ExtGState", new PdfDictionary(stateEntries)));
+            }
+            if (allocatedPage.Definition.Shadings.Count > 0)
+            {
+                var shadingEntries = allocatedPage.Definition.Shadings.Select(entry =>
+                    new KeyValuePair<PdfName, PdfObject>(entry.Value,
+                        new PdfIndirectReference(shadingNumbers[entry.Key], 0)));
+                resourceEntries.Add(("Shading", new PdfDictionary(shadingEntries)));
             }
             resources = Dictionary(resourceEntries.ToArray());
             var entries = new List<(string Name, PdfObject Value)>
@@ -1960,6 +1975,57 @@ public sealed partial class PdfDocumentBuilder
             output.WriteByte(checked((byte)character));
     }
 
+    private static PdfDictionary ShadingDictionary(PdfShading shading)
+    {
+        PdfArray coordinates = shading switch
+        {
+            PdfAxialGradient axial => new PdfArray([
+                Number(axial.StartX), Number(axial.StartY),
+                Number(axial.EndX), Number(axial.EndY)]),
+            PdfRadialGradient radial => new PdfArray([
+                Number(radial.StartX), Number(radial.StartY), Number(radial.StartRadius),
+                Number(radial.EndX), Number(radial.EndY), Number(radial.EndRadius)]),
+            _ => throw new NotSupportedException(
+                $"Shading type {shading.GetType().FullName} cannot be authored.")
+        };
+        return Dictionary(
+            ("ShadingType", new PdfInteger(shading is PdfAxialGradient ? 2 : 3)),
+            ("ColorSpace", Name("DeviceRGB")),
+            ("Coords", coordinates),
+            ("Function", GradientFunction(shading.Stops)),
+            ("Extend", new PdfArray([
+                new PdfBoolean(shading.ExtendStart), new PdfBoolean(shading.ExtendEnd)])),
+            ("AntiAlias", new PdfBoolean(true)));
+    }
+
+    private static PdfDictionary GradientFunction(IReadOnlyList<PdfGradientStop> stops)
+    {
+        PdfDictionary Segment(PdfGradientStop start, PdfGradientStop end) => Dictionary(
+            ("FunctionType", new PdfInteger(2)),
+            ("Domain", new PdfArray([new PdfInteger(0), new PdfInteger(1)])),
+            ("C0", ColorArray(start.Color)),
+            ("C1", ColorArray(end.Color)),
+            ("N", new PdfInteger(1)));
+
+        if (stops.Count == 2) return Segment(stops[0], stops[1]);
+        var functions = new List<PdfObject>(stops.Count - 1);
+        var bounds = new List<PdfObject>(stops.Count - 2);
+        var encode = new List<PdfObject>((stops.Count - 1) * 2);
+        for (int index = 0; index + 1 < stops.Count; index++)
+        {
+            functions.Add(Segment(stops[index], stops[index + 1]));
+            if (index + 1 < stops.Count - 1) bounds.Add(Number(stops[index + 1].Offset));
+            encode.Add(new PdfInteger(0));
+            encode.Add(new PdfInteger(1));
+        }
+        return Dictionary(
+            ("FunctionType", new PdfInteger(3)),
+            ("Domain", new PdfArray([new PdfInteger(0), new PdfInteger(1)])),
+            ("Functions", new PdfArray(functions)),
+            ("Bounds", new PdfArray(bounds)),
+            ("Encode", new PdfArray(encode)));
+    }
+
     private static PdfDictionary Dictionary(params (string Name, PdfObject Value)[] entries) =>
         new(entries.Select(entry => new KeyValuePair<PdfName, PdfObject>(Name(entry.Name), entry.Value)));
 
@@ -1985,6 +2051,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfImage, PdfName> Images,
         IReadOnlyDictionary<PdfOptionalContentGroup, PdfName> OptionalContentGroups,
         IReadOnlyDictionary<PdfGraphicsState, PdfName> GraphicsStates,
+        IReadOnlyDictionary<PdfShading, PdfName> Shadings,
         IReadOnlyList<LinkDefinition> Links,
         IReadOnlyCollection<int> MarkedContentIds,
         bool HasUntaggedContent);

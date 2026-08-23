@@ -360,6 +360,51 @@ if (args.Length == 3 && args[0] == "--transparency-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--gradient-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    var axial = new PdfAxialGradient(72, 560, 300, 700, [
+        new PdfGradientStop(0, new PdfRgbColor(0.1, 0.3, 0.9)),
+        new PdfGradientStop(0.45, new PdfRgbColor(0.2, 0.9, 0.7)),
+        new PdfGradientStop(1, new PdfRgbColor(1, 0.8, 0.1))]);
+    var radial = new PdfRadialGradient(420, 630, 0, 420, 630, 90, [
+        new PdfGradientStop(0, new PdfRgbColor(1, 1, 1)),
+        new PdfGradientStop(0.55, new PdfRgbColor(0.95, 0.25, 0.5)),
+        new PdfGradientStop(1, new PdfRgbColor(0.2, 0.05, 0.3))]);
+    var content = new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .SaveState().Rectangle(72, 560, 228, 140).Clip().PaintShading(axial).RestoreState()
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Figure, 1)
+        .SaveState().Rectangle(330, 540, 180, 180).Clip().PaintShading(radial).RestoreState()
+        .EndMarkedContent();
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF gradient shading smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "A blue, green, and yellow axial gradient")
+        .AddStructureElement(PdfStructureType.Figure, 0, 1, 1,
+            alternateDescription: "A white, pink, and purple radial gradient")
+        .Build();
+    byte[] target = new PdfDocumentBuilder().Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedDocument(PdfDocument.Open(source))
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte gradient PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--form-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -729,6 +774,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --layers-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --signature-smoke <openssl.exe> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --transparency-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --gradient-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --font-info <font.ttf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --unicode-smoke <font.ttf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");

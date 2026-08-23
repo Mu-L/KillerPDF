@@ -14,6 +14,7 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<PdfImage, PdfName> _images = [];
     private readonly Dictionary<PdfOptionalContentGroup, PdfName> _optionalContentGroups = [];
     private readonly Dictionary<PdfGraphicsState, PdfName> _graphicsStates = [];
+    private readonly Dictionary<PdfShading, PdfName> _shadings = [];
     private int _savedStateDepth;
     private readonly Stack<bool> _markedContentStack = [];
     private int _accessibleMarkedContentDepth;
@@ -30,6 +31,7 @@ public sealed class PdfContentStreamBuilder
         _optionalContentGroups;
     internal IReadOnlyDictionary<PdfGraphicsState, PdfName> GraphicsStateResources =>
         _graphicsStates;
+    internal IReadOnlyDictionary<PdfShading, PdfName> ShadingResources => _shadings;
     internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
     internal bool HasUntaggedContent => _hasUntaggedContent;
 
@@ -140,6 +142,21 @@ public sealed class PdfContentStreamBuilder
     public PdfContentStreamBuilder SetBlendMode(PdfBlendMode blendMode) =>
         SetGraphicsState(new PdfGraphicsState(blendMode: blendMode));
 
+    /// <summary>Paints an axial or radial gradient across the current clipping path.</summary>
+    public PdfContentStreamBuilder PaintShading(PdfShading shading)
+    {
+        ArgumentNullException.ThrowIfNull(shading);
+        if (!_shadings.TryGetValue(shading, out PdfName? resource))
+        {
+            resource = new PdfName(Encoding.ASCII.GetBytes($"Sh{_shadings.Count + 1}"));
+            _shadings.Add(shading, resource);
+        }
+        RecordPaintedContent();
+        _output.Write(PdfObjectWriter.Write(resource));
+        _output.Write(" sh\n"u8);
+        return this;
+    }
+
     public PdfContentStreamBuilder MoveTo(double x, double y) => Operator("m"u8, x, y);
     public PdfContentStreamBuilder LineTo(double x, double y) => Operator("l"u8, x, y);
     public PdfContentStreamBuilder CurveTo(
@@ -152,6 +169,19 @@ public sealed class PdfContentStreamBuilder
     public PdfContentStreamBuilder Fill() => PaintingOperator("f"u8);
     public PdfContentStreamBuilder FillEvenOdd() => PaintingOperator("f*"u8);
     public PdfContentStreamBuilder FillAndStroke() => PaintingOperator("B"u8);
+    public PdfContentStreamBuilder EndPath() => NoOperand("n"u8);
+    public PdfContentStreamBuilder Clip()
+    {
+        WriteOperator("W"u8);
+        WriteOperator("n"u8);
+        return this;
+    }
+    public PdfContentStreamBuilder ClipEvenOdd()
+    {
+        WriteOperator("W*"u8);
+        WriteOperator("n"u8);
+        return this;
+    }
 
     /// <summary>Places an image in the page coordinate system.</summary>
     public PdfContentStreamBuilder DrawImage(
