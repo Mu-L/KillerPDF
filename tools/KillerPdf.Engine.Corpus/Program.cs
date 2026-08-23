@@ -226,6 +226,34 @@ if (args.Length == 3 && args[0] == "--incremental-annotation-smoke")
     return 0;
 }
 
+if (args.Length == 4 && args[0] == "--incremental-visual-annotation-smoke")
+{
+    TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
+    byte[] source = File.ReadAllBytes(args[2]);
+    byte[] pdf = new PdfIncrementalAnnotationEditor(PdfDocument.Open(source))
+        .AddFreeText(0, 350, 680, 170, 60, "Incremental café Ω\nEmbedded free text", font, 12,
+            fillColor: new PdfRgbColor(1, 1, 0.8), opacity: 0.9)
+        .AddLine(0, new PdfPoint(350, 640), new PdfPoint(520, 610),
+            new PdfRgbColor(0.1, 0.35, 0.9), 3, 0.8, "Incremental line")
+        .AddRectangle(0, 350, 530, 75, 50,
+            new PdfRgbColor(0.9, 0.1, 0.2), new PdfRgbColor(1, 0.8, 0.85), 3, 0.75)
+        .AddEllipse(0, 445, 530, 75, 50,
+            new PdfRgbColor(0.1, 0.55, 0.25), new PdfRgbColor(0.8, 1, 0.85), 3, 0.75)
+        .AddInk(0,
+        [
+            [new PdfPoint(350, 480), new PdfPoint(385, 500), new PdfPoint(420, 475)],
+            [new PdfPoint(445, 480), new PdfPoint(480, 500), new PdfPoint(515, 475)]
+        ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85)
+        .Build();
+    if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
+        throw new InvalidDataException("The incremental visual annotation update changed source bytes.");
+    string destination = Path.GetFullPath(args[3]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote five visual annotations in {pdf.Length - source.Length:N0} appended bytes to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -240,6 +268,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-visual-annotation-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-smoke <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-annotation-smoke <input.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-visual-annotation-smoke <font.ttf> <input.pdf> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 

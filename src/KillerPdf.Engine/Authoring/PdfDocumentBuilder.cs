@@ -1357,118 +1357,18 @@ public sealed partial class PdfDocumentBuilder
     private static void AddEmbeddedFontObjects(
         ICollection<PdfIndirectObject> objects, AllocatedEmbeddedFont allocated)
     {
-        TrueTypeFont font = allocated.Font;
-        byte[] fontProgram = font.FontData.ToArray();
-        bool subset = false;
-        if (font.SubsettingAllowed && allocated.Mappings.Count > 0)
-        {
-            try
-            {
-                fontProgram = font.CreateSubset(allocated.Mappings.Keys);
-                subset = true;
-            }
-            catch (NotSupportedException)
-            {
-                // Some sfnt fonts use TrueType-compatible metrics without glyf/loca outlines.
-                // Full embedding remains valid and preserves their renderer-specific tables.
-            }
-        }
-        string baseName = SanitizeFontName(font.PostScriptName);
-        if (subset)
-            baseName = $"{TrueTypeSubsetter.Prefix(font.FontData.ToArray(), allocated.Mappings.Keys)}+{baseName}";
-        PdfName baseFont = Name(baseName);
-        objects.Add(new PdfIndirectObject(allocated.FontFileNumber, 0,
-            new PdfStream(
-                Dictionary(("Length1", new PdfInteger(fontProgram.Length))),
-                fontProgram), 0));
-
-        int flags = 32;
-        if (font.ItalicAngle != 0)
-            flags |= 64;
-        objects.Add(new PdfIndirectObject(allocated.DescriptorNumber, 0,
-            Dictionary(
-                ("Type", Name("FontDescriptor")),
-                ("FontName", baseFont),
-                ("Flags", new PdfInteger(flags)),
-                ("FontBBox", new PdfArray([
-                    new PdfInteger(Scale(font.Bounds.XMin, font.UnitsPerEm)),
-                    new PdfInteger(Scale(font.Bounds.YMin, font.UnitsPerEm)),
-                    new PdfInteger(Scale(font.Bounds.XMax, font.UnitsPerEm)),
-                    new PdfInteger(Scale(font.Bounds.YMax, font.UnitsPerEm))])),
-                ("ItalicAngle", Number(font.ItalicAngle)),
-                ("Ascent", new PdfInteger(Scale(font.Ascender, font.UnitsPerEm))),
-                ("Descent", new PdfInteger(Scale(font.Descender, font.UnitsPerEm))),
-                ("CapHeight", new PdfInteger(Scale(font.Ascender, font.UnitsPerEm))),
-                ("StemV", new PdfInteger(80)),
-                ("FontFile2", new PdfIndirectReference(allocated.FontFileNumber, 0))), 0));
-
-        var widths = new List<PdfObject>();
-        foreach (ushort glyph in allocated.Mappings.Keys)
-        {
-            widths.Add(new PdfInteger(glyph));
-            widths.Add(new PdfArray([new PdfInteger(font.GetPdfAdvanceWidth(glyph))]));
-        }
-        PdfDictionary cidSystemInfo = Dictionary(
-            ("Registry", Latin1String("Adobe")),
-            ("Ordering", Latin1String("Identity")),
-            ("Supplement", new PdfInteger(0)));
-        objects.Add(new PdfIndirectObject(allocated.CidFontNumber, 0,
-            Dictionary(
-                ("Type", Name("Font")),
-                ("Subtype", Name("CIDFontType2")),
-                ("BaseFont", baseFont),
-                ("CIDSystemInfo", cidSystemInfo),
-                ("FontDescriptor", new PdfIndirectReference(allocated.DescriptorNumber, 0)),
-                ("DW", new PdfInteger(1000)),
-                ("W", new PdfArray(widths)),
-                ("CIDToGIDMap", Name("Identity"))), 0));
-
-        objects.Add(new PdfIndirectObject(allocated.ToUnicodeNumber, 0,
-            new PdfStream(Dictionary(), BuildToUnicodeMap(allocated.Mappings)), 0));
-        objects.Add(new PdfIndirectObject(allocated.Type0Number, 0,
-            Dictionary(
-                ("Type", Name("Font")),
-                ("Subtype", Name("Type0")),
-                ("BaseFont", baseFont),
-                ("Encoding", Name("Identity-H")),
-                ("DescendantFonts", new PdfArray([
-                    new PdfIndirectReference(allocated.CidFontNumber, 0)])),
-                ("ToUnicode", new PdfIndirectReference(allocated.ToUnicodeNumber, 0))), 0));
-    }
-
-    private static byte[] BuildToUnicodeMap(IReadOnlyDictionary<ushort, int> mappings)
-    {
-        var text = new StringBuilder(
-            "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n" +
-            "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n" +
-            "/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n" +
-            "1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n");
-        foreach (KeyValuePair<ushort, int>[] chunk in mappings.Chunk(100))
-        {
-            text.Append(chunk.Length).Append(" beginbfchar\n");
-            foreach ((ushort glyph, int scalar) in chunk)
-            {
-                text.Append('<').Append(glyph.ToString("X4", CultureInfo.InvariantCulture)).Append("> <");
-                foreach (byte value in Encoding.BigEndianUnicode.GetBytes(char.ConvertFromUtf32(scalar)))
-                    text.Append(value.ToString("X2", CultureInfo.InvariantCulture));
-                text.Append(">\n");
-            }
-            text.Append("endbfchar\n");
-        }
-        text.Append("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n");
-        return Encoding.ASCII.GetBytes(text.ToString());
-    }
-
-    private static int Scale(int value, int unitsPerEm) =>
-        (int)Math.Round(value * 1000d / unitsPerEm, MidpointRounding.AwayFromZero);
-
-    private static string SanitizeFontName(string value)
-    {
-        string cleaned = new(value.Where(character => character is >= '!' and <= '~'
-            && character is not '(' and not ')' and not '<' and not '>' and not '[' and not ']'
-            && character is not '{' and not '}' and not '/' and not '%' and not '#')
-            .ToArray());
-        return cleaned.Length == 0 ? "EmbeddedTrueTypeFont" : cleaned;
+        var type0 = new PdfIndirectReference(allocated.Type0Number, 0);
+        var cidFont = new PdfIndirectReference(allocated.CidFontNumber, 0);
+        var descriptor = new PdfIndirectReference(allocated.DescriptorNumber, 0);
+        var fontFile = new PdfIndirectReference(allocated.FontFileNumber, 0);
+        var toUnicode = new PdfIndirectReference(allocated.ToUnicodeNumber, 0);
+        EmbeddedTrueTypeFontObjects values = PdfEmbeddedTrueTypeFontFactory.Create(
+            allocated.Font, allocated.Mappings, type0, cidFont, descriptor, fontFile, toUnicode);
+        objects.Add(new PdfIndirectObject(allocated.FontFileNumber, 0, values.FontFile, 0));
+        objects.Add(new PdfIndirectObject(allocated.DescriptorNumber, 0, values.Descriptor, 0));
+        objects.Add(new PdfIndirectObject(allocated.CidFontNumber, 0, values.CidFont, 0));
+        objects.Add(new PdfIndirectObject(allocated.ToUnicodeNumber, 0, values.ToUnicode, 0));
+        objects.Add(new PdfIndirectObject(allocated.Type0Number, 0, values.Type0, 0));
     }
 
     private static PdfString Latin1String(string value) =>
