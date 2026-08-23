@@ -10,11 +10,15 @@ public sealed class PdfFormXObject
 {
     public PdfFormXObject(
         double width, double height, PdfContentStreamBuilder content,
-        bool isolatedTransparencyGroup = false, bool knockoutTransparencyGroup = false)
+        bool isolatedTransparencyGroup = false, bool knockoutTransparencyGroup = false,
+        PdfTransparencyGroupColorSpace transparencyGroupColorSpace =
+            PdfTransparencyGroupColorSpace.Rgb)
     {
         ArgumentNullException.ThrowIfNull(content);
         Width = Dimension(width, nameof(width));
         Height = Dimension(height, nameof(height));
+        if (!Enum.IsDefined(transparencyGroupColorSpace))
+            throw new ArgumentOutOfRangeException(nameof(transparencyGroupColorSpace));
         if (content.MarkedContentIds.Count > 0)
             throw new ArgumentException(
                 "Tagged marked content belongs to a page structure tree and cannot be captured inside a reusable form.",
@@ -38,12 +42,14 @@ public sealed class PdfFormXObject
         CalibratedColorSpaces = content.CalibratedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         IsolatedTransparencyGroup = isolatedTransparencyGroup;
         KnockoutTransparencyGroup = knockoutTransparencyGroup;
+        TransparencyGroupColorSpace = transparencyGroupColorSpace;
     }
 
     public double Width { get; }
     public double Height { get; }
     public bool IsolatedTransparencyGroup { get; }
     public bool KnockoutTransparencyGroup { get; }
+    public PdfTransparencyGroupColorSpace TransparencyGroupColorSpace { get; }
 
     internal byte[] Content { get; }
     internal IReadOnlyDictionary<PdfStandardFont, PdfName> Fonts { get; }
@@ -67,4 +73,11 @@ public sealed class PdfFormXObject
                 "A form dimension must be finite and greater than zero.");
         return value;
     }
+}
+
+public enum PdfTransparencyGroupColorSpace
+{
+    Gray,
+    Rgb,
+    Cmyk
 }

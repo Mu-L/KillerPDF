@@ -52,13 +52,63 @@ public sealed class PdfVisualAnnotationAuthoringTests
     {
         PdfDocument document = Open(new PdfDocumentBuilder()
             .AddBlankPage()
-            .AddLineAnnotation(0, new PdfPoint(20, 30), new PdfPoint(120, 80), lineWidth: 3));
+            .AddLineAnnotation(0, new PdfPoint(20, 30), new PdfPoint(120, 80), lineWidth: 3,
+                startEnding: PdfLineEndingStyle.OpenArrow,
+                endEnding: PdfLineEndingStyle.ClosedArrow));
         PdfDictionary annotation = Annotation(document);
+        PdfArray endings = Assert.IsType<PdfArray>(annotation[Name("LE")]);
+        string appearance = Encoding.ASCII.GetString(
+            Appearance(document, annotation).EncodedData.Span);
 
         Assert.Equal("Line", Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
         Assert.Equal(4, Assert.IsType<PdfArray>(annotation[Name("L")]).Count);
         Assert.Equal(3, Assert.IsType<PdfInteger>(
             Assert.IsType<PdfDictionary>(annotation[Name("BS")])[Name("W")]).Value);
+        Assert.Equal("OpenArrow", Assert.IsType<PdfName>(endings[0]).ValueAsLatin1());
+        Assert.Equal("ClosedArrow", Assert.IsType<PdfName>(endings[1]).ValueAsLatin1());
+        Assert.Contains("h\nB\n", appearance);
+    }
+
+    [Fact]
+    public void PolygonAnnotation_WritesVerticesFillAndClosedAppearance()
+    {
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddPolygonAnnotation(0, [
+                new PdfPoint(20, 20), new PdfPoint(100, 30), new PdfPoint(60, 100)],
+                strokeColor: new PdfRgbColor(0.1, 0.2, 0.8),
+                fillColor: new PdfRgbColor(0.9, 0.8, 0.2), lineWidth: 2));
+        PdfDictionary annotation = Annotation(document);
+        string appearance = Encoding.ASCII.GetString(
+            Appearance(document, annotation).EncodedData.Span);
+
+        Assert.Equal("Polygon",
+            Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal(6, Assert.IsType<PdfArray>(annotation[Name("Vertices")]).Count);
+        Assert.Equal(3, Assert.IsType<PdfArray>(annotation[Name("IC")]).Count);
+        Assert.Contains("h\nB\n", appearance);
+    }
+
+    [Fact]
+    public void PolylineAnnotation_WritesVerticesAndOpenAppearance()
+    {
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddPolylineAnnotation(0, [
+                new PdfPoint(20, 20), new PdfPoint(100, 30), new PdfPoint(60, 100)],
+                startEnding: PdfLineEndingStyle.ClosedArrow,
+                endEnding: PdfLineEndingStyle.OpenArrow));
+        PdfDictionary annotation = Annotation(document);
+        string appearance = Encoding.ASCII.GetString(
+            Appearance(document, annotation).EncodedData.Span);
+
+        Assert.Equal("PolyLine",
+            Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal(6, Assert.IsType<PdfArray>(annotation[Name("Vertices")]).Count);
+        Assert.Equal(2, Assert.IsType<PdfArray>(annotation[Name("LE")]).Count);
+        Assert.False(annotation.ContainsKey(Name("IC")));
+        Assert.Contains("S\nQ\n", appearance);
+        Assert.Contains("h\nB\n", appearance);
     }
 
     [Fact]
@@ -108,7 +158,16 @@ public sealed class PdfVisualAnnotationAuthoringTests
         var builder = new PdfDocumentBuilder().AddBlankPage();
         Assert.Throws<ArgumentException>(() => builder.AddLineAnnotation(
             0, new PdfPoint(1, 1), new PdfPoint(1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddLineAnnotation(
+            0, new PdfPoint(1, 1), new PdfPoint(2, 2),
+            startEnding: (PdfLineEndingStyle)99));
         Assert.Throws<ArgumentException>(() => builder.AddInkAnnotation(0, Array.Empty<PdfPoint>()));
+        Assert.Throws<ArgumentException>(() => builder.AddPolylineAnnotation(
+            0, [new PdfPoint(1, 1)]));
+        Assert.Throws<ArgumentException>(() => builder.AddPolygonAnnotation(
+            0, [new PdfPoint(1, 1), new PdfPoint(2, 2)]));
+        Assert.Throws<ArgumentException>(() => builder.AddPolygonAnnotation(
+            0, [new PdfPoint(1, 1), new PdfPoint(1, 1), new PdfPoint(1, 1)]));
         Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddRectangleAnnotation(
             0, 0, 0, 10, 10, lineWidth: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => new PdfPoint(double.NaN, 0));

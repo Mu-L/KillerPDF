@@ -44,6 +44,40 @@ public sealed class PdfContentStreamBuilderTests
     }
 
     [Fact]
+    public void Build_WritesEllipseCircleAndRoundedRectanglePaths()
+    {
+        string ellipse = Encoding.ASCII.GetString(new PdfContentStreamBuilder()
+            .Ellipse(10, 20, 80, 40).Fill().Build());
+        string circle = Encoding.ASCII.GetString(new PdfContentStreamBuilder()
+            .Circle(50, 50, 20).Stroke().Build());
+        string rounded = Encoding.ASCII.GetString(new PdfContentStreamBuilder()
+            .RoundedRectangle(10, 20, 80, 40, 8).FillAndStroke().Build());
+
+        Assert.StartsWith("90 40 m\n", ellipse);
+        Assert.Equal(4, ellipse.Split(" c\n", StringSplitOptions.None).Length - 1);
+        Assert.EndsWith("h\nf\n", ellipse);
+        Assert.StartsWith("70 50 m\n", circle);
+        Assert.Equal(4, circle.Split(" c\n", StringSplitOptions.None).Length - 1);
+        Assert.EndsWith("h\nS\n", circle);
+        Assert.StartsWith("18 20 m\n82 20 l\n", rounded);
+        Assert.Equal(4, rounded.Split(" c\n", StringSplitOptions.None).Length - 1);
+        Assert.Equal(4, rounded.Split(" l\n", StringSplitOptions.None).Length - 1);
+        Assert.EndsWith("h\nB\n", rounded);
+    }
+
+    [Fact]
+    public void ConvenienceShapes_RejectInvalidGeometry()
+    {
+        var content = new PdfContentStreamBuilder();
+        Assert.Throws<ArgumentOutOfRangeException>(() => content.Ellipse(0, 0, 0, 10));
+        Assert.Throws<ArgumentOutOfRangeException>(() => content.Circle(0, 0, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            content.RoundedRectangle(0, 0, 20, 10, 6));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            content.RoundedRectangle(double.NaN, 0, 20, 10, 2));
+    }
+
+    [Fact]
     public void Build_WritesCompleteStrokeStyling()
     {
         byte[] content = new PdfContentStreamBuilder()

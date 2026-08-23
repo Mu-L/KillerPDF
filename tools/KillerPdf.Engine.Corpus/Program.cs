@@ -444,9 +444,19 @@ if (args.Length == 3 && args[0] == "--transparency-smoke")
 {
     PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
     string destination = Path.GetFullPath(args[2]);
+    var maskGradient = new PdfRadialGradient(90, 90, 0, 90, 90, 90, [
+        new PdfGradientStop(0, 1),
+        new PdfGradientStop(0.65, 0.8),
+        new PdfGradientStop(1, 0)],
+        extendEnd: true);
+    var mask = new PdfFormXObject(180, 180, new PdfContentStreamBuilder()
+        .PaintShading(maskGradient),
+        isolatedTransparencyGroup: true);
     var content = new PdfContentStreamBuilder()
         .SetFillRgb(0.15, 0.45, 0.85)
-        .SetGraphicsState(new PdfGraphicsState(0.7, 1, PdfBlendMode.Multiply))
+        .SetGraphicsState(new PdfGraphicsState(
+            0.7, 1, PdfBlendMode.Multiply,
+            fillOverprint: true, overprintMode: PdfOverprintMode.One))
         .BeginMarkedContent(PdfStructureType.Figure, 0)
         .Rectangle(72, 520, 260, 180).Fill()
         .EndMarkedContent()
@@ -454,6 +464,12 @@ if (args.Length == 3 && args[0] == "--transparency-smoke")
         .SetGraphicsState(new PdfGraphicsState(0.55, 1, PdfBlendMode.Screen))
         .BeginMarkedContent(PdfStructureType.Figure, 1)
         .Rectangle(220, 580, 260, 140).Fill()
+        .EndMarkedContent()
+        .SetFillRgb(0.95, 0.75, 0.15)
+        .SetGraphicsState(new PdfGraphicsState(
+            softMask: new PdfSoftMask(mask, PdfSoftMaskSubtype.Luminosity)))
+        .BeginMarkedContent(PdfStructureType.Figure, 2)
+        .Rectangle(360, 500, 180, 180).Fill()
         .EndMarkedContent();
     byte[] source = new PdfDocumentBuilder()
         .SetMetadata(new PdfDocumentMetadata
@@ -470,6 +486,8 @@ if (args.Length == 3 && args[0] == "--transparency-smoke")
             alternateDescription: "A translucent blue rectangle")
         .AddStructureElement(PdfStructureType.Figure, 0, 1, 1,
             alternateDescription: "A translucent pink rectangle")
+        .AddStructureElement(PdfStructureType.Figure, 0, 2, 1,
+            alternateDescription: "A yellow square faded through a circular luminosity mask")
         .Build();
     byte[] target = new PdfDocumentBuilder().Build();
     byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
@@ -744,11 +762,22 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
         .AddFreeText(0, 72, 660, 250, 70, "KillerPDF café Ω\nMultiline free text", font, 14,
             textColor: new PdfRgbColor(0.1, 0.1, 0.1), fillColor: new PdfRgbColor(1, 1, 0.8), opacity: 0.9)
         .AddLineAnnotation(0, new PdfPoint(72, 620), new PdfPoint(320, 580),
-            new PdfRgbColor(0.1, 0.35, 0.9), 3, 0.8, "Line annotation")
+            new PdfRgbColor(0.1, 0.35, 0.9), 3, 0.8, "Line annotation",
+            PdfLineEndingStyle.OpenArrow, PdfLineEndingStyle.ClosedArrow)
         .AddRectangleAnnotation(0, 72, 490, 110, 65,
             new PdfRgbColor(0.9, 0.1, 0.2), new PdfRgbColor(1, 0.8, 0.85), 3, 0.75, "Rectangle")
         .AddEllipseAnnotation(0, 210, 490, 110, 65,
             new PdfRgbColor(0.1, 0.55, 0.25), new PdfRgbColor(0.8, 1, 0.85), 3, 0.75, "Ellipse")
+        .AddPolygonAnnotation(0, [
+            new PdfPoint(350, 520), new PdfPoint(405, 565),
+            new PdfPoint(470, 525), new PdfPoint(430, 470)],
+            new PdfRgbColor(0.15, 0.3, 0.8), new PdfRgbColor(0.75, 0.85, 1),
+            3, 0.8, "Filled polygon")
+        .AddPolylineAnnotation(0, [
+            new PdfPoint(330, 455), new PdfPoint(370, 480),
+            new PdfPoint(415, 450), new PdfPoint(465, 480)],
+            new PdfRgbColor(0.85, 0.25, 0.15), 3, 0.85, "Open polyline",
+            PdfLineEndingStyle.ClosedArrow, PdfLineEndingStyle.OpenArrow)
         .AddInkAnnotation(0,
         [
             [new PdfPoint(72, 430), new PdfPoint(110, 455), new PdfPoint(150, 425)],

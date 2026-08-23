@@ -631,6 +631,7 @@ public sealed partial class PdfDocumentBuilder
             patterns.Add(pattern);
             foreach (PdfFormXObject form in pattern.Forms.Keys) AddForm(form);
             foreach (PdfTilingPattern nested in pattern.Patterns.Keys) AddPattern(nested);
+            foreach (PdfGraphicsState state in pattern.GraphicsStates.Keys) AddGraphicsState(state);
         }
         void AddForm(PdfFormXObject form)
         {
@@ -638,9 +639,16 @@ public sealed partial class PdfDocumentBuilder
             forms.Add(form);
             foreach (PdfFormXObject nested in form.Forms.Keys) AddForm(nested);
             foreach (PdfTilingPattern pattern in form.Patterns.Keys) AddPattern(pattern);
+            foreach (PdfGraphicsState state in form.GraphicsStates.Keys) AddGraphicsState(state);
+        }
+        void AddGraphicsState(PdfGraphicsState state)
+        {
+            if (state.SoftMask is not null) AddForm(state.SoftMask.Group);
         }
         foreach (PdfFormXObject form in _pages.SelectMany(page => page.Forms.Keys)) AddForm(form);
         foreach (PdfTilingPattern pattern in _pages.SelectMany(page => page.Patterns.Keys)) AddPattern(pattern);
+        foreach (PdfGraphicsState state in _pages.SelectMany(page => page.GraphicsStates.Keys))
+            AddGraphicsState(state);
         if (_pdfUa2Conformance && (Metadata is null
             || string.IsNullOrWhiteSpace(Metadata.Title)
             || string.IsNullOrWhiteSpace(Metadata.Language)))
@@ -1226,12 +1234,38 @@ public sealed partial class PdfDocumentBuilder
                     ("Name", UnicodeString(group.Name)),
                     ("Intent", new PdfArray([Name("View"), Name("Design")]))), 0));
         foreach (PdfGraphicsState state in graphicsStates)
-            objects.Add(new PdfIndirectObject(graphicsStateNumbers[state], 0,
-                Dictionary(
+        {
+            var entries = new List<(string Name, PdfObject Value)>
+            {
                     ("Type", Name("ExtGState")),
                     ("ca", Number(state.FillOpacity)),
                     ("CA", Number(state.StrokeOpacity)),
-                    ("BM", Name(PdfBlendModeNames.Name(state.BlendMode)))), 0));
+                    ("BM", Name(PdfBlendModeNames.Name(state.BlendMode))),
+                    ("op", new PdfBoolean(state.FillOverprint)),
+                    ("OP", new PdfBoolean(state.StrokeOverprint)),
+                    ("OPM", new PdfInteger((int)state.OverprintMode)),
+                    ("AIS", new PdfBoolean(state.AlphaIsShape)),
+                    ("TK", new PdfBoolean(state.TextKnockout))
+            };
+            if (state.SoftMask is not null)
+            {
+                var softMaskEntries = new List<(string Name, PdfObject Value)>
+                {
+                    ("S", Name(state.SoftMask.Subtype == PdfSoftMaskSubtype.Alpha
+                        ? "Alpha" : "Luminosity")),
+                    ("G", new PdfIndirectReference(
+                        formNumbers[state.SoftMask.Group], 0))
+                };
+                if (state.SoftMask.Backdrop.HasValue)
+                    softMaskEntries.Add(("BC", new PdfArray(
+                        state.SoftMask.Backdrop.Value.Components.Select(Number))));
+                entries.Add(("SMask", Dictionary(softMaskEntries.ToArray())));
+            }
+            else
+                entries.Add(("SMask", Name("None")));
+            objects.Add(new PdfIndirectObject(graphicsStateNumbers[state], 0,
+                Dictionary(entries.ToArray()), 0));
+        }
         foreach (PdfShading shading in shadings)
             objects.Add(new PdfIndirectObject(
                 shadingNumbers[shading], 0, ShadingDictionary(shading), 0));
@@ -1293,6 +1327,13 @@ public sealed partial class PdfDocumentBuilder
             if (form.IsolatedTransparencyGroup || form.KnockoutTransparencyGroup)
                 entries.Add(("Group", Dictionary(
                     ("S", Name("Transparency")),
+                    ("CS", Name(form.TransparencyGroupColorSpace switch
+                    {
+                        PdfTransparencyGroupColorSpace.Gray => "DeviceGray",
+                        PdfTransparencyGroupColorSpace.Rgb => "DeviceRGB",
+                        PdfTransparencyGroupColorSpace.Cmyk => "DeviceCMYK",
+                        _ => throw new ArgumentOutOfRangeException(nameof(form))
+                    })),
                     ("I", new PdfBoolean(form.IsolatedTransparencyGroup)),
                     ("K", new PdfBoolean(form.KnockoutTransparencyGroup)))));
             objects.Add(new PdfIndirectObject(formNumbers[form], 0,

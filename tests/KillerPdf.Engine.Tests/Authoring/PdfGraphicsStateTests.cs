@@ -29,6 +29,7 @@ public sealed class PdfGraphicsStateTests
         Assert.Equal(0.25, Number(written[Name("ca")]));
         Assert.Equal(0.75, Number(written[Name("CA")]));
         Assert.Equal("Multiply", Assert.IsType<PdfName>(written[Name("BM")]).ValueAsLatin1());
+        Assert.Equal("None", Assert.IsType<PdfName>(written[Name("SMask")]).ValueAsLatin1());
         Assert.StartsWith("/GS1 gs\n", Encoding.ASCII.GetString(stream.EncodedData.Span));
     }
 
@@ -59,6 +60,68 @@ public sealed class PdfGraphicsStateTests
         Assert.Equal(references[0], references[1]);
     }
 
+    [Fact]
+    public void Build_WritesOverprintAndCompositingControls()
+    {
+        var state = new PdfGraphicsState(
+            fillOverprint: true,
+            strokeOverprint: true,
+            overprintMode: PdfOverprintMode.One,
+            alphaIsShape: true,
+            textKnockout: false);
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder()
+                .SetGraphicsState(state).Rectangle(0, 0, 20, 20).Fill())
+            .Build());
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(
+            FirstPage(document)[Name("Resources")]);
+        PdfDictionary states = Assert.IsType<PdfDictionary>(resources[Name("ExtGState")]);
+        PdfDictionary written = ResolveDictionary(document, states[Name("GS1")]);
+
+        Assert.True(Assert.IsType<PdfBoolean>(written[Name("op")]).Value);
+        Assert.True(Assert.IsType<PdfBoolean>(written[Name("OP")]).Value);
+        Assert.Equal(1, Assert.IsType<PdfInteger>(written[Name("OPM")]).Value);
+        Assert.True(Assert.IsType<PdfBoolean>(written[Name("AIS")]).Value);
+        Assert.False(Assert.IsType<PdfBoolean>(written[Name("TK")]).Value);
+    }
+
+    [Theory]
+    [InlineData(PdfSoftMaskSubtype.Alpha, "Alpha")]
+    [InlineData(PdfSoftMaskSubtype.Luminosity, "Luminosity")]
+    public void Build_WritesTransparencyGroupSoftMask(
+        PdfSoftMaskSubtype subtype, string expectedName)
+    {
+        var maskGroup = new PdfFormXObject(100, 100, new PdfContentStreamBuilder()
+            .SetFillGray(0).Rectangle(0, 0, 100, 100).Fill()
+            .SetFillGray(1).Rectangle(25, 25, 50, 50).Fill(),
+            isolatedTransparencyGroup: true);
+        var state = new PdfGraphicsState(softMask: new PdfSoftMask(
+            maskGroup, subtype,
+            new PdfSoftMaskBackdrop(new PdfRgbColor(0.1, 0.2, 0.3))));
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder()
+                .SetGraphicsState(state)
+                .SetFillRgb(0.9, 0.2, 0.1).Rectangle(0, 0, 100, 100).Fill())
+            .Build());
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(
+            FirstPage(document)[Name("Resources")]);
+        PdfDictionary states = Assert.IsType<PdfDictionary>(resources[Name("ExtGState")]);
+        PdfDictionary written = ResolveDictionary(document, states[Name("GS1")]);
+        PdfDictionary softMask = Assert.IsType<PdfDictionary>(written[Name("SMask")]);
+        PdfStream groupForm = ResolveStream(document, softMask[Name("G")]);
+        PdfDictionary group = Assert.IsType<PdfDictionary>(groupForm.Dictionary[Name("Group")]);
+
+        Assert.Equal(expectedName,
+            Assert.IsType<PdfName>(softMask[Name("S")]).ValueAsLatin1());
+        Assert.Equal("Transparency",
+            Assert.IsType<PdfName>(group[Name("S")]).ValueAsLatin1());
+        Assert.Equal("DeviceRGB",
+            Assert.IsType<PdfName>(group[Name("CS")]).ValueAsLatin1());
+        Assert.True(Assert.IsType<PdfBoolean>(group[Name("I")]).Value);
+        Assert.Equal([0.1, 0.2, 0.3],
+            Assert.IsType<PdfArray>(softMask[Name("BC")]).Select(Number));
+    }
+
     [Theory]
     [InlineData(PdfBlendMode.Normal, "Normal")]
     [InlineData(PdfBlendMode.ColorDodge, "ColorDodge")]
@@ -87,6 +150,21 @@ public sealed class PdfGraphicsStateTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new PdfGraphicsState(double.NaN));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new PdfGraphicsState(blendMode: (PdfBlendMode)999));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfGraphicsState(overprintMode: (PdfOverprintMode)2));
+        var ordinaryForm = new PdfFormXObject(
+            10, 10, new PdfContentStreamBuilder().Rectangle(0, 0, 10, 10).Fill());
+        Assert.Throws<ArgumentException>(() => new PdfSoftMask(ordinaryForm));
+        var group = new PdfFormXObject(
+            10, 10, new PdfContentStreamBuilder().Rectangle(0, 0, 10, 10).Fill(),
+            isolatedTransparencyGroup: true);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfSoftMask(group, (PdfSoftMaskSubtype)99));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfSoftMask(group, backdrop: new PdfSoftMaskBackdrop(0.5)));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfSoftMask(group, backdrop: default(PdfSoftMaskBackdrop)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfSoftMaskBackdrop(-0.1));
     }
 
     [Fact]

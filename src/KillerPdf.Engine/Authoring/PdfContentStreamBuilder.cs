@@ -546,6 +546,17 @@ public sealed class PdfContentStreamBuilder
             throw new ArgumentOutOfRangeException(name);
     }
 
+    private static void ValidateShapeRectangle(
+        double x, double y, double width, double height)
+    {
+        if (!double.IsFinite(x)) throw new ArgumentOutOfRangeException(nameof(x));
+        if (!double.IsFinite(y)) throw new ArgumentOutOfRangeException(nameof(y));
+        if (!double.IsFinite(width) || width <= 0 || !double.IsFinite(x + width))
+            throw new ArgumentOutOfRangeException(nameof(width));
+        if (!double.IsFinite(height) || height <= 0 || !double.IsFinite(y + height))
+            throw new ArgumentOutOfRangeException(nameof(height));
+    }
+
     private PdfName PatternResource(PdfTilingPattern pattern)
     {
         if (!_patterns.TryGetValue(pattern, out PdfName? resource))
@@ -569,6 +580,68 @@ public sealed class PdfContentStreamBuilder
         Operator("y"u8, x1, y1, x3, y3);
     public PdfContentStreamBuilder Rectangle(double x, double y, double width, double height) =>
         Operator("re"u8, x, y, width, height);
+
+    /// <summary>Appends a closed elliptical path inside the supplied rectangle.</summary>
+    public PdfContentStreamBuilder Ellipse(
+        double x, double y, double width, double height)
+    {
+        ValidateShapeRectangle(x, y, width, height);
+        const double kappa = 0.5522847498307936;
+        double radiusX = width / 2;
+        double radiusY = height / 2;
+        double centerX = x + radiusX;
+        double centerY = y + radiusY;
+        return MoveTo(centerX + radiusX, centerY)
+            .CurveTo(centerX + radiusX, centerY + radiusY * kappa,
+                centerX + radiusX * kappa, centerY + radiusY,
+                centerX, centerY + radiusY)
+            .CurveTo(centerX - radiusX * kappa, centerY + radiusY,
+                centerX - radiusX, centerY + radiusY * kappa,
+                centerX - radiusX, centerY)
+            .CurveTo(centerX - radiusX, centerY - radiusY * kappa,
+                centerX - radiusX * kappa, centerY - radiusY,
+                centerX, centerY - radiusY)
+            .CurveTo(centerX + radiusX * kappa, centerY - radiusY,
+                centerX + radiusX, centerY - radiusY * kappa,
+                centerX + radiusX, centerY)
+            .ClosePath();
+    }
+
+    /// <summary>Appends a closed circular path.</summary>
+    public PdfContentStreamBuilder Circle(double centerX, double centerY, double radius)
+    {
+        if (!double.IsFinite(centerX)) throw new ArgumentOutOfRangeException(nameof(centerX));
+        if (!double.IsFinite(centerY)) throw new ArgumentOutOfRangeException(nameof(centerY));
+        if (!double.IsFinite(radius) || radius <= 0)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        return Ellipse(centerX - radius, centerY - radius, radius * 2, radius * 2);
+    }
+
+    /// <summary>Appends a closed rectangle whose corners use circular arcs.</summary>
+    public PdfContentStreamBuilder RoundedRectangle(
+        double x, double y, double width, double height, double radius)
+    {
+        ValidateShapeRectangle(x, y, width, height);
+        if (!double.IsFinite(radius) || radius < 0
+            || radius > Math.Min(width, height) / 2)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radius == 0) return Rectangle(x, y, width, height);
+        const double kappa = 0.5522847498307936;
+        double control = radius * kappa;
+        double right = x + width;
+        double top = y + height;
+        return MoveTo(x + radius, y)
+            .LineTo(right - radius, y)
+            .CurveTo(right - radius + control, y, right, y + radius - control, right, y + radius)
+            .LineTo(right, top - radius)
+            .CurveTo(right, top - radius + control, right - radius + control, top,
+                right - radius, top)
+            .LineTo(x + radius, top)
+            .CurveTo(x + radius - control, top, x, top - radius + control, x, top - radius)
+            .LineTo(x, y + radius)
+            .CurveTo(x, y + radius - control, x + radius - control, y, x + radius, y)
+            .ClosePath();
+    }
     public PdfContentStreamBuilder ClosePath() => NoOperand("h"u8);
     public PdfContentStreamBuilder Stroke() => PaintingOperator("S"u8);
     public PdfContentStreamBuilder CloseAndStroke() => PaintingOperator("s"u8);
