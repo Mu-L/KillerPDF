@@ -18,6 +18,8 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName WidgetName = Name("Widget");
     private static readonly PdfName StructParentsName = Name("StructParents");
     private static readonly PdfName AcroFormName = Name("AcroForm");
+    private static readonly PdfName NamesName = Name("Names");
+    private static readonly PdfName DestsName = Name("Dests");
     private static readonly PdfName[] InheritableNames =
     [
         Name("Resources"), MediaBoxName, Name("CropBox"), RotateName
@@ -222,6 +224,7 @@ public sealed class PdfIncrementalPageEditor
             ("Type", Name("Pages")), ("Kids", kids), ("Count", new PdfInteger(_pages.Count))));
         var catalogReplacements = new Dictionary<PdfName, PdfObject> { [PagesName] = newRoot };
         AddImportedAcroForm(importedGroups, importers, catalogReplacements);
+        AddImportedNamedDestinations(importedGroups, importers, catalogReplacements);
         update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
             ReplaceMany(_tree.Catalog, catalogReplacements));
 
@@ -291,6 +294,79 @@ public sealed class PdfIncrementalPageEditor
                 "A document containing forms must be imported with all of its pages retained.");
         PdfObject sourceAcroForm = sourceTree.Catalog[AcroFormName];
         catalogReplacements[AcroFormName] = importers[group[0]].Import(sourceAcroForm);
+    }
+
+    private void AddImportedNamedDestinations(
+        IEnumerable<PageState[]> importedGroups,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        var combined = new List<PdfNameTreeEntry>();
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        var namesEntries = new List<KeyValuePair<PdfName, PdfObject>>();
+        if (_tree.Catalog.TryGetValue(NamesName, out PdfObject? targetNamesValue))
+        {
+            PdfDictionary targetNames = ResolveDictionary(
+                _document, targetNamesValue, "The destination catalog /Names value");
+            namesEntries.AddRange(targetNames.Where(entry => !entry.Key.Equals(DestsName)));
+            if (targetNames.TryGetValue(DestsName, out PdfObject? targetDestinations))
+                AddEntries(PdfNameTree.Read(_document, targetDestinations), importer: null);
+        }
+
+        bool importedAny = false;
+        foreach (PageState[] group in importedGroups)
+        {
+            PdfPageTree sourceTree = group[0].ImportedTree!;
+            if (!sourceTree.Catalog.TryGetValue(NamesName, out PdfObject? sourceNamesValue))
+                continue;
+            PdfDictionary sourceNames = ResolveDictionary(
+                group[0].ImportedDocument!, sourceNamesValue, "The source catalog /Names value");
+            if (!sourceNames.TryGetValue(DestsName, out PdfObject? sourceDestinations))
+                continue;
+            if (group.Length != sourceTree.Pages.Count || group.Any(page => !page.ImportedWholeDocument))
+                throw new NotSupportedException(
+                    "Named destinations require all pages from their source document to be retained.");
+            AddEntries(PdfNameTree.Read(group[0].ImportedDocument!, sourceDestinations),
+                importers[group[0]]);
+            importedAny = true;
+        }
+        if (!importedAny) return;
+
+        combined.Sort((left, right) =>
+            left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
+        var names = new List<PdfObject>(combined.Count * 2);
+        foreach (PdfNameTreeEntry entry in combined)
+        {
+            names.Add(entry.Key);
+            names.Add(entry.Value);
+        }
+        namesEntries.Add(new KeyValuePair<PdfName, PdfObject>(
+            DestsName, Dictionary(("Names", new PdfArray(names)))));
+        catalogReplacements[NamesName] = new PdfDictionary(namesEntries);
+
+        void AddEntries(
+            IEnumerable<PdfNameTreeEntry> entries, PdfObjectGraphImporter? importer)
+        {
+            foreach (PdfNameTreeEntry entry in entries)
+            {
+                string key = Convert.ToBase64String(entry.Key.Bytes.Span);
+                if (!keys.Add(key))
+                    throw new NotSupportedException(
+                        "Named destinations from merged documents must have unique names.");
+                combined.Add(new PdfNameTreeEntry(
+                    entry.Key, importer?.Import(entry.Value) ?? entry.Value));
+            }
+        }
+    }
+
+    private static PdfDictionary ResolveDictionary(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? document.Resolve(reference)
+            : value;
+        return resolved as PdfDictionary
+            ?? throw new InvalidOperationException($"{description} is not a dictionary.");
     }
 
     private static void BuildImportedPage(

@@ -337,6 +337,64 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_MergesNamedDestinationsAndKeepsImportedNamedLinksValid()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300).AddBlankPage(300, 400)
+            .AddNamedDestination("source-target", 1)
+            .AddNamedDestinationLink(0, 10, 10, 50, 20, "source-target")
+            .Build());
+        byte[] target = new PdfDocumentBuilder()
+            .AddBlankPage(100, 100)
+            .AddNamedDestination("target-start", 0)
+            .AddAttachment("target.txt", "target"u8.ToArray(), "text/plain")
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source)
+                .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary names = Assert.IsType<PdfDictionary>(catalog[Name("Names")]);
+        PdfDictionary destinations = Assert.IsType<PdfDictionary>(names[Name("Dests")]);
+        PdfArray destinationNames = Assert.IsType<PdfArray>(destinations[Name("Names")]);
+        var values = Enumerable.Range(0, destinationNames.Count / 2).ToDictionary(
+            index => DecodeUnicode(Assert.IsType<PdfString>(destinationNames[index * 2])),
+            index => Assert.IsType<PdfArray>(destinationNames[index * 2 + 1]),
+            StringComparer.Ordinal);
+        PdfDictionary importedLink = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[1][Name("Annots")])[0]);
+
+        Assert.True(names.ContainsKey(Name("EmbeddedFiles")));
+        Assert.Equal(pageReferences[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(values["target-start"][0]).ObjectNumber);
+        Assert.Equal(pageReferences[2].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(values["source-target"][0]).ObjectNumber);
+        Assert.Equal("source-target", DecodeUnicode(
+            Assert.IsType<PdfString>(importedLink[Name("Dest")])));
+    }
+
+    [Fact]
+    public void Build_RejectsNamedDestinationCollisionsAndPartialImports()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddNamedDestination("shared", 1)
+            .Build());
+        byte[] collidingTarget = new PdfDocumentBuilder()
+            .AddBlankPage().AddNamedDestination("shared", 0).Build();
+        byte[] emptyTarget = new PdfDocumentBuilder().Build();
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(collidingTarget))
+                .AddImportedDocument(source).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
+                .AddImportedPage(source, 0).Build());
+    }
+
+    [Fact]
     public void ArgumentsAndEmptyUpdates_AreRejected()
     {
         var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
@@ -426,5 +484,7 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfStream ResolveStream(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfStream>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
+    private static string DecodeUnicode(PdfString value) =>
+        Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 }

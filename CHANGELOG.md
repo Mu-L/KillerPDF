@@ -13,7 +13,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added deterministic PDF 2.0 authoring for pages, text, Unicode embedded fonts, images, metadata, bookmarks, attachments, links, forms, and editable annotations.
 - Added named destinations, links to stable named targets, and page-label ranges with decimal, Roman-numeral, alphabetic, prefix, and custom starting-number options.
 - Added byte-preserving incremental editing for annotations and page operations, including insertion, deletion, reordering, rotation, resizing, and cropping.
-- Added cross-document page import for merge and split workflows while preserving content, resources, images, fonts, ordinary annotations, links among pages imported together, and complete AcroForms when their entire source document is imported.
+- Added cross-document page import for merge and split workflows while preserving content, resources, images, fonts, ordinary annotations, direct and named links, named destinations, and complete AcroForms when their entire source document is imported.
 - Added PDF/A-4 authoring and validation across new documents, forms, annotations, page operations, and imported pages.
 
 ### PDF document engine internals

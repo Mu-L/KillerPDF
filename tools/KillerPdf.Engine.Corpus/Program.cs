@@ -312,6 +312,8 @@ if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
             .SetFillRgb(0.9, 0.15, 0.25).Rectangle(50, 50, 500, 300).Fill())
         .AddTextNote(0, 340, 540, "Imported archival annotation")
         .AddPageLink(0, 20, 20, 40, 20, 1)
+        .AddNamedDestination("imported-appendix", 1)
+        .AddNamedDestinationLink(0, 72, 40, 120, 20, "imported-appendix")
         .AddCheckBox(1, "import.approved", 520, 330, 18, 18, isChecked: true)
         .Build();
     byte[] target = new PdfDocumentBuilder()
@@ -320,6 +322,7 @@ if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
         .EnablePdfA4Conformance()
         .AddPage(300, 300, new PdfContentStreamBuilder()
             .SetFillRgb(0.55, 0.2, 0.75).Rectangle(40, 40, 220, 220).Fill())
+        .AddNamedDestination("target-cover", 0)
         .Build();
     PdfDocument sourceDocument = PdfDocument.Open(importSource);
     byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
