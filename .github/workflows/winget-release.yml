@@ -12,14 +12,24 @@ on:
 jobs:
   submit:
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
       - name: Install Komac
         run: |
-          $tag = (Invoke-RestMethod "https://api.github.com/repos/russellbanks/Komac/releases/latest").tag_name
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+            "User-Agent" = "KillerPDF-WinGet-Release"
+          }
+          $tag = (Invoke-RestMethod "https://api.github.com/repos/russellbanks/Komac/releases/latest" -Headers $headers).tag_name
           $ver = $tag.TrimStart('v')
           $url = "https://github.com/russellbanks/Komac/releases/download/$tag/komac-$ver-x86_64-pc-windows-msvc.exe"
           Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\komac.exe"
           Add-Content $env:GITHUB_PATH $env:RUNNER_TEMP
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: pwsh
 
       - name: Submit to WinGet
