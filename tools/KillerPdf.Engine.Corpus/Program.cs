@@ -662,8 +662,16 @@ if (args.Length == 2 && args[0] == "--form-smoke")
         .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF form smoke test", Language = "en-US" })
         .AddBlankPage()
         .AddNamedDestination("FormTop", 0, PdfDestination.At(top: 760))
-        .AddTextField(0, "customer.name", 72, 680, 240, 28, "Steve the Killer", 12)
-        .AddCheckBox(0, "customer.approved", 72, 640, 18, 18, isChecked: true)
+        .AddTextField(0, "customer.name", 72, 680, 240, 28, "Steve the Killer", 12,
+            new PdfTextFieldOptions { Alignment = PdfTextFieldAlignment.Center })
+        .AddTextField(0, "customer.address", 72, 620, 200, 48, "First line\nSecond line", 11,
+            new PdfTextFieldOptions { Multiline = true })
+        .AddTextField(0, "customer.pin", 72, 570, 120, 24, "1234", 12,
+            new PdfTextFieldOptions { Comb = true, MaximumLength = 6 })
+        .AddTextField(0, "customer.password", 72, 535, 160, 24, "secret", 12,
+            new PdfTextFieldOptions { Password = true })
+        .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
+            mark: PdfCheckBoxMark.Diamond)
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 600, 18, 18, "Free"),
             new PdfRadioButtonOption(0, 120, 600, 18, 18, "Pro")], "Pro")
@@ -700,12 +708,21 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .EnablePdfA4Conformance()
         .AddBlankPage()
         .AddTextField(0, "customer.name", 72, 680, 240, 28, "KillerPDF café Ω", 12,
-            embeddedFont: font,
+            options: new PdfTextFieldOptions { Alignment = PdfTextFieldAlignment.Right }, embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata
             {
                 Tooltip = "Customer name",
                 MappingName = "customer_name"
             })
+        .AddTextField(0, "customer.address", 72, 660, 200, 48, "First line\nSecond line", 11,
+            new PdfTextFieldOptions { Multiline = true }, embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Address", MappingName = "customer_address" })
+        .AddTextField(0, "customer.pin", 300, 680, 120, 24, "1234", 12,
+            new PdfTextFieldOptions { Comb = true, MaximumLength = 6 }, embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "PIN", MappingName = "customer_pin" })
+        .AddTextField(0, "customer.password", 300, 650, 160, 24, "secret", 12,
+            new PdfTextFieldOptions { Password = true }, embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Password", MappingName = "customer_password" })
         .AddComboBox(0, "customer.theme", 72, 630, 180, 24,
             ["Dark", "Mourning", "98SE"], "Mourning", embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Theme", MappingName = "customer_theme" })
@@ -716,6 +733,7 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
             ["PDF 2.0", "PDF/A-4", "PDF/UA-2"], ["PDF/A-4", "PDF/UA-2"], embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Formats", MappingName = "customer_formats" })
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
+            mark: PdfCheckBoxMark.Circle,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Approved", MappingName = "customer_approved" })
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 550, 18, 18, "Free"),

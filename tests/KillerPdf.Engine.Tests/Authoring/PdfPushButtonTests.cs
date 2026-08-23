@@ -8,6 +8,27 @@ namespace KillerPdf.Engine.Tests.Authoring;
 
 public sealed class PdfPushButtonTests
 {
+    [Theory]
+    [InlineData(PdfPushButtonHighlightMode.None, "N")]
+    [InlineData(PdfPushButtonHighlightMode.Invert, "I")]
+    [InlineData(PdfPushButtonHighlightMode.Outline, "O")]
+    [InlineData(PdfPushButtonHighlightMode.Push, "P")]
+    [InlineData(PdfPushButtonHighlightMode.Toggle, "T")]
+    public void AddUriPushButton_WritesTypedHighlightMode(
+        PdfPushButtonHighlightMode mode, string expectedName)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "button", 0, 0, 100, 20, "Open",
+                "https://example.com", highlightMode: mode)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+
+        Assert.Equal(expectedName, Assert.IsType<PdfName>(field[Name("H")]).ValueAsLatin1());
+    }
+
     [Fact]
     public void AddUriPushButton_WritesActionLabelFlagsMetadataAndAppearance()
     {

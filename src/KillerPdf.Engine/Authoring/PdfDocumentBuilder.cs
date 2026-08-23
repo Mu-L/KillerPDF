@@ -602,9 +602,18 @@ public sealed partial class PdfDocumentBuilder
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         options ??= new PdfTextFieldOptions();
+        if (!Enum.IsDefined(options.Alignment))
+            throw new ArgumentOutOfRangeException(nameof(options), "Text alignment is invalid.");
+        if (!options.Multiline && value.IndexOfAny(['\r', '\n']) >= 0)
+            throw new ArgumentException("A single-line text field cannot contain line breaks.", nameof(value));
+        if (options.Password && options.Multiline)
+            throw new ArgumentException("A password field cannot be multiline.", nameof(options));
+        if (options.Password && embeddedFont is not null && embeddedFont.GetGlyphId('*') == 0)
+            throw new ArgumentException("A password field font must contain the mask glyph U+002A.", nameof(embeddedFont));
         if (options.MaximumLength is <= 0)
             throw new ArgumentOutOfRangeException(nameof(options), "MaximumLength must be positive.");
-        if (options.MaximumLength.HasValue && value.Length > options.MaximumLength.Value)
+        int valueCharacterCount = value.EnumerateRunes().Count();
+        if (options.MaximumLength.HasValue && valueCharacterCount > options.MaximumLength.Value)
             throw new ArgumentException("The initial value exceeds the text field's maximum length.", nameof(value));
         if (options.Comb && (!options.MaximumLength.HasValue || options.Multiline || options.Password))
             throw new ArgumentException(
@@ -625,7 +634,8 @@ public sealed partial class PdfDocumentBuilder
         bool isChecked = false,
         string exportValue = "Yes",
         PdfFormFieldMetadata? fieldMetadata = null,
-        PdfFormFieldOptions? options = null)
+        PdfFormFieldOptions? options = null,
+        PdfCheckBoxMark mark = PdfCheckBoxMark.Check)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -633,9 +643,10 @@ public sealed partial class PdfDocumentBuilder
         if (string.IsNullOrWhiteSpace(exportValue)
             || exportValue.Any(character => character is < '!' or > '~'))
             throw new ArgumentException("A checkbox export value must contain printable ASCII characters.", nameof(exportValue));
+        if (!Enum.IsDefined(mark)) throw new ArgumentOutOfRangeException(nameof(mark));
         _checkBoxes.Add(new CheckBoxDefinition(
             pageIndex, name, x, y, width, height, isChecked, exportValue,
-            ValidateFieldMetadata(fieldMetadata), options ?? new PdfFormFieldOptions()));
+            ValidateFieldMetadata(fieldMetadata), options ?? new PdfFormFieldOptions(), mark));
         return this;
     }
 
@@ -825,7 +836,8 @@ public sealed partial class PdfDocumentBuilder
     public PdfDocumentBuilder AddUriPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string uri, double fontSize = 12, TrueTypeFont? embeddedFont = null,
-        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -841,11 +853,13 @@ public sealed partial class PdfDocumentBuilder
             ValidateFormFontText(embeddedFont, label, nameof(label));
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
+        if (!Enum.IsDefined(highlightMode)) throw new ArgumentOutOfRangeException(nameof(highlightMode));
         _pushButtons.Add(new PushButtonDefinition(
             pageIndex, name, x, y, width, height, label, parsed.AbsoluteUri,
             DestinationPageIndex: null, Destination: null, NamedDestination: null, fontSize, embeddedFont,
             IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
+            highlightMode,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -854,7 +868,8 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, string name, double x, double y, double width, double height,
         string label, int destinationPageIndex, PdfDestination? destination = null,
         double fontSize = 12, TrueTypeFont? embeddedFont = null,
-        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidatePageIndex(destinationPageIndex, nameof(destinationPageIndex));
@@ -868,11 +883,13 @@ public sealed partial class PdfDocumentBuilder
             ValidateFormFontText(embeddedFont, label, nameof(label));
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
+        if (!Enum.IsDefined(highlightMode)) throw new ArgumentOutOfRangeException(nameof(highlightMode));
         _pushButtons.Add(new PushButtonDefinition(
             pageIndex, name, x, y, width, height, label, Uri: null,
             destinationPageIndex, destination ?? PdfDestination.FitPage(), NamedDestination: null,
             fontSize, embeddedFont, IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
+            highlightMode,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -881,7 +898,8 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string destinationName, double fontSize = 12,
         TrueTypeFont? embeddedFont = null, PdfFormFieldMetadata? fieldMetadata = null,
-        PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -898,11 +916,13 @@ public sealed partial class PdfDocumentBuilder
             ValidateFormFontText(embeddedFont, label, nameof(label));
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
+        if (!Enum.IsDefined(highlightMode)) throw new ArgumentOutOfRangeException(nameof(highlightMode));
         _pushButtons.Add(new PushButtonDefinition(
             pageIndex, name, x, y, width, height, label, Uri: null,
             DestinationPageIndex: null, Destination: null, destinationName, fontSize, embeddedFont,
             IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
+            highlightMode,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -911,7 +931,8 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, string name, double x, double y, double width, double height,
         string label, IEnumerable<string>? fields = null, bool excludeFields = false,
         double fontSize = 12, TrueTypeFont? embeddedFont = null,
-        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -933,11 +954,13 @@ public sealed partial class PdfDocumentBuilder
             ValidateFormFontText(embeddedFont, label, nameof(label));
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
+        if (!Enum.IsDefined(highlightMode)) throw new ArgumentOutOfRangeException(nameof(highlightMode));
         _pushButtons.Add(new PushButtonDefinition(
             pageIndex, name, x, y, width, height, label, Uri: null,
             DestinationPageIndex: null, Destination: null, NamedDestination: null,
             fontSize, embeddedFont, IsResetAction: true, resetFields, excludeFields,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
+            highlightMode,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -946,7 +969,8 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string uri, IEnumerable<string>? fields = null, bool excludeFields = false,
         double fontSize = 12, TrueTypeFont? embeddedFont = null,
-        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -971,11 +995,13 @@ public sealed partial class PdfDocumentBuilder
             ValidateFormFontText(embeddedFont, label, nameof(label));
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
+        if (!Enum.IsDefined(highlightMode)) throw new ArgumentOutOfRangeException(nameof(highlightMode));
         _pushButtons.Add(new PushButtonDefinition(
             pageIndex, name, x, y, width, height, label, Uri: null,
             DestinationPageIndex: null, Destination: null, NamedDestination: null,
             fontSize, embeddedFont, IsResetAction: false, ResetFields: null,
             ExcludeResetFields: false, parsed.AbsoluteUri, submitFields, excludeFields,
+            highlightMode,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -1345,7 +1371,7 @@ public sealed partial class PdfDocumentBuilder
         {
             var usage = new EmbeddedFontUsage(font, formFontResources[font]);
             foreach (string value in _textFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
-                .Select(field => field.Value)
+                .Select(TextFieldAppearanceValue)
                 .Concat(_choiceFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
                     .SelectMany(field => field.Options.Concat(field.SelectedValues)))
                 .Concat(_pushButtons.Where(field => ReferenceEquals(field.EmbeddedFont, font))
@@ -2292,13 +2318,13 @@ public sealed partial class PdfDocumentBuilder
             fieldEntries.Add(("Ff", new PdfInteger(flags)));
         if (field.Options.MaximumLength.HasValue)
             fieldEntries.Add(("MaxLen", new PdfInteger(field.Options.MaximumLength.Value)));
+        if (field.Options.Alignment != PdfTextFieldAlignment.Left)
+            fieldEntries.Add(("Q", new PdfInteger((int)field.Options.Alignment)));
         AddFieldMetadata(fieldEntries, field.Metadata);
         objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
             Dictionary(fieldEntries.ToArray()), 0));
 
-        byte[] appearance = BuildSimpleTextAppearance(
-            field.Width, field.Height, field.FontSize, field.Value,
-            fontResource, field.EmbeddedFont);
+        byte[] appearance = BuildTextFieldAppearance(field, fontResource);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -2350,6 +2376,7 @@ public sealed partial class PdfDocumentBuilder
                 ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
                 ("F", new PdfInteger(4)),
                 ("MK", Dictionary(
+                    ("CA", Latin1String(CheckBoxMarkCaption(field.Mark))),
                     ("BG", new PdfArray([new PdfInteger(1), new PdfInteger(1), new PdfInteger(1)])),
                     ("BC", new PdfArray([new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)])))),
                 ("BS", Dictionary(("W", new PdfInteger(1)), ("S", Name("S")))),
@@ -2380,11 +2407,7 @@ public sealed partial class PdfDocumentBuilder
         if (isChecked)
         {
             double inset = Math.Min(3, Math.Min(field.Width, field.Height) / 4);
-            WriteAscii(output,
-                $"2 w\n{FormatNumber(inset)} {FormatNumber(inset)} m\n" +
-                $"{FormatNumber(field.Width - inset)} {FormatNumber(field.Height - inset)} l\n" +
-                $"{FormatNumber(field.Width - inset)} {FormatNumber(inset)} m\n" +
-                $"{FormatNumber(inset)} {FormatNumber(field.Height - inset)} l\nS\n");
+            WriteCheckBoxMark(output, field, inset);
         }
         output.Write("Q\n"u8);
         return new PdfStream(Dictionary(
@@ -2395,6 +2418,59 @@ public sealed partial class PdfDocumentBuilder
                 new PdfInteger(0), new PdfInteger(0),
                 Number(field.Width), Number(field.Height)])),
             ("Resources", Dictionary())), output.ToArray());
+    }
+
+    private static string CheckBoxMarkCaption(PdfCheckBoxMark mark) => mark switch
+    {
+        PdfCheckBoxMark.Check => "4",
+        PdfCheckBoxMark.Cross => "8",
+        PdfCheckBoxMark.Circle => "l",
+        PdfCheckBoxMark.Diamond => "u",
+        PdfCheckBoxMark.Square => "n",
+        _ => throw new ArgumentOutOfRangeException(nameof(mark))
+    };
+
+    private static void WriteCheckBoxMark(Stream output, CheckBoxDefinition field, double inset)
+    {
+        double right = field.Width - inset;
+        double top = field.Height - inset;
+        switch (field.Mark)
+        {
+            case PdfCheckBoxMark.Check:
+                WriteAscii(output,
+                    $"2 w\n{FormatNumber(inset)} {FormatNumber(field.Height * 0.5)} m\n" +
+                    $"{FormatNumber(field.Width * 0.42)} {FormatNumber(inset)} l\n" +
+                    $"{FormatNumber(right)} {FormatNumber(top)} l\nS\n");
+                break;
+            case PdfCheckBoxMark.Cross:
+                WriteAscii(output,
+                    $"2 w\n{FormatNumber(inset)} {FormatNumber(inset)} m\n" +
+                    $"{FormatNumber(right)} {FormatNumber(top)} l\n" +
+                    $"{FormatNumber(right)} {FormatNumber(inset)} m\n" +
+                    $"{FormatNumber(inset)} {FormatNumber(top)} l\nS\n");
+                break;
+            case PdfCheckBoxMark.Circle:
+                output.Write("0 g\n"u8);
+                WriteCircle(output, field.Width / 2, field.Height / 2,
+                    Math.Max(0, Math.Min(field.Width, field.Height) / 2 - inset));
+                output.Write("f\n"u8);
+                break;
+            case PdfCheckBoxMark.Diamond:
+                WriteAscii(output,
+                    $"0 g\n{FormatNumber(field.Width / 2)} {FormatNumber(top)} m\n" +
+                    $"{FormatNumber(right)} {FormatNumber(field.Height / 2)} l\n" +
+                    $"{FormatNumber(field.Width / 2)} {FormatNumber(inset)} l\n" +
+                    $"{FormatNumber(inset)} {FormatNumber(field.Height / 2)} l\nh\nf\n");
+                break;
+            case PdfCheckBoxMark.Square:
+                WriteAscii(output,
+                    $"0 g\n{FormatNumber(inset)} {FormatNumber(inset)} " +
+                    $"{FormatNumber(Math.Max(0, field.Width - inset * 2))} " +
+                    $"{FormatNumber(Math.Max(0, field.Height - inset * 2))} re\nf\n");
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(field.Mark));
+        }
     }
 
     private static void AddRadioGroupObjects(
@@ -2573,6 +2649,117 @@ public sealed partial class PdfDocumentBuilder
         return output.ToArray();
     }
 
+    private static byte[] BuildTextFieldAppearance(
+        TextFieldDefinition field, PdfName fontResource)
+    {
+        if (field.Options.Comb)
+            return BuildCombTextFieldAppearance(field, fontResource);
+        if (!field.Options.Multiline)
+            return BuildAlignedTextFieldAppearance(field, fontResource);
+
+        using var output = new MemoryStream();
+        WriteAscii(output,
+            $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
+            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} " +
+            $"{FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n" +
+            $"1 1 {FormatNumber(Math.Max(0, field.Width - 2))} " +
+            $"{FormatNumber(Math.Max(0, field.Height - 2))} re\nW\nn\n");
+        double leading = field.FontSize * 1.2;
+        double baseline = field.Height - field.FontSize - 2;
+        foreach (string line in field.Value.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n').Split('\n'))
+        {
+            if (baseline < 1)
+                break;
+            double x = TextFieldTextX(field, line);
+            WriteAscii(output,
+                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+                $"{FormatNumber(x)} {FormatNumber(baseline)} Td\n");
+            WriteShownText(output, line, field.EmbeddedFont);
+            output.Write("ET\n"u8);
+            baseline -= leading;
+        }
+        output.Write("Q\n"u8);
+        return output.ToArray();
+    }
+
+    private static string TextFieldAppearanceValue(TextFieldDefinition field) =>
+        field.Options.Password
+            ? new string('*', field.Value.EnumerateRunes().Count())
+            : field.Value;
+
+    private static byte[] BuildAlignedTextFieldAppearance(
+        TextFieldDefinition field, PdfName fontResource)
+    {
+        string value = TextFieldAppearanceValue(field);
+        using var output = new MemoryStream();
+        WriteAscii(output, $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n");
+        WriteAscii(output, $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} {FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n");
+        WriteAscii(output,
+            $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+            $"{FormatNumber(TextFieldTextX(field, value))} " +
+            $"{FormatNumber(Math.Max(1, (field.Height - field.FontSize) / 2))} Td\n");
+        WriteShownText(output, value, field.EmbeddedFont);
+        output.Write("ET\nQ\n"u8);
+        return output.ToArray();
+    }
+
+    private static double TextFieldTextX(TextFieldDefinition field, string value)
+    {
+        double textWidth = field.EmbeddedFont is null
+            ? value.EnumerateRunes().Count() * field.FontSize * 0.55
+            : value.EnumerateRunes().Sum(rune =>
+                field.EmbeddedFont.GetPdfAdvanceWidth(field.EmbeddedFont.GetGlyphId(rune.Value)))
+                * field.FontSize / 1000;
+        return field.Options.Alignment switch
+        {
+            PdfTextFieldAlignment.Left => 3,
+            PdfTextFieldAlignment.Center => Math.Max(1, (field.Width - textWidth) / 2),
+            PdfTextFieldAlignment.Right => Math.Max(1, field.Width - textWidth - 3),
+            _ => throw new ArgumentOutOfRangeException(nameof(field.Options.Alignment))
+        };
+    }
+
+    private static byte[] BuildCombTextFieldAppearance(
+        TextFieldDefinition field, PdfName fontResource)
+    {
+        int cells = field.Options.MaximumLength!.Value;
+        double cellWidth = field.Width / cells;
+        using var output = new MemoryStream();
+        WriteAscii(output,
+            $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
+            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} " +
+            $"{FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n");
+        for (int index = 1; index < cells; index++)
+        {
+            double x = cellWidth * index;
+            WriteAscii(output,
+                $"{FormatNumber(x)} 0.5 m\n{FormatNumber(x)} " +
+                $"{FormatNumber(Math.Max(0.5, field.Height - 0.5))} l\nS\n");
+        }
+        int glyphCount = field.Value.EnumerateRunes().Count();
+        int cell = field.Options.Alignment switch
+        {
+            PdfTextFieldAlignment.Left => 0,
+            PdfTextFieldAlignment.Center => (cells - glyphCount) / 2,
+            PdfTextFieldAlignment.Right => cells - glyphCount,
+            _ => throw new ArgumentOutOfRangeException(nameof(field.Options.Alignment))
+        };
+        foreach (Rune rune in field.Value.EnumerateRunes())
+        {
+            double x = cellWidth * cell + Math.Max(1, (cellWidth - field.FontSize * 0.55) / 2);
+            double y = Math.Max(1, (field.Height - field.FontSize) / 2);
+            WriteAscii(output,
+                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+                $"{FormatNumber(x)} {FormatNumber(y)} Td\n");
+            WriteShownText(output, rune.ToString(), field.EmbeddedFont);
+            output.Write("ET\n"u8);
+            cell++;
+        }
+        output.Write("Q\n"u8);
+        return output.ToArray();
+    }
+
     private static void AddPushButtonObjects(
         ICollection<PdfIndirectObject> objects,
         AllocatedPushButton allocatedField,
@@ -2595,6 +2782,7 @@ public sealed partial class PdfDocumentBuilder
             ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
             ("F", new PdfInteger(4)),
             ("AS", Name("Normal")),
+            ("H", Name(PushButtonHighlightName(field.HighlightMode))),
             ("DA", Latin1String($"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g")),
             ("MK", Dictionary(
                 ("CA", UnicodeString(field.Label)),
@@ -2652,6 +2840,16 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Flags", new PdfInteger(1)));
         return Dictionary(entries.ToArray());
     }
+
+    private static string PushButtonHighlightName(PdfPushButtonHighlightMode mode) => mode switch
+    {
+        PdfPushButtonHighlightMode.None => "N",
+        PdfPushButtonHighlightMode.Invert => "I",
+        PdfPushButtonHighlightMode.Outline => "O",
+        PdfPushButtonHighlightMode.Push => "P",
+        PdfPushButtonHighlightMode.Toggle => "T",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
 
     private static PdfDictionary SubmitPdfAction(
         string uri, IReadOnlyList<string>? fields, bool excludeFields)
@@ -3098,6 +3296,8 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentException($"Font {font.PostScriptName} prohibits PDF embedding.", parameterName);
         foreach (Rune rune in value.EnumerateRunes())
         {
+            if (rune.Value is '\r' or '\n')
+                continue;
             if (font.GetGlyphId(rune.Value) == 0 && rune.Value != 0)
                 throw new ArgumentException(
                     $"Font {font.PostScriptName} has no glyph for U+{rune.Value:X4}.", parameterName);
@@ -3727,7 +3927,8 @@ public sealed partial class PdfDocumentBuilder
         TextFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record CheckBoxDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        bool IsChecked, string ExportValue, PdfFormFieldMetadata? Metadata, PdfFormFieldOptions Options);
+        bool IsChecked, string ExportValue, PdfFormFieldMetadata? Metadata,
+        PdfFormFieldOptions Options, PdfCheckBoxMark Mark);
     private sealed record AllocatedCheckBox(
         CheckBoxDefinition Definition,
         int FieldNumber,
@@ -3759,6 +3960,7 @@ public sealed partial class PdfDocumentBuilder
         double FontSize, TrueTypeFont? EmbeddedFont,
         bool IsResetAction, IReadOnlyList<string>? ResetFields, bool ExcludeResetFields,
         string? SubmitUri, IReadOnlyList<string>? SubmitFields, bool ExcludeSubmitFields,
+        PdfPushButtonHighlightMode HighlightMode,
         PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
     private sealed record AllocatedPushButton(
         PushButtonDefinition Definition, int FieldNumber, int AppearanceNumber);

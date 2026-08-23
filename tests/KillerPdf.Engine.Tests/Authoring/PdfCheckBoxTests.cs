@@ -47,6 +47,33 @@ public sealed class PdfCheckBoxTests
             builder.AddCheckBox(0, "shared", 0, 30, 20, 20));
     }
 
+    [Theory]
+    [InlineData(PdfCheckBoxMark.Check, "4", " l\nS")]
+    [InlineData(PdfCheckBoxMark.Cross, "8", " m\n")]
+    [InlineData(PdfCheckBoxMark.Circle, "l", " c\nh\nf")]
+    [InlineData(PdfCheckBoxMark.Diamond, "u", " l\nh\nf")]
+    [InlineData(PdfCheckBoxMark.Square, "n", " re\nf")]
+    public void AddCheckBox_WritesTypedMarkCaptionAndArtwork(
+        PdfCheckBoxMark mark, string caption, string artwork)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddCheckBox(0, "mark", 0, 0, 20, 20, true, mark: mark)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary characteristics = Assert.IsType<PdfDictionary>(field[Name("MK")]);
+        PdfDictionary normal = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")]);
+        PdfStream on = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(normal[Name("Yes")])));
+
+        Assert.Equal(caption, Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(characteristics[Name("CA")]).Bytes.Span));
+        Assert.Contains(artwork, Encoding.ASCII.GetString(on.EncodedData.Span));
+    }
+
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

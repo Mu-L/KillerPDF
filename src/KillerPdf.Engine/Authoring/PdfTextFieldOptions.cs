@@ -11,4 +11,5 @@ public sealed record PdfTextFieldOptions
     public bool DoNotScroll { get; init; }
     public bool Comb { get; init; }
     public int? MaximumLength { get; init; }
+    public PdfTextFieldAlignment Alignment { get; init; }
 }
