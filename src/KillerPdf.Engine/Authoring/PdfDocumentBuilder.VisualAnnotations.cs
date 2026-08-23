@@ -15,7 +15,9 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, double x, double y, double width, double height,
         string contents, TrueTypeFont font, double fontSize = 12,
         PdfRgbColor? textColor = null, PdfRgbColor? fillColor = null,
-        PdfRgbColor? borderColor = null, double borderWidth = 1, double opacity = 1)
+        PdfRgbColor? borderColor = null, double borderWidth = 1, double opacity = 1,
+        PdfAnnotationMetadata? annotationMetadata = null,
+        PdfTextAlignment alignment = PdfTextAlignment.Left)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -23,11 +25,14 @@ public sealed partial class PdfDocumentBuilder
         ArgumentNullException.ThrowIfNull(font);
         if (!double.IsFinite(fontSize) || fontSize <= 0) throw new ArgumentOutOfRangeException(nameof(fontSize));
         ValidateStroke(borderWidth, opacity);
+        if (!Enum.IsDefined(alignment))
+            throw new ArgumentOutOfRangeException(nameof(alignment));
         ValidateDrawableText(font, contents, nameof(contents));
         _freeTexts.Add(new FreeTextDefinition(
             pageIndex, x, y, width, height, contents, font, fontSize,
             textColor ?? new PdfRgbColor(0, 0, 0), fillColor,
-            borderColor ?? new PdfRgbColor(0, 0, 0), borderWidth, opacity));
+            borderColor ?? new PdfRgbColor(0, 0, 0), borderWidth, opacity,
+            annotationMetadata, alignment));
         return this;
     }
 
@@ -35,93 +40,120 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, PdfPoint start, PdfPoint end, PdfRgbColor? color = null,
         double lineWidth = 1, double opacity = 1, string? contents = null,
         PdfLineEndingStyle startEnding = PdfLineEndingStyle.None,
-        PdfLineEndingStyle endEnding = PdfLineEndingStyle.None)
+        PdfLineEndingStyle endEnding = PdfLineEndingStyle.None,
+        IReadOnlyList<double>? dashPattern = null,
+        PdfRgbColor? interiorColor = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateStroke(lineWidth, opacity);
         ValidateLineEnding(startEnding, nameof(startEnding));
         ValidateLineEnding(endEnding, nameof(endEnding));
+        double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         if (start == end) throw new ArgumentException("A line must have two distinct endpoints.", nameof(end));
         _visualAnnotations.Add(new LineAnnotationDefinition(
             pageIndex, start, end, color ?? new PdfRgbColor(0, 0, 0), lineWidth, opacity, contents,
-            startEnding, endEnding));
+            startEnding, endEnding, dash, interiorColor, annotationMetadata));
         return this;
     }
 
     public PdfDocumentBuilder AddRectangleAnnotation(
         int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
-        double lineWidth = 1, double opacity = 1, string? contents = null)
+        double lineWidth = 1, double opacity = 1, string? contents = null,
+        IReadOnlyList<double>? dashPattern = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddShapeAnnotation(PdfShapeAnnotationType.Square, pageIndex, x, y, width, height,
-            strokeColor, fillColor, lineWidth, opacity, contents);
+            strokeColor, fillColor, lineWidth, opacity, contents, dashPattern,
+            annotationMetadata);
 
     public PdfDocumentBuilder AddEllipseAnnotation(
         int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
-        double lineWidth = 1, double opacity = 1, string? contents = null)
+        double lineWidth = 1, double opacity = 1, string? contents = null,
+        IReadOnlyList<double>? dashPattern = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddShapeAnnotation(PdfShapeAnnotationType.Circle, pageIndex, x, y, width, height,
-            strokeColor, fillColor, lineWidth, opacity, contents);
+            strokeColor, fillColor, lineWidth, opacity, contents, dashPattern,
+            annotationMetadata);
 
     public PdfDocumentBuilder AddPolylineAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> vertices, PdfRgbColor? color = null,
         double lineWidth = 1, double opacity = 1, string? contents = null,
         PdfLineEndingStyle startEnding = PdfLineEndingStyle.None,
-        PdfLineEndingStyle endEnding = PdfLineEndingStyle.None)
+        PdfLineEndingStyle endEnding = PdfLineEndingStyle.None,
+        IReadOnlyList<double>? dashPattern = null,
+        PdfRgbColor? interiorColor = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddVertexAnnotation(
             pageIndex, vertices, closed: false, color, null, lineWidth, opacity, contents,
-            startEnding, endEnding);
+            startEnding, endEnding, dashPattern, interiorColor, annotationMetadata);
 
     public PdfDocumentBuilder AddPolygonAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> vertices,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
-        double lineWidth = 1, double opacity = 1, string? contents = null)
+        double lineWidth = 1, double opacity = 1, string? contents = null,
+        IReadOnlyList<double>? dashPattern = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddVertexAnnotation(
             pageIndex, vertices, closed: true, strokeColor, fillColor,
-            lineWidth, opacity, contents, PdfLineEndingStyle.None, PdfLineEndingStyle.None);
+            lineWidth, opacity, contents, PdfLineEndingStyle.None, PdfLineEndingStyle.None,
+            dashPattern, null, annotationMetadata);
 
     public PdfDocumentBuilder AddInkAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> points, PdfRgbColor? color = null,
-        double lineWidth = 2, double opacity = 1, string? contents = null)
-        => AddInkAnnotation(pageIndex, [points], color, lineWidth, opacity, contents);
+        double lineWidth = 2, double opacity = 1, string? contents = null,
+        IReadOnlyList<double>? dashPattern = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
+        => AddInkAnnotation(
+            pageIndex, [points], color, lineWidth, opacity, contents, dashPattern,
+            annotationMetadata);
 
     public PdfDocumentBuilder AddInkAnnotation(
         int pageIndex, IReadOnlyList<IReadOnlyList<PdfPoint>> strokes, PdfRgbColor? color = null,
-        double lineWidth = 2, double opacity = 1, string? contents = null)
+        double lineWidth = 2, double opacity = 1, string? contents = null,
+        IReadOnlyList<double>? dashPattern = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(strokes);
         ValidateStroke(lineWidth, opacity);
+        double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         if (strokes.Count == 0 || strokes.Any(stroke => stroke is null || stroke.Count < 2))
             throw new ArgumentException("Ink requires at least one stroke containing two points.", nameof(strokes));
         _visualAnnotations.Add(new InkAnnotationDefinition(
             pageIndex, strokes.Select(stroke => stroke.ToArray()).ToArray(),
-            color ?? new PdfRgbColor(0, 0, 0), lineWidth, opacity, contents));
+            color ?? new PdfRgbColor(0, 0, 0), lineWidth, opacity, contents, dash,
+            annotationMetadata));
         return this;
     }
 
     public PdfDocumentBuilder AddImageStamp(
         int pageIndex, double x, double y, double width, double height,
-        PdfImage image, string? contents = null)
+        PdfImage image, string? contents = null,
+        PdfAnnotationMetadata? annotationMetadata = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
         ArgumentNullException.ThrowIfNull(image);
         _imageStamps.Add(new ImageStampDefinition(
-            pageIndex, x, y, width, height, image, contents));
+            pageIndex, x, y, width, height, image, contents, annotationMetadata));
         return this;
     }
 
     private PdfDocumentBuilder AddShapeAnnotation(
         PdfShapeAnnotationType type, int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor, PdfRgbColor? fillColor,
-        double lineWidth, double opacity, string? contents)
+        double lineWidth, double opacity, string? contents,
+        IReadOnlyList<double>? dashPattern, PdfAnnotationMetadata? annotationMetadata)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
         ValidateStroke(lineWidth, opacity);
+        double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         _visualAnnotations.Add(new ShapeAnnotationDefinition(
             type, pageIndex, x, y, width, height, strokeColor ?? new PdfRgbColor(0, 0, 0),
-            fillColor, lineWidth, opacity, contents));
+            fillColor, lineWidth, opacity, contents, dash, annotationMetadata));
         return this;
     }
 
@@ -129,13 +161,16 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, IReadOnlyList<PdfPoint> vertices, bool closed,
         PdfRgbColor? strokeColor, PdfRgbColor? fillColor,
         double lineWidth, double opacity, string? contents,
-        PdfLineEndingStyle startEnding, PdfLineEndingStyle endEnding)
+        PdfLineEndingStyle startEnding, PdfLineEndingStyle endEnding,
+        IReadOnlyList<double>? dashPattern, PdfRgbColor? interiorColor,
+        PdfAnnotationMetadata? annotationMetadata)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(vertices);
         ValidateStroke(lineWidth, opacity);
         ValidateLineEnding(startEnding, nameof(startEnding));
         ValidateLineEnding(endEnding, nameof(endEnding));
+        double[]? dash = ValidateAnnotationDashPattern(dashPattern);
         int minimum = closed ? 3 : 2;
         if (vertices.Count < minimum)
             throw new ArgumentException(
@@ -146,13 +181,25 @@ public sealed partial class PdfDocumentBuilder
         _visualAnnotations.Add(new VertexAnnotationDefinition(
             pageIndex, vertices.ToArray(), closed,
             strokeColor ?? new PdfRgbColor(0, 0, 0), fillColor,
-            lineWidth, opacity, contents, startEnding, endEnding));
+            lineWidth, opacity, contents, startEnding, endEnding, dash, interiorColor,
+            annotationMetadata));
         return this;
     }
 
     private static void ValidateLineEnding(PdfLineEndingStyle style, string name)
     {
         if (!Enum.IsDefined(style)) throw new ArgumentOutOfRangeException(name);
+    }
+
+    private static double[]? ValidateAnnotationDashPattern(IReadOnlyList<double>? pattern)
+    {
+        if (pattern is null) return null;
+        if (pattern.Count == 0
+            || pattern.Any(value => !double.IsFinite(value) || value < 0))
+            throw new ArgumentOutOfRangeException(nameof(pattern));
+        if (pattern.All(value => value == 0))
+            throw new ArgumentException("A dash pattern cannot contain only zeros.", nameof(pattern));
+        return pattern.ToArray();
     }
 
     private static void ValidateStroke(double lineWidth, double opacity)
@@ -184,9 +231,9 @@ public sealed partial class PdfDocumentBuilder
         var entries = CommonAnnotationEntries(
             "FreeText", value.PageIndex, value.X, value.Y, value.Width, value.Height,
             pages, $"KillerPDF-FreeText-{sequence}", value.BorderColor, value.Opacity,
-            value.Contents, allocated.AppearanceNumber);
+            value.Contents, allocated.AppearanceNumber, value.Metadata);
         entries.Add(("DA", Latin1String(defaultAppearance)));
-        entries.Add(("Q", new PdfInteger(0)));
+        entries.Add(("Q", new PdfInteger((int)value.Alignment)));
         entries.Add(("BS", BorderStyle(value.BorderWidth)));
         if (value.FillColor.HasValue) entries.Add(("IC", ColorArray(value.FillColor.Value)));
         objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
@@ -238,13 +285,14 @@ public sealed partial class PdfDocumentBuilder
                 Number(stamp.X), Number(stamp.Y),
                 Number(stamp.X + stamp.Width), Number(stamp.Y + stamp.Height)])),
             ("P", new PdfIndirectReference(pages[stamp.PageIndex].PageNumber, 0)),
-            ("F", new PdfInteger(4)),
+            ("F", new PdfInteger((int)(stamp.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
             ("NM", Latin1String($"KillerPDF-Image-{sequence}")),
             ("Name", Name("Image")),
             ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))
         };
         if (!string.IsNullOrEmpty(stamp.Contents))
             entries.Add(("Contents", UnicodeString(stamp.Contents)));
+        AddAnnotationMetadata(entries, stamp.Metadata);
         objects.Add(new PdfIndirectObject(
             allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
 
@@ -266,28 +314,31 @@ public sealed partial class PdfDocumentBuilder
         var entries = CommonAnnotationEntries("Line", line.PageIndex,
             bounds.X, bounds.Y, bounds.Width, bounds.Height, pages,
             $"KillerPDF-Line-{sequence}", line.Color, line.Opacity,
-            line.Contents, allocated.AppearanceNumber);
+            line.Contents, allocated.AppearanceNumber, line.Metadata);
         entries.Add(("L", new PdfArray([
             Number(line.Start.X), Number(line.Start.Y), Number(line.End.X), Number(line.End.Y)])));
         entries.Add(("LE", new PdfArray([
             Name(PdfLineEndingStyleNames.Name(line.StartEnding)),
             Name(PdfLineEndingStyleNames.Name(line.EndEnding))])));
-        entries.Add(("BS", BorderStyle(line.LineWidth)));
+        entries.Add(("BS", BorderStyle(line.LineWidth, line.DashPattern)));
+        if (line.InteriorColor.HasValue)
+            entries.Add(("IC", ColorArray(line.InteriorColor.Value)));
         objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance,
             $"q\n/GS1 gs\n{ColorOperands(line.Color)} RG\n{FormatNumber(line.LineWidth)} w\n" +
+            DashOperator(line.DashPattern) +
             $"{FormatNumber(line.Start.X - bounds.X)} {FormatNumber(line.Start.Y - bounds.Y)} m\n" +
             $"{FormatNumber(line.End.X - bounds.X)} {FormatNumber(line.End.Y - bounds.Y)} l\nS\n");
         WriteLineEnding(appearance,
             line.Start.X - bounds.X, line.Start.Y - bounds.Y,
             line.End.X - bounds.X, line.End.Y - bounds.Y,
-            line.StartEnding, line.LineWidth, line.Color);
+            line.StartEnding, line.LineWidth, line.Color, line.InteriorColor);
         WriteLineEnding(appearance,
             line.End.X - bounds.X, line.End.Y - bounds.Y,
             line.Start.X - bounds.X, line.Start.Y - bounds.Y,
-            line.EndEnding, line.LineWidth, line.Color);
+            line.EndEnding, line.LineWidth, line.Color, line.InteriorColor);
         appearance.Write("Q\n"u8);
         objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
             AnnotationAppearance(bounds.Width, bounds.Height, AnnotationResources(line.Opacity), appearance.ToArray()), 0));
@@ -301,13 +352,14 @@ public sealed partial class PdfDocumentBuilder
         var entries = CommonAnnotationEntries(subtype, shape.PageIndex,
             shape.X, shape.Y, shape.Width, shape.Height, pages,
             $"KillerPDF-{subtype}-{sequence}", shape.StrokeColor, shape.Opacity,
-            shape.Contents, allocated.AppearanceNumber);
-        entries.Add(("BS", BorderStyle(shape.LineWidth)));
+            shape.Contents, allocated.AppearanceNumber, shape.Metadata);
+        entries.Add(("BS", BorderStyle(shape.LineWidth, shape.DashPattern)));
         if (shape.FillColor.HasValue) entries.Add(("IC", ColorArray(shape.FillColor.Value)));
         objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance, "q\n/GS1 gs\n");
+        WriteAscii(appearance, DashOperator(shape.DashPattern));
         WriteBox(appearance, shape.Width, shape.Height, shape.LineWidth,
             shape.StrokeColor, shape.FillColor, shape.Type == PdfShapeAnnotationType.Circle);
         appearance.Write("Q\n"u8);
@@ -324,16 +376,17 @@ public sealed partial class PdfDocumentBuilder
         var entries = CommonAnnotationEntries("Ink", ink.PageIndex,
             bounds.X, bounds.Y, bounds.Width, bounds.Height, pages,
             $"KillerPDF-Ink-{sequence}", ink.Color, ink.Opacity,
-            ink.Contents, allocated.AppearanceNumber);
+            ink.Contents, allocated.AppearanceNumber, ink.Metadata);
         entries.Add(("InkList", new PdfArray(ink.Strokes.Select(stroke =>
             (PdfObject)new PdfArray(stroke.SelectMany(point => new PdfObject[]
                 { Number(point.X), Number(point.Y) }))))));
-        entries.Add(("BS", BorderStyle(ink.LineWidth)));
+        entries.Add(("BS", BorderStyle(ink.LineWidth, ink.DashPattern)));
         objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance,
             $"q\n/GS1 gs\n{ColorOperands(ink.Color)} RG\n{FormatNumber(ink.LineWidth)} w\n1 J\n1 j\n");
+        WriteAscii(appearance, DashOperator(ink.DashPattern));
         foreach (IReadOnlyList<PdfPoint> stroke in ink.Strokes)
         {
             WriteAscii(appearance,
@@ -359,16 +412,20 @@ public sealed partial class PdfDocumentBuilder
         var entries = CommonAnnotationEntries(subtype, vertex.PageIndex,
             bounds.X, bounds.Y, bounds.Width, bounds.Height, pages,
             $"KillerPDF-{subtype}-{sequence}", vertex.Color, vertex.Opacity,
-            vertex.Contents, allocated.AppearanceNumber);
+            vertex.Contents, allocated.AppearanceNumber, vertex.Metadata);
         entries.Add(("Vertices", new PdfArray(vertex.Vertices.SelectMany(point =>
             new PdfObject[] { Number(point.X), Number(point.Y) }))));
-        entries.Add(("BS", BorderStyle(vertex.LineWidth)));
+        entries.Add(("BS", BorderStyle(vertex.LineWidth, vertex.DashPattern)));
         if (vertex.Closed && vertex.FillColor.HasValue)
             entries.Add(("IC", ColorArray(vertex.FillColor.Value)));
         if (!vertex.Closed)
+        {
             entries.Add(("LE", new PdfArray([
                 Name(PdfLineEndingStyleNames.Name(vertex.StartEnding)),
                 Name(PdfLineEndingStyleNames.Name(vertex.EndEnding))])));
+            if (vertex.InteriorColor.HasValue)
+                entries.Add(("IC", ColorArray(vertex.InteriorColor.Value)));
+        }
         objects.Add(new PdfIndirectObject(
             allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
 
@@ -378,6 +435,7 @@ public sealed partial class PdfDocumentBuilder
             WriteAscii(appearance, $"{ColorOperands(vertex.FillColor.Value)} rg\n");
         WriteAscii(appearance,
             $"{ColorOperands(vertex.Color)} RG\n{FormatNumber(vertex.LineWidth)} w\n" +
+            DashOperator(vertex.DashPattern) +
             $"{FormatNumber(vertex.Vertices[0].X - bounds.X)} " +
             $"{FormatNumber(vertex.Vertices[0].Y - bounds.Y)} m\n");
         foreach (PdfPoint point in vertex.Vertices.Skip(1))
@@ -390,12 +448,12 @@ public sealed partial class PdfDocumentBuilder
             WriteLineEnding(appearance,
                 vertex.Vertices[0].X - bounds.X, vertex.Vertices[0].Y - bounds.Y,
                 vertex.Vertices[1].X - bounds.X, vertex.Vertices[1].Y - bounds.Y,
-                vertex.StartEnding, vertex.LineWidth, vertex.Color);
+                vertex.StartEnding, vertex.LineWidth, vertex.Color, vertex.InteriorColor);
             int last = vertex.Vertices.Count - 1;
             WriteLineEnding(appearance,
                 vertex.Vertices[last].X - bounds.X, vertex.Vertices[last].Y - bounds.Y,
                 vertex.Vertices[last - 1].X - bounds.X, vertex.Vertices[last - 1].Y - bounds.Y,
-                vertex.EndEnding, vertex.LineWidth, vertex.Color);
+                vertex.EndEnding, vertex.LineWidth, vertex.Color, vertex.InteriorColor);
         }
         appearance.Write("Q\n"u8);
         objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
@@ -406,7 +464,8 @@ public sealed partial class PdfDocumentBuilder
     private static List<(string Name, PdfObject Value)> CommonAnnotationEntries(
         string subtype, int pageIndex, double x, double y, double width, double height,
         IReadOnlyList<AllocatedPage> pages, string identity, PdfRgbColor color,
-        double opacity, string? contents, int appearanceNumber)
+        double opacity, string? contents, int appearanceNumber,
+        PdfAnnotationMetadata? metadata = null)
     {
         var entries = new List<(string Name, PdfObject Value)>
         {
@@ -414,18 +473,43 @@ public sealed partial class PdfDocumentBuilder
             ("Subtype", Name(subtype)),
             ("Rect", new PdfArray([Number(x), Number(y), Number(x + width), Number(y + height)])),
             ("P", new PdfIndirectReference(pages[pageIndex].PageNumber, 0)),
-            ("F", new PdfInteger(4)),
+            ("F", new PdfInteger((int)(metadata?.Flags ?? PdfAnnotationFlags.Print))),
             ("NM", Latin1String(identity)),
             ("C", ColorArray(color)),
             ("CA", new PdfReal(opacity)),
             ("AP", Dictionary(("N", new PdfIndirectReference(appearanceNumber, 0))))
         };
         if (!string.IsNullOrEmpty(contents)) entries.Add(("Contents", UnicodeString(contents)));
+        AddAnnotationMetadata(entries, metadata);
         return entries;
     }
 
-    private static PdfDictionary BorderStyle(double width) =>
-        Dictionary(("W", Number(width)), ("S", Name("S")));
+    private static void AddAnnotationMetadata(
+        ICollection<(string Name, PdfObject Value)> entries,
+        PdfAnnotationMetadata? metadata)
+    {
+        if (!string.IsNullOrEmpty(metadata?.Author))
+            entries.Add(("T", UnicodeString(metadata.Author)));
+        if (!string.IsNullOrEmpty(metadata?.Subject))
+            entries.Add(("Subj", UnicodeString(metadata.Subject)));
+        if (metadata?.CreationDate is DateTimeOffset creationDate)
+            entries.Add(("CreationDate", Latin1String(PdfDate(creationDate))));
+        if (metadata?.ModificationDate is DateTimeOffset modificationDate)
+            entries.Add(("M", Latin1String(PdfDate(modificationDate))));
+    }
+
+    private static PdfDictionary BorderStyle(
+        double width, IReadOnlyList<double>? dashPattern = null) =>
+        dashPattern is null
+            ? Dictionary(("W", Number(width)), ("S", Name("S")))
+            : Dictionary(
+                ("W", Number(width)), ("S", Name("D")),
+                ("D", new PdfArray(dashPattern.Select(Number))));
+
+    private static string DashOperator(IReadOnlyList<double>? dashPattern) =>
+        dashPattern is null
+            ? string.Empty
+            : $"[{string.Join(' ', dashPattern.Select(FormatNumber))}] 0 d\n";
 
     private static PdfDictionary AnnotationResources(
         double opacity, (PdfName Name, PdfObject Reference)? font = null)
@@ -450,7 +534,8 @@ public sealed partial class PdfDocumentBuilder
 
     private static void WriteLineEnding(
         Stream output, double x, double y, double neighborX, double neighborY,
-        PdfLineEndingStyle style, double lineWidth, PdfRgbColor color)
+        PdfLineEndingStyle style, double lineWidth, PdfRgbColor color,
+        PdfRgbColor? interiorColor)
     {
         if (style == PdfLineEndingStyle.None) return;
         double dx = neighborX - x;
@@ -462,24 +547,90 @@ public sealed partial class PdfDocumentBuilder
         double nx = -dy;
         double ny = dx;
         double size = Math.Max(6, lineWidth * 4);
-        double backX = x + dx * size;
-        double backY = y + dy * size;
+        bool reverse = style is PdfLineEndingStyle.ReverseOpenArrow
+            or PdfLineEndingStyle.ReverseClosedArrow;
+        double direction = reverse ? -1 : 1;
+        double backX = x + dx * size * direction;
+        double backY = y + dy * size * direction;
         double wing = size * 0.45;
         double firstX = backX + nx * wing;
         double firstY = backY + ny * wing;
         double secondX = backX - nx * wing;
         double secondY = backY - ny * wing;
-        if (style == PdfLineEndingStyle.OpenArrow)
-            WriteAscii(output,
-                $"{FormatNumber(firstX)} {FormatNumber(firstY)} m\n" +
-                $"{FormatNumber(x)} {FormatNumber(y)} l\n" +
-                $"{FormatNumber(secondX)} {FormatNumber(secondY)} l\nS\n");
-        else
-            WriteAscii(output,
-                $"{ColorOperands(color)} rg\n" +
-                $"{FormatNumber(x)} {FormatNumber(y)} m\n" +
-                $"{FormatNumber(firstX)} {FormatNumber(firstY)} l\n" +
-                $"{FormatNumber(secondX)} {FormatNumber(secondY)} l\nh\nB\n");
+        switch (style)
+        {
+            case PdfLineEndingStyle.OpenArrow:
+            case PdfLineEndingStyle.ReverseOpenArrow:
+                WriteAscii(output,
+                    $"{FormatNumber(firstX)} {FormatNumber(firstY)} m\n" +
+                    $"{FormatNumber(x)} {FormatNumber(y)} l\n" +
+                    $"{FormatNumber(secondX)} {FormatNumber(secondY)} l\nS\n");
+                break;
+            case PdfLineEndingStyle.ClosedArrow:
+            case PdfLineEndingStyle.ReverseClosedArrow:
+                WriteAscii(output,
+                    (interiorColor.HasValue
+                        ? $"{ColorOperands(interiorColor.Value)} rg\n" : string.Empty) +
+                    $"{FormatNumber(x)} {FormatNumber(y)} m\n" +
+                    $"{FormatNumber(firstX)} {FormatNumber(firstY)} l\n" +
+                    $"{FormatNumber(secondX)} {FormatNumber(secondY)} l\nh\n" +
+                    (interiorColor.HasValue ? "B\n" : "S\n"));
+                break;
+            case PdfLineEndingStyle.Square:
+            {
+                double half = size * 0.35;
+                WriteAscii(output,
+                    $"{FormatNumber(x - half)} {FormatNumber(y - half)} " +
+                    $"{FormatNumber(half * 2)} {FormatNumber(half * 2)} re\n" +
+                    (interiorColor.HasValue
+                        ? $"{ColorOperands(interiorColor.Value)} rg\nB\n" : "S\n"));
+                break;
+            }
+            case PdfLineEndingStyle.Circle:
+            {
+                double diameter = size * 0.7;
+                WriteEllipse(output, x - diameter / 2, y - diameter / 2, diameter, diameter);
+                if (interiorColor.HasValue)
+                {
+                    WriteAscii(output, $"{ColorOperands(interiorColor.Value)} rg\n");
+                    output.Write("B\n"u8);
+                }
+                else output.Write("S\n"u8);
+                break;
+            }
+            case PdfLineEndingStyle.Diamond:
+            {
+                double half = size * 0.45;
+                WriteAscii(output,
+                    $"{FormatNumber(x)} {FormatNumber(y + half)} m\n" +
+                    $"{FormatNumber(x + half)} {FormatNumber(y)} l\n" +
+                    $"{FormatNumber(x)} {FormatNumber(y - half)} l\n" +
+                    $"{FormatNumber(x - half)} {FormatNumber(y)} l\nh\n" +
+                    (interiorColor.HasValue
+                        ? $"{ColorOperands(interiorColor.Value)} rg\nB\n" : "S\n"));
+                break;
+            }
+            case PdfLineEndingStyle.Butt:
+            {
+                double half = size * 0.45;
+                WriteAscii(output,
+                    $"{FormatNumber(x + nx * half)} {FormatNumber(y + ny * half)} m\n" +
+                    $"{FormatNumber(x - nx * half)} {FormatNumber(y - ny * half)} l\nS\n");
+                break;
+            }
+            case PdfLineEndingStyle.Slash:
+            {
+                double half = size * 0.5;
+                double slashX = nx * 0.85 + dx * 0.5;
+                double slashY = ny * 0.85 + dy * 0.5;
+                WriteAscii(output,
+                    $"{FormatNumber(x + slashX * half)} {FormatNumber(y + slashY * half)} m\n" +
+                    $"{FormatNumber(x - slashX * half)} {FormatNumber(y - slashY * half)} l\nS\n");
+                break;
+            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(style));
+        }
     }
 
     private static void WriteBox(
@@ -515,11 +666,22 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyList<string> lines = WrapText(value.Contents, value.Font, value.FontSize,
             Math.Max(1, value.Width - padding * 2));
         WriteAscii(output,
-            $"BT\n{NameToken(fontResource)} {FormatNumber(value.FontSize)} Tf\n{ColorOperands(value.TextColor)} rg\n" +
-            $"{FormatNumber(padding)} {FormatNumber(Math.Max(padding, value.Height - padding - value.FontSize))} Td\n");
+            $"BT\n{NameToken(fontResource)} {FormatNumber(value.FontSize)} Tf\n" +
+            $"{ColorOperands(value.TextColor)} rg\n");
         for (int index = 0; index < lines.Count; index++)
         {
-            if (index > 0) WriteAscii(output, $"0 -{FormatNumber(lineHeight)} Td\n");
+            double lineWidth = TextWidth(lines[index], value.Font, value.FontSize);
+            double x = value.Alignment switch
+            {
+                PdfTextAlignment.Left => padding,
+                PdfTextAlignment.Center => Math.Max(padding, (value.Width - lineWidth) / 2),
+                PdfTextAlignment.Right => Math.Max(padding, value.Width - padding - lineWidth),
+                _ => throw new ArgumentOutOfRangeException(nameof(value))
+            };
+            double y = Math.Max(
+                padding, value.Height - padding - value.FontSize - index * lineHeight);
+            WriteAscii(output,
+                $"1 0 0 1 {FormatNumber(x)} {FormatNumber(y)} Tm\n");
             WriteShownText(output, lines[index], value.Font);
             if ((index + 2) * lineHeight > value.Height - padding) break;
         }
@@ -572,35 +734,47 @@ public sealed partial class PdfDocumentBuilder
     private sealed record FreeTextDefinition(
         int PageIndex, double X, double Y, double Width, double Height, string Contents,
         TrueTypeFont Font, double FontSize, PdfRgbColor TextColor, PdfRgbColor? FillColor,
-        PdfRgbColor BorderColor, double BorderWidth, double Opacity);
+        PdfRgbColor BorderColor, double BorderWidth, double Opacity,
+        PdfAnnotationMetadata? Metadata, PdfTextAlignment Alignment);
     private sealed record AllocatedFreeText(
         FreeTextDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private abstract record VisualAnnotationDefinition(
-        int PageIndex, PdfRgbColor Color, double LineWidth, double Opacity, string? Contents);
+        int PageIndex, PdfRgbColor Color, double LineWidth, double Opacity, string? Contents,
+        IReadOnlyList<double>? DashPattern, PdfAnnotationMetadata? Metadata);
     private sealed record LineAnnotationDefinition(
         int PageIndex, PdfPoint Start, PdfPoint End, PdfRgbColor Color,
         double LineWidth, double Opacity, string? Contents,
-        PdfLineEndingStyle StartEnding, PdfLineEndingStyle EndEnding)
-        : VisualAnnotationDefinition(PageIndex, Color, LineWidth, Opacity, Contents);
+        PdfLineEndingStyle StartEnding, PdfLineEndingStyle EndEnding,
+        IReadOnlyList<double>? DashPattern, PdfRgbColor? InteriorColor,
+        PdfAnnotationMetadata? Metadata)
+        : VisualAnnotationDefinition(
+            PageIndex, Color, LineWidth, Opacity, Contents, DashPattern, Metadata);
     private sealed record ShapeAnnotationDefinition(
         PdfShapeAnnotationType Type, int PageIndex, double X, double Y, double Width, double Height,
-        PdfRgbColor StrokeColor, PdfRgbColor? FillColor, double LineWidth, double Opacity, string? Contents)
-        : VisualAnnotationDefinition(PageIndex, StrokeColor, LineWidth, Opacity, Contents);
+        PdfRgbColor StrokeColor, PdfRgbColor? FillColor, double LineWidth, double Opacity,
+        string? Contents, IReadOnlyList<double>? DashPattern, PdfAnnotationMetadata? Metadata)
+        : VisualAnnotationDefinition(
+            PageIndex, StrokeColor, LineWidth, Opacity, Contents, DashPattern, Metadata);
     private sealed record InkAnnotationDefinition(
         int PageIndex, IReadOnlyList<IReadOnlyList<PdfPoint>> Strokes, PdfRgbColor Color,
-        double LineWidth, double Opacity, string? Contents)
-        : VisualAnnotationDefinition(PageIndex, Color, LineWidth, Opacity, Contents);
+        double LineWidth, double Opacity, string? Contents, IReadOnlyList<double>? DashPattern,
+        PdfAnnotationMetadata? Metadata)
+        : VisualAnnotationDefinition(
+            PageIndex, Color, LineWidth, Opacity, Contents, DashPattern, Metadata);
     private sealed record VertexAnnotationDefinition(
         int PageIndex, IReadOnlyList<PdfPoint> Vertices, bool Closed,
         PdfRgbColor Color, PdfRgbColor? FillColor,
         double LineWidth, double Opacity, string? Contents,
-        PdfLineEndingStyle StartEnding, PdfLineEndingStyle EndEnding)
-        : VisualAnnotationDefinition(PageIndex, Color, LineWidth, Opacity, Contents);
+        PdfLineEndingStyle StartEnding, PdfLineEndingStyle EndEnding,
+        IReadOnlyList<double>? DashPattern, PdfRgbColor? InteriorColor,
+        PdfAnnotationMetadata? Metadata)
+        : VisualAnnotationDefinition(
+            PageIndex, Color, LineWidth, Opacity, Contents, DashPattern, Metadata);
     private sealed record AllocatedVisualAnnotation(
         VisualAnnotationDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record ImageStampDefinition(
         int PageIndex, double X, double Y, double Width, double Height,
-        PdfImage Image, string? Contents);
+        PdfImage Image, string? Contents, PdfAnnotationMetadata? Metadata);
     private sealed record AllocatedImageStamp(
         ImageStampDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record Bounds(double X, double Y, double Width, double Height);

@@ -31,6 +31,26 @@ public sealed class PdfVisualAnnotationAuthoringTests
     }
 
     [Theory]
+    [InlineData(PdfTextAlignment.Left, 0)]
+    [InlineData(PdfTextAlignment.Center, 1)]
+    [InlineData(PdfTextAlignment.Right, 2)]
+    public void AddFreeText_WritesAlignmentAndPositionedAppearance(
+        PdfTextAlignment alignment, int expectedQuadding)
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddFreeText(0, 20, 30, 180, 60, "AA", font, alignment: alignment));
+        PdfDictionary annotation = Annotation(document);
+        string appearance = Encoding.ASCII.GetString(
+            Appearance(document, annotation).EncodedData.Span);
+
+        Assert.Equal(expectedQuadding,
+            Assert.IsType<PdfInteger>(annotation[Name("Q")]).Value);
+        Assert.Contains(" Tm\n", appearance);
+    }
+
+    [Theory]
     [InlineData("Square")]
     [InlineData("Circle")]
     public void ShapeAnnotations_WriteStandardSubtypeFillAndAppearance(string subtype)
@@ -54,7 +74,8 @@ public sealed class PdfVisualAnnotationAuthoringTests
             .AddBlankPage()
             .AddLineAnnotation(0, new PdfPoint(20, 30), new PdfPoint(120, 80), lineWidth: 3,
                 startEnding: PdfLineEndingStyle.OpenArrow,
-                endEnding: PdfLineEndingStyle.ClosedArrow));
+                endEnding: PdfLineEndingStyle.ClosedArrow,
+                interiorColor: PdfRgbColor.Yellow));
         PdfDictionary annotation = Annotation(document);
         PdfArray endings = Assert.IsType<PdfArray>(annotation[Name("LE")]);
         string appearance = Encoding.ASCII.GetString(
@@ -66,7 +87,33 @@ public sealed class PdfVisualAnnotationAuthoringTests
             Assert.IsType<PdfDictionary>(annotation[Name("BS")])[Name("W")]).Value);
         Assert.Equal("OpenArrow", Assert.IsType<PdfName>(endings[0]).ValueAsLatin1());
         Assert.Equal("ClosedArrow", Assert.IsType<PdfName>(endings[1]).ValueAsLatin1());
+        Assert.Equal(3, Assert.IsType<PdfArray>(annotation[Name("IC")]).Count);
         Assert.Contains("h\nB\n", appearance);
+    }
+
+    [Theory]
+    [InlineData(PdfLineEndingStyle.None, "None")]
+    [InlineData(PdfLineEndingStyle.Square, "Square")]
+    [InlineData(PdfLineEndingStyle.Circle, "Circle")]
+    [InlineData(PdfLineEndingStyle.Diamond, "Diamond")]
+    [InlineData(PdfLineEndingStyle.OpenArrow, "OpenArrow")]
+    [InlineData(PdfLineEndingStyle.ClosedArrow, "ClosedArrow")]
+    [InlineData(PdfLineEndingStyle.Butt, "Butt")]
+    [InlineData(PdfLineEndingStyle.ReverseOpenArrow, "ROpenArrow")]
+    [InlineData(PdfLineEndingStyle.ReverseClosedArrow, "RClosedArrow")]
+    [InlineData(PdfLineEndingStyle.Slash, "Slash")]
+    public void LineAnnotation_WritesEveryStandardEnding(
+        PdfLineEndingStyle style, string expectedName)
+    {
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddLineAnnotation(0, new PdfPoint(20, 30), new PdfPoint(120, 80),
+                startEnding: style));
+        PdfDictionary annotation = Annotation(document);
+        PdfArray endings = Assert.IsType<PdfArray>(annotation[Name("LE")]);
+
+        Assert.Equal(expectedName, Assert.IsType<PdfName>(endings[0]).ValueAsLatin1());
+        Assert.NotEmpty(Appearance(document, annotation).EncodedData.ToArray());
     }
 
     [Fact]
@@ -77,7 +124,16 @@ public sealed class PdfVisualAnnotationAuthoringTests
             .AddPolygonAnnotation(0, [
                 new PdfPoint(20, 20), new PdfPoint(100, 30), new PdfPoint(60, 100)],
                 strokeColor: new PdfRgbColor(0.1, 0.2, 0.8),
-                fillColor: new PdfRgbColor(0.9, 0.8, 0.2), lineWidth: 2));
+                fillColor: new PdfRgbColor(0.9, 0.8, 0.2), lineWidth: 2,
+                dashPattern: [6, 2],
+                annotationMetadata: new PdfAnnotationMetadata
+                {
+                    Author = "Renée",
+                    Subject = "Geometry review",
+                    Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.LockedContents,
+                    CreationDate = new DateTimeOffset(2026, 8, 23, 12, 34, 56, TimeSpan.FromHours(-7)),
+                    ModificationDate = new DateTimeOffset(2026, 8, 23, 13, 45, 0, TimeSpan.FromHours(-7))
+                }));
         PdfDictionary annotation = Annotation(document);
         string appearance = Encoding.ASCII.GetString(
             Appearance(document, annotation).EncodedData.Span);
@@ -86,7 +142,21 @@ public sealed class PdfVisualAnnotationAuthoringTests
             Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
         Assert.Equal(6, Assert.IsType<PdfArray>(annotation[Name("Vertices")]).Count);
         Assert.Equal(3, Assert.IsType<PdfArray>(annotation[Name("IC")]).Count);
+        PdfDictionary border = Assert.IsType<PdfDictionary>(annotation[Name("BS")]);
+        Assert.Equal("D", Assert.IsType<PdfName>(border[Name("S")]).ValueAsLatin1());
+        Assert.Equal(2, Assert.IsType<PdfArray>(border[Name("D")]).Count);
+        Assert.Contains("[6 2] 0 d", appearance);
         Assert.Contains("h\nB\n", appearance);
+        Assert.Equal("Renée", DecodeUnicode(Assert.IsType<PdfString>(annotation[Name("T")])));
+        Assert.Equal("Geometry review",
+            DecodeUnicode(Assert.IsType<PdfString>(annotation[Name("Subj")])));
+        Assert.Equal("D:20260823123456-07'00'",
+            Encoding.Latin1.GetString(Assert.IsType<PdfString>(
+                annotation[Name("CreationDate")]).Bytes.Span));
+        Assert.Equal("D:20260823134500-07'00'",
+            Encoding.Latin1.GetString(Assert.IsType<PdfString>(
+                annotation[Name("M")]).Bytes.Span));
+        Assert.Equal(516, Assert.IsType<PdfInteger>(annotation[Name("F")]).Value);
     }
 
     [Fact]
@@ -97,7 +167,8 @@ public sealed class PdfVisualAnnotationAuthoringTests
             .AddPolylineAnnotation(0, [
                 new PdfPoint(20, 20), new PdfPoint(100, 30), new PdfPoint(60, 100)],
                 startEnding: PdfLineEndingStyle.ClosedArrow,
-                endEnding: PdfLineEndingStyle.OpenArrow));
+                endEnding: PdfLineEndingStyle.OpenArrow,
+                interiorColor: PdfRgbColor.Yellow));
         PdfDictionary annotation = Annotation(document);
         string appearance = Encoding.ASCII.GetString(
             Appearance(document, annotation).EncodedData.Span);
@@ -106,7 +177,7 @@ public sealed class PdfVisualAnnotationAuthoringTests
             Assert.IsType<PdfName>(annotation[Name("Subtype")]).ValueAsLatin1());
         Assert.Equal(6, Assert.IsType<PdfArray>(annotation[Name("Vertices")]).Count);
         Assert.Equal(2, Assert.IsType<PdfArray>(annotation[Name("LE")]).Count);
-        Assert.False(annotation.ContainsKey(Name("IC")));
+        Assert.Equal(3, Assert.IsType<PdfArray>(annotation[Name("IC")]).Count);
         Assert.Contains("S\nQ\n", appearance);
         Assert.Contains("h\nB\n", appearance);
     }
@@ -168,9 +239,18 @@ public sealed class PdfVisualAnnotationAuthoringTests
             0, [new PdfPoint(1, 1), new PdfPoint(2, 2)]));
         Assert.Throws<ArgumentException>(() => builder.AddPolygonAnnotation(
             0, [new PdfPoint(1, 1), new PdfPoint(1, 1), new PdfPoint(1, 1)]));
+        Assert.Throws<ArgumentException>(() => builder.AddPolygonAnnotation(
+            0, [new PdfPoint(1, 1), new PdfPoint(2, 1), new PdfPoint(1, 2)],
+            dashPattern: [0, 0]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddInkAnnotation(
+            0, [new PdfPoint(1, 1), new PdfPoint(2, 2)], dashPattern: [2, -1]));
         Assert.Throws<ArgumentOutOfRangeException>(() => builder.AddRectangleAnnotation(
             0, 0, 0, 10, 10, lineWidth: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => new PdfPoint(double.NaN, 0));
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            builder.AddFreeText(0, 0, 0, 100, 40, "AA", font,
+                alignment: (PdfTextAlignment)3));
     }
 
     [Fact]

@@ -563,15 +563,19 @@ public sealed partial class PdfDocumentBuilder
         string contents,
         PdfRgbColor? color = null,
         bool open = false,
-        double size = 24)
+        double size = 24,
+        PdfAnnotationMetadata? annotationMetadata = null,
+        PdfTextNoteIcon icon = PdfTextNoteIcon.Note)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(contents);
         if (!double.IsFinite(x)) throw new ArgumentOutOfRangeException(nameof(x));
         if (!double.IsFinite(y)) throw new ArgumentOutOfRangeException(nameof(y));
         if (!double.IsFinite(size) || size <= 0) throw new ArgumentOutOfRangeException(nameof(size));
+        if (!Enum.IsDefined(icon)) throw new ArgumentOutOfRangeException(nameof(icon));
         _textNotes.Add(new TextNoteDefinition(
-            pageIndex, x, y, size, contents, color ?? PdfRgbColor.NoteYellow, open));
+            pageIndex, x, y, size, contents, color ?? PdfRgbColor.NoteYellow, open,
+            annotationMetadata, icon));
         return this;
     }
 
@@ -583,38 +587,44 @@ public sealed partial class PdfDocumentBuilder
         double height,
         string? contents = null,
         PdfRgbColor? color = null,
-        double opacity = 0.35)
+        double opacity = 0.35,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, x, y, width, height,
-            contents, color ?? PdfRgbColor.Yellow, opacity);
+            contents, color ?? PdfRgbColor.Yellow, opacity, annotationMetadata);
 
     public PdfDocumentBuilder AddUnderline(
         int pageIndex, double x, double y, double width, double height,
-        string? contents = null, PdfRgbColor? color = null, double opacity = 1)
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddTextMarkup(PdfTextMarkupType.Underline, pageIndex, x, y, width, height,
-            contents, color ?? new PdfRgbColor(0, 0.35, 0.9), opacity);
+            contents, color ?? new PdfRgbColor(0, 0.35, 0.9), opacity, annotationMetadata);
 
     public PdfDocumentBuilder AddStrikeOut(
         int pageIndex, double x, double y, double width, double height,
-        string? contents = null, PdfRgbColor? color = null, double opacity = 1)
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddTextMarkup(PdfTextMarkupType.StrikeOut, pageIndex, x, y, width, height,
-            contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity);
+            contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
 
     public PdfDocumentBuilder AddSquiggly(
         int pageIndex, double x, double y, double width, double height,
-        string? contents = null, PdfRgbColor? color = null, double opacity = 1)
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1,
+        PdfAnnotationMetadata? annotationMetadata = null)
         => AddTextMarkup(PdfTextMarkupType.Squiggly, pageIndex, x, y, width, height,
-            contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity);
+            contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
 
     private PdfDocumentBuilder AddTextMarkup(
         PdfTextMarkupType type, int pageIndex, double x, double y, double width, double height,
-        string? contents, PdfRgbColor color, double opacity)
+        string? contents, PdfRgbColor color, double opacity,
+        PdfAnnotationMetadata? annotationMetadata)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
         if (!double.IsFinite(opacity) || opacity is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(opacity));
         _textMarkups.Add(new TextMarkupDefinition(
-            type, pageIndex, x, y, width, height, contents, color, opacity));
+            type, pageIndex, x, y, width, height, contents, color, opacity,
+            annotationMetadata));
         return this;
     }
 
@@ -1882,21 +1892,25 @@ public sealed partial class PdfDocumentBuilder
         int sequence)
     {
         TextNoteDefinition note = allocated.Definition;
-        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0,
-            Dictionary(
+        var annotationEntries = new List<(string Name, PdfObject Value)>
+        {
                 ("Type", Name("Annot")),
                 ("Subtype", Name("Text")),
                 ("Rect", new PdfArray([
                     Number(note.X), Number(note.Y),
                     Number(note.X + note.Size), Number(note.Y + note.Size)])),
                 ("P", new PdfIndirectReference(pages[note.PageIndex].PageNumber, 0)),
-                ("F", new PdfInteger(4)),
+                ("F", new PdfInteger((int)(note.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
                 ("Contents", UnicodeString(note.Contents)),
                 ("NM", Latin1String($"KillerPDF-Note-{sequence}")),
-                ("Name", Name("Note")),
+                ("Name", Name(PdfTextNoteIconNames.Name(note.Icon))),
                 ("Open", new PdfBoolean(note.Open)),
                 ("C", ColorArray(note.Color)),
-                ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))), 0));
+                ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))
+        };
+        AddAnnotationMetadata(annotationEntries, note.Metadata);
+        objects.Add(new PdfIndirectObject(
+            allocated.AnnotationNumber, 0, Dictionary(annotationEntries.ToArray()), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance,
@@ -1935,7 +1949,7 @@ public sealed partial class PdfDocumentBuilder
                 Number(highlight.X), Number(highlight.Y),
                 Number(highlight.X + highlight.Width), Number(highlight.Y)])),
             ("P", new PdfIndirectReference(pages[highlight.PageIndex].PageNumber, 0)),
-            ("F", new PdfInteger(4)),
+            ("F", new PdfInteger((int)(highlight.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
             ("NM", Latin1String($"KillerPDF-{highlight.Type}-{sequence}")),
             ("C", ColorArray(highlight.Color)),
             ("CA", new PdfReal(highlight.Opacity)),
@@ -1943,6 +1957,7 @@ public sealed partial class PdfDocumentBuilder
         };
         if (!string.IsNullOrEmpty(highlight.Contents))
             entries.Add(("Contents", UnicodeString(highlight.Contents)));
+        AddAnnotationMetadata(entries, highlight.Metadata);
         objects.Add(new PdfIndirectObject(
             allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
 
@@ -2729,12 +2744,12 @@ public sealed partial class PdfDocumentBuilder
         string? Information);
     private sealed record TextNoteDefinition(
         int PageIndex, double X, double Y, double Size, string Contents,
-        PdfRgbColor Color, bool Open);
+        PdfRgbColor Color, bool Open, PdfAnnotationMetadata? Metadata, PdfTextNoteIcon Icon);
     private sealed record AllocatedTextNote(
         TextNoteDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record TextMarkupDefinition(
         PdfTextMarkupType Type, int PageIndex, double X, double Y, double Width, double Height,
-        string? Contents, PdfRgbColor Color, double Opacity);
+        string? Contents, PdfRgbColor Color, double Opacity, PdfAnnotationMetadata? Metadata);
     private sealed record AllocatedTextMarkup(
         TextMarkupDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record AllocatedEmbeddedFont(

@@ -732,7 +732,14 @@ if (args.Length == 3 && args[0] == "--pdfa-annotation-smoke")
         .SetOutputIntent(profile, "sRGB IEC61966-2.1")
         .EnablePdfA4Conformance()
         .AddPage(612, 792, content)
-        .AddTextNote(0, 448, 650, "Review this section", PdfRgbColor.NoteYellow)
+        .AddTextNote(0, 448, 650, "Review this section", PdfRgbColor.NoteYellow,
+            annotationMetadata: new PdfAnnotationMetadata
+            {
+                Author = "KillerPDF",
+                Subject = "Editorial review",
+                CreationDate = new DateTimeOffset(
+                    2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(-7))
+            }, icon: PdfTextNoteIcon.Comment)
         .AddHighlight(0, 90, 640, 300, 28, "Highlighted passage", PdfRgbColor.Yellow, 0.35)
         .AddUnderline(0, 90, 590, 300, 28, "Underlined passage")
         .AddStrikeOut(0, 90, 540, 300, 28, "Struck passage")
@@ -760,10 +767,12 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
         .EnablePdfA4Conformance()
         .AddBlankPage()
         .AddFreeText(0, 72, 660, 250, 70, "KillerPDF café Ω\nMultiline free text", font, 14,
-            textColor: new PdfRgbColor(0.1, 0.1, 0.1), fillColor: new PdfRgbColor(1, 1, 0.8), opacity: 0.9)
+            textColor: new PdfRgbColor(0.1, 0.1, 0.1), fillColor: new PdfRgbColor(1, 1, 0.8),
+            opacity: 0.9, alignment: PdfTextAlignment.Center)
         .AddLineAnnotation(0, new PdfPoint(72, 620), new PdfPoint(320, 580),
             new PdfRgbColor(0.1, 0.35, 0.9), 3, 0.8, "Line annotation",
-            PdfLineEndingStyle.OpenArrow, PdfLineEndingStyle.ClosedArrow)
+            PdfLineEndingStyle.OpenArrow, PdfLineEndingStyle.ClosedArrow,
+            interiorColor: new PdfRgbColor(0.75, 0.85, 1))
         .AddRectangleAnnotation(0, 72, 490, 110, 65,
             new PdfRgbColor(0.9, 0.1, 0.2), new PdfRgbColor(1, 0.8, 0.85), 3, 0.75, "Rectangle")
         .AddEllipseAnnotation(0, 210, 490, 110, 65,
@@ -772,17 +781,25 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
             new PdfPoint(350, 520), new PdfPoint(405, 565),
             new PdfPoint(470, 525), new PdfPoint(430, 470)],
             new PdfRgbColor(0.15, 0.3, 0.8), new PdfRgbColor(0.75, 0.85, 1),
-            3, 0.8, "Filled polygon")
+            3, 0.8, "Filled polygon", [8, 3],
+            new PdfAnnotationMetadata
+            {
+                Author = "KillerPDF",
+                Subject = "Polygon annotation review",
+                CreationDate = new DateTimeOffset(
+                    2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(-7))
+            })
         .AddPolylineAnnotation(0, [
             new PdfPoint(330, 455), new PdfPoint(370, 480),
             new PdfPoint(415, 450), new PdfPoint(465, 480)],
             new PdfRgbColor(0.85, 0.25, 0.15), 3, 0.85, "Open polyline",
-            PdfLineEndingStyle.ClosedArrow, PdfLineEndingStyle.OpenArrow)
+            PdfLineEndingStyle.ClosedArrow, PdfLineEndingStyle.OpenArrow,
+            interiorColor: new PdfRgbColor(1, 0.8, 0.6))
         .AddInkAnnotation(0,
         [
             [new PdfPoint(72, 430), new PdfPoint(110, 455), new PdfPoint(150, 425)],
             [new PdfPoint(170, 430), new PdfPoint(210, 455), new PdfPoint(250, 425)]
-        ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85, "Two ink strokes")
+        ], new PdfRgbColor(0.45, 0.1, 0.7), 4, 0.85, "Two ink strokes", [10, 4])
         .AddImageStamp(0, 350, 390, 100, 60, stampImage, "RGBA image stamp")
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);

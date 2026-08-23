@@ -13,7 +13,13 @@ public sealed class PdfAnnotationAuthoringTests
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
-            .AddTextNote(0, 72, 650, "Review résumé", new PdfRgbColor(1, 0.5, 0), open: true)
+            .AddTextNote(0, 72, 650, "Review résumé", new PdfRgbColor(1, 0.5, 0), open: true,
+                annotationMetadata: new PdfAnnotationMetadata
+                {
+                    Author = "Zoë",
+                    Subject = "Copy review",
+                    Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.Locked
+                })
             .Build());
         PdfDictionary annotation = Annotation(document, 0);
         PdfStream appearance = Appearance(document, annotation);
@@ -23,6 +29,10 @@ public sealed class PdfAnnotationAuthoringTests
         Assert.True(Assert.IsType<PdfBoolean>(annotation[Name("Open")]).Value);
         Assert.Equal("KillerPDF-Note-1",
             Encoding.Latin1.GetString(Assert.IsType<PdfString>(annotation[Name("NM")]).Bytes.Span));
+        Assert.Equal("Zoë", DecodeUnicode(Assert.IsType<PdfString>(annotation[Name("T")])));
+        Assert.Equal("Copy review",
+            DecodeUnicode(Assert.IsType<PdfString>(annotation[Name("Subj")])));
+        Assert.Equal(132, Assert.IsType<PdfInteger>(annotation[Name("F")]).Value);
         Assert.Contains("1 0.5 0 rg", Encoding.ASCII.GetString(appearance.EncodedData.Span));
     }
 
@@ -47,6 +57,26 @@ public sealed class PdfAnnotationAuthoringTests
         Assert.Contains("/GS1 gs", Encoding.ASCII.GetString(appearance.EncodedData.Span));
     }
 
+    [Theory]
+    [InlineData(PdfTextNoteIcon.Note, "Note")]
+    [InlineData(PdfTextNoteIcon.Comment, "Comment")]
+    [InlineData(PdfTextNoteIcon.Key, "Key")]
+    [InlineData(PdfTextNoteIcon.Help, "Help")]
+    [InlineData(PdfTextNoteIcon.NewParagraph, "NewParagraph")]
+    [InlineData(PdfTextNoteIcon.Paragraph, "Paragraph")]
+    [InlineData(PdfTextNoteIcon.Insert, "Insert")]
+    public void AddTextNote_WritesEveryStandardIconName(
+        PdfTextNoteIcon icon, string expectedName)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Note", icon: icon)
+            .Build());
+
+        Assert.Equal(expectedName, Assert.IsType<PdfName>(
+            Annotation(document, 0)[Name("Name")]).ValueAsLatin1());
+    }
+
     [Fact]
     public void AnnotationArguments_AreValidatedBeforeAllocation()
     {
@@ -57,6 +87,10 @@ public sealed class PdfAnnotationAuthoringTests
             builder.AddHighlight(0, 0, 0, 10, 10, opacity: 1.1));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new PdfRgbColor(-0.1, 0, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfAnnotationMetadata { Flags = (PdfAnnotationFlags)1024 });
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            builder.AddTextNote(0, 0, 0, "note", icon: (PdfTextNoteIcon)99));
     }
 
     [Theory]
