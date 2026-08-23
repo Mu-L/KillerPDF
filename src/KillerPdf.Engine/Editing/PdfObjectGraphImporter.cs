@@ -15,6 +15,7 @@ internal sealed class PdfObjectGraphImporter
     private readonly PdfIncrementalUpdateBuilder _update;
     private readonly HashSet<int> _sourcePageNumbers;
     private readonly Dictionary<SourceReference, PdfIndirectReference> _references = [];
+    private Func<PdfDictionary, PdfDictionary>? _dictionaryTransform;
     private int _importedObjectCount;
 
     internal PdfObjectGraphImporter(
@@ -34,6 +35,14 @@ internal sealed class PdfObjectGraphImporter
         var key = new SourceReference(source.ObjectNumber, source.Generation);
         if (!_references.TryAdd(key, destination))
             throw new InvalidOperationException($"Source page {source.ObjectNumber} was mapped more than once.");
+    }
+
+    internal void SetDictionaryTransform(Func<PdfDictionary, PdfDictionary> transform)
+    {
+        ArgumentNullException.ThrowIfNull(transform);
+        if (_importedObjectCount != 0)
+            throw new InvalidOperationException("The import transform must be configured before objects are copied.");
+        _dictionaryTransform = transform;
     }
 
     internal PdfObject Import(PdfObject value) => Import(value, 0);
@@ -73,9 +82,12 @@ internal sealed class PdfObjectGraphImporter
         return destinationReference;
     }
 
-    private PdfDictionary ImportDictionary(PdfDictionary dictionary, int depth) =>
-        new(dictionary.Select(entry => new KeyValuePair<PdfName, PdfObject>(
-            entry.Key, Import(entry.Value, depth))));
+    private PdfDictionary ImportDictionary(PdfDictionary dictionary, int depth)
+    {
+        var imported = new PdfDictionary(dictionary.Select(entry =>
+            new KeyValuePair<PdfName, PdfObject>(entry.Key, Import(entry.Value, depth))));
+        return _dictionaryTransform?.Invoke(imported) ?? imported;
+    }
 
     private PdfDictionary ImportStreamDictionary(PdfDictionary dictionary, int depth) =>
         new(dictionary.Where(entry => !entry.Key.Equals(LengthName)).Select(entry =>

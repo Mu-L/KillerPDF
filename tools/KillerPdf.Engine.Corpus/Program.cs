@@ -328,6 +328,7 @@ if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
             .SetFillRgb(0.55, 0.2, 0.75).Rectangle(40, 40, 220, 220).Fill())
         .AddNamedDestination("target-cover", 0)
         .AddPageLabelRange(0, PdfPageLabelStyle.None, "Cover")
+        .AddCheckBox(0, "target.approved", 250, 250, 18, 18, isChecked: false)
         .Build();
     PdfDocument sourceDocument = PdfDocument.Open(importSource);
     byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))

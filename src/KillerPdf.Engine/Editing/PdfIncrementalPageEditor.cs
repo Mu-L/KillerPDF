@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
@@ -18,6 +19,13 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName WidgetName = Name("Widget");
     private static readonly PdfName StructParentsName = Name("StructParents");
     private static readonly PdfName AcroFormName = Name("AcroForm");
+    private static readonly PdfName FieldsName = Name("Fields");
+    private static readonly PdfName DefaultResourcesName = Name("DR");
+    private static readonly PdfName DefaultAppearanceName = Name("DA");
+    private static readonly PdfName NeedAppearancesName = Name("NeedAppearances");
+    private static readonly PdfName FieldTypeName = Name("FT");
+    private static readonly PdfName FieldName = Name("T");
+    private static readonly PdfName KidsName = Name("Kids");
     private static readonly PdfName NamesName = Name("Names");
     private static readonly PdfName DestsName = Name("Dests");
     private static readonly PdfName PageLabelsName = Name("PageLabels");
@@ -295,19 +303,136 @@ public sealed class PdfIncrementalPageEditor
         PageState[][] formGroups = importedGroups.Where(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(AcroFormName)).ToArray();
         if (formGroups.Length == 0) return;
-        if (_tree.Catalog.ContainsKey(AcroFormName))
+        foreach (PageState[] group in formGroups)
+            RequireCompleteImport(group, group[0].ImportedTree!, "AcroForms");
+        if (!_tree.Catalog.ContainsKey(AcroFormName) && formGroups.Length == 1)
+        {
+            catalogReplacements[AcroFormName] = importers[formGroups[0][0]].Import(
+                formGroups[0][0].ImportedTree!.Catalog[AcroFormName]);
+            return;
+        }
+
+        PdfDictionary? targetForm = _tree.Catalog.TryGetValue(
+            AcroFormName, out PdfObject? targetFormValue)
+            ? ResolveDictionary(_document, targetFormValue, "The destination /AcroForm")
+            : null;
+        var formsToMerge = new List<PdfDictionary>();
+        if (targetForm is not null) formsToMerge.Add(targetForm);
+        formsToMerge.AddRange(formGroups.Select(group => ResolveDictionary(
+            group[0].ImportedDocument!, group[0].ImportedTree!.Catalog[AcroFormName],
+            "The source /AcroForm")));
+        PdfName[] supportedFormKeys =
+            [FieldsName, DefaultResourcesName, DefaultAppearanceName, NeedAppearancesName];
+        if (formsToMerge.SelectMany(form => form.Keys).Any(key => !supportedFormKeys.Contains(key)))
             throw new NotSupportedException(
-                "Merging imported form fields with an existing destination AcroForm is not yet supported.");
-        if (formGroups.Length > 1)
-            throw new NotSupportedException(
-                "Merging AcroForms from more than one source document is not yet supported.");
-        PageState[] group = formGroups[0];
-        PdfPageTree sourceTree = group[0].ImportedTree!;
-        if (group.Length != sourceTree.Pages.Count || group.Any(page => !page.ImportedWholeDocument))
-            throw new NotSupportedException(
-                "A document containing forms must be imported with all of its pages retained.");
-        PdfObject sourceAcroForm = sourceTree.Catalog[AcroFormName];
-        catalogReplacements[AcroFormName] = importers[group[0]].Import(sourceAcroForm);
+                "Merging AcroForms with signatures, calculation order, XFA, or other catalog-level extensions is not yet supported.");
+        bool hasNeedAppearances = false;
+        bool needAppearances = false;
+        foreach (PdfDictionary form in formsToMerge)
+            if (form.TryGetValue(NeedAppearancesName, out PdfObject? value))
+            {
+                hasNeedAppearances = true;
+                needAppearances |= (value as PdfBoolean)?.Value
+                    ?? throw new InvalidOperationException("An /AcroForm /NeedAppearances value is not boolean.");
+            }
+        var mergedFields = new List<PdfObject>();
+        var fieldNames = new HashSet<string>(StringComparer.Ordinal);
+        var resourceCategories = new Dictionary<PdfName, List<KeyValuePair<PdfName, PdfObject>>>();
+        var usedResourceNames = new HashSet<PdfName>();
+        int nextResource = 1;
+
+        if (targetForm is not null)
+        {
+            AddFieldNames(_document, targetForm, fieldNames);
+            mergedFields.AddRange(FormFields(_document, targetForm));
+            AddResources(_document, targetForm, importer: null, renames: null);
+        }
+
+        var sourceForms = new List<(PdfDictionary Form, PdfObjectGraphImporter Importer,
+            Dictionary<PdfName, PdfName> Renames)>();
+        foreach (PageState[] group in formGroups)
+        {
+            PdfDocument source = group[0].ImportedDocument!;
+            PdfDictionary form = ResolveDictionary(source,
+                group[0].ImportedTree!.Catalog[AcroFormName], "The source /AcroForm");
+            AddFieldNames(source, form, fieldNames);
+            var renames = new Dictionary<PdfName, PdfName>();
+            PdfObjectGraphImporter importer = importers[group[0]];
+            PrepareResourceNames(source, form, renames);
+            PdfString? defaultAppearance = form.TryGetValue(
+                DefaultAppearanceName, out PdfObject? da) ? da as PdfString : null;
+            importer.SetDictionaryTransform(dictionary =>
+                TransformFormDictionary(dictionary, renames, defaultAppearance));
+            AddResources(source, form, importer, renames);
+            mergedFields.AddRange(FormFields(source, form).Select(importer.Import));
+            sourceForms.Add((form, importer, renames));
+        }
+
+        PdfDictionary baseForm = targetForm ?? sourceForms[0].Form;
+        PdfObjectGraphImporter? baseImporter = targetForm is null ? sourceForms[0].Importer : null;
+        Dictionary<PdfName, PdfName>? baseRenames = targetForm is null ? sourceForms[0].Renames : null;
+        var formEntries = baseForm
+            .Where(entry => !entry.Key.Equals(FieldsName)
+                && !entry.Key.Equals(DefaultResourcesName)
+                && !entry.Key.Equals(NeedAppearancesName))
+            .Select(entry => new KeyValuePair<PdfName, PdfObject>(entry.Key,
+                entry.Key.Equals(DefaultAppearanceName) && entry.Value is PdfString appearance
+                    ? RewriteDefaultAppearance(appearance, baseRenames)
+                    : baseImporter?.Import(entry.Value) ?? entry.Value))
+            .ToList();
+        formEntries.Add(new KeyValuePair<PdfName, PdfObject>(
+            FieldsName, new PdfArray(mergedFields)));
+        if (hasNeedAppearances)
+            formEntries.Add(new KeyValuePair<PdfName, PdfObject>(
+                NeedAppearancesName, new PdfBoolean(needAppearances)));
+        if (resourceCategories.Count > 0)
+            formEntries.Add(new KeyValuePair<PdfName, PdfObject>(DefaultResourcesName,
+                new PdfDictionary(resourceCategories.Select(category =>
+                    new KeyValuePair<PdfName, PdfObject>(
+                        category.Key, new PdfDictionary(category.Value))))));
+        catalogReplacements[AcroFormName] = new PdfDictionary(formEntries);
+
+        void PrepareResourceNames(PdfDocument document, PdfDictionary form,
+            IDictionary<PdfName, PdfName> renames)
+        {
+            if (!form.TryGetValue(DefaultResourcesName, out PdfObject? value)) return;
+            PdfDictionary resources = ResolveDictionary(document, value, "An /AcroForm /DR value");
+            foreach (PdfName resourceName in resources.SelectMany(category =>
+                         ResolveDictionary(document, category.Value, "An /AcroForm resource category").Keys)
+                .Distinct())
+            {
+                if (!IsSimpleResourceName(resourceName))
+                    throw new NotSupportedException(
+                        "Merging AcroForms with escaped default-resource names is not yet supported.");
+                PdfName replacement;
+                do replacement = Name($"KPF{nextResource++}");
+                while (usedResourceNames.Contains(replacement));
+                renames[resourceName] = replacement;
+                usedResourceNames.Add(replacement);
+            }
+        }
+
+        void AddResources(PdfDocument document, PdfDictionary form,
+            PdfObjectGraphImporter? importer, IReadOnlyDictionary<PdfName, PdfName>? renames)
+        {
+            if (!form.TryGetValue(DefaultResourcesName, out PdfObject? value)) return;
+            PdfDictionary resources = ResolveDictionary(document, value, "An /AcroForm /DR value");
+            foreach (var category in resources)
+            {
+                PdfDictionary dictionary = ResolveDictionary(
+                    document, category.Value, "An /AcroForm resource category");
+                if (!resourceCategories.TryGetValue(category.Key, out var entries))
+                    resourceCategories[category.Key] = entries = [];
+                foreach (var entry in dictionary)
+                {
+                    PdfName name = renames is not null && renames.TryGetValue(entry.Key, out PdfName? renamed)
+                        ? renamed : entry.Key;
+                    usedResourceNames.Add(name);
+                    entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                        name, importer?.Import(entry.Value) ?? entry.Value));
+                }
+            }
+        }
     }
 
     private void AddImportedNamedDestinations(
@@ -371,6 +496,99 @@ public sealed class PdfIncrementalPageEditor
                     entry.Key, importer?.Import(entry.Value) ?? entry.Value));
             }
         }
+    }
+
+    private static PdfArray FormFields(PdfDocument document, PdfDictionary form)
+    {
+        if (!form.TryGetValue(FieldsName, out PdfObject? value))
+            throw new InvalidOperationException("An /AcroForm has no /Fields array.");
+        return ResolveArray(document, value, "An /AcroForm /Fields value");
+    }
+
+    private static void AddFieldNames(
+        PdfDocument document, PdfDictionary form, ISet<string> names)
+    {
+        var active = new HashSet<int>();
+        foreach (PdfObject field in FormFields(document, form)) Visit(field, 0);
+
+        void Visit(PdfObject value, int depth)
+        {
+            if (depth > 256)
+                throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            int? objectNumber = null;
+            if (value is PdfIndirectReference reference)
+            {
+                objectNumber = reference.ObjectNumber;
+                if (!active.Add(reference.ObjectNumber))
+                    throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
+                value = document.Resolve(reference);
+            }
+            try
+            {
+                PdfDictionary field = value as PdfDictionary
+                    ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
+                if (field.TryGetValue(FieldName, out PdfObject? fieldName))
+                {
+                    PdfString name = fieldName as PdfString
+                        ?? throw new InvalidOperationException("An AcroForm /T value is not a string.");
+                    if (!names.Add(Convert.ToBase64String(name.Bytes.Span)))
+                        throw new NotSupportedException(
+                            "Merged AcroForms must have unique field names.");
+                }
+                if (field.TryGetValue(KidsName, out PdfObject? kidsValue))
+                    foreach (PdfObject kid in ResolveArray(document, kidsValue,
+                                 "An AcroForm field /Kids value"))
+                        Visit(kid, depth + 1);
+            }
+            finally
+            {
+                if (objectNumber.HasValue) active.Remove(objectNumber.Value);
+            }
+        }
+    }
+
+    private static PdfDictionary TransformFormDictionary(
+        PdfDictionary dictionary,
+        IReadOnlyDictionary<PdfName, PdfName> renames,
+        PdfString? formDefaultAppearance)
+    {
+        var replacements = new Dictionary<PdfName, PdfObject>();
+        if (dictionary.TryGetValue(DefaultAppearanceName, out PdfObject? value))
+        {
+            PdfString appearance = value as PdfString
+                ?? throw new InvalidOperationException("A form field /DA value is not a string.");
+            replacements[DefaultAppearanceName] = RewriteDefaultAppearance(appearance, renames);
+        }
+        else if (formDefaultAppearance is not null
+            && dictionary.TryGetValue(FieldTypeName, out PdfObject? fieldType)
+            && fieldType is PdfName type && type.ValueAsLatin1() is "Tx" or "Ch")
+        {
+            replacements[DefaultAppearanceName] =
+                RewriteDefaultAppearance(formDefaultAppearance, renames);
+        }
+        return replacements.Count == 0 ? dictionary : ReplaceMany(dictionary, replacements);
+    }
+
+    private static PdfString RewriteDefaultAppearance(
+        PdfString appearance, IReadOnlyDictionary<PdfName, PdfName>? renames)
+    {
+        if (renames is null || renames.Count == 0) return appearance;
+        string text = Encoding.Latin1.GetString(appearance.Bytes.Span);
+        foreach (var rename in renames)
+            text = Regex.Replace(text,
+                "/" + Regex.Escape(rename.Key.ValueAsLatin1()) + @"(?=[\s<>\[\]()/%]|$)",
+                "/" + rename.Value.ValueAsLatin1(), RegexOptions.CultureInvariant);
+        return new PdfString(Encoding.Latin1.GetBytes(text), appearance.Form);
+    }
+
+    private static bool IsSimpleResourceName(PdfName name)
+    {
+        foreach (byte value in name.Bytes.Span)
+            if (value is <= 32 or >= 127
+                or (byte)'#' or (byte)'(' or (byte)')' or (byte)'<' or (byte)'>'
+                or (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or (byte)'/' or (byte)'%')
+                return false;
+        return name.Bytes.Length > 0;
     }
 
     private bool AddPageLabels(

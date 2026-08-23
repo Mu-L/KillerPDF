@@ -369,7 +369,7 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
-    public void Build_RejectsAcroFormMergesThatNeedFieldTreeReconciliation()
+    public void Build_MergesAcroFormsAndRejectsFieldNameCollisions()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage().AddBlankPage()
@@ -378,12 +378,60 @@ public sealed class PdfIncrementalPageEditorTests
             .AddBlankPage().AddCheckBox(0, "target", 20, 20, 18, 18).Build();
         byte[] emptyTarget = new PdfDocumentBuilder().Build();
 
-        Assert.Throws<NotSupportedException>(() =>
+        PdfDocument merged = PdfDocument.Open(
             new PdfIncrementalPageEditor(PdfDocument.Open(targetWithForm))
                 .AddImportedDocument(source).Build());
+        PdfDictionary catalog = ResolveDictionary(merged, merged.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(merged, catalog[Name("AcroForm")]);
+        Assert.Equal(2, Assert.IsType<PdfArray>(form[Name("Fields")]).Count);
+
+        PdfDocument secondSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddCheckBox(0, "second", 20, 20, 18, 18).Build());
+        PdfDocument combinedSources = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
+                .AddImportedDocument(source)
+                .AddImportedDocument(secondSource)
+                .Build());
+        PdfDictionary combinedCatalog = ResolveDictionary(
+            combinedSources, combinedSources.Trailer[Name("Root")]);
+        PdfDictionary combinedForm = DictionaryValue(
+            combinedSources, combinedCatalog[Name("AcroForm")]);
+        Assert.Equal(2, Assert.IsType<PdfArray>(combinedForm[Name("Fields")]).Count);
+
         Assert.Throws<NotSupportedException>(() =>
             new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
                 .AddImportedDocument(source).RemovePage(0).Build());
+
+        PdfDocument collision = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddCheckBox(0, "target", 20, 20, 18, 18).Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(targetWithForm))
+                .AddImportedDocument(collision).Build());
+    }
+
+    [Fact]
+    public void Build_RenamesMergedAcroFormDefaultResources()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddTextField(0, "source", 20, 20, 120, 24, "Source").Build());
+        byte[] target = new PdfDocumentBuilder()
+            .AddBlankPage().AddTextField(0, "target", 20, 20, 120, 24, "Target").Build();
+
+        PdfDocument merged = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source).Build());
+        PdfDictionary catalog = ResolveDictionary(merged, merged.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(merged, catalog[Name("AcroForm")]);
+        PdfDictionary resources = DictionaryValue(merged, form[Name("DR")]);
+        PdfDictionary fonts = DictionaryValue(merged, resources[Name("Font")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        PdfDictionary importedField = ResolveDictionary(merged, fields[1]);
+        string appearance = Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(importedField[Name("DA")]).Bytes.Span);
+
+        Assert.Equal(2, fonts.Count);
+        Assert.Contains("/KPF", appearance, StringComparison.Ordinal);
+        Assert.DoesNotContain("/Helv ", appearance, StringComparison.Ordinal);
     }
 
     [Fact]
