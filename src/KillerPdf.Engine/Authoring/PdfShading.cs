@@ -16,14 +16,20 @@ public abstract class PdfShading
             throw new ArgumentException(
                 "A gradient must begin at offset zero and end at offset one.", nameof(stops));
         for (int index = 1; index < _stops.Length; index++)
+        {
             if (_stops[index].Offset <= _stops[index - 1].Offset)
                 throw new ArgumentException(
                     "Gradient-stop offsets must be strictly increasing.", nameof(stops));
+            if (_stops[index].ColorSpace != _stops[0].ColorSpace)
+                throw new ArgumentException(
+                    "Every stop in a gradient must use the same color space.", nameof(stops));
+        }
         ExtendStart = extendStart;
         ExtendEnd = extendEnd;
     }
 
     public IReadOnlyList<PdfGradientStop> Stops => _stops;
+    public PdfGradientColorSpace ColorSpace => _stops[0].ColorSpace;
     public bool ExtendStart { get; }
     public bool ExtendEnd { get; }
 

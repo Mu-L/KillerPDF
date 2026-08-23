@@ -2332,7 +2332,13 @@ public sealed partial class PdfDocumentBuilder
         };
         return Dictionary(
             ("ShadingType", new PdfInteger(shading is PdfAxialGradient ? 2 : 3)),
-            ("ColorSpace", Name("DeviceRGB")),
+            ("ColorSpace", Name(shading.ColorSpace switch
+            {
+                PdfGradientColorSpace.Gray => "DeviceGray",
+                PdfGradientColorSpace.Rgb => "DeviceRGB",
+                PdfGradientColorSpace.Cmyk => "DeviceCMYK",
+                _ => throw new ArgumentOutOfRangeException(nameof(shading))
+            })),
             ("Coords", coordinates),
             ("Function", GradientFunction(shading.Stops)),
             ("Extend", new PdfArray([
@@ -2410,8 +2416,8 @@ public sealed partial class PdfDocumentBuilder
         PdfDictionary Segment(PdfGradientStop start, PdfGradientStop end) => Dictionary(
             ("FunctionType", new PdfInteger(2)),
             ("Domain", new PdfArray([new PdfInteger(0), new PdfInteger(1)])),
-            ("C0", ColorArray(start.Color)),
-            ("C1", ColorArray(end.Color)),
+            ("C0", new PdfArray(start.Components.Select(Number))),
+            ("C1", new PdfArray(end.Components.Select(Number))),
             ("N", new PdfInteger(1)));
 
         if (stops.Count == 2) return Segment(stops[0], stops[1]);

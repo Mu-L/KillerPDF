@@ -493,6 +493,10 @@ if (args.Length == 3 && args[0] == "--gradient-smoke")
         new PdfGradientStop(0, new PdfRgbColor(1, 1, 1)),
         new PdfGradientStop(0.55, new PdfRgbColor(0.95, 0.25, 0.5)),
         new PdfGradientStop(1, new PdfRgbColor(0.2, 0.05, 0.3))]);
+    var grayGradient = new PdfAxialGradient(72, 535, 240, 535, [
+        new PdfGradientStop(0, 0.1),
+        new PdfGradientStop(0.5, 0.9),
+        new PdfGradientStop(1, 0.3)]);
     var lab = new PdfLabColorSpace();
     var indexed = new PdfIndexedColorSpace(PdfIndexedBaseColorSpace.Rgb, new byte[]
     {
@@ -512,6 +516,7 @@ if (args.Length == 3 && args[0] == "--gradient-smoke")
         .SetFillIndexedColor(indexed, 1).Rectangle(346, 500, 60, 20).Fill()
         .SetFillCalibratedColor(calGray, 0.45).Rectangle(416, 500, 60, 20).Fill()
         .SetFillCalibratedColor(calRgb, 0.2, 0.65, 0.35).Rectangle(486, 500, 60, 20).Fill()
+        .SaveState().Rectangle(72, 528, 168, 14).Clip().PaintShading(grayGradient).RestoreState()
         .EndMarkedContent()
         .BeginMarkedContent(PdfStructureType.Figure, 0)
         .SaveState().Rectangle(72, 560, 228, 140).Clip().PaintShading(axial).RestoreState()

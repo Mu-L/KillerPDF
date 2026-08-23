@@ -94,6 +94,52 @@ public sealed class PdfShadingTests
     }
 
     [Fact]
+    public void Build_WritesDeviceGrayGradient()
+    {
+        var gradient = new PdfAxialGradient(0, 0, 100, 0, [
+            new PdfGradientStop(0, 0.15),
+            new PdfGradientStop(1, 0.85)]);
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder().PaintShading(gradient))
+            .Build());
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(
+            FirstPage(document)[Name("Resources")]);
+        PdfDictionary shading = ResolveDictionary(document,
+            Assert.IsType<PdfDictionary>(resources[Name("Shading")])[Name("Sh1")]);
+        PdfDictionary function = Assert.IsType<PdfDictionary>(shading[Name("Function")]);
+
+        Assert.Equal(PdfGradientColorSpace.Gray, gradient.ColorSpace);
+        Assert.Equal("DeviceGray", Assert.IsType<PdfName>(
+            shading[Name("ColorSpace")]).ValueAsLatin1());
+        Assert.Equal([0.15], Assert.IsType<PdfArray>(function[Name("C0")]).Select(Number));
+        Assert.Equal([0.85], Assert.IsType<PdfArray>(function[Name("C1")]).Select(Number));
+    }
+
+    [Fact]
+    public void Build_WritesDeviceCmykGradient()
+    {
+        var gradient = new PdfRadialGradient(50, 50, 0, 50, 50, 50, [
+            new PdfGradientStop(0, new PdfCmykColor(1, 0.2, 0, 0)),
+            new PdfGradientStop(1, new PdfCmykColor(0, 0.1, 0.8, 0.15))]);
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder().PaintShading(gradient))
+            .Build());
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(
+            FirstPage(document)[Name("Resources")]);
+        PdfDictionary shading = ResolveDictionary(document,
+            Assert.IsType<PdfDictionary>(resources[Name("Shading")])[Name("Sh1")]);
+        PdfDictionary function = Assert.IsType<PdfDictionary>(shading[Name("Function")]);
+
+        Assert.Equal(PdfGradientColorSpace.Cmyk, gradient.ColorSpace);
+        Assert.Equal("DeviceCMYK", Assert.IsType<PdfName>(
+            shading[Name("ColorSpace")]).ValueAsLatin1());
+        Assert.Equal([1d, 0.2, 0, 0],
+            Assert.IsType<PdfArray>(function[Name("C0")]).Select(Number));
+        Assert.Equal([0d, 0.1, 0.8, 0.15],
+            Assert.IsType<PdfArray>(function[Name("C1")]).Select(Number));
+    }
+
+    [Fact]
     public void Gradients_RejectInvalidStopsCoordinatesAndCircles()
     {
         PdfGradientStop black = new(0, new PdfRgbColor(0, 0, 0));
@@ -101,6 +147,11 @@ public sealed class PdfShadingTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new PdfGradientStop(double.NaN, new PdfRgbColor(0, 0, 0)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfGradientStop(0, 1.01));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfAxialGradient(0, 0, 10, 10, [
+                new PdfGradientStop(0, 0.1),
+                new PdfGradientStop(1, new PdfRgbColor(1, 1, 1))]));
         Assert.Throws<ArgumentException>(() =>
             new PdfAxialGradient(0, 0, 10, 10, [white, black]));
         Assert.Throws<ArgumentException>(() =>
