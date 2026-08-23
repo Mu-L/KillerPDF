@@ -1,0 +1,31 @@
+using System.Text;
+using KillerPdf.Engine.CrossReference;
+using KillerPdf.Engine.Syntax;
+using Xunit;
+
+namespace KillerPdf.Engine.Tests.CrossReference;
+
+public sealed class PdfStartXrefTests
+{
+    [Fact]
+    public void Find_ReturnsFinalRevisionPointer()
+    {
+        string source = "old\nstartxref\n1\n%%EOF\nnew revision\nstartxref\r\n17\r\n%%EOF\r\n";
+
+        PdfStartXref result = PdfStartXref.Find(Encoding.ASCII.GetBytes(source));
+
+        Assert.Equal(17, result.Offset);
+        Assert.Equal(source.LastIndexOf("startxref", StringComparison.Ordinal), result.MarkerOffset);
+    }
+
+    [Theory]
+    [InlineData("no marker")]
+    [InlineData("startxref\n\n%%EOF")]
+    [InlineData("startxref\n999\n%%EOF")]
+    [InlineData("startxref\n0\nnot-eof")]
+    [InlineData("startxref\n0\n%%EOF\ntrash")]
+    public void Find_RejectsMalformedFinalDeclaration(string source)
+    {
+        Assert.Throws<PdfSyntaxException>(() => PdfStartXref.Find(Encoding.ASCII.GetBytes(source)));
+    }
+}

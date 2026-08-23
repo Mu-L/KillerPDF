@@ -9,6 +9,7 @@ public sealed class PdfHeaderTests
     [InlineData("%PDF-1.0\n", 1, 0)]
     [InlineData("%PDF-1.7\r\n", 1, 7)]
     [InlineData("%PDF-2.0\n", 2, 0)]
+    [InlineData("%PDF-2.9\n", 2, 9)]
     public void Parse_AcceptsDefinedPdfVersions(string text, int major, int minor)
     {
         PdfHeader header = PdfHeader.Parse(System.Text.Encoding.ASCII.GetBytes(text));
@@ -33,7 +34,7 @@ public sealed class PdfHeaderTests
     [Fact]
     public void Parse_RejectsUndefinedVersion()
     {
-        Assert.Throws<NotSupportedException>(() => PdfHeader.Parse("%PDF-2.1\n"u8));
+        Assert.Throws<NotSupportedException>(() => PdfHeader.Parse("%PDF-3.0\n"u8));
     }
 
     [Fact]

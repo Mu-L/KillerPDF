@@ -9,9 +9,54 @@ public sealed class PdfTokenizer
     private readonly ReadOnlyMemory<byte> _source;
     private int _position;
 
-    public PdfTokenizer(ReadOnlyMemory<byte> source) => _source = source;
+    public PdfTokenizer(ReadOnlyMemory<byte> source) : this(source, 0) { }
+
+    public PdfTokenizer(ReadOnlyMemory<byte> source, int startOffset)
+    {
+        if (startOffset < 0 || startOffset > source.Length)
+            throw new ArgumentOutOfRangeException(nameof(startOffset));
+
+        _source = source;
+        _position = startOffset;
+    }
 
     public int Position => _position;
+
+    internal int RemainingByteCount => _source.Length - _position;
+
+    internal bool TryPeekRawByte(out byte value)
+    {
+        if (_position >= _source.Length)
+        {
+            value = 0;
+            return false;
+        }
+
+        value = _source.Span[_position];
+        return true;
+    }
+
+    internal bool TryReadRawByte(out byte value)
+    {
+        if (_position >= _source.Length)
+        {
+            value = 0;
+            return false;
+        }
+
+        value = _source.Span[_position++];
+        return true;
+    }
+
+    internal ReadOnlyMemory<byte> ReadRawBytes(int length)
+    {
+        if (length < 0 || length > RemainingByteCount)
+            throw new ArgumentOutOfRangeException(nameof(length));
+
+        ReadOnlyMemory<byte> value = _source.Slice(_position, length);
+        _position += length;
+        return value;
+    }
 
     public PdfToken Read()
     {

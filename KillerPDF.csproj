@@ -56,26 +56,32 @@
     <Compile Remove="Packaging\**" />
     <Compile Remove="src\**" />
     <Compile Remove="tests\**" />
+    <Compile Remove="tools\**" />
     <EmbeddedResource Remove="third_party\**" />
     <EmbeddedResource Remove="Packaging\**" />
     <EmbeddedResource Remove="src\**" />
     <EmbeddedResource Remove="tests\**" />
+    <EmbeddedResource Remove="tools\**" />
     <None Remove="third_party\**" />
     <None Remove="Packaging\**" />
     <None Remove="src\**" />
     <None Remove="tests\**" />
+    <None Remove="tools\**" />
     <Content Remove="third_party\**" />
     <Content Remove="Packaging\**" />
     <Content Remove="src\**" />
     <Content Remove="tests\**" />
+    <Content Remove="tools\**" />
     <Page Remove="third_party\**" />
     <Page Remove="Packaging\**" />
     <Page Remove="src\**" />
     <Page Remove="tests\**" />
+    <Page Remove="tools\**" />
     <Resource Remove="third_party\**" />
     <Resource Remove="Packaging\**" />
     <Resource Remove="src\**" />
     <Resource Remove="tests\**" />
+    <Resource Remove="tools\**" />
   </ItemGroup>
 
   <ItemGroup>

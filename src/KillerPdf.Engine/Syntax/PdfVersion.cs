@@ -21,8 +21,9 @@ public readonly record struct PdfVersion : IComparable<PdfVersion>
     public int Major { get; }
     public int Minor { get; }
 
+    // ISO 32000-2 reserves the 2.x header range for PDF 2.0-compatible declarations.
     public static bool IsDefined(int major, int minor) =>
-        (major == 1 && minor is >= 0 and <= 7) || (major == 2 && minor == 0);
+        (major == 1 && minor is >= 0 and <= 7) || (major == 2 && minor is >= 0 and <= 9);
 
     public int CompareTo(PdfVersion other)
     {
