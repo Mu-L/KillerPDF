@@ -395,6 +395,78 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_PreservesEffectivePageLabelsThroughPageOperations()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage().AddBlankPage().AddBlankPage()
+            .AddPageLabelRange(0, PdfPageLabelStyle.LowerRoman)
+            .AddPageLabelRange(2, PdfPageLabelStyle.Decimal, "A-", 3)
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .MovePage(3, 0)
+                .InsertBlankPage(2)
+                .RemovePage(4)
+                .Build());
+        (long PageIndex, PdfDictionary Label)[] ranges = PageLabelRanges(reopened);
+
+        Assert.Equal([0L, 1L, 2L, 3L], ranges.Select(range => range.PageIndex));
+        AssertLabel(ranges[0].Label, "D", "A-", 4);
+        AssertLabel(ranges[1].Label, "r", null, 1);
+        AssertLabel(ranges[2].Label, "D", null, 3);
+        AssertLabel(ranges[3].Label, "r", null, 2);
+    }
+
+    [Fact]
+    public void Build_MergesAndCompressesPageLabelsFromImportedDocuments()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddPageLabelRange(0, PdfPageLabelStyle.LowerRoman)
+            .Build());
+        byte[] target = new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddPageLabelRange(0, PdfPageLabelStyle.Decimal, "T-")
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .InsertImportedDocument(1, source)
+                .Build());
+        (long PageIndex, PdfDictionary Label)[] ranges = PageLabelRanges(reopened);
+
+        Assert.Equal([0L, 1L, 3L], ranges.Select(range => range.PageIndex));
+        AssertLabel(ranges[0].Label, "D", "T-", 1);
+        AssertLabel(ranges[1].Label, "r", null, 1);
+        AssertLabel(ranges[2].Label, "D", "T-", 2);
+
+        PdfDocument split = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 1)
+                .Build());
+        (long PageIndex, PdfDictionary Label)[] splitRanges = PageLabelRanges(split);
+        Assert.Single(splitRanges);
+        Assert.Equal(0, splitRanges[0].PageIndex);
+        AssertLabel(splitRanges[0].Label, "r", null, 2);
+    }
+
+    [Fact]
+    public void Build_RemovesPageLabelsWhenEveryPageIsDeleted()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddPageLabelRange(0, PdfPageLabelStyle.UpperRoman)
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source)).RemovePage(0).Build());
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.False(catalog.ContainsKey(Name("PageLabels")));
+    }
+
+    [Fact]
     public void ArgumentsAndEmptyUpdates_AreRejected()
     {
         var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
@@ -447,6 +519,31 @@ public sealed class PdfIncrementalPageEditorTests
     private static double[] Box(PdfDictionary page, string name) =>
         Assert.IsType<PdfArray>(page[Name(name)]).Select(Number).ToArray();
 
+    private static (long PageIndex, PdfDictionary Label)[] PageLabelRanges(PdfDocument document)
+    {
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary labels = DictionaryValue(document, catalog[Name("PageLabels")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(labels[Name("Nums")]);
+        return Enumerable.Range(0, numbers.Count / 2)
+            .Select(index => (
+                Assert.IsType<PdfInteger>(numbers[index * 2]).Value,
+                DictionaryValue(document, numbers[index * 2 + 1])))
+            .ToArray();
+    }
+
+    private static void AssertLabel(
+        PdfDictionary label, string style, string? prefix, long start)
+    {
+        Assert.Equal(style, Assert.IsType<PdfName>(label[Name("S")]).ValueAsLatin1());
+        if (prefix is null)
+            Assert.False(label.ContainsKey(Name("P")));
+        else
+            Assert.Equal(prefix, DecodeUnicode(Assert.IsType<PdfString>(label[Name("P")])));
+        Assert.Equal(start, label.TryGetValue(Name("St"), out PdfObject? value)
+            ? Assert.IsType<PdfInteger>(value).Value
+            : 1);
+    }
+
     private static double Number(PdfObject value) => value switch
     {
         PdfInteger integer => integer.Value,
@@ -482,6 +579,8 @@ public sealed class PdfIncrementalPageEditorTests
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
+    private static PdfDictionary DictionaryValue(PdfDocument document, PdfObject value) =>
+        value is PdfIndirectReference ? ResolveDictionary(document, value) : Assert.IsType<PdfDictionary>(value);
     private static PdfStream ResolveStream(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfStream>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static string DecodeUnicode(PdfString value) =>

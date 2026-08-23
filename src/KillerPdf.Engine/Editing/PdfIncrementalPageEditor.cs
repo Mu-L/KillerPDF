@@ -20,6 +20,11 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName AcroFormName = Name("AcroForm");
     private static readonly PdfName NamesName = Name("Names");
     private static readonly PdfName DestsName = Name("Dests");
+    private static readonly PdfName PageLabelsName = Name("PageLabels");
+    private static readonly PdfName DecimalName = Name("D");
+    private static readonly PdfName StyleName = Name("S");
+    private static readonly PdfName PrefixName = Name("P");
+    private static readonly PdfName StartName = Name("St");
     private static readonly PdfName[] InheritableNames =
     [
         Name("Resources"), MediaBoxName, Name("CropBox"), RotateName
@@ -225,8 +230,10 @@ public sealed class PdfIncrementalPageEditor
         var catalogReplacements = new Dictionary<PdfName, PdfObject> { [PagesName] = newRoot };
         AddImportedAcroForm(importedGroups, importers, catalogReplacements);
         AddImportedNamedDestinations(importedGroups, importers, catalogReplacements);
+        bool removePageLabels = AddPageLabels(importedGroups, catalogReplacements);
         update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
-            ReplaceMany(_tree.Catalog, catalogReplacements));
+            ReplaceMany(_tree.Catalog, catalogReplacements,
+                removePageLabels ? [PageLabelsName] : null));
 
         foreach (PageState state in _pages)
         {
@@ -358,6 +365,151 @@ public sealed class PdfIncrementalPageEditor
             }
         }
     }
+
+    private bool AddPageLabels(
+        IEnumerable<PageState[]> importedGroups,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        bool targetHasLabels = _tree.Catalog.ContainsKey(PageLabelsName);
+        PageState[][] groups = importedGroups.ToArray();
+        bool importedHasLabels = groups.Any(group =>
+            group[0].ImportedTree!.Catalog.ContainsKey(PageLabelsName));
+        if (!targetHasLabels && !importedHasLabels) return false;
+        if (_pages.Count == 0) return true;
+
+        IReadOnlyList<PageLabelSpec>? targetLabels = targetHasLabels
+            ? ReadPageLabels(_document, _tree)
+            : null;
+        var importedLabels = new Dictionary<PdfDocument, IReadOnlyList<PageLabelSpec>>();
+        foreach (PageState[] group in groups)
+        {
+            PdfDocument source = group[0].ImportedDocument!;
+            PdfPageTree sourceTree = group[0].ImportedTree!;
+            if (sourceTree.Catalog.ContainsKey(PageLabelsName))
+                importedLabels[source] = ReadPageLabels(source, sourceTree);
+        }
+
+        var effective = new List<PageLabelSpec>(_pages.Count);
+        for (int index = 0; index < _pages.Count; index++)
+        {
+            PageState page = _pages[index];
+            if (page.Entry is not null)
+                effective.Add(targetLabels?[page.Entry.Index]
+                    ?? DefaultPageLabel(page.Entry.Index));
+            else if (page.ImportedEntry is not null)
+                effective.Add(importedLabels.TryGetValue(page.ImportedDocument!, out var labels)
+                    ? labels[page.ImportedEntry.Index]
+                    : DefaultPageLabel(page.ImportedEntry.Index));
+            else
+                effective.Add(DefaultPageLabel(index));
+        }
+
+        var numbers = new List<PdfObject>();
+        PageLabelSpec? previous = null;
+        for (int index = 0; index < effective.Count; index++)
+        {
+            PageLabelSpec label = effective[index];
+            if (previous is not null && Continues(previous, label))
+            {
+                previous = label;
+                continue;
+            }
+            var entries = new List<KeyValuePair<PdfName, PdfObject>>();
+            if (label.Style is not null)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(StyleName, label.Style));
+            if (label.Prefix is not null)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(PrefixName, label.Prefix));
+            if (label.Style is not null && label.Number != 1)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(StartName, new PdfInteger(label.Number)));
+            numbers.Add(new PdfInteger(index));
+            numbers.Add(new PdfDictionary(entries));
+            previous = label;
+        }
+        catalogReplacements[PageLabelsName] = Dictionary(("Nums", new PdfArray(numbers)));
+        return false;
+    }
+
+    private static IReadOnlyList<PageLabelSpec> ReadPageLabels(
+        PdfDocument document, PdfPageTree tree)
+    {
+        IReadOnlyList<PdfNumberTreeEntry> ranges = PdfNumberTree
+            .Read(document, tree.Catalog[PageLabelsName])
+            .OrderBy(entry => entry.Key)
+            .ToArray();
+        foreach (PdfNumberTreeEntry range in ranges)
+            if (range.Key < 0 || range.Key >= tree.Pages.Count)
+                throw new InvalidOperationException("A page-label range starts outside the document.");
+
+        var definitions = ranges.Select(range =>
+        {
+            PdfDictionary dictionary = ResolveDictionary(
+                document, range.Value, "A page-label range value");
+            PdfName? style = null;
+            if (dictionary.TryGetValue(StyleName, out PdfObject? styleValue))
+            {
+                style = styleValue as PdfName
+                    ?? throw new InvalidOperationException("A page-label /S value is not a name.");
+                if (style.ValueAsLatin1() is not ("D" or "R" or "r" or "A" or "a"))
+                    throw new InvalidOperationException("A page-label /S value is not supported.");
+            }
+            PdfString? prefix = null;
+            if (dictionary.TryGetValue(PrefixName, out PdfObject? prefixValue))
+                prefix = prefixValue as PdfString
+                    ?? throw new InvalidOperationException("A page-label /P value is not a string.");
+            long start = 1;
+            if (dictionary.TryGetValue(StartName, out PdfObject? startValue))
+            {
+                PdfInteger integer = startValue as PdfInteger
+                    ?? throw new InvalidOperationException("A page-label /St value is not an integer.");
+                if (integer.Value < 1)
+                    throw new InvalidOperationException("A page-label /St value must be positive.");
+                start = integer.Value;
+            }
+            if (style is null && prefix is null)
+                throw new InvalidOperationException("A page-label range has neither a style nor a prefix.");
+            return new PageLabelRange(range.Key, style, prefix, start);
+        }).ToArray();
+
+        var result = new List<PageLabelSpec>(tree.Pages.Count);
+        int rangeIndex = -1;
+        for (int pageIndex = 0; pageIndex < tree.Pages.Count; pageIndex++)
+        {
+            while (rangeIndex + 1 < definitions.Length
+                && definitions[rangeIndex + 1].PageIndex <= pageIndex)
+                rangeIndex++;
+            if (rangeIndex < 0)
+            {
+                result.Add(DefaultPageLabel(pageIndex));
+                continue;
+            }
+            PageLabelRange range = definitions[rangeIndex];
+            long number;
+            try
+            {
+                number = checked(range.StartNumber + pageIndex - range.PageIndex);
+            }
+            catch (OverflowException exception)
+            {
+                throw new InvalidOperationException("A page-label number exceeds the supported range.", exception);
+            }
+            result.Add(new PageLabelSpec(range.Style, range.Prefix, number));
+        }
+        return result;
+    }
+
+    private static PageLabelSpec DefaultPageLabel(int pageIndex) =>
+        new(DecimalName, null, checked((long)pageIndex + 1));
+
+    private static bool Continues(PageLabelSpec previous, PageLabelSpec current) =>
+        Equal(previous.Style, current.Style)
+        && Equal(previous.Prefix, current.Prefix)
+        && (current.Style is null || current.Number == previous.Number + 1);
+
+    private static bool Equal(PdfName? left, PdfName? right) =>
+        left is null ? right is null : right is not null && left.Equals(right);
+
+    private static bool Equal(PdfString? left, PdfString? right) =>
+        left is null ? right is null : right is not null && left.Bytes.Span.SequenceEqual(right.Bytes.Span);
 
     private static PdfDictionary ResolveDictionary(
         PdfDocument document, PdfObject value, string description)
@@ -498,8 +650,11 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private static PdfDictionary ReplaceMany(
-        PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements) =>
-        new(source.Where(entry => !replacements.ContainsKey(entry.Key)).Concat(replacements));
+        PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements,
+        IReadOnlyCollection<PdfName>? removals = null) =>
+        new(source.Where(entry => !replacements.ContainsKey(entry.Key)
+                && (removals is null || !removals.Contains(entry.Key)))
+            .Concat(replacements));
 
     private static PdfDictionary Dictionary(params (string Name, PdfObject Value)[] entries) =>
         new(entries.Select(entry => new KeyValuePair<PdfName, PdfObject>(Name(entry.Name), entry.Value)));
@@ -508,6 +663,10 @@ public sealed class PdfIncrementalPageEditor
             ? new PdfInteger((long)value)
             : new PdfReal(value);
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
+
+    private sealed record PageLabelRange(
+        long PageIndex, PdfName? Style, PdfString? Prefix, long StartNumber);
+    private sealed record PageLabelSpec(PdfName? Style, PdfString? Prefix, long Number);
 
     private sealed class PageState
     {

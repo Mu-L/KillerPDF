@@ -8,18 +8,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipeline with an independently authored .NET 10 PDF document engine. It is responsible for reading, validating, authoring, structurally editing, and writing PDF files. PDFium remains KillerPDF's rendering and display backend, while PdfPig continues to handle text extraction during the migration. This alpha is an engineering build, not a public release.
 
-### Highlights
-- Began a new PDF 2.0 document engine designed to replace PdfSharpCore without replacing PDFium rendering.
-- Added deterministic PDF 2.0 authoring for pages, text, Unicode embedded fonts, images, metadata, bookmarks, attachments, links, forms, and editable annotations.
-- Added named destinations, links to stable named targets, and page-label ranges with decimal, Roman-numeral, alphabetic, prefix, and custom starting-number options.
-- Added byte-preserving incremental editing for annotations and page operations, including insertion, deletion, reordering, rotation, resizing, and cropping.
-- Added cross-document page import for merge and split workflows while preserving content, resources, images, fonts, ordinary annotations, direct and named links, named destinations, and complete AcroForms when their entire source document is imported.
-- Added PDF/A-4 authoring and validation across new documents, forms, annotations, page operations, and imported pages.
-
-### PDF document engine internals
-- Built a typed PDF object model, byte-accurate parser, bounded Flate/predictor decoder, and lazy document loader supporting classic, hybrid, cross-reference-stream, incremental, and compressed-object files through PDF 2.0. Structural inspection reports retain useful byte offsets and reject malformed boundaries, cycles, invalid generations, and unsafe resource limits.
-- Built deterministic preservation writers for canonical object serialization, full-file rewriting, and incremental updates. Existing revisions can remain byte-for-byte untouched, document identifiers and trailer inheritance survive correctly, and equivalent output remains identical across repeated builds and operating systems.
-- Kept the new library UI-free and independent of WPF, PDFium, PdfPig, PdfSharpCore, and the current application pipeline. Dedicated unit, corpus, round-trip, qpdf, veraPDF, and rendering checks allow document features to mature before they are migrated into KillerPDF.
+### PDF document engine development
+- Added a standalone, UI-free .NET 10 document-engine project and test project that will replace KillerPDF's PdfSharpCore document pipeline without replacing PDFium rendering.
+- Added from-scratch PDF 2.0 catalogs, page trees, arbitrary finite page sizes, content streams, graphics-state operations, transforms, paths, Bézier curves, rectangles, colors, fills, and strokes.
+- Added positioned and escaped Latin-1 text with automatic resources for all 14 built-in Type 1 fonts.
+- Added bounded TrueType/OpenType inspection for names, metrics, embedding permissions, widths, Unicode cmap formats 4 and 12, deterministic glyf/loca subsetting with composite dependencies, full-embedding fallback, CID fonts, and `ToUnicode` maps.
+- Added image XObjects with bounded JPEG inspection and lossless DCT passthrough for grayscale, RGB, and CMYK images, deterministic Flate compression for RGB/RGBA pixels, reusable resources, mirroring, and alpha soft masks.
+- Added Unicode metadata in both the information dictionary and XMP, document language, timezone-preserving dates, and stable content-derived trailer identifiers.
+- Added safe external HTTP, HTTPS, and email links plus direct internal page links, with validated rectangles and rejection of executable or local-file actions.
+- Added Unicode outlines with internal destinations, linked outline items, accurate counts, and automatic catalog outline mode.
+- Added embedded files with Unicode specifications, MIME types, descriptions, dates, associated-file relationships, catalog registration, and a sorted embedded-files name tree.
+- Added AcroForm text and comb fields, checkboxes, multi-page radio groups, and editable or fixed combo boxes with stable names, values, widget links, appearances, resources, and matching on/off states.
+- Added embedded Unicode TrueType fonts to text-field and combo-box values and appearances, sharing deterministic subsets through the AcroForm default resources.
+- Added bounded Gray, RGB, and CMYK ICC profile loading and PDF/A-4 authoring with required metadata, output intents, and identification schemas.
+- Added editable PDF 2.0 text notes, highlights, underlines, strikeouts, squiggles, multiline free-text boxes, lines, rectangles, ellipses, and multi-stroke ink with Unicode contents and deterministic appearances.
+- Added image-stamp annotations for pictures and scanned signatures. JPEG payloads remain untouched, repeated stamps share image resources, and RGBA stamps preserve transparency through shared soft masks.
+- Added deterministic incremental updates that append without changing any source byte, preserve generations and trailer inheritance, retain permanent identifiers, advance revision identifiers, and work across classic, hybrid, cross-reference-stream, and compressed-object sources.
+- Added byte-preserving annotation editing for existing PDFs, including shared embedded-font free-text resources and direct or indirect annotation arrays in nested page trees.
+- Added byte-preserving blank-page insertion, rotation, reordering, deletion, resizing, and cropping. Retained page identities, contents, inherited resources, boxes, and rotations remain intact when page trees are rebuilt.
+- Added cross-document page import for merge and split workflows with deterministic reference remapping for encoded streams, content, fonts, images, resources, ordinary annotations, and direct links among imported pages.
+- Added complete AcroForm preservation when all pages of a form document are imported; unsafe partial form imports and field-tree merges fail explicitly.
+- Added named destinations, stable named links, and page-label ranges with decimal, Roman-numeral, alphabetic, prefix, and custom starting-number options.
+- Added named-destination preservation during complete document imports while retaining the destination document's other name-tree categories. Named links continue to resolve after import, while collisions and unsafe partial imports fail explicitly.
+- Added page-label preservation across insertion, deletion, reordering, merge, and split operations, keeping each retained page's effective prefix, numbering style, and number while rebuilding compact ranges for the new page order.
+- Added byte-accurate tokenization and a typed object model for numbers, names, strings, arrays, dictionaries, indirect references, object records, and binary-safe stream payloads. Source-aware errors enforce nesting, numeric, truncation, and stream-boundary rules.
+- Added bounded Flate/zlib decoding with 8-bit TIFF and PNG predictor reversal for compressed cross-reference streams and object streams without unbounded decompression.
+- Added final `startxref` discovery plus classic, hybrid, and cross-reference-stream parsing. Incremental `/Prev` revisions merge newest-first, inherited trailer values remain available, and malformed offsets and cycles are rejected.
+- Added a lazy document loader for ordinary and compressed objects, indirect stream lengths, generation validation, object-stream boundaries, decoding caches, and resolution-cycle rejection.
+- Added bounded structural inspection reports that retain byte offsets and object numbers while distinguishing header, cross-reference, indirect-object, and catalog failures for repair decisions.
+- Added deterministic serialization for every object-model type, including invariant numbers, decoded-byte dictionary ordering, canonical escaping, stable LF output, exact stream lengths, and nesting limits.
+- Added deterministic full-file rewriting from the merged document view. Rewrites expand compressed objects, remove obsolete cross-reference containers, sanitize the trailer, preserve requested metadata and identifiers, and explicitly reject encryption until it is supported.
+- Added rewrite policy for preserving or upgrading the PDF header, retaining or removing document information, and independently retaining document identifiers, plus reusable round-trip and corpus validation.
+- Accepted the complete PDF 2.x header declaration range through `%PDF-2.9` and corrected classic cross-reference `/Size` handling for free boundary entries found in PDF/A-4 fixtures.
 
 ### Fixed
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.
