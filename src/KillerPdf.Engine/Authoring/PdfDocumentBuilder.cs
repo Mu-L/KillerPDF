@@ -843,7 +843,9 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         _pushButtons.Add(new PushButtonDefinition(
             pageIndex, name, x, y, width, height, label, parsed.AbsoluteUri,
-            DestinationPageIndex: null, Destination: null, fontSize, embeddedFont,
+            DestinationPageIndex: null, Destination: null, NamedDestination: null, fontSize, embeddedFont,
+            IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
+            SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -868,7 +870,112 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         _pushButtons.Add(new PushButtonDefinition(
             pageIndex, name, x, y, width, height, label, Uri: null,
-            destinationPageIndex, destination ?? PdfDestination.FitPage(), fontSize, embeddedFont,
+            destinationPageIndex, destination ?? PdfDestination.FitPage(), NamedDestination: null,
+            fontSize, embeddedFont, IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
+            SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddNamedDestinationPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, string destinationName, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null, PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        if (string.IsNullOrEmpty(label))
+            throw new ArgumentException("A push-button label cannot be empty.", nameof(label));
+        if (string.IsNullOrWhiteSpace(destinationName)
+            || !_namedDestinations.Any(destination =>
+                string.Equals(destination.Name, destinationName, StringComparison.Ordinal)))
+            throw new ArgumentException("The named destination has not been defined.", nameof(destinationName));
+        if (embeddedFont is null && label.Any(character => character > 0xFF))
+            throw new ArgumentException("A Unicode push-button label requires an embedded font.", nameof(label));
+        if (embeddedFont is not null)
+            ValidateFormFontText(embeddedFont, label, nameof(label));
+        if (!double.IsFinite(fontSize) || fontSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
+        _pushButtons.Add(new PushButtonDefinition(
+            pageIndex, name, x, y, width, height, label, Uri: null,
+            DestinationPageIndex: null, Destination: null, destinationName, fontSize, embeddedFont,
+            IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
+            SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddResetFormPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, IEnumerable<string>? fields = null, bool excludeFields = false,
+        double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        if (string.IsNullOrEmpty(label))
+            throw new ArgumentException("A push-button label cannot be empty.", nameof(label));
+        string[]? resetFields = fields?.ToArray();
+        if (resetFields is { Length: 0 } || resetFields?.Any(string.IsNullOrWhiteSpace) == true)
+            throw new ArgumentException("Reset field names cannot be empty.", nameof(fields));
+        if (resetFields?.Distinct(StringComparer.Ordinal).Count() != resetFields?.Length)
+            throw new ArgumentException("Reset field names must be unique.", nameof(fields));
+        if (excludeFields && resetFields is null)
+            throw new ArgumentException("Reset exclusion mode requires a field list.", nameof(fields));
+        if (resetFields?.Any(field => !FormFieldNameExists(field)) == true)
+            throw new ArgumentException("Every reset field must already be defined.", nameof(fields));
+        if (embeddedFont is null && label.Any(character => character > 0xFF))
+            throw new ArgumentException("A Unicode push-button label requires an embedded font.", nameof(label));
+        if (embeddedFont is not null)
+            ValidateFormFontText(embeddedFont, label, nameof(label));
+        if (!double.IsFinite(fontSize) || fontSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
+        _pushButtons.Add(new PushButtonDefinition(
+            pageIndex, name, x, y, width, height, label, Uri: null,
+            DestinationPageIndex: null, Destination: null, NamedDestination: null,
+            fontSize, embeddedFont, IsResetAction: true, resetFields, excludeFields,
+            SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddSubmitPdfPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, string uri, IEnumerable<string>? fields = null, bool excludeFields = false,
+        double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        ValidateUniqueFieldName(name);
+        if (string.IsNullOrEmpty(label))
+            throw new ArgumentException("A push-button label cannot be empty.", nameof(label));
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed)
+            || parsed.Scheme is not ("http" or "https"))
+            throw new ArgumentException("A submit URI must use http or https.", nameof(uri));
+        string[]? submitFields = fields?.ToArray();
+        if (submitFields is { Length: 0 } || submitFields?.Any(string.IsNullOrWhiteSpace) == true)
+            throw new ArgumentException("Submit field names cannot be empty.", nameof(fields));
+        if (submitFields?.Distinct(StringComparer.Ordinal).Count() != submitFields?.Length)
+            throw new ArgumentException("Submit field names must be unique.", nameof(fields));
+        if (excludeFields && submitFields is null)
+            throw new ArgumentException("Submit exclusion mode requires a field list.", nameof(fields));
+        if (submitFields?.Any(field => !FormFieldNameExists(field)) == true)
+            throw new ArgumentException("Every submit field must already be defined.", nameof(fields));
+        if (embeddedFont is null && label.Any(character => character > 0xFF))
+            throw new ArgumentException("A Unicode push-button label requires an embedded font.", nameof(label));
+        if (embeddedFont is not null)
+            ValidateFormFontText(embeddedFont, label, nameof(label));
+        if (!double.IsFinite(fontSize) || fontSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
+        _pushButtons.Add(new PushButtonDefinition(
+            pageIndex, name, x, y, width, height, label, Uri: null,
+            DestinationPageIndex: null, Destination: null, NamedDestination: null,
+            fontSize, embeddedFont, IsResetAction: false, ResetFields: null,
+            ExcludeResetFields: false, parsed.AbsoluteUri, submitFields, excludeFields,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
@@ -2167,6 +2274,7 @@ public sealed partial class PdfDocumentBuilder
                 ("FT", Name("Tx")),
                 ("T", UnicodeString(field.Name)),
                 ("V", UnicodeString(field.Value)),
+                ("DV", UnicodeString(field.Value)),
                 ("Rect", new PdfArray([
                     Number(field.X), Number(field.Y),
                     Number(field.X + field.Width), Number(field.Y + field.Height)])),
@@ -2234,6 +2342,7 @@ public sealed partial class PdfDocumentBuilder
                 ("FT", Name("Btn")),
                 ("T", UnicodeString(field.Name)),
                 ("V", currentState),
+                ("DV", currentState),
                 ("AS", currentState),
                 ("Rect", new PdfArray([
                     Number(field.X), Number(field.Y),
@@ -2304,6 +2413,7 @@ public sealed partial class PdfDocumentBuilder
                     | FormFieldFlags(group.FieldOptions))),
                 ("T", UnicodeString(group.Name)),
                 ("V", selected),
+                ("DV", selected),
                 ("Kids", new PdfArray(allocatedGroup.Widgets.Select(widget =>
                     (PdfObject)new PdfIndirectReference(widget.WidgetNumber, 0))))
         };
@@ -2409,9 +2519,11 @@ public sealed partial class PdfDocumentBuilder
         };
         if (!field.IsMultiSelect || field.SelectedValues.Count != 0)
         {
-            entries.Add(("V", field.IsMultiSelect
+            PdfObject value = field.IsMultiSelect
                 ? new PdfArray(field.SelectedValues.Select(value => (PdfObject)UnicodeString(value)))
-                : UnicodeString(field.SelectedValues[0])));
+                : UnicodeString(field.SelectedValues[0]);
+            entries.Add(("V", value));
+            entries.Add(("DV", value));
         }
         if (field.IsMultiSelect && field.SelectedValues.Count != 0)
         {
@@ -2491,7 +2603,13 @@ public sealed partial class PdfDocumentBuilder
             ("BS", Dictionary(("W", new PdfInteger(1)), ("S", Name("S")))),
             ("A", field.Uri is not null
                 ? Dictionary(("S", Name("URI")), ("URI", UnicodeString(field.Uri)))
-                : Dictionary(
+                : field.NamedDestination is not null
+                    ? Dictionary(("S", Name("GoTo")), ("D", UnicodeString(field.NamedDestination)))
+                    : field.SubmitUri is not null
+                        ? SubmitPdfAction(field.SubmitUri, field.SubmitFields, field.ExcludeSubmitFields)
+                    : field.IsResetAction
+                        ? ResetFormAction(field.ResetFields, field.ExcludeResetFields)
+                    : Dictionary(
                     ("S", Name("GoTo")),
                     ("D", DestinationArray(
                         new PdfIndirectReference(pages[field.DestinationPageIndex!.Value].PageNumber, 0),
@@ -2518,6 +2636,37 @@ public sealed partial class PdfDocumentBuilder
                     new KeyValuePair<PdfName, PdfObject>(
                         fontResource, new PdfIndirectReference(fontNumber, 0))]))))),
                 appearance), 0));
+    }
+
+    private static PdfDictionary ResetFormAction(
+        IReadOnlyList<string>? fields, bool excludeFields)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("S", Name("ResetForm"))
+        };
+        if (fields is not null)
+            entries.Add(("Fields", new PdfArray(
+                fields.Select(field => (PdfObject)UnicodeString(field)))));
+        if (excludeFields)
+            entries.Add(("Flags", new PdfInteger(1)));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static PdfDictionary SubmitPdfAction(
+        string uri, IReadOnlyList<string>? fields, bool excludeFields)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("S", Name("SubmitForm")),
+            ("F", Dictionary(("Type", Name("Filespec")), ("FS", Name("URL")),
+                ("F", UnicodeString(uri)))),
+            ("Flags", new PdfInteger((1 << 8) | (excludeFields ? 1 : 0)))
+        };
+        if (fields is not null)
+            entries.Add(("Fields", new PdfArray(
+                fields.Select(field => (PdfObject)UnicodeString(field)))));
+        return Dictionary(entries.ToArray());
     }
 
     private static void AddSignatureFieldObject(
@@ -2903,14 +3052,17 @@ public sealed partial class PdfDocumentBuilder
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("A form field name cannot be empty.", nameof(name));
-        if (_textFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-            || _checkBoxes.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-            || _radioGroups.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-            || _choiceFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-            || _pushButtons.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-            || _signatureFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal)))
+        if (FormFieldNameExists(name))
             throw new ArgumentException("Form field names must be unique.", nameof(name));
     }
+
+    private bool FormFieldNameExists(string name) =>
+        _textFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
+        || _checkBoxes.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
+        || _radioGroups.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
+        || _choiceFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
+        || _pushButtons.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
+        || _signatureFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal));
 
     private static PdfFormFieldMetadata? ValidateFieldMetadata(PdfFormFieldMetadata? metadata)
     {
@@ -3603,7 +3755,10 @@ public sealed partial class PdfDocumentBuilder
     private sealed record PushButtonDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         string Label, string? Uri, int? DestinationPageIndex, PdfDestination? Destination,
+        string? NamedDestination,
         double FontSize, TrueTypeFont? EmbeddedFont,
+        bool IsResetAction, IReadOnlyList<string>? ResetFields, bool ExcludeResetFields,
+        string? SubmitUri, IReadOnlyList<string>? SubmitFields, bool ExcludeSubmitFields,
         PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
     private sealed record AllocatedPushButton(
         PushButtonDefinition Definition, int FieldNumber, int AppearanceNumber);

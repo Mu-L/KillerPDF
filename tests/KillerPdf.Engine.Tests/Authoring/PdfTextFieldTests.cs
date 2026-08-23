@@ -34,6 +34,7 @@ public sealed class PdfTextFieldTests
         Assert.Equal("Tx", Assert.IsType<PdfName>(widget[Name("FT")]).ValueAsLatin1());
         Assert.Equal("customer.name", DecodeUnicode(Assert.IsType<PdfString>(widget[Name("T")])));
         Assert.Equal("Steve (Killer)", DecodeUnicode(Assert.IsType<PdfString>(widget[Name("V")])));
+        Assert.Equal("Steve (Killer)", DecodeUnicode(Assert.IsType<PdfString>(widget[Name("DV")])));
         Assert.Equal(widgetReference.ObjectNumber,
             Assert.IsType<PdfIndirectReference>(annotations[0]).ObjectNumber);
         Assert.Contains("(Steve \\(Killer\\)) Tj",

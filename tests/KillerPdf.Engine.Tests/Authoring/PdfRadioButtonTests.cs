@@ -27,6 +27,7 @@ public sealed class PdfRadioButtonTests
         Assert.Equal("Btn", Assert.IsType<PdfName>(parent[Name("FT")]).ValueAsLatin1());
         Assert.Equal(1 << 15, Assert.IsType<PdfInteger>(parent[Name("Ff")]).Value);
         Assert.Equal("Pro", Assert.IsType<PdfName>(parent[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Pro", Assert.IsType<PdfName>(parent[Name("DV")]).ValueAsLatin1());
         Assert.Equal("Off", Assert.IsType<PdfName>(freeWidget[Name("AS")]).ValueAsLatin1());
         Assert.Equal("Pro", Assert.IsType<PdfName>(proWidget[Name("AS")]).ValueAsLatin1());
         Assert.Equal(Assert.IsType<PdfIndirectReference>(acroForm[Name("Fields")] is PdfArray fields

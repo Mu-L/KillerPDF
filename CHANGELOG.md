@@ -49,6 +49,10 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added validated list-box top indices with matching `/TI` serialization and appearance viewports for long option lists.
 - Added AcroForm push buttons with safe HTTP, HTTPS, or email URI actions, Latin-1 or embedded Unicode labels, generated appearances, accessibility metadata, and shared field behavior.
 - Added internal-page push buttons using the shared precise destination serializer for fit, coordinate, rectangle, and bounded-zoom views.
+- Added push buttons targeting shared Unicode named destinations, with definition-order validation and compact GoTo actions.
+- Added reset-form push buttons for all fields or validated named subsets, including PDF exclusion semantics for resetting every field except the listed set.
+- Added default values matching authored initial values across text, checkbox, radio, combo, and list fields so reset actions restore deterministic initial state.
+- Added full-PDF submit buttons restricted to HTTP or HTTPS endpoints, with URL file specifications and validated include or exclude field lists.
 - Added unsigned digital-signature fields with page-linked widgets, document signature flags, accessibility and mapping metadata, shared field behavior, and collision-safe names.
 - Added typed radio-group behavior for preventing toggle-to-off and selecting identically named controls in unison, serialized alongside common field flags.
 - Added typed choice-field behavior for sorted option arrays, spell-check suppression, and immediate commit on selection changes across combo and list fields.

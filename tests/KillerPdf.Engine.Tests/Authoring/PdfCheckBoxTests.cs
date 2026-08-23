@@ -30,6 +30,7 @@ public sealed class PdfCheckBoxTests
 
         Assert.Equal("Btn", Assert.IsType<PdfName>(widget[Name("FT")]).ValueAsLatin1());
         Assert.Equal(expectedState, Assert.IsType<PdfName>(widget[Name("V")]).ValueAsLatin1());
+        Assert.Equal(expectedState, Assert.IsType<PdfName>(widget[Name("DV")]).ValueAsLatin1());
         Assert.Equal(expectedState, Assert.IsType<PdfName>(widget[Name("AS")]).ValueAsLatin1());
         Assert.DoesNotContain(" m\n", Encoding.ASCII.GetString(off.EncodedData.Span));
         Assert.Contains(" m\n", Encoding.ASCII.GetString(on.EncodedData.Span));

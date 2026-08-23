@@ -29,6 +29,7 @@ public sealed class PdfChoiceFieldTests
         Assert.Equal("Ch", Assert.IsType<PdfName>(field[Name("FT")]).ValueAsLatin1());
         Assert.Equal(expectedFlags, Assert.IsType<PdfInteger>(field[Name("Ff")]).Value);
         Assert.Equal("Mourning", DecodeUnicode(Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Equal("Mourning", DecodeUnicode(Assert.IsType<PdfString>(field[Name("DV")])));
         Assert.Equal(new[] { "Dark", "Mourning", "98SE" },
             options.Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
         Assert.Contains("(Mourning) Tj", Encoding.ASCII.GetString(appearance.EncodedData.Span));
@@ -93,11 +94,14 @@ public sealed class PdfChoiceFieldTests
         PdfDictionary field = ResolveDictionary(document,
             Assert.IsType<PdfArray>(Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
         PdfArray values = Assert.IsType<PdfArray>(field[Name("V")]);
+        PdfArray defaultValues = Assert.IsType<PdfArray>(field[Name("DV")]);
         PdfArray indices = Assert.IsType<PdfArray>(field[Name("I")]);
 
         Assert.Equal(1 << 21, Assert.IsType<PdfInteger>(field[Name("Ff")]).Value);
         Assert.Equal(["Forms", "PDF/UA"],
             values.Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+        Assert.Equal(["Forms", "PDF/UA"],
+            defaultValues.Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
         Assert.Equal([1L, 3L], indices.Select(value => Assert.IsType<PdfInteger>(value).Value));
         PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
             Assert.IsType<PdfIndirectReference>(Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));

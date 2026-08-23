@@ -661,6 +661,7 @@ if (args.Length == 2 && args[0] == "--form-smoke")
     byte[] pdf = new PdfDocumentBuilder()
         .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF form smoke test", Language = "en-US" })
         .AddBlankPage()
+        .AddNamedDestination("FormTop", 0, PdfDestination.At(top: 760))
         .AddTextField(0, "customer.name", 72, 680, 240, 28, "Steve the Killer", 12)
         .AddCheckBox(0, "customer.approved", 72, 640, 18, 18, isChecked: true)
         .AddRadioGroup("customer.plan", [
@@ -675,6 +676,12 @@ if (args.Length == 2 && args[0] == "--form-smoke")
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Open KillerPDF documentation" })
         .AddPagePushButton(0, "customer.top", 300, 515, 180, 28,
             "Return to top", 0, PdfDestination.At(top: 760))
+        .AddNamedDestinationPushButton(0, "customer.namedTop", 300, 480, 180, 28,
+            "Named top", "FormTop")
+        .AddResetFormPushButton(0, "customer.reset", 300, 445, 180, 28, "Reset form")
+        .AddSubmitPdfPushButton(0, "customer.submit", 300, 410, 180, 28,
+            "Submit PDF", "https://killerpdf.com/forms",
+            ["customer.name", "customer.approved"])
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
