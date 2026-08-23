@@ -99,6 +99,31 @@ if (args.Length == 2 && args[0] == "--form-smoke")
     return 0;
 }
 
+if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
+{
+    TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[2]));
+    string destination = Path.GetFullPath(args[3]);
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A form smoke test", Language = "en-US" })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddBlankPage()
+        .AddTextField(0, "customer.name", 72, 680, 240, 28, "KillerPDF café Ω", 12,
+            embeddedFont: font)
+        .AddComboBox(0, "customer.theme", 72, 630, 180, 24,
+            ["Dark", "Mourning", "98SE"], "Mourning", embeddedFont: font)
+        .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true)
+        .AddRadioGroup("customer.plan", [
+            new PdfRadioButtonOption(0, 72, 550, 18, 18, "Free"),
+            new PdfRadioButtonOption(0, 120, 550, 18, 18, "Pro")], "Pro")
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4 AcroForm PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -108,6 +133,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-form-smoke <font.ttf> <profile.icc> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 

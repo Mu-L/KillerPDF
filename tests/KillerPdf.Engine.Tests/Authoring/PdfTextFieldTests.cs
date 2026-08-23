@@ -2,6 +2,9 @@ using System.Text;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Fonts;
+using KillerPdf.Engine.Tests.Fonts;
+using System.Buffers.Binary;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Authoring;
@@ -102,6 +105,49 @@ public sealed class PdfTextFieldTests
         Assert.Throws<ArgumentException>(() => builder.AddTextField(
             0, "short", 0, 0, 100, 20, "toolong", options:
                 new PdfTextFieldOptions { MaximumLength = 3 }));
+    }
+
+    [Fact]
+    public void AddTextField_EmbedsUnicodeFontInAppearanceAndAcroFormResources()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: true));
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "emoji", 0, 0, 100, 20, "😀", 12, embeddedFont: font)
+            .Build());
+        var catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        var acroForm = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        var formResources = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(acroForm[Name("DR")])[Name("Font")]);
+        var field = ResolveDictionary(document, Assert.IsType<PdfArray>(acroForm[Name("Fields")])[0]);
+        var appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        var type0 = ResolveDictionary(document, formResources[Name("FormF1")]);
+
+        Assert.Equal("Type0", Assert.IsType<PdfName>(type0[Name("Subtype")]).ValueAsLatin1());
+        Assert.Contains("/FormF1 12 Tf", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+        Assert.Contains("<0001> Tj", Encoding.ASCII.GetString(appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void PdfA4Mode_AcceptsTextFieldWithEmbeddedFont()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        byte[] icc = new byte[128];
+        BinaryPrimitives.WriteUInt32BigEndian(icc, 128);
+        "RGB "u8.CopyTo(icc.AsSpan(16));
+        "acsp"u8.CopyTo(icc.AsSpan(36));
+
+        byte[] pdf = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata())
+            .SetOutputIntent(PdfIccProfile.Load(icc), "Test RGB")
+            .EnablePdfA4Conformance()
+            .AddBlankPage()
+            .AddTextField(0, "letter", 0, 0, 100, 20, "A", embeddedFont: font)
+            .Build();
+
+        Assert.NotEmpty(pdf);
     }
 
     private static string DecodeUnicode(PdfString value) =>

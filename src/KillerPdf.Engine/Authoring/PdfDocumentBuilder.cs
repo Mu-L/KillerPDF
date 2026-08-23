@@ -155,16 +155,19 @@ public sealed class PdfDocumentBuilder
         double height,
         string value = "",
         double fontSize = 12,
-        PdfTextFieldOptions? options = null)
+        PdfTextFieldOptions? options = null,
+        TrueTypeFont? embeddedFont = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(value);
-        if (value.Any(character => character > 0xFF))
+        if (embeddedFont is null && value.Any(character => character > 0xFF))
             throw new ArgumentException(
                 "The baseline text-field appearance supports Latin-1 values; Unicode form fonts are a separate milestone.",
                 nameof(value));
+        if (embeddedFont is not null)
+            ValidateFormFontText(embeddedFont, value, nameof(value));
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         options ??= new PdfTextFieldOptions();
@@ -176,7 +179,7 @@ public sealed class PdfDocumentBuilder
             throw new ArgumentException(
                 "A comb field requires MaximumLength and cannot also be multiline or a password field.", nameof(options));
         _textFields.Add(new TextFieldDefinition(
-            pageIndex, name, x, y, width, height, value, fontSize, options));
+            pageIndex, name, x, y, width, height, value, fontSize, options, embeddedFont));
         return this;
     }
 
@@ -239,27 +242,36 @@ public sealed class PdfDocumentBuilder
         IEnumerable<string> options,
         string? selectedValue = null,
         bool editable = false,
-        double fontSize = 12)
+        double fontSize = 12,
+        TrueTypeFont? embeddedFont = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
         string[] values = options.ToArray();
-        if (values.Length == 0 || values.Any(string.IsNullOrEmpty)
-            || values.Any(value => value.Any(character => character > 0xFF)))
-            throw new ArgumentException("Combo-box options must be non-empty Latin-1 strings.", nameof(options));
+        if (values.Length == 0 || values.Any(string.IsNullOrEmpty))
+            throw new ArgumentException("Combo-box options cannot be empty.", nameof(options));
+        if (embeddedFont is null && values.Any(value => value.Any(character => character > 0xFF)))
+            throw new ArgumentException("Combo-box options require an embedded font for Unicode text.", nameof(options));
         if (values.Distinct(StringComparer.Ordinal).Count() != values.Length)
             throw new ArgumentException("Combo-box options must be unique.", nameof(options));
         if (selectedValue is not null && !editable && !values.Contains(selectedValue, StringComparer.Ordinal))
             throw new ArgumentException("A non-editable combo-box value must be one of its options.", nameof(selectedValue));
-        if (selectedValue?.Any(character => character > 0xFF) == true)
+        if (embeddedFont is null && selectedValue?.Any(character => character > 0xFF) == true)
             throw new ArgumentException("The baseline combo-box appearance supports Latin-1 values.", nameof(selectedValue));
+        if (embeddedFont is not null)
+        {
+            foreach (string value in values)
+                ValidateFormFontText(embeddedFont, value, nameof(options));
+            if (selectedValue is not null)
+                ValidateFormFontText(embeddedFont, selectedValue, nameof(selectedValue));
+        }
         if (!double.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values,
-            selectedValue ?? values[0], editable, fontSize));
+            selectedValue ?? values[0], editable, fontSize, embeddedFont));
         return this;
     }
 
@@ -271,9 +283,10 @@ public sealed class PdfDocumentBuilder
             throw new InvalidOperationException("PDF/A-4 authoring requires an ICC output intent.");
         if (_pdfA4Conformance && _pages.Any(page => page.Fonts.Count > 0))
             throw new InvalidOperationException("PDF/A-4 authoring requires embedded fonts; the 14 built-in PDF fonts are not embedded.");
-        if (_pdfA4Conformance && (_textFields.Count > 0 || _choiceFields.Count > 0))
+        if (_pdfA4Conformance && (_textFields.Any(field => field.EmbeddedFont is null)
+            || _choiceFields.Any(field => field.EmbeddedFont is null)))
             throw new InvalidOperationException(
-                "PDF/A-4 text and choice fields require the upcoming embedded form-font API.");
+                "PDF/A-4 text and choice fields require an embedded TrueType form font.");
         if (_pdfA4Conformance && _attachments.Count > 0)
             throw new InvalidOperationException("General PDF/A-4 does not permit attachments; use the PDF/A-4f milestone.");
         const int catalogNumber = 1;
@@ -302,15 +315,34 @@ public sealed class PdfDocumentBuilder
             new AllocatedChoiceField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
         int? iccProfileNumber = _outputIntent is null ? null : nextObjectNumber++;
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
+        TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
+            .Concat(_choiceFields.Select(field => field.EmbeddedFont))
+            .Where(font => font is not null).Cast<TrueTypeFont>().Distinct().ToArray();
+        var formFontResources = formEmbeddedFonts.Select((font, index) => (font, index))
+            .ToDictionary(item => item.font,
+                item => new PdfName(Encoding.ASCII.GetBytes($"FormF{item.index + 1}")));
+        var formFontUsages = new List<EmbeddedFontUsage>();
+        foreach (TrueTypeFont font in formEmbeddedFonts)
+        {
+            var usage = new EmbeddedFontUsage(font, formFontResources[font]);
+            foreach (string value in _textFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
+                .Select(field => field.Value)
+                .Concat(_choiceFields.Where(field => ReferenceEquals(field.EmbeddedFont, font))
+                    .SelectMany(field => field.Options.Append(field.SelectedValue))))
+                AddTextMappings(usage, value);
+            formFontUsages.Add(usage);
+        }
         var fontNumbers = new Dictionary<PdfStandardFont, int>();
         IEnumerable<PdfStandardFont> requestedStandardFonts = _pages.SelectMany(page => page.Fonts.Keys);
-        if (allocatedTextFields.Length > 0 || allocatedChoiceFields.Length > 0)
+        if (_textFields.Any(field => field.EmbeddedFont is null)
+            || _choiceFields.Any(field => field.EmbeddedFont is null))
             requestedStandardFonts = requestedStandardFonts.Append(PdfStandardFont.Helvetica);
         foreach (PdfStandardFont font in requestedStandardFonts.Distinct().Order())
             fontNumbers.Add(font, nextObjectNumber++);
         var embeddedFonts = new List<AllocatedEmbeddedFont>();
         foreach (IGrouping<TrueTypeFont, EmbeddedFontUsage> group in
-            _pages.SelectMany(page => page.EmbeddedFonts).GroupBy(usage => usage.Font))
+            _pages.SelectMany(page => page.EmbeddedFonts).Concat(formFontUsages)
+                .GroupBy(usage => usage.Font))
         {
             var mappings = new SortedDictionary<ushort, int>();
             foreach ((ushort glyph, int scalar) in group.SelectMany(usage => usage.UnicodeByGlyph))
@@ -400,11 +432,16 @@ public sealed class PdfDocumentBuilder
             };
             if (allocatedTextFields.Length > 0 || allocatedChoiceFields.Length > 0)
             {
-                int helveticaNumber = fontNumbers[PdfStandardFont.Helvetica];
-                var formFonts = new PdfDictionary([
-                    new KeyValuePair<PdfName, PdfObject>(
-                        Name("Helv"), new PdfIndirectReference(helveticaNumber, 0))]);
-                formEntries.Add(("DA", Latin1String("/Helv 12 Tf 0 g")));
+                var formFontEntries = new List<KeyValuePair<PdfName, PdfObject>>();
+                if (fontNumbers.TryGetValue(PdfStandardFont.Helvetica, out int helveticaNumber))
+                    formFontEntries.Add(new(Name("Helv"), new PdfIndirectReference(helveticaNumber, 0)));
+                foreach ((TrueTypeFont font, PdfName resource) in formFontResources)
+                    formFontEntries.Add(new(resource, new PdfIndirectReference(
+                        embeddedFonts.Single(value => ReferenceEquals(value.Font, font)).Type0Number, 0)));
+                PdfName defaultFormFont = fontNumbers.ContainsKey(PdfStandardFont.Helvetica)
+                    ? Name("Helv") : formFontResources.Values.First();
+                var formFonts = new PdfDictionary(formFontEntries);
+                formEntries.Add(("DA", Latin1String($"{NameToken(defaultFormFont)} 12 Tf 0 g")));
                 formEntries.Add(("DR", Dictionary(("Font", formFonts))));
             }
             catalogEntries.Add(("AcroForm", Dictionary(formEntries.ToArray())));
@@ -462,17 +499,25 @@ public sealed class PdfDocumentBuilder
         foreach (AllocatedAttachment allocatedAttachment in allocatedAttachments)
             AddAttachmentObjects(objects, allocatedAttachment);
         foreach (AllocatedTextField allocatedTextField in allocatedTextFields)
+        {
+            (PdfName resource, int number) = FormFontBinding(
+                allocatedTextField.Definition.EmbeddedFont,
+                fontNumbers, formFontResources, embeddedFonts);
             AddTextFieldObjects(
-                objects, allocatedTextField, allocated,
-                fontNumbers[PdfStandardFont.Helvetica]);
+                objects, allocatedTextField, allocated, resource, number);
+        }
         foreach (AllocatedCheckBox allocatedCheckBox in allocatedCheckBoxes)
             AddCheckBoxObjects(objects, allocatedCheckBox, allocated);
         foreach (AllocatedRadioGroup allocatedRadioGroup in allocatedRadioGroups)
             AddRadioGroupObjects(objects, allocatedRadioGroup, allocated);
         foreach (AllocatedChoiceField allocatedChoiceField in allocatedChoiceFields)
+        {
+            (PdfName resource, int number) = FormFontBinding(
+                allocatedChoiceField.Definition.EmbeddedFont,
+                fontNumbers, formFontResources, embeddedFonts);
             AddChoiceFieldObjects(
-                objects, allocatedChoiceField, allocated,
-                fontNumbers[PdfStandardFont.Helvetica]);
+                objects, allocatedChoiceField, allocated, resource, number);
+        }
         if (_outputIntent is not null)
             AddOutputIntentObjects(
                 objects, _outputIntent, iccProfileNumber!.Value, outputIntentNumber!.Value);
@@ -702,11 +747,13 @@ public sealed class PdfDocumentBuilder
         ICollection<PdfIndirectObject> objects,
         AllocatedTextField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
-        int helveticaNumber)
+        PdfName fontResource,
+        int fontNumber)
     {
         TextFieldDefinition field = allocatedField.Definition;
         int pageNumber = pages[field.PageIndex].PageNumber;
-        PdfString defaultAppearance = Latin1String($"/Helv {FormatNumber(field.FontSize)} Tf 0 g");
+        PdfString defaultAppearance = Latin1String(
+            $"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g");
         var fieldEntries = new List<(string Name, PdfObject Value)>
         {
                 ("Type", Name("Annot")),
@@ -734,7 +781,9 @@ public sealed class PdfDocumentBuilder
         objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
             Dictionary(fieldEntries.ToArray()), 0));
 
-        byte[] appearance = BuildTextFieldAppearance(field);
+        byte[] appearance = BuildSimpleTextAppearance(
+            field.Width, field.Height, field.FontSize, field.Value,
+            fontResource, field.EmbeddedFont);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -745,19 +794,8 @@ public sealed class PdfDocumentBuilder
                     Number(field.Width), Number(field.Height)])),
                 ("Resources", Dictionary(("Font", new PdfDictionary([
                     new KeyValuePair<PdfName, PdfObject>(
-                        Name("Helv"), new PdfIndirectReference(helveticaNumber, 0))]))))),
+                        fontResource, new PdfIndirectReference(fontNumber, 0))]))))),
                 appearance), 0));
-    }
-
-    private static byte[] BuildTextFieldAppearance(TextFieldDefinition field)
-    {
-        using var output = new MemoryStream();
-        WriteAscii(output, $"q\n1 1 1 rg\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n");
-        WriteAscii(output, $"0 G\n1 w\n0.5 0.5 {FormatNumber(field.Width - 1)} {FormatNumber(field.Height - 1)} re\nS\n");
-        WriteAscii(output, $"BT\n/Helv {FormatNumber(field.FontSize)} Tf\n0 g\n3 {FormatNumber(Math.Max(1, (field.Height - field.FontSize) / 2))} Td\n");
-        PdfObjectWriter.Write(output, new PdfString(Encoding.Latin1.GetBytes(field.Value), PdfStringForm.Literal));
-        output.Write(" Tj\nET\nQ\n"u8);
-        return output.ToArray();
     }
 
     private static int TextFieldFlags(PdfTextFieldOptions options)
@@ -918,7 +956,8 @@ public sealed class PdfDocumentBuilder
         ICollection<PdfIndirectObject> objects,
         AllocatedChoiceField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
-        int helveticaNumber)
+        PdfName fontResource,
+        int fontNumber)
     {
         ChoiceFieldDefinition field = allocatedField.Definition;
         int flags = (1 << 17) | (field.Editable ? 1 << 18 : 0);
@@ -936,11 +975,12 @@ public sealed class PdfDocumentBuilder
                     Number(field.X + field.Width), Number(field.Y + field.Height)])),
                 ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
                 ("F", new PdfInteger(4)),
-                ("DA", Latin1String($"/Helv {FormatNumber(field.FontSize)} Tf 0 g")),
+                ("DA", Latin1String($"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g")),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))), 0));
 
         byte[] appearance = BuildSimpleTextAppearance(
-            field.Width, field.Height, field.FontSize, field.SelectedValue);
+            field.Width, field.Height, field.FontSize, field.SelectedValue,
+            fontResource, field.EmbeddedFont);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -951,19 +991,24 @@ public sealed class PdfDocumentBuilder
                     Number(field.Width), Number(field.Height)])),
                 ("Resources", Dictionary(("Font", new PdfDictionary([
                     new KeyValuePair<PdfName, PdfObject>(
-                        Name("Helv"), new PdfIndirectReference(helveticaNumber, 0))]))))),
+                        fontResource, new PdfIndirectReference(fontNumber, 0))]))))),
                 appearance), 0));
     }
 
     private static byte[] BuildSimpleTextAppearance(
-        double width, double height, double fontSize, string value)
+        double width,
+        double height,
+        double fontSize,
+        string value,
+        PdfName fontResource,
+        TrueTypeFont? embeddedFont)
     {
         using var output = new MemoryStream();
         WriteAscii(output, $"q\n1 1 1 rg\n0 0 {FormatNumber(width)} {FormatNumber(height)} re\nf\n");
         WriteAscii(output, $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, width - 1))} {FormatNumber(Math.Max(0, height - 1))} re\nS\n");
-        WriteAscii(output, $"BT\n/Helv {FormatNumber(fontSize)} Tf\n0 g\n3 {FormatNumber(Math.Max(1, (height - fontSize) / 2))} Td\n");
-        PdfObjectWriter.Write(output, new PdfString(Encoding.Latin1.GetBytes(value), PdfStringForm.Literal));
-        output.Write(" Tj\nET\nQ\n"u8);
+        WriteAscii(output, $"BT\n{NameToken(fontResource)} {FormatNumber(fontSize)} Tf\n0 g\n3 {FormatNumber(Math.Max(1, (height - fontSize) / 2))} Td\n");
+        WriteShownText(output, value, embeddedFont);
+        output.Write("ET\nQ\n"u8);
         return output.ToArray();
     }
 
@@ -999,6 +1044,47 @@ public sealed class PdfDocumentBuilder
     private static string FormatNumber(double value) =>
         Encoding.ASCII.GetString(PdfObjectWriter.Write(Number(value)));
 
+    private static string NameToken(PdfName value) =>
+        Encoding.ASCII.GetString(PdfObjectWriter.Write(value));
+
+    private static void AddTextMappings(EmbeddedFontUsage usage, string value)
+    {
+        foreach (Rune rune in value.EnumerateRunes())
+            usage.AddMapping(usage.Font.GetGlyphId(rune.Value), rune.Value);
+    }
+
+    private static void WriteShownText(Stream output, string value, TrueTypeFont? embeddedFont)
+    {
+        if (embeddedFont is null)
+        {
+            PdfObjectWriter.Write(output,
+                new PdfString(Encoding.Latin1.GetBytes(value), PdfStringForm.Literal));
+        }
+        else
+        {
+            output.WriteByte((byte)'<');
+            foreach (Rune rune in value.EnumerateRunes())
+            {
+                ushort glyph = embeddedFont.GetGlyphId(rune.Value);
+                WriteAscii(output, glyph.ToString("X4", CultureInfo.InvariantCulture));
+            }
+            output.WriteByte((byte)'>');
+        }
+        output.Write(" Tj\n"u8);
+    }
+
+    private static (PdfName Resource, int ObjectNumber) FormFontBinding(
+        TrueTypeFont? embeddedFont,
+        IReadOnlyDictionary<PdfStandardFont, int> standardFonts,
+        IReadOnlyDictionary<TrueTypeFont, PdfName> formFontResources,
+        IReadOnlyList<AllocatedEmbeddedFont> embeddedFonts)
+    {
+        if (embeddedFont is null)
+            return (Name("Helv"), standardFonts[PdfStandardFont.Helvetica]);
+        return (formFontResources[embeddedFont],
+            embeddedFonts.Single(value => ReferenceEquals(value.Font, embeddedFont)).Type0Number);
+    }
+
     private void ValidateUniqueFieldName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -1008,6 +1094,18 @@ public sealed class PdfDocumentBuilder
             || _radioGroups.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
             || _choiceFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal)))
             throw new ArgumentException("Form field names must be unique.", nameof(name));
+    }
+
+    private static void ValidateFormFontText(TrueTypeFont font, string value, string parameterName)
+    {
+        if (!font.EmbeddingAllowed)
+            throw new ArgumentException($"Font {font.PostScriptName} prohibits PDF embedding.", parameterName);
+        foreach (Rune rune in value.EnumerateRunes())
+        {
+            if (font.GetGlyphId(rune.Value) == 0 && rune.Value != 0)
+                throw new ArgumentException(
+                    $"Font {font.PostScriptName} has no glyph for U+{rune.Value:X4}.", parameterName);
+        }
     }
 
     private static void AddEmbeddedFontObjects(
@@ -1304,7 +1402,7 @@ public sealed class PdfDocumentBuilder
         AttachmentDefinition Definition, int EmbeddedFileNumber, int FileSpecificationNumber);
     private sealed record TextFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        string Value, double FontSize, PdfTextFieldOptions Options);
+        string Value, double FontSize, PdfTextFieldOptions Options, TrueTypeFont? EmbeddedFont);
     private sealed record AllocatedTextField(
         TextFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record CheckBoxDefinition(
@@ -1326,7 +1424,8 @@ public sealed class PdfDocumentBuilder
         int OnAppearanceNumber);
     private sealed record ChoiceFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        IReadOnlyList<string> Options, string SelectedValue, bool Editable, double FontSize);
+        IReadOnlyList<string> Options, string SelectedValue, bool Editable, double FontSize,
+        TrueTypeFont? EmbeddedFont);
     private sealed record AllocatedChoiceField(
         ChoiceFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record OutputIntentDefinition(
