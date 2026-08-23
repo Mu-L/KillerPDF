@@ -60,6 +60,38 @@ public sealed class PdfContentStreamBuilderTests
     }
 
     [Fact]
+    public void MarkedContent_WritesTaggedContentAndArtifacts()
+    {
+        byte[] content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Paragraph, 0)
+            .BeginText().SetFont(PdfStandardFont.Helvetica, 12)
+            .ShowLatin1Text("Tagged").EndText()
+            .EndMarkedContent()
+            .BeginArtifact().Rectangle(0, 0, 10, 10).Stroke().EndMarkedContent()
+            .Build();
+        string text = Encoding.ASCII.GetString(content);
+
+        Assert.Contains("/P << /MCID 0 >> BDC", text, StringComparison.Ordinal);
+        Assert.Contains("/Artifact BMC", text, StringComparison.Ordinal);
+        Assert.Equal(2, text.Split("EMC\n", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
+    public void MarkedContent_RejectsDuplicateIdsAndUnbalancedSequences()
+    {
+        var duplicate = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Paragraph, 0)
+            .EndMarkedContent();
+
+        Assert.Throws<ArgumentException>(() =>
+            duplicate.BeginMarkedContent(PdfStructureType.Span, 0));
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfContentStreamBuilder().EndMarkedContent());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfContentStreamBuilder().BeginArtifact().Build());
+    }
+
+    [Fact]
     public void TextOperators_CreateAFontResourceAndEscapedText()
     {
         var content = new PdfContentStreamBuilder()

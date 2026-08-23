@@ -13,13 +13,57 @@ public sealed class PdfContentStreamBuilder
     private readonly Dictionary<TrueTypeFont, EmbeddedFontUsage> _embeddedFonts = [];
     private readonly Dictionary<PdfImage, PdfName> _images = [];
     private int _savedStateDepth;
+    private int _markedContentDepth;
     private bool _insideText;
+    private bool _hasUntaggedContent;
     private int _nextFontResource = 1;
     private EmbeddedFontUsage? _activeEmbeddedFont;
+    private readonly HashSet<int> _markedContentIds = [];
 
     internal IReadOnlyDictionary<PdfStandardFont, PdfName> FontResources => _fonts;
     internal IReadOnlyCollection<EmbeddedFontUsage> EmbeddedFontResources => _embeddedFonts.Values;
     internal IReadOnlyDictionary<PdfImage, PdfName> ImageResources => _images;
+    internal IReadOnlyCollection<int> MarkedContentIds => _markedContentIds;
+    internal bool HasUntaggedContent => _hasUntaggedContent;
+
+    /// <summary>Begins tagged marked content associated with a page-local MCID.</summary>
+    public PdfContentStreamBuilder BeginMarkedContent(
+        PdfStructureType type, int markedContentId)
+    {
+        if (!Enum.IsDefined(type))
+            throw new ArgumentOutOfRangeException(nameof(type));
+        if (markedContentId < 0)
+            throw new ArgumentOutOfRangeException(nameof(markedContentId));
+        if (!_markedContentIds.Add(markedContentId))
+            throw new ArgumentException(
+                "Marked-content identifiers must be unique within a page.", nameof(markedContentId));
+        _output.Write(PdfObjectWriter.Write(new PdfName(
+            Encoding.ASCII.GetBytes(PdfStructureTypeNames.Name(type)))));
+        _output.WriteByte((byte)' ');
+        _output.Write(PdfObjectWriter.Write(new PdfDictionary([
+            new KeyValuePair<PdfName, PdfObject>(
+                new PdfName("MCID"u8), new PdfInteger(markedContentId))])));
+        _output.Write(" BDC\n"u8);
+        _markedContentDepth++;
+        return this;
+    }
+
+    /// <summary>Begins pagination or layout content that assistive technology should ignore.</summary>
+    public PdfContentStreamBuilder BeginArtifact()
+    {
+        _output.Write("/Artifact BMC\n"u8);
+        _markedContentDepth++;
+        return this;
+    }
+
+    public PdfContentStreamBuilder EndMarkedContent()
+    {
+        if (_markedContentDepth == 0)
+            throw new InvalidOperationException("The marked-content stack is empty.");
+        WriteOperator("EMC"u8);
+        _markedContentDepth--;
+        return this;
+    }
 
     public PdfContentStreamBuilder SaveState()
     {
@@ -55,10 +99,10 @@ public sealed class PdfContentStreamBuilder
     public PdfContentStreamBuilder Rectangle(double x, double y, double width, double height) =>
         Operator("re"u8, x, y, width, height);
     public PdfContentStreamBuilder ClosePath() => NoOperand("h"u8);
-    public PdfContentStreamBuilder Stroke() => NoOperand("S"u8);
-    public PdfContentStreamBuilder Fill() => NoOperand("f"u8);
-    public PdfContentStreamBuilder FillEvenOdd() => NoOperand("f*"u8);
-    public PdfContentStreamBuilder FillAndStroke() => NoOperand("B"u8);
+    public PdfContentStreamBuilder Stroke() => PaintingOperator("S"u8);
+    public PdfContentStreamBuilder Fill() => PaintingOperator("f"u8);
+    public PdfContentStreamBuilder FillEvenOdd() => PaintingOperator("f*"u8);
+    public PdfContentStreamBuilder FillAndStroke() => PaintingOperator("B"u8);
 
     /// <summary>Places an image in the page coordinate system.</summary>
     public PdfContentStreamBuilder DrawImage(
@@ -76,6 +120,7 @@ public sealed class PdfContentStreamBuilder
             resource = new PdfName(Encoding.ASCII.GetBytes($"Im{_images.Count + 1}"));
             _images.Add(image, resource);
         }
+        RecordPaintedContent();
         WriteOperator("q"u8);
         Operator("cm"u8, width, 0, 0, height, x, y);
         _output.Write(PdfObjectWriter.Write(resource));
@@ -162,6 +207,7 @@ public sealed class PdfContentStreamBuilder
     {
         RequireText();
         ArgumentNullException.ThrowIfNull(text);
+        RecordPaintedContent();
         byte[] bytes = new byte[text.Length];
         for (int index = 0; index < text.Length; index++)
         {
@@ -179,6 +225,7 @@ public sealed class PdfContentStreamBuilder
     {
         RequireText();
         ArgumentNullException.ThrowIfNull(text);
+        RecordPaintedContent();
         EmbeddedFontUsage usage = _activeEmbeddedFont
             ?? throw new InvalidOperationException("Select an embedded TrueType font before writing Unicode text.");
         _output.WriteByte((byte)'<');
@@ -205,6 +252,9 @@ public sealed class PdfContentStreamBuilder
             throw new InvalidOperationException("Every saved graphics state must be restored before building.");
         if (_insideText)
             throw new InvalidOperationException("The text object must be ended before building.");
+        if (_markedContentDepth != 0)
+            throw new InvalidOperationException(
+                "Every marked-content sequence must be ended before building.");
         return _output.ToArray();
     }
 
@@ -223,6 +273,17 @@ public sealed class PdfContentStreamBuilder
     {
         WriteOperator(name);
         return this;
+    }
+
+    private PdfContentStreamBuilder PaintingOperator(ReadOnlySpan<byte> name)
+    {
+        RecordPaintedContent();
+        return NoOperand(name);
+    }
+
+    private void RecordPaintedContent()
+    {
+        if (_markedContentDepth == 0) _hasUntaggedContent = true;
     }
 
     private void WriteNumber(double value)

@@ -18,6 +18,7 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<BookmarkDefinition> _bookmarks = [];
     private readonly List<NamedDestinationDefinition> _namedDestinations = [];
     private readonly List<PageLabelDefinition> _pageLabels = [];
+    private readonly List<StructureElementDefinition> _structureElements = [];
     private readonly List<AttachmentDefinition> _attachments = [];
     private readonly List<TextFieldDefinition> _textFields = [];
     private readonly List<CheckBoxDefinition> _checkBoxes = [];
@@ -25,6 +26,7 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<ChoiceFieldDefinition> _choiceFields = [];
     private OutputIntentDefinition? _outputIntent;
     private PdfA4Flavor _pdfA4Flavor;
+    private bool _pdfUa2Conformance;
     private readonly List<TextNoteDefinition> _textNotes = [];
     private readonly List<TextMarkupDefinition> _textMarkups = [];
 
@@ -68,6 +70,13 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Enables PDF/UA-2 identification and accessibility conformance checks.</summary>
+    public PdfDocumentBuilder EnablePdfUa2Conformance()
+    {
+        _pdfUa2Conformance = true;
+        return this;
+    }
+
     public PdfDocumentBuilder AddBlankPage(double width = 612, double height = 792) =>
         AddPage(width, height, ReadOnlyMemory<byte>.Empty);
 
@@ -77,7 +86,7 @@ public sealed partial class PdfDocumentBuilder
         ValidateDimension(height, nameof(height));
         _pages.Add(new PageDefinition(width, height, content.ToArray(),
             new Dictionary<PdfStandardFont, PdfName>(), [],
-            new Dictionary<PdfImage, PdfName>(), []));
+            new Dictionary<PdfImage, PdfName>(), [], [], content.Length > 0));
         return this;
     }
 
@@ -92,7 +101,8 @@ public sealed partial class PdfDocumentBuilder
             content.Build(),
             content.FontResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.EmbeddedFontResources.ToArray(),
-            content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value), []));
+            content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
+            content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent));
         return this;
     }
 
@@ -189,6 +199,66 @@ public sealed partial class PdfDocumentBuilder
         if (_bookmarks.Count > 0 && level > _bookmarks[^1].Level + 1)
             throw new ArgumentException("A bookmark level cannot skip its parent level.", nameof(level));
         _bookmarks.Add(new BookmarkDefinition(title, pageIndex, level));
+        return this;
+    }
+
+    /// <summary>Adds a logical structure container without direct page content.</summary>
+    public PdfDocumentBuilder AddStructureContainer(
+        PdfStructureType type,
+        int level = 0,
+        string? alternateDescription = null,
+        string? actualText = null) =>
+        AddStructure(type, level, null, null, alternateDescription, actualText);
+
+    /// <summary>Associates tagged page content with an element in the logical structure tree.</summary>
+    public PdfDocumentBuilder AddStructureElement(
+        PdfStructureType type,
+        int pageIndex,
+        int markedContentId,
+        int level = 0,
+        string? alternateDescription = null,
+        string? actualText = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (markedContentId < 0)
+            throw new ArgumentOutOfRangeException(nameof(markedContentId));
+        if (!_pages[pageIndex].MarkedContentIds.Contains(markedContentId))
+            throw new ArgumentException(
+                "The page content does not define this marked-content identifier.",
+                nameof(markedContentId));
+        if (_structureElements.Any(element =>
+                element.PageIndex == pageIndex && element.MarkedContentId == markedContentId))
+            throw new ArgumentException(
+                "A marked-content identifier can belong to only one structure element.",
+                nameof(markedContentId));
+        return AddStructure(
+            type, level, pageIndex, markedContentId, alternateDescription, actualText);
+    }
+
+    private PdfDocumentBuilder AddStructure(
+        PdfStructureType type,
+        int level,
+        int? pageIndex,
+        int? markedContentId,
+        string? alternateDescription,
+        string? actualText)
+    {
+        if (!Enum.IsDefined(type))
+            throw new ArgumentOutOfRangeException(nameof(type));
+        if (level < 0)
+            throw new ArgumentOutOfRangeException(nameof(level));
+        if (_structureElements.Count == 0 && level != 0)
+            throw new ArgumentException("The first structure element must be at level zero.", nameof(level));
+        if (_structureElements.Count > 0 && level > _structureElements[^1].Level + 1)
+            throw new ArgumentException(
+                "A structure level cannot skip its parent level.", nameof(level));
+        if (alternateDescription is not null && string.IsNullOrWhiteSpace(alternateDescription))
+            throw new ArgumentException(
+                "An alternate description cannot be empty.", nameof(alternateDescription));
+        if (actualText is not null && string.IsNullOrEmpty(actualText))
+            throw new ArgumentException("Actual text cannot be empty.", nameof(actualText));
+        _structureElements.Add(new StructureElementDefinition(
+            type, level, pageIndex, markedContentId, alternateDescription, actualText));
         return this;
     }
 
@@ -407,6 +477,40 @@ public sealed partial class PdfDocumentBuilder
     public byte[] Build()
     {
         bool pdfA4 = _pdfA4Flavor != PdfA4Flavor.None;
+        if (_pdfUa2Conformance && (Metadata is null
+            || string.IsNullOrWhiteSpace(Metadata.Title)
+            || string.IsNullOrWhiteSpace(Metadata.Language)))
+            throw new InvalidOperationException(
+                "PDF/UA-2 authoring requires document metadata with a title and language.");
+        if (_pdfUa2Conformance && (_structureElements.Count == 0
+            || _structureElements.Count(element => element.Level == 0) != 1
+            || _structureElements[0].Type != PdfStructureType.Document))
+            throw new InvalidOperationException(
+                "PDF/UA-2 authoring requires one top-level Document structure element.");
+        if (_pdfUa2Conformance && _pages.Any(page => page.Fonts.Count > 0))
+            throw new InvalidOperationException(
+                "PDF/UA-2 authoring requires embedded fonts for page text.");
+        if (_pdfUa2Conformance && _pages.Any(page => page.HasUntaggedContent))
+            throw new InvalidOperationException(
+                "PDF/UA-2 authoring requires all painted page content to be tagged or marked as an artifact.");
+        if (_pdfUa2Conformance && (_pages.Any(page => page.Links.Count > 0)
+            || _bookmarks.Count > 0 || _namedDestinations.Count > 0
+            || _textFields.Count > 0 || _checkBoxes.Count > 0 || _radioGroups.Count > 0
+            || _choiceFields.Count > 0 || _textNotes.Count > 0 || _textMarkups.Count > 0
+            || _freeTexts.Count > 0 || _visualAnnotations.Count > 0 || _imageStamps.Count > 0))
+            throw new InvalidOperationException(
+                "PDF/UA-2 annotations, forms, and navigation require structure associations that are not yet authored.");
+        if (_pdfUa2Conformance && _attachments.Count > 0)
+            throw new InvalidOperationException(
+                "PDF/UA-2 embedded files require additional accessible file-specification metadata.");
+        for (int pageIndex = 0; pageIndex < _pages.Count; pageIndex++)
+        {
+            var registered = _structureElements.Where(element => element.PageIndex == pageIndex)
+                .Select(element => element.MarkedContentId!.Value).ToHashSet();
+            if (_pages[pageIndex].MarkedContentIds.Any(id => !registered.Contains(id)))
+                throw new InvalidOperationException(
+                    $"Page {pageIndex} contains marked content without a structure element.");
+        }
         if (pdfA4 && Metadata is null)
             throw new InvalidOperationException("PDF/A-4 authoring requires XMP document metadata.");
         if (pdfA4 && _outputIntent is null)
@@ -426,6 +530,10 @@ public sealed partial class PdfDocumentBuilder
         int? infoNumber = Metadata is null || pdfA4 ? null : nextObjectNumber++;
         int? outlinesNumber = _bookmarks.Count == 0 ? null : nextObjectNumber++;
         int[] bookmarkNumbers = _bookmarks.Select(_ => nextObjectNumber++).ToArray();
+        int? structureRootNumber = _structureElements.Count == 0 ? null : nextObjectNumber++;
+        int? parentTreeNumber = _structureElements.Count == 0 ? null : nextObjectNumber++;
+        int? structureNamespaceNumber = _pdfUa2Conformance ? nextObjectNumber++ : null;
+        int[] structureElementNumbers = _structureElements.Select(_ => nextObjectNumber++).ToArray();
         var allocatedAttachments = _attachments.Select(attachment =>
             new AllocatedAttachment(attachment, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedTextFields = _textFields.Select(field =>
@@ -557,6 +665,15 @@ public sealed partial class PdfDocumentBuilder
             catalogEntries.Add(("Outlines", new PdfIndirectReference(outlinesNumber.Value, 0)));
             catalogEntries.Add(("PageMode", Name("UseOutlines")));
         }
+        if (structureRootNumber.HasValue)
+        {
+            catalogEntries.Add(("StructTreeRoot",
+                new PdfIndirectReference(structureRootNumber.Value, 0)));
+            catalogEntries.Add(("MarkInfo", Dictionary(("Marked", new PdfBoolean(true)))));
+        }
+        if (_pdfUa2Conformance)
+            catalogEntries.Add(("ViewerPreferences",
+                Dictionary(("DisplayDocTitle", new PdfBoolean(true)))));
         var catalogNameEntries = new List<(string Name, PdfObject Value)>();
         if (allocatedAttachments.Length > 0)
         {
@@ -652,7 +769,8 @@ public sealed partial class PdfDocumentBuilder
             objects.Add(new PdfIndirectObject(metadataNumber!.Value, 0,
                 new PdfStream(Dictionary(
                     ("Type", Name("Metadata")),
-                    ("Subtype", Name("XML"))), BuildXmp(Metadata, _pdfA4Flavor)), 0));
+                    ("Subtype", Name("XML"))), BuildXmp(
+                        Metadata, _pdfA4Flavor, _pdfUa2Conformance)), 0));
             if (infoNumber.HasValue)
                 objects.Add(new PdfIndirectObject(infoNumber.Value, 0, BuildInfo(Metadata), 0));
         }
@@ -719,6 +837,106 @@ public sealed partial class PdfDocumentBuilder
 
             int DescendantCount(int index) => children[index]
                 .Sum(child => 1 + DescendantCount(child));
+        }
+        var structureParentKeys = _structureElements
+            .Where(element => element.PageIndex.HasValue)
+            .Select(element => element.PageIndex!.Value)
+            .Distinct()
+            .Order()
+            .Select((pageIndex, key) => (pageIndex, key))
+            .ToDictionary(item => item.pageIndex, item => item.key);
+        if (structureRootNumber.HasValue)
+        {
+            var parents = new int?[_structureElements.Count];
+            var children = Enumerable.Range(0, _structureElements.Count)
+                .Select(_ => new List<int>()).ToArray();
+            var levelStack = new List<int>();
+            var topLevel = new List<int>();
+            for (int index = 0; index < _structureElements.Count; index++)
+            {
+                int level = _structureElements[index].Level;
+                while (levelStack.Count > level) levelStack.RemoveAt(levelStack.Count - 1);
+                if (level == 0) topLevel.Add(index);
+                else
+                {
+                    int parent = levelStack[level - 1];
+                    parents[index] = parent;
+                    children[parent].Add(index);
+                }
+                if (levelStack.Count == level) levelStack.Add(index);
+                else levelStack[level] = index;
+            }
+
+            var parentTreeNumbers = new List<PdfObject>();
+            foreach ((int pageIndex, int key) in structureParentKeys.OrderBy(item => item.Value))
+            {
+                StructureElementDefinition[] pageElements = _structureElements
+                    .Where(element => element.PageIndex == pageIndex).ToArray();
+                int maximumMcid = pageElements.Max(element => element.MarkedContentId!.Value);
+                PdfObject[] mappings = Enumerable.Repeat<PdfObject>(
+                    PdfNull.Instance, maximumMcid + 1).ToArray();
+                foreach (StructureElementDefinition element in pageElements)
+                {
+                    int elementIndex = _structureElements.IndexOf(element);
+                    mappings[element.MarkedContentId!.Value] =
+                        new PdfIndirectReference(structureElementNumbers[elementIndex], 0);
+                }
+                parentTreeNumbers.Add(new PdfInteger(key));
+                parentTreeNumbers.Add(new PdfArray(mappings));
+            }
+            objects.Add(new PdfIndirectObject(parentTreeNumber!.Value, 0,
+                Dictionary(("Nums", new PdfArray(parentTreeNumbers))), 0));
+            var rootEntries = new List<(string Name, PdfObject Value)>
+            {
+                ("Type", Name("StructTreeRoot")),
+                ("K", new PdfArray(topLevel.Select(index =>
+                    (PdfObject)new PdfIndirectReference(structureElementNumbers[index], 0)))),
+                ("ParentTree", new PdfIndirectReference(parentTreeNumber.Value, 0)),
+                ("ParentTreeNextKey", new PdfInteger(structureParentKeys.Count))
+            };
+            if (structureNamespaceNumber.HasValue)
+                rootEntries.Add(("Namespaces", new PdfArray([
+                    new PdfIndirectReference(structureNamespaceNumber.Value, 0)])));
+            objects.Add(new PdfIndirectObject(structureRootNumber.Value, 0,
+                Dictionary(rootEntries.ToArray()), 0));
+            if (structureNamespaceNumber.HasValue)
+                objects.Add(new PdfIndirectObject(structureNamespaceNumber.Value, 0,
+                    Dictionary(
+                        ("Type", Name("Namespace")),
+                        ("NS", Latin1String("http://iso.org/pdf2/ssn"))), 0));
+
+            for (int index = 0; index < _structureElements.Count; index++)
+            {
+                StructureElementDefinition definition = _structureElements[index];
+                var entries = new List<(string Name, PdfObject Value)>
+                {
+                    ("Type", Name("StructElem")),
+                    ("S", Name(PdfStructureTypeNames.Name(definition.Type))),
+                    ("P", parents[index].HasValue
+                        ? new PdfIndirectReference(structureElementNumbers[parents[index]!.Value], 0)
+                        : new PdfIndirectReference(structureRootNumber.Value, 0))
+                };
+                if (definition.PageIndex.HasValue)
+                    entries.Add(("Pg", new PdfIndirectReference(
+                        allocated[definition.PageIndex.Value].PageNumber, 0)));
+                if (structureNamespaceNumber.HasValue)
+                    entries.Add(("NS", new PdfIndirectReference(
+                        structureNamespaceNumber.Value, 0)));
+                var structureKids = new List<PdfObject>();
+                if (definition.MarkedContentId.HasValue)
+                    structureKids.Add(new PdfInteger(definition.MarkedContentId.Value));
+                structureKids.AddRange(children[index].Select(child =>
+                    (PdfObject)new PdfIndirectReference(structureElementNumbers[child], 0)));
+                if (structureKids.Count == 1) entries.Add(("K", structureKids[0]));
+                else if (structureKids.Count > 1)
+                    entries.Add(("K", new PdfArray(structureKids)));
+                if (definition.AlternateDescription is not null)
+                    entries.Add(("Alt", UnicodeString(definition.AlternateDescription)));
+                if (definition.ActualText is not null)
+                    entries.Add(("ActualText", UnicodeString(definition.ActualText)));
+                objects.Add(new PdfIndirectObject(
+                    structureElementNumbers[index], 0, Dictionary(entries.ToArray()), 0));
+            }
         }
         foreach (AllocatedAttachment allocatedAttachment in allocatedAttachments)
             AddAttachmentObjects(objects, allocatedAttachment);
@@ -808,6 +1026,9 @@ public sealed partial class PdfDocumentBuilder
             if (allocatedPage.AnnotationNumbers.Length > 0)
                 entries.Add(("Annots", new PdfArray(allocatedPage.AnnotationNumbers.Select(number =>
                     (PdfObject)new PdfIndirectReference(number, 0)))));
+            int pageIndex = allocated.IndexOf(allocatedPage);
+            if (structureParentKeys.TryGetValue(pageIndex, out int structureParentKey))
+                entries.Add(("StructParents", new PdfInteger(structureParentKey)));
             objects.Add(new PdfIndirectObject(
                 allocatedPage.PageNumber, 0, Dictionary(entries.ToArray()), 0));
 
@@ -1530,7 +1751,8 @@ public sealed partial class PdfDocumentBuilder
         }
     }
 
-    private static byte[] BuildXmp(PdfDocumentMetadata metadata, PdfA4Flavor pdfA4Flavor)
+    private static byte[] BuildXmp(
+        PdfDocumentMetadata metadata, PdfA4Flavor pdfA4Flavor, bool pdfUa2)
     {
         using var output = new MemoryStream();
         var settings = new XmlWriterSettings
@@ -1562,6 +1784,11 @@ public sealed partial class PdfDocumentBuilder
                 WriteSimple("pdfaid", "rev", "http://www.aiim.org/pdfa/ns/id/", "2020");
                 if (pdfA4Flavor == PdfA4Flavor.EmbeddedFiles)
                     WriteSimple("pdfaid", "conformance", "http://www.aiim.org/pdfa/ns/id/", "F");
+            }
+            if (pdfUa2)
+            {
+                WriteSimple("pdfuaid", "part", "http://www.aiim.org/pdfua/ns/id/", "2");
+                WriteSimple("pdfuaid", "rev", "http://www.aiim.org/pdfua/ns/id/", "2024");
             }
             xml.WriteEndElement();
             xml.WriteEndElement();
@@ -1669,7 +1896,9 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfStandardFont, PdfName> Fonts,
         IReadOnlyList<EmbeddedFontUsage> EmbeddedFonts,
         IReadOnlyDictionary<PdfImage, PdfName> Images,
-        IReadOnlyList<LinkDefinition> Links);
+        IReadOnlyList<LinkDefinition> Links,
+        IReadOnlyCollection<int> MarkedContentIds,
+        bool HasUntaggedContent);
     private sealed record AllocatedPage(
         PageDefinition Definition, int PageNumber, int? ContentNumber, int[] AnnotationNumbers);
     private abstract record LinkDefinition(double X, double Y, double Width, double Height);
@@ -1683,6 +1912,13 @@ public sealed partial class PdfDocumentBuilder
         double X, double Y, double Width, double Height, string DestinationName)
         : LinkDefinition(X, Y, Width, Height);
     private sealed record BookmarkDefinition(string Title, int PageIndex, int Level);
+    private sealed record StructureElementDefinition(
+        PdfStructureType Type,
+        int Level,
+        int? PageIndex,
+        int? MarkedContentId,
+        string? AlternateDescription,
+        string? ActualText);
     private sealed record NamedDestinationDefinition(string Name, int PageIndex);
     private sealed record PageLabelDefinition(
         int PageIndex, PdfPageLabelStyle Style, string? Prefix, int StartNumber);
