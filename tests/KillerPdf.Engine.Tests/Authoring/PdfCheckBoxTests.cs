@@ -9,6 +9,35 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfCheckBoxTests
 {
     [Fact]
+    public void AddCheckBox_WritesCustomVisualStyleForBothStates()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddCheckBox(0, "styled", 0, 0, 20, 20, true,
+                appearanceStyle: new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.9, 0.95, 1),
+                    BorderColor = new PdfRgbColor(0.1, 0.3, 0.5),
+                    TextColor = new PdfRgbColor(0.7, 0.1, 0.2),
+                    BorderWidth = 2
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary normal = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")]);
+        PdfStream on = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(normal[Name("Yes")])));
+        string content = Encoding.ASCII.GetString(on.EncodedData.Span);
+
+        Assert.Contains("0.9 0.95 1 rg", content);
+        Assert.Contains("0.1 0.3 0.5 RG", content);
+        Assert.Contains("0.7 0.1 0.2 RG", content);
+        Assert.Contains("2 w", content);
+    }
+
+    [Fact]
     public void AddCheckBox_WritesIndependentDefaultState()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()

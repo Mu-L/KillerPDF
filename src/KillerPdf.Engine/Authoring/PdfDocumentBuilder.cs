@@ -589,7 +589,8 @@ public sealed partial class PdfDocumentBuilder
         TrueTypeFont? embeddedFont = null,
         PdfFormFieldMetadata? fieldMetadata = null,
         string? defaultValue = null,
-        string? richTextValue = null)
+        string? richTextValue = null,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -629,6 +630,7 @@ public sealed partial class PdfDocumentBuilder
                     nameof(richTextValue));
             ValidateRichTextValue(richTextValue);
         }
+        appearanceStyle = ValidateFormFieldAppearanceStyle(appearanceStyle);
         if (options.Password && embeddedFont is not null && embeddedFont.GetGlyphId('*') == 0)
             throw new ArgumentException("A password field font must contain the mask glyph U+002A.", nameof(embeddedFont));
         if (options.MaximumLength is <= 0)
@@ -644,7 +646,7 @@ public sealed partial class PdfDocumentBuilder
                 "A comb field requires MaximumLength and cannot also be multiline or a password field.", nameof(options));
         var definition = new TextFieldDefinition(
             pageIndex, name, x, y, width, height, value, defaultValue, richTextValue,
-            fontSize, options, embeddedFont,
+            fontSize, options, embeddedFont, appearanceStyle,
             ValidateFieldMetadata(fieldMetadata));
         ValidateInitialTextFieldFit(definition);
         _textFields.Add(definition);
@@ -663,7 +665,8 @@ public sealed partial class PdfDocumentBuilder
         PdfFormFieldMetadata? fieldMetadata = null,
         PdfFormFieldOptions? options = null,
         PdfCheckBoxMark mark = PdfCheckBoxMark.Check,
-        bool? defaultChecked = null)
+        bool? defaultChecked = null,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -674,7 +677,8 @@ public sealed partial class PdfDocumentBuilder
         if (!Enum.IsDefined(mark)) throw new ArgumentOutOfRangeException(nameof(mark));
         _checkBoxes.Add(new CheckBoxDefinition(
             pageIndex, name, x, y, width, height, isChecked, defaultChecked ?? isChecked, exportValue,
-            ValidateFieldMetadata(fieldMetadata), options ?? new PdfFormFieldOptions(), mark));
+            ValidateFieldMetadata(fieldMetadata), options ?? new PdfFormFieldOptions(), mark,
+            ValidateFormFieldAppearanceStyle(appearanceStyle)));
         return this;
     }
 
@@ -693,6 +697,10 @@ public sealed partial class PdfDocumentBuilder
         if (values.Length < 2)
             throw new ArgumentException("A radio group requires at least two options.", nameof(options));
         radioOptions ??= new PdfRadioGroupOptions();
+        radioOptions = radioOptions with
+        {
+            AppearanceStyle = ValidateFormFieldAppearanceStyle(radioOptions.AppearanceStyle)
+        };
         var exportValues = new HashSet<string>(StringComparer.Ordinal);
         foreach (PdfRadioButtonOption option in values)
         {
@@ -994,7 +1002,9 @@ public sealed partial class PdfDocumentBuilder
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string uri, double fontSize = 12, TrueTypeFont? embeddedFont = null,
         PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
-        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -1017,7 +1027,9 @@ public sealed partial class PdfDocumentBuilder
             IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
             highlightMode,
-            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
+            ValidateFormFieldAppearanceStyle(appearanceStyle),
+            ValidatePushButtonAppearanceOptions(appearanceOptions, embeddedFont)));
         return this;
     }
 
@@ -1026,7 +1038,9 @@ public sealed partial class PdfDocumentBuilder
         string label, int destinationPageIndex, PdfDestination? destination = null,
         double fontSize = 12, TrueTypeFont? embeddedFont = null,
         PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
-        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidatePageIndex(destinationPageIndex, nameof(destinationPageIndex));
@@ -1047,7 +1061,9 @@ public sealed partial class PdfDocumentBuilder
             fontSize, embeddedFont, IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
             highlightMode,
-            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
+            ValidateFormFieldAppearanceStyle(appearanceStyle),
+            ValidatePushButtonAppearanceOptions(appearanceOptions, embeddedFont)));
         return this;
     }
 
@@ -1056,7 +1072,9 @@ public sealed partial class PdfDocumentBuilder
         string label, string destinationName, double fontSize = 12,
         TrueTypeFont? embeddedFont = null, PdfFormFieldMetadata? fieldMetadata = null,
         PdfFormFieldOptions? fieldOptions = null,
-        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -1080,7 +1098,9 @@ public sealed partial class PdfDocumentBuilder
             IsResetAction: false, ResetFields: null, ExcludeResetFields: false,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
             highlightMode,
-            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
+            ValidateFormFieldAppearanceStyle(appearanceStyle),
+            ValidatePushButtonAppearanceOptions(appearanceOptions, embeddedFont)));
         return this;
     }
 
@@ -1089,7 +1109,9 @@ public sealed partial class PdfDocumentBuilder
         string label, IEnumerable<string>? fields = null, bool excludeFields = false,
         double fontSize = 12, TrueTypeFont? embeddedFont = null,
         PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
-        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -1118,7 +1140,9 @@ public sealed partial class PdfDocumentBuilder
             fontSize, embeddedFont, IsResetAction: true, resetFields, excludeFields,
             SubmitUri: null, SubmitFields: null, ExcludeSubmitFields: false,
             highlightMode,
-            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
+            ValidateFormFieldAppearanceStyle(appearanceStyle),
+            ValidatePushButtonAppearanceOptions(appearanceOptions, embeddedFont)));
         return this;
     }
 
@@ -1127,7 +1151,9 @@ public sealed partial class PdfDocumentBuilder
         string label, string uri, IEnumerable<string>? fields = null, bool excludeFields = false,
         double fontSize = 12, TrueTypeFont? embeddedFont = null,
         PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
-        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push)
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -1159,7 +1185,9 @@ public sealed partial class PdfDocumentBuilder
             fontSize, embeddedFont, IsResetAction: false, ResetFields: null,
             ExcludeResetFields: false, parsed.AbsoluteUri, submitFields, excludeFields,
             highlightMode,
-            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
+            ValidateFormFieldAppearanceStyle(appearanceStyle),
+            ValidatePushButtonAppearanceOptions(appearanceOptions, embeddedFont)));
         return this;
     }
 
@@ -1169,7 +1197,8 @@ public sealed partial class PdfDocumentBuilder
         PdfSignatureFieldLock? fieldLock = null,
         PdfSignatureSeedValue? seedValue = null,
         string? appearanceText = null, double fontSize = 12,
-        TrueTypeFont? embeddedFont = null)
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -1188,7 +1217,8 @@ public sealed partial class PdfDocumentBuilder
         _signatureFields.Add(new SignatureFieldDefinition(
             pageIndex, name, x, y, width, height,
             ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions(),
-            fieldLock, seedValue, appearanceText, fontSize, embeddedFont));
+            fieldLock, seedValue, appearanceText, fontSize, embeddedFont,
+            ValidateFormFieldAppearanceStyle(appearanceStyle)));
         return this;
     }
 
@@ -1464,7 +1494,10 @@ public sealed partial class PdfDocumentBuilder
         var allocatedChoiceFields = _choiceFields.Select(field =>
             new AllocatedChoiceField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedPushButtons = _pushButtons.Select(field =>
-            new AllocatedPushButton(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
+            new AllocatedPushButton(
+                field, nextObjectNumber++, nextObjectNumber++,
+                field.AppearanceOptions.RolloverLabel is null ? null : nextObjectNumber++,
+                field.AppearanceOptions.DownLabel is null ? null : nextObjectNumber++)).ToArray();
         var allocatedSignatureFields = _signatureFields.Select(field =>
             new AllocatedSignatureField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedTextNotes = _textNotes.Select(note =>
@@ -1554,7 +1587,12 @@ public sealed partial class PdfDocumentBuilder
                         .Concat(field.DefaultSelectedValues.Select(value =>
                             ChoiceDisplayValue(field, value)))))
                 .Concat(_pushButtons.Where(field => ReferenceEquals(field.EmbeddedFont, font))
-                    .Select(field => field.Label))
+                    .SelectMany(field => new[]
+                    {
+                        field.Label,
+                        field.AppearanceOptions.RolloverLabel,
+                        field.AppearanceOptions.DownLabel
+                    }.Where(value => value is not null).Cast<string>()))
                 .Concat(_signatureFields.Where(field =>
                         ReferenceEquals(field.EmbeddedFont, font) && field.AppearanceText is not null)
                     .Select(field => field.AppearanceText!))
@@ -2484,7 +2522,8 @@ public sealed partial class PdfDocumentBuilder
         TextFieldDefinition field = allocatedField.Definition;
         int pageNumber = pages[field.PageIndex].PageNumber;
         PdfString defaultAppearance = Latin1String(
-            $"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g");
+            $"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf " +
+            $"{ColorOperands(field.AppearanceStyle.TextColor)} rg");
         var fieldEntries = new List<(string Name, PdfObject Value)>
         {
                 ("Type", Name("Annot")),
@@ -2499,10 +2538,9 @@ public sealed partial class PdfDocumentBuilder
                 ("P", new PdfIndirectReference(pageNumber, 0)),
                 ("F", new PdfInteger(4)),
                 ("DA", defaultAppearance),
-                ("MK", Dictionary(
-                    ("BG", new PdfArray([new PdfInteger(1), new PdfInteger(1), new PdfInteger(1)])),
-                    ("BC", new PdfArray([new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)])))),
-                ("BS", Dictionary(("W", new PdfInteger(1)), ("S", Name("S")))),
+                ("MK", FormFieldAppearanceCharacteristics(field.AppearanceStyle)),
+                ("BS", Dictionary(
+                    ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
         };
         int flags = TextFieldFlags(field.Options, field.RichTextValue is not null);
@@ -2572,11 +2610,9 @@ public sealed partial class PdfDocumentBuilder
                     Number(field.X + field.Width), Number(field.Y + field.Height)])),
                 ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
                 ("F", new PdfInteger(4)),
-                ("MK", Dictionary(
-                    ("CA", Latin1String(CheckBoxMarkCaption(field.Mark))),
-                    ("BG", new PdfArray([new PdfInteger(1), new PdfInteger(1), new PdfInteger(1)])),
-                    ("BC", new PdfArray([new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)])))),
-                ("BS", Dictionary(("W", new PdfInteger(1)), ("S", Name("S")))),
+                ("MK", CheckBoxAppearanceCharacteristics(field)),
+                ("BS", Dictionary(
+                    ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))),
                 ("AP", Dictionary(("N", new PdfDictionary([
                     new KeyValuePair<PdfName, PdfObject>(
                         Name("Off"), new PdfIndirectReference(allocatedField.OffAppearanceNumber, 0)),
@@ -2599,8 +2635,8 @@ public sealed partial class PdfDocumentBuilder
     private static PdfStream CheckBoxAppearance(CheckBoxDefinition field, bool isChecked)
     {
         using var output = new MemoryStream();
-        WriteAscii(output, $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n");
-        WriteAscii(output, $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} {FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n");
+        WriteFormFieldBackgroundAndBorder(
+            output, field.Width, field.Height, field.AppearanceStyle, clip: false);
         if (isChecked)
         {
             double inset = Math.Min(3, Math.Min(field.Width, field.Height) / 4);
@@ -2628,8 +2664,24 @@ public sealed partial class PdfDocumentBuilder
         _ => throw new ArgumentOutOfRangeException(nameof(mark))
     };
 
+    private static PdfDictionary CheckBoxAppearanceCharacteristics(CheckBoxDefinition field)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("CA", Latin1String(CheckBoxMarkCaption(field.Mark)))
+        };
+        if (field.AppearanceStyle.BackgroundColor.HasValue)
+            entries.Add(("BG", RgbArray(field.AppearanceStyle.BackgroundColor.Value)));
+        if (field.AppearanceStyle.BorderColor.HasValue)
+            entries.Add(("BC", RgbArray(field.AppearanceStyle.BorderColor.Value)));
+        return Dictionary(entries.ToArray());
+    }
+
     private static void WriteCheckBoxMark(Stream output, CheckBoxDefinition field, double inset)
     {
+        WriteAscii(output,
+            $"{ColorOperands(field.AppearanceStyle.TextColor)} RG\n" +
+            $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n");
         double right = field.Width - inset;
         double top = field.Height - inset;
         switch (field.Mark)
@@ -2648,21 +2700,20 @@ public sealed partial class PdfDocumentBuilder
                     $"{FormatNumber(inset)} {FormatNumber(top)} l\nS\n");
                 break;
             case PdfCheckBoxMark.Circle:
-                output.Write("0 g\n"u8);
                 WriteCircle(output, field.Width / 2, field.Height / 2,
                     Math.Max(0, Math.Min(field.Width, field.Height) / 2 - inset));
                 output.Write("f\n"u8);
                 break;
             case PdfCheckBoxMark.Diamond:
                 WriteAscii(output,
-                    $"0 g\n{FormatNumber(field.Width / 2)} {FormatNumber(top)} m\n" +
+                    $"{FormatNumber(field.Width / 2)} {FormatNumber(top)} m\n" +
                     $"{FormatNumber(right)} {FormatNumber(field.Height / 2)} l\n" +
                     $"{FormatNumber(field.Width / 2)} {FormatNumber(inset)} l\n" +
                     $"{FormatNumber(inset)} {FormatNumber(field.Height / 2)} l\nh\nf\n");
                 break;
             case PdfCheckBoxMark.Square:
                 WriteAscii(output,
-                    $"0 g\n{FormatNumber(inset)} {FormatNumber(inset)} " +
+                    $"{FormatNumber(inset)} {FormatNumber(inset)} " +
                     $"{FormatNumber(Math.Max(0, field.Width - inset * 2))} " +
                     $"{FormatNumber(Math.Max(0, field.Height - inset * 2))} re\nf\n");
                 break;
@@ -2671,7 +2722,6 @@ public sealed partial class PdfDocumentBuilder
                 double centerY = field.Height / 2;
                 double outer = Math.Max(0, Math.Min(field.Width, field.Height) / 2 - inset);
                 double inner = outer * 0.42;
-                output.Write("0 g\n"u8);
                 for (int point = 0; point < 10; point++)
                 {
                     double angle = -Math.PI / 2 + point * Math.PI / 5;
@@ -2694,6 +2744,7 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyList<AllocatedPage> pages)
     {
         RadioGroupDefinition group = allocatedGroup.Definition;
+        PdfFormFieldAppearanceStyle style = group.RadioOptions.AppearanceStyle!;
         PdfName selected = Name(group.SelectedValue ?? "Off");
         PdfName defaultSelected = Name(group.DefaultSelectedValue ?? "Off");
         var groupEntries = new List<(string Name, PdfObject Value)>
@@ -2729,30 +2780,47 @@ public sealed partial class PdfDocumentBuilder
                     ("P", new PdfIndirectReference(pages[option.PageIndex].PageNumber, 0)),
                     ("F", new PdfInteger(4)),
                     ("AS", appearanceState),
+                    ("MK", FormFieldAppearanceCharacteristics(style)),
+                    ("BS", Dictionary(
+                        ("W", Number(style.BorderWidth)), ("S", Name("S")))),
                     ("AP", Dictionary(("N", new PdfDictionary([
                         new KeyValuePair<PdfName, PdfObject>(
                             Name("Off"), new PdfIndirectReference(allocatedWidget.OffAppearanceNumber, 0)),
                         new KeyValuePair<PdfName, PdfObject>(
                             onState, new PdfIndirectReference(allocatedWidget.OnAppearanceNumber, 0))]))))), 0));
             objects.Add(new PdfIndirectObject(allocatedWidget.OffAppearanceNumber, 0,
-                RadioAppearance(option, selected: false), 0));
+                RadioAppearance(option, style, selected: false), 0));
             objects.Add(new PdfIndirectObject(allocatedWidget.OnAppearanceNumber, 0,
-                RadioAppearance(option, selected: true), 0));
+                RadioAppearance(option, style, selected: true), 0));
         }
     }
 
-    private static PdfStream RadioAppearance(PdfRadioButtonOption option, bool selected)
+    private static PdfStream RadioAppearance(
+        PdfRadioButtonOption option, PdfFormFieldAppearanceStyle style, bool selected)
     {
         using var output = new MemoryStream();
         double centerX = option.Width / 2;
         double centerY = option.Height / 2;
         double radius = Math.Max(0, Math.Min(option.Width, option.Height) / 2 - 0.75);
-        output.Write("q\n1 g\n"u8);
-        WriteCircle(output, centerX, centerY, radius);
-        output.Write("B\n"u8);
+        output.Write("q\n"u8);
+        if (style.BackgroundColor.HasValue)
+        {
+            WriteAscii(output, $"{ColorOperands(style.BackgroundColor.Value)} rg\n");
+            WriteCircle(output, centerX, centerY, radius);
+            output.Write("f\n"u8);
+        }
+        if (style.BorderColor.HasValue && style.BorderWidth > 0)
+        {
+            WriteAscii(output,
+                $"{ColorOperands(style.BorderColor.Value)} RG\n" +
+                $"{FormatNumber(style.BorderWidth)} w\n");
+            WriteCircle(output, centerX, centerY,
+                Math.Max(0, radius - style.BorderWidth / 2));
+            output.Write("S\n"u8);
+        }
         if (selected)
         {
-            output.Write("0 g\n"u8);
+            WriteAscii(output, $"{ColorOperands(style.TextColor)} rg\n");
             WriteCircle(output, centerX, centerY, radius * 0.48);
             output.Write("f\n"u8);
         }
@@ -2806,7 +2874,14 @@ public sealed partial class PdfDocumentBuilder
                     Number(field.X + field.Width), Number(field.Y + field.Height)])),
                 ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
                 ("F", new PdfInteger(4)),
-                ("DA", Latin1String($"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g")),
+                ("DA", Latin1String(
+                    $"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf " +
+                    $"{ColorOperands(field.ChoiceOptions.AppearanceStyle!.TextColor)} rg")),
+                ("MK", FormFieldAppearanceCharacteristics(
+                    field.ChoiceOptions.AppearanceStyle)),
+                ("BS", Dictionary(
+                    ("W", Number(field.ChoiceOptions.AppearanceStyle.BorderWidth)),
+                    ("S", Name("S")))),
                 ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
         };
         if (!field.IsMultiSelect || field.SelectedValues.Count != 0)
@@ -2862,15 +2937,38 @@ public sealed partial class PdfDocumentBuilder
         double fontSize,
         string value,
         PdfName fontResource,
-        TrueTypeFont? embeddedFont)
+        TrueTypeFont? embeddedFont,
+        PdfFormFieldAppearanceStyle style,
+        PdfTextFieldAlignment alignment)
     {
         using var output = new MemoryStream();
-        WriteAscii(output, $"q\n1 1 1 rg\n0 0 {FormatNumber(width)} {FormatNumber(height)} re\nf\n");
-        WriteAscii(output, $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, width - 1))} {FormatNumber(Math.Max(0, height - 1))} re\nS\n");
-        WriteAscii(output, $"BT\n{NameToken(fontResource)} {FormatNumber(fontSize)} Tf\n0 g\n3 {FormatNumber(Math.Max(1, (height - fontSize) / 2))} Td\n");
+        WriteFormFieldBackgroundAndBorder(output, width, height, style, clip: false);
+        WriteAscii(output,
+            $"BT\n{NameToken(fontResource)} {FormatNumber(fontSize)} Tf\n" +
+            $"{ColorOperands(style.TextColor)} rg\n" +
+            $"{FormatNumber(SimpleTextX(width, fontSize, value, embeddedFont, alignment))} " +
+            $"{FormatNumber(Math.Max(1, (height - fontSize) / 2))} Td\n");
         WriteShownText(output, value, embeddedFont);
         output.Write("ET\nQ\n"u8);
         return output.ToArray();
+    }
+
+    private static double SimpleTextX(
+        double width, double fontSize, string value, TrueTypeFont? embeddedFont,
+        PdfTextFieldAlignment alignment)
+    {
+        double textWidth = embeddedFont is null
+            ? value.EnumerateRunes().Count() * fontSize * 0.55
+            : value.EnumerateRunes().Sum(rune =>
+                embeddedFont.GetPdfAdvanceWidth(embeddedFont.GetGlyphId(rune.Value)))
+                * fontSize / 1000;
+        return alignment switch
+        {
+            PdfTextFieldAlignment.Left => 3,
+            PdfTextFieldAlignment.Center => Math.Max(1, (width - textWidth) / 2),
+            PdfTextFieldAlignment.Right => Math.Max(1, width - textWidth - 3),
+            _ => throw new ArgumentOutOfRangeException(nameof(alignment))
+        };
     }
 
     private static byte[] BuildTextFieldAppearance(
@@ -2882,12 +2980,8 @@ public sealed partial class PdfDocumentBuilder
             return BuildAlignedTextFieldAppearance(field, fontResource);
 
         using var output = new MemoryStream();
-        WriteAscii(output,
-            $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
-            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} " +
-            $"{FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n" +
-            $"1 1 {FormatNumber(Math.Max(0, field.Width - 2))} " +
-            $"{FormatNumber(Math.Max(0, field.Height - 2))} re\nW\nn\n");
+        WriteFormFieldBackgroundAndBorder(
+            output, field.Width, field.Height, field.AppearanceStyle, clip: true);
         double leading = field.FontSize * 1.2;
         double baseline = field.Height - field.FontSize - 2;
         foreach (string line in WrapTextFieldLines(field))
@@ -2896,7 +2990,8 @@ public sealed partial class PdfDocumentBuilder
                 break;
             double x = TextFieldTextX(field, line);
             WriteAscii(output,
-                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
+                $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
                 $"{FormatNumber(x)} {FormatNumber(baseline)} Td\n");
             WriteShownText(output, line, field.EmbeddedFont);
             output.Write("ET\n"u8);
@@ -2916,10 +3011,11 @@ public sealed partial class PdfDocumentBuilder
     {
         string value = TextFieldAppearanceValue(field);
         using var output = new MemoryStream();
-        WriteAscii(output, $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n");
-        WriteAscii(output, $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} {FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n");
+        WriteFormFieldBackgroundAndBorder(
+            output, field.Width, field.Height, field.AppearanceStyle, clip: false);
         WriteAscii(output,
-            $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+            $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
+            $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
             $"{FormatNumber(TextFieldTextX(field, value))} " +
             $"{FormatNumber(Math.Max(1, (field.Height - field.FontSize) / 2))} Td\n");
         WriteShownText(output, value, field.EmbeddedFont);
@@ -3022,16 +3118,21 @@ public sealed partial class PdfDocumentBuilder
         int cells = field.Options.MaximumLength!.Value;
         double cellWidth = field.Width / cells;
         using var output = new MemoryStream();
-        WriteAscii(output,
-            $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
-            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} " +
-            $"{FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n");
-        for (int index = 1; index < cells; index++)
+        WriteFormFieldBackgroundAndBorder(
+            output, field.Width, field.Height, field.AppearanceStyle, clip: false);
+        if (field.AppearanceStyle.BorderColor.HasValue
+            && field.AppearanceStyle.BorderWidth > 0)
         {
-            double x = cellWidth * index;
             WriteAscii(output,
-                $"{FormatNumber(x)} 0.5 m\n{FormatNumber(x)} " +
-                $"{FormatNumber(Math.Max(0.5, field.Height - 0.5))} l\nS\n");
+                $"{ColorOperands(field.AppearanceStyle.BorderColor.Value)} RG\n" +
+                $"{FormatNumber(field.AppearanceStyle.BorderWidth)} w\n");
+            for (int index = 1; index < cells; index++)
+            {
+                double x = cellWidth * index;
+                WriteAscii(output,
+                    $"{FormatNumber(x)} 0.5 m\n{FormatNumber(x)} " +
+                    $"{FormatNumber(Math.Max(0.5, field.Height - 0.5))} l\nS\n");
+            }
         }
         int glyphCount = field.Value.EnumerateRunes().Count();
         int cell = field.Options.Alignment switch
@@ -3046,7 +3147,8 @@ public sealed partial class PdfDocumentBuilder
             double x = cellWidth * cell + Math.Max(1, (cellWidth - field.FontSize * 0.55) / 2);
             double y = Math.Max(1, (field.Height - field.FontSize) / 2);
             WriteAscii(output,
-                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
+                $"{ColorOperands(field.AppearanceStyle.TextColor)} rg\n" +
                 $"{FormatNumber(x)} {FormatNumber(y)} Td\n");
             WriteShownText(output, rune.ToString(), field.EmbeddedFont);
             output.Write("ET\n"u8);
@@ -3079,12 +3181,13 @@ public sealed partial class PdfDocumentBuilder
             ("F", new PdfInteger(4)),
             ("AS", Name("Normal")),
             ("H", Name(PushButtonHighlightName(field.HighlightMode))),
-            ("DA", Latin1String($"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g")),
-            ("MK", Dictionary(
-                ("CA", UnicodeString(field.Label)),
-                ("BG", new PdfArray([new PdfInteger(1), new PdfInteger(1), new PdfInteger(1)])),
-                ("BC", new PdfArray([new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)])))),
-            ("BS", Dictionary(("W", new PdfInteger(1)), ("S", Name("S")))),
+            ("DA", Latin1String(
+                $"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf " +
+                $"{ColorOperands(field.AppearanceStyle.TextColor)} rg")),
+            ("MK", PushButtonAppearanceCharacteristics(
+                field.Label, field.AppearanceStyle, field.AppearanceOptions)),
+            ("BS", Dictionary(
+                ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))),
             ("A", field.Uri is not null
                 ? Dictionary(("S", Name("URI")), ("URI", UnicodeString(field.Uri)))
                 : field.NamedDestination is not null
@@ -3098,8 +3201,7 @@ public sealed partial class PdfDocumentBuilder
                     ("D", DestinationArray(
                         new PdfIndirectReference(pages[field.DestinationPageIndex!.Value].PageNumber, 0),
                         field.Destination!)))),
-            ("AP", Dictionary(("N", Dictionary(
-                ("Normal", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))))
+            ("AP", PushButtonAppearanceDictionary(allocatedField))
         };
         AddFieldMetadata(entries, field.Metadata);
         objects.Add(new PdfIndirectObject(
@@ -3107,7 +3209,8 @@ public sealed partial class PdfDocumentBuilder
 
         byte[] appearance = BuildSimpleTextAppearance(
             field.Width, field.Height, field.FontSize, field.Label,
-            fontResource, field.EmbeddedFont);
+            fontResource, field.EmbeddedFont, field.AppearanceStyle,
+            field.AppearanceOptions.Alignment);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
             new PdfStream(Dictionary(
                 ("Type", Name("XObject")),
@@ -3119,6 +3222,52 @@ public sealed partial class PdfDocumentBuilder
                 ("Resources", Dictionary(("Font", new PdfDictionary([
                     new KeyValuePair<PdfName, PdfObject>(
                         fontResource, new PdfIndirectReference(fontNumber, 0))]))))),
+                appearance), 0));
+        AddAlternatePushButtonAppearance(
+            objects, allocatedField.RolloverAppearanceNumber,
+            field.AppearanceOptions.RolloverLabel, field, fontResource, fontNumber);
+        AddAlternatePushButtonAppearance(
+            objects, allocatedField.DownAppearanceNumber,
+            field.AppearanceOptions.DownLabel, field, fontResource, fontNumber);
+    }
+
+    private static PdfDictionary PushButtonAppearanceDictionary(AllocatedPushButton field)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("N", Dictionary(("Normal",
+                new PdfIndirectReference(field.AppearanceNumber, 0))))
+        };
+        if (field.RolloverAppearanceNumber.HasValue)
+            entries.Add(("R", Dictionary(("Normal",
+                new PdfIndirectReference(field.RolloverAppearanceNumber.Value, 0)))));
+        if (field.DownAppearanceNumber.HasValue)
+            entries.Add(("D", Dictionary(("Normal",
+                new PdfIndirectReference(field.DownAppearanceNumber.Value, 0)))));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static void AddAlternatePushButtonAppearance(
+        ICollection<PdfIndirectObject> objects, int? objectNumber, string? label,
+        PushButtonDefinition field, PdfName fontResource, int fontNumber)
+    {
+        if (!objectNumber.HasValue || label is null)
+            return;
+        byte[] appearance = BuildSimpleTextAppearance(
+            field.Width, field.Height, field.FontSize, label,
+            fontResource, field.EmbeddedFont, field.AppearanceStyle,
+            field.AppearanceOptions.Alignment);
+        objects.Add(new PdfIndirectObject(objectNumber.Value, 0,
+            new PdfStream(Dictionary(
+                ("Type", Name("XObject")),
+                ("Subtype", Name("Form")),
+                ("FormType", new PdfInteger(1)),
+                ("BBox", new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    Number(field.Width), Number(field.Height)])),
+                ("Resources", Dictionary(("Font", new PdfDictionary([
+                    new KeyValuePair<PdfName, PdfObject>(fontResource,
+                        new PdfIndirectReference(fontNumber, 0))]))))),
                 appearance), 0));
     }
 
@@ -3250,6 +3399,9 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Lock", SignatureFieldLockDictionary(field.FieldLock)));
         if (field.SeedValue is not null)
             entries.Add(("SV", SignatureSeedValueDictionary(field.SeedValue)));
+        entries.Add(("MK", FormFieldAppearanceCharacteristics(field.AppearanceStyle)));
+        entries.Add(("BS", Dictionary(
+            ("W", Number(field.AppearanceStyle.BorderWidth)), ("S", Name("S")))));
         objects.Add(new PdfIndirectObject(
             allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
@@ -3258,10 +3410,9 @@ public sealed partial class PdfDocumentBuilder
         if (field.AppearanceText is null)
         {
             using var output = new MemoryStream();
-            WriteAscii(output,
-                $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
-                $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} " +
-                $"{FormatNumber(Math.Max(0, field.Height - 1))} re\nS\nQ\n");
+            WriteFormFieldBackgroundAndBorder(
+                output, field.Width, field.Height, field.AppearanceStyle, clip: false);
+            output.Write("Q\n"u8);
             appearance = output.ToArray();
             resources = Dictionary();
         }
@@ -3269,7 +3420,8 @@ public sealed partial class PdfDocumentBuilder
         {
             appearance = BuildSimpleTextAppearance(
                 field.Width, field.Height, field.FontSize, field.AppearanceText,
-                fontResource, field.EmbeddedFont);
+                fontResource, field.EmbeddedFont, field.AppearanceStyle,
+                PdfTextFieldAlignment.Left);
             resources = Dictionary(("Font", new PdfDictionary([
                 new KeyValuePair<PdfName, PdfObject>(
                     fontResource, new PdfIndirectReference(fontNumber, 0))])));
@@ -3288,10 +3440,9 @@ public sealed partial class PdfDocumentBuilder
     private static byte[] BuildListBoxAppearance(ChoiceFieldDefinition field, PdfName fontResource)
     {
         using var output = new MemoryStream();
-        WriteAscii(output,
-            $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n" +
-            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} {FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n" +
-            $"1 1 {FormatNumber(Math.Max(0, field.Width - 2))} {FormatNumber(Math.Max(0, field.Height - 2))} re\nW\nn\n");
+        PdfFormFieldAppearanceStyle style = field.ChoiceOptions.AppearanceStyle!;
+        WriteFormFieldBackgroundAndBorder(
+            output, field.Width, field.Height, style, clip: true);
         double rowHeight = Math.Max(field.FontSize * 1.2, field.FontSize + 2);
         double rowTop = field.Height - 1;
         foreach (PdfChoiceOption option in field.Options.Skip(field.TopIndex))
@@ -3307,7 +3458,8 @@ public sealed partial class PdfDocumentBuilder
             }
             double textX = ChoiceTextX(field, option.DisplayValue);
             WriteAscii(output,
-                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+                $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
+                $"{ColorOperands(style.TextColor)} rg\n" +
                 $"{FormatNumber(textX)} {FormatNumber(Math.Max(1, rowBottom + (rowHeight - field.FontSize) / 2))} Td\n");
             WriteShownText(output, option.DisplayValue, field.EmbeddedFont);
             output.Write("ET\n"u8);
@@ -3322,10 +3474,12 @@ public sealed partial class PdfDocumentBuilder
     {
         string value = ChoiceDisplayValue(field, field.SelectedValues[0]);
         using var output = new MemoryStream();
-        WriteAscii(output, $"q\n1 g\n0 0 {FormatNumber(field.Width)} {FormatNumber(field.Height)} re\nf\n");
-        WriteAscii(output, $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, field.Width - 1))} {FormatNumber(Math.Max(0, field.Height - 1))} re\nS\n");
+        PdfFormFieldAppearanceStyle style = field.ChoiceOptions.AppearanceStyle!;
+        WriteFormFieldBackgroundAndBorder(
+            output, field.Width, field.Height, style, clip: false);
         WriteAscii(output,
-            $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n0 g\n" +
+            $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
+            $"{ColorOperands(style.TextColor)} rg\n" +
             $"{FormatNumber(ChoiceTextX(field, value))} " +
             $"{FormatNumber(Math.Max(1, (field.Height - field.FontSize) / 2))} Td\n");
         WriteShownText(output, value, field.EmbeddedFont);
@@ -3709,7 +3863,104 @@ public sealed partial class PdfDocumentBuilder
         options ??= new PdfChoiceFieldOptions();
         if (!Enum.IsDefined(options.Alignment))
             throw new ArgumentOutOfRangeException(nameof(options));
+        return options with
+        {
+            AppearanceStyle = ValidateFormFieldAppearanceStyle(options.AppearanceStyle)
+        };
+    }
+
+    private static PdfFormFieldAppearanceStyle ValidateFormFieldAppearanceStyle(
+        PdfFormFieldAppearanceStyle? style)
+    {
+        style ??= new PdfFormFieldAppearanceStyle();
+        if (!double.IsFinite(style.BorderWidth) || style.BorderWidth < 0)
+            throw new ArgumentOutOfRangeException(nameof(style));
+        return style;
+    }
+
+    private static PdfPushButtonAppearanceOptions ValidatePushButtonAppearanceOptions(
+        PdfPushButtonAppearanceOptions? options, TrueTypeFont? embeddedFont)
+    {
+        options ??= new PdfPushButtonAppearanceOptions();
+        if (!Enum.IsDefined(options.Alignment))
+            throw new ArgumentOutOfRangeException(nameof(options));
+        foreach (string? label in new[] { options.RolloverLabel, options.DownLabel })
+        {
+            if (label is null)
+                continue;
+            if (string.IsNullOrWhiteSpace(label))
+                throw new ArgumentException(
+                    "Alternate push-button captions cannot be empty.", nameof(options));
+            if (embeddedFont is null && label.Any(character => character > 0xFF))
+                throw new ArgumentException(
+                    "Unicode alternate push-button captions require an embedded font.",
+                    nameof(options));
+            if (embeddedFont is not null)
+                ValidateFormFontText(embeddedFont, label, nameof(options));
+        }
         return options;
+    }
+
+    private static PdfDictionary FormFieldAppearanceCharacteristics(
+        PdfFormFieldAppearanceStyle style)
+    {
+        var entries = new List<(string Name, PdfObject Value)>();
+        if (style.BackgroundColor.HasValue)
+            entries.Add(("BG", RgbArray(style.BackgroundColor.Value)));
+        if (style.BorderColor.HasValue)
+            entries.Add(("BC", RgbArray(style.BorderColor.Value)));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static PdfDictionary PushButtonAppearanceCharacteristics(
+        string label, PdfFormFieldAppearanceStyle style,
+        PdfPushButtonAppearanceOptions options)
+    {
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("CA", UnicodeString(label))
+        };
+        if (style.BackgroundColor.HasValue)
+            entries.Add(("BG", RgbArray(style.BackgroundColor.Value)));
+        if (style.BorderColor.HasValue)
+            entries.Add(("BC", RgbArray(style.BorderColor.Value)));
+        if (options.RolloverLabel is not null)
+            entries.Add(("RC", UnicodeString(options.RolloverLabel)));
+        if (options.DownLabel is not null)
+            entries.Add(("AC", UnicodeString(options.DownLabel)));
+        return Dictionary(entries.ToArray());
+    }
+
+    private static PdfArray RgbArray(PdfRgbColor color) => new([
+        Number(color.Red), Number(color.Green), Number(color.Blue)]);
+
+    private static void WriteFormFieldBackgroundAndBorder(
+        Stream output, double width, double height,
+        PdfFormFieldAppearanceStyle style, bool clip)
+    {
+        output.Write("q\n"u8);
+        if (style.BackgroundColor.HasValue)
+            WriteAscii(output,
+                $"{ColorOperands(style.BackgroundColor.Value)} rg\n" +
+                $"0 0 {FormatNumber(width)} {FormatNumber(height)} re\nf\n");
+        if (style.BorderColor.HasValue && style.BorderWidth > 0)
+        {
+            double inset = style.BorderWidth / 2;
+            WriteAscii(output,
+                $"{ColorOperands(style.BorderColor.Value)} RG\n" +
+                $"{FormatNumber(style.BorderWidth)} w\n" +
+                $"{FormatNumber(inset)} {FormatNumber(inset)} " +
+                $"{FormatNumber(Math.Max(0, width - style.BorderWidth))} " +
+                $"{FormatNumber(Math.Max(0, height - style.BorderWidth))} re\nS\n");
+        }
+        if (clip)
+        {
+            double inset = Math.Max(1, style.BorderWidth);
+            WriteAscii(output,
+                $"{FormatNumber(inset)} {FormatNumber(inset)} " +
+                $"{FormatNumber(Math.Max(0, width - inset * 2))} " +
+                $"{FormatNumber(Math.Max(0, height - inset * 2))} re\nW\nn\n");
+        }
     }
 
     private static void ValidateRichTextValue(string value)
@@ -4498,14 +4749,15 @@ public sealed partial class PdfDocumentBuilder
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         string Value, string DefaultValue, string? RichTextValue,
         double FontSize, PdfTextFieldOptions Options,
-        TrueTypeFont? EmbeddedFont,
+        TrueTypeFont? EmbeddedFont, PdfFormFieldAppearanceStyle AppearanceStyle,
         PdfFormFieldMetadata? Metadata);
     private sealed record AllocatedTextField(
         TextFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record CheckBoxDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         bool IsChecked, bool DefaultChecked, string ExportValue, PdfFormFieldMetadata? Metadata,
-        PdfFormFieldOptions Options, PdfCheckBoxMark Mark);
+        PdfFormFieldOptions Options, PdfCheckBoxMark Mark,
+        PdfFormFieldAppearanceStyle AppearanceStyle);
     private sealed record AllocatedCheckBox(
         CheckBoxDefinition Definition,
         int FieldNumber,
@@ -4540,14 +4792,18 @@ public sealed partial class PdfDocumentBuilder
         bool IsResetAction, IReadOnlyList<string>? ResetFields, bool ExcludeResetFields,
         string? SubmitUri, IReadOnlyList<string>? SubmitFields, bool ExcludeSubmitFields,
         PdfPushButtonHighlightMode HighlightMode,
-        PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
+        PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions,
+        PdfFormFieldAppearanceStyle AppearanceStyle,
+        PdfPushButtonAppearanceOptions AppearanceOptions);
     private sealed record AllocatedPushButton(
-        PushButtonDefinition Definition, int FieldNumber, int AppearanceNumber);
+        PushButtonDefinition Definition, int FieldNumber, int AppearanceNumber,
+        int? RolloverAppearanceNumber, int? DownAppearanceNumber);
     private sealed record SignatureFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions,
         PdfSignatureFieldLock? FieldLock, PdfSignatureSeedValue? SeedValue,
-        string? AppearanceText, double FontSize, TrueTypeFont? EmbeddedFont);
+        string? AppearanceText, double FontSize, TrueTypeFont? EmbeddedFont,
+        PdfFormFieldAppearanceStyle AppearanceStyle);
     private sealed record AllocatedSignatureField(
         SignatureFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record OutputIntentDefinition(

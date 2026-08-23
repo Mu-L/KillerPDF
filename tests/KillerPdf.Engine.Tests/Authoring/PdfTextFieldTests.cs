@@ -12,6 +12,55 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfTextFieldTests
 {
     [Fact]
+    public void AddTextField_WritesCustomVisualStyleIntoWidgetAndAppearance()
+    {
+        var style = new PdfFormFieldAppearanceStyle
+        {
+            BackgroundColor = new PdfRgbColor(0.9, 0.8, 0.7),
+            BorderColor = new PdfRgbColor(0.1, 0.2, 0.3),
+            TextColor = new PdfRgbColor(0.4, 0.5, 0.6),
+            BorderWidth = 2
+        };
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "styled", 0, 0, 160, 24, "Styled",
+                appearanceStyle: style)
+            .Build());
+        PdfDictionary field = FirstField(document);
+        PdfDictionary characteristics = Assert.IsType<PdfDictionary>(field[Name("MK")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+
+        Assert.True(characteristics.ContainsKey(Name("BG")));
+        Assert.True(characteristics.ContainsKey(Name("BC")));
+        Assert.Contains("0.9 0.8 0.7 rg", content);
+        Assert.Contains("0.1 0.2 0.3 RG", content);
+        Assert.Contains("0.4 0.5 0.6 rg", content);
+        Assert.Contains("2 w", content);
+    }
+
+    [Fact]
+    public void AddTextField_AllowsTransparentBorderlessStyleAndRejectsInvalidWidth()
+    {
+        byte[] pdf = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "plain", 0, 0, 100, 20, appearanceStyle:
+                new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = null,
+                    BorderColor = null,
+                    BorderWidth = 0
+                })
+            .Build();
+        Assert.NotEmpty(pdf);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfDocumentBuilder()
+            .AddBlankPage().AddTextField(0, "invalid", 0, 0, 100, 20,
+                appearanceStyle: new PdfFormFieldAppearanceStyle { BorderWidth = -1 }));
+    }
+
+    [Fact]
     public void AddTextField_WritesIndependentDefaultValueAndFileSelectFlag()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
@@ -39,6 +88,38 @@ public sealed class PdfTextFieldTests
         Assert.Throws<ArgumentException>(() => builder.AddTextField(
             0, "multiline-file", 0, 0, 100, 20,
             options: new PdfTextFieldOptions { FileSelect = true, Multiline = true }));
+    }
+
+    [Fact]
+    public void AddTextField_WritesValidatedRichTextValue()
+    {
+        const string rich =
+            "<body xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Approved</b></p></body>";
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "notes", 0, 0, 180, 40, "Approved",
+                options: new PdfTextFieldOptions { Multiline = true }, richTextValue: rich)
+            .Build());
+        PdfDictionary field = FirstField(document);
+
+        Assert.Equal((1 << 25) | (1 << 12),
+            Assert.IsType<PdfInteger>(field[Name("Ff")]).Value);
+        Assert.Equal(rich, DecodeUnicode(Assert.IsType<PdfString>(field[Name("RV")])));
+    }
+
+    [Fact]
+    public void AddTextField_RejectsInvalidOrIncompatibleRichText()
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+
+        Assert.Throws<ArgumentException>(() => builder.AddTextField(
+            0, "xml", 0, 0, 100, 20, richTextValue: "<body>broken"));
+        Assert.Throws<ArgumentException>(() => builder.AddTextField(
+            0, "root", 0, 0, 100, 20, richTextValue: "<p xmlns=\"http://www.w3.org/1999/xhtml\">Text</p>"));
+        Assert.Throws<ArgumentException>(() => builder.AddTextField(
+            0, "password", 0, 0, 100, 20,
+            options: new PdfTextFieldOptions { Password = true },
+            richTextValue: "<body xmlns=\"http://www.w3.org/1999/xhtml\">Text</body>"));
     }
 
     [Fact]

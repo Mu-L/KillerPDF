@@ -56,6 +56,13 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Added independent checkbox and radio-group default states while preserving current widget appearance states, enabling reset actions to restore intentionally different selections.
 - Added independent combo-box and list-box default selections, including option-ordered multi-select defaults and export-value validation, so resets can restore a different choice state.
 - Added typed file-selection text fields with the PDF file-select flag and validation against incompatible multiline, password, or comb behavior.
+- Added XHTML rich-text values for text fields with secure XML parsing, required XHTML body roots, the matching rich-text field flag, and rejection of password, file-selection, or comb combinations.
+- Added reusable text-field visual styles with optional backgrounds and borders, RGB text colors, finite nonnegative border widths, matching widget appearance characteristics, and generated appearances for single-line, multiline, password, and comb fields.
+- Extended reusable visual styles to combo boxes and list boxes, including default appearances, widget background and border characteristics, and styled generated text and selection-list appearances.
+- Extended reusable visual styles to every push-button action and visible unsigned-signature prompt, keeping action highlighting and embedded-font behavior while synchronizing widget characteristics and generated appearances.
+- Extended reusable visual styles to checkbox and radio-button widgets, applying configurable backgrounds, borders, widths, and mark colors consistently to widget characteristics and every on/off appearance state.
+- Added typed rollover and pressed captions to every push-button action, with Unicode font validation, matching widget characteristics, and independently generated normal, rollover, and down appearance streams.
+- Added measured left, center, or right push-button caption alignment across normal, rollover, and down appearances, using actual embedded-font advances when available.
 - Added full-PDF submit buttons restricted to HTTP or HTTPS endpoints, with URL file specifications and validated include or exclude field lists.
 - Added typed push-button highlighting for none, invert, outline, push, and toggle interaction modes.
 - Added typed checkbox marks with matching appearance characteristics and generated check, cross, circle, diamond, square, or star artwork.

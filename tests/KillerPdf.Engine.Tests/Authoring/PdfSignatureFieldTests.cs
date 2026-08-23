@@ -9,6 +9,34 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfSignatureFieldTests
 {
     [Fact]
+    public void AddSignatureField_WritesCustomPromptStyle()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "signature", 0, 0, 160, 36,
+                appearanceText: "Sign here", appearanceStyle: new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(1, 0.95, 0.8),
+                    BorderColor = new PdfRgbColor(0.6, 0.35, 0.1),
+                    TextColor = new PdfRgbColor(0.4, 0.15, 0.05),
+                    BorderWidth = 2
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+
+        Assert.Contains("1 0.95 0.8 rg", content);
+        Assert.Contains("0.6 0.35 0.1 RG", content);
+        Assert.Contains("0.4 0.15 0.05 rg", content);
+        Assert.Contains("2 w", content);
+    }
+
+    [Fact]
     public void AddSignatureField_WritesUnsignedWidgetAndAcroFormFlags()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()

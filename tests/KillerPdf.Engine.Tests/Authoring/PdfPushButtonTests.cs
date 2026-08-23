@@ -9,6 +9,110 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfPushButtonTests
 {
     [Theory]
+    [InlineData(PdfTextFieldAlignment.Left, "3 6 Td")]
+    [InlineData(PdfTextFieldAlignment.Center, "56.8 6 Td")]
+    [InlineData(PdfTextFieldAlignment.Right, "110.6 6 Td")]
+    public void AddUriPushButton_MeasuresCaptionAlignment(
+        PdfTextFieldAlignment alignment, string expectedPosition)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "open", 0, 0, 140, 24, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions { Alignment = alignment })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary normal = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(normal[Name("Normal")])));
+
+        Assert.Contains(expectedPosition,
+            Encoding.ASCII.GetString(appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void AddUriPushButton_RejectsInvalidCaptionAlignment()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddUriPushButton(0, "open", 0, 0, 140, 24, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    Alignment = (PdfTextFieldAlignment)9
+                }));
+    }
+
+    [Fact]
+    public void AddUriPushButton_WritesRolloverAndDownCaptionsAndAppearances()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "open", 0, 0, 140, 24, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    RolloverLabel = "Open now",
+                    DownLabel = "Opening"
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary characteristics = Assert.IsType<PdfDictionary>(field[Name("MK")]);
+        PdfDictionary appearances = Assert.IsType<PdfDictionary>(field[Name("AP")]);
+        PdfStream rollover = ResolveStateAppearance(document, appearances[Name("R")]);
+        PdfStream down = ResolveStateAppearance(document, appearances[Name("D")]);
+
+        Assert.Equal("Open now", DecodeUnicode(
+            Assert.IsType<PdfString>(characteristics[Name("RC")])));
+        Assert.Equal("Opening", DecodeUnicode(
+            Assert.IsType<PdfString>(characteristics[Name("AC")])));
+        Assert.Contains("(Open now) Tj", Encoding.ASCII.GetString(rollover.EncodedData.Span));
+        Assert.Contains("(Opening) Tj", Encoding.ASCII.GetString(down.EncodedData.Span));
+    }
+
+    [Fact]
+    public void AddUriPushButton_ValidatesAlternateCaptions()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddUriPushButton(0, "open", 0, 0, 140, 24, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions { RolloverLabel = " " }));
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddUriPushButton(0, "open", 0, 0, 140, 24, "Open", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions { DownLabel = "打开" }));
+    }
+
+    [Fact]
+    public void AddUriPushButton_WritesCustomVisualStyle()
+    {
+        var style = new PdfFormFieldAppearanceStyle
+        {
+            BackgroundColor = new PdfRgbColor(0.8, 0.9, 1),
+            BorderColor = new PdfRgbColor(0.1, 0.3, 0.5),
+            TextColor = new PdfRgbColor(0.2, 0.2, 0.7),
+            BorderWidth = 2
+        };
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddUriPushButton(0, "open", 0, 0, 140, 24, "Open", "https://example.com",
+                appearanceStyle: style)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary normal = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(normal[Name("Normal")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+
+        Assert.Contains("0.8 0.9 1 rg", content);
+        Assert.Contains("0.1 0.3 0.5 RG", content);
+        Assert.Contains("0.2 0.2 0.7 rg", content);
+        Assert.Contains("2 w", content);
+    }
+
+    [Theory]
     [InlineData(PdfPushButtonHighlightMode.None, "N")]
     [InlineData(PdfPushButtonHighlightMode.Invert, "I")]
     [InlineData(PdfPushButtonHighlightMode.Outline, "O")]
@@ -217,6 +321,12 @@ public sealed class PdfPushButtonTests
 
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
+    private static PdfStream ResolveStateAppearance(PdfDocument document, PdfObject value)
+    {
+        PdfDictionary states = Assert.IsType<PdfDictionary>(value);
+        return Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(states[Name("Normal")])));
+    }
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

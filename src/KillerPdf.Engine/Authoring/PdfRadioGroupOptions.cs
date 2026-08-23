@@ -5,4 +5,5 @@ public sealed record PdfRadioGroupOptions
 {
     public bool NoToggleToOff { get; init; }
     public bool RadiosInUnison { get; init; }
+    public PdfFormFieldAppearanceStyle? AppearanceStyle { get; init; }
 }

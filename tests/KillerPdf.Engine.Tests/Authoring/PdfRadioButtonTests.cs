@@ -9,6 +9,42 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfRadioButtonTests
 {
     [Fact]
+    public void AddRadioGroup_WritesCustomVisualStyle()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddRadioGroup("styled", [
+                new PdfRadioButtonOption(0, 0, 0, 20, 20, "A"),
+                new PdfRadioButtonOption(0, 30, 0, 20, 20, "B")], "A",
+                radioOptions: new PdfRadioGroupOptions
+                {
+                    AppearanceStyle = new PdfFormFieldAppearanceStyle
+                    {
+                        BackgroundColor = new PdfRgbColor(0.9, 1, 0.9),
+                        BorderColor = new PdfRgbColor(0.1, 0.5, 0.2),
+                        TextColor = new PdfRgbColor(0.7, 0.1, 0.4),
+                        BorderWidth = 2
+                    }
+                })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary parent = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfDictionary widget = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(parent[Name("Kids")])[0]);
+        PdfDictionary normal = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(widget[Name("AP")])[Name("N")]);
+        PdfStream on = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(normal[Name("A")])));
+        string content = Encoding.ASCII.GetString(on.EncodedData.Span);
+
+        Assert.Contains("0.9 1 0.9 rg", content);
+        Assert.Contains("0.1 0.5 0.2 RG", content);
+        Assert.Contains("0.7 0.1 0.4 rg", content);
+        Assert.Contains("2 w", content);
+    }
+
+    [Fact]
     public void AddRadioGroup_WritesIndependentDefaultValue()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()

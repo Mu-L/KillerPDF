@@ -8,4 +8,5 @@ public sealed record PdfChoiceFieldOptions
     public bool CommitOnSelectionChange { get; init; }
     public PdfTextFieldAlignment Alignment { get; init; }
     public IReadOnlyList<string>? DefaultSelectedExportValues { get; init; }
+    public PdfFormFieldAppearanceStyle? AppearanceStyle { get; init; }
 }

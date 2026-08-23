@@ -9,6 +9,37 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfChoiceFieldTests
 {
     [Fact]
+    public void ChoiceFields_WriteCustomVisualStyle()
+    {
+        var style = new PdfFormFieldAppearanceStyle
+        {
+            BackgroundColor = new PdfRgbColor(0.95, 0.9, 0.8),
+            BorderColor = new PdfRgbColor(0.3, 0.2, 0.1),
+            TextColor = new PdfRgbColor(0.2, 0.4, 0.6),
+            BorderWidth = 2
+        };
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddComboBox(0, "styled", 0, 0, 160, 24, ["Alpha", "Beta"],
+                choiceOptions: new PdfChoiceFieldOptions { AppearanceStyle = style })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary field = ResolveDictionary(document, Assert.IsType<PdfArray>(
+            Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")])[Name("Fields")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+
+        Assert.True(field.ContainsKey(Name("MK")));
+        Assert.True(field.ContainsKey(Name("BS")));
+        Assert.Contains("0.95 0.9 0.8 rg", content);
+        Assert.Contains("0.3 0.2 0.1 RG", content);
+        Assert.Contains("0.2 0.4 0.6 rg", content);
+        Assert.Contains("2 w", content);
+    }
+
+    [Fact]
     public void ChoiceFields_WriteIndependentDefaultSelectionsInOptionOrder()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()

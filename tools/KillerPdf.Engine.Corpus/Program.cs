@@ -663,9 +663,17 @@ if (args.Length == 2 && args[0] == "--form-smoke")
         .AddBlankPage()
         .AddNamedDestination("FormTop", 0, PdfDestination.At(top: 760))
         .AddTextField(0, "customer.name", 72, 680, 240, 28, "Steve the Killer", 12,
-            new PdfTextFieldOptions { Alignment = PdfTextFieldAlignment.Center })
+            new PdfTextFieldOptions { Alignment = PdfTextFieldAlignment.Center },
+            appearanceStyle: new PdfFormFieldAppearanceStyle
+            {
+                BackgroundColor = new PdfRgbColor(0.96, 0.96, 1),
+                BorderColor = new PdfRgbColor(0.2, 0.3, 0.65),
+                TextColor = new PdfRgbColor(0.1, 0.1, 0.3),
+                BorderWidth = 1.5
+            })
         .AddTextField(0, "customer.address", 72, 620, 200, 48, "First line\nSecond line", 11,
-            new PdfTextFieldOptions { Multiline = true })
+            new PdfTextFieldOptions { Multiline = true },
+            richTextValue: "<body xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>First line</b></p><p>Second line</p></body>")
         .AddTextField(0, "customer.pin", 72, 570, 120, 24, "1234", 12,
             new PdfTextFieldOptions { Comb = true, MaximumLength = 6 })
         .AddTextField(0, "customer.password", 72, 535, 160, 24, "secret", 12,
@@ -673,11 +681,25 @@ if (args.Length == 2 && args[0] == "--form-smoke")
         .AddTextField(0, "customer.attachment", 300, 620, 180, 24, "C:/current.pdf", 10,
             new PdfTextFieldOptions { FileSelect = true }, defaultValue: "C:/default.pdf")
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
-            mark: PdfCheckBoxMark.Diamond, defaultChecked: false)
+            mark: PdfCheckBoxMark.Diamond, defaultChecked: false,
+            appearanceStyle: new PdfFormFieldAppearanceStyle
+            {
+                BackgroundColor = new PdfRgbColor(0.9, 1, 0.9),
+                BorderColor = new PdfRgbColor(0.1, 0.5, 0.2),
+                TextColor = new PdfRgbColor(0.05, 0.35, 0.12)
+            })
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 600, 18, 18, "Free"),
             new PdfRadioButtonOption(0, 120, 600, 18, 18, "Pro")], "Pro",
-            defaultSelectedValue: "Free")
+            radioOptions: new PdfRadioGroupOptions
+            {
+                AppearanceStyle = new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.94, 0.97, 1),
+                    BorderColor = new PdfRgbColor(0.2, 0.35, 0.6),
+                    TextColor = new PdfRgbColor(0.1, 0.2, 0.5)
+                }
+            }, defaultSelectedValue: "Free")
         .AddSignatureField(0, "customer.signature", 300, 470, 180, 52,
             new PdfFormFieldMetadata { Tooltip = "Customer signature" },
             fieldLock: new PdfSignatureFieldLock(
@@ -690,7 +712,13 @@ if (args.Length == 2 && args[0] == "--form-smoke")
                 RequireDigestMethod = true,
                 Reasons = ["Approved", "Reviewed"],
                 CertificationPermission = PdfSignatureCertificationPermission.ApprovalSignature
-            }, appearanceText: "Sign here")
+            }, appearanceText: "Sign here", appearanceStyle: new PdfFormFieldAppearanceStyle
+            {
+                BackgroundColor = new PdfRgbColor(1, 0.96, 0.86),
+                BorderColor = new PdfRgbColor(0.6, 0.35, 0.1),
+                TextColor = new PdfRgbColor(0.4, 0.15, 0.05),
+                BorderWidth = 1.5
+            })
         .AddComboBoxOptions(0, "customer.theme", 72, 550, 180, 24,
             [new PdfChoiceOption("dark", "Dark"),
              new PdfChoiceOption("mourning", "Mourning"),
@@ -698,11 +726,28 @@ if (args.Length == 2 && args[0] == "--form-smoke")
             choiceOptions: new PdfChoiceFieldOptions
             {
                 Alignment = PdfTextFieldAlignment.Center,
-                DefaultSelectedExportValues = ["dark"]
+                DefaultSelectedExportValues = ["dark"],
+                AppearanceStyle = new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.98, 0.94, 0.86),
+                    BorderColor = new PdfRgbColor(0.5, 0.3, 0.1),
+                    TextColor = new PdfRgbColor(0.25, 0.12, 0.04)
+                }
             })
         .AddUriPushButton(0, "customer.documentation", 300, 550, 180, 28,
             "Open KillerPDF docs", "https://killerpdf.com",
-            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Open KillerPDF documentation" })
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Open KillerPDF documentation" },
+            appearanceStyle: new PdfFormFieldAppearanceStyle
+            {
+                BackgroundColor = new PdfRgbColor(0.86, 0.93, 1),
+                BorderColor = new PdfRgbColor(0.15, 0.35, 0.65),
+                TextColor = new PdfRgbColor(0.08, 0.2, 0.5)
+            }, appearanceOptions: new PdfPushButtonAppearanceOptions
+            {
+                Alignment = PdfTextFieldAlignment.Center,
+                RolloverLabel = "Open documentation",
+                DownLabel = "Opening docs"
+            })
         .AddPagePushButton(0, "customer.top", 300, 515, 180, 28,
             "Return to top", 0, PdfDestination.At(top: 760))
         .AddNamedDestinationPushButton(0, "customer.namedTop", 300, 480, 180, 28,
@@ -734,10 +779,17 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
             {
                 Tooltip = "Customer name",
                 MappingName = "customer_name"
+            }, appearanceStyle: new PdfFormFieldAppearanceStyle
+            {
+                BackgroundColor = new PdfRgbColor(0.96, 0.96, 1),
+                BorderColor = new PdfRgbColor(0.2, 0.3, 0.65),
+                TextColor = new PdfRgbColor(0.1, 0.1, 0.3),
+                BorderWidth = 1.5
             })
         .AddTextField(0, "customer.address", 72, 660, 200, 48, "First line\nSecond line", 11,
             new PdfTextFieldOptions { Multiline = true }, embeddedFont: font,
-            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Address", MappingName = "customer_address" })
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Address", MappingName = "customer_address" },
+            richTextValue: "<body xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>First line</b></p><p>Second line</p></body>")
         .AddTextField(0, "customer.pin", 300, 680, 120, 24, "1234", 12,
             new PdfTextFieldOptions { Comb = true, MaximumLength = 6 }, embeddedFont: font,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "PIN", MappingName = "customer_pin" })
@@ -755,7 +807,13 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
             choiceOptions: new PdfChoiceFieldOptions
             {
                 Alignment = PdfTextFieldAlignment.Right,
-                DefaultSelectedExportValues = ["dark"]
+                DefaultSelectedExportValues = ["dark"],
+                AppearanceStyle = new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.98, 0.94, 0.86),
+                    BorderColor = new PdfRgbColor(0.5, 0.3, 0.1),
+                    TextColor = new PdfRgbColor(0.25, 0.12, 0.04)
+                }
             })
         .AddListBox(0, "customer.features", 300, 590, 180, 72,
             ["Annotations", "Forms", "PDF/A"], "Forms", embeddedFont: font,
@@ -769,11 +827,26 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
             mark: PdfCheckBoxMark.Circle,
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Approved", MappingName = "customer_approved" },
-            defaultChecked: false)
+            defaultChecked: false,
+            appearanceStyle: new PdfFormFieldAppearanceStyle
+            {
+                BackgroundColor = new PdfRgbColor(0.9, 1, 0.9),
+                BorderColor = new PdfRgbColor(0.1, 0.5, 0.2),
+                TextColor = new PdfRgbColor(0.05, 0.35, 0.12)
+            })
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 550, 18, 18, "Free"),
             new PdfRadioButtonOption(0, 120, 550, 18, 18, "Pro")], "Pro",
             fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Plan", MappingName = "customer_plan" },
+            radioOptions: new PdfRadioGroupOptions
+            {
+                AppearanceStyle = new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.94, 0.97, 1),
+                    BorderColor = new PdfRgbColor(0.2, 0.35, 0.6),
+                    TextColor = new PdfRgbColor(0.1, 0.2, 0.5)
+                }
+            },
             defaultSelectedValue: "Free")
         .AddSignatureField(0, "customer.signature", 72, 470, 180, 52,
             new PdfFormFieldMetadata { Tooltip = "Customer signature", MappingName = "customer_signature" },
@@ -789,7 +862,14 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
                 RequireReason = true,
                 CertificationPermission =
                     PdfSignatureCertificationPermission.FormFillingAndSignatures
-            }, appearanceText: "Sign for archival", embeddedFont: font)
+            }, appearanceText: "Sign for archival", embeddedFont: font,
+            appearanceStyle: new PdfFormFieldAppearanceStyle
+            {
+                BackgroundColor = new PdfRgbColor(1, 0.96, 0.86),
+                BorderColor = new PdfRgbColor(0.6, 0.35, 0.1),
+                TextColor = new PdfRgbColor(0.4, 0.15, 0.05),
+                BorderWidth = 1.5
+            })
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
