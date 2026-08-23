@@ -686,13 +686,21 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
         .EnablePdfA4Conformance()
         .AddBlankPage()
         .AddTextField(0, "customer.name", 72, 680, 240, 28, "KillerPDF café Ω", 12,
-            embeddedFont: font)
+            embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata
+            {
+                Tooltip = "Customer name",
+                MappingName = "customer_name"
+            })
         .AddComboBox(0, "customer.theme", 72, 630, 180, 24,
-            ["Dark", "Mourning", "98SE"], "Mourning", embeddedFont: font)
-        .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true)
+            ["Dark", "Mourning", "98SE"], "Mourning", embeddedFont: font,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Theme", MappingName = "customer_theme" })
+        .AddCheckBox(0, "customer.approved", 72, 590, 18, 18, isChecked: true,
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Approved", MappingName = "customer_approved" })
         .AddRadioGroup("customer.plan", [
             new PdfRadioButtonOption(0, 72, 550, 18, 18, "Free"),
-            new PdfRadioButtonOption(0, 120, 550, 18, 18, "Pro")], "Pro")
+            new PdfRadioButtonOption(0, 120, 550, 18, 18, "Pro")], "Pro",
+            fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Plan", MappingName = "customer_plan" })
         .Build();
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
@@ -1080,7 +1088,27 @@ if (args.Length == 3 && args[0] == "--pdfa-navigation-smoke")
         .AddNamedDestination("appendix", 2)
         .AddNamedDestination("résumé", 1)
         .SetNamedOpenAction("résumé")
-        .AddNamedDestinationLink(0, 72, 680, 180, 24, "appendix")
+        .AddNamedDestinationLink(0,
+            [
+                new PdfTextQuad(new PdfPoint(72, 704), new PdfPoint(252, 704),
+                    new PdfPoint(72, 680), new PdfPoint(252, 680)),
+                new PdfTextQuad(new PdfPoint(72, 674), new PdfPoint(190, 674),
+                    new PdfPoint(72, 650), new PdfPoint(190, 650))
+            ], "appendix",
+            new PdfLinkAppearance(2, PdfLinkBorderStyle.Dashed, [5, 2],
+                new PdfRgbColor(0.15, 0.35, 0.85), PdfLinkHighlightMode.Push,
+                horizontalCornerRadius: 4, verticalCornerRadius: 4),
+            annotationMetadata: new PdfAnnotationMetadata
+            {
+                Author = "KillerPDF",
+                Subject = "Appendix navigation",
+                ModificationDate = new DateTimeOffset(
+                    2026, 8, 23, 12, 0, 0, TimeSpan.FromHours(-7)),
+                Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.Locked
+            },
+            contents: "Open the appendix")
+        .AddPageLink(1, 72, 680, 180, 24, 2,
+            destination: PdfDestination.FitRectangle(50, 50, 550, 740))
         .AddBookmark("Document overview", 0, options: new PdfBookmarkOptions
         {
             Style = PdfBookmarkStyle.Bold,

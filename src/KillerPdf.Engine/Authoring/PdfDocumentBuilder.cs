@@ -234,7 +234,8 @@ public sealed partial class PdfDocumentBuilder
 
     public PdfDocumentBuilder AddUriLink(
         int pageIndex, double x, double y, double width, double height, string uri,
-        PdfLinkAppearance? appearance = null)
+        PdfLinkAppearance? appearance = null,
+        PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -245,31 +246,78 @@ public sealed partial class PdfDocumentBuilder
         _pages[pageIndex] = page with
         {
             Links = [.. page.Links, new UriLinkDefinition(
-                x, y, width, height, appearance ?? new PdfLinkAppearance(), parsed.AbsoluteUri)]
+                x, y, width, height, appearance ?? new PdfLinkAppearance(), parsed.AbsoluteUri,
+                null, annotationMetadata, contents)]
+        };
+        return this;
+    }
+
+    public PdfDocumentBuilder AddUriLink(
+        int pageIndex, IReadOnlyList<PdfTextQuad> quads, string uri,
+        PdfLinkAppearance? appearance = null,
+        PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        PdfTextQuad[] values = ValidateLinkQuads(quads);
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed)
+            || parsed.Scheme is not ("http" or "https" or "mailto"))
+            throw new ArgumentException("A link URI must use http, https, or mailto.", nameof(uri));
+        (double minX, double minY, double maxX, double maxY) = TextMarkupBounds(values);
+        PageDefinition page = _pages[pageIndex];
+        _pages[pageIndex] = page with
+        {
+            Links = [.. page.Links, new UriLinkDefinition(
+                minX, minY, maxX - minX, maxY - minY,
+                appearance ?? new PdfLinkAppearance(), parsed.AbsoluteUri, values,
+                annotationMetadata, contents)]
         };
         return this;
     }
 
     public PdfDocumentBuilder AddPageLink(
         int pageIndex, double x, double y, double width, double height, int destinationPageIndex,
-        PdfLinkAppearance? appearance = null)
+        PdfLinkAppearance? appearance = null, PdfDestination? destination = null,
+        PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidatePageIndex(destinationPageIndex, nameof(destinationPageIndex));
         ValidateRectangle(x, y, width, height);
+        destination ??= PdfDestination.FitPage();
         PageDefinition page = _pages[pageIndex];
         _pages[pageIndex] = page with
         {
             Links = [.. page.Links,
                 new PageLinkDefinition(x, y, width, height,
-                    appearance ?? new PdfLinkAppearance(), destinationPageIndex)]
+                    appearance ?? new PdfLinkAppearance(), destinationPageIndex, destination,
+                    null, annotationMetadata, contents)]
+        };
+        return this;
+    }
+
+    public PdfDocumentBuilder AddPageLink(
+        int pageIndex, IReadOnlyList<PdfTextQuad> quads, int destinationPageIndex,
+        PdfLinkAppearance? appearance = null, PdfDestination? destination = null,
+        PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidatePageIndex(destinationPageIndex, nameof(destinationPageIndex));
+        PdfTextQuad[] values = ValidateLinkQuads(quads);
+        (double minX, double minY, double maxX, double maxY) = TextMarkupBounds(values);
+        PageDefinition page = _pages[pageIndex];
+        _pages[pageIndex] = page with
+        {
+            Links = [.. page.Links, new PageLinkDefinition(
+                minX, minY, maxX - minX, maxY - minY,
+                appearance ?? new PdfLinkAppearance(), destinationPageIndex,
+                destination ?? PdfDestination.FitPage(), values, annotationMetadata, contents)]
         };
         return this;
     }
 
     public PdfDocumentBuilder AddNamedDestinationLink(
         int pageIndex, double x, double y, double width, double height, string destinationName,
-        PdfLinkAppearance? appearance = null)
+        PdfLinkAppearance? appearance = null,
+        PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -283,9 +331,41 @@ public sealed partial class PdfDocumentBuilder
         {
             Links = [.. page.Links,
                 new NamedDestinationLinkDefinition(x, y, width, height,
-                    appearance ?? new PdfLinkAppearance(), destinationName)]
+                    appearance ?? new PdfLinkAppearance(), destinationName,
+                    null, annotationMetadata, contents)]
         };
         return this;
+    }
+
+    public PdfDocumentBuilder AddNamedDestinationLink(
+        int pageIndex, IReadOnlyList<PdfTextQuad> quads, string destinationName,
+        PdfLinkAppearance? appearance = null,
+        PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        PdfTextQuad[] values = ValidateLinkQuads(quads);
+        if (string.IsNullOrWhiteSpace(destinationName)
+            || !_namedDestinations.Any(destination =>
+                string.Equals(destination.Name, destinationName, StringComparison.Ordinal)))
+            throw new ArgumentException("The named destination has not been defined.", nameof(destinationName));
+        (double minX, double minY, double maxX, double maxY) = TextMarkupBounds(values);
+        PageDefinition page = _pages[pageIndex];
+        _pages[pageIndex] = page with
+        {
+            Links = [.. page.Links, new NamedDestinationLinkDefinition(
+                minX, minY, maxX - minX, maxY - minY,
+                appearance ?? new PdfLinkAppearance(), destinationName, values,
+                annotationMetadata, contents)]
+        };
+        return this;
+    }
+
+    private static PdfTextQuad[] ValidateLinkQuads(IReadOnlyList<PdfTextQuad> quads)
+    {
+        ArgumentNullException.ThrowIfNull(quads);
+        if (quads.Count == 0)
+            throw new ArgumentException("At least one link quad is required.", nameof(quads));
+        return [.. quads];
     }
 
     public PdfDocumentBuilder AddNamedDestination(string name, int pageIndex) =>
@@ -504,7 +584,8 @@ public sealed partial class PdfDocumentBuilder
         string value = "",
         double fontSize = 12,
         PdfTextFieldOptions? options = null,
-        TrueTypeFont? embeddedFont = null)
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -527,7 +608,8 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentException(
                 "A comb field requires MaximumLength and cannot also be multiline or a password field.", nameof(options));
         _textFields.Add(new TextFieldDefinition(
-            pageIndex, name, x, y, width, height, value, fontSize, options, embeddedFont));
+            pageIndex, name, x, y, width, height, value, fontSize, options, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata)));
         return this;
     }
 
@@ -539,7 +621,9 @@ public sealed partial class PdfDocumentBuilder
         double width,
         double height,
         bool isChecked = false,
-        string exportValue = "Yes")
+        string exportValue = "Yes",
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? options = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -548,14 +632,17 @@ public sealed partial class PdfDocumentBuilder
             || exportValue.Any(character => character is < '!' or > '~'))
             throw new ArgumentException("A checkbox export value must contain printable ASCII characters.", nameof(exportValue));
         _checkBoxes.Add(new CheckBoxDefinition(
-            pageIndex, name, x, y, width, height, isChecked, exportValue));
+            pageIndex, name, x, y, width, height, isChecked, exportValue,
+            ValidateFieldMetadata(fieldMetadata), options ?? new PdfFormFieldOptions()));
         return this;
     }
 
     public PdfDocumentBuilder AddRadioGroup(
         string name,
         IEnumerable<PdfRadioButtonOption> options,
-        string? selectedValue = null)
+        string? selectedValue = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null)
     {
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
@@ -576,7 +663,9 @@ public sealed partial class PdfDocumentBuilder
         }
         if (selectedValue is not null && !exportValues.Contains(selectedValue))
             throw new ArgumentException("The selected radio value must name one of the options.", nameof(selectedValue));
-        _radioGroups.Add(new RadioGroupDefinition(name, values, selectedValue));
+        _radioGroups.Add(new RadioGroupDefinition(
+            name, values, selectedValue, ValidateFieldMetadata(fieldMetadata),
+            fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
 
@@ -591,7 +680,9 @@ public sealed partial class PdfDocumentBuilder
         string? selectedValue = null,
         bool editable = false,
         double fontSize = 12,
-        TrueTypeFont? embeddedFont = null)
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
@@ -619,7 +710,8 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentOutOfRangeException(nameof(fontSize));
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values,
-            selectedValue ?? values[0], editable, fontSize, embeddedFont));
+            selectedValue ?? values[0], editable, fontSize, embeddedFont,
+            ValidateFieldMetadata(fieldMetadata), fieldOptions ?? new PdfFormFieldOptions()));
         return this;
     }
 
@@ -1642,9 +1734,13 @@ public sealed partial class PdfDocumentBuilder
                     ("Rect", new PdfArray([
                         Number(link.X), Number(link.Y),
                         Number(link.X + link.Width), Number(link.Y + link.Height)])),
-                    ("F", new PdfInteger(4)),
+                    ("P", new PdfIndirectReference(allocatedPage.PageNumber, 0)),
+                    ("F", new PdfInteger((int)(link.Metadata?.Flags ?? PdfAnnotationFlags.Print))),
+                    ("NM", Latin1String($"KillerPDF-Link-{index + 1}")),
                     ("Border", new PdfArray([
-                        new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)]))
+                        Number(link.Appearance.HorizontalCornerRadius),
+                        Number(link.Appearance.VerticalCornerRadius),
+                        Number(link.Appearance.BorderWidth)]))
                 };
                 if (link.Appearance.BorderWidth > 0)
                 {
@@ -1660,6 +1756,18 @@ public sealed partial class PdfDocumentBuilder
                 }
                 if (link.Appearance.Color.HasValue)
                     annotationEntries.Add(("C", ColorArray(link.Appearance.Color.Value)));
+                if (!string.IsNullOrEmpty(link.Contents))
+                    annotationEntries.Add(("Contents", UnicodeString(link.Contents)));
+                AddAnnotationMetadata(annotationEntries, link.Metadata);
+                if (link.Quads is not null)
+                    annotationEntries.Add(("QuadPoints", new PdfArray(link.Quads.SelectMany(quad =>
+                        new PdfObject[]
+                        {
+                            Number(quad.UpperLeft.X), Number(quad.UpperLeft.Y),
+                            Number(quad.UpperRight.X), Number(quad.UpperRight.Y),
+                            Number(quad.LowerLeft.X), Number(quad.LowerLeft.Y),
+                            Number(quad.LowerRight.X), Number(quad.LowerRight.Y)
+                        }))));
                 annotationEntries.Add(("H", Name(LinkHighlightModeName(
                     link.Appearance.HighlightMode))));
                 if (link is UriLinkDefinition uri)
@@ -1670,9 +1778,10 @@ public sealed partial class PdfDocumentBuilder
                 }
                 else if (link is PageLinkDefinition pageLink)
                 {
-                    annotationEntries.Add(("Dest", new PdfArray([
-                        new PdfIndirectReference(allocated[pageLink.DestinationPageIndex].PageNumber, 0),
-                        Name("Fit")])));
+                    annotationEntries.Add(("Dest", DestinationArray(
+                        new PdfIndirectReference(
+                            allocated[pageLink.DestinationPageIndex].PageNumber, 0),
+                        pageLink.Destination)));
                 }
                 else if (link is NamedDestinationLinkDefinition named)
                 {
@@ -1872,6 +1981,7 @@ public sealed partial class PdfDocumentBuilder
             fieldEntries.Add(("Ff", new PdfInteger(flags)));
         if (field.Options.MaximumLength.HasValue)
             fieldEntries.Add(("MaxLen", new PdfInteger(field.Options.MaximumLength.Value)));
+        AddFieldMetadata(fieldEntries, field.Metadata);
         objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
             Dictionary(fieldEntries.ToArray()), 0));
 
@@ -1897,6 +2007,7 @@ public sealed partial class PdfDocumentBuilder
         int flags = 0;
         if (options.ReadOnly) flags |= 1;
         if (options.Required) flags |= 1 << 1;
+        if (options.NoExport) flags |= 1 << 2;
         if (options.Multiline) flags |= 1 << 12;
         if (options.Password) flags |= 1 << 13;
         if (options.Comb) flags |= 1 << 24;
@@ -1911,8 +2022,8 @@ public sealed partial class PdfDocumentBuilder
         CheckBoxDefinition field = allocatedField.Definition;
         PdfName onState = Name(field.ExportValue);
         PdfName currentState = field.IsChecked ? onState : Name("Off");
-        objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
-            Dictionary(
+        var entries = new List<(string Name, PdfObject Value)>
+        {
                 ("Type", Name("Annot")),
                 ("Subtype", Name("Widget")),
                 ("FT", Name("Btn")),
@@ -1932,7 +2043,14 @@ public sealed partial class PdfDocumentBuilder
                     new KeyValuePair<PdfName, PdfObject>(
                         Name("Off"), new PdfIndirectReference(allocatedField.OffAppearanceNumber, 0)),
                     new KeyValuePair<PdfName, PdfObject>(
-                        onState, new PdfIndirectReference(allocatedField.OnAppearanceNumber, 0))]))))), 0));
+                        onState, new PdfIndirectReference(allocatedField.OnAppearanceNumber, 0))]))))
+        };
+        int flags = FormFieldFlags(field.Options);
+        if (flags != 0)
+            entries.Add(("Ff", new PdfInteger(flags)));
+        AddFieldMetadata(entries, field.Metadata);
+        objects.Add(new PdfIndirectObject(
+            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
         objects.Add(new PdfIndirectObject(allocatedField.OffAppearanceNumber, 0,
             CheckBoxAppearance(field, isChecked: false), 0));
@@ -1972,14 +2090,18 @@ public sealed partial class PdfDocumentBuilder
     {
         RadioGroupDefinition group = allocatedGroup.Definition;
         PdfName selected = Name(group.SelectedValue ?? "Off");
-        objects.Add(new PdfIndirectObject(allocatedGroup.ParentNumber, 0,
-            Dictionary(
+        var groupEntries = new List<(string Name, PdfObject Value)>
+        {
                 ("FT", Name("Btn")),
-                ("Ff", new PdfInteger(1 << 15)),
+                ("Ff", new PdfInteger((1 << 15) | FormFieldFlags(group.FieldOptions))),
                 ("T", UnicodeString(group.Name)),
                 ("V", selected),
                 ("Kids", new PdfArray(allocatedGroup.Widgets.Select(widget =>
-                    (PdfObject)new PdfIndirectReference(widget.WidgetNumber, 0))))), 0));
+                    (PdfObject)new PdfIndirectReference(widget.WidgetNumber, 0))))
+        };
+        AddFieldMetadata(groupEntries, group.Metadata);
+        objects.Add(new PdfIndirectObject(
+            allocatedGroup.ParentNumber, 0, Dictionary(groupEntries.ToArray()), 0));
 
         foreach (AllocatedRadioWidget allocatedWidget in allocatedGroup.Widgets)
         {
@@ -2054,9 +2176,9 @@ public sealed partial class PdfDocumentBuilder
         int fontNumber)
     {
         ChoiceFieldDefinition field = allocatedField.Definition;
-        int flags = (1 << 17) | (field.Editable ? 1 << 18 : 0);
-        objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
-            Dictionary(
+        int flags = (1 << 17) | (field.Editable ? 1 << 18 : 0) | FormFieldFlags(field.FieldOptions);
+        var entries = new List<(string Name, PdfObject Value)>
+        {
                 ("Type", Name("Annot")),
                 ("Subtype", Name("Widget")),
                 ("FT", Name("Ch")),
@@ -2070,7 +2192,11 @@ public sealed partial class PdfDocumentBuilder
                 ("P", new PdfIndirectReference(pages[field.PageIndex].PageNumber, 0)),
                 ("F", new PdfInteger(4)),
                 ("DA", Latin1String($"{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf 0 g")),
-                ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))), 0));
+                ("AP", Dictionary(("N", new PdfIndirectReference(allocatedField.AppearanceNumber, 0))))
+        };
+        AddFieldMetadata(entries, field.Metadata);
+        objects.Add(new PdfIndirectObject(
+            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
 
         byte[] appearance = BuildSimpleTextAppearance(
             field.Width, field.Height, field.FontSize, field.SelectedValue,
@@ -2421,6 +2547,34 @@ public sealed partial class PdfDocumentBuilder
             || _radioGroups.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
             || _choiceFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal)))
             throw new ArgumentException("Form field names must be unique.", nameof(name));
+    }
+
+    private static PdfFormFieldMetadata? ValidateFieldMetadata(PdfFormFieldMetadata? metadata)
+    {
+        if (metadata?.Tooltip is not null && string.IsNullOrWhiteSpace(metadata.Tooltip))
+            throw new ArgumentException("A field tooltip cannot be empty.", nameof(metadata));
+        if (metadata?.MappingName is not null && string.IsNullOrWhiteSpace(metadata.MappingName))
+            throw new ArgumentException("A field mapping name cannot be empty.", nameof(metadata));
+        return metadata;
+    }
+
+    private static void AddFieldMetadata(
+        ICollection<(string Name, PdfObject Value)> entries,
+        PdfFormFieldMetadata? metadata)
+    {
+        if (metadata?.Tooltip is not null)
+            entries.Add(("TU", UnicodeString(metadata.Tooltip)));
+        if (metadata?.MappingName is not null)
+            entries.Add(("TM", UnicodeString(metadata.MappingName)));
+    }
+
+    private static int FormFieldFlags(PdfFormFieldOptions options)
+    {
+        int flags = 0;
+        if (options.ReadOnly) flags |= 1;
+        if (options.Required) flags |= 1 << 1;
+        if (options.NoExport) flags |= 1 << 2;
+        return flags;
     }
 
     private static void ValidateFormFontText(TrueTypeFont font, string value, string parameterName)
@@ -3002,18 +3156,24 @@ public sealed partial class PdfDocumentBuilder
     private sealed record AllocatedPage(
         PageDefinition Definition, int PageNumber, int? ContentNumber, int[] AnnotationNumbers);
     private abstract record LinkDefinition(
-        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance);
+        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance,
+        IReadOnlyList<PdfTextQuad>? Quads, PdfAnnotationMetadata? Metadata, string? Contents);
     private sealed record UriLinkDefinition(
-        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance, string Uri)
-        : LinkDefinition(X, Y, Width, Height, Appearance);
+        double X, double Y, double Width, double Height, PdfLinkAppearance Appearance, string Uri,
+        IReadOnlyList<PdfTextQuad>? Quads = null, PdfAnnotationMetadata? Metadata = null,
+        string? Contents = null)
+        : LinkDefinition(X, Y, Width, Height, Appearance, Quads, Metadata, Contents);
     private sealed record PageLinkDefinition(
         double X, double Y, double Width, double Height, PdfLinkAppearance Appearance,
-        int DestinationPageIndex)
-        : LinkDefinition(X, Y, Width, Height, Appearance);
+        int DestinationPageIndex, PdfDestination Destination,
+        IReadOnlyList<PdfTextQuad>? Quads = null, PdfAnnotationMetadata? Metadata = null,
+        string? Contents = null)
+        : LinkDefinition(X, Y, Width, Height, Appearance, Quads, Metadata, Contents);
     private sealed record NamedDestinationLinkDefinition(
         double X, double Y, double Width, double Height, PdfLinkAppearance Appearance,
-        string DestinationName)
-        : LinkDefinition(X, Y, Width, Height, Appearance);
+        string DestinationName, IReadOnlyList<PdfTextQuad>? Quads = null,
+        PdfAnnotationMetadata? Metadata = null, string? Contents = null)
+        : LinkDefinition(X, Y, Width, Height, Appearance, Quads, Metadata, Contents);
     private sealed record BookmarkDefinition(
         string Title, int? PageIndex, string? NamedDestination, int Level,
         PdfBookmarkOptions Options);
@@ -3046,19 +3206,21 @@ public sealed partial class PdfDocumentBuilder
         FileAttachmentAnnotationDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record TextFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        string Value, double FontSize, PdfTextFieldOptions Options, TrueTypeFont? EmbeddedFont);
+        string Value, double FontSize, PdfTextFieldOptions Options, TrueTypeFont? EmbeddedFont,
+        PdfFormFieldMetadata? Metadata);
     private sealed record AllocatedTextField(
         TextFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record CheckBoxDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
-        bool IsChecked, string ExportValue);
+        bool IsChecked, string ExportValue, PdfFormFieldMetadata? Metadata, PdfFormFieldOptions Options);
     private sealed record AllocatedCheckBox(
         CheckBoxDefinition Definition,
         int FieldNumber,
         int OffAppearanceNumber,
         int OnAppearanceNumber);
     private sealed record RadioGroupDefinition(
-        string Name, IReadOnlyList<PdfRadioButtonOption> Options, string? SelectedValue);
+        string Name, IReadOnlyList<PdfRadioButtonOption> Options, string? SelectedValue,
+        PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
     private sealed record AllocatedRadioGroup(
         RadioGroupDefinition Definition, int ParentNumber, IReadOnlyList<AllocatedRadioWidget> Widgets);
     private sealed record AllocatedRadioWidget(
@@ -3069,7 +3231,7 @@ public sealed partial class PdfDocumentBuilder
     private sealed record ChoiceFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         IReadOnlyList<string> Options, string SelectedValue, bool Editable, double FontSize,
-        TrueTypeFont? EmbeddedFont);
+        TrueTypeFont? EmbeddedFont, PdfFormFieldMetadata? Metadata, PdfFormFieldOptions FieldOptions);
     private sealed record AllocatedChoiceField(
         ChoiceFieldDefinition Definition, int FieldNumber, int AppearanceNumber);
     private sealed record OutputIntentDefinition(

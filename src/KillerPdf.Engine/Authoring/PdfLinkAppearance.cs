@@ -10,12 +10,18 @@ public sealed class PdfLinkAppearance
         PdfLinkBorderStyle borderStyle = PdfLinkBorderStyle.Solid,
         IReadOnlyList<double>? dashPattern = null,
         PdfRgbColor? color = null,
-        PdfLinkHighlightMode highlightMode = PdfLinkHighlightMode.Invert)
+        PdfLinkHighlightMode highlightMode = PdfLinkHighlightMode.Invert,
+        double horizontalCornerRadius = 0,
+        double verticalCornerRadius = 0)
     {
         if (!double.IsFinite(borderWidth) || borderWidth < 0)
             throw new ArgumentOutOfRangeException(nameof(borderWidth));
         if (!Enum.IsDefined(borderStyle)) throw new ArgumentOutOfRangeException(nameof(borderStyle));
         if (!Enum.IsDefined(highlightMode)) throw new ArgumentOutOfRangeException(nameof(highlightMode));
+        if (!double.IsFinite(horizontalCornerRadius) || horizontalCornerRadius < 0)
+            throw new ArgumentOutOfRangeException(nameof(horizontalCornerRadius));
+        if (!double.IsFinite(verticalCornerRadius) || verticalCornerRadius < 0)
+            throw new ArgumentOutOfRangeException(nameof(verticalCornerRadius));
         dashPattern ??= [3];
         if (dashPattern.Any(value => !double.IsFinite(value) || value < 0))
             throw new ArgumentOutOfRangeException(nameof(dashPattern));
@@ -30,6 +36,8 @@ public sealed class PdfLinkAppearance
         DashPattern = dashPattern.ToArray();
         Color = color;
         HighlightMode = highlightMode;
+        HorizontalCornerRadius = horizontalCornerRadius;
+        VerticalCornerRadius = verticalCornerRadius;
     }
 
     public double BorderWidth { get; }
@@ -37,4 +45,6 @@ public sealed class PdfLinkAppearance
     public IReadOnlyList<double> DashPattern { get; }
     public PdfRgbColor? Color { get; }
     public PdfLinkHighlightMode HighlightMode { get; }
+    public double HorizontalCornerRadius { get; }
+    public double VerticalCornerRadius { get; }
 }

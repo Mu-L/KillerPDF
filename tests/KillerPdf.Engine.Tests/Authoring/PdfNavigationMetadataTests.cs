@@ -166,7 +166,8 @@ public sealed class PdfNavigationMetadataTests
     {
         var appearance = new PdfLinkAppearance(
             2.5, PdfLinkBorderStyle.Dashed, [6, 2],
-            new PdfRgbColor(0.1, 0.4, 0.9), PdfLinkHighlightMode.Push);
+            new PdfRgbColor(0.1, 0.4, 0.9), PdfLinkHighlightMode.Push,
+            horizontalCornerRadius: 4, verticalCornerRadius: 6);
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .AddUriLink(0, 10, 20, 100, 30, "https://killerpdf.net", appearance)
@@ -180,6 +181,7 @@ public sealed class PdfNavigationMetadataTests
         PdfDictionary border = Assert.IsType<PdfDictionary>(link[Name("BS")]);
         PdfArray dash = Assert.IsType<PdfArray>(border[Name("D")]);
         PdfArray color = Assert.IsType<PdfArray>(link[Name("C")]);
+        PdfArray legacyBorder = Assert.IsType<PdfArray>(link[Name("Border")]);
 
         Assert.Equal(2.5, Assert.IsType<PdfReal>(border[Name("W")]).Value);
         Assert.Equal("D", Assert.IsType<PdfName>(border[Name("S")]).ValueAsLatin1());
@@ -187,6 +189,9 @@ public sealed class PdfNavigationMetadataTests
         Assert.Equal([0.1, 0.4, 0.9],
             color.Select(value => Assert.IsType<PdfReal>(value).Value));
         Assert.Equal("P", Assert.IsType<PdfName>(link[Name("H")]).ValueAsLatin1());
+        Assert.Equal(4, Assert.IsType<PdfInteger>(legacyBorder[0]).Value);
+        Assert.Equal(6, Assert.IsType<PdfInteger>(legacyBorder[1]).Value);
+        Assert.Equal(2.5, Assert.IsType<PdfReal>(legacyBorder[2]).Value);
     }
 
     [Fact]
@@ -199,6 +204,8 @@ public sealed class PdfNavigationMetadataTests
             new PdfLinkAppearance(1, PdfLinkBorderStyle.Solid, [2, 1]));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new PdfLinkAppearance(highlightMode: (PdfLinkHighlightMode)4));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfLinkAppearance(horizontalCornerRadius: -1));
     }
 
     private static string DecodeUnicode(PdfString value) =>
