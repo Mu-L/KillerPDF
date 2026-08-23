@@ -23,6 +23,8 @@ public sealed class PdfDocumentBuilder
     private readonly List<ChoiceFieldDefinition> _choiceFields = [];
     private OutputIntentDefinition? _outputIntent;
     private bool _pdfA4Conformance;
+    private readonly List<TextNoteDefinition> _textNotes = [];
+    private readonly List<TextMarkupDefinition> _textMarkups = [];
 
     public PdfDocumentBuilder(PdfVersion? version = null) => Version = version ?? PdfVersion.Pdf20;
 
@@ -275,6 +277,68 @@ public sealed class PdfDocumentBuilder
         return this;
     }
 
+    public PdfDocumentBuilder AddTextNote(
+        int pageIndex,
+        double x,
+        double y,
+        string contents,
+        PdfRgbColor? color = null,
+        bool open = false,
+        double size = 24)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(contents);
+        if (!double.IsFinite(x)) throw new ArgumentOutOfRangeException(nameof(x));
+        if (!double.IsFinite(y)) throw new ArgumentOutOfRangeException(nameof(y));
+        if (!double.IsFinite(size) || size <= 0) throw new ArgumentOutOfRangeException(nameof(size));
+        _textNotes.Add(new TextNoteDefinition(
+            pageIndex, x, y, size, contents, color ?? PdfRgbColor.NoteYellow, open));
+        return this;
+    }
+
+    public PdfDocumentBuilder AddHighlight(
+        int pageIndex,
+        double x,
+        double y,
+        double width,
+        double height,
+        string? contents = null,
+        PdfRgbColor? color = null,
+        double opacity = 0.35)
+        => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, x, y, width, height,
+            contents, color ?? PdfRgbColor.Yellow, opacity);
+
+    public PdfDocumentBuilder AddUnderline(
+        int pageIndex, double x, double y, double width, double height,
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1)
+        => AddTextMarkup(PdfTextMarkupType.Underline, pageIndex, x, y, width, height,
+            contents, color ?? new PdfRgbColor(0, 0.35, 0.9), opacity);
+
+    public PdfDocumentBuilder AddStrikeOut(
+        int pageIndex, double x, double y, double width, double height,
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1)
+        => AddTextMarkup(PdfTextMarkupType.StrikeOut, pageIndex, x, y, width, height,
+            contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity);
+
+    public PdfDocumentBuilder AddSquiggly(
+        int pageIndex, double x, double y, double width, double height,
+        string? contents = null, PdfRgbColor? color = null, double opacity = 1)
+        => AddTextMarkup(PdfTextMarkupType.Squiggly, pageIndex, x, y, width, height,
+            contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity);
+
+    private PdfDocumentBuilder AddTextMarkup(
+        PdfTextMarkupType type, int pageIndex, double x, double y, double width, double height,
+        string? contents, PdfRgbColor color, double opacity)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        ValidateRectangle(x, y, width, height);
+        if (!double.IsFinite(opacity) || opacity is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(opacity));
+        _textMarkups.Add(new TextMarkupDefinition(
+            type, pageIndex, x, y, width, height, contents, color, opacity));
+        return this;
+    }
+
     public byte[] Build()
     {
         if (_pdfA4Conformance && Metadata is null)
@@ -313,6 +377,10 @@ public sealed class PdfDocumentBuilder
         }
         var allocatedChoiceFields = _choiceFields.Select(field =>
             new AllocatedChoiceField(field, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedTextNotes = _textNotes.Select(note =>
+            new AllocatedTextNote(note, nextObjectNumber++, nextObjectNumber++)).ToArray();
+        var allocatedTextMarkups = _textMarkups.Select(markup =>
+            new AllocatedTextMarkup(markup, nextObjectNumber++, nextObjectNumber++)).ToArray();
         int? iccProfileNumber = _outputIntent is null ? null : nextObjectNumber++;
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
         TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
@@ -383,7 +451,11 @@ public sealed class PdfDocumentBuilder
                     .Where(widget => widget.Option.PageIndex == pageIndex)
                     .Select(widget => widget.WidgetNumber),
                 .. allocatedChoiceFields.Where(field => field.Definition.PageIndex == pageIndex)
-                    .Select(field => field.FieldNumber)];
+                    .Select(field => field.FieldNumber),
+                .. allocatedTextNotes.Where(note => note.Definition.PageIndex == pageIndex)
+                    .Select(note => note.AnnotationNumber),
+                .. allocatedTextMarkups.Where(markup => markup.Definition.PageIndex == pageIndex)
+                    .Select(markup => markup.AnnotationNumber)];
             allocated.Add(new AllocatedPage(page, pageNumber, contentNumber, annotationNumbers));
         }
 
@@ -521,6 +593,10 @@ public sealed class PdfDocumentBuilder
         if (_outputIntent is not null)
             AddOutputIntentObjects(
                 objects, _outputIntent, iccProfileNumber!.Value, outputIntentNumber!.Value);
+        for (int index = 0; index < allocatedTextNotes.Length; index++)
+            AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1);
+        for (int index = 0; index < allocatedTextMarkups.Length; index++)
+            AddTextMarkupObjects(objects, allocatedTextMarkups[index], allocated, index + 1);
         foreach ((PdfStandardFont font, int number) in fontNumbers.OrderBy(entry => entry.Value))
             objects.Add(new PdfIndirectObject(number, 0, StandardFontDictionary(font), 0));
         foreach (AllocatedEmbeddedFont font in embeddedFonts)
@@ -1041,6 +1117,146 @@ public sealed class PdfDocumentBuilder
         }
     }
 
+    private static void AddTextNoteObjects(
+        ICollection<PdfIndirectObject> objects,
+        AllocatedTextNote allocated,
+        IReadOnlyList<AllocatedPage> pages,
+        int sequence)
+    {
+        TextNoteDefinition note = allocated.Definition;
+        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0,
+            Dictionary(
+                ("Type", Name("Annot")),
+                ("Subtype", Name("Text")),
+                ("Rect", new PdfArray([
+                    Number(note.X), Number(note.Y),
+                    Number(note.X + note.Size), Number(note.Y + note.Size)])),
+                ("P", new PdfIndirectReference(pages[note.PageIndex].PageNumber, 0)),
+                ("F", new PdfInteger(4)),
+                ("Contents", UnicodeString(note.Contents)),
+                ("NM", Latin1String($"KillerPDF-Note-{sequence}")),
+                ("Name", Name("Note")),
+                ("Open", new PdfBoolean(note.Open)),
+                ("C", ColorArray(note.Color)),
+                ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))), 0));
+
+        using var appearance = new MemoryStream();
+        WriteAscii(appearance,
+            $"q\n{ColorOperands(note.Color)} rg\n0 0 {FormatNumber(note.Size)} {FormatNumber(note.Size)} re\nf\n" +
+            $"0 G\n1 w\n0.5 0.5 {FormatNumber(Math.Max(0, note.Size - 1))} {FormatNumber(Math.Max(0, note.Size - 1))} re\nS\n");
+        double fold = note.Size * 0.3;
+        WriteAscii(appearance,
+            $"{FormatNumber(note.Size - fold)} {FormatNumber(note.Size)} m\n" +
+            $"{FormatNumber(note.Size - fold)} {FormatNumber(note.Size - fold)} l\n" +
+            $"{FormatNumber(note.Size)} {FormatNumber(note.Size - fold)} l\nS\n" +
+            $"{FormatNumber(note.Size * 0.22)} {FormatNumber(note.Size * 0.58)} m\n" +
+            $"{FormatNumber(note.Size * 0.7)} {FormatNumber(note.Size * 0.58)} l\n" +
+            $"{FormatNumber(note.Size * 0.22)} {FormatNumber(note.Size * 0.38)} m\n" +
+            $"{FormatNumber(note.Size * 0.62)} {FormatNumber(note.Size * 0.38)} l\nS\nQ\n");
+        objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
+            AnnotationAppearance(note.Size, note.Size, Dictionary(), appearance.ToArray()), 0));
+    }
+
+    private static void AddTextMarkupObjects(
+        ICollection<PdfIndirectObject> objects,
+        AllocatedTextMarkup allocated,
+        IReadOnlyList<AllocatedPage> pages,
+        int sequence)
+    {
+        TextMarkupDefinition highlight = allocated.Definition;
+        var entries = new List<(string Name, PdfObject Value)>
+        {
+            ("Type", Name("Annot")),
+            ("Subtype", Name(highlight.Type.ToString())),
+            ("Rect", new PdfArray([
+                Number(highlight.X), Number(highlight.Y),
+                Number(highlight.X + highlight.Width), Number(highlight.Y + highlight.Height)])),
+            ("QuadPoints", new PdfArray([
+                Number(highlight.X), Number(highlight.Y + highlight.Height),
+                Number(highlight.X + highlight.Width), Number(highlight.Y + highlight.Height),
+                Number(highlight.X), Number(highlight.Y),
+                Number(highlight.X + highlight.Width), Number(highlight.Y)])),
+            ("P", new PdfIndirectReference(pages[highlight.PageIndex].PageNumber, 0)),
+            ("F", new PdfInteger(4)),
+            ("NM", Latin1String($"KillerPDF-{highlight.Type}-{sequence}")),
+            ("C", ColorArray(highlight.Color)),
+            ("CA", new PdfReal(highlight.Opacity)),
+            ("AP", Dictionary(("N", new PdfIndirectReference(allocated.AppearanceNumber, 0))))
+        };
+        if (!string.IsNullOrEmpty(highlight.Contents))
+            entries.Add(("Contents", UnicodeString(highlight.Contents)));
+        objects.Add(new PdfIndirectObject(
+            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+
+        var graphicsState = Dictionary(
+            ("Type", Name("ExtGState")),
+            ("ca", new PdfReal(highlight.Opacity)),
+            ("CA", new PdfReal(highlight.Opacity)),
+            ("BM", Name("Multiply")));
+        PdfDictionary resources = Dictionary(("ExtGState", new PdfDictionary([
+            new KeyValuePair<PdfName, PdfObject>(Name("GS1"), graphicsState)])));
+        byte[] appearance = TextMarkupAppearance(highlight);
+        objects.Add(new PdfIndirectObject(allocated.AppearanceNumber, 0,
+            AnnotationAppearance(highlight.Width, highlight.Height, resources, appearance), 0));
+    }
+
+    private static byte[] TextMarkupAppearance(TextMarkupDefinition markup)
+    {
+        string color = ColorOperands(markup.Color);
+        string width = FormatNumber(markup.Width);
+        string height = FormatNumber(markup.Height);
+        string drawing = markup.Type switch
+        {
+            PdfTextMarkupType.Highlight => $"{color} rg\n0 0 {width} {height} re\nf\n",
+            PdfTextMarkupType.Underline => MarkupLine(markup, markup.Height * 0.08),
+            PdfTextMarkupType.StrikeOut => MarkupLine(markup, markup.Height * 0.48),
+            PdfTextMarkupType.Squiggly => SquigglyLine(markup),
+            _ => throw new ArgumentOutOfRangeException(nameof(markup.Type))
+        };
+        return Encoding.ASCII.GetBytes($"q\n/GS1 gs\n{drawing}Q\n");
+    }
+
+    private static string MarkupLine(TextMarkupDefinition markup, double y)
+    {
+        double lineWidth = Math.Max(0.75, markup.Height * 0.07);
+        return $"{ColorOperands(markup.Color)} RG\n{FormatNumber(lineWidth)} w\n" +
+            $"0 {FormatNumber(y)} m\n{FormatNumber(markup.Width)} {FormatNumber(y)} l\nS\n";
+    }
+
+    private static string SquigglyLine(TextMarkupDefinition markup)
+    {
+        double amplitude = Math.Max(0.75, markup.Height * 0.1);
+        double step = Math.Max(1.5, amplitude * 2);
+        var result = new StringBuilder(
+            $"{ColorOperands(markup.Color)} RG\n{FormatNumber(Math.Max(0.75, amplitude * 0.55))} w\n0 {FormatNumber(amplitude)} m\n");
+        bool high = false;
+        for (double x = step; x < markup.Width; x += step)
+        {
+            result.Append(FormatNumber(x)).Append(' ')
+                .Append(FormatNumber(high ? amplitude * 2 : 0)).Append(" l\n");
+            high = !high;
+        }
+        result.Append(FormatNumber(markup.Width)).Append(' ')
+            .Append(FormatNumber(high ? amplitude * 2 : 0)).Append(" l\nS\n");
+        return result.ToString();
+    }
+
+    private static PdfStream AnnotationAppearance(
+        double width, double height, PdfDictionary resources, byte[] content) =>
+        new(Dictionary(
+            ("Type", Name("XObject")),
+            ("Subtype", Name("Form")),
+            ("FormType", new PdfInteger(1)),
+            ("BBox", new PdfArray([
+                new PdfInteger(0), new PdfInteger(0), Number(width), Number(height)])),
+            ("Resources", resources)), content);
+
+    private static PdfArray ColorArray(PdfRgbColor color) =>
+        new([Number(color.Red), Number(color.Green), Number(color.Blue)]);
+
+    private static string ColorOperands(PdfRgbColor color) =>
+        $"{FormatNumber(color.Red)} {FormatNumber(color.Green)} {FormatNumber(color.Blue)}";
+
     private static string FormatNumber(double value) =>
         Encoding.ASCII.GetString(PdfObjectWriter.Write(Number(value)));
 
@@ -1434,6 +1650,16 @@ public sealed class PdfDocumentBuilder
         string? Condition,
         string? RegistryName,
         string? Information);
+    private sealed record TextNoteDefinition(
+        int PageIndex, double X, double Y, double Size, string Contents,
+        PdfRgbColor Color, bool Open);
+    private sealed record AllocatedTextNote(
+        TextNoteDefinition Definition, int AnnotationNumber, int AppearanceNumber);
+    private sealed record TextMarkupDefinition(
+        PdfTextMarkupType Type, int PageIndex, double X, double Y, double Width, double Height,
+        string? Contents, PdfRgbColor Color, double Opacity);
+    private sealed record AllocatedTextMarkup(
+        TextMarkupDefinition Definition, int AnnotationNumber, int AppearanceNumber);
     private sealed record AllocatedEmbeddedFont(
         TrueTypeFont Font,
         IReadOnlyDictionary<ushort, int> Mappings,

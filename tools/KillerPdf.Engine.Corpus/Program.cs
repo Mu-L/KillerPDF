@@ -124,6 +124,31 @@ if (args.Length == 4 && args[0] == "--pdfa-form-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--pdfa-annotation-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    var content = new PdfContentStreamBuilder()
+        .SetFillRgb(0.12, 0.12, 0.12)
+        .Rectangle(72, 620, 360, 72)
+        .Fill();
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata { Title = "KillerPDF PDF/A annotation smoke test", Language = "en-US" })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4Conformance()
+        .AddPage(612, 792, content)
+        .AddTextNote(0, 448, 650, "Review this section", PdfRgbColor.NoteYellow)
+        .AddHighlight(0, 90, 640, 300, 28, "Highlighted passage", PdfRgbColor.Yellow, 0.35)
+        .AddUnderline(0, 90, 590, 300, 28, "Underlined passage")
+        .AddStrikeOut(0, 90, 540, 300, 28, "Struck passage")
+        .AddSquiggly(0, 90, 490, 300, 28, "Spelling review")
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4 annotation PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>]");
@@ -134,6 +159,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-form-smoke <font.ttf> <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-annotation-smoke <profile.icc> <output.pdf>");
     return args.Length == 0 ? 2 : 0;
 }
 
