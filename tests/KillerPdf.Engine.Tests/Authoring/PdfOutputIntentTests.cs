@@ -82,6 +82,35 @@ public sealed class PdfOutputIntentTests
     }
 
     [Fact]
+    public void PdfA4fMode_WritesConformanceIdentificationAndAssociatedAttachment()
+    {
+        byte[] payload = "PDF/A-4f attachment"u8.ToArray();
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "PDF/A-4f" })
+            .SetOutputIntent(PdfIccProfile.Load(BuildProfile("RGB ")), "Test RGB")
+            .EnablePdfA4fConformance()
+            .AddBlankPage()
+            .AddAttachment("evidence.txt", payload, "text/plain",
+                relationship: PdfAssociatedFileRelationship.Data)
+            .Build());
+        var catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        var metadata = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(catalog[Name("Metadata")])));
+        string xmp = Encoding.UTF8.GetString(metadata.EncodedData.Span);
+        var associatedFiles = Assert.IsType<PdfArray>(catalog[Name("AF")]);
+        var fileSpecification = ResolveDictionary(document, associatedFiles[0]);
+        var embeddedFiles = Assert.IsType<PdfDictionary>(fileSpecification[Name("EF")]);
+        var embedded = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(embeddedFiles[Name("UF")])));
+
+        Assert.Contains("pdfaid:conformance", xmp);
+        Assert.Contains(">F<", xmp);
+        Assert.Equal("Data", Assert.IsType<PdfName>(
+            fileSpecification[Name("AFRelationship")]).ValueAsLatin1());
+        Assert.Equal(payload, embedded.EncodedData.ToArray());
+    }
+
+    [Fact]
     public void PdfA4Mode_RejectsKnownNonConformingAuthoringFeatures()
     {
         PdfDocumentBuilder Ready() => new PdfDocumentBuilder()

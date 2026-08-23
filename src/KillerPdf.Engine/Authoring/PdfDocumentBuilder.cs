@@ -24,7 +24,7 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<RadioGroupDefinition> _radioGroups = [];
     private readonly List<ChoiceFieldDefinition> _choiceFields = [];
     private OutputIntentDefinition? _outputIntent;
-    private bool _pdfA4Conformance;
+    private PdfA4Flavor _pdfA4Flavor;
     private readonly List<TextNoteDefinition> _textNotes = [];
     private readonly List<TextMarkupDefinition> _textMarkups = [];
 
@@ -57,7 +57,14 @@ public sealed partial class PdfDocumentBuilder
 
     public PdfDocumentBuilder EnablePdfA4Conformance()
     {
-        _pdfA4Conformance = true;
+        _pdfA4Flavor = PdfA4Flavor.General;
+        return this;
+    }
+
+    /// <summary>Enables PDF/A-4f authoring, including associated embedded files.</summary>
+    public PdfDocumentBuilder EnablePdfA4fConformance()
+    {
+        _pdfA4Flavor = PdfA4Flavor.EmbeddedFiles;
         return this;
     }
 
@@ -170,12 +177,18 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
-    public PdfDocumentBuilder AddBookmark(string title, int pageIndex)
+    public PdfDocumentBuilder AddBookmark(string title, int pageIndex, int level = 0)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("A bookmark title cannot be empty.", nameof(title));
         ValidatePageIndex(pageIndex, nameof(pageIndex));
-        _bookmarks.Add(new BookmarkDefinition(title, pageIndex));
+        if (level < 0)
+            throw new ArgumentOutOfRangeException(nameof(level));
+        if (_bookmarks.Count == 0 && level != 0)
+            throw new ArgumentException("The first bookmark must be at level zero.", nameof(level));
+        if (_bookmarks.Count > 0 && level > _bookmarks[^1].Level + 1)
+            throw new ArgumentException("A bookmark level cannot skip its parent level.", nameof(level));
+        _bookmarks.Add(new BookmarkDefinition(title, pageIndex, level));
         return this;
     }
 
@@ -393,23 +406,24 @@ public sealed partial class PdfDocumentBuilder
 
     public byte[] Build()
     {
-        if (_pdfA4Conformance && Metadata is null)
+        bool pdfA4 = _pdfA4Flavor != PdfA4Flavor.None;
+        if (pdfA4 && Metadata is null)
             throw new InvalidOperationException("PDF/A-4 authoring requires XMP document metadata.");
-        if (_pdfA4Conformance && _outputIntent is null)
+        if (pdfA4 && _outputIntent is null)
             throw new InvalidOperationException("PDF/A-4 authoring requires an ICC output intent.");
-        if (_pdfA4Conformance && _pages.Any(page => page.Fonts.Count > 0))
+        if (pdfA4 && _pages.Any(page => page.Fonts.Count > 0))
             throw new InvalidOperationException("PDF/A-4 authoring requires embedded fonts; the 14 built-in PDF fonts are not embedded.");
-        if (_pdfA4Conformance && (_textFields.Any(field => field.EmbeddedFont is null)
+        if (pdfA4 && (_textFields.Any(field => field.EmbeddedFont is null)
             || _choiceFields.Any(field => field.EmbeddedFont is null)))
             throw new InvalidOperationException(
                 "PDF/A-4 text and choice fields require an embedded TrueType form font.");
-        if (_pdfA4Conformance && _attachments.Count > 0)
-            throw new InvalidOperationException("General PDF/A-4 does not permit attachments; use the PDF/A-4f milestone.");
+        if (_pdfA4Flavor == PdfA4Flavor.General && _attachments.Count > 0)
+            throw new InvalidOperationException("General PDF/A-4 does not permit attachments; enable PDF/A-4f conformance instead.");
         const int catalogNumber = 1;
         const int pagesNumber = 2;
         int nextObjectNumber = 3;
         int? metadataNumber = Metadata is null ? null : nextObjectNumber++;
-        int? infoNumber = Metadata is null || _pdfA4Conformance ? null : nextObjectNumber++;
+        int? infoNumber = Metadata is null || pdfA4 ? null : nextObjectNumber++;
         int? outlinesNumber = _bookmarks.Count == 0 ? null : nextObjectNumber++;
         int[] bookmarkNumbers = _bookmarks.Select(_ => nextObjectNumber++).ToArray();
         var allocatedAttachments = _attachments.Select(attachment =>
@@ -638,17 +652,36 @@ public sealed partial class PdfDocumentBuilder
             objects.Add(new PdfIndirectObject(metadataNumber!.Value, 0,
                 new PdfStream(Dictionary(
                     ("Type", Name("Metadata")),
-                    ("Subtype", Name("XML"))), BuildXmp(Metadata, _pdfA4Conformance)), 0));
+                    ("Subtype", Name("XML"))), BuildXmp(Metadata, _pdfA4Flavor)), 0));
             if (infoNumber.HasValue)
                 objects.Add(new PdfIndirectObject(infoNumber.Value, 0, BuildInfo(Metadata), 0));
         }
         if (outlinesNumber.HasValue)
         {
+            var parents = new int?[_bookmarks.Count];
+            var children = Enumerable.Range(0, _bookmarks.Count)
+                .Select(_ => new List<int>()).ToArray();
+            var levelStack = new List<int>();
+            var topLevel = new List<int>();
+            for (int index = 0; index < _bookmarks.Count; index++)
+            {
+                int level = _bookmarks[index].Level;
+                while (levelStack.Count > level) levelStack.RemoveAt(levelStack.Count - 1);
+                if (level == 0) topLevel.Add(index);
+                else
+                {
+                    int parent = levelStack[level - 1];
+                    parents[index] = parent;
+                    children[parent].Add(index);
+                }
+                if (levelStack.Count == level) levelStack.Add(index);
+                else levelStack[level] = index;
+            }
             objects.Add(new PdfIndirectObject(outlinesNumber.Value, 0,
                 Dictionary(
                     ("Type", Name("Outlines")),
-                    ("First", new PdfIndirectReference(bookmarkNumbers[0], 0)),
-                    ("Last", new PdfIndirectReference(bookmarkNumbers[^1], 0)),
+                    ("First", new PdfIndirectReference(bookmarkNumbers[topLevel[0]], 0)),
+                    ("Last", new PdfIndirectReference(bookmarkNumbers[topLevel[^1]], 0)),
                     ("Count", new PdfInteger(bookmarkNumbers.Length))), 0));
             for (int index = 0; index < _bookmarks.Count; index++)
             {
@@ -656,18 +689,36 @@ public sealed partial class PdfDocumentBuilder
                 var entries = new List<(string Name, PdfObject Value)>
                 {
                     ("Title", UnicodeString(bookmark.Title)),
-                    ("Parent", new PdfIndirectReference(outlinesNumber.Value, 0)),
+                    ("Parent", parents[index].HasValue
+                        ? new PdfIndirectReference(bookmarkNumbers[parents[index]!.Value], 0)
+                        : new PdfIndirectReference(outlinesNumber.Value, 0)),
                     ("Dest", new PdfArray([
                         new PdfIndirectReference(allocated[bookmark.PageIndex].PageNumber, 0),
                         Name("Fit")]))
                 };
-                if (index > 0)
-                    entries.Add(("Prev", new PdfIndirectReference(bookmarkNumbers[index - 1], 0)));
-                if (index + 1 < bookmarkNumbers.Length)
-                    entries.Add(("Next", new PdfIndirectReference(bookmarkNumbers[index + 1], 0)));
+                List<int> siblings = parents[index].HasValue
+                    ? children[parents[index]!.Value] : topLevel;
+                int siblingIndex = siblings.IndexOf(index);
+                if (siblingIndex > 0)
+                    entries.Add(("Prev", new PdfIndirectReference(
+                        bookmarkNumbers[siblings[siblingIndex - 1]], 0)));
+                if (siblingIndex + 1 < siblings.Count)
+                    entries.Add(("Next", new PdfIndirectReference(
+                        bookmarkNumbers[siblings[siblingIndex + 1]], 0)));
+                if (children[index].Count > 0)
+                {
+                    entries.Add(("First", new PdfIndirectReference(
+                        bookmarkNumbers[children[index][0]], 0)));
+                    entries.Add(("Last", new PdfIndirectReference(
+                        bookmarkNumbers[children[index][^1]], 0)));
+                    entries.Add(("Count", new PdfInteger(DescendantCount(index))));
+                }
                 objects.Add(new PdfIndirectObject(
                     bookmarkNumbers[index], 0, Dictionary(entries.ToArray()), 0));
             }
+
+            int DescendantCount(int index) => children[index]
+                .Sum(child => 1 + DescendantCount(child));
         }
         foreach (AllocatedAttachment allocatedAttachment in allocatedAttachments)
             AddAttachmentObjects(objects, allocatedAttachment);
@@ -1479,7 +1530,7 @@ public sealed partial class PdfDocumentBuilder
         }
     }
 
-    private static byte[] BuildXmp(PdfDocumentMetadata metadata, bool pdfA4)
+    private static byte[] BuildXmp(PdfDocumentMetadata metadata, PdfA4Flavor pdfA4Flavor)
     {
         using var output = new MemoryStream();
         var settings = new XmlWriterSettings
@@ -1505,10 +1556,12 @@ public sealed partial class PdfDocumentBuilder
             WriteSimple("xmp", "CreatorTool", "http://ns.adobe.com/xap/1.0/", metadata.Creator);
             WriteSimple("xmp", "CreateDate", "http://ns.adobe.com/xap/1.0/", XmpDate(metadata.CreationDate));
             WriteSimple("xmp", "ModifyDate", "http://ns.adobe.com/xap/1.0/", XmpDate(metadata.ModificationDate));
-            if (pdfA4)
+            if (pdfA4Flavor != PdfA4Flavor.None)
             {
                 WriteSimple("pdfaid", "part", "http://www.aiim.org/pdfa/ns/id/", "4");
                 WriteSimple("pdfaid", "rev", "http://www.aiim.org/pdfa/ns/id/", "2020");
+                if (pdfA4Flavor == PdfA4Flavor.EmbeddedFiles)
+                    WriteSimple("pdfaid", "conformance", "http://www.aiim.org/pdfa/ns/id/", "F");
             }
             xml.WriteEndElement();
             xml.WriteEndElement();
@@ -1539,6 +1592,13 @@ public sealed partial class PdfDocumentBuilder
             }
         }
         return output.ToArray();
+    }
+
+    private enum PdfA4Flavor
+    {
+        None,
+        General,
+        EmbeddedFiles
     }
 
     private static byte[] DocumentIdentifier(IEnumerable<PdfIndirectObject> objects)
@@ -1622,7 +1682,7 @@ public sealed partial class PdfDocumentBuilder
     private sealed record NamedDestinationLinkDefinition(
         double X, double Y, double Width, double Height, string DestinationName)
         : LinkDefinition(X, Y, Width, Height);
-    private sealed record BookmarkDefinition(string Title, int PageIndex);
+    private sealed record BookmarkDefinition(string Title, int PageIndex, int Level);
     private sealed record NamedDestinationDefinition(string Name, int PageIndex);
     private sealed record PageLabelDefinition(
         int PageIndex, PdfPageLabelStyle Style, string? Prefix, int StartNumber);

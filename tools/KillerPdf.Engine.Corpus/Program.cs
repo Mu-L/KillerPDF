@@ -67,6 +67,29 @@ if (args.Length == 3 && args[0] == "--output-intent-smoke")
     return 0;
 }
 
+if (args.Length == 3 && args[0] == "--pdfa4f-attachment-smoke")
+{
+    PdfIccProfile profile = PdfIccProfile.Load(File.ReadAllBytes(args[1]));
+    string destination = Path.GetFullPath(args[2]);
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF PDF/A-4f attachment smoke test",
+            Language = "en-US"
+        })
+        .SetOutputIntent(profile, "sRGB IEC61966-2.1")
+        .EnablePdfA4fConformance()
+        .AddBlankPage()
+        .AddAttachment("evidence.txt", "KillerPDF PDF/A-4f attachment"u8.ToArray(),
+            "text/plain", "PDF/A-4f validation payload", PdfAssociatedFileRelationship.Data,
+            DateTimeOffset.UtcNow)
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/A-4f attachment PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--authoring-smoke")
 {
     string destination = Path.GetFullPath(args[1]);
@@ -326,8 +349,9 @@ if (args.Length == 4 && args[0] == "--pdfa-import-smoke")
         .EnablePdfA4Conformance()
         .AddPage(300, 300, new PdfContentStreamBuilder()
             .SetFillRgb(0.55, 0.2, 0.75).Rectangle(40, 40, 220, 220).Fill())
-        .AddNamedDestination("target-cover", 0)
+        .AddNamedDestination("imported-appendix", 0)
         .AddPageLabelRange(0, PdfPageLabelStyle.None, "Cover")
+        .AddBookmark("Target cover", 0)
         .AddCheckBox(0, "target.approved", 250, 250, 18, 18, isChecked: false)
         .Build();
     PdfDocument sourceDocument = PdfDocument.Open(importSource);
@@ -353,6 +377,7 @@ if (args.Length == 2 && args[0] == "--document-import-smoke")
         .AddBlankPage(400, 600)
         .AddBlankPage(600, 400)
         .AddBookmark("Imported appendix", 1)
+        .AddBookmark("Imported detail", 0, 1)
         .AddNamedDestination("imported-appendix", 1)
         .AddNamedDestinationLink(0, 40, 40, 120, 24, "imported-appendix")
         .AddPageLabelRange(0, PdfPageLabelStyle.Decimal, "Imported ")
@@ -360,8 +385,9 @@ if (args.Length == 2 && args[0] == "--document-import-smoke")
         .Build();
     byte[] target = new PdfDocumentBuilder()
         .AddBlankPage(300, 300)
-        .AddNamedDestination("target-cover", 0)
+        .AddNamedDestination("imported-appendix", 0)
         .AddPageLabelRange(0, PdfPageLabelStyle.None, "Cover")
+        .AddBookmark("Target cover", 0)
         .AddAttachment("target.txt", "target attachment"u8.ToArray(), "text/plain")
         .Build();
     byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
@@ -423,6 +449,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --image-smoke <image.jpg> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --output-intent-smoke <profile.icc> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa4f-attachment-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-form-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-annotation-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-visual-annotation-smoke <font.ttf> <profile.icc> <output.pdf>");

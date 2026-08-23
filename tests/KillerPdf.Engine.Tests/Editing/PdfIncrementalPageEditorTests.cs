@@ -435,6 +435,59 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_RenamesEscapedAcroFormDefaultResourceNames()
+    {
+        PdfDocument source = PdfDocument.Open(BuildEscapedAcroFormResourceDocument());
+        byte[] target = new PdfDocumentBuilder()
+            .AddBlankPage().AddTextField(0, "target", 10, 10, 100, 20).Build();
+
+        PdfDocument merged = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(merged, merged.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(merged, catalog[Name("AcroForm")]);
+        PdfDictionary importedField = ResolveDictionary(merged,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[1]);
+        string appearance = Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(importedField[Name("DA")]).Bytes.Span);
+
+        Assert.Contains("/KPF", appearance, StringComparison.Ordinal);
+        Assert.DoesNotContain("/F#20One", appearance, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_MergesAcroFormFlagsCalculationOrderAndHierarchicalFieldNames()
+    {
+        byte[] target = BuildHierarchicalAcroFormDocument("target", 1, 1);
+        PdfDocument source = PdfDocument.Open(
+            BuildHierarchicalAcroFormDocument("source", 2, 2));
+
+        PdfDocument merged = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(source)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(merged, merged.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(merged, catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        PdfArray calculationOrder = Assert.IsType<PdfArray>(form[Name("CO")]);
+        PdfDictionary targetParent = ResolveDictionary(merged, fields[0]);
+        PdfDictionary sourceParent = ResolveDictionary(merged, fields[1]);
+        PdfIndirectReference targetChildReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(targetParent[Name("Kids")])[0]);
+        PdfIndirectReference sourceChildReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(sourceParent[Name("Kids")])[0]);
+        PdfDictionary sourceChild = ResolveDictionary(merged, sourceChildReference);
+
+        Assert.Equal(2, fields.Count);
+        Assert.Equal(3, Assert.IsType<PdfInteger>(form[Name("SigFlags")]).Value);
+        Assert.Equal([targetChildReference.ObjectNumber, sourceChildReference.ObjectNumber],
+            calculationOrder.Select(value =>
+                Assert.IsType<PdfIndirectReference>(value).ObjectNumber));
+        Assert.Equal(2, Assert.IsType<PdfInteger>(sourceChild[Name("Q")]).Value);
+    }
+
+    [Fact]
     public void Build_MergesNamedDestinationsAndKeepsImportedNamedLinksValid()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -474,22 +527,49 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
-    public void Build_RejectsNamedDestinationCollisionsAndPartialImports()
+    public void Build_RenamesNamedDestinationCollisionsAndRejectsExternalSplitTargets()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage().AddBlankPage()
             .AddNamedDestination("shared", 1)
+            .AddNamedDestinationLink(0, 10, 10, 50, 20, "shared")
             .Build());
         byte[] collidingTarget = new PdfDocumentBuilder()
             .AddBlankPage().AddNamedDestination("shared", 0).Build();
         byte[] emptyTarget = new PdfDocumentBuilder().Build();
 
-        Assert.Throws<NotSupportedException>(() =>
+        PdfDocument renamed = PdfDocument.Open(
             new PdfIncrementalPageEditor(PdfDocument.Open(collidingTarget))
                 .AddImportedDocument(source).Build());
+        (_, _, PdfDictionary[] renamedPages) = FlatPages(renamed);
+        PdfDictionary renamedCatalog = ResolveDictionary(renamed, renamed.Trailer[Name("Root")]);
+        PdfDictionary renamedNames = DictionaryValue(renamed, renamedCatalog[Name("Names")]);
+        PdfDictionary renamedDestinations = DictionaryValue(renamed, renamedNames[Name("Dests")]);
+        PdfArray renamedEntries = Assert.IsType<PdfArray>(renamedDestinations[Name("Names")]);
+        PdfDictionary renamedLink = ResolveDictionary(renamed,
+            Assert.IsType<PdfArray>(renamedPages[1][Name("Annots")])[0]);
+        Assert.Equal(["shared", "shared (2)"], Enumerable.Range(0, renamedEntries.Count / 2)
+            .Select(index => DecodeUnicode(Assert.IsType<PdfString>(renamedEntries[index * 2]))));
+        Assert.Equal("shared (2)", DecodeUnicode(
+            Assert.IsType<PdfString>(renamedLink[Name("Dest")])));
+
         Assert.Throws<NotSupportedException>(() =>
             new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
                 .AddImportedPage(source, 0).Build());
+
+        PdfDocument retainedDestination = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddNamedDestination("retained", 0)
+            .AddNamedDestinationLink(0, 10, 10, 50, 20, "retained")
+            .Build());
+        PdfDocument split = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
+                .AddImportedPage(retainedDestination, 0)
+                .Build());
+        PdfDictionary splitCatalog = ResolveDictionary(split, split.Trailer[Name("Root")]);
+        PdfDictionary splitNames = DictionaryValue(split, splitCatalog[Name("Names")]);
+        PdfDictionary splitDestinations = DictionaryValue(split, splitNames[Name("Dests")]);
+        Assert.Equal(2, Assert.IsType<PdfArray>(splitDestinations[Name("Names")]).Count);
     }
 
     [Fact]
@@ -516,6 +596,23 @@ public sealed class PdfIncrementalPageEditorTests
             new PdfIncrementalPageEditor(PdfDocument.Open(target))
                 .AddImportedPage(source, 0)
                 .Build());
+
+        PdfDocument collisionTarget = PdfDocument.Open(BuildLegacyDestinationDocument());
+        PdfDocument collisionMerged = PdfDocument.Open(
+            new PdfIncrementalPageEditor(collisionTarget)
+                .AddImportedDocument(source)
+                .Build());
+        (_, _, PdfDictionary[] collisionPages) = FlatPages(collisionMerged);
+        PdfDictionary collisionCatalog = ResolveDictionary(
+            collisionMerged, collisionMerged.Trailer[Name("Root")]);
+        PdfDictionary collisionDestinations = DictionaryValue(
+            collisionMerged, collisionCatalog[Name("Dests")]);
+        PdfDictionary collisionLink = ResolveDictionary(collisionMerged,
+            Assert.IsType<PdfArray>(collisionPages[2][Name("Annots")])[0]);
+        Assert.True(collisionDestinations.ContainsKey(Name("chapter")));
+        Assert.True(collisionDestinations.ContainsKey(Name("chapter~2")));
+        Assert.Equal("chapter~2",
+            Assert.IsType<PdfName>(collisionLink[Name("Dest")]).ValueAsLatin1());
     }
 
     [Fact]
@@ -542,6 +639,63 @@ public sealed class PdfIncrementalPageEditorTests
             Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
         Assert.Equal("UseOutlines",
             Assert.IsType<PdfName>(catalog[Name("PageMode")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_MergesBookmarkTreesFromTheTargetAndMultipleSources()
+    {
+        byte[] target = new PdfDocumentBuilder()
+            .AddBlankPage().AddBookmark("Target", 0).Build();
+        PdfDocument firstSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddBookmark("First source", 0)
+            .AddBookmark("First source child", 1, 1)
+            .Build());
+        PdfDocument secondSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBookmark("Second source", 0).Build());
+
+        PdfDocument merged = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedDocument(firstSource)
+                .AddImportedDocument(secondSource)
+                .Build());
+        (_, PdfIndirectReference[] pages, _) = FlatPages(merged);
+        PdfDictionary catalog = ResolveDictionary(merged, merged.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("Outlines")]);
+        PdfDictionary root = ResolveDictionary(merged, rootReference);
+        var items = new List<(PdfIndirectReference Reference, PdfDictionary Dictionary)>();
+        PdfIndirectReference? current = Assert.IsType<PdfIndirectReference>(root[Name("First")]);
+        while (current is not null)
+        {
+            PdfDictionary item = ResolveDictionary(merged, current);
+            items.Add((current, item));
+            current = item.TryGetValue(Name("Next"), out PdfObject? next)
+                ? Assert.IsType<PdfIndirectReference>(next) : null;
+        }
+
+        Assert.Equal(4, Assert.IsType<PdfInteger>(root[Name("Count")]).Value);
+        Assert.Equal(["Target", "First source", "Second source"], items.Select(item =>
+            DecodeUnicode(Assert.IsType<PdfString>(item.Dictionary[Name("Title")]))));
+        Assert.Equal(new[] { pages[0].ObjectNumber, pages[1].ObjectNumber, pages[3].ObjectNumber },
+            items.Select(item =>
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfArray>(item.Dictionary[Name("Dest")])[0]).ObjectNumber));
+        Assert.All(items, item => Assert.Equal(rootReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(item.Dictionary[Name("Parent")]).ObjectNumber));
+        Assert.False(items[0].Dictionary.ContainsKey(Name("Prev")));
+        Assert.Equal(items[0].Reference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(items[1].Dictionary[Name("Prev")]).ObjectNumber);
+        Assert.Equal(items[1].Reference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(items[2].Dictionary[Name("Prev")]).ObjectNumber);
+        Assert.False(items[2].Dictionary.ContainsKey(Name("Next")));
+        PdfDictionary child = ResolveDictionary(merged,
+            Assert.IsType<PdfIndirectReference>(items[1].Dictionary[Name("First")]));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(items[1].Dictionary[Name("Count")]).Value);
+        Assert.Equal(items[1].Reference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(child[Name("Parent")]).ObjectNumber);
+        Assert.Equal(pages[2].ObjectNumber, Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(child[Name("Dest")])[0]).ObjectNumber);
     }
 
     [Fact]
@@ -788,6 +942,64 @@ public sealed class PdfIncrementalPageEditorTests
             source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
                 .Append(" 00000 n \n");
         source.Append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n")
+            .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+
+        void Add(int number, string value)
+        {
+            offsets[number] = source.Length;
+            source.Append(number).Append(" 0 obj\n").Append(value).Append("\nendobj\n");
+        }
+    }
+
+    private static byte[] BuildHierarchicalAcroFormDocument(
+        string parentName, int signatureFlags, int defaultQuadding)
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        var offsets = new int[6];
+        Add(1, $"<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [4 0 R] " +
+            $"/SigFlags {signatureFlags} /CO [5 0 R] /Q {defaultQuadding} >> >>");
+        Add(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        Add(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] " +
+            "/Resources <<>> /Annots [5 0 R] >>");
+        Add(4, $"<< /T ({parentName}) /Kids [5 0 R] >>");
+        Add(5, "<< /Type /Annot /Subtype /Widget /FT /Tx /T (name) /Parent 4 0 R " +
+            "/P 3 0 R /Rect [10 10 100 30] >>");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 6\n0000000000 65535 f \n");
+        for (int index = 1; index <= 5; index++)
+            source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
+                .Append(" 00000 n \n");
+        source.Append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n")
+            .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+
+        void Add(int number, string value)
+        {
+            offsets[number] = source.Length;
+            source.Append(number).Append(" 0 obj\n").Append(value).Append("\nendobj\n");
+        }
+    }
+
+    private static byte[] BuildEscapedAcroFormResourceDocument()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        var offsets = new int[7];
+        Add(1, "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [4 0 R] " +
+            "/DR << /Font << /F#20One 6 0 R >> >> /DA (/F#20One 12 Tf 0 g) >> >>");
+        Add(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        Add(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] " +
+            "/Resources <<>> /Annots [4 0 R] >>");
+        Add(4, "<< /Type /Annot /Subtype /Widget /FT /Tx /T (source) " +
+            "/DA (/F#20One 12 Tf 0 g) /P 3 0 R /Rect [10 10 100 30] >>");
+        Add(5, "null");
+        Add(6, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 7\n0000000000 65535 f \n");
+        for (int index = 1; index <= 6; index++)
+            source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
+                .Append(" 00000 n \n");
+        source.Append("trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n")
             .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
 
