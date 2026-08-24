@@ -3,6 +3,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Writing;
 using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Signing;
@@ -12,6 +13,23 @@ namespace KillerPdf.Engine.Tests.Writing;
 
 public sealed class PdfDocumentWriterTests
 {
+    [Fact]
+    public void Write_RejectsUndefinedPolicyValues()
+    {
+        PdfDocument document = PdfDocument.Open(SourcePdf());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => PdfDocumentWriter.Write(
+            document, new PdfDocumentWriteOptions
+            {
+                MetadataPolicy = (PdfMetadataPolicy)int.MaxValue
+            }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => PdfDocumentWriter.Write(
+            document, new PdfDocumentWriteOptions
+            {
+                CrossReferenceFormat = (PdfCrossReferenceFormat)int.MaxValue
+            }));
+    }
+
     [Fact]
     public void Write_ProducesACompletePdfThatTheEngineCanReopen()
     {
@@ -314,6 +332,104 @@ public sealed class PdfDocumentWriterTests
             {
                 MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformation
             }));
+    }
+
+    [Theory]
+    [InlineData(PdfCrossReferenceFormat.Table)]
+    [InlineData(PdfCrossReferenceFormat.Stream)]
+    public void Write_CanPhysicallyRemoveDocumentInformationAndCatalogXmp(
+        PdfCrossReferenceFormat format)
+    {
+        const string privateMarker = "private xmp metadata marker";
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = privateMarker,
+                Author = "Private Author"
+            })
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference sourceCatalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary sourceCatalog = Assert.IsType<PdfDictionary>(
+            source.Resolve(sourceCatalogReference));
+        PdfIndirectReference metadataReference = Assert.IsType<PdfIndirectReference>(
+            sourceCatalog[Name("Metadata")]);
+
+        byte[] rewritten = PdfDocumentWriter.Write(source, new PdfDocumentWriteOptions
+        {
+            MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformationAndXmp,
+            CrossReferenceFormat = format,
+            UseObjectStreams = format == PdfCrossReferenceFormat.Stream,
+            CompressStructuralStreams = format == PdfCrossReferenceFormat.Stream
+        });
+        PdfDocument reopened = PdfDocument.Open(rewritten);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(reopened.Trailer[Name("Root")])));
+
+        Assert.False(reopened.Trailer.ContainsKey(Name("Info")));
+        Assert.False(catalog.ContainsKey(Name("Metadata")));
+        Assert.Equal(PdfCrossReferenceEntryType.Free,
+            reopened.CrossReferences[metadataReference.ObjectNumber].Type);
+        Assert.Equal(1, reopened.CrossReferences[metadataReference.ObjectNumber].Field2);
+        Assert.DoesNotContain(privateMarker, Encoding.UTF8.GetString(rewritten),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_RejectsCatalogXmpRemovalWhenMetadataObjectIsShared()
+    {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "shared metadata" })
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(
+            authored.Resolve(catalogReference));
+        PdfObject metadata = catalog[Name("Metadata")];
+        var sharedCatalog = new PdfDictionary(catalog.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("PrivateMetadata"), metadata)));
+        PdfDocument shared = PdfDocument.Open(new PdfIncrementalUpdateBuilder(authored)
+            .ReplaceObject(catalogReference.ObjectNumber, sharedCatalog)
+            .Build());
+
+        Assert.Throws<NotSupportedException>(() => PdfDocumentWriter.Write(
+            shared, new PdfDocumentWriteOptions
+            {
+                MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformationAndXmp
+            }));
+    }
+
+    [Fact]
+    public void Write_RemovesAllMetadataWithoutRemovingAes256Protection()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "encrypted private metadata" })
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+
+        byte[] rewritten = PdfDocumentWriter.Write(
+            PdfDocument.Open(source, "owner"), new PdfDocumentWriteOptions
+            {
+                MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformationAndXmp,
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressStructuralStreams = true
+            });
+        PdfDocument reopened = PdfDocument.Open(rewritten, "user");
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(reopened.Trailer[Name("Root")])));
+
+        Assert.True(reopened.IsEncrypted);
+        Assert.True(reopened.IsDecrypted);
+        Assert.False(reopened.Trailer.ContainsKey(Name("Info")));
+        Assert.False(catalog.ContainsKey(Name("Metadata")));
     }
 
     [Theory]

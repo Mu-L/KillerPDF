@@ -3,6 +3,7 @@ using System.IO.Compression;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Signing;
 
@@ -21,6 +22,7 @@ public static class PdfDocumentWriter
     private static readonly PdfName IdName = new("ID"u8);
     private static readonly PdfName VersionName = new("Version"u8);
     private static readonly PdfName EncryptName = new("Encrypt"u8);
+    private static readonly PdfName MetadataName = new("Metadata"u8);
     private static readonly PdfName WName = new("W"u8);
     private static readonly PdfName LengthName = new("Length"u8);
     private static readonly PdfName NName = new("N"u8);
@@ -51,12 +53,23 @@ public static class PdfDocumentWriter
     {
         ArgumentNullException.ThrowIfNull(document);
         options ??= new PdfDocumentWriteOptions();
+        if (!Enum.IsDefined(options.MetadataPolicy))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "The metadata policy is not defined.");
+        if (!Enum.IsDefined(options.CrossReferenceFormat))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "The cross-reference format is not defined.");
         PdfVersion outputVersion = options.TargetVersion ?? document.Header.Version;
         if (outputVersion.CompareTo(document.Header.Version) < 0)
             throw new NotSupportedException("A full rewrite cannot downgrade the source PDF version without feature analysis.");
         if (document.IsEncrypted && !document.IsDecrypted)
             throw new InvalidOperationException(
                 "An encrypted PDF must be opened with a password before it can be rewritten.");
+        if (document.PasswordAuthenticationRole == PdfPasswordAuthenticationRole.User
+            && (document.DeclaredPermissions is not PdfDocumentPermissions permissions
+                || !permissions.AllowDocumentModification))
+            throw new InvalidOperationException(
+                "The PDF user password does not permit a full document rewrite.");
         if (!options.AllowSignatureInvalidation)
         {
             bool hasCertification =
@@ -78,6 +91,7 @@ public static class PdfDocumentWriter
                 "Structural-stream compression requires the cross-reference-stream format.");
 
         List<WritableObject> objects = ReadCurrentObjects(document);
+        root = RemoveCatalogMetadata(document, root, objects, options.MetadataPolicy);
         RemoveDocumentInformationObject(document, root, objects, options.MetadataPolicy);
         int maximumObjectNumber = Math.Max(
             Math.Max(
@@ -325,7 +339,7 @@ public static class PdfDocumentWriter
         PdfDocument document, PdfObject root, List<WritableObject> objects,
         PdfMetadataPolicy policy)
     {
-        if (policy != PdfMetadataPolicy.RemoveDocumentInformation
+        if (policy == PdfMetadataPolicy.Preserve
             || !document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject infoValue)
             || infoValue is not PdfIndirectReference infoReference)
             return;
@@ -343,6 +357,47 @@ public static class PdfDocumentWriter
             throw new NotSupportedException(
                 "The document information object is shared outside trailer /Info and cannot be removed safely.");
         objects.RemoveAll(item => item.ObjectNumber == infoReference.ObjectNumber);
+    }
+
+    private static PdfObject RemoveCatalogMetadata(
+        PdfDocument document, PdfObject root, List<WritableObject> objects,
+        PdfMetadataPolicy policy)
+    {
+        if (policy != PdfMetadataPolicy.RemoveDocumentInformationAndXmp)
+            return root;
+        PdfDictionary catalog = root is PdfIndirectReference rootReference
+            ? document.Resolve(rootReference) as PdfDictionary
+                ?? throw new InvalidOperationException("The trailer /Root value is not a catalog dictionary.")
+            : root as PdfDictionary
+                ?? throw new InvalidOperationException("The trailer /Root value is not a catalog dictionary.");
+        if (!catalog.TryGetValue(MetadataName, out PdfObject metadataValue))
+            return root;
+        var replacement = new PdfDictionary(catalog.Where(entry =>
+            !entry.Key.Equals(MetadataName)));
+        if (metadataValue is PdfIndirectReference metadataReference)
+        {
+            if (root is PdfIndirectReference catalogReference
+                && metadataReference.ObjectNumber == catalogReference.ObjectNumber)
+                throw new NotSupportedException(
+                    "The catalog metadata reference points to the catalog and cannot be removed safely.");
+            if (ReferencesObject(replacement, metadataReference.ObjectNumber)
+                || objects.Any(item => item.ObjectNumber != metadataReference.ObjectNumber
+                    && (root is not PdfIndirectReference catalogReference
+                        || item.ObjectNumber != catalogReference.ObjectNumber)
+                    && ReferencesObject(item.Value, metadataReference.ObjectNumber))
+                || document.Trailer.Any(entry => !entry.Key.Equals(RootName)
+                    && ReferencesObject(entry.Value, metadataReference.ObjectNumber)))
+                throw new NotSupportedException(
+                    "The catalog metadata object is shared and cannot be removed safely.");
+            objects.RemoveAll(item => item.ObjectNumber == metadataReference.ObjectNumber);
+        }
+        if (root is not PdfIndirectReference reference)
+            return replacement;
+        int index = objects.FindIndex(item => item.ObjectNumber == reference.ObjectNumber);
+        if (index < 0)
+            throw new InvalidOperationException("The catalog object is unavailable for metadata removal.");
+        objects[index] = objects[index] with { Value = replacement };
+        return root;
     }
 
     private static bool ReferencesObject(PdfObject value, int objectNumber) => value switch

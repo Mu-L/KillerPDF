@@ -333,6 +333,42 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ImportsEncryptedSelectedPageBatchAcrossDistinctKeys()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "source-user", OwnerPassword = "source-owner"
+            })
+            .AddPage(200, 300, "q 1 2 30 40 re f Q"u8.ToArray())
+            .AddPage(300, 400, "q 5 6 70 80 re f Q"u8.ToArray())
+            .Build();
+        byte[] targetBytes = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "target-user", OwnerPassword = "target-owner"
+            })
+            .AddBlankPage(100, 100)
+            .Build();
+
+        byte[] result = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes, "target-owner"))
+            .AddImportedPages(PdfDocument.Open(sourceBytes, "source-user"), [1, 0])
+            .Build(StructuralOptions());
+        PdfDocument reopened = PdfDocument.Open(result, "target-user");
+        (_, _, PdfDictionary[] pages) = FlatPages(reopened);
+
+        Assert.Equal("q 5 6 70 80 re f Q", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(ResolveStream(reopened, pages[1][Name("Contents")]))));
+        Assert.Equal("q 1 2 30 40 re f Q", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(ResolveStream(reopened, pages[2][Name("Contents")]))));
+        Assert.Equal(-1, result.AsSpan().IndexOf("q 5 6 70 80 re f Q"u8));
+        Assert.Equal(-1, result.AsSpan().IndexOf("q 1 2 30 40 re f Q"u8));
+        Assert.ThrowsAny<System.Security.Cryptography.CryptographicException>(() =>
+            PdfDocument.Open(result, "source-user"));
+    }
+
+    [Fact]
     public void Build_RejectsUnauthenticatedEncryptedImportSource()
     {
         byte[] sourceBytes = new PdfDocumentBuilder()
@@ -986,6 +1022,72 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_CanImportAnIndependentPageWithASelfLink()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .AddPageLink(0, 10, 10, 40, 20, 0)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0)
+            .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfDictionary link = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[0][Name("Annots")])[0]);
+        PdfArray destination = Assert.IsType<PdfArray>(link[Name("Dest")]);
+
+        Assert.Equal(pageReferences[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_CanImportAnOrderedPageSubsetWithInternalLinks()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .AddBlankPage(300, 400)
+            .AddBlankPage(400, 500)
+            .AddPageLink(0, 10, 10, 40, 20, 2)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPages(source, [2, 0])
+            .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(reopened);
+        PdfDictionary link = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[1][Name("Annots")])[0]);
+        PdfArray destination = Assert.IsType<PdfArray>(link[Name("Dest")]);
+
+        Assert.Equal([400d, 200d], pages.Select(BoxWidth));
+        Assert.Equal(pageReferences[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
+    }
+
+    [Fact]
+    public void SelectedPageImport_RejectsOmittedDependenciesAndDuplicateSelections()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage().AddBlankPage()
+            .AddPageLink(0, 0, 0, 20, 20, 2)
+            .Build());
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedPages(source, [0, 1])
+                .Build());
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedPages(source, [0, 0]));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedPages(source, [0, 1, 2, 0]));
+    }
+
+    [Fact]
     public void Build_CanImportTheSameIndependentPageMoreThanOnce()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -1366,6 +1468,39 @@ public sealed class PdfIncrementalPageEditorTests
         PdfDictionary splitNames = DictionaryValue(split, splitCatalog[Name("Names")]);
         PdfDictionary splitDestinations = DictionaryValue(split, splitNames[Name("Dests")]);
         Assert.Equal(2, Assert.IsType<PdfArray>(splitDestinations[Name("Names")]).Count);
+    }
+
+    [Fact]
+    public void SelectedPageImport_IgnoresUnrelatedOmittedNamedDestinationsButRejectsUsedOnes()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage().AddBlankPage()
+            .AddNamedDestination("retained", 0)
+            .AddNamedDestination("omitted", 2)
+            .AddNamedDestinationLink(0, 10, 10, 50, 20, "retained")
+            .Build());
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        PdfDocument imported = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .AddImportedPages(source, [1, 0])
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(imported, imported.Trailer[Name("Root")]);
+        PdfDictionary names = DictionaryValue(imported, catalog[Name("Names")]);
+        PdfDictionary destinations = DictionaryValue(imported, names[Name("Dests")]);
+        PdfArray entries = Assert.IsType<PdfArray>(destinations[Name("Names")]);
+
+        Assert.Equal(2, entries.Count);
+        Assert.Equal("retained", DecodeUnicode(Assert.IsType<PdfString>(entries[0])));
+
+        PdfDocument unsafeSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage().AddBlankPage()
+            .AddNamedDestination("omitted", 2)
+            .AddNamedDestinationLink(0, 10, 10, 50, 20, "omitted")
+            .Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedPages(unsafeSource, [0, 1])
+                .Build());
     }
 
     [Fact]

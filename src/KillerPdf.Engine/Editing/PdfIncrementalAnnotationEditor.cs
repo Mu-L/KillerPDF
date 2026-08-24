@@ -4,6 +4,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Signing;
 using KillerPdf.Engine.Writing;
 
@@ -175,6 +176,11 @@ public sealed class PdfIncrementalAnnotationEditor
     {
         if (_annotations.Count == 0)
             throw new InvalidOperationException("The incremental annotation update is empty.");
+        if (_document.PasswordAuthenticationRole == PdfPasswordAuthenticationRole.User
+            && (_document.DeclaredPermissions is not PdfDocumentPermissions permissions
+                || !permissions.AllowAnnotationModification))
+            throw new InvalidOperationException(
+                "The PDF user password does not permit annotation modification.");
         PdfSignatureCertificationPermission? certification =
             PdfSignatureReader.ReadCertificationPermission(_document);
         if (certification.HasValue

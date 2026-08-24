@@ -5,7 +5,8 @@ namespace KillerPdf.Engine.Writing;
 public enum PdfMetadataPolicy
 {
     Preserve,
-    RemoveDocumentInformation
+    RemoveDocumentInformation,
+    RemoveDocumentInformationAndXmp
 }
 
 public enum PdfCrossReferenceFormat

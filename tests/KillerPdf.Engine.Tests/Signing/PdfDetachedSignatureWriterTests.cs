@@ -7,6 +7,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Signing;
 using KillerPdf.Engine.Writing;
 using Xunit;
@@ -15,6 +16,36 @@ namespace KillerPdf.Engine.Tests.Signing;
 
 public sealed class PdfDetachedSignatureWriterTests
 {
+    [Fact]
+    public void Sign_EnforcesUserPasswordFormPermissionsWhileOwnerBypasses()
+    {
+        byte[] existingAllowed = EncryptedSignatureDocument(
+            includeField: true, allowModification: false,
+            allowAnnotations: false, allowFormFilling: true);
+        byte[] existingDenied = EncryptedSignatureDocument(
+            includeField: true, allowModification: false,
+            allowAnnotations: false, allowFormFilling: false);
+        byte[] newDenied = EncryptedSignatureDocument(
+            includeField: false, allowModification: false,
+            allowAnnotations: false, allowFormFilling: true);
+
+        Assert.NotEmpty(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(existingAllowed, "user"), _ => [1],
+            new PdfSignatureOptions { FieldName = "approval" }));
+        InvalidOperationException existingError = Assert.Throws<InvalidOperationException>(() =>
+            PdfDetachedSignatureWriter.Sign(
+                PdfDocument.Open(existingDenied, "user"), _ => [1],
+                new PdfSignatureOptions { FieldName = "approval" }));
+        InvalidOperationException newError = Assert.Throws<InvalidOperationException>(() =>
+            PdfDetachedSignatureWriter.Sign(
+                PdfDocument.Open(newDenied, "user"), _ => [1]));
+        Assert.NotEmpty(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(newDenied, "owner"), _ => [1]));
+
+        Assert.Contains("existing form field", existingError.Message, StringComparison.Ordinal);
+        Assert.Contains("creating a signature field", newError.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Sign_CanEmitCompressedCrossReferenceStreamRevision()
     {
@@ -816,6 +847,24 @@ public sealed class PdfDetachedSignatureWriterTests
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
+
+    private static byte[] EncryptedSignatureDocument(
+        bool includeField, bool allowModification,
+        bool allowAnnotations, bool allowFormFilling)
+    {
+        var builder = new PdfDocumentBuilder().AddBlankPage();
+        if (includeField)
+            builder.AddSignatureField(0, "approval", 20, 20, 160, 40);
+        return builder.SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                AllowDocumentModification = allowModification,
+                AllowAnnotationModification = allowAnnotations,
+                AllowFormFilling = allowFormFilling
+            })
+            .Build();
+    }
 
     private static byte[] BuildIndirectAcroFormDocument()
     {

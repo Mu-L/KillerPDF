@@ -1,6 +1,7 @@
 using System.Text;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Signing;
 using KillerPdf.Engine.Writing;
 
@@ -140,6 +141,7 @@ public sealed class PdfIncrementalPageEditor
     {
         ValidateInsertionIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(source);
+        EnforceSourceCopyPermission(source);
         PdfPageTree sourceTree = PdfPageTree.Read(source);
         if (sourcePageIndex < 0 || sourcePageIndex >= sourceTree.Pages.Count)
             throw new ArgumentOutOfRangeException(nameof(sourcePageIndex));
@@ -160,11 +162,60 @@ public sealed class PdfIncrementalPageEditor
     public PdfIncrementalPageEditor AddImportedPage(PdfDocument source, int sourcePageIndex) =>
         InsertImportedPage(_pages.Count, source, sourcePageIndex);
 
+    /// <summary>
+    /// Copies a selected, ordered set of pages from one document. References among selected
+    /// pages are remapped as one import batch; dependencies on omitted pages remain unsupported.
+    /// </summary>
+    public PdfIncrementalPageEditor InsertImportedPages(
+        int pageIndex, PdfDocument source, IReadOnlyList<int> sourcePageIndices)
+    {
+        ValidateInsertionIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(sourcePageIndices);
+        EnforceSourceCopyPermission(source);
+        PdfPageTree sourceTree = PdfPageTree.Read(source);
+        if (sourcePageIndices.Count > sourceTree.Pages.Count)
+            throw new ArgumentException(
+                "A selected page set cannot contain more entries than the source document.",
+                nameof(sourcePageIndices));
+        var seen = new HashSet<int>();
+        var selected = new List<PdfPageTreeEntry>(sourcePageIndices.Count);
+        foreach (int sourcePageIndex in sourcePageIndices)
+        {
+            if (sourcePageIndex < 0 || sourcePageIndex >= sourceTree.Pages.Count)
+                throw new ArgumentOutOfRangeException(nameof(sourcePageIndices),
+                    "A selected source page index is outside the document.");
+            if (!seen.Add(sourcePageIndex))
+                throw new ArgumentException(
+                    "A selected source page index cannot appear more than once.",
+                    nameof(sourcePageIndices));
+            PdfPageTreeEntry sourcePage = sourceTree.Pages[sourcePageIndex];
+            if (sourceTree.Catalog.ContainsKey(OptionalContentPropertiesName))
+                throw new NotSupportedException(
+                    "Pages using optional-content layers must be imported as a complete document.");
+            ValidateImportablePage(source, sourcePage,
+                allowFormWidgets: false, allowTaggedPage: false);
+            selected.Add(sourcePage);
+        }
+        if (selected.Count == 0) return this;
+        int batchId = _nextImportBatchId++;
+        _pages.InsertRange(pageIndex, selected.Select(page =>
+            new PageState(source, sourceTree, page, wholeDocument: false, batchId)));
+        _orderChanged = true;
+        return this;
+    }
+
+    /// <summary>Copies a selected, ordered set of pages to the end of the document.</summary>
+    public PdfIncrementalPageEditor AddImportedPages(
+        PdfDocument source, IReadOnlyList<int> sourcePageIndices) =>
+        InsertImportedPages(_pages.Count, source, sourcePageIndices);
+
     /// <summary>Copies every page from another document into the current page order.</summary>
     public PdfIncrementalPageEditor InsertImportedDocument(int pageIndex, PdfDocument source)
     {
         ValidateInsertionIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(source);
+        EnforceSourceCopyPermission(source);
         PdfPageTree sourceTree = PdfPageTree.Read(source);
         bool hasAcroForm = sourceTree.Catalog.ContainsKey(AcroFormName);
         bool hasStructureTree = sourceTree.Catalog.ContainsKey(StructTreeRootName);
@@ -219,17 +270,42 @@ public sealed class PdfIncrementalPageEditor
 
     public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
+        if (!_orderChanged && !_rotationChanged && !_pageBoxesChanged)
+            throw new InvalidOperationException("The incremental page update is empty.");
+        EnforcePasswordPermissions();
         if (PdfSignatureReader.ReadCertificationPermission(_document).HasValue)
             throw new InvalidOperationException(
                 "The document certification signature prohibits page-tree changes.");
-        if (!_orderChanged && !_rotationChanged && !_pageBoxesChanged)
-            throw new InvalidOperationException("The incremental page update is empty.");
         var update = new PdfIncrementalUpdateBuilder(_document);
         if (_orderChanged)
             BuildReorderedTree(update);
         else
             BuildPageChanges(update);
         return update.Build(options);
+    }
+
+    private void EnforcePasswordPermissions()
+    {
+        if (_document.PasswordAuthenticationRole != PdfPasswordAuthenticationRole.User)
+            return;
+        PdfDocumentPermissions permissions = _document.DeclaredPermissions
+            ?? throw new InvalidOperationException(
+                "The authenticated PDF has no declared permission state.");
+        if ((_orderChanged || _rotationChanged) && !permissions.AllowDocumentAssembly)
+            throw new InvalidOperationException(
+                "The PDF user password does not permit document assembly or page rotation.");
+        if (_pageBoxesChanged && !permissions.AllowDocumentModification)
+            throw new InvalidOperationException(
+                "The PDF user password does not permit page-box modification.");
+    }
+
+    private static void EnforceSourceCopyPermission(PdfDocument source)
+    {
+        if (source.PasswordAuthenticationRole == PdfPasswordAuthenticationRole.User
+            && (source.DeclaredPermissions is not PdfDocumentPermissions permissions
+                || !permissions.AllowContentCopying))
+            throw new InvalidOperationException(
+                "The source PDF user password does not permit copying page content.");
     }
 
     private PdfIncrementalPageEditor Rotate(int pageIndex, int delta)
@@ -564,11 +640,22 @@ public sealed class PdfIncrementalPageEditor
                 continue;
             IReadOnlyList<PdfNameTreeEntry> sourceEntries = PdfNameTree.Read(
                 group[0].ImportedDocument!, sourceDestinations);
-            if (!IsCompleteImport(group, sourceTree)
-                && !DestinationsStayWithinImportedPages(group[0].ImportedDocument!,
-                    sourceEntries.Select(entry => entry.Value), group))
-                throw new NotSupportedException(
-                    "Named destinations outside the selected source pages cannot be preserved.");
+            if (!IsCompleteImport(group, sourceTree))
+            {
+                DestinationReferences references = ReferencedNamedDestinations(
+                    group[0].ImportedDocument!, group);
+                var byName = sourceEntries.ToDictionary(entry =>
+                    Convert.ToBase64String(entry.Key.Bytes.Span), StringComparer.Ordinal);
+                foreach (string reference in references.StringNames)
+                    if (!byName.TryGetValue(reference, out PdfNameTreeEntry? destination)
+                        || !DestinationStaysWithinImportedPages(
+                            group[0].ImportedDocument!, destination.Value, group))
+                        throw new NotSupportedException(
+                            "A selected source page uses a named destination outside the selected page set.");
+                sourceEntries = sourceEntries.Where(entry => DestinationStaysWithinImportedPages(
+                    group[0].ImportedDocument!, entry.Value, group)).ToArray();
+            }
+            if (sourceEntries.Count == 0) continue;
             AddSourceEntries(sourceEntries, importers[group[0]]);
             importedAny = true;
         }
@@ -904,11 +991,21 @@ public sealed class PdfIncrementalPageEditor
                 continue;
             PdfDictionary sourceDestinations = ResolveDictionary(group[0].ImportedDocument!,
                 sourceValue, "The source catalog /Dests value");
-            if (!IsCompleteImport(group, sourceTree)
-                && !DestinationsStayWithinImportedPages(group[0].ImportedDocument!,
-                    sourceDestinations.Values, group))
-                throw new NotSupportedException(
-                    "Legacy named destinations outside the selected source pages cannot be preserved.");
+            if (!IsCompleteImport(group, sourceTree))
+            {
+                DestinationReferences references = ReferencedNamedDestinations(
+                    group[0].ImportedDocument!, group);
+                foreach (PdfName reference in references.LegacyNames)
+                    if (!sourceDestinations.TryGetValue(reference, out PdfObject? destination)
+                        || !DestinationStaysWithinImportedPages(
+                            group[0].ImportedDocument!, destination, group))
+                        throw new NotSupportedException(
+                            "A selected source page uses a legacy named destination outside the selected page set.");
+                sourceDestinations = new PdfDictionary(sourceDestinations.Where(entry =>
+                    DestinationStaysWithinImportedPages(
+                        group[0].ImportedDocument!, entry.Value, group)));
+            }
+            if (sourceDestinations.Count == 0) continue;
             AddSourceEntries(sourceDestinations, importers[group[0]]);
             importedAny = true;
         }
@@ -2100,9 +2197,16 @@ public sealed class PdfIncrementalPageEditor
     private static bool DestinationsStayWithinImportedPages(
         PdfDocument document, IEnumerable<PdfObject> destinations, PageState[] group)
     {
+        return destinations.All(destination =>
+            DestinationStaysWithinImportedPages(document, destination, group));
+    }
+
+    private static bool DestinationStaysWithinImportedPages(
+        PdfDocument document, PdfObject destination, PageState[] group)
+    {
         var retainedPages = group.Select(page => page.ImportedEntry!.Reference.ObjectNumber)
             .ToHashSet();
-        return destinations.All(destination => TargetsRetainedPage(destination, 0));
+        return TargetsRetainedPage(destination, 0);
 
         bool TargetsRetainedPage(PdfObject value, int depth)
         {
@@ -2121,6 +2225,60 @@ public sealed class PdfIncrementalPageEditor
                 && dictionary.TryGetValue(DestinationName, out PdfObject? nested))
                 return TargetsRetainedPage(nested, depth + 1);
             return false;
+        }
+    }
+
+    private static DestinationReferences ReferencedNamedDestinations(
+        PdfDocument document, PageState[] group)
+    {
+        var strings = new HashSet<string>(StringComparer.Ordinal);
+        var names = new HashSet<PdfName>();
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        var sourcePages = group[0].ImportedTree!.Pages.Select(page =>
+            page.Reference.ObjectNumber).ToHashSet();
+        int visitedObjects = 0;
+        foreach (PageState page in group)
+            Visit(page.ImportedEntry!.Dictionary, 0);
+        return new DestinationReferences(strings, names);
+
+        void Visit(PdfObject value, int depth)
+        {
+            if (depth > 64)
+                throw new InvalidOperationException(
+                    "A selected page dependency graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                if (sourcePages.Contains(reference.ObjectNumber)
+                    || !visited.Add((reference.ObjectNumber, reference.Generation)))
+                    return;
+                if (++visitedObjects > 100_000)
+                    throw new NotSupportedException(
+                        "A selected page dependency graph contains too many objects.");
+                Visit(document.Resolve(reference), depth + 1);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array) Visit(item, depth + 1);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary candidate => candidate,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (PdfName key in new[] { Name("Dest"), DestinationName })
+                if (dictionary.TryGetValue(key, out PdfObject? destination))
+                {
+                    if (destination is PdfString text)
+                        strings.Add(Convert.ToBase64String(text.Bytes.Span));
+                    else if (destination is PdfName name)
+                        names.Add(name);
+                }
+            foreach ((PdfName key, PdfObject item) in dictionary)
+                if (!key.Equals(ParentName)) Visit(item, depth + 1);
         }
     }
 
@@ -2364,6 +2522,8 @@ public sealed class PdfIncrementalPageEditor
     private sealed record PageLabelRange(
         long PageIndex, PdfName? Style, PdfString? Prefix, long StartNumber);
     private sealed record PageLabelSpec(PdfName? Style, PdfString? Prefix, long Number);
+    private sealed record DestinationReferences(
+        IReadOnlySet<string> StringNames, IReadOnlySet<PdfName> LegacyNames);
     private sealed record ImportedOutlineSegment(
         PdfDocument Document,
         PdfDictionary Root,

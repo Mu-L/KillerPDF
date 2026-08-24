@@ -36,9 +36,13 @@ internal sealed class PdfStandardSecurityHandler
     private readonly IReadOnlyDictionary<string, CryptMethod> _cryptFilters;
     private readonly bool _encryptMetadata;
 
+    internal PdfPasswordAuthenticationRole AuthenticationRole { get; }
+    internal PdfDocumentPermissions Permissions { get; }
+
     private PdfStandardSecurityHandler(
         byte[] fileKey, CryptMethod stringMethod, CryptMethod streamMethod,
         CryptMethod embeddedFileMethod, bool encryptMetadata,
+        int permissions, long revision, PdfPasswordAuthenticationRole authenticationRole,
         IReadOnlyDictionary<string, CryptMethod>? cryptFilters = null)
     {
         _fileKey = fileKey;
@@ -47,6 +51,8 @@ internal sealed class PdfStandardSecurityHandler
         _embeddedFileMethod = embeddedFileMethod;
         _cryptFilters = cryptFilters ?? new Dictionary<string, CryptMethod>();
         _encryptMetadata = encryptMetadata;
+        Permissions = PdfDocumentPermissions.FromFlags(permissions, revision);
+        AuthenticationRole = authenticationRole;
     }
 
     internal static PdfStandardSecurityHandler Create(
@@ -72,8 +78,11 @@ internal sealed class PdfStandardSecurityHandler
         byte[] userEncryptedKey = RequireBytes(encryption, "UE", 32);
         byte[] passwordBytes = PasswordBytes(password, revision == 6);
         byte[]? fileKey = TryOwnerPassword(
-            passwordBytes, owner, user, ownerEncryptedKey, revision)
-            ?? TryUserPassword(passwordBytes, user, userEncryptedKey, revision);
+            passwordBytes, owner, user, ownerEncryptedKey, revision);
+        PdfPasswordAuthenticationRole authenticationRole = fileKey is null
+            ? PdfPasswordAuthenticationRole.User
+            : PdfPasswordAuthenticationRole.Owner;
+        fileKey ??= TryUserPassword(passwordBytes, user, userEncryptedKey, revision);
         if (fileKey is null)
             throw new PdfPasswordAuthenticationException("The PDF password is incorrect.");
         byte[] permissions = DecryptEcb(fileKey, RequireBytes(encryption, "Perms", 16));
@@ -94,6 +103,7 @@ internal sealed class PdfStandardSecurityHandler
             ? ReadModernCryptFilter(encryption, "EFF", "AESV3") : streamMethod;
         return new PdfStandardSecurityHandler(
             fileKey, stringMethod, streamMethod, embeddedFileMethod, encryptMetadata,
+            declaredPermissions, revision, authenticationRole,
             ReadCryptFilters(encryption, "AESV3"));
     }
 
@@ -148,6 +158,7 @@ internal sealed class PdfStandardSecurityHandler
         ]);
         return (new PdfStandardSecurityHandler(fileKey, CryptMethod.Aes256,
             CryptMethod.Aes256, CryptMethod.Aes256, options.EncryptMetadata,
+            permissions, 6, PdfPasswordAuthenticationRole.Owner,
             new Dictionary<string, CryptMethod> { ["StdCF"] = CryptMethod.Aes256 }), dictionary);
 
         static KeyValuePair<PdfName, PdfObject> Pair(string key, PdfObject value) =>
@@ -327,16 +338,18 @@ internal sealed class PdfStandardSecurityHandler
         int permissions = checked((int)RequireInteger(encryption, "P"));
         bool encryptMetadata = ReadEncryptMetadata(encryption);
         byte[] supplied = PadLegacyPassword(password);
+        byte[] recoveredUserPassword = RecoverLegacyUserPassword(
+            supplied, owner, keyLength, revision);
         byte[]? fileKey = TryLegacyUserPassword(
-            supplied, owner, user, permissions, permanentIdentifier,
+            recoveredUserPassword, owner, user, permissions, permanentIdentifier,
             keyLength, revision, encryptMetadata);
+        PdfPasswordAuthenticationRole authenticationRole = PdfPasswordAuthenticationRole.Owner;
         if (fileKey is null)
         {
-            byte[] userPassword = RecoverLegacyUserPassword(
-                supplied, owner, keyLength, revision);
             fileKey = TryLegacyUserPassword(
-                userPassword, owner, user, permissions, permanentIdentifier,
+                supplied, owner, user, permissions, permanentIdentifier,
                 keyLength, revision, encryptMetadata);
+            authenticationRole = PdfPasswordAuthenticationRole.User;
         }
         if (fileKey is null)
             throw new PdfPasswordAuthenticationException("The PDF password is incorrect.");
@@ -354,6 +367,7 @@ internal sealed class PdfStandardSecurityHandler
         }
         return new PdfStandardSecurityHandler(
             fileKey, stringMethod, streamMethod, embeddedFileMethod, encryptMetadata,
+            permissions, revision, authenticationRole,
             version == 4 ? ReadCryptFilters(encryption, null) : null);
     }
 
@@ -726,8 +740,9 @@ internal sealed class PdfStandardSecurityHandler
     private static CryptMethod ReadModernCryptFilter(
         PdfDictionary encryption, string key, string? requiredMethod)
     {
-        if (!encryption.TryGetValue(Name(key), out PdfObject? filterValue)
-            || filterValue is not PdfName filter)
+        if (!encryption.TryGetValue(Name(key), out PdfObject? filterValue))
+            return CryptMethod.Identity;
+        if (filterValue is not PdfName filter)
             throw new InvalidOperationException($"The encryption dictionary /{key} value is not a name.");
         if (filter.ValueAsLatin1() == "Identity") return CryptMethod.Identity;
         if (!encryption.TryGetValue(Name("CF"), out PdfObject? filtersValue)
@@ -761,11 +776,14 @@ internal sealed class PdfStandardSecurityHandler
     private static CryptMethod ReadCryptFilterMethod(
         PdfDictionary selected, string filterName, string? requiredMethod)
     {
-        if (!selected.TryGetValue(Name("CFM"), out PdfObject? methodValue)
-            || methodValue is not PdfName method)
+        string methodName;
+        if (!selected.TryGetValue(Name("CFM"), out PdfObject? methodValue))
+            methodName = "None";
+        else if (methodValue is PdfName method)
+            methodName = method.ValueAsLatin1();
+        else
             throw new InvalidOperationException(
-                $"The encryption crypt filter /{filterName} has no /CFM name.");
-        string methodName = method.ValueAsLatin1();
+                $"The encryption crypt filter /{filterName} /CFM value is not a name.");
         if (requiredMethod is not null && methodName != requiredMethod && methodName != "None")
             throw new NotSupportedException(
                 $"The encryption crypt filter method /{methodName} is not /{requiredMethod}.");

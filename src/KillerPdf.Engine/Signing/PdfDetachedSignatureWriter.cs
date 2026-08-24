@@ -6,6 +6,7 @@ using System.Text;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Writing;
 
 namespace KillerPdf.Engine.Signing;
@@ -64,6 +65,7 @@ public static class PdfDetachedSignatureWriter
             && (options.PageIndex < 0 || options.PageIndex >= tree.Pages.Count))
             throw new ArgumentOutOfRangeException(nameof(options),
                 "The signature page index is outside the document.");
+        EnforcePasswordPermissions(document, existingField is not null);
         int? certificationPermission = ReadCertificationPermission(document, tree);
         if (options.CertificationPermission.HasValue && certificationPermission.HasValue)
             throw new InvalidOperationException(
@@ -173,6 +175,28 @@ public static class PdfDetachedSignatureWriter
         FillSignature(prepared, options.ReservedSignatureSize,
             createDetachedCms, evidenceRequirements, options.SignerCertificate);
         return prepared;
+    }
+
+    private static void EnforcePasswordPermissions(
+        PdfDocument document, bool fillsExistingField)
+    {
+        if (document.PasswordAuthenticationRole != PdfPasswordAuthenticationRole.User)
+            return;
+        PdfDocumentPermissions permissions = document.DeclaredPermissions
+            ?? throw new InvalidOperationException(
+                "The authenticated PDF has no declared permission state.");
+        if (fillsExistingField)
+        {
+            if (!permissions.AllowFormFilling
+                && !permissions.AllowAnnotationModification)
+                throw new InvalidOperationException(
+                    "The PDF user password does not permit signing an existing form field.");
+            return;
+        }
+        if (!permissions.AllowDocumentModification
+            || !permissions.AllowAnnotationModification)
+            throw new InvalidOperationException(
+                "The PDF user password does not permit creating a signature field.");
     }
 
     private static PdfDictionary BuildSignatureDictionary(

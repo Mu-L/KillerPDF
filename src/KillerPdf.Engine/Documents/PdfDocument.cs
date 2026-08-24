@@ -40,6 +40,17 @@ public sealed class PdfDocument
     internal ReadOnlyMemory<byte> Source => _source;
     public bool IsEncrypted => CrossReferences.TryGetTrailerValue(new PdfName("Encrypt"u8), out _);
     public bool IsDecrypted => !IsEncrypted || _security is not null;
+    /// <summary>
+    /// The password role that authenticated this document, or <see cref="PdfPasswordAuthenticationRole.None"/>
+    /// when the document is unencrypted or has not been authenticated.
+    /// </summary>
+    public PdfPasswordAuthenticationRole PasswordAuthenticationRole =>
+        _security?.AuthenticationRole ?? PdfPasswordAuthenticationRole.None;
+    /// <summary>
+    /// The authenticated Standard Security permission flags, or <see langword="null"/> when the
+    /// document is unencrypted or has not been authenticated.
+    /// </summary>
+    public PdfDocumentPermissions? DeclaredPermissions => _security?.Permissions;
     internal int? EncryptionObjectNumber => _encryptionObjectNumber;
     internal PdfObject EncryptObject(int objectNumber, PdfObject value) =>
         _security is not null && objectNumber != _encryptionObjectNumber

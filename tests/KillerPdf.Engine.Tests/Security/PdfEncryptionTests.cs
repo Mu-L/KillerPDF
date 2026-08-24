@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Filters;
@@ -189,6 +190,9 @@ public sealed class PdfEncryptionTests
                 AllowHighQualityPrinting = false
             }).AddBlankPage().Build();
         PdfDocument document = PdfDocument.Open(bytes);
+        Assert.Equal(PdfPasswordAuthenticationRole.None,
+            document.PasswordAuthenticationRole);
+        Assert.Null(document.DeclaredPermissions);
         Assert.True(document.CrossReferences.TryGetTrailerValue(
             new PdfName("Encrypt"u8), out PdfObject encryptionReference));
         PdfDictionary encryption = Assert.IsType<PdfDictionary>(
@@ -204,6 +208,114 @@ public sealed class PdfEncryptionTests
         Assert.NotEqual(0, permissions & (1 << 9));
         Assert.Equal(0, permissions & (1 << 10));
         Assert.Equal(0, permissions & (1 << 11));
+    }
+
+    [Theory]
+    [InlineData("user", PdfPasswordAuthenticationRole.User)]
+    [InlineData("owner", PdfPasswordAuthenticationRole.Owner)]
+    public void Open_ExposesAuthenticationRoleAndDeclaredPermissions(
+        string password, PdfPasswordAuthenticationRole expectedRole)
+    {
+        byte[] bytes = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                AllowLowQualityPrinting = true,
+                AllowDocumentModification = false,
+                AllowContentCopying = false,
+                AllowAnnotationModification = false,
+                AllowFormFilling = false,
+                AllowAccessibilityExtraction = true,
+                AllowDocumentAssembly = false,
+                AllowHighQualityPrinting = false
+            })
+            .AddBlankPage()
+            .Build();
+
+        PdfDocument document = PdfDocument.Open(bytes, password);
+        PdfDocumentPermissions permissions = Assert.IsType<PdfDocumentPermissions>(
+            document.DeclaredPermissions);
+
+        Assert.Equal(expectedRole, document.PasswordAuthenticationRole);
+        Assert.True(permissions.AllowLowQualityPrinting);
+        Assert.False(permissions.AllowDocumentModification);
+        Assert.False(permissions.AllowContentCopying);
+        Assert.False(permissions.AllowAnnotationModification);
+        Assert.False(permissions.AllowFormFilling);
+        Assert.True(permissions.AllowAccessibilityExtraction);
+        Assert.False(permissions.AllowDocumentAssembly);
+        Assert.False(permissions.AllowHighQualityPrinting);
+    }
+
+    [Fact]
+    public void UserPasswordPermissions_RestrictPageAndAnnotationEditorsWhileOwnerBypasses()
+    {
+        byte[] bytes = RestrictedEditingDocument(
+            allowModification: false, allowAssembly: false, allowAnnotations: false);
+        PdfDocument user = PdfDocument.Open(bytes, "user");
+
+        InvalidOperationException assemblyError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(user).AddBlankPage().Build());
+        InvalidOperationException modificationError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(user).SetCropBox(0, 0, 0, 300, 400).Build());
+        InvalidOperationException annotationError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(user)
+                .AddTextNote(0, 10, 10, "restricted").Build());
+        InvalidOperationException rewriteError = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocumentWriter.Write(user));
+
+        Assert.Contains("assembly", assemblyError.Message, StringComparison.Ordinal);
+        Assert.Contains("page-box modification", modificationError.Message, StringComparison.Ordinal);
+        Assert.Contains("annotation modification", annotationError.Message, StringComparison.Ordinal);
+        Assert.Contains("full document rewrite", rewriteError.Message, StringComparison.Ordinal);
+        Assert.NotEmpty(new PdfIncrementalPageEditor(PdfDocument.Open(bytes, "owner"))
+            .AddBlankPage().Build());
+        Assert.NotEmpty(new PdfIncrementalPageEditor(PdfDocument.Open(bytes, "owner"))
+            .SetCropBox(0, 0, 0, 300, 400).Build());
+        Assert.NotEmpty(new PdfIncrementalAnnotationEditor(PdfDocument.Open(bytes, "owner"))
+            .AddTextNote(0, 10, 10, "owner edit").Build());
+        Assert.NotEmpty(PdfDocumentWriter.Write(PdfDocument.Open(bytes, "owner")));
+    }
+
+    [Fact]
+    public void UserPasswordPermissions_HonorSpecializedAssemblyAndAnnotationGrants()
+    {
+        byte[] bytes = RestrictedEditingDocument(
+            allowModification: false, allowAssembly: true, allowAnnotations: true);
+
+        Assert.NotEmpty(new PdfIncrementalPageEditor(PdfDocument.Open(bytes, "user"))
+            .RotateClockwise(0).Build());
+        Assert.NotEmpty(new PdfIncrementalAnnotationEditor(PdfDocument.Open(bytes, "user"))
+            .AddTextNote(0, 10, 10, "permitted").Build());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(bytes, "user"))
+                .SetMediaBox(0, 0, 0, 300, 400).Build());
+    }
+
+    [Fact]
+    public void UserPasswordPermissions_RestrictPageImportFromSourceWhileOwnerBypasses()
+    {
+        byte[] restrictedSource = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                AllowContentCopying = false
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(PdfDocument.Open(restrictedSource, "user")));
+        byte[] imported = new PdfIncrementalPageEditor(target)
+            .AddImportedDocument(PdfDocument.Open(restrictedSource, "owner"))
+            .Build();
+
+        Assert.Contains("copying page content", error.Message, StringComparison.Ordinal);
+        Assert.NotEmpty(imported);
     }
 
     [Theory]
@@ -226,6 +338,133 @@ public sealed class PdfEncryptionTests
     {
         Assert.ThrowsAny<CryptographicException>(() =>
             PdfDocument.Open(Revision6Fixture(), "wrong-password"));
+    }
+
+    [Theory]
+    [InlineData("StrF")]
+    [InlineData("StmF")]
+    public void StandardSecurity_DefaultsOmittedCryptFilterSelectorsToIdentity(string selector)
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument document = PdfDocument.Open(source, "owner");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary authored = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        PdfName selectorName = new(Encoding.ASCII.GetBytes(selector));
+        var omitted = new PdfDictionary(authored.Where(entry =>
+            !entry.Key.Equals(selectorName)));
+        byte[] updated = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, omitted)
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(updated, "owner");
+
+        Assert.True(reopened.IsDecrypted);
+        Assert.IsType<PdfDictionary>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(reopened.Trailer[new PdfName("Root"u8)])));
+    }
+
+    [Fact]
+    public void LegacyStandardSecurity_DefaultsOmittedStringCryptFilterToIdentity()
+    {
+        PdfDocument document = PdfDocument.Open(Revision4Fixture(), "owner-password");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        var omitted = new PdfDictionary(encryption.Where(entry =>
+            !entry.Key.Equals(new PdfName("StrF"u8))));
+        byte[] updated = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, omitted)
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(updated, "owner-password");
+        PdfStream stream = Assert.IsType<PdfStream>(reopened.Resolve(4));
+
+        Assert.Equal(
+            "q\n0.9 0.2 0.4 rg\n72 72 200 100 re\nf\nQ\n",
+            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream)));
+    }
+
+    [Theory]
+    [InlineData("StrF")]
+    [InlineData("StmF")]
+    public void StandardSecurity_RejectsMalformedExplicitCryptFilterSelectors(string selector)
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument document = PdfDocument.Open(source, "owner");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary authored = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        PdfName selectorName = new(Encoding.ASCII.GetBytes(selector));
+        var malformed = new PdfDictionary(authored.Select(entry =>
+            entry.Key.Equals(selectorName)
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, new PdfInteger(1))
+                : entry));
+        byte[] updated = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, malformed)
+            .Build();
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocument.Open(updated, "owner"));
+
+        Assert.Contains($"/{selector}", error.Message, StringComparison.Ordinal);
+        Assert.Contains("not a name", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StandardSecurity_DefaultsOmittedCryptFilterMethodToNone()
+    {
+        (PdfDocument document, PdfIndirectReference encryptionReference,
+            PdfDictionary encryption, PdfName filterName, PdfDictionary filter) =
+            AuthoredEncryptionDictionary();
+        var defaultMethodFilter = new PdfDictionary(filter.Where(entry =>
+            !entry.Key.Equals(new PdfName("CFM"u8))));
+        PdfDictionary updatedEncryption = ReplaceCryptFilter(
+            encryption, filterName, defaultMethodFilter);
+        byte[] updated = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, updatedEncryption)
+            .Build();
+
+        Assert.True(PdfDocument.Open(updated, "owner").IsDecrypted);
+    }
+
+    [Fact]
+    public void StandardSecurity_RejectsMalformedExplicitCryptFilterMethod()
+    {
+        (PdfDocument document, PdfIndirectReference encryptionReference,
+            PdfDictionary encryption, PdfName filterName, PdfDictionary filter) =
+            AuthoredEncryptionDictionary();
+        var malformedFilter = new PdfDictionary(filter.Select(entry =>
+            entry.Key.Equals(new PdfName("CFM"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, new PdfInteger(1))
+                : entry));
+        PdfDictionary updatedEncryption = ReplaceCryptFilter(
+            encryption, filterName, malformedFilter);
+        byte[] updated = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, updatedEncryption)
+            .Build();
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocument.Open(updated, "owner"));
+
+        Assert.Contains("/CFM value is not a name", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -370,6 +609,11 @@ public sealed class PdfEncryptionTests
             {
                 PdfDocument document = PdfDocument.Open(fixture, password);
                 PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(4));
+                Assert.Equal(password.StartsWith("owner", StringComparison.Ordinal)
+                        ? PdfPasswordAuthenticationRole.Owner
+                        : PdfPasswordAuthenticationRole.User,
+                    document.PasswordAuthenticationRole);
+                Assert.NotNull(document.DeclaredPermissions);
                 Assert.Equal(
                     "q\n0.9 0.2 0.4 rg\n72 72 200 100 re\nf\nQ\n",
                     Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream)));
@@ -662,6 +906,60 @@ public sealed class PdfEncryptionTests
         Assert.Equal(
             "q\n0.9 0.2 0.4 rg\n72 72 200 100 re\nf\nQ\n",
             Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream)));
+    }
+
+    private static (PdfDocument Document, PdfIndirectReference EncryptionReference,
+        PdfDictionary Encryption, PdfName FilterName, PdfDictionary Filter)
+        AuthoredEncryptionDictionary()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument document = PdfDocument.Open(source, "owner");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        PdfDictionary filters = Assert.IsType<PdfDictionary>(
+            encryption[new PdfName("CF"u8)]);
+        PdfName filterName = Assert.IsType<PdfName>(
+            encryption[new PdfName("StmF"u8)]);
+        PdfDictionary filter = Assert.IsType<PdfDictionary>(filters[filterName]);
+        return (document, encryptionReference, encryption, filterName, filter);
+    }
+
+    private static byte[] RestrictedEditingDocument(
+        bool allowModification, bool allowAssembly, bool allowAnnotations) =>
+        new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                AllowDocumentModification = allowModification,
+                AllowDocumentAssembly = allowAssembly,
+                AllowAnnotationModification = allowAnnotations
+            })
+            .AddBlankPage()
+            .Build();
+
+    private static PdfDictionary ReplaceCryptFilter(
+        PdfDictionary encryption, PdfName filterName, PdfDictionary replacement)
+    {
+        PdfDictionary filters = Assert.IsType<PdfDictionary>(
+            encryption[new PdfName("CF"u8)]);
+        var updatedFilters = new PdfDictionary(filters.Select(entry =>
+            entry.Key.Equals(filterName)
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, replacement)
+                : entry));
+        return new PdfDictionary(encryption.Select(entry =>
+            entry.Key.Equals(new PdfName("CF"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, updatedFilters)
+                : entry));
     }
 
     internal static byte[] Revision6Fixture() => Convert.FromBase64String(

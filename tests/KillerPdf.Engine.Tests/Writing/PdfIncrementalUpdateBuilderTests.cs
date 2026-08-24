@@ -11,6 +11,20 @@ namespace KillerPdf.Engine.Tests.Writing;
 public sealed class PdfIncrementalUpdateBuilderTests
 {
     [Fact]
+    public void Build_RejectsUndefinedCrossReferenceFormat()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder().Build());
+        var update = new PdfIncrementalUpdateBuilder(document);
+        update.AddObject(new PdfInteger(1));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => update.Build(
+            new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = (PdfCrossReferenceFormat)int.MaxValue
+            }));
+    }
+
+    [Fact]
     public void Build_PreservesSourceBytesAndAppendsResolvableRevision()
     {
         byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();

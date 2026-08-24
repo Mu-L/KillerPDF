@@ -151,6 +151,9 @@ public sealed class PdfIncrementalUpdateBuilder
     public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
         options ??= new PdfIncrementalUpdateWriteOptions();
+        if (!Enum.IsDefined(options.CrossReferenceFormat))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "The cross-reference format is not defined.");
         if (options.CompressCrossReferenceStream
             && options.CrossReferenceFormat != PdfCrossReferenceFormat.Stream)
             throw new InvalidOperationException(
