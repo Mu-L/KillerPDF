@@ -75,6 +75,9 @@ internal sealed class PdfPageTree
         {
             if (depth > MaximumDepth)
                 throw new InvalidOperationException("The page tree exceeds the supported nesting depth.");
+            (PdfObject resolvedNode, PdfIndirectReference resolvedReference) =
+                ResolveReference(reference, "A page-tree node");
+            reference = resolvedReference;
             var key = (reference.ObjectNumber, reference.Generation);
             if (!active.Add(key))
                 throw new InvalidOperationException("The page tree contains a cycle.");
@@ -86,7 +89,7 @@ internal sealed class PdfPageTree
             }
             try
             {
-                PdfDictionary node = document.Resolve(reference) as PdfDictionary
+                PdfDictionary node = resolvedNode as PdfDictionary
                     ?? throw new InvalidOperationException("A page-tree reference is not a dictionary.");
                 if (expectedParent is null)
                 {
@@ -103,6 +106,8 @@ internal sealed class PdfPageTree
                                 "A non-root page-tree node /Parent is not an indirect reference.")
                         : throw new InvalidOperationException(
                             "A non-root page-tree node has no /Parent reference.");
+                    (_, parent) = ResolveReference(
+                        parent, "A page-tree node /Parent value");
                     if (parent.ObjectNumber != expectedParent.ObjectNumber
                         || parent.Generation != expectedParent.Generation)
                         throw new InvalidOperationException(

@@ -178,8 +178,10 @@ public sealed class PdfIncrementalUpdateBuilder
         if (_objects.Count == 0 && _freed.Count == 0)
             throw new InvalidOperationException("An incremental update must contain at least one object.");
         ValidateStandardTrailerState();
+        IReadOnlySet<int> encryptionBootstrapObjectNumbers =
+            CurrentEncryptionBootstrapObjectNumbers();
         if (_freed.Keys.Any(number => IsInheritedTrailerReference(RootName, number)
-                || _document.EncryptionBootstrapObjectNumbers.Contains(number)))
+                || encryptionBootstrapObjectNumbers.Contains(number)))
             throw new InvalidOperationException(
                 "The document catalog or encryption dictionary cannot be freed.");
         ValidateApplicationTrailerGraphs();
@@ -192,7 +194,7 @@ public sealed class PdfIncrementalUpdateBuilder
 
         List<PendingObject> packed = options.UseObjectStreams
             ? _objects.Values.Where(item => item.Generation == 0 && item.Value is not PdfStream
-                && !_document.EncryptionBootstrapObjectNumbers.Contains(item.ObjectNumber)
+                && !encryptionBootstrapObjectNumbers.Contains(item.ObjectNumber)
                 && !_directObjectNumbers.Contains(item.ObjectNumber)).ToList()
             : [];
         var packedNumbers = packed.Select(item => item.ObjectNumber).ToHashSet();
@@ -212,10 +214,12 @@ public sealed class PdfIncrementalUpdateBuilder
                 throw new NotSupportedException("Classic cross-reference offsets cannot exceed ten digits.");
             int offset = checked((int)output.Position);
             written.Add(new WrittenObject(pending.ObjectNumber, pending.Generation, offset));
-            PdfObject value = _document.EncryptObject(
-                pending.ObjectNumber, pending.Value,
-                reference => ResolveCurrentValue(
-                    reference, "An encrypted stream metadata value"));
+            PdfObject value = encryptionBootstrapObjectNumbers.Contains(pending.ObjectNumber)
+                ? pending.Value
+                : _document.EncryptObject(
+                    pending.ObjectNumber, pending.Value,
+                    reference => ResolveCurrentValue(
+                        reference, "An encrypted stream metadata value"));
             PdfObjectWriter.Write(output,
                 new PdfIndirectObject(pending.ObjectNumber, pending.Generation, value, offset));
         }
@@ -731,6 +735,38 @@ public sealed class PdfIncrementalUpdateBuilder
                 : _document.Resolve(reference);
         }
         return value;
+    }
+
+    private IReadOnlySet<int> CurrentEncryptionBootstrapObjectNumbers()
+    {
+        var result = new HashSet<int>();
+        if (!_document.CrossReferences.TryGetTrailerValue(
+                EncryptName, out PdfObject value))
+            return result;
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth >= 32)
+                throw new InvalidOperationException(
+                    "The trailer /Encrypt value is too deeply indirect.");
+            var identity = (reference.ObjectNumber, reference.Generation);
+            if (!visited.Add(identity))
+                throw new InvalidOperationException(
+                    "The trailer /Encrypt value contains an indirect-reference cycle.");
+            result.Add(reference.ObjectNumber);
+            if (_freed.ContainsKey(reference.ObjectNumber))
+                throw new InvalidOperationException(
+                    "The trailer /Encrypt value contains a freed indirect reference.");
+            value = _objects.TryGetValue(reference.ObjectNumber,
+                    out PendingObject? pending)
+                && pending.Generation == reference.Generation
+                    ? pending.Value
+                    : _document.Resolve(reference);
+        }
+        if (value is not PdfDictionary)
+            throw new InvalidOperationException(
+                "The trailer /Encrypt value does not resolve to a dictionary.");
+        return result;
     }
 
     private static void ValidateDocumentInformation(

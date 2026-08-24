@@ -139,9 +139,23 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDictionary catalog = ResolveDictionary(source, catalogReference);
         PdfDictionary root = ResolveDictionary(source, catalog[Name("StructTreeRoot")]);
         PdfObject documentValue = Assert.IsType<PdfArray>(root[Name("K")])[0];
+        PdfIndirectReference documentReference = Assert.IsType<PdfIndirectReference>(
+            documentValue);
         PdfDictionary documentElement = ResolveDictionary(source, documentValue);
         var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference documentAlias = setup.AddObject(documentReference);
+        PdfIndirectReference documentOuterAlias = setup.AddObject(documentAlias);
         PdfObject existingDocumentKids = documentElement[Name("K")];
+        foreach (PdfObject childValue in existingDocumentKids is PdfArray childArray
+                     ? childArray : new PdfArray([existingDocumentKids]))
+        {
+            PdfIndirectReference childReference = Assert.IsType<PdfIndirectReference>(childValue);
+            PdfDictionary child = ResolveDictionary(source, childReference);
+            setup.ReplaceObject(childReference.ObjectNumber, new PdfDictionary(child.Select(entry =>
+                entry.Key.Equals(Name("P"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, documentOuterAlias)
+                    : entry)));
+        }
         PdfIndirectReference documentKids = setup.AddObject(
             existingDocumentKids is PdfArray existingArray
                 ? existingArray : new PdfArray([existingDocumentKids]));
@@ -177,13 +191,26 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfArray reopenedDocumentKids = Assert.IsType<PdfArray>(
             reopenedDocument[Name("K")]);
         Assert.Equal(2, reopenedDocumentKids.Count);
-        Assert.All(reopenedDocumentKids, child => Assert.Equal(
-            reopenedDocumentReference.ObjectNumber,
-            Assert.IsType<PdfIndirectReference>(
-                ResolveDictionary(reopened, child)[Name("P")]).ObjectNumber));
+        Assert.All(reopenedDocumentKids, child =>
+        {
+            PdfObject parent = ResolveDictionary(reopened, child)[Name("P")];
+            PdfIndirectReference? finalParent = null;
+            while (parent is PdfIndirectReference parentReference)
+            {
+                finalParent = parentReference;
+                parent = reopened.Resolve(parentReference);
+            }
+            Assert.Equal(reopenedDocumentReference.ObjectNumber,
+                Assert.IsType<PdfIndirectReference>(finalParent).ObjectNumber);
+        });
+        Assert.Equal(documentOuterAlias.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(ResolveDictionary(
+                reopened, reopenedDocumentKids[0])[Name("P")]).ObjectNumber);
         Assert.Contains(parentNumbers, item => item is PdfInteger integer && integer.Value == 1);
         Assert.Equal(2, Assert.IsType<PdfInteger>(
             reopenedRoot[Name("ParentTreeNextKey")]).Value);
+        Assert.Equal(documentReference.ObjectNumber,
+            reopenedDocumentReference.ObjectNumber);
     }
 
     [Fact]
@@ -803,6 +830,56 @@ public sealed class PdfIncrementalAnnotationEditorTests
 
         Assert.Contains("annotation /Popup target does not link back through /Parent",
             error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_AcceptsAliasedAnnotationOwnershipAndPopupLinks()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference pageAlias = setup.AddObject(page.Reference);
+        PdfIndirectReference popup = setup.ReserveObject();
+        PdfIndirectReference markup = setup.ReserveObject();
+        PdfIndirectReference popupAlias = setup.AddObject(popup);
+        PdfIndirectReference markupAlias = setup.AddObject(markup);
+        setup.SetObject(popup, new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Popup")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), pageAlias),
+            new(Name("Parent"), markupAlias)
+        ]));
+        setup.SetObject(markup, new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), pageAlias),
+            new(Name("Popup"), popupAlias),
+            new(Name("IRT"), popupAlias)
+        ]));
+        byte[] aliasedBytes = setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([markupAlias, popupAlias])))))
+            .Build();
+        PdfDocument aliased = PdfDocument.Open(aliasedBytes);
+
+        byte[] output = new PdfIncrementalAnnotationEditor(aliased)
+            .AddTextNote(0, 20, 20, "New note")
+            .Build();
+
+        Assert.True(output.AsSpan(0, aliasedBytes.Length).SequenceEqual(aliasedBytes));
+        Assert.Equal(3, Assert.IsType<PdfArray>(Pages(PdfDocument.Open(output))[0]
+            .Page[Name("Annots")]).Count);
     }
 
     [Fact]

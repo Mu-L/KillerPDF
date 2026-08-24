@@ -68,6 +68,21 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Structure ID-tree values, indirect root-kids arrays, and top-level parent links resolve bounded alias chains during tagged merges and direct-root normalization.
   - Optional-content registration, visibility, radio groups, order arrays, and selected-page pruning compare final OCG identities across alias chains.
   - Incremental document-information removal follows pending alias replacements, so freeing an object from the superseded `/Info` chain does not remove the redirected live registration.
+  - Encrypted incremental writes derive bootstrap objects from the pending `/Encrypt` alias chain, keeping redirected encryption dictionaries direct and clear even when object streams are enabled.
+  - Direct tagged-document normalization derives the retained structure-element identity from final child `/P` references, preserving parent aliases instead of overwriting them.
+  - Incremental annotation validation compares final page, reply, popup, and parent identities, accepting registered and reciprocal links expressed through legal alias chains.
+  - Imported-page annotation registration and validation apply the same final-identity rules to duplicates, page ownership, replies, popups, and reciprocal parent links.
+  - Shared page-tree traversal resolves bounded alias chains for every `/Kids` node and reciprocal `/Parent` link, using final identities for cycle and reuse checks.
+  - Action-graph validation detects cycles and reused actions by final identity even when separate `/Next` aliases conceal the same action dictionary.
+  - Document security-store pools and VRI membership compare final validation-stream identities across aliases.
+  - Rich-media asset, configuration, view, instance, and activation registrations compare final identities across alias chains.
+  - Imported article-thread bead rings validate thread membership, cycles, and reciprocal next/previous links by final identity.
+  - Document-part hierarchy traversal resolves root, child, and reciprocal parent alias chains and detects reused final nodes.
+  - Collection folder traversal resolves root, child, sibling, and reciprocal parent aliases while detecting cycles and reused final folders.
+  - Page-navigation graphs bound traversal by final node identity so alias cycles and shared nodes terminate deterministically.
+  - Selected-page form discovery resolves indirect widget subtype chains before pruning the partial AcroForm hierarchy.
+  - AcroForm procedure sets and optional-content dependency scanning resolve indirect name chains, including Form, Pattern, OCG, and OCMD types; optional-content group and usage-application scalars follow the same rule.
+  - Tagged page removal resolves indirect MCR and OBJR type names before pruning removed-page structure references.
 - Tagged-annotation traversal updates final top-level structure-element identities and validates reciprocal parent links after bounded alias resolution.
 - Stream parsing now resolves bounded multi-hop indirect `/Length` chains and reports reference cycles or excessive depth deterministically before consuming payload bytes.
 - Compressed-object loading now resolves bounded indirect object-stream `/Type`, `/N`, and `/First` scalars after cross-reference bootstrap, while cross-reference stream fields remain deliberately direct because no document resolver exists yet.

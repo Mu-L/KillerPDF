@@ -608,7 +608,9 @@ public sealed class PdfIncrementalAnnotationEditor
                 kid, "A direct structure-element child");
             if (resolved is not PdfDictionary child) continue;
             if (!child.TryGetValue(Name("P"), out PdfObject? parent)
-                || parent is not PdfIndirectReference parentReference)
+                || ResolveWithIdentity(parent,
+                    "A direct structure-element child /P value").FinalReference
+                    is not PdfIndirectReference parentReference)
                 return null;
             if (result is not null
                 && (result.ObjectNumber != parentReference.ObjectNumber
@@ -628,7 +630,9 @@ public sealed class PdfIncrementalAnnotationEditor
                 kid, "A direct structure-element child");
             return resolved is PdfDictionary child
                 && child.TryGetValue(Name("P"), out PdfObject? parent)
-                && parent is PdfIndirectReference;
+                && ResolveWithIdentity(parent,
+                    "A direct structure-element child /P value").FinalReference
+                    is PdfIndirectReference;
         });
     }
 
@@ -866,9 +870,12 @@ public sealed class PdfIncrementalAnnotationEditor
         void ValidateExistingAnnotation(PdfObject value)
         {
             PdfIndirectReference reference = (PdfIndirectReference)value;
-            PdfObject resolved = ResolveValue(reference,
+            ResolvedValue resolvedAnnotation = ResolveWithIdentity(reference,
                 $"Page {page.Index + 1} annotation value");
-            PdfDictionary annotation = resolved as PdfDictionary
+            PdfIndirectReference annotationReference = resolvedAnnotation.FinalReference
+                ?? throw new InvalidOperationException(
+                    $"Page {page.Index + 1} /Annots contains a direct annotation entry.");
+            PdfDictionary annotation = resolvedAnnotation.Value as PdfDictionary
                 ?? throw new InvalidOperationException(
                     $"Page {page.Index + 1} /Annots contains a stale or non-dictionary entry.");
             PdfObject Resolve(PdfObject item) => ResolveValue(item,
@@ -889,9 +896,14 @@ public sealed class PdfIncrementalAnnotationEditor
                 throw new InvalidOperationException(
                     $"Page {page.Index + 1} /Annots contains an entry without a four-number /Rect array.");
             if (annotation.TryGetValue(Name("P"), out PdfObject? owner)
-                && (owner is not PdfIndirectReference ownerReference
-                    || ownerReference.ObjectNumber != page.Reference.ObjectNumber
-                    || ownerReference.Generation != page.Reference.Generation))
+                && (ResolveWithIdentity(owner,
+                        $"Page {page.Index + 1} annotation /P value").FinalReference
+                        is not PdfIndirectReference ownerReference
+                    || ResolveWithIdentity(page.Reference,
+                        $"Page {page.Index + 1} reference").FinalReference
+                        is not PdfIndirectReference pageReference
+                    || ownerReference.ObjectNumber != pageReference.ObjectNumber
+                    || ownerReference.Generation != pageReference.Generation))
                 throw new InvalidOperationException(
                     $"Page {page.Index + 1} /Annots contains an entry whose /P value identifies another page.");
             if (annotation.TryGetValue(Name("NM"), out PdfObject? nameValue))
@@ -935,8 +947,10 @@ public sealed class PdfIncrementalAnnotationEditor
                     $"Page {page.Index + 1} annotation /IT value is not a name.");
             if (annotation.TryGetValue(Name("IRT"), out PdfObject? replyValue))
             {
-                if (replyValue is not PdfIndirectReference replyReference
-                    || Resolve(replyValue) is not PdfDictionary reply
+                ResolvedValue resolvedReply = ResolveWithIdentity(replyValue,
+                    $"Page {page.Index + 1} annotation /IRT value");
+                if (resolvedReply.FinalReference is not PdfIndirectReference replyReference
+                    || resolvedReply.Value is not PdfDictionary reply
                     || !reply.TryGetValue(Name("Subtype"), out PdfObject? replySubtype)
                     || Resolve(replySubtype) is not PdfName)
                     throw new InvalidOperationException(
@@ -985,8 +999,10 @@ public sealed class PdfIncrementalAnnotationEditor
             }
             if (annotation.TryGetValue(Name("Popup"), out PdfObject? popupValue))
             {
-                if (popupValue is not PdfIndirectReference popupReference
-                    || Resolve(popupValue) is not PdfDictionary popup
+                ResolvedValue resolvedPopup = ResolveWithIdentity(popupValue,
+                    $"Page {page.Index + 1} annotation /Popup value");
+                if (resolvedPopup.FinalReference is not PdfIndirectReference popupReference
+                    || resolvedPopup.Value is not PdfDictionary popup
                     || !popup.TryGetValue(Name("Subtype"), out PdfObject? popupSubtype)
                     || Resolve(popupSubtype) is not PdfName popupSubtypeName
                     || popupSubtypeName.ValueAsLatin1() != "Popup")
@@ -997,9 +1013,11 @@ public sealed class PdfIncrementalAnnotationEditor
                     throw new InvalidOperationException(
                         $"Page {page.Index + 1} annotation /Popup target is not registered on the page.");
                 if (!popup.TryGetValue(Name("Parent"), out PdfObject? popupParent)
-                    || popupParent is not PdfIndirectReference popupParentReference
-                    || popupParentReference.ObjectNumber != reference.ObjectNumber
-                    || popupParentReference.Generation != reference.Generation)
+                    || ResolveWithIdentity(popupParent,
+                        $"Page {page.Index + 1} popup /Parent value").FinalReference
+                        is not PdfIndirectReference popupParentReference
+                    || popupParentReference.ObjectNumber != annotationReference.ObjectNumber
+                    || popupParentReference.Generation != annotationReference.Generation)
                     throw new InvalidOperationException(
                         $"Page {page.Index + 1} annotation /Popup target does not link back through /Parent.");
             }
@@ -1007,8 +1025,10 @@ public sealed class PdfIncrementalAnnotationEditor
             if (retainedSubtype == "Popup")
             {
                 if (!annotation.TryGetValue(Name("Parent"), out PdfObject? parentValue)
-                    || parentValue is not PdfIndirectReference parentReference
-                    || Resolve(parentValue) is not PdfDictionary parent)
+                    || ResolveWithIdentity(parentValue,
+                        $"Page {page.Index + 1} popup /Parent value") is not
+                        { FinalReference: PdfIndirectReference parentReference,
+                          Value: PdfDictionary parent })
                     throw new InvalidOperationException(
                         $"Page {page.Index + 1} popup annotation has no indirect /Parent dictionary.");
                 if (!annotationIdentities.Contains((parentReference.ObjectNumber,
@@ -1016,9 +1036,11 @@ public sealed class PdfIncrementalAnnotationEditor
                     throw new InvalidOperationException(
                         $"Page {page.Index + 1} popup /Parent is not registered on the page.");
                 if (!parent.TryGetValue(Name("Popup"), out PdfObject? parentPopup)
-                    || parentPopup is not PdfIndirectReference parentPopupReference
-                    || parentPopupReference.ObjectNumber != reference.ObjectNumber
-                    || parentPopupReference.Generation != reference.Generation)
+                    || ResolveWithIdentity(parentPopup,
+                        $"Page {page.Index + 1} annotation /Popup value").FinalReference
+                        is not PdfIndirectReference parentPopupReference
+                    || parentPopupReference.ObjectNumber != annotationReference.ObjectNumber
+                    || parentPopupReference.Generation != annotationReference.Generation)
                     throw new InvalidOperationException(
                         $"Page {page.Index + 1} popup /Parent does not link back through /Popup.");
             }

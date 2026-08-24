@@ -897,6 +897,33 @@ public sealed class PdfEncryptionTests
         Assert.Equal(-1, bytes.AsSpan().IndexOf("packed secret"u8));
     }
 
+    [Fact]
+    public void IncrementalEncryptedObjectStream_KeepsPendingEncryptionChainDirectAndClear()
+    {
+        PdfDocument document = PdfDocument.Open(Revision6Fixture(), "owner-password");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference redirectedEncryption = update.AddObject(encryption);
+        update.ReplaceObject(encryptionReference.ObjectNumber, redirectedEncryption);
+
+        byte[] bytes = update.Build(new PdfIncrementalUpdateWriteOptions
+        {
+            CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+            UseObjectStreams = true,
+            CompressObjectStreams = true,
+            CompressCrossReferenceStream = true
+        });
+        PdfDocument reopened = PdfDocument.Open(bytes, "user-password");
+
+        Assert.True(reopened.IsDecrypted);
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[redirectedEncryption.ObjectNumber].Type);
+        Assert.IsType<PdfDictionary>(reopened.Resolve(redirectedEncryption));
+    }
+
     [Theory]
     [InlineData("Identity", true, false)]
     [InlineData("StdCF", false, false)]

@@ -556,7 +556,9 @@ public sealed class PdfIncrementalPageEditor
                 if (category.Key.Equals(Name("ProcSet")))
                 {
                     if (resolvedCategory is not PdfArray procedureSets
-                        || procedureSets.Any(item => item is not PdfName))
+                        || procedureSets.Any(item => ResolveCatalogValue(
+                            document, item, "An /AcroForm /DR /ProcSet entry")
+                            is not PdfName))
                         throw new InvalidOperationException(
                             "An /AcroForm /DR /ProcSet value is not an array of names.");
                     continue;
@@ -1056,7 +1058,9 @@ public sealed class PdfIncrementalPageEditor
                         ?? throw new InvalidOperationException(
                             "A selected page annotation is not a dictionary.");
                 if (!annotation.TryGetValue(SubtypeName, out PdfObject? subtype)
-                    || subtype is not PdfName name || !name.Equals(WidgetName)) continue;
+                    || ResolveCatalogValue(document, subtype,
+                        "A selected page annotation /Subtype value")
+                        is not PdfName name || !name.Equals(WidgetName)) continue;
                 if (item is not PdfIndirectReference widgetReference)
                     throw new NotSupportedException(
                         "A direct form-widget annotation cannot be matched safely to a partial AcroForm field tree.");
@@ -4305,8 +4309,10 @@ public sealed class PdfIncrementalPageEditor
                     $"{valueDescription} /{key} value is empty.");
             foreach (PdfObject item in array)
             {
-                if (item is not PdfIndirectReference reference
-                    || Resolve(reference) is not PdfStream)
+                var resolvedStream = ResolveCatalogWithIdentity(
+                    document, item, $"{valueDescription} /{key} entry");
+                if (resolvedStream.FinalReference is not PdfIndirectReference reference
+                    || resolvedStream.Value is not PdfStream)
                     throw new InvalidOperationException(
                         $"{valueDescription} /{key} entry is not an indirect stream reference.");
                 references.Add((reference.ObjectNumber, reference.Generation));
@@ -4332,10 +4338,11 @@ public sealed class PdfIncrementalPageEditor
     {
         PdfObject Resolve(PdfObject item) => ResolveCatalogValue(
             document, item, description);
-        if (value is not PdfIndirectReference rootReference)
+        var resolvedRoot = ResolveCatalogWithIdentity(document, value, description);
+        if (resolvedRoot.FinalReference is not PdfIndirectReference rootReference)
             throw new InvalidOperationException(
                 $"{description} is not an indirect reference.");
-        PdfDictionary root = Resolve(rootReference) as PdfDictionary
+        PdfDictionary root = resolvedRoot.Value as PdfDictionary
             ?? throw new InvalidOperationException(
                 $"{description} does not resolve to a dictionary.");
         if (!root.TryGetValue(TypeName, out PdfObject? rootType)
@@ -4353,7 +4360,10 @@ public sealed class PdfIncrementalPageEditor
             throw new InvalidOperationException(
                 $"{description} /NodeNameList value is not a string array.");
 
-        var visited = new HashSet<PdfIndirectReference> { rootReference };
+        var visited = new HashSet<(int ObjectNumber, int Generation)>
+        {
+            (rootReference.ObjectNumber, rootReference.Generation)
+        };
         ValidateNode(root, rootReference, null, description, depth: 0);
 
         void ValidateNode(PdfDictionary node, PdfIndirectReference nodeReference,
@@ -4370,8 +4380,11 @@ public sealed class PdfIncrementalPageEditor
                     throw new InvalidOperationException(
                         $"{nodeDescription} has no /Type /DPart entry.");
                 if (!node.TryGetValue(Name("Parent"), out PdfObject? parent)
-                    || parent is not PdfIndirectReference parentReference
-                    || !parentReference.Equals(expectedParent))
+                    || ResolveCatalogWithIdentity(document, parent,
+                        $"{nodeDescription} /Parent value").FinalReference
+                        is not PdfIndirectReference parentReference
+                    || parentReference.ObjectNumber != expectedParent.ObjectNumber
+                    || parentReference.Generation != expectedParent.Generation)
                     throw new InvalidOperationException(
                         $"{nodeDescription} has no reciprocal indirect /Parent reference.");
             }
@@ -4420,13 +4433,16 @@ public sealed class PdfIncrementalPageEditor
                         $"{nodeDescription} /DParts contains an empty array.");
                 foreach (PdfObject childValue in group)
                 {
-                    if (childValue is not PdfIndirectReference childReference)
+                    var resolvedChild = ResolveCatalogWithIdentity(document, childValue,
+                        $"{nodeDescription} /DParts child");
+                    if (resolvedChild.FinalReference is not PdfIndirectReference childReference)
                         throw new InvalidOperationException(
                             $"{nodeDescription} /DParts child is not an indirect reference.");
-                    if (!visited.Add(childReference))
+                    if (!visited.Add((childReference.ObjectNumber,
+                            childReference.Generation)))
                         throw new InvalidOperationException(
                             "An imported document-part hierarchy contains a cycle or reused node.");
-                    PdfDictionary child = Resolve(childReference) as PdfDictionary
+                    PdfDictionary child = resolvedChild.Value as PdfDictionary
                         ?? throw new InvalidOperationException(
                             $"{nodeDescription} /DParts child does not resolve to a dictionary.");
                     ValidateNode(child, childReference, nodeReference,
@@ -4702,7 +4718,10 @@ public sealed class PdfIncrementalPageEditor
                 (int ObjectNumber, int Generation)? explicitPage = PageReference(dictionary);
                 (int ObjectNumber, int Generation)? effectivePage = explicitPage ?? inheritedPage;
                 string? type = dictionary.TryGetValue(TypeName, out PdfObject? typeValue)
-                    && typeValue is PdfName typeName ? typeName.ValueAsLatin1() : null;
+                    && ResolveCatalogValue(document, typeValue,
+                        "A structure-tree value /Type") is PdfName typeName
+                        ? typeName.ValueAsLatin1()
+                        : null;
                 if (type is "MCR" or "OBJR")
                 {
                     if (effectivePage.HasValue && removedPages.Contains(effectivePage.Value))
@@ -5109,7 +5128,8 @@ public sealed class PdfIncrementalPageEditor
                     $"{description} entry");
                 if (group.TryGetValue(Name("Type"), out PdfObject? type))
                 {
-                    if (type is not PdfName typeName)
+                    if (ResolveCatalogValue(document, type,
+                            $"{description} entry /Type") is not PdfName typeName)
                         throw new InvalidOperationException(
                             $"{description} entry /Type is not a name.");
                     if (typeName.ValueAsLatin1() != "OCG")
@@ -5117,7 +5137,8 @@ public sealed class PdfIncrementalPageEditor
                             $"{description} entry /Type is not /OCG.");
                 }
                 if (!group.TryGetValue(Name("Name"), out PdfObject? groupName)
-                    || groupName is not PdfString)
+                    || ResolveCatalogValue(document, groupName,
+                        $"{description} entry /Name") is not PdfString)
                     throw new InvalidOperationException(
                         $"{description} entry /Name is not a string.");
                 if (group.TryGetValue(Name("Usage"), out PdfObject? usage))
@@ -5194,7 +5215,8 @@ public sealed class PdfIncrementalPageEditor
                     PdfDictionary application = ResolveDictionary(document, value,
                         $"{description} /AS entry");
                     if (!application.TryGetValue(Name("Event"), out PdfObject? eventValue)
-                        || eventValue is not PdfName eventName
+                        || ResolveCatalogValue(document, eventValue,
+                            $"{description} /AS entry /Event") is not PdfName eventName
                         || eventName.ValueAsLatin1() is not ("View" or "Print" or "Export"))
                         throw new InvalidOperationException(
                             $"{description} /AS entry has an invalid /Event.");
@@ -5203,7 +5225,9 @@ public sealed class PdfIncrementalPageEditor
                             $"{description} /AS entry has no /Category array.");
                     PdfArray categoryArray = ResolveArray(document, categories,
                         $"{description} /AS entry /Category");
-                    if (categoryArray.Count == 0 || categoryArray.Any(item => item is not PdfName))
+                    if (categoryArray.Count == 0 || categoryArray.Any(item =>
+                            ResolveCatalogValue(document, item,
+                                $"{description} /AS entry /Category") is not PdfName))
                         throw new InvalidOperationException(
                             $"{description} /AS entry /Category is not a nonempty name array.");
                     if (application.TryGetValue(Name("OCGs"), out PdfObject? groups))
@@ -6372,10 +6396,12 @@ public sealed class PdfIncrementalPageEditor
 
         void ValidateFolderTree(PdfObject rootValue)
         {
-            if (rootValue is not PdfIndirectReference rootReference)
+            if (ResolveCatalogWithIdentity(document, rootValue,
+                    $"{description} /Folders value").FinalReference
+                    is not PdfIndirectReference rootReference)
                 throw new InvalidOperationException(
                     $"{description} /Folders value is not an indirect folder reference.");
-            var visited = new HashSet<PdfIndirectReference>();
+            var visited = new HashSet<(int ObjectNumber, int Generation)>();
             var identifiers = new HashSet<long>();
             ValidateFolder(rootReference, null,
                 $"{description} /Folders root", isRoot: true, depth: 0);
@@ -6387,10 +6413,15 @@ public sealed class PdfIncrementalPageEditor
                 if (depth > 64)
                     throw new NotSupportedException(
                         "A collection folder hierarchy is too deeply nested.");
-                if (!visited.Add(reference))
+                var resolvedFolder = ResolveCatalogWithIdentity(document, reference,
+                    folderDescription);
+                reference = resolvedFolder.FinalReference
+                    ?? throw new InvalidOperationException(
+                        $"{folderDescription} is not indirect.");
+                if (!visited.Add((reference.ObjectNumber, reference.Generation)))
                     throw new InvalidOperationException(
                         "A collection folder hierarchy contains a cycle or reused folder.");
-                PdfDictionary folder = Resolve(reference) as PdfDictionary
+                PdfDictionary folder = resolvedFolder.Value as PdfDictionary
                     ?? throw new InvalidOperationException(
                         $"{folderDescription} does not resolve to a dictionary.");
                 ValidateOptionalType(folder, "Folder", folderDescription);
@@ -6412,9 +6443,13 @@ public sealed class PdfIncrementalPageEditor
                         throw new InvalidOperationException(
                             $"{folderDescription} contains a root-prohibited /Parent or /Next entry.");
                 }
-                else if (!folder.TryGetValue(Name("Parent"), out PdfObject? parent)
-                    || parent is not PdfIndirectReference parentReference
-                    || !parentReference.Equals(expectedParent))
+                else if (expectedParent is null
+                    || !folder.TryGetValue(Name("Parent"), out PdfObject? parent)
+                    || ResolveCatalogWithIdentity(document, parent,
+                        $"{folderDescription} /Parent value").FinalReference
+                        is not PdfIndirectReference parentReference
+                    || parentReference.ObjectNumber != expectedParent.ObjectNumber
+                    || parentReference.Generation != expectedParent.Generation)
                     throw new InvalidOperationException(
                         $"{folderDescription} has no reciprocal indirect /Parent reference.");
                 if (folder.TryGetValue(Name("CI"), out PdfObject? collectionItem)
@@ -6535,10 +6570,12 @@ public sealed class PdfIncrementalPageEditor
         {
             if (depth > 256)
                 throw new NotSupportedException("An action graph is too deeply nested.");
-            if (actionValue is PdfIndirectReference reference
+            var resolvedAction = ResolveCatalogWithIdentity(
+                document, actionValue, actionDescription);
+            if (resolvedAction.FinalReference is PdfIndirectReference reference
                 && !visited.Add((reference.ObjectNumber, reference.Generation)))
                 throw new InvalidOperationException("An action graph contains a cycle or reused action.");
-            PdfDictionary action = Resolve(actionValue) as PdfDictionary
+            PdfDictionary action = resolvedAction.Value as PdfDictionary
                 ?? throw new InvalidOperationException(
                     $"{actionDescription} is not an action dictionary or resolves to null.");
             if (action.TryGetValue(TypeName, out PdfObject? type)
@@ -7295,10 +7332,17 @@ public sealed class PdfIncrementalPageEditor
             if (key.Equals(AnnotsName))
                 foreach (PdfIndirectReference annotationReference in
                     annotations.OfType<PdfIndirectReference>())
-                    if (!annotationIdentities.Add((annotationReference.ObjectNumber,
-                        annotationReference.Generation)))
+                {
+                    PdfIndirectReference finalAnnotationReference =
+                        ResolveCatalogWithIdentity(document, annotationReference,
+                            "An imported page /Annots array entry").FinalReference
+                        ?? throw new InvalidOperationException(
+                            "An imported page /Annots array contains a direct annotation entry.");
+                    if (!annotationIdentities.Add((finalAnnotationReference.ObjectNumber,
+                        finalAnnotationReference.Generation)))
                         throw new InvalidOperationException(
                             "An imported page /Annots array contains a duplicate annotation reference.");
+                }
             foreach (PdfObject annotation in annotations)
             {
                 PdfObject resolved = ResolveCatalogValue(document, annotation,
@@ -8213,9 +8257,15 @@ public sealed class PdfIncrementalPageEditor
             && value is PdfIndirectReference reference
             && Identity(reference) == Identity(expected);
 
-        static (int ObjectNumber, int Generation) Identity(
-            PdfIndirectReference reference) =>
-            (reference.ObjectNumber, reference.Generation);
+        (int ObjectNumber, int Generation) Identity(
+            PdfIndirectReference reference)
+        {
+            PdfIndirectReference finalReference = ResolveCatalogWithIdentity(
+                document, reference, $"{description} indirect reference").FinalReference
+                ?? throw new InvalidOperationException(
+                    $"{description} value is not indirect.");
+            return (finalReference.ObjectNumber, finalReference.Generation);
+        }
     }
 
     private static void ValidatePagePieceInfo(
@@ -10206,7 +10256,11 @@ public sealed class PdfIncrementalPageEditor
         ISet<string> pageAnnotationNames,
         string description)
     {
-        PdfDictionary annotation = ResolveDictionary(document, value, description);
+        var resolvedAnnotation = ResolveCatalogWithIdentity(document, value, description);
+        PdfIndirectReference? annotationReference = resolvedAnnotation.FinalReference;
+        PdfDictionary annotation = resolvedAnnotation.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} is not an annotation dictionary.");
         PdfObject Resolve(PdfObject item) => ResolveCatalogValue(
             document, item, description);
         if (annotation.TryGetValue(TypeName, out PdfObject? type)
@@ -10250,8 +10304,10 @@ public sealed class PdfIncrementalPageEditor
                 $"{description} /RC value is not a string or stream.");
         if (annotation.TryGetValue(Name("IRT"), out PdfObject? replyTarget))
         {
-            if (replyTarget is not PdfIndirectReference replyReference
-                || Resolve(replyTarget) is not PdfDictionary replyAnnotation)
+            var resolvedReply = ResolveCatalogWithIdentity(document, replyTarget,
+                $"{description} /IRT value");
+            if (resolvedReply.FinalReference is not PdfIndirectReference replyReference
+                || resolvedReply.Value is not PdfDictionary replyAnnotation)
                 throw new InvalidOperationException(
                     $"{description} /IRT value is not an indirect annotation dictionary.");
             if (!pageAnnotationIdentities.Contains((replyReference.ObjectNumber,
@@ -10277,8 +10333,10 @@ public sealed class PdfIncrementalPageEditor
         }
         if (annotation.TryGetValue(Name("Popup"), out PdfObject? popup))
         {
-            if (popup is not PdfIndirectReference popupReference
-                || Resolve(popup) is not PdfDictionary popupDictionary)
+            var resolvedPopup = ResolveCatalogWithIdentity(document, popup,
+                $"{description} /Popup value");
+            if (resolvedPopup.FinalReference is not PdfIndirectReference popupReference
+                || resolvedPopup.Value is not PdfDictionary popupDictionary)
                 throw new InvalidOperationException(
                     $"{description} /Popup value is not an indirect annotation dictionary.");
             if (!pageAnnotationIdentities.Contains((popupReference.ObjectNumber,
@@ -10290,9 +10348,11 @@ public sealed class PdfIncrementalPageEditor
                 || popupSubtypeName.ValueAsLatin1() != "Popup")
                 throw new InvalidOperationException(
                     $"{description} /Popup target has no /Subtype /Popup value.");
-            if (value is not PdfIndirectReference annotationReference
+            if (annotationReference is null
                 || !popupDictionary.TryGetValue(Name("Parent"), out PdfObject? popupParent)
-                || popupParent is not PdfIndirectReference parentReference
+                || ResolveCatalogWithIdentity(document, popupParent,
+                    $"{description} popup /Parent value").FinalReference
+                    is not PdfIndirectReference parentReference
                 || parentReference.ObjectNumber != annotationReference.ObjectNumber
                 || parentReference.Generation != annotationReference.Generation)
                 throw new InvalidOperationException(
@@ -10585,9 +10645,13 @@ public sealed class PdfIncrementalPageEditor
                 $"{description} /StructParent value is not a nonnegative integer.");
         if (annotation.TryGetValue(Name("P"), out PdfObject? pageValue))
         {
-            if (pageValue is not PdfIndirectReference pageReference
-                || pageReference.ObjectNumber != expectedPage.ObjectNumber
-                || pageReference.Generation != expectedPage.Generation)
+            PdfIndirectReference? pageReference = ResolveCatalogWithIdentity(
+                document, pageValue, $"{description} /P value").FinalReference;
+            PdfIndirectReference? finalExpectedPage = ResolveCatalogWithIdentity(
+                document, expectedPage, $"{description} expected page").FinalReference;
+            if (pageReference is null || finalExpectedPage is null
+                || pageReference.ObjectNumber != finalExpectedPage.ObjectNumber
+                || pageReference.Generation != finalExpectedPage.Generation)
                 throw new InvalidOperationException(
                     $"{description} /P value identifies a different page.");
             PdfDictionary page = Resolve(pageReference) as PdfDictionary
@@ -10821,8 +10885,10 @@ public sealed class PdfIncrementalPageEditor
         if (annotationSubtype == "Popup")
         {
             if (!annotation.TryGetValue(Name("Parent"), out PdfObject? popupParent)
-                || popupParent is not PdfIndirectReference popupParentReference
-                || Resolve(popupParent) is not PdfDictionary parentDictionary)
+                || ResolveCatalogWithIdentity(document, popupParent,
+                    $"{description} popup /Parent value") is not
+                    { FinalReference: PdfIndirectReference popupParentReference,
+                      Value: PdfDictionary parentDictionary })
                 throw new InvalidOperationException(
                     $"{description} popup annotation has no indirect /Parent dictionary.");
             if (!pageAnnotationIdentities.Contains((popupParentReference.ObjectNumber,
@@ -10835,11 +10901,13 @@ public sealed class PdfIncrementalPageEditor
                     or "Widget" or "PrinterMark" or "TrapNet")
                 throw new InvalidOperationException(
                     $"{description} popup /Parent is not a markup annotation.");
-            if (value is not PdfIndirectReference popupReference
+            if (annotationReference is null
                 || !parentDictionary.TryGetValue(Name("Popup"), out PdfObject? parentPopup)
-                || parentPopup is not PdfIndirectReference parentPopupReference
-                || parentPopupReference.ObjectNumber != popupReference.ObjectNumber
-                || parentPopupReference.Generation != popupReference.Generation)
+                || ResolveCatalogWithIdentity(document, parentPopup,
+                    $"{description} parent /Popup value").FinalReference
+                    is not PdfIndirectReference parentPopupReference
+                || parentPopupReference.ObjectNumber != annotationReference.ObjectNumber
+                || parentPopupReference.Generation != annotationReference.Generation)
                 throw new InvalidOperationException(
                     $"{description} popup /Parent does not link back through /Popup.");
             if (annotation.TryGetValue(Name("Open"), out PdfObject? popupOpen)
@@ -11467,7 +11535,9 @@ public sealed class PdfIncrementalPageEditor
                         $"{description} rich-media /RichMediaContent /Assets value is not a name-tree dictionary.");
                 foreach (PdfNameTreeEntry entry in PdfNameTree.Read(document, assets))
                 {
-                    if (entry.Value is not PdfIndirectReference assetReference)
+                    var resolvedAsset = ResolveCatalogWithIdentity(document, entry.Value,
+                        $"{description} rich-media /Assets entry");
+                    if (resolvedAsset.FinalReference is not PdfIndirectReference assetReference)
                         throw new InvalidOperationException(
                             $"{description} rich-media /Assets entry is not an indirect file specification.");
                     ValidateFileSpecification(document, assetReference,
@@ -11483,8 +11553,10 @@ public sealed class PdfIncrementalPageEditor
                             $"{description} rich-media /RichMediaContent /{key} value is not an array.");
                     foreach (PdfObject item in richMediaArray)
                     {
-                        if (item is not PdfIndirectReference reference
-                            || Resolve(item) is not PdfDictionary dictionary)
+                        var resolvedItem = ResolveCatalogWithIdentity(document, item,
+                            $"{description} rich-media /RichMediaContent /{key} entry");
+                        if (resolvedItem.FinalReference is not PdfIndirectReference reference
+                            || resolvedItem.Value is not PdfDictionary dictionary)
                             throw new InvalidOperationException(
                                 $"{description} rich-media /RichMediaContent /{key} contains a non-indirect dictionary entry.");
                         var identity = (reference.ObjectNumber, reference.Generation);
@@ -11571,7 +11643,9 @@ public sealed class PdfIncrementalPageEditor
                             ValidateRichMediaParameters(parameterDictionary);
                         }
                         if (!instance.TryGetValue(Name("Asset"), out PdfObject? asset)
-                            || asset is not PdfIndirectReference assetReference)
+                            || ResolveCatalogWithIdentity(document, asset,
+                                $"{description} rich-media instance /Asset value").FinalReference
+                                is not PdfIndirectReference assetReference)
                             throw new InvalidOperationException(
                                 $"{description} rich-media instance has no indirect /Asset file specification.");
                         ValidateFileSpecification(document, assetReference,
@@ -11729,7 +11803,10 @@ public sealed class PdfIncrementalPageEditor
                                     ?? throw new InvalidOperationException(
                                         $"{description} rich-media activation /Scripts value is not an array.");
                                 foreach (PdfObject script in scripts)
-                                    if (script is not PdfIndirectReference scriptReference
+                                    if (ResolveCatalogWithIdentity(document, script,
+                                            $"{description} rich-media activation /Scripts entry")
+                                            .FinalReference
+                                            is not PdfIndirectReference scriptReference
                                         || !registeredAssets.Contains(
                                             (scriptReference.ObjectNumber, scriptReference.Generation)))
                                         throw new InvalidOperationException(
@@ -11743,7 +11820,9 @@ public sealed class PdfIncrementalPageEditor
                         {
                             if (!settingDictionary.TryGetValue(
                                     Name(referenceKey), out PdfObject? referenceValue)) return;
-                            if (referenceValue is not PdfIndirectReference reference
+                            if (ResolveCatalogWithIdentity(document, referenceValue,
+                                    $"{description} rich-media activation /{referenceKey} value")
+                                    .FinalReference is not PdfIndirectReference reference
                                 || !registered.Contains(
                                     (reference.ObjectNumber, reference.Generation)))
                                 throw new InvalidOperationException(
@@ -12144,12 +12223,12 @@ public sealed class PdfIncrementalPageEditor
             if (depth > 64)
                 throw new NotSupportedException(
                     "An imported page navigation graph is too deeply nested.");
-            if (nodeValue is PdfIndirectReference reference
+            var resolvedNode = ResolveCatalogWithIdentity(
+                document, nodeValue, nodeDescription);
+            if (resolvedNode.FinalReference is PdfIndirectReference reference
                 && !visited.Add((reference.ObjectNumber, reference.Generation)))
                 return;
-            PdfObject resolved = ResolveCatalogValue(
-                document, nodeValue, nodeDescription);
-            PdfDictionary node = resolved as PdfDictionary
+            PdfDictionary node = resolvedNode.Value as PdfDictionary
                 ?? throw new InvalidOperationException(
                     $"{nodeDescription} is not a navigation-node dictionary.");
             if (!node.TryGetValue(TypeName, out PdfObject? typeValue)
@@ -12769,9 +12848,13 @@ public sealed class PdfIncrementalPageEditor
             {
                 if (UsesDictionary(stream.Dictionary, depth + 1)) return true;
                 bool isForm = stream.Dictionary.TryGetValue(SubtypeName, out PdfObject? subtype)
-                    && subtype is PdfName subtypeName && subtypeName.ValueAsLatin1() == "Form";
+                    && ResolveCatalogValue(source, subtype,
+                        "An optional-content stream /Subtype value")
+                        is PdfName subtypeName && subtypeName.ValueAsLatin1() == "Form";
                 bool isPattern = stream.Dictionary.TryGetValue(TypeName, out PdfObject? type)
-                    && type is PdfName typeName && typeName.ValueAsLatin1() == "Pattern";
+                    && ResolveCatalogValue(source, type,
+                        "An optional-content stream /Type value")
+                        is PdfName typeName && typeName.ValueAsLatin1() == "Pattern";
                 return (scanContent || isForm || isPattern) && ContentUsesOptionalContent(stream);
             }
             return value is PdfDictionary dictionary && UsesDictionary(dictionary, depth + 1);
@@ -12780,7 +12863,8 @@ public sealed class PdfIncrementalPageEditor
         bool UsesDictionary(PdfDictionary dictionary, int depth)
         {
             if (dictionary.TryGetValue(TypeName, out PdfObject? type)
-                && type is PdfName typeName
+                && ResolveCatalogValue(source, type,
+                    "An optional-content dictionary /Type value") is PdfName typeName
                 && (typeName.Equals(OptionalContentGroupName)
                     || typeName.Equals(OptionalContentMembershipName)))
                 return true;
