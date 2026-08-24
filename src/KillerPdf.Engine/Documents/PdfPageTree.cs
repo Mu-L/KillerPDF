@@ -43,8 +43,11 @@ internal sealed class PdfPageTree
             ? rootValue as PdfIndirectReference
                 ?? throw new InvalidOperationException("The trailer /Root is not an indirect reference.")
             : throw new InvalidOperationException("The PDF trailer has no /Root.");
-        PdfDictionary catalog = document.Resolve(catalogReference) as PdfDictionary
+        (PdfObject resolvedCatalog, PdfIndirectReference resolvedCatalogReference) =
+            ResolveReference(catalogReference, "The document catalog");
+        PdfDictionary catalog = resolvedCatalog as PdfDictionary
             ?? throw new InvalidOperationException("The document catalog is not a dictionary.");
+        catalogReference = resolvedCatalogReference;
         if (!catalog.TryGetValue(TypeName, out PdfObject? catalogTypeValue)
             || Resolve(catalogTypeValue) is not PdfName catalogType
             || !catalogType.Equals(CatalogName))
@@ -54,6 +57,11 @@ internal sealed class PdfPageTree
             ? pagesValue as PdfIndirectReference
                 ?? throw new InvalidOperationException("The catalog /Pages is not an indirect reference.")
             : throw new InvalidOperationException("The document catalog has no /Pages tree.");
+        (PdfObject resolvedRoot, PdfIndirectReference resolvedRootReference) =
+            ResolveReference(rootReference, "The catalog /Pages tree");
+        if (resolvedRoot is not PdfDictionary)
+            throw new InvalidOperationException("The catalog /Pages is not a page-tree dictionary.");
+        rootReference = resolvedRootReference;
 
         var pages = new List<PdfPageTreeEntry>();
         var active = new HashSet<(int ObjectNumber, int Generation)>();
@@ -161,6 +169,26 @@ internal sealed class PdfPageTree
                 value = document.Resolve(reference);
             }
             return value;
+        }
+
+        (PdfObject Value, PdfIndirectReference Reference) ResolveReference(
+            PdfIndirectReference reference, string description)
+        {
+            PdfObject value = reference;
+            PdfIndirectReference finalReference = reference;
+            var visitedReferences = new HashSet<(int ObjectNumber, int Generation)>();
+            for (int depth = 0; value is PdfIndirectReference current; depth++)
+            {
+                if (depth >= 32)
+                    throw new InvalidOperationException(
+                        $"{description} is too deeply indirect.");
+                if (!visitedReferences.Add((current.ObjectNumber, current.Generation)))
+                    throw new InvalidOperationException(
+                        $"{description} contains an indirect-reference cycle.");
+                finalReference = current;
+                value = document.Resolve(current);
+            }
+            return (value, finalReference);
         }
     }
 

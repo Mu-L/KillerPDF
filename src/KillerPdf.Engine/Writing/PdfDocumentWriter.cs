@@ -386,21 +386,28 @@ public static class PdfDocumentWriter
             || !document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject infoValue)
             || infoValue is not PdfIndirectReference infoReference)
             return;
-        var infoIdentity = (infoReference.ObjectNumber, infoReference.Generation);
-        if (root is PdfIndirectReference rootReference
-            && (rootReference.ObjectNumber, rootReference.Generation) == infoIdentity)
-            return;
-        if (document.CrossReferences.TryGetTrailerValue(EncryptName, out PdfObject encryptValue)
-            && encryptValue is PdfIndirectReference encryptReference
-            && (encryptReference.ObjectNumber, encryptReference.Generation) == infoIdentity)
-            return;
-        if (objects.Any(item => (item.ObjectNumber, item.Generation) != infoIdentity
-                && ReferencesObject(item.Value, infoIdentity))
+        ResolvedChain infoChain = ResolveChain(
+            document, infoReference, "The trailer /Info value");
+        var infoIdentities = infoChain.Identities.ToHashSet();
+        foreach (PdfName protectedName in new[] { RootName, EncryptName })
+        {
+            if (!document.CrossReferences.TryGetTrailerValue(
+                    protectedName, out PdfObject protectedValue))
+                continue;
+            ResolvedChain protectedChain = ResolveChain(document, protectedValue,
+                $"The trailer /{protectedName.ValueAsLatin1()} value");
+            if (protectedChain.Identities.Any(infoIdentities.Contains))
+                return;
+        }
+        if (objects.Any(item => !infoIdentities.Contains(
+                    (item.ObjectNumber, item.Generation))
+                && infoIdentities.Any(identity => ReferencesObject(item.Value, identity)))
             || document.CrossReferences.MergedTrailer.Any(entry => !entry.Key.Equals(InfoName)
-                && ReferencesObject(entry.Value, infoIdentity)))
+                && infoIdentities.Any(identity => ReferencesObject(entry.Value, identity))))
             throw new NotSupportedException(
                 "The document information object is shared outside trailer /Info and cannot be removed safely.");
-        objects.RemoveAll(item => (item.ObjectNumber, item.Generation) == infoIdentity);
+        objects.RemoveAll(item => infoIdentities.Contains(
+            (item.ObjectNumber, item.Generation)));
     }
 
     private static PdfObject RemoveCatalogMetadata(
@@ -409,8 +416,9 @@ public static class PdfDocumentWriter
     {
         if (policy != PdfMetadataPolicy.RemoveDocumentInformationAndXmp)
             return root;
-        PdfDictionary catalog = ResolveValue(document, root,
-                "The trailer /Root value") as PdfDictionary
+        ResolvedChain rootChain = ResolveChain(
+            document, root, "The trailer /Root value");
+        PdfDictionary catalog = rootChain.Value as PdfDictionary
             ?? throw new InvalidOperationException(
                 "The trailer /Root value is not a catalog dictionary.");
         if (!catalog.TryGetValue(MetadataName, out PdfObject metadataValue))
@@ -419,25 +427,29 @@ public static class PdfDocumentWriter
             !entry.Key.Equals(MetadataName)));
         if (metadataValue is PdfIndirectReference metadataReference)
         {
-            var metadataIdentity =
-                (metadataReference.ObjectNumber, metadataReference.Generation);
-            if (root is PdfIndirectReference catalogReference
-                && (catalogReference.ObjectNumber, catalogReference.Generation) == metadataIdentity)
+            ResolvedChain metadataChain = ResolveChain(
+                document, metadataReference, "The catalog /Metadata value");
+            var metadataIdentities = metadataChain.Identities.ToHashSet();
+            var catalogIdentity = rootChain.FinalReference is PdfIndirectReference catalogReference
+                ? (catalogReference.ObjectNumber, catalogReference.Generation)
+                : ((int ObjectNumber, int Generation)?)null;
+            if (catalogIdentity.HasValue && metadataIdentities.Contains(catalogIdentity.Value))
                 throw new NotSupportedException(
                     "The catalog metadata reference points to the catalog and cannot be removed safely.");
-            if (ReferencesObject(replacement, metadataIdentity)
-                || objects.Any(item => (item.ObjectNumber, item.Generation) != metadataIdentity
-                    && (root is not PdfIndirectReference catalogReference
-                        || (item.ObjectNumber, item.Generation) !=
-                            (catalogReference.ObjectNumber, catalogReference.Generation))
-                    && ReferencesObject(item.Value, metadataIdentity))
+            if (metadataIdentities.Any(identity => ReferencesObject(replacement, identity))
+                || objects.Any(item => !metadataIdentities.Contains(
+                        (item.ObjectNumber, item.Generation))
+                    && (!catalogIdentity.HasValue
+                        || (item.ObjectNumber, item.Generation) != catalogIdentity.Value)
+                    && metadataIdentities.Any(identity => ReferencesObject(item.Value, identity)))
                 || document.CrossReferences.MergedTrailer.Any(entry => !entry.Key.Equals(RootName)
-                    && ReferencesObject(entry.Value, metadataIdentity)))
+                    && metadataIdentities.Any(identity => ReferencesObject(entry.Value, identity))))
                 throw new NotSupportedException(
                     "The catalog metadata object is shared and cannot be removed safely.");
-            objects.RemoveAll(item => (item.ObjectNumber, item.Generation) == metadataIdentity);
+            objects.RemoveAll(item => metadataIdentities.Contains(
+                (item.ObjectNumber, item.Generation)));
         }
-        if (root is not PdfIndirectReference reference)
+        if (rootChain.FinalReference is not PdfIndirectReference reference)
             return replacement;
         int index = objects.FindIndex(item =>
             (item.ObjectNumber, item.Generation) ==
@@ -501,19 +513,28 @@ public static class PdfDocumentWriter
 
     private static PdfObject ResolveValue(
         PdfDocument document, PdfObject value, string description)
+        => ResolveChain(document, value, description).Value;
+
+    private static ResolvedChain ResolveChain(
+        PdfDocument document, PdfObject value, string description)
     {
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        var identities = new List<(int ObjectNumber, int Generation)>();
+        PdfIndirectReference? finalReference = null;
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException(
                     $"{description} is too deeply indirect.");
-            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+            var identity = (reference.ObjectNumber, reference.Generation);
+            if (!visited.Add(identity))
                 throw new InvalidOperationException(
                     $"{description} contains an indirect-reference cycle.");
+            identities.Add(identity);
+            finalReference = reference;
             value = document.Resolve(reference);
         }
-        return value;
+        return new ResolvedChain(value, identities, finalReference);
     }
 
     private static PdfDictionary BuildTrailer(
@@ -830,4 +851,8 @@ public static class PdfDocumentWriter
     private sealed record WritableObject(int ObjectNumber, int Generation, PdfObject Value);
     private sealed record WrittenOffset(int ObjectNumber, int Generation, int Offset);
     private sealed record ObjectStreamChunk(int ObjectNumber, IReadOnlyList<WritableObject> Objects);
+    private sealed record ResolvedChain(
+        PdfObject Value,
+        IReadOnlyList<(int ObjectNumber, int Generation)> Identities,
+        PdfIndirectReference? FinalReference);
 }

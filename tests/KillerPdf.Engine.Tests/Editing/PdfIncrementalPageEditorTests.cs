@@ -215,6 +215,56 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Constructor_ResolvesCatalogAndPageRootAliasChains()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        PdfDocument document = PdfDocument.Open(source);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(document, catalogReference);
+        PdfIndirectReference pageRootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("Pages")]);
+        var pagesUpdate = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference pageRootAlias = pagesUpdate.AddObject(pageRootReference);
+        PdfIndirectReference pageRootSecondAlias = pagesUpdate.AddObject(pageRootAlias);
+        pagesUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Select(entry => entry.Key.Equals(Name("Pages"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, pageRootSecondAlias)
+                : entry)));
+
+        Assert.Equal(1, new PdfIncrementalPageEditor(
+            PdfDocument.Open(pagesUpdate.Build())).PageCount);
+
+        byte[] aliasedRoot = AppendCatalogRootAliases(source, catalogReference);
+        PdfDocument aliasedDocument = PdfDocument.Open(aliasedRoot);
+        var editor = new PdfIncrementalPageEditor(aliasedDocument);
+        Assert.Equal(1, editor.PageCount);
+        byte[] updated = editor.AddBlankPage().Build();
+        Assert.Equal(2, new PdfIncrementalPageEditor(
+            PdfDocument.Open(updated)).PageCount);
+
+        byte[] cyclicRoot = AppendCatalogRootAliases(
+            source, catalogReference, cycle: true);
+        InvalidOperationException catalogCycle = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(cyclicRoot)));
+        Assert.Contains("indirect-reference cycle", catalogCycle.Message,
+            StringComparison.Ordinal);
+
+        var pageCycleUpdate = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference pageCycleA = pageCycleUpdate.ReserveObject();
+        PdfIndirectReference pageCycleB = pageCycleUpdate.ReserveObject();
+        pageCycleUpdate.SetObject(pageCycleA, pageCycleB).SetObject(pageCycleB, pageCycleA);
+        pageCycleUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Select(entry => entry.Key.Equals(Name("Pages"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, pageCycleA)
+                : entry)));
+        InvalidOperationException pageCycle = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(pageCycleUpdate.Build())));
+        Assert.Contains("indirect-reference cycle", pageCycle.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Build_DoesNotMisclassifyStaleNameTreeGenerationAsCycle()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -10256,6 +10306,36 @@ public sealed class PdfIncrementalPageEditorTests
             offsets[number] = source.Length;
             source.Append(number).Append(" 0 obj\n").Append(value).Append("\nendobj\n");
         }
+    }
+
+    private static byte[] AppendCatalogRootAliases(
+        byte[] source, PdfIndirectReference catalogReference, bool cycle = false)
+    {
+        PdfDocument document = PdfDocument.Open(source);
+        Assert.True(document.CrossReferences.TryGetTrailerValue(
+            Name("Size"), out PdfObject sizeValue));
+        int firstObjectNumber = checked((int)Assert.IsType<PdfInteger>(sizeValue).Value);
+        int secondObjectNumber = checked(firstObjectNumber + 1);
+        long previousXref = PdfStartXref.Find(source).Offset;
+        using var output = new MemoryStream();
+        output.Write(source);
+        int firstOffset = checked((int)output.Position);
+        Write($"{firstObjectNumber} 0 obj {secondObjectNumber} 0 R endobj\n");
+        int secondOffset = checked((int)output.Position);
+        Write(cycle
+            ? $"{secondObjectNumber} 0 obj {firstObjectNumber} 0 R endobj\n"
+            : $"{secondObjectNumber} 0 obj {catalogReference.ObjectNumber} "
+                + $"{catalogReference.Generation} R endobj\n");
+        int xrefOffset = checked((int)output.Position);
+        Write($"xref\n{firstObjectNumber} 2\n");
+        Write($"{firstOffset:0000000000} 00000 n \n");
+        Write($"{secondOffset:0000000000} 00000 n \n");
+        Write($"trailer << /Size {secondObjectNumber + 1} /Prev {previousXref} "
+            + $"/Root {firstObjectNumber} 0 R >>\n");
+        Write($"startxref\n{xrefOffset}\n%%EOF\n");
+        return output.ToArray();
+
+        void Write(string value) => output.Write(Encoding.ASCII.GetBytes(value));
     }
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

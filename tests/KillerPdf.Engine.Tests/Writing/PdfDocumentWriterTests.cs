@@ -449,6 +449,60 @@ public sealed class PdfDocumentWriterTests
     }
 
     [Fact]
+    public void Write_RemovesAliasedInformationAndXmpFromAliasedCatalog()
+    {
+        const string privateMarker = "aliased private metadata marker";
+        byte[] authoredBytes = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = privateMarker })
+            .AddBlankPage()
+            .Build();
+        PdfDocument authored = PdfDocument.Open(authoredBytes);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        PdfIndirectReference infoReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Info")]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(
+            authored.Resolve(catalogReference));
+        PdfIndirectReference metadataReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("Metadata")]);
+        var update = new PdfIncrementalUpdateBuilder(authored);
+        PdfIndirectReference infoAlias = update.AddObject(infoReference);
+        PdfIndirectReference infoSecondAlias = update.AddObject(infoAlias);
+        PdfIndirectReference metadataAlias = update.AddObject(metadataReference);
+        PdfIndirectReference metadataSecondAlias = update.AddObject(metadataAlias);
+        update.SetDocumentInformation(infoSecondAlias);
+        update.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Select(entry => entry.Key.Equals(Name("Metadata"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, metadataSecondAlias)
+                : entry)));
+        byte[] aliasedBytes = AppendRootAliases(update.Build(), catalogReference);
+
+        byte[] rewritten = PdfDocumentWriter.Write(PdfDocument.Open(aliasedBytes),
+            new PdfDocumentWriteOptions
+            {
+                MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformationAndXmp,
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressStructuralStreams = true
+            });
+        PdfDocument reopened = PdfDocument.Open(rewritten);
+        PdfDictionary rewrittenCatalog = Assert.IsType<PdfDictionary>(
+            ResolveChain(reopened, reopened.Trailer[Name("Root")]));
+
+        Assert.False(reopened.Trailer.ContainsKey(Name("Info")));
+        Assert.False(rewrittenCatalog.ContainsKey(Name("Metadata")));
+        foreach (PdfIndirectReference removed in new[]
+                 {
+                     infoReference, infoAlias, infoSecondAlias,
+                     metadataReference, metadataAlias, metadataSecondAlias
+                 })
+            Assert.Equal(PdfCrossReferenceEntryType.Free,
+                reopened.CrossReferences[removed.ObjectNumber].Type);
+        Assert.DoesNotContain(privateMarker, Encoding.UTF8.GetString(rewritten),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Write_RejectsCatalogXmpRemovalWhenMetadataObjectIsShared()
     {
         PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
@@ -942,6 +996,41 @@ public sealed class PdfDocumentWriterTests
         source.Append("11 1\n0000000000 65535 f\n");
         source.Append($"trailer << /Size 12 /Root 1 0 R >>\nstartxref\n{xrefOffset}\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
+    private static byte[] AppendRootAliases(
+        byte[] source, PdfIndirectReference catalogReference)
+    {
+        PdfDocument document = PdfDocument.Open(source);
+        Assert.True(document.CrossReferences.TryGetTrailerValue(
+            Name("Size"), out PdfObject sizeValue));
+        int firstObjectNumber = checked((int)Assert.IsType<PdfInteger>(sizeValue).Value);
+        int secondObjectNumber = checked(firstObjectNumber + 1);
+        long previousXref = PdfStartXref.Find(source).Offset;
+        using var output = new MemoryStream();
+        output.Write(source);
+        int firstOffset = checked((int)output.Position);
+        Write($"{firstObjectNumber} 0 obj {secondObjectNumber} 0 R endobj\n");
+        int secondOffset = checked((int)output.Position);
+        Write($"{secondObjectNumber} 0 obj {catalogReference.ObjectNumber} "
+            + $"{catalogReference.Generation} R endobj\n");
+        int xrefOffset = checked((int)output.Position);
+        Write($"xref\n{firstObjectNumber} 2\n");
+        Write($"{firstOffset:0000000000} 00000 n \n");
+        Write($"{secondOffset:0000000000} 00000 n \n");
+        Write($"trailer << /Size {secondObjectNumber + 1} /Prev {previousXref} "
+            + $"/Root {firstObjectNumber} 0 R >>\n");
+        Write($"startxref\n{xrefOffset}\n%%EOF\n");
+        return output.ToArray();
+
+        void Write(string value) => output.Write(Encoding.ASCII.GetBytes(value));
+    }
+
+    private static PdfObject ResolveChain(PdfDocument document, PdfObject value)
+    {
+        while (value is PdfIndirectReference reference)
+            value = document.Resolve(reference);
+        return value;
     }
 
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
