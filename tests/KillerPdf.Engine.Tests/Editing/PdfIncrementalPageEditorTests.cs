@@ -6604,8 +6604,20 @@ public sealed class PdfIncrementalPageEditorTests
             PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
                 document.Trailer[Name("Root")]);
             PdfDictionary catalog = ResolveDictionary(document, catalogReference);
-            PdfDictionary root = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+            PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+                catalog[Name("StructTreeRoot")]);
+            PdfDictionary root = ResolveDictionary(document, rootReference);
+            PdfIndirectReference documentReference = Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfArray>(root[Name("K")])[0]);
+            PdfDictionary documentElement = ResolveDictionary(document, documentReference);
             var update = new PdfIncrementalUpdateBuilder(document);
+            PdfIndirectReference rootAlias = update.AddObject(rootReference);
+            PdfIndirectReference rootOuterAlias = update.AddObject(rootAlias);
+            update.ReplaceObject(documentReference.ObjectNumber,
+                new PdfDictionary(documentElement.Select(entry =>
+                    entry.Key.Equals(Name("P"))
+                        ? new KeyValuePair<PdfName, PdfObject>(entry.Key, rootOuterAlias)
+                        : entry)));
             update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
                 .Where(entry => !entry.Key.Equals(Name("StructTreeRoot")))
                 .Append(new KeyValuePair<PdfName, PdfObject>(Name("StructTreeRoot"), root))));

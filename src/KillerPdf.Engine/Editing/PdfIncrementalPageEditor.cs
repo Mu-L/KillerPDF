@@ -3682,7 +3682,9 @@ public sealed class PdfIncrementalPageEditor
                     "A direct structure-element child");
                 if (resolved is not PdfDictionary child) continue;
                 if (!child.TryGetValue(StructureElementParentName, out PdfObject? parent)
-                    || parent is not PdfIndirectReference parentReference)
+                    || ResolveCatalogWithIdentity(document, parent,
+                            "A direct structure-element child /P value").FinalReference
+                        is not PdfIndirectReference parentReference)
                     return null;
                 if (result is not null
                     && (result.ObjectNumber != parentReference.ObjectNumber
@@ -3704,7 +3706,9 @@ public sealed class PdfIncrementalPageEditor
                     "A direct structure-element child");
                 if (resolved is PdfDictionary child
                     && child.TryGetValue(StructureElementParentName, out PdfObject? parent)
-                    && parent is PdfIndirectReference)
+                    && ResolveCatalogWithIdentity(document, parent,
+                            "A direct structure-element child /P value").FinalReference
+                        is PdfIndirectReference)
                     return true;
             }
             return false;

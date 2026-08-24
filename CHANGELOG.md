@@ -83,6 +83,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
   - Selected-page form discovery resolves indirect widget subtype chains before pruning the partial AcroForm hierarchy.
   - AcroForm procedure sets and optional-content dependency scanning resolve indirect name chains, including Form, Pattern, OCG, and OCMD types; optional-content group and usage-application scalars follow the same rule.
   - Tagged page removal resolves indirect MCR and OBJR type names before pruning removed-page structure references.
+  - Direct tagged-root normalization follows aliased child parent links to their final structure-root identity.
 - Tagged-annotation traversal updates final top-level structure-element identities and validates reciprocal parent links after bounded alias resolution.
 - Stream parsing now resolves bounded multi-hop indirect `/Length` chains and reports reference cycles or excessive depth deterministically before consuming payload bytes.
 - Compressed-object loading now resolves bounded indirect object-stream `/Type`, `/N`, and `/First` scalars after cross-reference bootstrap, while cross-reference stream fields remain deliberately direct because no document resolver exists yet.
