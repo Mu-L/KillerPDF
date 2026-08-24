@@ -81,9 +81,10 @@ public sealed class PdfCrossReferenceTableTests
     {
         var source = new StringBuilder($"%PDF-1.7{headerLineEnding}");
         int objectOffset = source.Length;
-        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0 0] " +
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
             "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
         int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
         source.Append("xref\n0 2\n0000000000 65535 f\n");
         source.Append($"{objectOffset:0000000000} 00000 n\n");
         source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
@@ -94,7 +95,7 @@ public sealed class PdfCrossReferenceTableTests
         source.Append("trailer\n<< /Size 2 >>\n");
         source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
         source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
-        source.Replace("/E 0000000000", $"/E {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
         source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
 
         PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
@@ -103,6 +104,325 @@ public sealed class PdfCrossReferenceTableTests
         Assert.Equal(2, table.Sections.Count);
         Assert.Equal(firstPageOffset, table.Sections[0].Offset);
         Assert.Equal(mainOffset, table.Sections[1].Offset);
+    }
+
+    [Fact]
+    public void Read_RejectsLinearizationParameterObjectWithNonzeroGeneration()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 1 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00001 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00001 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsUnregisteredLinearizationParameterObject()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("primary-before-dictionary")]
+    [InlineData("primary-at-first-page-xref")]
+    [InlineData("primary-after-first-page")]
+    [InlineData("overflow-before-first-page-end")]
+    [InlineData("overflow-after-main-xref")]
+    public void Read_RejectsLinearizationHintRangesOutsideTheirLayoutRegion(
+        string invalidRange)
+    {
+        const string hintPlaceholder =
+            "/H [0000000001 0 0000000002 0]";
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append($"1 0 obj << /Linearized 1 /L 0000000000 {hintPlaceholder} " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        int firstPageEnd = mainOffset - 1;
+        (int primary, int overflow) = invalidRange switch
+        {
+            "primary-before-dictionary" => (1, firstPageEnd),
+            "primary-at-first-page-xref" =>
+                (firstPageOffset, firstPageEnd),
+            "primary-after-first-page" => (mainOffset, firstPageEnd),
+            "overflow-before-first-page-end" =>
+                (firstPageOffset + 1, firstPageOffset),
+            "overflow-after-main-xref" =>
+                (firstPageOffset + 1, mainOffset + 1),
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidRange))
+        };
+        source.Replace(hintPlaceholder,
+            $"/H [{primary:0000000000} 0 {overflow:0000000000} 0]");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {firstPageEnd:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsLinearizedFirstPageEndAtMainXrefHint()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsLinearizedMainXrefHintBeforePreviousTarget()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 2:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset - 1:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsLinearizedForwardPreviousOffsetAwayFromMainXrefHint()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        Assert.True(mainOffset + 65 < source.Length);
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset + 65:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsLinearizationDictionaryThatExtendsBeyondFirstKilobyte()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000");
+        source.Append(' ', 1_024);
+        source.Append(">> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_DoesNotRecognizeLinearizationAfterPrefixedBytes()
+    {
+        var source = new StringBuilder("prefix\n%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_AllowsAppendedRevisionAfterDeclaredLinearizedLength()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00001 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        int originalLength = source.Length;
+        source.Replace("/L 0000000000", $"/L {originalLength:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+        int appendedOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append($"trailer\n<< /Size 2 /Prev {firstPageOffset} >>\n");
+        source.Append($"startxref\n{appendedOffset}\n%%EOF\n");
+
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
+            Encoding.ASCII.GetBytes(source.ToString()));
+
+        Assert.Equal(3, table.Sections.Count);
+        Assert.Equal(appendedOffset, table.Sections[0].Offset);
+        Assert.Equal(firstPageOffset, table.Sections[1].Offset);
+        Assert.Equal(mainOffset, table.Sections[2].Offset);
+    }
+
+    [Fact]
+    public void Read_RejectsLinearizedLengthWithoutCompleteOriginalEof()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{firstPageOffset + 1:0000000000} 0]");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00001 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length - 2:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -131,7 +451,46 @@ public sealed class PdfCrossReferenceTableTests
     {
         var source = new StringBuilder("%PDF-1.7\n");
         int objectOffset = source.Length;
-        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0 0] " +
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0000000000 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int tableOffset = source.Length;
+        source.Append("xref\n0 3\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("0000000000 00000 n\n");
+        source.Append("trailer\n<< /Size 3 /Prev 0000000000 /XRefStm 0000000000 >>\n");
+        int streamOffset = source.Length;
+        source.Replace("/XRefStm 0000000000", $"/XRefStm {streamOffset:0000000000}");
+        source.Replace("0000000000 00000 n\ntrailer",
+            $"{streamOffset:0000000000} 00000 n\ntrailer");
+        source.Append("2 0 obj << /Type /XRef /Size 2 /W [1 2 2] " +
+            "/Index [1 1] /Length 5 >> stream\n");
+        source.Append((char)1).Append((char)(objectOffset >> 8))
+            .Append((char)(objectOffset & 0xFF)).Append('\0').Append('\0');
+        source.Append("\nendstream endobj\n");
+        int mainOffset = source.Length;
+        source.Replace("/H [0000000000 0]", $"/H [{mainOffset - 1:0000000000} 0]");
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 3\n0000000000 65535 f\n");
+        source.Append("0000000000 00000 n\n0000000000 00000 n\n");
+        source.Append("trailer\n<< /Size 3 >>\n");
+        source.Append($"startxref\n{tableOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {mainOffset - 1:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
+            Encoding.Latin1.GetBytes(source.ToString()));
+
+        Assert.Equal(2, table.Sections.Count);
+        Assert.Equal(objectOffset, table[1].Field1);
+    }
+
+    [Fact]
+    public void Read_RejectsLinearizedForwardHybridStreamWithoutMainLink()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [1 0] " +
             "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
         int tableOffset = source.Length;
         source.Append("xref\n0 3\n0000000000 65535 f\n");
@@ -147,16 +506,17 @@ public sealed class PdfCrossReferenceTableTests
         source.Append((char)1).Append((char)(objectOffset >> 8))
             .Append((char)(objectOffset & 0xFF)).Append('\0').Append('\0');
         source.Append("\nendstream endobj\n");
+        int endOffset = source.Length;
         source.Append($"startxref\n{tableOffset}\n%%EOF\n");
         source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
-        source.Replace("/E 0000000000", $"/E {source.Length:0000000000}");
-        source.Replace("/T 0000000000", $"/T {tableOffset:0000000000}");
+        source.Replace("/E 0000000000", $"/E {endOffset:0000000000}");
+        source.Replace("/T 0000000000", $"/T {endOffset + 1:0000000000}");
 
-        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
-            Encoding.Latin1.GetBytes(source.ToString()));
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.Latin1.GetBytes(source.ToString())));
 
-        Assert.Single(table.Sections);
-        Assert.Equal(objectOffset, table[1].Field1);
+        Assert.Contains("/XRefStm must point to an earlier", error.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]

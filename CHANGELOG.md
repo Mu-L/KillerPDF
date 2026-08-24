@@ -18,11 +18,23 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Revision-chain parsing rejects trailer `/Prev` and hybrid `/XRefStm` offsets that point forward in ordinary files, while recognizing the legal forward links from a validated linearized first-page section to its main and hybrid cross-reference data.
 - Hybrid `/Size` equality remains mandatory for ordinary revisions, while a validated linearized first-page hybrid stream may declare the smaller object-number range that precedes its primary table.
 - Generation-transition checks treat a validated linearized first-page and main cross-reference pair as complementary indexes of one revision instead of misclassifying overlapping entries as an incremental generation change.
+- The linearized forward-`/Prev` exception must agree with the declared main-xref `/T` hint within the bounded table-header allowance, preventing a merely plausible linearization dictionary from authorizing an arbitrary forward revision link.
+- A forward linearized hybrid `/XRefStm` is accepted only from a first-page trailer whose forward `/Prev` agrees with `/T`, and it must remain inside the declared first-page extent; `/H` continues to identify hint streams as required by the specification.
+- Linearization recognition requires the complete parameter dictionary, not merely its object header, to remain within the first 1,024 file bytes.
+- Linearization-only cross-reference ordering is enabled only when the PDF header begins the file; the ordinary reader retains its bounded tolerance for prefixed non-linearized documents.
+- The declared first-page end `/E` must precede the main cross-reference `/T` hint, preventing an inflated first-page extent from broadening forward-link exceptions.
+- Linearization parameter objects must use generation zero and be registered at their exact offset in the first-page cross-reference section; `/O` and the parameter object number must also remain below trailer `/Size`.
+- Primary `/H` hint ranges must follow the parameter dictionary and end within `/E`, while an optional overflow range must begin at or after `/E` and end before `/T`.
+- The main cross-reference `/T` hint may identify the forward target or a bounded position inside its classic table, but cannot precede the `/Prev` target.
+- The first-page table must precede the primary `/H` hint stream; a hybrid `/XRefStm` may legally follow that hint stream but remains bounded by `/E`.
+- A shorter linearized `/L` is accepted for appended revisions only when that exact original prefix ends as a complete PDF, and its own `startxref` identifies the section receiving linearization ordering.
+- Sparse full rewrites retain every known inherited free-object entry and generation in both classic tables and cross-reference streams instead of preserving only the high-water sentinel.
 - Bounded Flate and LZW decoding accounts for PNG predictor row selector bytes before reconstruction, so exact cross-reference row limits remain resistant to decompression expansion without rejecting legal predicted streams.
 - Multi-filter decoding bounds intermediate stages by their existing encoded footprint while applying the configured ceiling exactly to final output, allowing legal ASCII-wrapped compressed streams without permitting intermediate expansion beyond source storage.
 - Final `startxref` declarations reject offsets at or after their own marker, requiring the final cross-reference target to precede the declaration physically.
 - Final `startxref` markers and offsets require PDF whitespace token boundaries, rejecting embedded marker substrings and concatenated offsets or end markers.
 - Final `startxref` parsing treats comments as PDF trivia around the numeric offset while retaining strict token boundaries and rejecting any data after the final `%%EOF` marker.
+- Final-marker discovery ignores `startxref` text inside trailing PDF comments so legal commentary cannot eclipse the actual declaration.
 - Revision-chain parsing requires trailer `/Size` to remain nondecreasing across incremental revisions and requires hybrid companion streams to agree with their primary trailer, preserving the document's object-number high-water mark.
 - Cross-reference history enforces legal generation transitions: active updates retain their generation, deletion advances it, and free-object reuse retains the free generation, preventing stale or invented identities from replacing current objects.
 - Classic and stream cross-reference entries reject generation 65,535 for in-use objects because that terminal generation is permanently retired.

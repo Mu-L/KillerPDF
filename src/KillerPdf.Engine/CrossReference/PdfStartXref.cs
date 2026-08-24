@@ -10,7 +10,7 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
 
     public static PdfStartXref Find(ReadOnlySpan<byte> source)
     {
-        int markerOffset = source.LastIndexOf(Marker);
+        int markerOffset = FindFinalMarkerOutsideComment(source);
         if (markerOffset < 0)
             throw new PdfSyntaxException("The PDF does not contain a final startxref declaration", source.Length);
         if (markerOffset > 0 && !IsWhitespace(source[markerOffset - 1]))
@@ -57,6 +57,30 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
             throw new PdfSyntaxException("Unexpected data follows the final %%EOF marker", position);
 
         return new PdfStartXref(offset, markerOffset);
+    }
+
+    private static int FindFinalMarkerOutsideComment(ReadOnlySpan<byte> source)
+    {
+        int searchEnd = source.Length;
+        while (searchEnd > 0)
+        {
+            int candidate = source[..searchEnd].LastIndexOf(Marker);
+            if (candidate < 0)
+                return -1;
+            if (!IsInsideComment(source, candidate))
+                return candidate;
+            searchEnd = candidate;
+        }
+        return -1;
+    }
+
+    private static bool IsInsideComment(ReadOnlySpan<byte> source, int offset)
+    {
+        int lineStart = offset;
+        while (lineStart > 0
+            && source[lineStart - 1] is not ((byte)'\r') and not ((byte)'\n'))
+            lineStart--;
+        return source[lineStart..offset].Contains((byte)'%');
     }
 
     private static void SkipWhitespace(ReadOnlySpan<byte> source, ref int position)

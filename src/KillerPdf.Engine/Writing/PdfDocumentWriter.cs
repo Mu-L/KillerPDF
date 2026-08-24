@@ -220,9 +220,12 @@ public static class PdfDocumentWriter
     {
         var occupied = offsets.ToDictionary(item => item.ObjectNumber);
         int highWater = size - 1;
+        IEnumerable<int> inheritedFree = document.CrossReferences.Values
+            .Where(entry => entry.Type == PdfCrossReferenceEntryType.Free)
+            .Select(entry => entry.ObjectNumber);
         int[] numbers = size <= PdfCrossReferenceReader.MaximumEntriesPerSection
             ? Enumerable.Range(0, size).ToArray()
-            : occupied.Keys.Append(0)
+            : occupied.Keys.Concat(inheritedFree).Append(0)
                 .Concat(highWater > 0 && !occupied.ContainsKey(highWater)
                     ? [highWater] : [])
                 .Distinct().Order().ToArray();
@@ -271,9 +274,12 @@ public static class PdfDocumentWriter
         foreach (ObjectStreamChunk chunk in objectStreams)
             occupied.UnionWith(chunk.Objects.Select(item => item.ObjectNumber));
         int highWater = objectNumber - objectStreams.Count - 1;
+        IEnumerable<int> inheritedFree = document.CrossReferences.Values
+            .Where(entry => entry.Type == PdfCrossReferenceEntryType.Free)
+            .Select(entry => entry.ObjectNumber);
         int[] numbers = size <= PdfCrossReferenceReader.MaximumEntriesPerSection
             ? Enumerable.Range(0, size).ToArray()
-            : occupied.Append(0)
+            : occupied.Concat(inheritedFree).Append(0)
                 .Concat(highWater > 0 && !occupied.Contains(highWater)
                     ? [highWater] : [])
                 .Distinct().Order().ToArray();

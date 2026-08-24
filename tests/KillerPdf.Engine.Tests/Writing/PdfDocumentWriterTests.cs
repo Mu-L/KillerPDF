@@ -648,6 +648,27 @@ public sealed class PdfDocumentWriterTests
             new PdfIncrementalUpdateBuilder(reopened).ReserveObject().ObjectNumber);
     }
 
+    [Theory]
+    [InlineData(PdfCrossReferenceFormat.Table)]
+    [InlineData(PdfCrossReferenceFormat.Stream)]
+    public void Write_SparseRangesPreserveKnownFreeObjectGenerations(
+        PdfCrossReferenceFormat format)
+    {
+        PdfDocument source = PdfDocument.Open(SourcePdfWithSparseFreeEntry());
+
+        var options = new PdfDocumentWriteOptions { CrossReferenceFormat = format };
+        byte[] firstRewrite = PdfDocumentWriter.Write(source, options);
+        PdfDocument reopened = PdfDocument.Open(firstRewrite);
+        byte[] secondRewrite = PdfDocumentWriter.Write(reopened, options);
+
+        PdfCrossReferenceEntry zero = reopened.CrossReferences[0];
+        PdfCrossReferenceEntry inherited = reopened.CrossReferences[500_000];
+        Assert.Equal(500_000, zero.Field1);
+        Assert.Equal(PdfCrossReferenceEntryType.Free, inherited.Type);
+        Assert.Equal(7, inherited.Field2);
+        Assert.Equal(firstRewrite, secondRewrite);
+    }
+
     [Fact]
     public void Write_RemovesObsoleteLinearizationDictionary()
     {
@@ -901,6 +922,23 @@ public sealed class PdfDocumentWriterTests
         source.Append($"{catalogOffset:0000000000} 00000 n\n");
         source.Append($"{streamOffset:0000000000} 00000 n\n");
         source.Append($"trailer << /Size {declaredSize} /Root 1 0 R{extraTrailer} >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
+    private static byte[] SourcePdfWithSparseFreeEntry()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int catalogOffset = source.Length;
+        source.Append("1 0 obj << /Type /Catalog /Data 2 0 R >> endobj\n");
+        int streamOffset = source.Length;
+        source.Append("2 0 obj << /Length 5 >> stream\nHello\nendstream endobj\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 3\n0000000000 65535 f\n");
+        source.Append($"{catalogOffset:0000000000} 00000 n\n");
+        source.Append($"{streamOffset:0000000000} 00000 n\n");
+        source.Append("500000 1\n0000000000 00007 f\n");
+        source.Append("trailer << /Size 1000005 /Root 1 0 R >>\n");
         source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
     }

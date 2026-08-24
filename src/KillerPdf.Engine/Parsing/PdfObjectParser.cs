@@ -43,7 +43,19 @@ public sealed class PdfObjectParser
         return value;
     }
 
-    public PdfIndirectObject ParseIndirectObject()
+    public PdfIndirectObject ParseIndirectObject() =>
+        ParseIndirectObjectCore(out _);
+
+    internal PdfIndirectObject ParseIndirectDictionaryObject(
+        out int dictionaryEndOffset)
+    {
+        PdfIndirectObject result = ParseIndirectObjectCore(out int valueEndOffset);
+        dictionaryEndOffset = result.Value is PdfDictionary
+            ? valueEndOffset : -1;
+        return result;
+    }
+
+    private PdfIndirectObject ParseIndirectObjectCore(out int valueEndOffset)
     {
         PdfToken objectNumberToken = Take();
         PdfToken generationToken = Take();
@@ -55,6 +67,7 @@ public sealed class PdfObjectParser
         ValidateReference(objectNumber, generation, objectNumberToken.Offset);
 
         PdfObject value = ParseObject(0);
+        valueEndOffset = _tokenizer.Position;
         PdfToken endToken = Take();
         if (IsKeyword(endToken, "stream"))
         {
