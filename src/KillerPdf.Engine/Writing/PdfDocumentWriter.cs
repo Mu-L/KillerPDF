@@ -152,13 +152,11 @@ public static class PdfDocumentWriter
         WriteAscii(output, $"%PDF-{outputVersion}\n");
         output.Write([(byte)'%', 0xE2, 0xE3, 0xCF, 0xD3, (byte)'\n']);
 
-        int? encryptionObjectNumber = document.CrossReferences.TryGetTrailerValue(
-            EncryptName, out PdfObject encryptionValue)
-            && encryptionValue is PdfIndirectReference encryptionReference
-                ? encryptionReference.ObjectNumber : null;
+        IReadOnlySet<int> encryptionBootstrapObjectNumbers =
+            document.EncryptionBootstrapObjectNumbers;
         List<WritableObject> packed = options.UseObjectStreams
             ? objects.Where(item => item.Generation == 0 && item.Value is not PdfStream
-                && item.ObjectNumber != encryptionObjectNumber).ToList()
+                && !encryptionBootstrapObjectNumbers.Contains(item.ObjectNumber)).ToList()
             : [];
         var packedNumbers = packed.Select(item => item.ObjectNumber).ToHashSet();
         int objectStreamCount = packed.Count == 0

@@ -179,7 +179,7 @@ public sealed class PdfIncrementalUpdateBuilder
             throw new InvalidOperationException("An incremental update must contain at least one object.");
         ValidateStandardTrailerState();
         if (_freed.Keys.Any(number => IsInheritedTrailerReference(RootName, number)
-                || IsInheritedTrailerReference(EncryptName, number)))
+                || _document.EncryptionBootstrapObjectNumbers.Contains(number)))
             throw new InvalidOperationException(
                 "The document catalog or encryption dictionary cannot be freed.");
         ValidateApplicationTrailerGraphs();
@@ -190,10 +190,9 @@ public sealed class PdfIncrementalUpdateBuilder
         if (source.Length > 0 && source[^1] is not ((byte)'\r') and not ((byte)'\n'))
             output.WriteByte((byte)'\n');
 
-        int? encryptionObjectNumber = _document.EncryptionObjectNumber;
         List<PendingObject> packed = options.UseObjectStreams
             ? _objects.Values.Where(item => item.Generation == 0 && item.Value is not PdfStream
-                && item.ObjectNumber != encryptionObjectNumber
+                && !_document.EncryptionBootstrapObjectNumbers.Contains(item.ObjectNumber)
                 && !_directObjectNumbers.Contains(item.ObjectNumber)).ToList()
             : [];
         var packedNumbers = packed.Select(item => item.ObjectNumber).ToHashSet();

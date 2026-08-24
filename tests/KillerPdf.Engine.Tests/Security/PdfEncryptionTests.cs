@@ -383,6 +383,69 @@ public sealed class PdfEncryptionTests
     }
 
     [Fact]
+    public void Open_ResolvesMultiHopEncryptionDictionaryReferences()
+    {
+        byte[] source = AppendEncryptionReferenceRevision(
+            Revision6Fixture(), "6 0 obj 7 0 R endobj\n7 0 obj 5 0 R endobj\n",
+            "6 0 R", 8);
+
+        PdfDocument document = PdfDocument.Open(source, "owner-password");
+
+        Assert.True(document.IsDecrypted);
+        Assert.Equal(PdfPasswordAuthenticationRole.Owner,
+            document.PasswordAuthenticationRole);
+
+        byte[] rewritten = PdfDocumentWriter.Write(document,
+            new PdfDocumentWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressStructuralStreams = true
+            });
+        PdfDocument reopened = PdfDocument.Open(rewritten, "user-password");
+        Assert.True(reopened.IsDecrypted);
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[6].Type);
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[7].Type);
+
+        byte[] incremented = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(6, new PdfIndirectReference(5, 0))
+            .Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressObjectStreams = true,
+                CompressCrossReferenceStream = true
+            });
+        PdfDocument incrementedDocument = PdfDocument.Open(
+            incremented, "owner-password");
+        Assert.True(incrementedDocument.IsDecrypted);
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            incrementedDocument.CrossReferences[6].Type);
+
+        var invalidUpdate = new PdfIncrementalUpdateBuilder(document);
+        invalidUpdate.FreeObject(7);
+        InvalidOperationException freeError = Assert.Throws<InvalidOperationException>(
+            () => invalidUpdate.Build());
+        Assert.Contains("trailer /Encrypt", freeError.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Open_RejectsCyclicEncryptionDictionaryReferences()
+    {
+        byte[] source = AppendEncryptionReferenceRevision(
+            Revision6Fixture(), "6 0 obj 7 0 R endobj\n7 0 obj 6 0 R endobj\n",
+            "6 0 R", 8);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => PdfDocument.Open(source, "owner-password"));
+
+        Assert.Contains("cycle", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Open_RejectsInvalidReservedPermissionBitsAcrossSecurityRevisions()
     {
         foreach ((byte[] fixture, string password) in new[]
@@ -1054,6 +1117,28 @@ public sealed class PdfEncryptionTests
             entry.Key.Equals(new PdfName("CF"u8))
                 ? new KeyValuePair<PdfName, PdfObject>(entry.Key, updatedFilters)
                 : entry));
+    }
+
+    private static byte[] AppendEncryptionReferenceRevision(
+        byte[] source, string objectDefinitions, string encryptionReference, int size)
+    {
+        byte[] definitions = Encoding.ASCII.GetBytes(objectDefinitions);
+        int secondObjectRelativeOffset = objectDefinitions.IndexOf(
+            "7 0 obj", StringComparison.Ordinal);
+        Assert.True(secondObjectRelativeOffset > 0);
+        long previousXref = PdfStartXref.Find(source).Offset;
+        using var output = new MemoryStream();
+        output.Write(source);
+        int firstObjectOffset = checked((int)output.Position);
+        output.Write(definitions);
+        int xrefOffset = checked((int)output.Position);
+        Write($"xref\n6 2\n{firstObjectOffset:0000000000} 00000 n \n");
+        Write($"{firstObjectOffset + secondObjectRelativeOffset:0000000000} 00000 n \n");
+        Write($"trailer << /Size {size} /Prev {previousXref} /Encrypt {encryptionReference} >>\n");
+        Write($"startxref\n{xrefOffset}\n%%EOF\n");
+        return output.ToArray();
+
+        void Write(string value) => output.Write(Encoding.ASCII.GetBytes(value));
     }
 
     internal static byte[] Revision6Fixture() => Convert.FromBase64String(

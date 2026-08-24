@@ -27,6 +27,7 @@ public sealed class PdfDocument
     private readonly HashSet<int> _resolving = [];
     private PdfStandardSecurityHandler? _security;
     private int? _encryptionObjectNumber;
+    private HashSet<int> _encryptionBootstrapObjectNumbers = [];
 
     private PdfDocument(ReadOnlyMemory<byte> source, PdfCrossReferenceTable crossReferences)
     {
@@ -52,6 +53,8 @@ public sealed class PdfDocument
     /// </summary>
     public PdfDocumentPermissions? DeclaredPermissions => _security?.Permissions;
     internal int? EncryptionObjectNumber => _encryptionObjectNumber;
+    internal IReadOnlySet<int> EncryptionBootstrapObjectNumbers =>
+        _encryptionBootstrapObjectNumbers;
     internal PdfObject EncryptObject(
         int objectNumber, PdfObject value,
         Func<PdfIndirectReference, PdfObject>? resolve = null) =>
@@ -78,9 +81,9 @@ public sealed class PdfDocument
             return document;
         PdfIndirectReference encryptionReference = encryptionValue as PdfIndirectReference
             ?? throw new InvalidOperationException("The trailer /Encrypt value is not indirect.");
-        PdfDictionary encryption = document.Resolve(encryptionReference) as PdfDictionary
-            ?? throw new InvalidOperationException("The trailer /Encrypt value is not a dictionary.");
-        document._encryptionObjectNumber = encryptionReference.ObjectNumber;
+        (PdfDictionary encryption, int encryptionObjectNumber) =
+            document.ResolveEncryptionDictionary(encryptionReference);
+        document._encryptionObjectNumber = encryptionObjectNumber;
         ReadOnlyMemory<byte> permanentIdentifier = ReadOnlyMemory<byte>.Empty;
         if (document.CrossReferences.TryGetTrailerValue(new PdfName("ID"u8), out PdfObject? idValue)
             && idValue is PdfArray { Count: > 0 } identifiers
@@ -91,6 +94,31 @@ public sealed class PdfDocument
         document._objects.Clear();
         document._objectStreams.Clear();
         return document;
+    }
+
+    private (PdfDictionary Dictionary, int ObjectNumber) ResolveEncryptionDictionary(
+        PdfIndirectReference reference)
+    {
+        PdfObject value = reference;
+        int dictionaryObjectNumber = reference.ObjectNumber;
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference current; depth++)
+        {
+            if (depth >= 32)
+                throw new InvalidOperationException(
+                    "The trailer /Encrypt indirect chain is too deep.");
+            if (!visited.Add((current.ObjectNumber, current.Generation)))
+                throw new InvalidOperationException(
+                    "The trailer /Encrypt indirect chain contains a cycle.");
+            dictionaryObjectNumber = current.ObjectNumber;
+            value = Resolve(current);
+        }
+        _encryptionBootstrapObjectNumbers = visited
+            .Select(identity => identity.ObjectNumber).ToHashSet();
+        return value is PdfDictionary dictionary
+            ? (dictionary, dictionaryObjectNumber)
+            : throw new InvalidOperationException(
+                "The trailer /Encrypt value is not a dictionary.");
     }
 
     /// <summary>
