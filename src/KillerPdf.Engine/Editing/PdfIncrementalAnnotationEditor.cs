@@ -17,15 +17,22 @@ namespace KillerPdf.Engine.Editing;
 public sealed class PdfIncrementalAnnotationEditor
 {
     private static readonly PdfName AnnotsName = new("Annots"u8);
+    private static readonly PdfName StructTreeRootName = new("StructTreeRoot"u8);
+    private static readonly PdfName StructureKidsName = new("K"u8);
+    private static readonly PdfName ParentTreeName = new("ParentTree"u8);
+    private static readonly PdfName ParentTreeNextKeyName = new("ParentTreeNextKey"u8);
+    private static readonly PdfName NamespacesName = new("Namespaces"u8);
 
     private readonly PdfDocument _document;
+    private readonly PdfPageTree _tree;
     private readonly IReadOnlyList<PdfPageTreeEntry> _pages;
     private readonly List<PendingAnnotation> _annotations = [];
 
     public PdfIncrementalAnnotationEditor(PdfDocument document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
-        _pages = PdfPageTree.Read(document).Pages;
+        _tree = PdfPageTree.Read(document);
+        _pages = _tree.Pages;
     }
 
     public int PageCount => _pages.Count;
@@ -190,6 +197,8 @@ public sealed class PdfIncrementalAnnotationEditor
         var update = new PdfIncrementalUpdateBuilder(_document);
         var allocated = _annotations.Select(annotation => new AllocatedAnnotation(
             annotation, update.ReserveObject(), update.ReserveObject())).ToArray();
+        IReadOnlyDictionary<int, long> structureParentKeys =
+            PrepareTaggedAnnotationStructure(update, allocated);
         Dictionary<TrueTypeFont, EditorFontBinding> fonts = AllocateFonts(update);
         Dictionary<PdfImage, PdfIndirectReference> images = AllocateImages(update);
 
@@ -200,42 +209,54 @@ public sealed class PdfIncrementalAnnotationEditor
             {
                 case PendingTextNote note:
                     update.SetObject(item.AnnotationReference,
-                        TextNoteDictionary(note, page.Reference, item.AnnotationReference, item.AppearanceReference));
+                        WithStructureParent(TextNoteDictionary(note, page.Reference,
+                            item.AnnotationReference, item.AppearanceReference), item,
+                            structureParentKeys));
                     update.SetObject(item.AppearanceReference, TextNoteAppearance(note));
                     break;
                 case PendingTextMarkup markup:
                     update.SetObject(item.AnnotationReference,
-                        TextMarkupDictionary(markup, page.Reference, item.AnnotationReference, item.AppearanceReference));
+                        WithStructureParent(TextMarkupDictionary(markup, page.Reference,
+                            item.AnnotationReference, item.AppearanceReference), item,
+                            structureParentKeys));
                     update.SetObject(item.AppearanceReference, TextMarkupAppearance(markup));
                     break;
                 case PendingFreeText freeText:
                     EditorFontBinding binding = fonts[freeText.Font];
                     update.SetObject(item.AnnotationReference,
-                        FreeTextDictionary(freeText, page.Reference, item.AnnotationReference,
-                            item.AppearanceReference, binding.Resource));
+                        WithStructureParent(FreeTextDictionary(freeText, page.Reference,
+                            item.AnnotationReference, item.AppearanceReference, binding.Resource),
+                            item, structureParentKeys));
                     update.SetObject(item.AppearanceReference,
                         FreeTextAppearance(freeText, binding.Resource, binding.Type0Reference,
                             binding.Usage));
                     break;
                 case PendingLine line:
                     update.SetObject(item.AnnotationReference,
-                        LineDictionary(line, page.Reference, item.AnnotationReference, item.AppearanceReference));
+                        WithStructureParent(LineDictionary(line, page.Reference,
+                            item.AnnotationReference, item.AppearanceReference), item,
+                            structureParentKeys));
                     update.SetObject(item.AppearanceReference, LineAppearance(line));
                     break;
                 case PendingShape shape:
                     update.SetObject(item.AnnotationReference,
-                        ShapeDictionary(shape, page.Reference, item.AnnotationReference, item.AppearanceReference));
+                        WithStructureParent(ShapeDictionary(shape, page.Reference,
+                            item.AnnotationReference, item.AppearanceReference), item,
+                            structureParentKeys));
                     update.SetObject(item.AppearanceReference, ShapeAppearance(shape));
                     break;
                 case PendingInk ink:
                     update.SetObject(item.AnnotationReference,
-                        InkDictionary(ink, page.Reference, item.AnnotationReference, item.AppearanceReference));
+                        WithStructureParent(InkDictionary(ink, page.Reference,
+                            item.AnnotationReference, item.AppearanceReference), item,
+                            structureParentKeys));
                     update.SetObject(item.AppearanceReference, InkAppearance(ink));
                     break;
                 case PendingImageStamp stamp:
                     update.SetObject(item.AnnotationReference,
-                        ImageStampDictionary(stamp, page.Reference, item.AnnotationReference,
-                            item.AppearanceReference));
+                        WithStructureParent(ImageStampDictionary(stamp, page.Reference,
+                            item.AnnotationReference, item.AppearanceReference), item,
+                            structureParentKeys));
                     update.SetObject(item.AppearanceReference,
                         ImageStampAppearance(stamp, images[stamp.Image]));
                     break;
@@ -248,6 +269,295 @@ public sealed class PdfIncrementalAnnotationEditor
             AppendPageAnnotations(update, _pages[group.Key], group.Select(item => item.AnnotationReference));
         return update.Build(options);
     }
+
+    private IReadOnlyDictionary<int, long> PrepareTaggedAnnotationStructure(
+        PdfIncrementalUpdateBuilder update, IReadOnlyList<AllocatedAnnotation> annotations)
+    {
+        if (!_tree.Catalog.TryGetValue(StructTreeRootName, out PdfObject? rootValue))
+            return new Dictionary<int, long>();
+        PdfDictionary root = ResolveDictionary(rootValue,
+            "The document structure-tree root is not a dictionary.");
+        PdfIndirectReference rootReference;
+        if (rootValue is PdfIndirectReference indirectRoot)
+            rootReference = indirectRoot;
+        else
+        {
+            rootReference = FindStructureRootParentReference(root)
+                ?? throw new NotSupportedException(
+                    "A direct structure-tree root has no unambiguous indirect parent reference.");
+            var catalogEntries = _tree.Catalog.ToDictionary(
+                entry => entry.Key, entry => entry.Value);
+            catalogEntries[StructTreeRootName] = rootReference;
+            update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
+                new PdfDictionary(catalogEntries));
+        }
+        var documentTarget = FindDocumentStructureElement(root, rootReference, update);
+        PdfIndirectReference documentElementReference = documentTarget.Reference;
+        PdfDictionary documentElement = documentTarget.Dictionary;
+        root = documentTarget.Root;
+        bool documentElementIsNew = documentTarget.IsNew;
+        PdfIndirectReference? namespaceReference = FindStructureNamespace(root);
+
+        IReadOnlyList<PdfNumberTreeEntry> existingEntries =
+            root.TryGetValue(ParentTreeName, out PdfObject? parentTreeValue)
+                ? PdfNumberTree.Read(_document, parentTreeValue)
+                : [];
+        if (existingEntries.Any(entry => entry.Key < 0))
+            throw new InvalidOperationException(
+                "The structure-tree ParentTree contains a negative key.");
+        long nextKey = root.TryGetValue(ParentTreeNextKeyName, out PdfObject? nextValue)
+            ? (nextValue as PdfInteger)?.Value
+                ?? throw new InvalidOperationException(
+                    "The structure-tree /ParentTreeNextKey is not an integer.")
+            : existingEntries.Count == 0 ? 0 : checked(existingEntries.Max(entry => entry.Key) + 1);
+        if (nextKey < 0)
+            throw new InvalidOperationException(
+                "The structure-tree /ParentTreeNextKey cannot be negative.");
+        if (existingEntries.Count > 0)
+            nextKey = Math.Max(nextKey, checked(existingEntries.Max(entry => entry.Key) + 1));
+
+        var keys = new Dictionary<int, long>();
+        var newStructureReferences = new List<PdfIndirectReference>();
+        var parentNumbers = new List<PdfObject>();
+        foreach (PdfNumberTreeEntry entry in existingEntries.OrderBy(entry => entry.Key))
+        {
+            parentNumbers.Add(new PdfInteger(entry.Key));
+            parentNumbers.Add(entry.Value);
+        }
+        foreach (AllocatedAnnotation annotation in annotations)
+        {
+            string description = AnnotationDescription(annotation.Definition);
+            if (string.IsNullOrWhiteSpace(description))
+                throw new InvalidOperationException(
+                    "Annotations added to a tagged PDF require descriptive contents.");
+            PdfIndirectReference structureReference = update.ReserveObject();
+            long key = nextKey;
+            nextKey = checked(nextKey + 1);
+            keys.Add(annotation.AnnotationReference.ObjectNumber, key);
+            newStructureReferences.Add(structureReference);
+            PdfIndirectReference pageReference = _pages[annotation.Definition.PageIndex].Reference;
+            var entries = new List<(string Name, PdfObject Value)>
+            {
+                ("Type", Name("StructElem")),
+                ("S", Name("Annot")),
+                ("P", documentElementReference),
+                ("Pg", pageReference),
+                ("Alt", UnicodeString(description)),
+                ("K", Dictionary(
+                    ("Type", Name("OBJR")),
+                    ("Pg", pageReference),
+                    ("Obj", annotation.AnnotationReference)))
+            };
+            if (namespaceReference is not null)
+                entries.Add(("NS", namespaceReference));
+            update.SetObject(structureReference, Dictionary(entries.ToArray()));
+            parentNumbers.Add(new PdfInteger(key));
+            parentNumbers.Add(structureReference);
+        }
+
+        PdfIndirectReference rebuiltParentTree = update.AddObject(
+            Dictionary(("Nums", new PdfArray(parentNumbers))));
+        var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        rootEntries[ParentTreeName] = rebuiltParentTree;
+        rootEntries[ParentTreeNextKeyName] = new PdfInteger(nextKey);
+        update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(rootEntries));
+
+        var documentEntries = documentElement.ToDictionary(entry => entry.Key, entry => entry.Value);
+        var kids = new List<PdfObject>();
+        if (documentEntries.TryGetValue(StructureKidsName, out PdfObject? existingKids))
+        {
+            PdfObject resolvedKids = existingKids is PdfIndirectReference arrayReference
+                && _document.Resolve(arrayReference) is PdfArray indirectArray
+                    ? indirectArray : existingKids;
+            if (resolvedKids is PdfArray array) kids.AddRange(array);
+            else kids.Add(existingKids);
+        }
+        kids.AddRange(newStructureReferences);
+        documentEntries[StructureKidsName] = kids.Count == 1
+            ? kids[0] : new PdfArray(kids);
+        if (documentElementIsNew)
+            update.SetObject(documentElementReference, new PdfDictionary(documentEntries));
+        else
+            update.ReplaceObject(documentElementReference.ObjectNumber,
+                new PdfDictionary(documentEntries));
+        return keys;
+    }
+
+    private PdfIndirectReference? FindStructureRootParentReference(PdfDictionary root)
+    {
+        if (!root.TryGetValue(StructureKidsName, out PdfObject? kidsValue)) return null;
+        PdfObject resolvedKids = kidsValue is PdfIndirectReference arrayReference
+            && _document.Resolve(arrayReference) is PdfArray indirectArray
+                ? indirectArray : kidsValue;
+        IEnumerable<PdfObject> kids = resolvedKids is PdfArray array ? array : [resolvedKids];
+        PdfIndirectReference? result = null;
+        foreach (PdfObject kid in kids)
+        {
+            PdfDictionary child = ResolveDictionary(kid,
+                "A top-level structure element is not a dictionary.");
+            if (!child.TryGetValue(Name("P"), out PdfObject? parent)
+                || parent is not PdfIndirectReference parentReference)
+                return null;
+            if (result is not null
+                && (result.ObjectNumber != parentReference.ObjectNumber
+                    || result.Generation != parentReference.Generation))
+                return null;
+            result = parentReference;
+        }
+        return result;
+    }
+
+    private (PdfIndirectReference Reference, PdfDictionary Dictionary,
+        PdfDictionary Root, bool IsNew) FindDocumentStructureElement(
+            PdfDictionary root, PdfIndirectReference rootReference,
+            PdfIncrementalUpdateBuilder update)
+    {
+        if (!root.TryGetValue(StructureKidsName, out PdfObject? kidsValue))
+            throw new InvalidOperationException("The structure-tree root has no children.");
+        PdfObject resolvedKids = kidsValue is PdfIndirectReference arrayReference
+            && _document.Resolve(arrayReference) is PdfArray indirectArray
+                ? indirectArray : kidsValue;
+        PdfObject[] kids = resolvedKids is PdfArray array ? array.ToArray() : [resolvedKids];
+        PdfIndirectReference? fallback = null;
+        for (int index = 0; index < kids.Length; index++)
+        {
+            PdfObject kid = kids[index];
+            PdfDictionary dictionary = ResolveDictionary(kid,
+                "A top-level structure element is not a dictionary.");
+            if (kid is PdfIndirectReference reference) fallback ??= reference;
+            if (dictionary.TryGetValue(Name("S"), out PdfObject? type)
+                && type is PdfName name && name.ValueAsLatin1() == "Document")
+                return Target(kid, dictionary, index);
+        }
+        if (fallback is not null)
+            return (fallback, ResolveDictionary(fallback,
+                "The top-level structure element is not a dictionary."), root, false);
+        if (kids.Length == 0)
+            throw new InvalidOperationException("The structure-tree root has no children.");
+        return Target(kids[0], ResolveDictionary(kids[0],
+            "The top-level structure element is not a dictionary."), 0);
+
+        (PdfIndirectReference, PdfDictionary, PdfDictionary, bool) Target(
+            PdfObject value, PdfDictionary dictionary, int index)
+        {
+            if (value is PdfIndirectReference reference)
+                return (reference, dictionary, root, false);
+            PdfIndirectReference? documentReference =
+                FindStructureElementParentReference(dictionary);
+            bool isNew = false;
+            if (documentReference is null)
+            {
+                if (HasStructureElementParentReference(dictionary))
+                    throw new NotSupportedException(
+                        "A direct top-level structure element has ambiguous child parent references.");
+                documentReference = update.ReserveObject();
+                isNew = true;
+            }
+            var entries = dictionary.ToDictionary(entry => entry.Key, entry => entry.Value);
+            entries[Name("P")] = rootReference;
+            kids[index] = documentReference;
+            var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+            rootEntries[StructureKidsName] = kids.Length == 1
+                ? kids[0] : new PdfArray(kids);
+            return (documentReference, new PdfDictionary(entries),
+                new PdfDictionary(rootEntries), isNew);
+        }
+    }
+
+    private PdfIndirectReference? FindStructureElementParentReference(PdfDictionary element)
+    {
+        if (!element.TryGetValue(StructureKidsName, out PdfObject? kidsValue)) return null;
+        PdfIndirectReference? result = null;
+        foreach (PdfObject kid in StructureKids(kidsValue))
+        {
+            PdfObject resolved = kid is PdfIndirectReference reference
+                ? _document.Resolve(reference) : kid;
+            if (resolved is not PdfDictionary child) continue;
+            if (!child.TryGetValue(Name("P"), out PdfObject? parent)
+                || parent is not PdfIndirectReference parentReference)
+                return null;
+            if (result is not null
+                && (result.ObjectNumber != parentReference.ObjectNumber
+                    || result.Generation != parentReference.Generation))
+                return null;
+            result = parentReference;
+        }
+        return result;
+    }
+
+    private bool HasStructureElementParentReference(PdfDictionary element)
+    {
+        if (!element.TryGetValue(StructureKidsName, out PdfObject? kidsValue)) return false;
+        return StructureKids(kidsValue).Any(kid =>
+        {
+            PdfObject resolved = kid is PdfIndirectReference reference
+                ? _document.Resolve(reference) : kid;
+            return resolved is PdfDictionary child
+                && child.TryGetValue(Name("P"), out PdfObject? parent)
+                && parent is PdfIndirectReference;
+        });
+    }
+
+    private IReadOnlyList<PdfObject> StructureKids(PdfObject value)
+    {
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? _document.Resolve(reference) : value;
+        return resolved is PdfArray array ? array.ToArray() : [value];
+    }
+
+    private PdfIndirectReference? FindStructureNamespace(PdfDictionary root)
+    {
+        if (!root.TryGetValue(NamespacesName, out PdfObject? value)) return null;
+        PdfObject resolved = value is PdfIndirectReference arrayReference
+            ? _document.Resolve(arrayReference) : value;
+        PdfArray namespaces = resolved as PdfArray
+            ?? throw new InvalidOperationException("The structure-tree /Namespaces value is not an array.");
+        foreach (PdfIndirectReference reference in namespaces.OfType<PdfIndirectReference>())
+        {
+            PdfDictionary definition = ResolveDictionary(reference,
+                "A structure namespace is not a dictionary.");
+            if (definition.TryGetValue(Name("NS"), out PdfObject? uri)
+                && uri is PdfString text
+                && DecodePdfString(text) == "http://iso.org/pdf2/ssn")
+                return reference;
+        }
+        return null;
+    }
+
+    private static string DecodePdfString(PdfString value)
+    {
+        ReadOnlySpan<byte> bytes = value.Bytes.Span;
+        return bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
+            ? PdfUnicodeEncoding.DecodeBigEndian(bytes[2..], "A structure namespace URI")
+            : Encoding.Latin1.GetString(bytes);
+    }
+
+    private PdfDictionary ResolveDictionary(PdfObject value, string message) =>
+        (value is PdfIndirectReference reference ? _document.Resolve(reference) : value)
+            as PdfDictionary ?? throw new InvalidOperationException(message);
+
+    private static PdfDictionary WithStructureParent(
+        PdfDictionary dictionary, AllocatedAnnotation annotation,
+        IReadOnlyDictionary<int, long> keys)
+    {
+        if (!keys.TryGetValue(annotation.AnnotationReference.ObjectNumber, out long key))
+            return dictionary;
+        var entries = dictionary.ToDictionary(entry => entry.Key, entry => entry.Value);
+        entries[Name("StructParent")] = new PdfInteger(key);
+        return new PdfDictionary(entries);
+    }
+
+    private static string AnnotationDescription(PendingAnnotation annotation) => annotation switch
+    {
+        PendingTextNote value => value.Contents,
+        PendingTextMarkup value => value.Contents ?? string.Empty,
+        PendingFreeText value => value.Contents,
+        PendingLine value => value.Contents ?? string.Empty,
+        PendingShape value => value.Contents ?? string.Empty,
+        PendingInk value => value.Contents ?? string.Empty,
+        PendingImageStamp value => value.Contents ?? string.Empty,
+        _ => string.Empty
+    };
 
     private Dictionary<TrueTypeFont, EditorFontBinding> AllocateFonts(PdfIncrementalUpdateBuilder update)
     {
@@ -755,7 +1065,8 @@ public sealed class PdfIncrementalAnnotationEditor
     private static PdfString Latin1String(string value) =>
         new(Encoding.Latin1.GetBytes(value), PdfStringForm.Literal);
     private static PdfString UnicodeString(string value) =>
-        new([0xFE, 0xFF, .. Encoding.BigEndianUnicode.GetBytes(value)], PdfStringForm.Hexadecimal);
+        new([0xFE, 0xFF, .. PdfUnicodeEncoding.EncodeBigEndian(value)],
+            PdfStringForm.Hexadecimal);
     private static PdfDictionary Dictionary(params (string Name, PdfObject Value)[] entries) =>
         new(entries.Select(entry => new KeyValuePair<PdfName, PdfObject>(Name(entry.Name), entry.Value)));
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

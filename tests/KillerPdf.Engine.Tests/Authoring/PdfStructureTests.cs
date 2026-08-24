@@ -113,6 +113,8 @@ public sealed class PdfStructureTests
         var content = new PdfContentStreamBuilder()
             .BeginMarkedContent(PdfStructureType.Figure, 0)
             .Rectangle(10, 10, 20, 20).Fill()
+            .EndMarkedContent()
+            .BeginMarkedContent(PdfStructureType.Note, 1)
             .EndMarkedContent();
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
             .SetMetadata(new PdfDocumentMetadata
@@ -125,6 +127,8 @@ public sealed class PdfStructureTests
             .AddStructureContainer(PdfStructureType.Document)
             .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
                 alternateDescription: "A square")
+            .AddStructureElement(PdfStructureType.Note, 0, 1, 1,
+                actualText: "A footnote")
             .Build());
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary viewerPreferences = Assert.IsType<PdfDictionary>(
@@ -134,6 +138,8 @@ public sealed class PdfStructureTests
             Assert.IsType<PdfArray>(root[Name("K")])[0]);
         PdfIndirectReference namespaceReference = Assert.IsType<PdfIndirectReference>(
             documentElement[Name("NS")]);
+        PdfDictionary note = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(documentElement[Name("K")])[1]);
         PdfDictionary structureNamespace = ResolveDictionary(document, namespaceReference);
         PdfStream metadata = Assert.IsType<PdfStream>(document.Resolve(
             Assert.IsType<PdfIndirectReference>(catalog[Name("Metadata")])));
@@ -143,10 +149,38 @@ public sealed class PdfStructureTests
             viewerPreferences[Name("DisplayDocTitle")]).Value);
         Assert.Equal("http://iso.org/pdf2/ssn", Encoding.Latin1.GetString(
             Assert.IsType<PdfString>(structureNamespace[Name("NS")]).Bytes.Span));
+        Assert.Equal("FENote", Assert.IsType<PdfName>(note[Name("S")]).ValueAsLatin1());
         Assert.Contains("pdfuaid:part", xmp, StringComparison.Ordinal);
         Assert.Contains(">2<", xmp, StringComparison.Ordinal);
         Assert.Contains("pdfuaid:rev", xmp, StringComparison.Ordinal);
         Assert.Contains(">2024<", xmp, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PdfUa2Mode_WritesArticleInPdf17Namespace()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible article",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.Article, 1)
+            .AddStructureContainer(PdfStructureType.Paragraph, 2)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary documentElement = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(root[Name("K")])[0]);
+        PdfDictionary article = ResolveDictionary(document, documentElement[Name("K")]);
+        PdfDictionary articleNamespace = ResolveDictionary(document, article[Name("NS")]);
+
+        Assert.Equal("Art", Assert.IsType<PdfName>(article[Name("S")]).ValueAsLatin1());
+        Assert.Equal("http://iso.org/pdf/ssn", Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(articleNamespace[Name("NS")]).Bytes.Span));
     }
 
     [Fact]
@@ -182,6 +216,374 @@ public sealed class PdfStructureTests
             .AddStructureContainer(PdfStructureType.Document)
             .AddStructureElement(PdfStructureType.Paragraph, 0, 0, 1);
         Assert.Throws<InvalidOperationException>(() => legacyFont.Build());
+
+        var formulaContent = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Formula, 0)
+            .EndMarkedContent();
+        var undescribedFormula = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible formula",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, formulaContent)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Formula, 0, 0, 1);
+        Assert.Throws<InvalidOperationException>(() => undescribedFormula.Build());
+
+        var quoteContent = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Quote, 0)
+            .EndMarkedContent();
+        var misplacedQuote = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Misplaced quote",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, quoteContent)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Quote, 0, 0, 1,
+                actualText: "Quoted text");
+        Assert.Throws<InvalidOperationException>(() => misplacedQuote.Build());
+
+        var cellContent = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.TableDataCell, 0)
+            .EndMarkedContent();
+        var misplacedCell = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Misplaced table cell",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, cellContent)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.TableDataCell, 0, 0, 1,
+                actualText: "Cell");
+        Assert.Throws<InvalidOperationException>(() => misplacedCell.Build());
+    }
+
+    [Fact]
+    public void Build_WritesStandardFormulaStructureType()
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Formula, 0)
+            .EndMarkedContent();
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Formula, 0, 0, 1,
+                alternateDescription: "x squared plus y squared")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary documentElement = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(root[Name("K")])[0]);
+        PdfDictionary formula = ResolveDictionary(document, documentElement[Name("K")]);
+
+        Assert.Equal("Formula", Assert.IsType<PdfName>(formula[Name("S")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_PdfUaRejectsGenericHeadingButTaggedPdfAllowsIt()
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Heading, 0)
+            .EndMarkedContent();
+
+        byte[] tagged = new PdfDocumentBuilder()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Heading, 0, 0, 1)
+            .Build();
+        Assert.NotEmpty(tagged);
+
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Generic heading",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Heading, 0, 0, 1)
+            .Build());
+    }
+
+    [Theory]
+    [InlineData(PdfStructureType.Document)]
+    [InlineData(PdfStructureType.Article)]
+    [InlineData(PdfStructureType.Section)]
+    [InlineData(PdfStructureType.List)]
+    [InlineData(PdfStructureType.ListItem)]
+    [InlineData(PdfStructureType.Table)]
+    [InlineData(PdfStructureType.TableRow)]
+    public void Build_PdfUaRejectsMarkedContentDirectlyInStructuralContainers(
+        PdfStructureType type)
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(type, 0)
+            .EndMarkedContent();
+
+        byte[] tagged = new PdfDocumentBuilder()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(type, 0, 0, 1)
+            .Build();
+        Assert.NotEmpty(tagged);
+
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Invalid structure container content",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(type, 0, 0, 1)
+            .Build());
+    }
+
+    [Theory]
+    [InlineData(PdfStructureType.Heading1, PdfStructureType.List)]
+    [InlineData(PdfStructureType.Span, PdfStructureType.Table)]
+    [InlineData(PdfStructureType.ListItem, PdfStructureType.List)]
+    [InlineData(PdfStructureType.TableRow, PdfStructureType.Table)]
+    public void Build_PdfUaRejectsListAndTableUnderRestrictedParents(
+        PdfStructureType parent, PdfStructureType child)
+    {
+        byte[] tagged = new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(parent, 1)
+            .AddStructureContainer(child, 2)
+            .Build();
+        Assert.NotEmpty(tagged);
+
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Invalid nested structure container",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(parent, 1)
+            .AddStructureContainer(child, 2)
+            .Build());
+    }
+
+    [Fact]
+    public void Build_PdfUaRejectsIrregularTableRowsButTaggedPdfAllowsThem()
+    {
+        PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.Table, 1)
+            .AddStructureContainer(PdfStructureType.TableRow, 2)
+            .AddStructureContainer(PdfStructureType.TableHeaderCell, 3)
+            .AddStructureContainer(PdfStructureType.TableHeaderCell, 3)
+            .AddStructureContainer(PdfStructureType.TableRow, 2)
+            .AddStructureContainer(PdfStructureType.TableDataCell, 3);
+
+        Assert.NotEmpty(CreateBuilder().Build());
+        Assert.Throws<InvalidOperationException>(() => CreateBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Irregular table",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .Build());
+    }
+
+    [Theory]
+    [InlineData(PdfStructureType.Paragraph)]
+    [InlineData(PdfStructureType.Heading2)]
+    [InlineData(PdfStructureType.List)]
+    [InlineData(PdfStructureType.Table)]
+    public void Build_PdfUaRejectsBlockChildrenUnderNumberedHeadings(
+        PdfStructureType child)
+    {
+        PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.Heading1, 1)
+            .AddStructureContainer(child, 2);
+
+        Assert.NotEmpty(CreateBuilder().Build());
+        Assert.Throws<InvalidOperationException>(() => CreateBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Invalid heading child",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .Build());
+    }
+
+    [Fact]
+    public void Build_PdfUaAllowsOneSectionUnderNumberedHeadingButRejectsTwo()
+    {
+        PdfDocumentBuilder CreateBuilder(bool secondSection) => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Heading section",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.Heading1, 1)
+            .AddStructureContainer(PdfStructureType.Section, 2)
+            .AddStructureContainer(secondSection
+                ? PdfStructureType.Section : PdfStructureType.Span, 2);
+
+        Assert.NotEmpty(CreateBuilder(false).Build());
+        Assert.Throws<InvalidOperationException>(() => CreateBuilder(true).Build());
+    }
+
+    [Fact]
+    public void Build_PdfUaRejectsNestedDocumentButTaggedPdfAllowsIt()
+    {
+        PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.Section, 1)
+            .AddStructureContainer(PdfStructureType.Document, 2);
+
+        Assert.NotEmpty(CreateBuilder().Build());
+        Assert.Throws<InvalidOperationException>(() => CreateBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Nested document",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .Build());
+    }
+
+    [Theory]
+    [InlineData(PdfStructureType.Paragraph)]
+    [InlineData(PdfStructureType.Span)]
+    [InlineData(PdfStructureType.List)]
+    [InlineData(PdfStructureType.Form)]
+    [InlineData(PdfStructureType.Note)]
+    public void Build_PdfUaRejectsNumberedHeadingsUnderRestrictedParents(
+        PdfStructureType parent)
+    {
+        PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(parent, 1)
+            .AddStructureContainer(PdfStructureType.Heading2, 2);
+
+        Assert.NotEmpty(CreateBuilder().Build());
+        Assert.Throws<InvalidOperationException>(() => CreateBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Invalid heading parent",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .Build());
+    }
+
+    [Theory]
+    [InlineData(PdfStructureType.Document)]
+    [InlineData(PdfStructureType.Part)]
+    [InlineData(PdfStructureType.Article)]
+    [InlineData(PdfStructureType.Section)]
+    [InlineData(PdfStructureType.Division)]
+    public void Build_PdfUaRejectsSpanDirectlyUnderHighLevelGroupingRoles(
+        PdfStructureType parent)
+    {
+        PdfDocumentBuilder CreateBuilder()
+        {
+            var builder = new PdfDocumentBuilder()
+                .AddPage(100, 100, new PdfContentStreamBuilder())
+                .AddStructureContainer(PdfStructureType.Document);
+            if (parent == PdfStructureType.Document)
+                return builder.AddStructureContainer(PdfStructureType.Span, 1);
+            return builder.AddStructureContainer(parent, 1)
+                .AddStructureContainer(PdfStructureType.Span, 2);
+        }
+
+        Assert.NotEmpty(CreateBuilder().Build());
+        Assert.Throws<InvalidOperationException>(() => CreateBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Invalid grouping span",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .Build());
+    }
+
+    [Fact]
+    public void Build_PdfUaAllowsSpanUnderParagraph()
+    {
+        byte[] pdf = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Inline span",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, new PdfContentStreamBuilder())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.Paragraph, 1)
+            .AddStructureContainer(PdfStructureType.Span, 2)
+            .Build();
+
+        Assert.NotEmpty(pdf);
+    }
+
+    [Fact]
+    public void Build_WritesListNumberingAndPdfUaRequiresItForLabels()
+    {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Label, 0)
+            .EndMarkedContent()
+            .BeginMarkedContent(PdfStructureType.ListBody, 1)
+            .EndMarkedContent();
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.List, 1,
+                listNumbering: PdfListNumbering.Decimal)
+            .AddStructureContainer(PdfStructureType.ListItem, 2)
+            .AddStructureElement(PdfStructureType.Label, 0, 0, 3)
+            .AddStructureElement(PdfStructureType.ListBody, 0, 1, 3)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary documentElement = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(root[Name("K")])[0]);
+        PdfDictionary list = ResolveDictionary(document, documentElement[Name("K")]);
+        PdfDictionary attributes = Assert.IsType<PdfDictionary>(list[Name("A")]);
+        Assert.Equal("Decimal",
+            Assert.IsType<PdfName>(attributes[Name("ListNumbering")]).ValueAsLatin1());
+
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Unnumbered accessible list",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(100, 100, content)
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureContainer(PdfStructureType.List, 1)
+            .AddStructureContainer(PdfStructureType.ListItem, 2)
+            .AddStructureElement(PdfStructureType.Label, 0, 0, 3)
+            .AddStructureElement(PdfStructureType.ListBody, 0, 1, 3)
+            .Build());
     }
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

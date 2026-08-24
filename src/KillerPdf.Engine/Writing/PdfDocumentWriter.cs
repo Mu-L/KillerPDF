@@ -60,6 +60,9 @@ public static class PdfDocumentWriter
             throw new ArgumentOutOfRangeException(nameof(options),
                 "The cross-reference format is not defined.");
         PdfVersion outputVersion = options.TargetVersion ?? document.Header.Version;
+        if (!PdfVersion.IsDefined(outputVersion.Major, outputVersion.Minor))
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "The target PDF version is not defined.");
         if (outputVersion.CompareTo(document.Header.Version) < 0)
             throw new NotSupportedException("A full rewrite cannot downgrade the source PDF version without feature analysis.");
         if (document.IsEncrypted && !document.IsDecrypted)
@@ -343,20 +346,21 @@ public static class PdfDocumentWriter
             || !document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject infoValue)
             || infoValue is not PdfIndirectReference infoReference)
             return;
+        var infoIdentity = (infoReference.ObjectNumber, infoReference.Generation);
         if (root is PdfIndirectReference rootReference
-            && rootReference.ObjectNumber == infoReference.ObjectNumber)
+            && (rootReference.ObjectNumber, rootReference.Generation) == infoIdentity)
             return;
         if (document.CrossReferences.TryGetTrailerValue(EncryptName, out PdfObject encryptValue)
             && encryptValue is PdfIndirectReference encryptReference
-            && encryptReference.ObjectNumber == infoReference.ObjectNumber)
+            && (encryptReference.ObjectNumber, encryptReference.Generation) == infoIdentity)
             return;
-        if (objects.Any(item => item.ObjectNumber != infoReference.ObjectNumber
-                && ReferencesObject(item.Value, infoReference.ObjectNumber))
+        if (objects.Any(item => (item.ObjectNumber, item.Generation) != infoIdentity
+                && ReferencesObject(item.Value, infoIdentity))
             || document.Trailer.Any(entry => !entry.Key.Equals(InfoName)
-                && ReferencesObject(entry.Value, infoReference.ObjectNumber)))
+                && ReferencesObject(entry.Value, infoIdentity)))
             throw new NotSupportedException(
                 "The document information object is shared outside trailer /Info and cannot be removed safely.");
-        objects.RemoveAll(item => item.ObjectNumber == infoReference.ObjectNumber);
+        objects.RemoveAll(item => (item.ObjectNumber, item.Generation) == infoIdentity);
     }
 
     private static PdfObject RemoveCatalogMetadata(
@@ -376,36 +380,44 @@ public static class PdfDocumentWriter
             !entry.Key.Equals(MetadataName)));
         if (metadataValue is PdfIndirectReference metadataReference)
         {
+            var metadataIdentity =
+                (metadataReference.ObjectNumber, metadataReference.Generation);
             if (root is PdfIndirectReference catalogReference
-                && metadataReference.ObjectNumber == catalogReference.ObjectNumber)
+                && (catalogReference.ObjectNumber, catalogReference.Generation) == metadataIdentity)
                 throw new NotSupportedException(
                     "The catalog metadata reference points to the catalog and cannot be removed safely.");
-            if (ReferencesObject(replacement, metadataReference.ObjectNumber)
-                || objects.Any(item => item.ObjectNumber != metadataReference.ObjectNumber
+            if (ReferencesObject(replacement, metadataIdentity)
+                || objects.Any(item => (item.ObjectNumber, item.Generation) != metadataIdentity
                     && (root is not PdfIndirectReference catalogReference
-                        || item.ObjectNumber != catalogReference.ObjectNumber)
-                    && ReferencesObject(item.Value, metadataReference.ObjectNumber))
+                        || (item.ObjectNumber, item.Generation) !=
+                            (catalogReference.ObjectNumber, catalogReference.Generation))
+                    && ReferencesObject(item.Value, metadataIdentity))
                 || document.Trailer.Any(entry => !entry.Key.Equals(RootName)
-                    && ReferencesObject(entry.Value, metadataReference.ObjectNumber)))
+                    && ReferencesObject(entry.Value, metadataIdentity)))
                 throw new NotSupportedException(
                     "The catalog metadata object is shared and cannot be removed safely.");
-            objects.RemoveAll(item => item.ObjectNumber == metadataReference.ObjectNumber);
+            objects.RemoveAll(item => (item.ObjectNumber, item.Generation) == metadataIdentity);
         }
         if (root is not PdfIndirectReference reference)
             return replacement;
-        int index = objects.FindIndex(item => item.ObjectNumber == reference.ObjectNumber);
+        int index = objects.FindIndex(item =>
+            (item.ObjectNumber, item.Generation) ==
+            (reference.ObjectNumber, reference.Generation));
         if (index < 0)
             throw new InvalidOperationException("The catalog object is unavailable for metadata removal.");
         objects[index] = objects[index] with { Value = replacement };
         return root;
     }
 
-    private static bool ReferencesObject(PdfObject value, int objectNumber) => value switch
+    private static bool ReferencesObject(PdfObject value,
+        (int ObjectNumber, int Generation) identity) => value switch
     {
-        PdfIndirectReference reference => reference.ObjectNumber == objectNumber,
-        PdfArray array => array.Any(item => ReferencesObject(item, objectNumber)),
-        PdfDictionary dictionary => dictionary.Any(entry => ReferencesObject(entry.Value, objectNumber)),
-        PdfStream stream => ReferencesObject(stream.Dictionary, objectNumber),
+        PdfIndirectReference reference =>
+            (reference.ObjectNumber, reference.Generation) == identity,
+        PdfArray array => array.Any(item => ReferencesObject(item, identity)),
+        PdfDictionary dictionary =>
+            dictionary.Any(entry => ReferencesObject(entry.Value, identity)),
+        PdfStream stream => ReferencesObject(stream.Dictionary, identity),
         _ => false
     };
 

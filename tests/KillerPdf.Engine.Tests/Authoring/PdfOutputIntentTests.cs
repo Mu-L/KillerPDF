@@ -62,6 +62,38 @@ public sealed class PdfOutputIntentTests
     }
 
     [Fact]
+    public void IccProfile_ValidatesTagTableRangesAndUniqueSignatures()
+    {
+        byte[] valid = BuildProfile("RGB ", 152);
+        BinaryPrimitives.WriteUInt32BigEndian(valid.AsSpan(128, 4), 1);
+        "desc"u8.CopyTo(valid.AsSpan(132, 4));
+        BinaryPrimitives.WriteUInt32BigEndian(valid.AsSpan(136, 4), 144);
+        BinaryPrimitives.WriteUInt32BigEndian(valid.AsSpan(140, 4), 8);
+        "text"u8.CopyTo(valid.AsSpan(144, 4));
+        Assert.Equal(152, PdfIccProfile.Load(valid).Data.Length);
+
+        byte[] truncatedTable = BuildProfile("RGB ");
+        BinaryPrimitives.WriteUInt32BigEndian(truncatedTable.AsSpan(128, 4), 1);
+        Assert.Throws<FormatException>(() => PdfIccProfile.Load(truncatedTable));
+
+        byte[] outOfRange = (byte[])valid.Clone();
+        BinaryPrimitives.WriteUInt32BigEndian(outOfRange.AsSpan(136, 4), 148);
+        Assert.Throws<FormatException>(() => PdfIccProfile.Load(outOfRange));
+
+        byte[] duplicate = BuildProfile("RGB ", 164);
+        BinaryPrimitives.WriteUInt32BigEndian(duplicate.AsSpan(128, 4), 2);
+        for (int entry = 0; entry < 2; entry++)
+        {
+            "desc"u8.CopyTo(duplicate.AsSpan(132 + entry * 12, 4));
+            BinaryPrimitives.WriteUInt32BigEndian(
+                duplicate.AsSpan(136 + entry * 12, 4), 156);
+            BinaryPrimitives.WriteUInt32BigEndian(
+                duplicate.AsSpan(140 + entry * 12, 4), 8);
+        }
+        Assert.Throws<FormatException>(() => PdfIccProfile.Load(duplicate));
+    }
+
+    [Fact]
     public void PdfA4Mode_WritesIdentificationXmpAndOmitsInformationDictionary()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
@@ -162,10 +194,10 @@ public sealed class PdfOutputIntentTests
             .Build());
     }
 
-    private static byte[] BuildProfile(string colorSpace)
+    private static byte[] BuildProfile(string colorSpace, int size = 132)
     {
-        byte[] result = new byte[128];
-        BinaryPrimitives.WriteUInt32BigEndian(result, 128);
+        byte[] result = new byte[size];
+        BinaryPrimitives.WriteUInt32BigEndian(result, (uint)size);
         Encoding.ASCII.GetBytes(colorSpace).CopyTo(result, 16);
         "acsp"u8.CopyTo(result.AsSpan(36, 4));
         return result;

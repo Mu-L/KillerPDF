@@ -103,6 +103,9 @@ public sealed class PdfLinkAnnotationTests
     {
         Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder()
             .AddBlankPage().AddUriLink(0, [], "https://killerpdf.net"));
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder()
+            .AddBlankPage().AddUriLink(
+                0, [default(PdfTextQuad)], "https://killerpdf.net"));
     }
 
     [Theory]
@@ -115,12 +118,106 @@ public sealed class PdfLinkAnnotationTests
             .AddBlankPage().AddUriLink(0, 0, 0, 10, 10, uri));
     }
 
+    [Fact]
+    public void AddUriLink_RejectsUnpairedSurrogate()
+    {
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder()
+            .AddBlankPage().AddUriLink(
+                0, 0, 0, 10, 10, "https://killerpdf.net/bad\uD800path"));
+    }
+
+    [Fact]
+    public void PdfUa2_WritesLinkObjectReferenceAndParentTreeAssociation()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible link",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddUriLink(0, 10, 10, 80, 20, "https://killerpdf.net",
+                contents: "Open KillerPDF")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary annotation = FirstAnnotation(document);
+        long key = Assert.IsType<PdfInteger>(annotation[Name("StructParent")]).Value;
+        PdfDictionary structureRoot = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary parentTree = ResolveDictionary(document, structureRoot[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        PdfIndirectReference linkReference = Assert.IsType<PdfIndirectReference>(numbers[1]);
+        PdfDictionary link = ResolveDictionary(document, linkReference);
+        PdfDictionary objectReference = Assert.IsType<PdfDictionary>(link[Name("K")]);
+
+        Assert.Equal(key, Assert.IsType<PdfInteger>(numbers[0]).Value);
+        Assert.Equal("Link", Assert.IsType<PdfName>(link[Name("S")]).ValueAsLatin1());
+        Assert.Equal("OBJR", Assert.IsType<PdfName>(objectReference[Name("Type")]).ValueAsLatin1());
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfArray>(FirstPage(document)[Name("Annots")])[0]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(objectReference[Name("Obj")]).ObjectNumber);
+
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "Link", Language = "en-US" })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddUriLink(0, 0, 0, 10, 10, "https://killerpdf.net")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+    }
+
+    [Fact]
+    public void PdfUa2_DirectPageLinkUsesStructureDestination()
+    {
+        var firstContent = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Paragraph, 0)
+            .EndMarkedContent();
+        var secondContent = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Paragraph, 0)
+            .EndMarkedContent();
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible page link",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddPage(612, 792, firstContent)
+            .AddPage(612, 792, secondContent)
+            .AddPageLink(0, 10, 10, 80, 20, 1,
+                contents: "Open the second page")
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Paragraph, 0, 0, 1)
+            .AddStructureElement(PdfStructureType.Paragraph, 1, 0, 1)
+            .Build());
+        PdfDictionary annotation = FirstAnnotation(document);
+        PdfArray destination = Assert.IsType<PdfArray>(annotation[Name("Dest")]);
+        PdfDictionary target = ResolveDictionary(document, destination[0]);
+
+        Assert.Equal("StructElem",
+            Assert.IsType<PdfName>(target[Name("Type")]).ValueAsLatin1());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        int secondPageNumber = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(pages[Name("Kids")])[1]).ObjectNumber;
+        Assert.Equal(secondPageNumber,
+            Assert.IsType<PdfIndirectReference>(target[Name("Pg")]).ObjectNumber);
+    }
+
     private static PdfDictionary FirstAnnotation(PdfDocument document)
     {
         var catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         var pages = ResolveDictionary(document, catalog[Name("Pages")]);
         var page = ResolveDictionary(document, Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
         return ResolveDictionary(document, Assert.IsType<PdfArray>(page[Name("Annots")])[0]);
+    }
+
+    private static PdfDictionary FirstPage(PdfDocument document)
+    {
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        return ResolveDictionary(document, Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
     }
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

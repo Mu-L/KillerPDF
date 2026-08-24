@@ -31,6 +31,20 @@ public sealed class PdfDocumentWriterTests
     }
 
     [Fact]
+    public void Write_RejectsDefaultTargetVersion()
+    {
+        PdfDocument document = PdfDocument.Open(SourcePdf());
+
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PdfDocumentWriter.Write(document, new PdfDocumentWriteOptions
+            {
+                TargetVersion = default(PdfVersion)
+            }));
+
+        Assert.Contains("target PDF version", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Write_ProducesACompletePdfThatTheEngineCanReopen()
     {
         PdfDocument original = PdfDocument.Open(SourcePdf());
@@ -334,6 +348,26 @@ public sealed class PdfDocumentWriterTests
             }));
     }
 
+    [Fact]
+    public void Write_DoesNotDeleteActiveObjectBehindStaleInformationReference()
+    {
+        string sourceText = Encoding.Latin1.GetString(SourcePdfWithDocumentInformation())
+            .Replace("/Info 3 0 R", "/Info 3 1 R", StringComparison.Ordinal);
+        PdfDocument source = PdfDocument.Open(Encoding.Latin1.GetBytes(sourceText));
+
+        PdfDocument reopened = PdfDocument.Open(PdfDocumentWriter.Write(source,
+            new PdfDocumentWriteOptions
+            {
+                MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformation
+            }));
+
+        Assert.False(reopened.Trailer.ContainsKey(Name("Info")));
+        Assert.Equal(PdfCrossReferenceEntryType.InUse, reopened.CrossReferences[3].Type);
+        PdfDictionary retained = Assert.IsType<PdfDictionary>(reopened.Resolve(3));
+        Assert.Equal("private metadata", Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(retained[Name("Title")]).Bytes.Span));
+    }
+
     [Theory]
     [InlineData(PdfCrossReferenceFormat.Table)]
     [InlineData(PdfCrossReferenceFormat.Stream)]
@@ -399,6 +433,41 @@ public sealed class PdfDocumentWriterTests
             {
                 MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformationAndXmp
             }));
+    }
+
+    [Fact]
+    public void Write_DoesNotDeleteActiveObjectBehindStaleCatalogMetadataReference()
+    {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "active metadata object" })
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(authored.Resolve(catalogReference));
+        PdfIndirectReference metadataReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("Metadata")]);
+        PdfDictionary staleCatalog = new(catalog
+            .Where(entry => !entry.Key.Equals(Name("Metadata")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Metadata"),
+                new PdfIndirectReference(
+                    metadataReference.ObjectNumber, metadataReference.Generation + 1))));
+        PdfDocument stale = PdfDocument.Open(new PdfIncrementalUpdateBuilder(authored)
+            .ReplaceObject(catalogReference.ObjectNumber, staleCatalog)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(PdfDocumentWriter.Write(stale,
+            new PdfDocumentWriteOptions
+            {
+                MetadataPolicy = PdfMetadataPolicy.RemoveDocumentInformationAndXmp
+            }));
+        PdfDictionary rewrittenCatalog = Assert.IsType<PdfDictionary>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(reopened.Trailer[Name("Root")])));
+
+        Assert.False(rewrittenCatalog.ContainsKey(Name("Metadata")));
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[metadataReference.ObjectNumber].Type);
+        Assert.IsType<PdfStream>(reopened.Resolve(metadataReference.ObjectNumber));
     }
 
     [Fact]

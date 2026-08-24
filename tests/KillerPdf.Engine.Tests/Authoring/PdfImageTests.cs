@@ -24,6 +24,41 @@ public sealed class PdfImageTests
     }
 
     [Fact]
+    public void FromGray_CompressesExactPixelBytesAndWritesDeviceGray()
+    {
+        byte[] pixels = [0, 127, 255];
+        PdfImage image = PdfImage.FromGray(3, 1, pixels);
+
+        Assert.Equal(pixels, Decode(image));
+        Assert.Equal(PdfImageColorSpace.Gray, image.ColorSpace);
+        Assert.Equal("DeviceGray", ImageColorSpace(image));
+    }
+
+    [Fact]
+    public void FromCmyk_CompressesExactPixelBytesAndWritesDeviceCmyk()
+    {
+        byte[] pixels = [0, 64, 128, 255, 255, 128, 64, 0];
+        PdfImage image = PdfImage.FromCmyk(2, 1, pixels);
+
+        Assert.Equal(pixels, Decode(image));
+        Assert.Equal(PdfImageColorSpace.Cmyk, image.ColorSpace);
+        Assert.Equal("DeviceCMYK", ImageColorSpace(image));
+    }
+
+    [Fact]
+    public void RawImageFactories_RequireExactPixelLengths()
+    {
+        Assert.Throws<ArgumentException>(() => PdfImage.FromGray(2, 2, new byte[3]));
+        Assert.Throws<ArgumentException>(() => PdfImage.FromCmyk(2, 2, new byte[15]));
+        Assert.Throws<ArgumentException>(() => PdfImage.FromGrayAlpha(2, 2, new byte[7]));
+        Assert.Throws<ArgumentException>(() => PdfImage.FromCmyka(2, 2, new byte[19]));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PdfImage.FromRgb(int.MaxValue, 2, ReadOnlyMemory<byte>.Empty));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PdfImage.FromRgba(int.MaxValue, 2, ReadOnlyMemory<byte>.Empty));
+    }
+
+    [Fact]
     public void FromJpeg_ReadsFrameWithoutRecompressing()
     {
         byte[] jpeg = MinimalJpeg(width: 320, height: 200, components: 3);
@@ -57,6 +92,30 @@ public sealed class PdfImageTests
         using var input = new MemoryStream(mask.EncodedData.ToArray());
         using var zlib = new ZLibStream(input, CompressionMode.Decompress);
         Assert.Equal(64, zlib.ReadByte());
+    }
+
+    [Fact]
+    public void FromGrayAlpha_WritesGrayPixelsAndAlphaSoftMask()
+    {
+        PdfImage image = PdfImage.FromGrayAlpha(2, 1, new byte[] { 10, 64, 200, 192 });
+        (PdfStream color, PdfStream mask) = WrittenImageAndMask(image);
+
+        Assert.Equal([10, 200], Decode(color.EncodedData));
+        Assert.Equal([64, 192], Decode(mask.EncodedData));
+        Assert.Equal("DeviceGray", Assert.IsType<PdfName>(
+            color.Dictionary[Name("ColorSpace")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void FromCmyka_WritesCmykPixelsAndAlphaSoftMask()
+    {
+        PdfImage image = PdfImage.FromCmyka(1, 1, new byte[] { 10, 20, 30, 40, 128 });
+        (PdfStream color, PdfStream mask) = WrittenImageAndMask(image);
+
+        Assert.Equal([10, 20, 30, 40], Decode(color.EncodedData));
+        Assert.Equal([128], Decode(mask.EncodedData));
+        Assert.Equal("DeviceCMYK", Assert.IsType<PdfName>(
+            color.Dictionary[Name("ColorSpace")]).ValueAsLatin1());
     }
 
     [Fact]
@@ -119,18 +178,102 @@ public sealed class PdfImageTests
     {
         Assert.Throws<NotSupportedException>(() =>
             PdfImage.FromJpeg(MinimalJpeg(1, 1, components: 2)));
+        byte[] truncatedFrame = MinimalJpeg(1, 1, components: 3);
+        truncatedFrame[5]--;
+        Assert.Throws<FormatException>(() => PdfImage.FromJpeg(truncatedFrame));
+        byte[] missingEnd = MinimalJpeg(1, 1, components: 3)[..^2];
+        Assert.Throws<FormatException>(() => PdfImage.FromJpeg(missingEnd));
+        byte[] twelveBit = MinimalJpeg(1, 1, components: 3);
+        twelveBit[6] = 12;
+        Assert.Throws<NotSupportedException>(() => PdfImage.FromJpeg(twelveBit));
+        byte[] undefinedScanComponent = MinimalJpeg(1, 1, components: 3);
+        undefinedScanComponent[26] = 99;
+        Assert.Throws<FormatException>(() => PdfImage.FromJpeg(undefinedScanComponent));
+        byte[] losslessProcess = MinimalJpeg(1, 1, components: 3);
+        losslessProcess[3] = 0xC3;
+        Assert.Throws<NotSupportedException>(() => PdfImage.FromJpeg(losslessProcess));
     }
 
-    private static byte[] MinimalJpeg(int width, int height, int components) =>
-    [
-        0xFF, 0xD8,
-        0xFF, 0xC0, 0x00, 0x08,
-        0x08,
-        (byte)(height >> 8), (byte)height,
-        (byte)(width >> 8), (byte)width,
-        (byte)components,
-        0xFF, 0xD9
-    ];
+    private static byte[] MinimalJpeg(int width, int height, int components)
+    {
+        int frameLength = 8 + components * 3;
+        var bytes = new List<byte>
+        {
+            0xFF, 0xD8,
+            0xFF, 0xC0, (byte)(frameLength >> 8), (byte)frameLength,
+            0x08,
+            (byte)(height >> 8), (byte)height,
+            (byte)(width >> 8), (byte)width,
+            (byte)components
+        };
+        for (int component = 0; component < components; component++)
+        {
+            bytes.Add((byte)(component + 1));
+            bytes.Add(0x11);
+            bytes.Add(0);
+        }
+        int scanLength = 6 + components * 2;
+        bytes.AddRange([0xFF, 0xDA, (byte)(scanLength >> 8), (byte)scanLength,
+            (byte)components]);
+        for (int component = 0; component < components; component++)
+        {
+            bytes.Add((byte)(component + 1));
+            bytes.Add(0);
+        }
+        bytes.AddRange([0, 63, 0, 0]);
+        bytes.AddRange([0xFF, 0xD9]);
+        return bytes.ToArray();
+    }
+
+    private static byte[] Decode(PdfImage image)
+    {
+        using var input = new MemoryStream(image.Data.ToArray());
+        using var zlib = new ZLibStream(input, CompressionMode.Decompress);
+        using var decoded = new MemoryStream();
+        zlib.CopyTo(decoded);
+        return decoded.ToArray();
+    }
+
+    private static byte[] Decode(ReadOnlyMemory<byte> data)
+    {
+        using var input = new MemoryStream(data.ToArray());
+        using var zlib = new ZLibStream(input, CompressionMode.Decompress);
+        using var decoded = new MemoryStream();
+        zlib.CopyTo(decoded);
+        return decoded.ToArray();
+    }
+
+    private static (PdfStream Color, PdfStream Mask) WrittenImageAndMask(PdfImage image)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder().AddPage(
+            10, 10, new PdfContentStreamBuilder().DrawImage(image, 0, 0, 10, 10)).Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(
+            document, Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
+        PdfDictionary xobjects = Assert.IsType<PdfDictionary>(resources[Name("XObject")]);
+        PdfStream color = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(xobjects[Name("Im1")])));
+        PdfStream mask = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(color.Dictionary[Name("SMask")])));
+        return (color, mask);
+    }
+
+    private static string ImageColorSpace(PdfImage image)
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder().AddPage(
+            10, 10, new PdfContentStreamBuilder().DrawImage(image, 0, 0, 10, 10)).Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(
+            document, Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
+        PdfDictionary xobjects = Assert.IsType<PdfDictionary>(resources[Name("XObject")]);
+        PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(xobjects[Name("Im1")])));
+        return Assert.IsType<PdfName>(stream.Dictionary[Name("ColorSpace")]).ValueAsLatin1();
+    }
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));

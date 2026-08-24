@@ -1,3 +1,5 @@
+using KillerPdf.Engine.Objects;
+
 namespace KillerPdf.Engine.Authoring;
 
 /// <summary>A named Separation ink with a process-CMYK full-tint alternate.</summary>
@@ -7,6 +9,7 @@ public sealed class PdfSpotColor
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("A spot-color name cannot be empty.", nameof(name));
+        PdfUnicodeEncoding.EncodeUtf8(name);
         Name = name;
         AlternateColor = alternateColor;
     }

@@ -99,7 +99,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
             foreach ((ushort code, EmbeddedCharacterMapping mapping) in chunk)
             {
                 text.Append('<').Append(code.ToString("X4", CultureInfo.InvariantCulture)).Append("> <");
-                foreach (byte value in Encoding.BigEndianUnicode.GetBytes(mapping.UnicodeSequence))
+                foreach (byte value in PdfUnicodeEncoding.EncodeBigEndian(mapping.UnicodeSequence))
                     text.Append(value.ToString("X2", CultureInfo.InvariantCulture));
                 text.Append(">\n");
             }

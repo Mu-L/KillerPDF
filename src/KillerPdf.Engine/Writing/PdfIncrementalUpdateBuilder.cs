@@ -101,7 +101,7 @@ public sealed class PdfIncrementalUpdateBuilder
             throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));
         int generation = entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0;
         if (_documentInformationRemovedByFree
-            && IsInheritedTrailerReference(InfoName, objectNumber))
+            && IsInheritedActiveTrailerReference(InfoName, objectNumber))
         {
             _documentInformationSpecified = false;
             _documentInformationRemovedByFree = false;
@@ -119,7 +119,7 @@ public sealed class PdfIncrementalUpdateBuilder
         if (!_document.CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry)
             || entry.Type is not (PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed))
             throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));
-        if (IsInheritedTrailerReference(InfoName, objectNumber)
+        if (IsInheritedActiveTrailerReference(InfoName, objectNumber)
             && !_documentInformationSpecified)
         {
             _documentInformationSpecified = true;
@@ -479,13 +479,24 @@ public sealed class PdfIncrementalUpdateBuilder
         && value is PdfIndirectReference reference
         && reference.ObjectNumber == objectNumber;
 
+    private bool IsInheritedActiveTrailerReference(PdfName name, int objectNumber) =>
+        IsInheritedTrailerReference(name, objectNumber)
+        && _document.CrossReferences.TryGetTrailerValue(name, out PdfObject value)
+        && value is PdfIndirectReference reference
+        && _document.CrossReferences.TryGetValue(objectNumber,
+            out PdfCrossReferenceEntry entry)
+        && reference.Generation == (entry.Type == PdfCrossReferenceEntryType.InUse
+            ? entry.Field2 : 0);
+
     private PdfVersion EffectiveVersion()
     {
         PdfVersion version = _document.Header.Version;
         if (!_document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject rootValue)
             || rootValue is not PdfIndirectReference rootReference)
             return version;
-        PdfObject root = _objects.TryGetValue(rootReference.ObjectNumber, out PendingObject? pending)
+        PdfObject root = _objects.TryGetValue(
+                rootReference.ObjectNumber, out PendingObject? pending)
+            && pending.Generation == rootReference.Generation
             ? pending.Value : _document.Resolve(rootReference);
         if (root is not PdfDictionary catalog
             || !catalog.TryGetValue(VersionName, out PdfObject catalogVersionValue))

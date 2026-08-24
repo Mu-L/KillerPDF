@@ -101,6 +101,34 @@ public sealed class PdfStreamDecoderTests
     }
 
     [Fact]
+    public void Decode_RejectsPngRowFilterThatContradictsFixedPredictor()
+    {
+        PdfDictionary parameters = Dictionary(
+            Pair("Predictor", new PdfInteger(12)),
+            Pair("Columns", new PdfInteger(3)));
+        PdfStream stream = Stream(
+            Compress([1, 10, 20, 30]),
+            Pair("Filter", Name("FlateDecode")),
+            Pair("DecodeParms", parameters));
+
+        Assert.Throws<PdfFilterException>(() => PdfStreamDecoder.Decode(stream));
+    }
+
+    [Fact]
+    public void Decode_AllowsMixedRowFiltersForOptimumPngPredictor()
+    {
+        PdfDictionary parameters = Dictionary(
+            Pair("Predictor", new PdfInteger(15)),
+            Pair("Columns", new PdfInteger(3)));
+        PdfStream stream = Stream(
+            Compress([0, 1, 2, 3, 2, 1, 1, 1]),
+            Pair("Filter", Name("FlateDecode")),
+            Pair("DecodeParms", parameters));
+
+        Assert.Equal([1, 2, 3, 2, 3, 4], PdfStreamDecoder.Decode(stream));
+    }
+
+    [Fact]
     public void Decode_ReversesTiffPrediction()
     {
         byte[] predicted = [10, 10, 10, 40, 10, 10];

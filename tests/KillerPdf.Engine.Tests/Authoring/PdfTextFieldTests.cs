@@ -172,7 +172,7 @@ public sealed class PdfTextFieldTests
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
-            .AddTextField(0, "customer.name", 72, 650, 240, 24, "Steve (Killer)", 12)
+            .AddTextField(0, "customer-name", 72, 650, 240, 24, "Steve (Killer)", 12)
             .Build());
         var catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         var acroForm = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
@@ -188,7 +188,7 @@ public sealed class PdfTextFieldTests
 
         Assert.False(Assert.IsType<PdfBoolean>(acroForm[Name("NeedAppearances")]).Value);
         Assert.Equal("Tx", Assert.IsType<PdfName>(widget[Name("FT")]).ValueAsLatin1());
-        Assert.Equal("customer.name", DecodeUnicode(Assert.IsType<PdfString>(widget[Name("T")])));
+        Assert.Equal("customer-name", DecodeUnicode(Assert.IsType<PdfString>(widget[Name("T")])));
         Assert.Equal("Steve (Killer)", DecodeUnicode(Assert.IsType<PdfString>(widget[Name("V")])));
         Assert.Equal("Steve (Killer)", DecodeUnicode(Assert.IsType<PdfString>(widget[Name("DV")])));
         Assert.Equal(widgetReference.ObjectNumber,
@@ -197,6 +197,40 @@ public sealed class PdfTextFieldTests
             Encoding.ASCII.GetString(appearance.EncodedData.Span));
         var resources = Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")]);
         Assert.NotNull(Assert.IsType<PdfDictionary>(resources[Name("Font")])[Name("Helv")]);
+    }
+
+    [Fact]
+    public void Build_WritesQualifiedFieldNamesAsAParentHierarchy()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "customer.name", 0, 0, 100, 20, "Steve")
+            .AddCheckBox(0, "customer.approved", 0, 30, 20, 20, isChecked: true)
+            .AddTextField(0, "billing.contact.email", 0, 60, 160, 20, "a@example.com")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary acroForm = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfArray roots = Assert.IsType<PdfArray>(acroForm[Name("Fields")]);
+
+        Assert.Equal(2, roots.Count);
+        PdfDictionary customer = ResolveDictionary(document, roots[0]);
+        Assert.Equal("customer", DecodeUnicode(Assert.IsType<PdfString>(customer[Name("T")])));
+        PdfArray customerKids = Assert.IsType<PdfArray>(customer[Name("Kids")]);
+        Assert.Equal(2, customerKids.Count);
+        PdfDictionary name = ResolveDictionary(document, customerKids[0]);
+        PdfDictionary approved = ResolveDictionary(document, customerKids[1]);
+        Assert.Equal("name", DecodeUnicode(Assert.IsType<PdfString>(name[Name("T")])));
+        Assert.Equal("approved", DecodeUnicode(Assert.IsType<PdfString>(approved[Name("T")])));
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(roots[0]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(name[Name("Parent")]).ObjectNumber);
+
+        PdfDictionary billing = ResolveDictionary(document, roots[1]);
+        PdfDictionary contact = ResolveDictionary(document,
+            Assert.Single(Assert.IsType<PdfArray>(billing[Name("Kids")])));
+        PdfDictionary email = ResolveDictionary(document,
+            Assert.Single(Assert.IsType<PdfArray>(contact[Name("Kids")])));
+        Assert.Equal("contact", DecodeUnicode(Assert.IsType<PdfString>(contact[Name("T")])));
+        Assert.Equal("email", DecodeUnicode(Assert.IsType<PdfString>(email[Name("T")])));
     }
 
     [Fact]
@@ -227,6 +261,11 @@ public sealed class PdfTextFieldTests
 
         Assert.Throws<ArgumentException>(() =>
             builder.AddTextField(0, "name", 0, 30, 100, 20));
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "bad..name", 0, 0, 100, 20));
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "account", 0, 0, 100, 20)
+            .AddTextField(0, "account.name", 0, 30, 100, 20));
         Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
             .AddTextField(0, "unicode", 0, 0, 100, 20, "你好"));
     }
@@ -460,8 +499,8 @@ public sealed class PdfTextFieldTests
     public void PdfA4Mode_AcceptsTextFieldWithEmbeddedFont()
     {
         TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
-        byte[] icc = new byte[128];
-        BinaryPrimitives.WriteUInt32BigEndian(icc, 128);
+        byte[] icc = new byte[132];
+        BinaryPrimitives.WriteUInt32BigEndian(icc, 132);
         "RGB "u8.CopyTo(icc.AsSpan(16));
         "acsp"u8.CopyTo(icc.AsSpan(36));
 

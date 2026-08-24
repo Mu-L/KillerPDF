@@ -9,6 +9,40 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfAttachmentTests
 {
     [Fact]
+    public void PdfUa2_FileAttachmentRequiresDescriptionsAndWritesStructureParent()
+    {
+        static PdfDocumentBuilder AccessibleBuilder() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible attachment",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage();
+
+        PdfDocument document = PdfDocument.Open(AccessibleBuilder()
+            .AddAttachment("evidence.txt", "evidence"u8.ToArray(),
+                "text/plain", "Plain-text evidence")
+            .AddFileAttachmentAnnotation(0, 20, 30, 24, "evidence.txt",
+                contents: "Open the plain-text evidence")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfDictionary annotation = Annotation(document);
+        Assert.True(annotation.ContainsKey(Name("StructParent")));
+
+        Assert.Throws<InvalidOperationException>(() => AccessibleBuilder()
+            .AddAttachment("evidence.txt", "evidence"u8.ToArray(), "text/plain")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        Assert.Throws<InvalidOperationException>(() => AccessibleBuilder()
+            .AddAttachment("evidence.txt", "evidence"u8.ToArray(),
+                "text/plain", "Plain-text evidence")
+            .AddFileAttachmentAnnotation(0, 20, 30, 24, "evidence.txt")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+    }
+
+    [Fact]
     public void AddAttachment_WritesNamesTreeAssociatedFileAndExactPayload()
     {
         byte[] payload = Encoding.UTF8.GetBytes("KillerPDF attachment");
@@ -41,6 +75,14 @@ public sealed class PdfAttachmentTests
     [Theory]
     [InlineData("../secret.txt")]
     [InlineData("folder/file.txt")]
+    [InlineData("folder\\file.txt")]
+    [InlineData("drive:file.txt")]
+    [InlineData("trailing.")]
+    [InlineData("bad\0name.txt")]
+    [InlineData("bad\u007fname.txt")]
+    [InlineData("CON")]
+    [InlineData("con.txt")]
+    [InlineData("LPT9.log")]
     [InlineData("")]
     public void AddAttachment_RejectsInvalidFileNames(string name)
     {
@@ -55,6 +97,19 @@ public sealed class PdfAttachmentTests
 
         Assert.Throws<ArgumentException>(() =>
             builder.AddAttachment("README.TXT", ReadOnlyMemory<byte>.Empty));
+    }
+
+    [Fact]
+    public void AddAttachment_ValidatesMimeTypeStructure()
+    {
+        string[] invalid =
+        ["", "text", "/plain", "text/", "text/plain/extra", "text /plain", "text/pl@in"];
+        foreach (string value in invalid)
+            Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder()
+                .AddAttachment("file.bin", ReadOnlyMemory<byte>.Empty, value));
+
+        new PdfDocumentBuilder().AddAttachment(
+            "file.bin", ReadOnlyMemory<byte>.Empty, "application/vnd.killerpdf+zip");
     }
 
     [Theory]

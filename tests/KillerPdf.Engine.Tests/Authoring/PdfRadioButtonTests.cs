@@ -115,6 +115,9 @@ public sealed class PdfRadioButtonTests
         Assert.Throws<ArgumentException>(() => builder.AddRadioGroup("selection", [
             new PdfRadioButtonOption(0, 0, 0, 10, 10, "A"),
             new PdfRadioButtonOption(0, 20, 0, 10, 10, "B")], "C"));
+        Assert.Throws<ArgumentException>(() => builder.AddRadioGroup("reserved", [
+            new PdfRadioButtonOption(0, 0, 0, 10, 10, "Off"),
+            new PdfRadioButtonOption(0, 20, 0, 10, 10, "On")]));
     }
 
     [Fact]

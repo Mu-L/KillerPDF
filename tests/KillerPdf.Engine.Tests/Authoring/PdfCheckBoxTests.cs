@@ -91,6 +91,9 @@ public sealed class PdfCheckBoxTests
 
         Assert.Throws<ArgumentException>(() =>
             builder.AddCheckBox(0, "shared", 0, 30, 20, 20));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfDocumentBuilder().AddBlankPage()
+                .AddCheckBox(0, "reserved", 0, 0, 20, 20, exportValue: "Off"));
     }
 
     [Theory]

@@ -39,6 +39,7 @@ public sealed partial class PdfDocumentBuilder
         ArgumentNullException.ThrowIfNull(quads);
         if (quads.Count == 0)
             throw new ArgumentException("At least one redaction quad is required.", nameof(quads));
+        foreach (PdfTextQuad quad in quads) quad.Validate();
         if (!double.IsFinite(opacity) || opacity is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(opacity));
         if (overlayFont is null && overlayText is not null && overlayText.Any(character => character > 0x7F))

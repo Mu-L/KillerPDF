@@ -33,6 +33,159 @@ if (args.Length == 2 && args[0] == "--incremental-xref-stream-smoke")
     return 0;
 }
 
+if (args.Length == 2 && args[0] == "--pdfua-link-smoke")
+{
+    var content = new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Note, 1)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Quote, 2)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Reference, 3)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Code, 4)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.TableHeaderCell, 5)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.TableDataCell, 6)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Label, 7)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.ListBody, 8)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Heading1, 9)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Heading2, 10)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Heading3, 11)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Heading4, 12)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Heading5, 13)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Heading6, 14)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Span, 15)
+        .EndMarkedContent()
+        .BeginMarkedContent(PdfStructureType.Formula, 16)
+        .EndMarkedContent();
+    PdfImage reviewImage = PdfImage.FromRgb(1, 1, new byte[] { 30, 100, 200 });
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF accessible link smoke test",
+            Language = "en-US"
+        })
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, content)
+        .AddNamedDestination("review", 0, PdfDestination.At(top: 720))
+        .SetOpenAction(0, PdfDestination.At(top: 720))
+        .AddBookmark("Accessible review", 0)
+        .AddUriLink(0, 72, 700, 180, 24, "https://killerpdf.net",
+            contents: "Open the KillerPDF website")
+        .AddTextNote(0, 72, 650, "Review the accessible link")
+        .AddHighlight(0, 72, 610, 180, 18, "Highlighted accessible text")
+        .AddLineAnnotation(0, new PdfPoint(72, 570), new PdfPoint(250, 570),
+            contents: "Accessible review line")
+        .AddRectangleAnnotation(0, 72, 520, 180, 30,
+            contents: "Accessible review rectangle")
+        .AddCaretAnnotation(0, 72, 480, 18, 24,
+            contents: "Accessible insertion point")
+        .AddRedactionMark(0,
+            [new PdfTextQuad(
+                new PdfPoint(72, 460), new PdfPoint(252, 460),
+                new PdfPoint(72, 440), new PdfPoint(252, 440))],
+            contents: "Accessible proposed redaction")
+        .AddImageStamp(0, 110, 395, 24, 24, reviewImage,
+            contents: "Accessible blue review image")
+        .AddAttachment("review.txt", "Accessible review evidence"u8.ToArray(),
+            "text/plain", "Plain-text review evidence")
+        .AddFileAttachmentAnnotation(0, 72, 395, 24, "review.txt",
+            contents: "Open the plain-text review evidence")
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "Accessible review destination")
+        .AddStructureElement(PdfStructureType.Note, 0, 1, 1,
+            actualText: "Accessible review note")
+        .AddStructureContainer(PdfStructureType.Article, 1)
+        .AddStructureContainer(PdfStructureType.Section, 2)
+        .AddStructureContainer(PdfStructureType.Paragraph, 3)
+        .AddStructureElement(PdfStructureType.Quote, 0, 2, 4,
+            actualText: "Accessible quoted text")
+        .AddStructureElement(PdfStructureType.Reference, 0, 3, 4,
+            actualText: "Accessible reference")
+        .AddStructureElement(PdfStructureType.Code, 0, 4, 4,
+            actualText: "Accessible code")
+        .AddStructureContainer(PdfStructureType.Part, 1)
+        .AddStructureContainer(PdfStructureType.Division, 2)
+        .AddStructureElement(PdfStructureType.Heading1, 0, 9, 3,
+            actualText: "Heading level one")
+        .AddStructureElement(PdfStructureType.Heading2, 0, 10, 3,
+            actualText: "Heading level two")
+        .AddStructureElement(PdfStructureType.Heading3, 0, 11, 3,
+            actualText: "Heading level three")
+        .AddStructureElement(PdfStructureType.Heading4, 0, 12, 3,
+            actualText: "Heading level four")
+        .AddStructureElement(PdfStructureType.Heading5, 0, 13, 3,
+            actualText: "Heading level five")
+        .AddStructureElement(PdfStructureType.Heading6, 0, 14, 3,
+            actualText: "Heading level six")
+        .AddStructureContainer(PdfStructureType.Paragraph, 3)
+        .AddStructureElement(PdfStructureType.Span, 0, 15, 4,
+            actualText: "Accessible inline span")
+        .AddStructureElement(PdfStructureType.Formula, 0, 16, 3,
+            alternateDescription: "x squared plus y squared")
+        .AddStructureContainer(PdfStructureType.Table, 1)
+        .AddStructureContainer(PdfStructureType.TableRow, 2)
+        .AddStructureElement(PdfStructureType.TableHeaderCell, 0, 5, 3,
+            actualText: "Header")
+        .AddStructureElement(PdfStructureType.TableDataCell, 0, 6, 3,
+            actualText: "Value")
+        .AddStructureContainer(PdfStructureType.List, 1,
+            listNumbering: PdfListNumbering.Decimal)
+        .AddStructureContainer(PdfStructureType.ListItem, 2)
+        .AddStructureElement(PdfStructureType.Label, 0, 7, 3,
+            actualText: "1.")
+        .AddStructureElement(PdfStructureType.ListBody, 0, 8, 3,
+            actualText: "Accessible list item")
+        .Build();
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/UA link PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--pdfua-form-smoke")
+{
+    static PdfFormFieldMetadata Metadata(string tooltip) => new() { Tooltip = tooltip };
+    byte[] pdf = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF accessible form smoke test",
+            Language = "en-US"
+        })
+        .EnablePdfUa2Conformance()
+        .AddBlankPage()
+        .AddCheckBox(0, "survey.accepted", 72, 700, 18, 18, isChecked: true,
+            fieldMetadata: Metadata("Accept the survey terms"))
+        .AddRadioGroup("survey.plan",
+        [
+            new PdfRadioButtonOption(0, 72, 650, 18, 18, "Free"),
+            new PdfRadioButtonOption(0, 120, 650, 18, 18, "Pro")
+        ], "Pro", fieldMetadata: Metadata("Choose a survey plan"))
+        .AddSignatureField(0, "survey.signature", 72, 580, 180, 42,
+            fieldMetadata: Metadata("Sign the completed survey"))
+        .AddStructureContainer(PdfStructureType.Document)
+        .Build();
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte PDF/UA form PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--font-info")
 {
     TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));
@@ -341,6 +494,82 @@ if (args.Length == 2 && args[0] == "--tagged-import-smoke")
     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
     File.WriteAllBytes(destination, pdf);
     Console.WriteLine($"Wrote {pdf.Length:N0} byte imported tagged PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--tagged-subset-import-smoke")
+{
+    string destination = Path.GetFullPath(args[1]);
+    PdfContentStreamBuilder TaggedPage(double red) => new PdfContentStreamBuilder()
+        .BeginMarkedContent(PdfStructureType.Figure, 0)
+        .SetFillRgb(red, 0.25, 0.65).Rectangle(72, 600, 240, 100).Fill()
+        .EndMarkedContent();
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF selected tagged page smoke test",
+            Language = "en-US"
+        })
+        .EnablePdfUa2Conformance()
+        .AddPage(612, 792, TaggedPage(0.3))
+        .AddPage(612, 792, TaggedPage(0.9))
+        .AddStructureContainer(PdfStructureType.Document)
+        .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
+            alternateDescription: "Omitted rectangle")
+        .AddStructureElement(PdfStructureType.Figure, 1, 0, 1,
+            alternateDescription: "Selected rectangle")
+        .Build();
+    byte[] target = new PdfDocumentBuilder().Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedPage(PdfDocument.Open(source), 1)
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte selected tagged-page PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--form-subset-import-smoke")
+{
+    string destination = Path.GetFullPath(args[1]);
+    byte[] source = new PdfDocumentBuilder()
+        .AddBlankPage().AddBlankPage()
+        .AddTextField(0, "omitted", 72, 680, 180, 24, "omitted value")
+        .AddTextField(1, "selected", 72, 680, 180, 24, "selected value")
+        .Build();
+    byte[] target = new PdfDocumentBuilder()
+        .AddBlankPage().AddTextField(0, "target", 72, 640, 180, 24)
+        .Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+        .AddImportedPage(PdfDocument.Open(source), 1)
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte selected form-page PDF to {destination}");
+    return 0;
+}
+
+if (args.Length == 2 && args[0] == "--layer-subset-import-smoke")
+{
+    string destination = Path.GetFullPath(args[1]);
+    var omitted = new PdfOptionalContentGroup("Omitted smoke layer");
+    var selected = new PdfOptionalContentGroup(
+        "Selected smoke layer", initiallyVisible: false);
+    byte[] source = new PdfDocumentBuilder()
+        .AddPage(200, 200, new PdfContentStreamBuilder()
+            .BeginOptionalContent(omitted)
+            .Rectangle(20, 20, 80, 80).Fill().EndMarkedContent())
+        .AddPage(200, 200, new PdfContentStreamBuilder()
+            .BeginOptionalContent(selected)
+            .Rectangle(100, 100, 80, 80).Fill().EndMarkedContent())
+        .Build();
+    byte[] pdf = new PdfIncrementalPageEditor(
+            PdfDocument.Open(new PdfDocumentBuilder().Build()))
+        .AddImportedPage(PdfDocument.Open(source), 1)
+        .Build();
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote {pdf.Length:N0} byte selected layered-page PDF to {destination}");
     return 0;
 }
 
@@ -1665,6 +1894,7 @@ if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
     int empty = 0;
     int malformed = 0;
     int importFailed = 0;
+    var unsupportedReasons = new Dictionary<string, int>(StringComparer.Ordinal);
     foreach (string file in importFiles)
     {
         PdfDocument source;
@@ -1690,9 +1920,11 @@ if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
                 .AddImportedPage(source, 0)
                 .Build();
         }
-        catch (NotSupportedException)
+        catch (NotSupportedException exception)
         {
             unsupported++;
+            unsupportedReasons[exception.Message] =
+                unsupportedReasons.GetValueOrDefault(exception.Message) + 1;
             continue;
         }
         catch (PdfSyntaxException exception)
@@ -1724,6 +1956,9 @@ if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
         $"Selected-page corpus: {importFiles.Length:N0} files, {imported:N0} imported, " +
         $"{unsupported:N0} intentionally unsupported, {empty:N0} empty, " +
         $"{malformed:N0} malformed or credential-protected sources, {importFailed:N0} unexpected failures.");
+    foreach (var reason in unsupportedReasons.OrderByDescending(entry => entry.Value)
+                 .ThenBy(entry => entry.Key, StringComparer.Ordinal))
+        Console.WriteLine($"  {reason.Value:N0} x {reason.Key}");
     return importFailed == 0 ? 0 : 1;
 }
 
@@ -1734,6 +1969,9 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --authoring-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-subset-import-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --form-subset-import-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --layer-subset-import-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --layers-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --layered-occupied-merge-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --signature-smoke <openssl.exe> <profile.icc> <output.pdf>");
@@ -1764,6 +2002,8 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-annotation-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-visual-annotation-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-smoke <input.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfua-link-smoke <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --pdfua-form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-annotation-smoke <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-visual-annotation-smoke <font.ttf> <input.pdf> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-page-smoke <profile.icc> <source.pdf> <output.pdf>");

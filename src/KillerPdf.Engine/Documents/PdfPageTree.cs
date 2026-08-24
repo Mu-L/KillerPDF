@@ -48,8 +48,8 @@ internal sealed class PdfPageTree
             : throw new InvalidOperationException("The document catalog has no /Pages tree.");
 
         var pages = new List<PdfPageTreeEntry>();
-        var active = new HashSet<int>();
-        var visitedNodes = new HashSet<int>();
+        var active = new HashSet<(int ObjectNumber, int Generation)>();
+        var visitedNodes = new HashSet<(int ObjectNumber, int Generation)>();
         Visit(rootReference, 0, new Dictionary<PdfName, PdfObject>());
         return new PdfPageTree(catalogReference, catalog, rootReference, pages);
 
@@ -59,11 +59,12 @@ internal sealed class PdfPageTree
         {
             if (depth > MaximumDepth)
                 throw new InvalidOperationException("The page tree exceeds the supported nesting depth.");
-            if (!active.Add(reference.ObjectNumber))
+            var key = (reference.ObjectNumber, reference.Generation);
+            if (!active.Add(key))
                 throw new InvalidOperationException("The page tree contains a cycle.");
-            if (!visitedNodes.Add(reference.ObjectNumber))
+            if (!visitedNodes.Add(key))
             {
-                active.Remove(reference.ObjectNumber);
+                active.Remove(key);
                 throw new InvalidOperationException(
                     "The page tree references the same node more than once.");
             }
@@ -93,7 +94,7 @@ internal sealed class PdfPageTree
             }
             finally
             {
-                active.Remove(reference.ObjectNumber);
+                active.Remove(key);
             }
         }
     }

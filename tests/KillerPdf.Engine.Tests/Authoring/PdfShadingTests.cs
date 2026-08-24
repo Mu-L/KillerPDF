@@ -176,6 +176,12 @@ public sealed class PdfShadingTests
             new PdfShadingBounds(0, 0, 0, 10));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new PdfShadingBounds(0, 0, 10, double.PositiveInfinity));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfAxialGradient(0, 0, 10, 10, [black, white],
+                bounds: default(PdfShadingBounds)));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfAxialGradient(0, 0, 10, 10,
+                [default(PdfGradientStop), new PdfGradientStop(1, 1)]));
         Assert.Throws<ArgumentException>(() =>
             new PdfAxialGradient(0, 0, 10, 10, [
                 new PdfGradientStop(0, 0.1),

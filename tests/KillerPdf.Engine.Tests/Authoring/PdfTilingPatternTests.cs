@@ -170,6 +170,9 @@ public sealed class PdfTilingPatternTests
                 tilingType: (PdfTilingPatternType)4));
         Assert.Throws<ArgumentException>(() =>
             new PdfPatternMatrix(1, 2, 2, 4, 0, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfTilingPattern(10, 10, new PdfContentStreamBuilder(),
+                matrix: default(PdfPatternMatrix)));
         Assert.Throws<ArgumentException>(() => new PdfTilingPattern(10, 10,
             new PdfContentStreamBuilder().SetFillRgb(1, 0, 0).Rectangle(0, 0, 1, 1).Fill(),
             paintType: PdfTilingPatternPaintType.Uncolored));

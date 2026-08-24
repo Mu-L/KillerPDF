@@ -342,7 +342,8 @@ public static class PdfStreamDecoder
             return ReverseTiffPredictor(
                 data, rowLength, colors, columns, bitsPerComponent);
         if (predictor is >= 10 and <= 15)
-            return ReversePngPredictor(data, rowLength, bytesPerPixel, maximumDecodedBytes);
+            return ReversePngPredictor(
+                data, rowLength, bytesPerPixel, predictor, maximumDecodedBytes);
 
         throw new PdfFilterException($"Predictor {predictor} is not defined by PDF.");
     }
@@ -402,9 +403,18 @@ public static class PdfStreamDecoder
         byte[] data,
         int rowLength,
         int bytesPerPixel,
+        int predictor,
         int maximumDecodedBytes)
     {
-        int encodedRowLength = checked(rowLength + 1);
+        int encodedRowLength;
+        try
+        {
+            encodedRowLength = checked(rowLength + 1);
+        }
+        catch (OverflowException ex)
+        {
+            throw new PdfFilterException("PNG predictor dimensions exceed the supported range.", ex);
+        }
         if (data.Length % encodedRowLength != 0)
             throw new PdfFilterException("PNG predictor data does not contain complete rows.");
 
@@ -420,6 +430,9 @@ public static class PdfStreamDecoder
             byte filter = data[inputStart];
             if (filter > 4)
                 throw new PdfFilterException($"PNG predictor row {row} uses unknown filter {filter}.");
+            if (predictor != 15 && filter != predictor - 10)
+                throw new PdfFilterException(
+                    $"PNG predictor row {row} uses filter {filter}, but predictor {predictor} requires filter {predictor - 10}.");
 
             for (int column = 0; column < rowLength; column++)
             {

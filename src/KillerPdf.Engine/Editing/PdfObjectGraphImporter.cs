@@ -1,4 +1,5 @@
 using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
 
@@ -12,9 +13,10 @@ internal sealed class PdfObjectGraphImporter
 
     private readonly PdfDocument _source;
     private readonly PdfIncrementalUpdateBuilder _update;
-    private readonly HashSet<int> _sourcePageNumbers;
+    private readonly HashSet<SourceReference> _sourcePages;
     private readonly Dictionary<SourceReference, PdfIndirectReference> _references = [];
     private Func<PdfIndirectReference?, PdfDictionary, PdfDictionary>? _dictionaryTransform;
+    private Dictionary<SourceReference, PdfDictionary>? _sourceObjectOverrides;
     private readonly HashSet<SourceReference> _populated = [];
     private readonly HashSet<SourceReference> _populating = [];
     private int _importedObjectCount;
@@ -22,11 +24,12 @@ internal sealed class PdfObjectGraphImporter
     internal PdfObjectGraphImporter(
         PdfDocument source,
         PdfIncrementalUpdateBuilder update,
-        IEnumerable<int> sourcePageNumbers)
+        IEnumerable<PdfIndirectReference> sourcePages)
     {
         _source = source ?? throw new ArgumentNullException(nameof(source));
         _update = update ?? throw new ArgumentNullException(nameof(update));
-        _sourcePageNumbers = new HashSet<int>(sourcePageNumbers);
+        _sourcePages = sourcePages.Select(reference =>
+            new SourceReference(reference.ObjectNumber, reference.Generation)).ToHashSet();
         if (source.IsEncrypted && !source.IsDecrypted)
             throw new InvalidOperationException(
                 "An encrypted source PDF must be opened with a password before its pages can be imported.");
@@ -53,11 +56,36 @@ internal sealed class PdfObjectGraphImporter
             : (reference, dictionary) => transform(reference, previous(reference, dictionary));
     }
 
+    internal void AddSourceObjectOverrides(
+        IReadOnlyDictionary<(int ObjectNumber, int Generation), PdfDictionary> overrides)
+    {
+        ArgumentNullException.ThrowIfNull(overrides);
+        _sourceObjectOverrides ??= [];
+        foreach (var entry in overrides)
+        {
+            if (!_source.CrossReferences.TryGetValue(
+                    entry.Key.ObjectNumber, out PdfCrossReferenceEntry crossReference)
+                || crossReference.Type is not (PdfCrossReferenceEntryType.InUse
+                    or PdfCrossReferenceEntryType.Compressed))
+                throw new InvalidOperationException(
+                    $"Source object {entry.Key.ObjectNumber} {entry.Key.Generation} cannot be overridden because it is not active.");
+            int generation = crossReference.Type == PdfCrossReferenceEntryType.InUse
+                ? crossReference.Field2 : 0;
+            if (entry.Key.Generation != generation)
+                throw new InvalidOperationException(
+                    $"Source object {entry.Key.ObjectNumber} {entry.Key.Generation} cannot be overridden because that generation is not active.");
+            var key = new SourceReference(entry.Key.ObjectNumber, entry.Key.Generation);
+            if (!_sourceObjectOverrides.TryAdd(key, entry.Value))
+                throw new InvalidOperationException(
+                    $"Source object {entry.Key.ObjectNumber} {entry.Key.Generation} was overridden more than once.");
+        }
+    }
+
     internal PdfIndirectReference ReserveReference(PdfIndirectReference sourceReference)
     {
         var key = new SourceReference(sourceReference.ObjectNumber, sourceReference.Generation);
         if (_references.TryGetValue(key, out PdfIndirectReference? mapped)) return mapped;
-        if (_sourcePageNumbers.Contains(sourceReference.ObjectNumber))
+        if (_sourcePages.Contains(key))
             throw new InvalidOperationException("Page references must be seeded before graph import.");
         PdfIndirectReference destination = _update.ReserveObject();
         _references.Add(key, destination);
@@ -95,10 +123,10 @@ internal sealed class PdfObjectGraphImporter
                 PopulateReference(key, sourceReference, mapped, depth);
             return mapped;
         }
-        if (_sourcePageNumbers.Contains(sourceReference.ObjectNumber))
+        if (_sourcePages.Contains(key))
             throw new NotSupportedException(
                 $"The imported page references source page {sourceReference.ObjectNumber}, which was not selected for import.");
-        if (_source.Resolve(sourceReference) is PdfNull) return PdfNull.Instance;
+        if (ResolveSource(sourceReference) is PdfNull) return PdfNull.Instance;
         if (_importedObjectCount >= MaximumImportedObjects)
             throw new NotSupportedException("The imported page graph contains too many indirect objects.");
         _importedObjectCount++;
@@ -112,7 +140,7 @@ internal sealed class PdfObjectGraphImporter
         SourceReference key, PdfIndirectReference sourceReference,
         PdfIndirectReference destinationReference, int depth)
     {
-        PdfObject sourceValue = _source.Resolve(sourceReference);
+        PdfObject sourceValue = ResolveSource(sourceReference);
         if (sourceValue is PdfNull)
             throw new InvalidOperationException("A reserved imported reference resolves to null.");
         _populating.Add(key);
@@ -138,7 +166,15 @@ internal sealed class PdfObjectGraphImporter
 
     private PdfDictionary ImportStreamDictionary(PdfDictionary dictionary, int depth) =>
         new(dictionary.Where(entry => !entry.Key.Equals(LengthName)).Select(entry =>
-            new KeyValuePair<PdfName, PdfObject>(entry.Key, Import(entry.Value, depth, null))));
+                new KeyValuePair<PdfName, PdfObject>(entry.Key, Import(entry.Value, depth, null))));
+
+    private PdfObject ResolveSource(PdfIndirectReference reference) =>
+        _sourceObjectOverrides is not null
+        && _sourceObjectOverrides.TryGetValue(
+            new SourceReference(reference.ObjectNumber, reference.Generation),
+            out PdfDictionary? replacement)
+            ? replacement
+            : _source.Resolve(reference);
 
     private readonly record struct SourceReference(int ObjectNumber, int Generation);
 }

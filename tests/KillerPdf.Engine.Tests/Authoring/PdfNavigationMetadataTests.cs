@@ -150,8 +150,28 @@ public sealed class PdfNavigationMetadataTests
     }
 
     [Fact]
-    public void PdfUa2_RejectsUnstructuredOpenAction()
+    public void PdfUa2_WritesStructureOpenActionDestination()
     {
+        var content = new PdfContentStreamBuilder()
+            .BeginMarkedContent(PdfStructureType.Paragraph, 0)
+            .EndMarkedContent();
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "UA", Language = "en-US" })
+            .EnablePdfUa2Conformance()
+            .AddPage(612, 792, content)
+            .SetOpenAction(0, PdfDestination.FitPage())
+            .AddStructureContainer(PdfStructureType.Document)
+            .AddStructureElement(PdfStructureType.Paragraph, 0, 0, 1)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfArray destination = Assert.IsType<PdfArray>(catalog[Name("OpenAction")]);
+        PdfDictionary target = ResolveDictionary(document, destination[0]);
+
+        Assert.Equal("StructElem",
+            Assert.IsType<PdfName>(target[Name("Type")]).ValueAsLatin1());
+        Assert.Equal("P", Assert.IsType<PdfName>(target[Name("S")]).ValueAsLatin1());
+        Assert.Equal("Fit", Assert.IsType<PdfName>(destination[1]).ValueAsLatin1());
+
         Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
             .SetMetadata(new PdfDocumentMetadata { Title = "UA", Language = "en-US" })
             .EnablePdfUa2Conformance()

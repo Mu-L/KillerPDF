@@ -14,6 +14,30 @@ namespace KillerPdf.Engine.Tests.Security;
 
 public sealed class PdfEncryptionTests
 {
+    [Fact]
+    public void PdfUa2_EncryptionRequiresAccessibilityExtractionPermission()
+    {
+        static PdfDocumentBuilder Builder(bool allowAccessibility) => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible encrypted PDF",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                AllowAccessibilityExtraction = allowAccessibility
+            })
+            .AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document);
+
+        Assert.Throws<InvalidOperationException>(() => Builder(false).Build());
+        PdfDocument document = PdfDocument.Open(Builder(true).Build(), "user");
+        Assert.True(document.DeclaredPermissions!.AllowAccessibilityExtraction);
+    }
+
     [Theory]
     [InlineData("new-user")]
     [InlineData("new-owner")]

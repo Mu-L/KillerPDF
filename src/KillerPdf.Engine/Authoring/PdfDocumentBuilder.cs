@@ -40,7 +40,14 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<TextNoteDefinition> _textNotes = [];
     private readonly List<TextMarkupDefinition> _textMarkups = [];
 
-    public PdfDocumentBuilder(PdfVersion? version = null) => Version = version ?? PdfVersion.Pdf20;
+    public PdfDocumentBuilder(PdfVersion? version = null)
+    {
+        PdfVersion selected = version ?? PdfVersion.Pdf20;
+        if (!PdfVersion.IsDefined(selected.Major, selected.Minor))
+            throw new ArgumentOutOfRangeException(nameof(version),
+                "The PDF document version is not defined.");
+        Version = selected;
+    }
 
     public PdfVersion Version { get; }
     public int PageCount => _pages.Count;
@@ -48,7 +55,12 @@ public sealed partial class PdfDocumentBuilder
 
     public PdfDocumentBuilder SetMetadata(PdfDocumentMetadata metadata)
     {
-        Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
+        ArgumentNullException.ThrowIfNull(metadata);
+        if (metadata.Language is not null && !PdfLanguageTag.IsValid(metadata.Language))
+            throw new ArgumentException(
+                "The document language is not a valid BCP 47 language tag.",
+                nameof(metadata));
+        Metadata = metadata;
         return this;
     }
 
@@ -147,7 +159,7 @@ public sealed partial class PdfDocumentBuilder
             new Dictionary<PdfLabColorSpace, PdfName>(),
             new Dictionary<PdfIndexedColorSpace, PdfName>(),
             new Dictionary<PdfCalibratedColorSpace, PdfName>(), [], [], content.Length > 0,
-            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
+            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null, null));
         return this;
     }
 
@@ -174,7 +186,7 @@ public sealed partial class PdfDocumentBuilder
             content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.CalibratedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
-            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null));
+            0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null, null));
         return this;
     }
 
@@ -216,6 +228,16 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets the order in which keyboard focus traverses annotations on a page.</summary>
+    public PdfDocumentBuilder SetPageTabOrder(int pageIndex, PdfPageTabOrder tabOrder)
+    {
+        ValidatePageIndex(pageIndex, nameof(pageIndex));
+        if (!Enum.IsDefined(tabOrder))
+            throw new ArgumentOutOfRangeException(nameof(tabOrder));
+        _pages[pageIndex] = _pages[pageIndex] with { TabOrder = tabOrder };
+        return this;
+    }
+
     public PdfDocumentBuilder SetPageTransition(
         int pageIndex, PdfPageTransition transition)
     {
@@ -250,6 +272,7 @@ public sealed partial class PdfDocumentBuilder
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
+        PdfUnicodeEncoding.EncodeUtf8(uri);
         if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed)
             || parsed.Scheme is not ("http" or "https" or "mailto"))
             throw new ArgumentException("A link URI must use http, https, or mailto.", nameof(uri));
@@ -270,6 +293,7 @@ public sealed partial class PdfDocumentBuilder
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         PdfTextQuad[] values = ValidateLinkQuads(quads);
+        PdfUnicodeEncoding.EncodeUtf8(uri);
         if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed)
             || parsed.Scheme is not ("http" or "https" or "mailto"))
             throw new ArgumentException("A link URI must use http, https, or mailto.", nameof(uri));
@@ -376,6 +400,7 @@ public sealed partial class PdfDocumentBuilder
         ArgumentNullException.ThrowIfNull(quads);
         if (quads.Count == 0)
             throw new ArgumentException("At least one link quad is required.", nameof(quads));
+        foreach (PdfTextQuad quad in quads) quad.Validate();
         return [.. quads];
     }
 
@@ -483,8 +508,9 @@ public sealed partial class PdfDocumentBuilder
         PdfStructureType type,
         int level = 0,
         string? alternateDescription = null,
-        string? actualText = null) =>
-        AddStructure(type, level, null, null, alternateDescription, actualText);
+        string? actualText = null,
+        PdfListNumbering? listNumbering = null) =>
+        AddStructure(type, level, null, null, alternateDescription, actualText, listNumbering);
 
     /// <summary>Associates tagged page content with an element in the logical structure tree.</summary>
     public PdfDocumentBuilder AddStructureElement(
@@ -508,7 +534,7 @@ public sealed partial class PdfDocumentBuilder
                 "A marked-content identifier can belong to only one structure element.",
                 nameof(markedContentId));
         return AddStructure(
-            type, level, pageIndex, markedContentId, alternateDescription, actualText);
+            type, level, pageIndex, markedContentId, alternateDescription, actualText, null);
     }
 
     private PdfDocumentBuilder AddStructure(
@@ -517,7 +543,8 @@ public sealed partial class PdfDocumentBuilder
         int? pageIndex,
         int? markedContentId,
         string? alternateDescription,
-        string? actualText)
+        string? actualText,
+        PdfListNumbering? listNumbering)
     {
         if (!Enum.IsDefined(type))
             throw new ArgumentOutOfRangeException(nameof(type));
@@ -533,8 +560,14 @@ public sealed partial class PdfDocumentBuilder
                 "An alternate description cannot be empty.", nameof(alternateDescription));
         if (actualText is not null && string.IsNullOrEmpty(actualText))
             throw new ArgumentException("Actual text cannot be empty.", nameof(actualText));
+        if (listNumbering.HasValue && (!Enum.IsDefined(listNumbering.Value)
+            || type != PdfStructureType.List))
+            throw new ArgumentException(
+                "List numbering can be assigned only to a List structure container.",
+                nameof(listNumbering));
         _structureElements.Add(new StructureElementDefinition(
-            type, level, pageIndex, markedContentId, alternateDescription, actualText));
+            type, level, pageIndex, markedContentId, alternateDescription, actualText,
+            listNumbering));
         return this;
     }
 
@@ -546,18 +579,64 @@ public sealed partial class PdfDocumentBuilder
         PdfAssociatedFileRelationship relationship = PdfAssociatedFileRelationship.Data,
         DateTimeOffset? modificationDate = null)
     {
-        if (string.IsNullOrWhiteSpace(fileName) || Path.GetFileName(fileName) != fileName)
-            throw new ArgumentException("An attachment name must be a plain file name.", nameof(fileName));
+        if (!IsPortableFileName(fileName))
+            throw new ArgumentException(
+                "An attachment name must be a portable plain file name.", nameof(fileName));
+        PdfUnicodeEncoding.EncodeBigEndian(fileName);
         if (_attachments.Any(item => string.Equals(item.FileName, fileName, StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException("Attachment file names must be unique.", nameof(fileName));
-        if (string.IsNullOrWhiteSpace(mimeType) || mimeType.Any(character => character is < '!' or > '~'))
-            throw new ArgumentException("An attachment MIME type must contain printable ASCII characters.", nameof(mimeType));
+        int separator = mimeType?.IndexOf('/') ?? -1;
+        if (separator <= 0 || separator != mimeType!.LastIndexOf('/')
+            || separator == mimeType.Length - 1
+            || !IsMimeToken(mimeType.AsSpan(0, separator))
+            || !IsMimeToken(mimeType.AsSpan(separator + 1)))
+            throw new ArgumentException(
+                "An attachment MIME type must contain exactly two valid token components.",
+                nameof(mimeType));
         if (!Enum.IsDefined(relationship))
             throw new ArgumentOutOfRangeException(nameof(relationship));
         _attachments.Add(new AttachmentDefinition(
             fileName, data.ToArray(), mimeType, description, relationship, modificationDate));
         return this;
     }
+
+    private static bool IsMimeTokenCharacter(char value) =>
+        value is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9'
+            or '!' or '#' or '$' or '%' or '&' or '\'' or '*' or '+' or '-'
+            or '.' or '^' or '_' or '`' or '|' or '~';
+
+    private static bool IsMimeToken(ReadOnlySpan<char> value)
+    {
+        foreach (char character in value)
+            if (!IsMimeTokenCharacter(character)) return false;
+        return true;
+    }
+
+    private static bool IsPortableFileName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value is "." or ".."
+            || value.EndsWith(' ') || value.EndsWith('.'))
+            return false;
+        foreach (char character in value)
+            if (char.IsControl(character) || character is '<' or '>' or ':' or '"'
+                or '/' or '\\' or '|' or '?' or '*')
+                return false;
+        int extension = value.IndexOf('.');
+        ReadOnlySpan<char> stem = extension < 0 ? value : value.AsSpan(0, extension);
+        if (stem.Equals("CON", StringComparison.OrdinalIgnoreCase)
+            || stem.Equals("PRN", StringComparison.OrdinalIgnoreCase)
+            || stem.Equals("AUX", StringComparison.OrdinalIgnoreCase)
+            || stem.Equals("NUL", StringComparison.OrdinalIgnoreCase)
+            || IsNumberedDeviceName(stem, "COM")
+            || IsNumberedDeviceName(stem, "LPT"))
+            return false;
+        return true;
+    }
+
+    private static bool IsNumberedDeviceName(ReadOnlySpan<char> value, string prefix) =>
+        value.Length == 4
+        && value[..3].Equals(prefix, StringComparison.OrdinalIgnoreCase)
+        && value[3] is >= '1' and <= '9';
 
     public PdfDocumentBuilder AddFileAttachmentAnnotation(
         int pageIndex,
@@ -681,8 +760,11 @@ public sealed partial class PdfDocumentBuilder
         ValidateRectangle(x, y, width, height);
         ValidateUniqueFieldName(name);
         if (string.IsNullOrWhiteSpace(exportValue)
-            || exportValue.Any(character => character is < '!' or > '~'))
-            throw new ArgumentException("A checkbox export value must contain printable ASCII characters.", nameof(exportValue));
+            || exportValue.Any(character => character is < '!' or > '~')
+            || exportValue == "Off")
+            throw new ArgumentException(
+                "A checkbox export value must contain printable ASCII and cannot be the reserved Off state.",
+                nameof(exportValue));
         if (!Enum.IsDefined(mark)) throw new ArgumentOutOfRangeException(nameof(mark));
         _checkBoxes.Add(new CheckBoxDefinition(
             pageIndex, name, x, y, width, height, isChecked, defaultChecked ?? isChecked, exportValue,
@@ -717,8 +799,11 @@ public sealed partial class PdfDocumentBuilder
             ValidatePageIndex(option.PageIndex, nameof(options));
             ValidateRectangle(option.X, option.Y, option.Width, option.Height);
             if (string.IsNullOrWhiteSpace(option.ExportValue)
-                || option.ExportValue.Any(character => character is < '!' or > '~'))
-                throw new ArgumentException("Radio export values must contain printable ASCII characters.", nameof(options));
+                || option.ExportValue.Any(character => character is < '!' or > '~')
+                || option.ExportValue == "Off")
+                throw new ArgumentException(
+                    "Radio export values must contain printable ASCII and cannot be the reserved Off state.",
+                    nameof(options));
             if (!exportValues.Add(option.ExportValue) && !radioOptions.RadiosInUnison)
                 throw new ArgumentException("Radio export values must be unique within a group.", nameof(options));
         }
@@ -1364,6 +1449,7 @@ public sealed partial class PdfDocumentBuilder
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(quads);
         if (quads.Count == 0) throw new ArgumentException("At least one text quad is required.", nameof(quads));
+        foreach (PdfTextQuad quad in quads) quad.Validate();
         if (!double.IsFinite(opacity) || opacity is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(opacity));
         _textMarkups.Add(new TextMarkupDefinition(
@@ -1374,6 +1460,17 @@ public sealed partial class PdfDocumentBuilder
     public byte[] Build()
     {
         bool pdfA4 = _pdfA4Flavor != PdfA4Flavor.None;
+        if (pdfA4 && Version.CompareTo(PdfVersion.Pdf20) < 0)
+            throw new InvalidOperationException("PDF/A-4 authoring requires PDF 2.0 or later.");
+        if (_pdfUa2Conformance && Version.CompareTo(PdfVersion.Pdf20) < 0)
+            throw new InvalidOperationException("PDF/UA-2 authoring requires PDF 2.0 or later.");
+        if (_pages.Any(page => page.TabOrder == PdfPageTabOrder.AnnotationArray)
+            && Version.CompareTo(PdfVersion.Pdf20) < 0)
+            throw new InvalidOperationException(
+                "Annotation-array page tab order requires PDF 2.0 or later.");
+        if (_pages.Any(page => page.TabOrder.HasValue)
+            && Version.CompareTo(new PdfVersion(1, 5)) < 0)
+            throw new InvalidOperationException("Page tab ordering requires PDF 1.5 or later.");
         if (pdfA4 && _encryption is not null)
             throw new InvalidOperationException("PDF/A documents cannot be encrypted.");
         var forms = new List<PdfFormXObject>();
@@ -1404,36 +1501,207 @@ public sealed partial class PdfDocumentBuilder
         foreach (PdfTilingPattern pattern in _pages.SelectMany(page => page.Patterns.Keys)) AddPattern(pattern);
         foreach (PdfGraphicsState state in _pages.SelectMany(page => page.GraphicsStates.Keys))
             AddGraphicsState(state);
+        if (Metadata is not null) RequireVersion(new PdfVersion(1, 4), "XMP metadata");
+        if (_outputIntent is not null) RequireVersion(new PdfVersion(1, 4), "output intents");
+        if (_structureElements.Count > 0) RequireVersion(new PdfVersion(1, 3), "structure trees");
+        if (_pages.Any(page => page.UserUnit != 1))
+            RequireVersion(new PdfVersion(1, 6), "page user units");
+        if (_pageLabels.Count > 0)
+            RequireVersion(new PdfVersion(1, 3), "page labels");
+        if (_viewerPreferences is not null)
+            RequireVersion(new PdfVersion(1, 2), "viewer preferences");
+        if (_namedDestinations.Count > 0)
+            RequireVersion(new PdfVersion(1, 2), "destination name trees");
+        if (_pages.SelectMany(page => page.Links).Any(link => link is UriLinkDefinition))
+            RequireVersion(new PdfVersion(1, 1), "URI actions");
+        if (_pages.Any(page => page.Boxes.Keys.Any(box => box != PdfPageBox.Crop)))
+            RequireVersion(new PdfVersion(1, 3), "print-production page boxes");
+        if (_pages.Any(page => page.Transition is not null
+                || page.DisplayDuration.HasValue))
+            RequireVersion(new PdfVersion(1, 1), "page presentation timing");
+        if (_pages.Any(page => page.Transition?.Style is
+                PdfPageTransitionStyle.Replace or PdfPageTransitionStyle.Fly
+                or PdfPageTransitionStyle.Push or PdfPageTransitionStyle.Cover
+                or PdfPageTransitionStyle.Uncover or PdfPageTransitionStyle.Fade))
+            RequireVersion(new PdfVersion(1, 5), "advanced page transitions");
+        if (_attachments.Count > 0)
+            RequireVersion(PdfVersion.Pdf20, "associated files");
+        if (_encryption is not null)
+            RequireVersion(PdfVersion.Pdf20, "revision-6 AES-256 encryption");
+        if (_textFields.Count > 0 || _checkBoxes.Count > 0 || _radioGroups.Count > 0
+            || _choiceFields.Count > 0 || _pushButtons.Count > 0
+            || _signatureFields.Count > 0)
+            RequireVersion(new PdfVersion(1, 2), "interactive forms");
+        if (_signatureFields.Count > 0)
+            RequireVersion(new PdfVersion(1, 3), "signature fields");
+        if (_freeTexts.Count > 0 || _textMarkups.Count > 0
+            || _visualAnnotations.Count > 0)
+            RequireVersion(new PdfVersion(1, 4), "opacity-aware markup annotations");
+        if (_visualAnnotations.Any(annotation => annotation is VertexAnnotationDefinition)
+            || _caretAnnotations.Count > 0)
+            RequireVersion(new PdfVersion(1, 5), "vertex and caret annotations");
+        if (_redactionAnnotations.Count > 0)
+            RequireVersion(PdfVersion.Pdf17, "redaction annotations");
+        if (_imageStamps.Count > 0
+            || _textNotes.Any(note => note.Popup is not null))
+            RequireVersion(new PdfVersion(1, 3), "stamp and popup annotations");
+        if (_pages.Any(page => page.OptionalContentGroups.Count > 0)
+            || forms.Any(form => form.OptionalContentGroups.Count > 0)
+            || patterns.Any(pattern => pattern.OptionalContentGroups.Count > 0))
+            RequireVersion(new PdfVersion(1, 5), "optional content");
+        if (_pages.Any(page => page.GraphicsStates.Count > 0)
+            || forms.Any(form => form.GraphicsStates.Count > 0)
+            || patterns.Any(pattern => pattern.GraphicsStates.Count > 0))
+            RequireVersion(new PdfVersion(1, 4), "extended graphics states");
+        if (forms.Count > 0 || patterns.Count > 0)
+            RequireVersion(new PdfVersion(1, 2), "form XObjects and tiling patterns");
+        if (forms.Any(form => form.IsolatedTransparencyGroup
+                || form.KnockoutTransparencyGroup))
+            RequireVersion(new PdfVersion(1, 4), "transparency groups");
+        if (_pages.Any(page => page.Shadings.Count > 0)
+            || forms.Any(form => form.Shadings.Count > 0)
+            || patterns.Any(pattern => pattern.Shadings.Count > 0))
+            RequireVersion(new PdfVersion(1, 3), "shading resources");
+        if (_pages.Any(page => page.IccColorSpaces.Count > 0)
+            || forms.Any(form => form.IccColorSpaces.Count > 0)
+            || patterns.Any(pattern => pattern.IccColorSpaces.Count > 0))
+            RequireVersion(new PdfVersion(1, 3), "ICCBased color spaces");
+        if (_pages.Any(page => page.LabColorSpaces.Count > 0
+                || page.IndexedColorSpaces.Count > 0
+                || page.CalibratedColorSpaces.Count > 0)
+            || forms.Any(form => form.LabColorSpaces.Count > 0
+                || form.IndexedColorSpaces.Count > 0
+                || form.CalibratedColorSpaces.Count > 0)
+            || patterns.Any(pattern => pattern.LabColorSpaces.Count > 0
+                || pattern.IndexedColorSpaces.Count > 0
+                || pattern.CalibratedColorSpaces.Count > 0))
+            RequireVersion(new PdfVersion(1, 1), "calibrated, Lab, and Indexed color spaces");
+        if (_pages.Any(page => page.SpotColors.Count > 0)
+            || forms.Any(form => form.SpotColors.Count > 0)
+            || patterns.Any(pattern => pattern.SpotColors.Count > 0))
+            RequireVersion(new PdfVersion(1, 2), "Separation color spaces");
+        if (_pages.Any(page => page.EmbeddedFonts.Count > 0)
+            || forms.Any(form => form.EmbeddedFonts.Count > 0)
+            || patterns.Any(pattern => pattern.EmbeddedFonts.Count > 0)
+            || _textFields.Any(field => field.EmbeddedFont is not null)
+            || _choiceFields.Any(field => field.EmbeddedFont is not null)
+            || _pushButtons.Any(field => field.EmbeddedFont is not null)
+            || _signatureFields.Any(field => field.EmbeddedFont is not null)
+            || _freeTexts.Count > 0
+            || _redactionAnnotations.Any(annotation => annotation.OverlayFont is not null))
+            RequireVersion(new PdfVersion(1, 2), "embedded CID fonts");
+        IEnumerable<PdfImage> authoredImages = _pages.SelectMany(page => page.Images.Keys)
+            .Concat(forms.SelectMany(form => form.Images.Keys))
+            .Concat(patterns.SelectMany(pattern => pattern.Images.Keys))
+            .Concat(_imageStamps.Select(stamp => stamp.Image))
+            .Concat(_pushButtons.SelectMany(field => new[]
+            {
+                field.AppearanceOptions.Icon,
+                field.AppearanceOptions.RolloverIcon,
+                field.AppearanceOptions.DownIcon
+            }).Where(image => image is not null).Cast<PdfImage>());
+        if (authoredImages.Any(HasImageSoftMask))
+            RequireVersion(new PdfVersion(1, 4), "image soft masks");
         if (_pdfUa2Conformance && (Metadata is null
             || string.IsNullOrWhiteSpace(Metadata.Title)
             || string.IsNullOrWhiteSpace(Metadata.Language)))
             throw new InvalidOperationException(
                 "PDF/UA-2 authoring requires document metadata with a title and language.");
+        if (_pdfUa2Conformance && _encryption is not null
+            && !_encryption.AllowAccessibilityExtraction)
+            throw new InvalidOperationException(
+                "PDF/UA-2 encryption must permit accessibility extraction.");
+        if (_pdfUa2Conformance && _pages.Any(page =>
+                page.TabOrder.HasValue && page.TabOrder != PdfPageTabOrder.Structure))
+            throw new InvalidOperationException(
+                "PDF/UA-2 authoring requires structure-order page tabs.");
         if (_pdfUa2Conformance && (_structureElements.Count == 0
             || _structureElements.Count(element => element.Level == 0) != 1
             || _structureElements[0].Type != PdfStructureType.Document))
             throw new InvalidOperationException(
                 "PDF/UA-2 authoring requires one top-level Document structure element.");
+        if (_pdfUa2Conformance && _structureElements.Any(element =>
+                element.Type is PdfStructureType.Figure or PdfStructureType.Formula
+                && element.AlternateDescription is null && element.ActualText is null))
+            throw new InvalidOperationException(
+                "PDF/UA-2 Figure and Formula structure elements require alternate or replacement text.");
+        if (_pdfUa2Conformance)
+            ValidatePdfUaStructureHierarchy(_structureElements);
+        if (_pdfUa2Conformance)
+        {
+            IEnumerable<int> destinationPages = _namedDestinations.Select(value => value.PageIndex)
+                .Concat(_openAction?.PageIndex is int openPage ? [openPage] : [])
+                .Concat(_bookmarks.Where(value => value.PageIndex.HasValue)
+                    .Select(value => value.PageIndex!.Value))
+                .Concat(_pages.SelectMany(page => page.Links)
+                    .OfType<PageLinkDefinition>()
+                    .Select(value => value.DestinationPageIndex))
+                .Concat(_pushButtons.Where(value => value.DestinationPageIndex.HasValue)
+                    .Select(value => value.DestinationPageIndex!.Value));
+            int? unstructuredDestinationPage = destinationPages.Distinct()
+                .Where(pageIndex => !_structureElements.Any(
+                    element => element.PageIndex == pageIndex))
+                .Select(pageIndex => (int?)pageIndex)
+                .FirstOrDefault();
+            if (unstructuredDestinationPage.HasValue)
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 navigation target page {unstructuredDestinationPage.Value} requires a page-associated structure element.");
+        }
         if (_pdfUa2Conformance && (_pages.Any(page => page.Fonts.Count > 0)
             || forms.Any(form => form.Fonts.Count > 0)))
             throw new InvalidOperationException(
                 "PDF/UA-2 authoring requires embedded fonts for page text.");
+        if (_pdfUa2Conformance && (_textFields.Any(field => field.EmbeddedFont is null)
+            || _choiceFields.Any(field => field.EmbeddedFont is null)
+            || _pushButtons.Any(field => field.EmbeddedFont is null)
+            || _signatureFields.Any(field =>
+                field.AppearanceText is not null && field.EmbeddedFont is null)))
+            throw new InvalidOperationException(
+                "PDF/UA-2 text-bearing form appearances require embedded fonts.");
         if (_pdfUa2Conformance && _pages.Any(page => page.HasUntaggedContent))
             throw new InvalidOperationException(
                 "PDF/UA-2 authoring requires all painted page content to be tagged or marked as an artifact.");
-        if (_pdfUa2Conformance && (_pages.Any(page => page.Links.Count > 0)
-            || _bookmarks.Count > 0 || _namedDestinations.Count > 0 || _openAction is not null
-            || _textFields.Count > 0 || _checkBoxes.Count > 0 || _radioGroups.Count > 0
-            || _choiceFields.Count > 0 || _pushButtons.Count > 0 || _signatureFields.Count > 0
-            || _textNotes.Count > 0 || _textMarkups.Count > 0
-            || _freeTexts.Count > 0 || _visualAnnotations.Count > 0 || _imageStamps.Count > 0
-            || _fileAttachmentAnnotations.Count > 0 || _caretAnnotations.Count > 0
-            || _redactionAnnotations.Count > 0))
+        if (_pdfUa2Conformance && _pages.SelectMany(page => page.Links)
+            .Any(link => string.IsNullOrWhiteSpace(link.Contents)))
             throw new InvalidOperationException(
-                "PDF/UA-2 annotations, forms, and navigation require structure associations that are not yet authored.");
-        if (_pdfUa2Conformance && _attachments.Count > 0)
+                "PDF/UA-2 link annotations require descriptive contents.");
+        if (_pdfUa2Conformance && _textNotes.Any(note =>
+                string.IsNullOrWhiteSpace(note.Contents)))
             throw new InvalidOperationException(
-                "PDF/UA-2 embedded files require additional accessible file-specification metadata.");
+                "PDF/UA-2 text annotations require descriptive contents.");
+        if (_pdfUa2Conformance && _textMarkups.Any(markup =>
+                string.IsNullOrWhiteSpace(markup.Contents)))
+            throw new InvalidOperationException(
+                "PDF/UA-2 text-markup annotations require descriptive contents.");
+        if (_pdfUa2Conformance && (_freeTexts.Any(annotation =>
+                string.IsNullOrWhiteSpace(annotation.Contents))
+            || _visualAnnotations.Any(annotation =>
+                string.IsNullOrWhiteSpace(annotation.Contents))
+            || _imageStamps.Any(annotation =>
+                string.IsNullOrWhiteSpace(annotation.Contents))
+            || _caretAnnotations.Any(annotation =>
+                string.IsNullOrWhiteSpace(annotation.Contents))
+            || _redactionAnnotations.Any(annotation =>
+                string.IsNullOrWhiteSpace(annotation.Contents))))
+            throw new InvalidOperationException(
+                "PDF/UA-2 visual and editorial annotations require descriptive contents.");
+        if (_pdfUa2Conformance && _fileAttachmentAnnotations.Any(annotation =>
+                string.IsNullOrWhiteSpace(annotation.Contents)))
+            throw new InvalidOperationException(
+                "PDF/UA-2 file-attachment annotations require descriptive contents.");
+        if (_pdfUa2Conformance && _attachments.Any(attachment =>
+                string.IsNullOrWhiteSpace(attachment.Description)))
+            throw new InvalidOperationException(
+                "PDF/UA-2 embedded files require descriptive file-specification metadata.");
+        if (_pdfUa2Conformance && _textFields.Select(field => field.Metadata)
+            .Concat(_checkBoxes.Select(field => field.Metadata))
+            .Concat(_radioGroups.Select(field => field.Metadata))
+            .Concat(_choiceFields.Select(field => field.Metadata))
+            .Concat(_pushButtons.Select(field => field.Metadata))
+            .Concat(_signatureFields.Select(field => field.Metadata))
+            .Any(metadata => string.IsNullOrWhiteSpace(metadata?.Tooltip)))
+            throw new InvalidOperationException(
+                "PDF/UA-2 form fields require descriptive tooltips.");
         for (int pageIndex = 0; pageIndex < _pages.Count; pageIndex++)
         {
             var registered = _structureElements.Where(element => element.PageIndex == pageIndex)
@@ -1483,7 +1751,36 @@ public sealed partial class PdfDocumentBuilder
         int? structureRootNumber = _structureElements.Count == 0 ? null : nextObjectNumber++;
         int? parentTreeNumber = _structureElements.Count == 0 ? null : nextObjectNumber++;
         int? structureNamespaceNumber = _pdfUa2Conformance ? nextObjectNumber++ : null;
+        int? legacyStructureNamespaceNumber = _pdfUa2Conformance
+            && _structureElements.Any(element =>
+                PdfStructureTypeNames.UsesPdf17Namespace(element.Type, _pdfUa2Conformance))
+            ? nextObjectNumber++ : null;
         int[] structureElementNumbers = _structureElements.Select(_ => nextObjectNumber++).ToArray();
+        int[] accessibleLinkStructureNumbers = _pdfUa2Conformance
+            ? _pages.SelectMany(page => page.Links).Select(_ => nextObjectNumber++).ToArray()
+            : [];
+        int accessibleWidgetCount = _textFields.Count + _checkBoxes.Count
+            + _radioGroups.Sum(group => group.Options.Count) + _choiceFields.Count
+            + _pushButtons.Count + _signatureFields.Count;
+        int[] accessibleWidgetStructureNumbers = _pdfUa2Conformance
+            ? Enumerable.Range(0, accessibleWidgetCount)
+                .Select(_ => nextObjectNumber++).ToArray()
+            : [];
+        int[] accessibleTextNoteStructureNumbers = _pdfUa2Conformance
+            ? _textNotes.Select(_ => nextObjectNumber++).ToArray()
+            : [];
+        int[] accessibleTextMarkupStructureNumbers = _pdfUa2Conformance
+            ? _textMarkups.Select(_ => nextObjectNumber++).ToArray()
+            : [];
+        int accessibleEditorialCount = _freeTexts.Count + _visualAnnotations.Count
+            + _imageStamps.Count + _caretAnnotations.Count + _redactionAnnotations.Count;
+        int[] accessibleEditorialStructureNumbers = _pdfUa2Conformance
+            ? Enumerable.Range(0, accessibleEditorialCount)
+                .Select(_ => nextObjectNumber++).ToArray()
+            : [];
+        int[] accessibleFileAttachmentStructureNumbers = _pdfUa2Conformance
+            ? _fileAttachmentAnnotations.Select(_ => nextObjectNumber++).ToArray()
+            : [];
         var allocatedAttachments = _attachments.Select(attachment =>
             new AllocatedAttachment(attachment, nextObjectNumber++, nextObjectNumber++)).ToArray();
         IReadOnlyDictionary<string, int> attachmentFileSpecificationNumbers = allocatedAttachments
@@ -1518,6 +1815,19 @@ public sealed partial class PdfDocumentBuilder
             new AllocatedSignatureField(field, nextObjectNumber++, nextObjectNumber++,
                 field.FieldLock is null ? null : nextObjectNumber++,
                 field.SeedValue is null ? null : nextObjectNumber++)).ToArray();
+        AllocatedFieldHierarchy fieldHierarchy = AllocateFieldHierarchy(
+            allocatedTextFields.Select(field => (field.Definition.Name, field.FieldNumber))
+                .Concat(allocatedCheckBoxes.Select(field =>
+                    (field.Definition.Name, field.FieldNumber)))
+                .Concat(allocatedRadioGroups.Select(field =>
+                    (field.Definition.Name, field.ParentNumber)))
+                .Concat(allocatedChoiceFields.Select(field =>
+                    (field.Definition.Name, field.FieldNumber)))
+                .Concat(allocatedPushButtons.Select(field =>
+                    (field.Definition.Name, field.FieldNumber)))
+                .Concat(allocatedSignatureFields.Select(field =>
+                    (field.Definition.Name, field.FieldNumber))),
+            ref nextObjectNumber);
         var allocatedTextNotes = _textNotes.Select(note =>
             new AllocatedTextNote(note, nextObjectNumber++, nextObjectNumber++,
                 note.Popup is null ? null : nextObjectNumber++)).ToArray();
@@ -1725,6 +2035,157 @@ public sealed partial class PdfDocumentBuilder
                     .Select(stamp => stamp.AnnotationNumber)];
             allocated.Add(new AllocatedPage(page, pageNumber, contentNumber, annotationNumbers));
         }
+        int pageStructureKeyCount = _structureElements
+            .Where(element => element.PageIndex.HasValue)
+            .Select(element => element.PageIndex!.Value)
+            .Distinct().Count();
+        int nextStructureParentKey = pageStructureKeyCount;
+        int AllocateStructureParentKey()
+        {
+            int key = nextStructureParentKey;
+            nextStructureParentKey = checked(nextStructureParentKey + 1);
+            return key;
+        }
+        var accessibleLinks = new List<AccessibleAnnotationStructure>();
+        int accessibleLinkIndex = 0;
+        if (_pdfUa2Conformance)
+        {
+            for (int pageIndex = 0; pageIndex < allocated.Count; pageIndex++)
+            {
+                for (int linkIndex = 0;
+                    linkIndex < allocated[pageIndex].Definition.Links.Count; linkIndex++)
+                {
+                    LinkDefinition link = allocated[pageIndex].Definition.Links[linkIndex];
+                    accessibleLinks.Add(new AccessibleAnnotationStructure(
+                        pageIndex,
+                        allocated[pageIndex].AnnotationNumbers[linkIndex],
+                        accessibleLinkStructureNumbers[accessibleLinkIndex],
+                        AllocateStructureParentKey(),
+                        "Link", link.Contents!));
+                    accessibleLinkIndex++;
+                }
+            }
+        }
+        var accessibleWidgets = new List<AccessibleAnnotationStructure>();
+        int accessibleWidgetIndex = 0;
+        if (_pdfUa2Conformance)
+        {
+            foreach (AllocatedTextField field in allocatedTextFields)
+                AddWidget(field.Definition.PageIndex, field.FieldNumber,
+                    field.Definition.Metadata!.Tooltip!);
+            foreach (AllocatedCheckBox field in allocatedCheckBoxes)
+                AddWidget(field.Definition.PageIndex, field.FieldNumber,
+                    field.Definition.Metadata!.Tooltip!);
+            foreach (AllocatedRadioGroup group in allocatedRadioGroups)
+                foreach (AllocatedRadioWidget widget in group.Widgets)
+                    AddWidget(widget.Option.PageIndex, widget.WidgetNumber,
+                        group.Definition.Metadata!.Tooltip!);
+            foreach (AllocatedChoiceField field in allocatedChoiceFields)
+                AddWidget(field.Definition.PageIndex, field.FieldNumber,
+                    field.Definition.Metadata!.Tooltip!);
+            foreach (AllocatedPushButton field in allocatedPushButtons)
+                AddWidget(field.Definition.PageIndex, field.FieldNumber,
+                    field.Definition.Metadata!.Tooltip!);
+            foreach (AllocatedSignatureField field in allocatedSignatureFields)
+                AddWidget(field.Definition.PageIndex, field.FieldNumber,
+                    field.Definition.Metadata!.Tooltip!);
+
+            void AddWidget(int pageIndex, int annotationNumber, string description)
+            {
+                accessibleWidgets.Add(new AccessibleAnnotationStructure(
+                    pageIndex, annotationNumber,
+                    accessibleWidgetStructureNumbers[accessibleWidgetIndex],
+                    AllocateStructureParentKey(),
+                    "Form", description));
+                accessibleWidgetIndex++;
+            }
+        }
+        var accessibleTextNotes = new List<AccessibleAnnotationStructure>();
+        if (_pdfUa2Conformance)
+        {
+            for (int index = 0; index < allocatedTextNotes.Length; index++)
+            {
+                AllocatedTextNote note = allocatedTextNotes[index];
+                accessibleTextNotes.Add(new AccessibleAnnotationStructure(
+                    note.Definition.PageIndex,
+                    note.AnnotationNumber,
+                    accessibleTextNoteStructureNumbers[index],
+                    AllocateStructureParentKey(),
+                    "Annot", note.Definition.Contents));
+            }
+        }
+        var accessibleTextMarkups = new List<AccessibleAnnotationStructure>();
+        if (_pdfUa2Conformance)
+        {
+            for (int index = 0; index < allocatedTextMarkups.Length; index++)
+            {
+                AllocatedTextMarkup markup = allocatedTextMarkups[index];
+                accessibleTextMarkups.Add(new AccessibleAnnotationStructure(
+                    markup.Definition.PageIndex,
+                    markup.AnnotationNumber,
+                    accessibleTextMarkupStructureNumbers[index],
+                    AllocateStructureParentKey(),
+                    "Annot", markup.Definition.Contents!));
+            }
+        }
+        var accessibleEditorialAnnotations = new List<AccessibleAnnotationStructure>();
+        if (_pdfUa2Conformance)
+        {
+            foreach (AllocatedFreeText annotation in allocatedFreeTexts)
+                AddEditorial(annotation.Definition.PageIndex, annotation.AnnotationNumber,
+                    annotation.Definition.Contents);
+            foreach (AllocatedVisualAnnotation annotation in allocatedVisualAnnotations)
+                AddEditorial(annotation.Definition.PageIndex, annotation.AnnotationNumber,
+                    annotation.Definition.Contents!);
+            foreach (AllocatedImageStamp annotation in allocatedImageStamps)
+                AddEditorial(annotation.Definition.PageIndex, annotation.AnnotationNumber,
+                    annotation.Definition.Contents!);
+            foreach (AllocatedCaretAnnotation annotation in allocatedCaretAnnotations)
+                AddEditorial(annotation.Definition.PageIndex, annotation.AnnotationNumber,
+                    annotation.Definition.Contents!);
+            foreach (AllocatedRedactionAnnotation annotation in allocatedRedactionAnnotations)
+                AddEditorial(annotation.Definition.PageIndex, annotation.AnnotationNumber,
+                    annotation.Definition.Contents!);
+
+            void AddEditorial(int pageIndex, int annotationNumber, string description)
+            {
+                int index = accessibleEditorialAnnotations.Count;
+                accessibleEditorialAnnotations.Add(new AccessibleAnnotationStructure(
+                    pageIndex, annotationNumber,
+                    accessibleEditorialStructureNumbers[index],
+                    AllocateStructureParentKey(),
+                    "Annot", description));
+            }
+        }
+        var accessibleFileAttachments = new List<AccessibleAnnotationStructure>();
+        if (_pdfUa2Conformance)
+        {
+            for (int index = 0; index < allocatedFileAttachmentAnnotations.Length; index++)
+            {
+                AllocatedFileAttachmentAnnotation annotation =
+                    allocatedFileAttachmentAnnotations[index];
+                accessibleFileAttachments.Add(new AccessibleAnnotationStructure(
+                    annotation.Definition.PageIndex,
+                    annotation.AnnotationNumber,
+                    accessibleFileAttachmentStructureNumbers[index],
+                    AllocateStructureParentKey(),
+                    "Annot", annotation.Definition.Contents!));
+            }
+        }
+        AccessibleAnnotationStructure[] accessibleAnnotations =
+            [.. accessibleLinks, .. accessibleWidgets, .. accessibleTextNotes,
+                .. accessibleTextMarkups, .. accessibleEditorialAnnotations,
+                .. accessibleFileAttachments];
+        IReadOnlyDictionary<int, AccessibleAnnotationStructure> accessibleByAnnotation =
+            accessibleAnnotations.ToDictionary(annotation => annotation.AnnotationNumber);
+        PdfIndirectReference DestinationReference(int pageIndex)
+        {
+            if (!_pdfUa2Conformance)
+                return new PdfIndirectReference(allocated[pageIndex].PageNumber, 0);
+            int structureIndex = _structureElements.FindIndex(
+                element => element.PageIndex == pageIndex);
+            return new PdfIndirectReference(structureElementNumbers[structureIndex], 0);
+        }
 
         var kids = new PdfArray(allocated.Select(page =>
             (PdfObject)new PdfIndirectReference(page.PageNumber, 0)));
@@ -1751,7 +2212,7 @@ public sealed partial class PdfDocumentBuilder
             catalogEntries.Add(("OpenAction", _openAction.NamedDestination is not null
                 ? UnicodeString(_openAction.NamedDestination)
                 : DestinationArray(
-                    new PdfIndirectReference(allocated[_openAction.PageIndex!.Value].PageNumber, 0),
+                    DestinationReference(_openAction.PageIndex!.Value),
                     _openAction.Destination!)));
         if (structureRootNumber.HasValue)
         {
@@ -1785,7 +2246,7 @@ public sealed partial class PdfDocumentBuilder
             {
                 names.Add(UnicodeString(destination.Name));
                 names.Add(DestinationArray(
-                    new PdfIndirectReference(allocated[destination.PageIndex].PageNumber, 0),
+                    DestinationReference(destination.PageIndex),
                     destination.Destination));
             }
             catalogNameEntries.Add(("Dests", Dictionary(("Names", new PdfArray(names)))));
@@ -1813,12 +2274,7 @@ public sealed partial class PdfDocumentBuilder
             || allocatedRadioGroups.Count > 0 || allocatedChoiceFields.Length > 0
             || allocatedPushButtons.Length > 0 || allocatedSignatureFields.Length > 0)
         {
-            var fieldReferences = allocatedTextFields.Select(field => field.FieldNumber)
-                .Concat(allocatedCheckBoxes.Select(field => field.FieldNumber))
-                .Concat(allocatedRadioGroups.Select(field => field.ParentNumber))
-                .Concat(allocatedChoiceFields.Select(field => field.FieldNumber))
-                .Concat(allocatedPushButtons.Select(field => field.FieldNumber))
-                .Concat(allocatedSignatureFields.Select(field => field.FieldNumber))
+            var fieldReferences = fieldHierarchy.RootFieldNumbers
                 .Select(number => (PdfObject)new PdfIndirectReference(number, 0));
             var formEntries = new List<(string Name, PdfObject Value)>
             {
@@ -1930,8 +2386,7 @@ public sealed partial class PdfDocumentBuilder
                     ("Dest", bookmark.NamedDestination is not null
                         ? UnicodeString(bookmark.NamedDestination)
                         : DestinationArray(
-                            new PdfIndirectReference(
-                                allocated[bookmark.PageIndex!.Value].PageNumber, 0),
+                            DestinationReference(bookmark.PageIndex!.Value),
                             bookmark.Options.Destination))
                 };
                 if (bookmark.Options.Color.HasValue)
@@ -2011,6 +2466,12 @@ public sealed partial class PdfDocumentBuilder
                 parentTreeNumbers.Add(new PdfInteger(key));
                 parentTreeNumbers.Add(new PdfArray(mappings));
             }
+            foreach (AccessibleAnnotationStructure link in accessibleAnnotations)
+            {
+                parentTreeNumbers.Add(new PdfInteger(link.ParentTreeKey));
+                parentTreeNumbers.Add(new PdfIndirectReference(
+                    link.StructureElementNumber, 0));
+            }
             objects.Add(new PdfIndirectObject(parentTreeNumber!.Value, 0,
                 Dictionary(("Nums", new PdfArray(parentTreeNumbers))), 0));
             var rootEntries = new List<(string Name, PdfObject Value)>
@@ -2019,11 +2480,19 @@ public sealed partial class PdfDocumentBuilder
                 ("K", new PdfArray(topLevel.Select(index =>
                     (PdfObject)new PdfIndirectReference(structureElementNumbers[index], 0)))),
                 ("ParentTree", new PdfIndirectReference(parentTreeNumber.Value, 0)),
-                ("ParentTreeNextKey", new PdfInteger(structureParentKeys.Count))
+                ("ParentTreeNextKey", new PdfInteger(nextStructureParentKey))
             };
             if (structureNamespaceNumber.HasValue)
-                rootEntries.Add(("Namespaces", new PdfArray([
-                    new PdfIndirectReference(structureNamespaceNumber.Value, 0)])));
+            {
+                var namespaces = new List<PdfObject>
+                {
+                    new PdfIndirectReference(structureNamespaceNumber.Value, 0)
+                };
+                if (legacyStructureNamespaceNumber.HasValue)
+                    namespaces.Add(new PdfIndirectReference(
+                        legacyStructureNamespaceNumber.Value, 0));
+                rootEntries.Add(("Namespaces", new PdfArray(namespaces)));
+            }
             objects.Add(new PdfIndirectObject(structureRootNumber.Value, 0,
                 Dictionary(rootEntries.ToArray()), 0));
             if (structureNamespaceNumber.HasValue)
@@ -2031,6 +2500,11 @@ public sealed partial class PdfDocumentBuilder
                     Dictionary(
                         ("Type", Name("Namespace")),
                         ("NS", Latin1String("http://iso.org/pdf2/ssn"))), 0));
+            if (legacyStructureNamespaceNumber.HasValue)
+                objects.Add(new PdfIndirectObject(legacyStructureNamespaceNumber.Value, 0,
+                    Dictionary(
+                        ("Type", Name("Namespace")),
+                        ("NS", Latin1String("http://iso.org/pdf/ssn"))), 0));
 
             for (int index = 0; index < _structureElements.Count; index++)
             {
@@ -2038,7 +2512,8 @@ public sealed partial class PdfDocumentBuilder
                 var entries = new List<(string Name, PdfObject Value)>
                 {
                     ("Type", Name("StructElem")),
-                    ("S", Name(PdfStructureTypeNames.Name(definition.Type))),
+                    ("S", Name(PdfStructureTypeNames.Name(
+                        definition.Type, _pdfUa2Conformance))),
                     ("P", parents[index].HasValue
                         ? new PdfIndirectReference(structureElementNumbers[parents[index]!.Value], 0)
                         : new PdfIndirectReference(structureRootNumber.Value, 0))
@@ -2048,12 +2523,19 @@ public sealed partial class PdfDocumentBuilder
                         allocated[definition.PageIndex.Value].PageNumber, 0)));
                 if (structureNamespaceNumber.HasValue)
                     entries.Add(("NS", new PdfIndirectReference(
-                        structureNamespaceNumber.Value, 0)));
+                        PdfStructureTypeNames.UsesPdf17Namespace(
+                            definition.Type, _pdfUa2Conformance)
+                            ? legacyStructureNamespaceNumber!.Value
+                            : structureNamespaceNumber.Value, 0)));
                 var structureKids = new List<PdfObject>();
                 if (definition.MarkedContentId.HasValue)
                     structureKids.Add(new PdfInteger(definition.MarkedContentId.Value));
                 structureKids.AddRange(children[index].Select(child =>
                     (PdfObject)new PdfIndirectReference(structureElementNumbers[child], 0)));
+                if (_pdfUa2Conformance && index == 0)
+                    structureKids.AddRange(accessibleAnnotations.Select(link =>
+                        (PdfObject)new PdfIndirectReference(
+                            link.StructureElementNumber, 0)));
                 if (structureKids.Count == 1) entries.Add(("K", structureKids[0]));
                 else if (structureKids.Count > 1)
                     entries.Add(("K", new PdfArray(structureKids)));
@@ -2061,12 +2543,49 @@ public sealed partial class PdfDocumentBuilder
                     entries.Add(("Alt", UnicodeString(definition.AlternateDescription)));
                 if (definition.ActualText is not null)
                     entries.Add(("ActualText", UnicodeString(definition.ActualText)));
+                if (definition.ListNumbering.HasValue)
+                    entries.Add(("A", Dictionary(
+                        ("O", Name("List")),
+                        ("ListNumbering", Name(PdfListNumberingNames.Name(
+                            definition.ListNumbering.Value))))));
                 objects.Add(new PdfIndirectObject(
                     structureElementNumbers[index], 0, Dictionary(entries.ToArray()), 0));
+            }
+            foreach (AccessibleAnnotationStructure link in accessibleAnnotations)
+            {
+                PdfIndirectReference pageReference = new(
+                    allocated[link.PageIndex].PageNumber, 0);
+                objects.Add(new PdfIndirectObject(
+                    link.StructureElementNumber, 0,
+                    Dictionary(
+                        ("Type", Name("StructElem")),
+                        ("S", Name(link.StructureType)),
+                        ("P", new PdfIndirectReference(structureElementNumbers[0], 0)),
+                        ("Pg", pageReference),
+                        ("NS", new PdfIndirectReference(structureNamespaceNumber!.Value, 0)),
+                        ("Alt", UnicodeString(link.Description)),
+                        ("K", Dictionary(
+                            ("Type", Name("OBJR")),
+                            ("Pg", pageReference),
+                            ("Obj", new PdfIndirectReference(link.AnnotationNumber, 0))))), 0));
             }
         }
         foreach (AllocatedAttachment allocatedAttachment in allocatedAttachments)
             AddAttachmentObjects(objects, allocatedAttachment);
+        foreach (AllocatedHierarchyField hierarchyField in fieldHierarchy.Fields)
+        {
+            var entries = new List<(string Name, PdfObject Value)>
+            {
+                ("T", UnicodeString(hierarchyField.PartialName)),
+                ("Kids", new PdfArray(hierarchyField.KidNumbers.Select(number =>
+                    (PdfObject)new PdfIndirectReference(number, 0))))
+            };
+            if (hierarchyField.ParentNumber.HasValue)
+                entries.Add(("Parent", new PdfIndirectReference(
+                    hierarchyField.ParentNumber.Value, 0)));
+            objects.Add(new PdfIndirectObject(
+                hierarchyField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+        }
         for (int index = 0; index < allocatedFileAttachmentAnnotations.Length; index++)
             AddFileAttachmentAnnotationObjects(objects, allocatedFileAttachmentAnnotations[index],
                 allocated, index + 1, attachmentFileSpecificationNumbers);
@@ -2100,7 +2619,8 @@ public sealed partial class PdfDocumentBuilder
             AddPushButtonObjects(objects, allocatedPushButton, allocated, resource, number, usage,
                 appearance.Icon is null ? null : imageNumbers[appearance.Icon],
                 appearance.RolloverIcon is null ? null : imageNumbers[appearance.RolloverIcon],
-                appearance.DownIcon is null ? null : imageNumbers[appearance.DownIcon]);
+                appearance.DownIcon is null ? null : imageNumbers[appearance.DownIcon],
+                _pdfUa2Conformance ? structureElementNumbers[0] : null);
         }
         foreach (AllocatedSignatureField allocatedSignatureField in allocatedSignatureFields)
         {
@@ -2112,6 +2632,7 @@ public sealed partial class PdfDocumentBuilder
             AddSignatureFieldObject(
                 objects, allocatedSignatureField, allocated, resource, number, usage);
         }
+        ApplyFieldHierarchy(objects, fieldHierarchy);
         if (_outputIntent is not null)
             AddOutputIntentObjects(
                 objects, _outputIntent, iccProfileNumber!.Value, outputIntentNumber!.Value);
@@ -2200,6 +2721,7 @@ public sealed partial class PdfDocumentBuilder
         for (int index = 0; index < allocatedImageStamps.Length; index++)
             AddImageStampObjects(objects, allocatedImageStamps[index], allocated, index + 1,
                 imageNumbers[allocatedImageStamps[index].Definition.Image]);
+        ApplyAccessibleAnnotationParents(objects, accessibleByAnnotation);
         foreach ((PdfStandardFont font, int number) in fontNumbers.OrderBy(entry => entry.Value))
             objects.Add(new PdfIndirectObject(number, 0, StandardFontDictionary(font), 0));
         foreach (AllocatedEmbeddedFont font in embeddedFonts)
@@ -2298,6 +2820,10 @@ public sealed partial class PdfDocumentBuilder
                 entries.Add(("Rotate", new PdfInteger(allocatedPage.Definition.Rotation)));
             if (allocatedPage.Definition.UserUnit != 1)
                 entries.Add(("UserUnit", Number(allocatedPage.Definition.UserUnit)));
+            PdfPageTabOrder? tabOrder = allocatedPage.Definition.TabOrder
+                ?? (_pdfUa2Conformance ? PdfPageTabOrder.Structure : null);
+            if (tabOrder.HasValue)
+                entries.Add(("Tabs", Name(PageTabOrderName(tabOrder.Value))));
             foreach ((PdfPageBox box, PageBoxDefinition rectangle) in allocatedPage.Definition.Boxes.OrderBy(entry => entry.Key))
                 entries.Add((PageBoxName(box), new PdfArray([
                     Number(rectangle.X), Number(rectangle.Y),
@@ -2360,6 +2886,11 @@ public sealed partial class PdfDocumentBuilder
                     annotationEntries.Add(("C", ColorArray(link.Appearance.Color.Value)));
                 if (!string.IsNullOrEmpty(link.Contents))
                     annotationEntries.Add(("Contents", UnicodeString(link.Contents)));
+                if (accessibleByAnnotation.TryGetValue(
+                        allocatedPage.AnnotationNumbers[index],
+                        out AccessibleAnnotationStructure? accessibleLink))
+                    annotationEntries.Add(("StructParent",
+                        new PdfInteger(accessibleLink.ParentTreeKey)));
                 AddAnnotationMetadata(annotationEntries, link.Metadata);
                 if (link.Quads is not null)
                     annotationEntries.Add(("QuadPoints", new PdfArray(link.Quads.SelectMany(quad =>
@@ -2376,13 +2907,13 @@ public sealed partial class PdfDocumentBuilder
                 {
                     annotationEntries.Add(("A", Dictionary(
                         ("S", Name("URI")),
-                        ("URI", new PdfString(Encoding.UTF8.GetBytes(uri.Uri), PdfStringForm.Literal)))));
+                        ("URI", new PdfString(PdfUnicodeEncoding.EncodeUtf8(uri.Uri),
+                            PdfStringForm.Literal)))));
                 }
                 else if (link is PageLinkDefinition pageLink)
                 {
                     annotationEntries.Add(("Dest", DestinationArray(
-                        new PdfIndirectReference(
-                            allocated[pageLink.DestinationPageIndex].PageNumber, 0),
+                        DestinationReference(pageLink.DestinationPageIndex),
                         pageLink.Destination)));
                 }
                 else if (link is NamedDestinationLinkDefinition named)
@@ -3249,7 +3780,8 @@ public sealed partial class PdfDocumentBuilder
         EmbeddedFontUsage? fontUsage,
         int? iconNumber,
         int? rolloverIconNumber,
-        int? downIconNumber)
+        int? downIconNumber,
+        int? structureDestinationNumber)
     {
         PushButtonDefinition field = allocatedField.Definition;
         int flags = (1 << 16) | FormFieldFlags(field.FieldOptions);
@@ -3285,7 +3817,8 @@ public sealed partial class PdfDocumentBuilder
                     : Dictionary(
                     ("S", Name("GoTo")),
                     ("D", DestinationArray(
-                        new PdfIndirectReference(pages[field.DestinationPageIndex!.Value].PageNumber, 0),
+                        new PdfIndirectReference(structureDestinationNumber
+                            ?? pages[field.DestinationPageIndex!.Value].PageNumber, 0),
                         field.Destination!)))),
             ("AP", PushButtonAppearanceDictionary(allocatedField))
         };
@@ -4171,17 +4704,271 @@ public sealed partial class PdfDocumentBuilder
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("A form field name cannot be empty.", nameof(name));
-        if (FormFieldNameExists(name))
-            throw new ArgumentException("Form field names must be unique.", nameof(name));
+        string[] parts = name.Split('.');
+        if (parts.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException(
+                "A qualified form field name cannot contain an empty path component.", nameof(name));
+        foreach (string part in parts)
+            PdfUnicodeEncoding.EncodeBigEndian(part);
+        string? conflict = FormFieldNames().FirstOrDefault(existing =>
+            string.Equals(existing, name, StringComparison.Ordinal)
+            || existing.StartsWith(name + ".", StringComparison.Ordinal)
+            || name.StartsWith(existing + ".", StringComparison.Ordinal));
+        if (conflict is not null)
+            throw new ArgumentException(
+                "Form field names must be unique and cannot also name a hierarchy parent.",
+                nameof(name));
     }
 
+    private IEnumerable<string> FormFieldNames() =>
+        _textFields.Select(field => field.Name)
+        .Concat(_checkBoxes.Select(field => field.Name))
+        .Concat(_radioGroups.Select(field => field.Name))
+        .Concat(_choiceFields.Select(field => field.Name))
+        .Concat(_pushButtons.Select(field => field.Name))
+        .Concat(_signatureFields.Select(field => field.Name));
+
     private bool FormFieldNameExists(string name) =>
-        _textFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-        || _checkBoxes.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-        || _radioGroups.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-        || _choiceFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-        || _pushButtons.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal))
-        || _signatureFields.Any(field => string.Equals(field.Name, name, StringComparison.Ordinal));
+        FormFieldNames().Contains(name, StringComparer.Ordinal);
+
+    private static AllocatedFieldHierarchy AllocateFieldHierarchy(
+        IEnumerable<(string Name, int FieldNumber)> terminalFields,
+        ref int nextObjectNumber)
+    {
+        var fields = new List<AllocatedHierarchyField>();
+        var fieldsByPath = new Dictionary<string, AllocatedHierarchyField>(StringComparer.Ordinal);
+        var bindings = new Dictionary<int, TerminalFieldBinding>();
+        var roots = new List<int>();
+        foreach ((string name, int fieldNumber) in terminalFields)
+        {
+            string[] parts = name.Split('.');
+            AllocatedHierarchyField? parent = null;
+            string path = string.Empty;
+            for (int index = 0; index < parts.Length - 1; index++)
+            {
+                path = index == 0 ? parts[index] : path + "." + parts[index];
+                if (!fieldsByPath.TryGetValue(path, out AllocatedHierarchyField? current))
+                {
+                    current = new AllocatedHierarchyField(
+                        path, parts[index], nextObjectNumber++, parent?.FieldNumber, []);
+                    fieldsByPath.Add(path, current);
+                    fields.Add(current);
+                    if (parent is null) roots.Add(current.FieldNumber);
+                    else parent.KidNumbers.Add(current.FieldNumber);
+                }
+                parent = current;
+            }
+            bindings.Add(fieldNumber, new TerminalFieldBinding(parts[^1], parent?.FieldNumber));
+            if (parent is null) roots.Add(fieldNumber);
+            else parent.KidNumbers.Add(fieldNumber);
+        }
+        return new AllocatedFieldHierarchy(fields, bindings, roots);
+    }
+
+    private static void ApplyFieldHierarchy(
+        IList<PdfIndirectObject> objects, AllocatedFieldHierarchy hierarchy)
+    {
+        for (int index = 0; index < objects.Count; index++)
+        {
+            PdfIndirectObject item = objects[index];
+            if (!hierarchy.TerminalBindings.TryGetValue(
+                    item.ObjectNumber, out TerminalFieldBinding? binding))
+                continue;
+            PdfDictionary dictionary = (PdfDictionary)item.Value;
+            var entries = dictionary
+                .Where(entry => !entry.Key.Equals(Name("T"))
+                    && !entry.Key.Equals(Name("Parent")))
+                .ToList();
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                Name("T"), UnicodeString(binding.PartialName)));
+            if (binding.ParentNumber.HasValue)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    Name("Parent"), new PdfIndirectReference(binding.ParentNumber.Value, 0)));
+            objects[index] = new PdfIndirectObject(
+                item.ObjectNumber, item.Generation, new PdfDictionary(entries), item.Offset);
+        }
+    }
+
+    private static void ApplyAccessibleAnnotationParents(
+        IList<PdfIndirectObject> objects,
+        IReadOnlyDictionary<int, AccessibleAnnotationStructure> associations)
+    {
+        for (int index = 0; index < objects.Count; index++)
+        {
+            PdfIndirectObject item = objects[index];
+            if (!associations.TryGetValue(
+                    item.ObjectNumber, out AccessibleAnnotationStructure? association)
+                || item.Value is not PdfDictionary dictionary)
+                continue;
+            var entries = dictionary
+                .Where(entry => !entry.Key.Equals(Name("StructParent")))
+                .ToList();
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                Name("StructParent"), new PdfInteger(association.ParentTreeKey)));
+            if (association.StructureType == "Form"
+                && !dictionary.ContainsKey(Name("Contents")))
+            {
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    Name("Contents"), UnicodeString(association.Description)));
+            }
+            objects[index] = new PdfIndirectObject(
+                item.ObjectNumber, item.Generation, new PdfDictionary(entries), item.Offset);
+        }
+    }
+
+    private static void ValidatePdfUaStructureHierarchy(
+        IReadOnlyList<StructureElementDefinition> elements)
+    {
+        var levelStack = new Dictionary<int, PdfStructureType>();
+        foreach (StructureElementDefinition element in elements)
+        {
+            if (element.Type == PdfStructureType.Heading)
+                throw new InvalidOperationException(
+                    "PDF/UA-2 structure cannot use the generic Heading type; use Heading1 through Heading6.");
+            if (element.MarkedContentId.HasValue
+                && element.Type is PdfStructureType.Document or PdfStructureType.Article
+                    or PdfStructureType.Section or PdfStructureType.List
+                    or PdfStructureType.ListItem
+                    or PdfStructureType.Table or PdfStructureType.TableRow)
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 {element.Type} structure elements cannot contain marked content directly.");
+            PdfStructureType? parent = element.Level == 0
+                ? null
+                : levelStack.TryGetValue(element.Level - 1, out PdfStructureType value)
+                    ? value
+                    : throw new InvalidOperationException(
+                        "A PDF/UA-2 structure element has no parent at the preceding level.");
+            if (element.Type == PdfStructureType.Document && parent.HasValue)
+                throw new InvalidOperationException(
+                    "PDF/UA-2 Document structure elements must be the sole top-level structure element.");
+            if (element.Type is PdfStructureType.Quote
+                    or PdfStructureType.Reference or PdfStructureType.Code
+                && parent is not (PdfStructureType.Paragraph or PdfStructureType.Span))
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 {element.Type} structure elements require a Paragraph or Span parent.");
+            PdfStructureType? requiredParent = element.Type switch
+            {
+                PdfStructureType.ListItem => PdfStructureType.List,
+                PdfStructureType.Label or PdfStructureType.ListBody => PdfStructureType.ListItem,
+                PdfStructureType.TableRow => PdfStructureType.Table,
+                PdfStructureType.TableHeaderCell or PdfStructureType.TableDataCell =>
+                    PdfStructureType.TableRow,
+                _ => null
+            };
+            if (requiredParent.HasValue && parent != requiredParent)
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 {element.Type} structure elements require a {requiredParent.Value} parent.");
+            if (element.Type is PdfStructureType.List or PdfStructureType.Table
+                && parent.HasValue
+                && IsPdfUaInlineOrContainerRestrictedParent(parent.Value))
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 {parent.Value} structure elements cannot contain {element.Type} children.");
+            if (parent.HasValue && IsPdfUaNumberedHeading(parent.Value)
+                && IsPdfUaNumberedHeadingForbiddenChild(element.Type))
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 {parent.Value} structure elements cannot contain {element.Type} children.");
+            if (IsPdfUaNumberedHeading(element.Type) && parent.HasValue
+                && IsPdfUaNumberedHeadingRestrictedParent(parent.Value))
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 {parent.Value} structure elements cannot contain numbered headings.");
+            if (element.Type == PdfStructureType.Span && parent is
+                PdfStructureType.Document or PdfStructureType.Part
+                    or PdfStructureType.Article or PdfStructureType.Section
+                    or PdfStructureType.Division)
+                throw new InvalidOperationException(
+                    $"PDF/UA-2 {parent.Value} structure elements cannot contain Span children directly.");
+            levelStack[element.Level] = element.Type;
+            foreach (int deeperLevel in levelStack.Keys
+                .Where(level => level > element.Level).ToArray())
+                levelStack.Remove(deeperLevel);
+        }
+        for (int index = 0; index < elements.Count; index++)
+        {
+            StructureElementDefinition list = elements[index];
+            if (list.Type == PdfStructureType.List)
+            {
+                bool containsLabel = elements.Skip(index + 1)
+                    .TakeWhile(element => element.Level > list.Level)
+                    .Any(element => element.Type == PdfStructureType.Label);
+                if (containsLabel && list.ListNumbering is null or PdfListNumbering.None)
+                    throw new InvalidOperationException(
+                        "A PDF/UA-2 List containing Label elements requires non-None list numbering.");
+            }
+            if (list.Type == PdfStructureType.Table)
+                ValidatePdfUaTableRegularity(elements, index);
+            if (IsPdfUaNumberedHeading(list.Type))
+            {
+                int sectionChildren = elements.Skip(index + 1)
+                    .TakeWhile(element => element.Level > list.Level)
+                    .Count(element => element.Level == list.Level + 1
+                        && element.Type == PdfStructureType.Section);
+                if (sectionChildren > 1)
+                    throw new InvalidOperationException(
+                        $"PDF/UA-2 {list.Type} structure elements can contain at most one direct Section child.");
+            }
+        }
+    }
+
+    private static void ValidatePdfUaTableRegularity(
+        IReadOnlyList<StructureElementDefinition> elements, int tableIndex)
+    {
+        int tableLevel = elements[tableIndex].Level;
+        int? columnCount = null;
+        for (int index = tableIndex + 1;
+             index < elements.Count && elements[index].Level > tableLevel;
+             index++)
+        {
+            StructureElementDefinition row = elements[index];
+            if (row.Level != tableLevel + 1 || row.Type != PdfStructureType.TableRow)
+                continue;
+            int cells = elements.Skip(index + 1)
+                .TakeWhile(element => element.Level > row.Level)
+                .Count(element => element.Level == row.Level + 1
+                    && element.Type is PdfStructureType.TableHeaderCell
+                        or PdfStructureType.TableDataCell);
+            if (columnCount.HasValue && cells != columnCount.Value)
+                throw new InvalidOperationException(
+                    "PDF/UA-2 table rows must contain the same number of cells.");
+            columnCount = cells;
+        }
+    }
+
+    private static bool IsPdfUaInlineOrContainerRestrictedParent(PdfStructureType type) =>
+        type is PdfStructureType.Heading or PdfStructureType.Heading1
+            or PdfStructureType.Heading2 or PdfStructureType.Heading3
+            or PdfStructureType.Heading4 or PdfStructureType.Heading5
+            or PdfStructureType.Heading6 or PdfStructureType.List
+            or PdfStructureType.ListItem or PdfStructureType.Label
+            or PdfStructureType.Table or PdfStructureType.TableRow
+            or PdfStructureType.Span or PdfStructureType.Quote;
+
+    private static bool IsPdfUaNumberedHeading(PdfStructureType type) =>
+        type is PdfStructureType.Heading1 or PdfStructureType.Heading2
+            or PdfStructureType.Heading3 or PdfStructureType.Heading4
+            or PdfStructureType.Heading5 or PdfStructureType.Heading6;
+
+    private static bool IsPdfUaNumberedHeadingForbiddenChild(PdfStructureType type) =>
+        type is PdfStructureType.Document or PdfStructureType.Part
+            or PdfStructureType.Article or PdfStructureType.Division
+            or PdfStructureType.Paragraph or PdfStructureType.Heading
+            or PdfStructureType.Heading1 or PdfStructureType.Heading2
+            or PdfStructureType.Heading3 or PdfStructureType.Heading4
+            or PdfStructureType.Heading5 or PdfStructureType.Heading6
+            or PdfStructureType.List or PdfStructureType.ListItem
+            or PdfStructureType.ListBody or PdfStructureType.Table
+            or PdfStructureType.TableRow or PdfStructureType.TableHeaderCell
+            or PdfStructureType.TableDataCell;
+
+    private static bool IsPdfUaNumberedHeadingRestrictedParent(PdfStructureType type) =>
+        type is PdfStructureType.Code or PdfStructureType.Form
+            or PdfStructureType.Heading or PdfStructureType.Heading1
+            or PdfStructureType.Heading2 or PdfStructureType.Heading3
+            or PdfStructureType.Heading4 or PdfStructureType.Heading5
+            or PdfStructureType.Heading6 or PdfStructureType.List
+            or PdfStructureType.ListItem or PdfStructureType.Label
+            or PdfStructureType.Note or PdfStructureType.Paragraph
+            or PdfStructureType.Quote or PdfStructureType.Span
+            or PdfStructureType.Table or PdfStructureType.TableRow;
 
     private static PdfChoiceOption[] ValidateChoiceOptions(
         IEnumerable<PdfChoiceOption> options, TrueTypeFont? embeddedFont, string parameterName)
@@ -4847,7 +5634,7 @@ public sealed partial class PdfDocumentBuilder
 
     private static PdfString UnicodeString(string value)
     {
-        byte[] text = Encoding.BigEndianUnicode.GetBytes(value);
+        byte[] text = PdfUnicodeEncoding.EncodeBigEndian(value);
         byte[] bytes = new byte[text.Length + 2];
         bytes[0] = 0xFE;
         bytes[1] = 0xFF;
@@ -4866,6 +5653,8 @@ public sealed partial class PdfDocumentBuilder
         Add("Producer", metadata.Producer);
         AddDate("CreationDate", metadata.CreationDate);
         AddDate("ModDate", metadata.ModificationDate);
+        if (metadata.Trapped.HasValue)
+            entries.Add(("Trapped", Name(metadata.Trapped.Value.ToString())));
         return Dictionary(entries.ToArray());
 
         void Add(string name, string? value)
@@ -4884,7 +5673,8 @@ public sealed partial class PdfDocumentBuilder
         using var output = new MemoryStream();
         var settings = new XmlWriterSettings
         {
-            Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            Encoding = new UTF8Encoding(
+                encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true),
             Indent = false,
             OmitXmlDeclaration = true,
             NewLineHandling = NewLineHandling.None
@@ -4900,8 +5690,11 @@ public sealed partial class PdfDocumentBuilder
             WriteAlternative("title", metadata.Title);
             WriteSequence("creator", metadata.Author);
             WriteAlternative("description", metadata.Subject);
+            WriteBag("language", metadata.Language);
             WriteSimple("pdf", "Keywords", "http://ns.adobe.com/pdf/1.3/", metadata.Keywords);
             WriteSimple("pdf", "Producer", "http://ns.adobe.com/pdf/1.3/", metadata.Producer);
+            WriteSimple("pdf", "Trapped", "http://ns.adobe.com/pdf/1.3/",
+                metadata.Trapped?.ToString());
             WriteSimple("xmp", "CreatorTool", "http://ns.adobe.com/xap/1.0/", metadata.Creator);
             WriteSimple("xmp", "CreateDate", "http://ns.adobe.com/xap/1.0/", XmpDate(metadata.CreationDate));
             WriteSimple("xmp", "ModifyDate", "http://ns.adobe.com/xap/1.0/", XmpDate(metadata.ModificationDate));
@@ -4949,6 +5742,15 @@ public sealed partial class PdfDocumentBuilder
                 xml.WriteElementString("rdf", "li", "http://www.w3.org/1999/02/22-rdf-syntax-ns#", value);
                 xml.WriteEndElement(); xml.WriteEndElement();
             }
+            void WriteBag(string name, string? value)
+            {
+                if (string.IsNullOrEmpty(value)) return;
+                xml.WriteStartElement("dc", name, "http://purl.org/dc/elements/1.1/");
+                xml.WriteStartElement("rdf", "Bag", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+                xml.WriteElementString(
+                    "rdf", "li", "http://www.w3.org/1999/02/22-rdf-syntax-ns#", value);
+                xml.WriteEndElement(); xml.WriteEndElement();
+            }
         }
         return output.ToArray();
     }
@@ -4979,6 +5781,17 @@ public sealed partial class PdfDocumentBuilder
 
     private static string? XmpDate(DateTimeOffset? value) =>
         value?.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+
+    private void RequireVersion(PdfVersion minimum, string feature)
+    {
+        if (Version.CompareTo(minimum) < 0)
+            throw new InvalidOperationException(
+                $"{feature} requires PDF {minimum} or later.");
+    }
+
+    private static bool HasImageSoftMask(PdfImage image) =>
+        image.SoftMask is not null && (image.SoftMask.SoftMask is null
+            || HasImageSoftMask(image.SoftMask));
 
     private static void ValidateDimension(double value, string name)
     {
@@ -5132,7 +5945,7 @@ public sealed partial class PdfDocumentBuilder
 
     private static PdfArray SpotColorSpace(PdfSpotColor color) => new([
         Name("Separation"),
-        new PdfName(Encoding.UTF8.GetBytes(color.Name)),
+        new PdfName(PdfUnicodeEncoding.EncodeUtf8(color.Name)),
         Name("DeviceCMYK"),
         Dictionary(
             ("FunctionType", new PdfInteger(2)),
@@ -5246,6 +6059,15 @@ public sealed partial class PdfDocumentBuilder
         PdfPageBox.Trim => "TrimBox",
         PdfPageBox.Art => "ArtBox",
         _ => throw new ArgumentOutOfRangeException(nameof(box))
+    };
+
+    private static string PageTabOrderName(PdfPageTabOrder tabOrder) => tabOrder switch
+    {
+        PdfPageTabOrder.Row => "R",
+        PdfPageTabOrder.Column => "C",
+        PdfPageTabOrder.Structure => "S",
+        PdfPageTabOrder.AnnotationArray => "A",
+        _ => throw new ArgumentOutOfRangeException(nameof(tabOrder))
     };
 
     private static string LinkBorderStyleName(PdfLinkBorderStyle style) => style switch
@@ -5386,11 +6208,15 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfPageBox, PageBoxDefinition> Boxes,
         PdfPageTransition? Transition,
         double? DisplayDuration,
-        PdfImage? Thumbnail);
+        PdfImage? Thumbnail,
+        PdfPageTabOrder? TabOrder);
     private sealed record PageBoxDefinition(
         double X, double Y, double Width, double Height);
     private sealed record AllocatedPage(
         PageDefinition Definition, int PageNumber, int? ContentNumber, int[] AnnotationNumbers);
+    private sealed record AccessibleAnnotationStructure(
+        int PageIndex, int AnnotationNumber, int StructureElementNumber, int ParentTreeKey,
+        string StructureType, string Description);
     private abstract record LinkDefinition(
         double X, double Y, double Width, double Height, PdfLinkAppearance Appearance,
         IReadOnlyList<PdfTextQuad>? Quads, PdfAnnotationMetadata? Metadata, string? Contents);
@@ -5419,7 +6245,8 @@ public sealed partial class PdfDocumentBuilder
         int? PageIndex,
         int? MarkedContentId,
         string? AlternateDescription,
-        string? ActualText);
+        string? ActualText,
+        PdfListNumbering? ListNumbering);
     private sealed record NamedDestinationDefinition(
         string Name, int PageIndex, PdfDestination Destination);
     private sealed record OpenActionDefinition(
@@ -5440,6 +6267,14 @@ public sealed partial class PdfDocumentBuilder
         PdfFileAttachmentIcon Icon, PdfRgbColor Color, PdfAnnotationMetadata? Metadata);
     private sealed record AllocatedFileAttachmentAnnotation(
         FileAttachmentAnnotationDefinition Definition, int AnnotationNumber, int AppearanceNumber);
+    private sealed record AllocatedFieldHierarchy(
+        IReadOnlyList<AllocatedHierarchyField> Fields,
+        IReadOnlyDictionary<int, TerminalFieldBinding> TerminalBindings,
+        IReadOnlyList<int> RootFieldNumbers);
+    private sealed record AllocatedHierarchyField(
+        string QualifiedName, string PartialName, int FieldNumber, int? ParentNumber,
+        List<int> KidNumbers);
+    private sealed record TerminalFieldBinding(string PartialName, int? ParentNumber);
     private sealed record TextFieldDefinition(
         int PageIndex, string Name, double X, double Y, double Width, double Height,
         string Value, string DefaultValue, string? RichTextValue,

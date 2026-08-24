@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using KillerPdf.Engine.Objects;
 
 namespace KillerPdf.Engine.Fonts;
 
@@ -530,7 +531,14 @@ public sealed class TrueTypeFont
     {
         if (bytes.Length % 2 != 0)
             return string.Empty;
-        return Encoding.BigEndianUnicode.GetString(bytes);
+        try
+        {
+            return PdfUnicodeEncoding.DecodeBigEndian(bytes, "A TrueType name record");
+        }
+        catch (InvalidOperationException)
+        {
+            return string.Empty;
+        }
     }
 
     private Table Required(string tag) =>

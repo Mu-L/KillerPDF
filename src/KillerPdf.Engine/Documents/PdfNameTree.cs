@@ -16,8 +16,8 @@ internal static class PdfNameTree
         ArgumentNullException.ThrowIfNull(root);
         var result = new List<PdfNameTreeEntry>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
-        var active = new HashSet<int>();
-        var visited = new HashSet<int>();
+        var active = new HashSet<(int ObjectNumber, int Generation)>();
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
         Visit(root, 0);
         return result;
 
@@ -25,15 +25,15 @@ internal static class PdfNameTree
         {
             if (depth > MaximumDepth)
                 throw new InvalidOperationException("The name tree exceeds the supported nesting depth.");
-            int? referenceNumber = null;
+            (int ObjectNumber, int Generation)? referenceKey = null;
             if (value is PdfIndirectReference reference)
             {
-                referenceNumber = reference.ObjectNumber;
-                if (!active.Add(reference.ObjectNumber))
+                referenceKey = (reference.ObjectNumber, reference.Generation);
+                if (!active.Add(referenceKey.Value))
                     throw new InvalidOperationException("The name tree contains a cycle.");
-                if (!visited.Add(reference.ObjectNumber))
+                if (!visited.Add(referenceKey.Value))
                 {
-                    active.Remove(reference.ObjectNumber);
+                    active.Remove(referenceKey.Value);
                     throw new InvalidOperationException(
                         "The name tree references the same node more than once.");
                 }
@@ -72,7 +72,7 @@ internal static class PdfNameTree
             }
             finally
             {
-                if (referenceNumber.HasValue) active.Remove(referenceNumber.Value);
+                if (referenceKey.HasValue) active.Remove(referenceKey.Value);
             }
         }
     }

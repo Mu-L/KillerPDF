@@ -204,7 +204,7 @@ public sealed class PdfDetachedSignatureWriterTests
         byte[] source = new PdfDocumentBuilder()
             .AddBlankPage()
             .AddTextField(0, "name", 20, 20, 100, 20)
-            .AddSignatureField(0, "approval.signature", 20, 60, 180, 44,
+            .AddSignatureField(0, "approval-signature", 20, 60, 180, 44,
                 fieldLock: new PdfSignatureFieldLock(
                     PdfSignatureLockAction.Include, ["name"],
                     PdfSignatureLockPermission.NoChanges),
@@ -231,7 +231,7 @@ public sealed class PdfDetachedSignatureWriterTests
         PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
             original, _ => [1, 2, 3], new PdfSignatureOptions
             {
-                FieldName = "approval.signature",
+                FieldName = "approval-signature",
                 PageIndex = 999,
                 ReservedSignatureSize = 16
             }));
@@ -331,6 +331,36 @@ public sealed class PdfDetachedSignatureWriterTests
         Assert.Equal(structureReference.ObjectNumber,
             Assert.IsType<PdfIndirectReference>(catalog[Name("StructTreeRoot")]).ObjectNumber);
         Assert.True(Assert.Single(PdfSignatureReader.Read(signed)).IsSigned);
+    }
+
+    [Fact]
+    public void Sign_FillsPreAuthoredQualifiedSignatureField()
+    {
+        PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(new PdfDocumentBuilder()
+                .AddBlankPage()
+                .AddTextField(0, "workflow.owner", 20, 20, 120, 20, "Steve")
+                .AddSignatureField(0, "workflow.approval", 20, 60, 160, 40)
+                .Build()),
+            _ => [1],
+            new PdfSignatureOptions
+            {
+                FieldName = "workflow.approval",
+                PageIndex = 999,
+                ReservedSignatureSize = 8
+            }));
+        PdfDictionary catalog = ResolveDictionary(signed, signed.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary parent = ResolveDictionary(signed,
+            Assert.Single(Assert.IsType<PdfArray>(form[Name("Fields")])));
+        PdfDictionary signature = ResolveDictionary(signed,
+            Assert.IsType<PdfArray>(parent[Name("Kids")])[1]);
+
+        Assert.Equal("workflow", DecodeUnicode(Assert.IsType<PdfString>(parent[Name("T")])));
+        Assert.Equal("approval", DecodeUnicode(Assert.IsType<PdfString>(signature[Name("T")])));
+        PdfSignatureInfo info = Assert.Single(PdfSignatureReader.Read(signed));
+        Assert.Equal("workflow.approval", info.FieldName);
+        Assert.True(info.IsSigned);
     }
 
     [Fact]
@@ -834,6 +864,9 @@ public sealed class PdfDetachedSignatureWriterTests
         Assert.Throws<ArgumentOutOfRangeException>(() => PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(ordinary), _ => [1],
             new PdfSignatureOptions { PageIndex = 1 }));
+        Assert.Throws<ArgumentException>(() => PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(ordinary), _ => [1],
+            new PdfSignatureOptions { SignerName = "bad\uD800name" }));
         Assert.Throws<InvalidOperationException>(() => PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(ordinary), _ => [],
             new PdfSignatureOptions { ReservedSignatureSize = 8 }));

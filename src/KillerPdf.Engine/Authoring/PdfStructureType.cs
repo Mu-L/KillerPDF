@@ -37,6 +37,16 @@ public enum PdfStructureType
 
 internal static class PdfStructureTypeNames
 {
+    internal static bool UsesPdf17Namespace(PdfStructureType type) =>
+        type is PdfStructureType.Article or PdfStructureType.Quote or PdfStructureType.Note
+            or PdfStructureType.Reference or PdfStructureType.Code;
+
+    internal static string Name(PdfStructureType type, bool pdfUa2) =>
+        pdfUa2 && type == PdfStructureType.Note ? "FENote" : Name(type);
+
+    internal static bool UsesPdf17Namespace(PdfStructureType type, bool pdfUa2) =>
+        !(pdfUa2 && type == PdfStructureType.Note) && UsesPdf17Namespace(type);
+
     internal static string Name(PdfStructureType type) => type switch
     {
         PdfStructureType.Document => "Document",
@@ -67,6 +77,7 @@ internal static class PdfStructureTypeNames
         PdfStructureType.Code => "Code",
         PdfStructureType.Link => "Link",
         PdfStructureType.Figure => "Figure",
+        PdfStructureType.Formula => "Formula",
         PdfStructureType.Form => "Form",
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };

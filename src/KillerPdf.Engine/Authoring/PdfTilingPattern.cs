@@ -29,9 +29,20 @@ public sealed class PdfTilingPattern
                 "Tagged marked content belongs to a page structure tree and cannot be captured inside a reusable pattern.",
                 nameof(content));
 
+        PdfPatternMatrix effectiveMatrix = matrix ?? PdfPatternMatrix.Identity;
+        if (!double.IsFinite(effectiveMatrix.A)
+            || !double.IsFinite(effectiveMatrix.B)
+            || !double.IsFinite(effectiveMatrix.C)
+            || !double.IsFinite(effectiveMatrix.D)
+            || !double.IsFinite(effectiveMatrix.E)
+            || !double.IsFinite(effectiveMatrix.F)
+            || effectiveMatrix.A * effectiveMatrix.D
+                - effectiveMatrix.B * effectiveMatrix.C == 0)
+            throw new ArgumentOutOfRangeException(nameof(matrix),
+                "A pattern matrix must be finite and invertible.");
         TilingType = tilingType;
         PaintType = paintType;
-        Matrix = matrix ?? PdfPatternMatrix.Identity;
+        Matrix = effectiveMatrix;
         Content = content.Build();
         Fonts = content.FontResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         EmbeddedFonts = content.EmbeddedFontResources.ToArray();

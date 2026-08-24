@@ -142,8 +142,8 @@ public sealed class PdfIccColorSpaceTests
 
     private static PdfIccProfile Profile(string colorSpace)
     {
-        byte[] bytes = new byte[128];
-        BinaryPrimitives.WriteUInt32BigEndian(bytes, 128);
+        byte[] bytes = new byte[132];
+        BinaryPrimitives.WriteUInt32BigEndian(bytes, 132);
         Encoding.ASCII.GetBytes(colorSpace).CopyTo(bytes, 16);
         "acsp"u8.CopyTo(bytes.AsSpan(36));
         return PdfIccProfile.Load(bytes);

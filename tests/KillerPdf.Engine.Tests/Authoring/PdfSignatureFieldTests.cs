@@ -231,7 +231,7 @@ public sealed class PdfSignatureFieldTests
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
-            .AddSignatureField(0, "approval.signature", 72, 100, 220, 60,
+            .AddSignatureField(0, "approval-signature", 72, 100, 220, 60,
                 new PdfFormFieldMetadata
                 {
                     Tooltip = "Approval signature",
@@ -258,6 +258,8 @@ public sealed class PdfSignatureFieldTests
             .AddTextField(0, "duplicate", 0, 0, 100, 20);
         Assert.Throws<ArgumentException>(() => builder.AddSignatureField(
             0, "duplicate", 0, 30, 100, 30));
+        Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder().AddBlankPage()
+            .AddSignatureField(0, "bad..name", 0, 0, 100, 30));
     }
 
     [Fact]

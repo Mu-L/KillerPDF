@@ -14,6 +14,241 @@ namespace KillerPdf.Engine.Tests.Editing;
 
 public sealed class PdfIncrementalAnnotationEditorTests
 {
+    [Fact]
+    public void Build_RejectsExhaustedStructureParentKeySpace()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Exhausted parent keys",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        rootEntries[Name("ParentTreeNextKey")] = new PdfInteger(long.MaxValue);
+        setup.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(rootEntries));
+        PdfDocument exhausted = PdfDocument.Open(setup.Build());
+
+        Assert.Throws<OverflowException>(() =>
+            new PdfIncrementalAnnotationEditor(exhausted)
+                .AddTextNote(0, 20, 20, "Cannot allocate")
+                .Build());
+    }
+
+    [Fact]
+    public void Build_RejectsNegativeStructureParentTreeKey()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        rootEntries[Name("ParentTree")] = new PdfDictionary([
+            new(Name("Nums"), new PdfArray([new PdfInteger(-1), PdfNull.Instance]))
+        ]);
+        setup.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(rootEntries));
+        PdfDocument malformed = PdfDocument.Open(setup.Build());
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "Cannot allocate")
+                .Build());
+    }
+
+
+    [Fact]
+    public void Build_NormalizesDirectStructureTreeRootForTaggedAnnotation()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Direct structure root",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Existing note")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        PdfDictionary root = ResolveDictionary(source, catalog[Name("StructTreeRoot")]);
+        PdfObject documentValue = Assert.IsType<PdfArray>(root[Name("K")])[0];
+        PdfDictionary documentElement = ResolveDictionary(source, documentValue);
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfObject existingDocumentKids = documentElement[Name("K")];
+        PdfIndirectReference documentKids = setup.AddObject(
+            existingDocumentKids is PdfArray existingArray
+                ? existingArray : new PdfArray([existingDocumentKids]));
+        var documentEntries = documentElement.ToDictionary(
+            entry => entry.Key, entry => entry.Value);
+        documentEntries[Name("K")] = documentKids;
+        documentElement = new PdfDictionary(documentEntries);
+        PdfIndirectReference directKids = setup.AddObject(
+            new PdfArray([documentElement]));
+        var directRootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        directRootEntries[Name("K")] = directKids;
+        root = new PdfDictionary(directRootEntries);
+        setup.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+            .Where(entry => !entry.Key.Equals(Name("StructTreeRoot")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("StructTreeRoot"), root))));
+        PdfDocument direct = PdfDocument.Open(setup.Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalAnnotationEditor(direct)
+            .AddTextNote(0, 20, 20, "Accessible note")
+            .Build());
+        PdfDictionary reopenedCatalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfIndirectReference reopenedRootReference = Assert.IsType<PdfIndirectReference>(
+            reopenedCatalog[Name("StructTreeRoot")]);
+        PdfDictionary reopenedRoot = ResolveDictionary(reopened, reopenedRootReference);
+        PdfDictionary reopenedDocument = ResolveDictionary(
+            reopened, reopenedRoot[Name("K")]);
+        PdfIndirectReference reopenedDocumentReference = Assert.IsType<PdfIndirectReference>(
+            reopenedRoot[Name("K")]);
+        PdfArray parentNumbers = Assert.IsType<PdfArray>(ResolveDictionary(
+            reopened, reopenedRoot[Name("ParentTree")])[Name("Nums")]);
+
+        PdfArray reopenedDocumentKids = Assert.IsType<PdfArray>(
+            reopenedDocument[Name("K")]);
+        Assert.Equal(2, reopenedDocumentKids.Count);
+        Assert.All(reopenedDocumentKids, child => Assert.Equal(
+            reopenedDocumentReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(
+                ResolveDictionary(reopened, child)[Name("P")]).ObjectNumber));
+        Assert.Contains(parentNumbers, item => item is PdfInteger integer && integer.Value == 1);
+        Assert.Equal(2, Assert.IsType<PdfInteger>(
+            reopenedRoot[Name("ParentTreeNextKey")]).Value);
+    }
+
+    [Fact]
+    public void Build_PreservesEncryptedPdfUaStructureWithoutLeakingText()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Encrypted accessible annotations",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                AllowAccessibilityExtraction = true,
+                AllowAnnotationModification = true
+            })
+            .AddBlankPage()
+            .AddTextNote(0, 72, 700, "Existing encrypted note")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        const string appendedText = "Confidential accessible highlight";
+        byte[] output = new PdfIncrementalAnnotationEditor(
+                PdfDocument.Open(source, "owner"))
+            .AddHighlight(0, 72, 650, 160, 20, appendedText)
+            .Build(new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressObjectStreams = true,
+                CompressCrossReferenceStream = true
+            });
+        PdfDocument reopened = PdfDocument.Open(output, "owner");
+        PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary structureRoot = ResolveDictionary(reopened, catalog[Name("StructTreeRoot")]);
+        PdfDictionary parentTree = ResolveDictionary(reopened, structureRoot[Name("ParentTree")]);
+
+        Assert.Equal(4, Assert.IsType<PdfArray>(parentTree[Name("Nums")]).Count);
+        Assert.Equal(2, Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")]).Count);
+        Assert.True(output.AsSpan(0, source.Length).SequenceEqual(source));
+        Assert.DoesNotContain(appendedText, Encoding.Latin1.GetString(output));
+    }
+
+    [Fact]
+    public void Build_PreservesTaggedStructureAndAssociatesNewAnnotation()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible incremental annotations",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddTextNote(0, 72, 700, "Existing review note")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        PdfDocument initial = PdfDocument.Open(source);
+        PdfDictionary initialCatalog = ResolveDictionary(initial, initial.Trailer[Name("Root")]);
+        PdfIndirectReference initialRootReference = Assert.IsType<PdfIndirectReference>(
+            initialCatalog[Name("StructTreeRoot")]);
+        PdfDictionary initialRoot = ResolveDictionary(initial, initialRootReference);
+        PdfArray initialNamespaces = Assert.IsType<PdfArray>(initialRoot[Name("Namespaces")]);
+        var setup = new PdfIncrementalUpdateBuilder(initial);
+        PdfIndirectReference customNamespace = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Namespace")),
+            new(Name("NS"), new PdfString(
+                Encoding.ASCII.GetBytes("https://example.test/custom-structure"),
+                PdfStringForm.Literal))
+        ]));
+        var alteredRoot = initialRoot.ToDictionary(entry => entry.Key, entry => entry.Value);
+        PdfIndirectReference namespaceArray = setup.AddObject(new PdfArray(
+            [customNamespace, .. initialNamespaces]));
+        alteredRoot[Name("Namespaces")] = namespaceArray;
+        alteredRoot[Name("ParentTreeNextKey")] = new PdfInteger(0);
+        setup.ReplaceObject(initialRootReference.ObjectNumber, new PdfDictionary(alteredRoot));
+        source = setup.Build();
+        byte[] output = new PdfIncrementalAnnotationEditor(
+                PdfDocument.Open(source))
+            .AddHighlight(0, 72, 650, 160, 20, "New review highlight")
+            .Build();
+        PdfDocument document = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary structureRoot = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary parentTree = ResolveDictionary(document, structureRoot[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        PdfArray annotations = Assert.IsType<PdfArray>(Pages(document)[0].Page[Name("Annots")]);
+
+        Assert.Equal(2, annotations.Count);
+        Assert.All(annotations, value => Assert.True(
+            ResolveDictionary(document, value).ContainsKey(Name("StructParent"))));
+        Assert.Equal(4, numbers.Count);
+        Assert.Equal(0, Assert.IsType<PdfInteger>(numbers[0]).Value);
+        Assert.Equal(1, Assert.IsType<PdfInteger>(numbers[2]).Value);
+        Assert.All(new[] { numbers[1], numbers[3] }, value => Assert.Equal("Annot",
+            Assert.IsType<PdfName>(ResolveDictionary(document, value)[Name("S")]).ValueAsLatin1()));
+        PdfDictionary appendedElement = ResolveDictionary(document, numbers[3]);
+        PdfDictionary selectedNamespace = ResolveDictionary(document, appendedElement[Name("NS")]);
+        Assert.Equal("http://iso.org/pdf2/ssn", Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(selectedNamespace[Name("NS")]).Bytes.Span));
+        Assert.True(output.AsSpan(0, source.Length).SequenceEqual(source));
+    }
+
+    [Fact]
+    public void Build_RejectsUnpairedSurrogateInAnnotationText()
+    {
+        PdfDocument document = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        var editor = new PdfIncrementalAnnotationEditor(document)
+            .AddTextNote(0, 10, 10, "bad\uD800text");
+
+        Assert.Throws<ArgumentException>(() => editor.Build());
+    }
+
     [Theory]
     [InlineData(1, false)]
     [InlineData(2, false)]

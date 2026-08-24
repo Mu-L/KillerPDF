@@ -11,6 +11,34 @@ namespace KillerPdf.Engine.Tests.Authoring;
 public sealed class PdfVisualAnnotationAuthoringTests
 {
     [Fact]
+    public void PdfUa2_FreeTextAndImageStampReceiveStructureParents()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfImage image = PdfImage.FromRgb(1, 1, new byte[] { 30, 100, 200 });
+        PdfDocument document = Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible visual annotations",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddFreeText(0, 40, 600, 180, 60, "AA", font)
+            .AddImageStamp(0, 40, 520, 40, 40, image,
+                contents: "Blue review image")
+            .AddStructureContainer(PdfStructureType.Document));
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfArray annotations = Assert.IsType<PdfArray>(page[Name("Annots")]);
+
+        Assert.Equal(2, annotations.Count);
+        Assert.All(annotations, value => Assert.True(
+            ResolveDictionary(document, value).ContainsKey(Name("StructParent"))));
+    }
+
+    [Fact]
     public void AddFreeText_EmbedsFontAndWritesExplicitAppearance()
     {
         TrueTypeFont font = TrueTypeFont.Load(TrueTypeFontTests.BuildTestFont(format12: false));

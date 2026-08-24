@@ -51,4 +51,11 @@ public sealed class PdfHeaderTests
     {
         Assert.Equal("%PDF-2.0\n", System.Text.Encoding.ASCII.GetString(PdfHeader.Create(PdfVersion.Pdf20)));
     }
+
+    [Fact]
+    public void Create_RejectsDefaultVersion()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PdfHeader.Create(default(PdfVersion)));
+    }
 }

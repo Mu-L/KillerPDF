@@ -13,6 +13,22 @@ public abstract class PdfShading
         _stops = stops.ToArray();
         if (_stops.Length < 2)
             throw new ArgumentException("A gradient requires at least two color stops.", nameof(stops));
+        foreach (PdfGradientStop stop in _stops)
+        {
+            int expectedComponents = stop.ColorSpace switch
+            {
+                PdfGradientColorSpace.Gray => 1,
+                PdfGradientColorSpace.Rgb => 3,
+                PdfGradientColorSpace.Cmyk => 4,
+                _ => 0
+            };
+            if (expectedComponents == 0 || stop.Components is null
+                || stop.Components.Count != expectedComponents
+                || stop.Components.Any(component =>
+                    !double.IsFinite(component) || component is < 0 or > 1))
+                throw new ArgumentException(
+                    "A gradient contains an uninitialized color stop.", nameof(stops));
+        }
         if (_stops[0].Offset != 0 || _stops[^1].Offset != 1)
             throw new ArgumentException(
                 "A gradient must begin at offset zero and end at offset one.", nameof(stops));
@@ -27,6 +43,15 @@ public abstract class PdfShading
         }
         ExtendStart = extendStart;
         ExtendEnd = extendEnd;
+        if (bounds is PdfShadingBounds value
+            && (!double.IsFinite(value.MinimumX)
+                || !double.IsFinite(value.MinimumY)
+                || !double.IsFinite(value.MaximumX)
+                || !double.IsFinite(value.MaximumY)
+                || value.MaximumX <= value.MinimumX
+                || value.MaximumY <= value.MinimumY))
+            throw new ArgumentOutOfRangeException(nameof(bounds),
+                "Shading bounds must be finite and have positive width and height.");
         Bounds = bounds;
         AntiAlias = antiAlias;
         if (background is not null && background.ColorSpace != _stops[0].ColorSpace)

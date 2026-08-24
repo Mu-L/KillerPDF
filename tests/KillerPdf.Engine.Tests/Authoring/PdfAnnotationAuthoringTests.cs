@@ -37,6 +37,68 @@ public sealed class PdfAnnotationAuthoringTests
     }
 
     [Fact]
+    public void PdfUa2_TextNoteWritesAnnotObjectReference()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible note",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddTextNote(0, 72, 650, "Review this paragraph")
+            .AddLineAnnotation(0, new PdfPoint(72, 620), new PdfPoint(180, 620),
+                contents: "Review line")
+            .AddRectangleAnnotation(0, 72, 580, 100, 24,
+                contents: "Review rectangle")
+            .AddCaretAnnotation(0, 72, 540, 18, 24,
+                contents: "Insertion point")
+            .AddRedactionMark(0,
+                [new PdfTextQuad(
+                    new PdfPoint(72, 520), new PdfPoint(172, 520),
+                    new PdfPoint(72, 500), new PdfPoint(172, 500))],
+                contents: "Proposed redaction")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfDictionary annotation = Annotation(document, 0);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary structureRoot = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary parentTree = ResolveDictionary(document, structureRoot[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        PdfDictionary annotElement = ResolveDictionary(document, numbers[1]);
+
+        Assert.True(annotation.ContainsKey(Name("StructParent")));
+        Assert.Equal("Annot", Assert.IsType<PdfName>(annotElement[Name("S")]).ValueAsLatin1());
+        PdfDictionary objectReference = Assert.IsType<PdfDictionary>(annotElement[Name("K")]);
+        PdfDictionary referencedAnnotation = ResolveDictionary(document, objectReference[Name("Obj")]);
+        Assert.Equal("Text",
+            Assert.IsType<PdfName>(referencedAnnotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal("Review this paragraph",
+            DecodeUnicode(Assert.IsType<PdfString>(referencedAnnotation[Name("Contents")])));
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfArray annotations = Assert.IsType<PdfArray>(page[Name("Annots")]);
+        Assert.Equal(5, annotations.Count);
+        Assert.All(annotations, value => Assert.True(
+            ResolveDictionary(document, value).ContainsKey(Name("StructParent"))));
+        Assert.Equal(10, numbers.Count);
+
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Missing description",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddHighlight(0, 72, 650, 100, 18)
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+    }
+
+    [Fact]
     public void AddHighlight_WritesQuadPointsOpacityAndMultiplyAppearance()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
@@ -88,6 +150,8 @@ public sealed class PdfAnnotationAuthoringTests
     {
         var builder = new PdfDocumentBuilder().AddBlankPage();
         Assert.Throws<ArgumentException>(() => builder.AddHighlight(0, []));
+        Assert.Throws<ArgumentException>(() =>
+            builder.AddHighlight(0, [default(PdfTextQuad)]));
         Assert.Throws<ArgumentException>(() => new PdfTextQuad(
             new PdfPoint(0, 0), new PdfPoint(10, 0),
             new PdfPoint(20, 0), new PdfPoint(30, 0)));

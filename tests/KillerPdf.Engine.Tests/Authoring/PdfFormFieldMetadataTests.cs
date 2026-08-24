@@ -78,6 +78,74 @@ public sealed class PdfFormFieldMetadataTests
         Assert.Equal((1 << 17) | 7, FieldFlags(document, fields[3]));
     }
 
+    [Fact]
+    public void PdfUa2_WritesFormObjectReferencesForEveryWidget()
+    {
+        static PdfFormFieldMetadata Metadata(string tooltip) => new() { Tooltip = tooltip };
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible form",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddCheckBox(0, "survey.accepted", 10, 10, 20, 20,
+                fieldMetadata: Metadata("Accept the terms"))
+            .AddRadioGroup("survey.plan",
+            [
+                new PdfRadioButtonOption(0, 10, 40, 20, 20, "Free"),
+                new PdfRadioButtonOption(0, 40, 40, 20, 20, "Pro")
+            ], fieldMetadata: Metadata("Choose a plan"))
+            .AddSignatureField(0, "survey.signature", 10, 70, 140, 30,
+                fieldMetadata: Metadata("Sign the survey"))
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfArray annotations = Assert.IsType<PdfArray>(page[Name("Annots")]);
+        PdfDictionary structureRoot = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary parentTree = ResolveDictionary(document, structureRoot[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+
+        Assert.Equal(4, annotations.Count);
+        Assert.Equal(8, numbers.Count);
+        var mappedAnnotations = new HashSet<int>();
+        for (int index = 0; index < numbers.Count; index += 2)
+        {
+            PdfDictionary formElement = ResolveDictionary(document, numbers[index + 1]);
+            Assert.Equal("Form",
+                Assert.IsType<PdfName>(formElement[Name("S")]).ValueAsLatin1());
+            PdfDictionary objectReference = Assert.IsType<PdfDictionary>(formElement[Name("K")]);
+            mappedAnnotations.Add(Assert.IsType<PdfIndirectReference>(
+                objectReference[Name("Obj")]).ObjectNumber);
+        }
+        Assert.Equal(annotations.Select(annotation =>
+            Assert.IsType<PdfIndirectReference>(annotation).ObjectNumber).ToHashSet(),
+            mappedAnnotations);
+        Assert.All(annotations, annotation =>
+        {
+            PdfDictionary widget = ResolveDictionary(document, annotation);
+            Assert.True(widget.ContainsKey(Name("StructParent")));
+            Assert.False(string.IsNullOrWhiteSpace(
+                DecodeUnicode(Assert.IsType<PdfString>(widget[Name("Contents")]))));
+        });
+
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "Form", Language = "en-US" })
+            .EnablePdfUa2Conformance().AddBlankPage()
+            .AddCheckBox(0, "check", 0, 0, 20, 20)
+            .AddStructureContainer(PdfStructureType.Document).Build());
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "Form", Language = "en-US" })
+            .EnablePdfUa2Conformance().AddBlankPage()
+            .AddTextField(0, "text", 0, 0, 100, 20,
+                fieldMetadata: Metadata("Enter text"))
+            .AddStructureContainer(PdfStructureType.Document).Build());
+    }
+
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

@@ -214,6 +214,22 @@ public sealed class PdfIncrementalUpdateBuilderTests
     }
 
     [Fact]
+    public void FreeObject_DoesNotRemoveAStaleInformationRegistrationByNumberAlone()
+    {
+        PdfDocument source = PdfDocument.Open(SourceWithStaleInformationReference());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .FreeObject(2)
+            .Build());
+
+        PdfIndirectReference information = Assert.IsType<PdfIndirectReference>(
+            reopened.Trailer[Name("Info")]);
+        Assert.Equal(2, information.ObjectNumber);
+        Assert.Equal(1, information.Generation);
+        Assert.Equal(PdfCrossReferenceEntryType.Free, reopened.CrossReferences[2].Type);
+    }
+
+    [Fact]
     public void FreeObject_LinksNewEntriesToTheInheritedFreeChain()
     {
         PdfDocument original = PdfDocument.Open(SourceWithExistingFreeHead());
@@ -416,6 +432,32 @@ public sealed class PdfIncrementalUpdateBuilderTests
     }
 
     [Fact]
+    public void CrossReferenceStream_DoesNotUseReplacementBehindStaleRootGeneration()
+    {
+        var source = new StringBuilder("%PDF-1.4\n");
+        int catalogOffset = source.Length;
+        source.Append("1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 2\n0000000000 65535 f \n");
+        source.Append($"{catalogOffset:0000000000} 00000 n \n");
+        source.Append("trailer\n<< /Size 2 /Root 1 1 R >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        PdfDocument original = PdfDocument.Open(
+            Encoding.ASCII.GetBytes(source.ToString()));
+        var update = new PdfIncrementalUpdateBuilder(original);
+        update.ReplaceObject(1, new PdfDictionary([
+            new(Name("Type"), Name("Catalog")),
+            new(Name("Version"), Name("1.5"))
+        ]));
+
+        Assert.Throws<InvalidOperationException>(() => update.Build(
+            new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream
+            }));
+    }
+
+    [Fact]
     public void CrossReferenceStream_CanPackBoundedIncrementalObjectStreams()
     {
         PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
@@ -504,6 +546,22 @@ public sealed class PdfIncrementalUpdateBuilderTests
         source.Append($"{objectOffset:0000000000} 00002 n \n");
         source.Append($"{catalogOffset:0000000000} 00000 n \n");
         source.Append("trailer\n<< /Size 3 /Root 2 0 R >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
+    private static byte[] SourceWithStaleInformationReference()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int catalogOffset = source.Length;
+        source.Append("1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        int valueOffset = source.Length;
+        source.Append("2 0 obj\n<< /Title (active object) >>\nendobj\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 3\n0000000000 65535 f \n");
+        source.Append($"{catalogOffset:0000000000} 00000 n \n");
+        source.Append($"{valueOffset:0000000000} 00000 n \n");
+        source.Append("trailer\n<< /Size 3 /Root 1 0 R /Info 2 1 R >>\n");
         source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
     }

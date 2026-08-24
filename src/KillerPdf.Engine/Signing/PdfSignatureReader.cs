@@ -55,8 +55,8 @@ public static class PdfSignatureReader
         PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
         PdfIndirectReference? certificationObject = CertificationObjectReference(document, catalog);
         var result = new List<PdfSignatureInfo>();
-        var active = new HashSet<int>();
-        var visited = new HashSet<int>();
+        var active = new HashSet<(int ObjectNumber, int Generation)>();
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
         foreach (PdfObject field in fields) Visit(field, null, null, 0);
         return result;
 
@@ -67,9 +67,10 @@ public static class PdfSignatureReader
             PdfIndirectReference? fieldReference = value as PdfIndirectReference;
             if (fieldReference is not null)
             {
-                if (!active.Add(fieldReference.ObjectNumber))
+                var identity = (fieldReference.ObjectNumber, fieldReference.Generation);
+                if (!active.Add(identity))
                     throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
-                if (!visited.Add(fieldReference.ObjectNumber))
+                if (!visited.Add(identity))
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
@@ -99,7 +100,8 @@ public static class PdfSignatureReader
                 PdfArray kids = ResolveArray(document, kidsValue, "An AcroForm field /Kids value");
                 foreach (PdfObject kid in kids) Visit(kid, fullName, fieldType, depth + 1);
             }
-            if (fieldReference is not null) active.Remove(fieldReference.ObjectNumber);
+            if (fieldReference is not null)
+                active.Remove((fieldReference.ObjectNumber, fieldReference.Generation));
         }
     }
 
@@ -355,7 +357,7 @@ public static class PdfSignatureReader
     {
         ReadOnlySpan<byte> bytes = value.Bytes.Span;
         return bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
-            ? Encoding.BigEndianUnicode.GetString(bytes[2..])
+            ? PdfUnicodeEncoding.DecodeBigEndian(bytes[2..], "A signature text string")
             : Encoding.Latin1.GetString(bytes);
     }
 

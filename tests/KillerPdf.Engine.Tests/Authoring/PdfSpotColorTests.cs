@@ -41,6 +41,8 @@ public sealed class PdfSpotColorTests
     {
         Assert.Throws<ArgumentException>(() =>
             new PdfSpotColor(" ", new PdfCmykColor(0, 0, 0, 0)));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfSpotColor("bad\uD800ink", new PdfCmykColor(0, 0, 0, 0)));
         var spot = new PdfSpotColor("Ink", new PdfCmykColor(0, 0, 0, 1));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new PdfContentStreamBuilder().SetFillSpotColor(spot, -0.01));

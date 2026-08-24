@@ -287,8 +287,8 @@ public static class PdfDetachedSignatureWriter
     private static void EnsureFieldNameAvailable(
         PdfDocument document, PdfArray fields, string fieldName)
     {
-        var active = new HashSet<int>();
-        var visited = new HashSet<int>();
+        var active = new HashSet<(int ObjectNumber, int Generation)>();
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
         foreach (PdfObject value in fields) Visit(value, null, 0);
 
         void Visit(PdfObject value, string? parentName, int depth)
@@ -298,9 +298,10 @@ public static class PdfDetachedSignatureWriter
             PdfIndirectReference? reference = value as PdfIndirectReference;
             if (reference is not null)
             {
-                if (!active.Add(reference.ObjectNumber))
+                var identity = (reference.ObjectNumber, reference.Generation);
+                if (!active.Add(identity))
                     throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
-                if (!visited.Add(reference.ObjectNumber))
+                if (!visited.Add(identity))
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
@@ -323,7 +324,8 @@ public static class PdfDetachedSignatureWriter
                 PdfArray kids = ResolveArray(document, kidsValue, "An AcroForm field /Kids value");
                 foreach (PdfObject kid in kids) Visit(kid, fullName, depth + 1);
             }
-            if (reference is not null) active.Remove(reference.ObjectNumber);
+            if (reference is not null)
+                active.Remove((reference.ObjectNumber, reference.Generation));
         }
     }
 
@@ -334,8 +336,8 @@ public static class PdfDetachedSignatureWriter
         PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
         if (!form.TryGetValue(FieldsName, out PdfObject? fieldsValue)) return null;
         PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
-        var active = new HashSet<int>();
-        var visited = new HashSet<int>();
+        var active = new HashSet<(int ObjectNumber, int Generation)>();
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
         ExistingFormField? match = null;
         foreach (PdfObject value in fields) Visit(value, null, null, 0);
         return match;
@@ -347,9 +349,10 @@ public static class PdfDetachedSignatureWriter
             PdfIndirectReference? reference = value as PdfIndirectReference;
             if (reference is not null)
             {
-                if (!active.Add(reference.ObjectNumber))
+                var identity = (reference.ObjectNumber, reference.Generation);
+                if (!active.Add(identity))
                     throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
-                if (!visited.Add(reference.ObjectNumber))
+                if (!visited.Add(identity))
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
@@ -383,7 +386,8 @@ public static class PdfDetachedSignatureWriter
                 PdfArray kids = ResolveArray(document, kidsValue, "An AcroForm field /Kids value");
                 foreach (PdfObject kid in kids) Visit(kid, fullName, fieldType, depth + 1);
             }
-            if (reference is not null) active.Remove(reference.ObjectNumber);
+            if (reference is not null)
+                active.Remove((reference.ObjectNumber, reference.Generation));
         }
     }
 
@@ -903,8 +907,8 @@ public static class PdfDetachedSignatureWriter
         PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
         if (!form.TryGetValue(FieldsName, out PdfObject? fieldsValue)) return false;
         PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
-        var active = new HashSet<int>();
-        var visited = new HashSet<int>();
+        var active = new HashSet<(int ObjectNumber, int Generation)>();
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
         foreach (PdfObject field in fields)
             if (Visit(field, null, 0)) return true;
         return false;
@@ -916,9 +920,10 @@ public static class PdfDetachedSignatureWriter
             PdfIndirectReference? reference = value as PdfIndirectReference;
             if (reference is not null)
             {
-                if (!active.Add(reference.ObjectNumber))
+                var identity = (reference.ObjectNumber, reference.Generation);
+                if (!active.Add(identity))
                     throw new InvalidOperationException("The AcroForm field tree contains a cycle.");
-                if (!visited.Add(reference.ObjectNumber))
+                if (!visited.Add(identity))
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
@@ -940,7 +945,8 @@ public static class PdfDetachedSignatureWriter
                 foreach (PdfObject kid in kids)
                     if (Visit(kid, fieldType, depth + 1)) return true;
             }
-            if (reference is not null) active.Remove(reference.ObjectNumber);
+            if (reference is not null)
+                active.Remove((reference.ObjectNumber, reference.Generation));
             return false;
         }
     }
@@ -1514,7 +1520,7 @@ public static class PdfDetachedSignatureWriter
         new(Encoding.Latin1.GetBytes(value), PdfStringForm.Literal);
     private static PdfString UnicodeString(string value)
     {
-        byte[] text = Encoding.BigEndianUnicode.GetBytes(value);
+        byte[] text = PdfUnicodeEncoding.EncodeBigEndian(value);
         byte[] bytes = new byte[text.Length + 2];
         bytes[0] = 0xFE;
         bytes[1] = 0xFF;
@@ -1525,7 +1531,7 @@ public static class PdfDetachedSignatureWriter
     {
         ReadOnlySpan<byte> bytes = value.Bytes.Span;
         return bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
-            ? Encoding.BigEndianUnicode.GetString(bytes[2..])
+            ? PdfUnicodeEncoding.DecodeBigEndian(bytes[2..], "A signature text string")
             : Encoding.Latin1.GetString(bytes);
     }
     private static string PdfDate(DateTimeOffset value)

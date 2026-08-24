@@ -29,6 +29,11 @@ public readonly record struct PdfHeader(PdfVersion Version, int Offset)
         return new PdfHeader(new PdfVersion(major, minor), offset);
     }
 
-    public static byte[] Create(PdfVersion version) =>
-        Encoding.ASCII.GetBytes($"%PDF-{version}\n");
+    public static byte[] Create(PdfVersion version)
+    {
+        if (!PdfVersion.IsDefined(version.Major, version.Minor))
+            throw new ArgumentOutOfRangeException(nameof(version),
+                "The PDF header version is not defined.");
+        return Encoding.ASCII.GetBytes($"%PDF-{version}\n");
+    }
 }

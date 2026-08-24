@@ -32,6 +32,9 @@ public readonly record struct PdfTextQuad
     public PdfPoint LowerLeft { get; }
     public PdfPoint LowerRight { get; }
 
+    internal void Validate() => _ = new PdfTextQuad(
+        UpperLeft, UpperRight, LowerLeft, LowerRight);
+
     internal static PdfTextQuad FromRectangle(double x, double y, double width, double height) =>
         new(new PdfPoint(x, y + height), new PdfPoint(x + width, y + height),
             new PdfPoint(x, y), new PdfPoint(x + width, y));
