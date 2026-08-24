@@ -210,6 +210,24 @@ public sealed class PdfEncryptionTests
         Assert.Equal(0, permissions & (1 << 11));
     }
 
+    [Fact]
+    public void Authoring_RejectsHighQualityPrintingWhenPrintingIsDisabled()
+    {
+        var builder = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                AllowLowQualityPrinting = false,
+                AllowHighQualityPrinting = true
+            })
+            .AddBlankPage();
+
+        ArgumentException error = Assert.Throws<ArgumentException>(() => builder.Build());
+
+        Assert.Contains("printing is disabled", error.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("user", PdfPasswordAuthenticationRole.User)]
     [InlineData("owner", PdfPasswordAuthenticationRole.Owner)]
@@ -338,6 +356,28 @@ public sealed class PdfEncryptionTests
     {
         Assert.ThrowsAny<CryptographicException>(() =>
             PdfDocument.Open(Revision6Fixture(), "wrong-password"));
+    }
+
+    [Fact]
+    public void Open_RejectsInvalidReservedPermissionBitsAcrossSecurityRevisions()
+    {
+        foreach ((byte[] fixture, string password) in new[]
+                 {
+                     (Revision2Fixture(), "owner-password"),
+                     (Revision4Fixture(), "owner-password"),
+                     (Revision6Fixture(), "owner-password")
+                 })
+        {
+            int offset = fixture.AsSpan().IndexOf("/P -4"u8);
+            Assert.True(offset >= 0);
+            fixture[offset + 4] = (byte)'3';
+
+            InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+                PdfDocument.Open(fixture, password));
+
+            Assert.Contains("reserved permission bits", error.Message,
+                StringComparison.Ordinal);
+        }
     }
 
     [Theory]

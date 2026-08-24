@@ -92,6 +92,7 @@ internal sealed class PdfStandardSecurityHandler
         if (!permissions.AsSpan(9, 3).SequenceEqual("adb"u8))
             throw new CryptographicException("The PDF encryption permission block is invalid.");
         int declaredPermissions = checked((int)RequireInteger(encryption, "P"));
+        ValidatePermissionFlags(declaredPermissions, revision);
         if (BinaryPrimitives.ReadInt32LittleEndian(permissions) != declaredPermissions)
             throw new CryptographicException("The PDF encryption permissions do not authenticate.");
         bool encryptMetadata = ReadEncryptMetadata(encryption);
@@ -113,6 +114,10 @@ internal sealed class PdfStandardSecurityHandler
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(options.UserPassword);
         ArgumentNullException.ThrowIfNull(options.OwnerPassword);
+        if (options.AllowHighQualityPrinting && !options.AllowLowQualityPrinting)
+            throw new ArgumentException(
+                "High-quality printing cannot be allowed when printing is disabled.",
+                nameof(options));
         byte[] userPassword = PasswordBytes(options.UserPassword, normalize: true);
         byte[] ownerPassword = PasswordBytes(options.OwnerPassword, normalize: true);
         byte[] fileKey = RandomNumberGenerator.GetBytes(32);
@@ -336,6 +341,7 @@ internal sealed class PdfStandardSecurityHandler
         byte[] owner = RequireBytes(encryption, "O", 32);
         byte[] user = RequireBytes(encryption, "U", 32);
         int permissions = checked((int)RequireInteger(encryption, "P"));
+        ValidatePermissionFlags(permissions, revision);
         bool encryptMetadata = ReadEncryptMetadata(encryption);
         byte[] supplied = PadLegacyPassword(password);
         byte[] recoveredUserPassword = RecoverLegacyUserPassword(
@@ -863,6 +869,17 @@ internal sealed class PdfStandardSecurityHandler
             ? flag.Value
             : throw new InvalidOperationException(
                 "The encryption /EncryptMetadata value is not boolean.");
+    }
+
+    private static void ValidatePermissionFlags(int permissions, long revision)
+    {
+        int requiredOneBits = revision == 2
+            ? unchecked((int)0xFFFFFFC0)
+            : unchecked((int)0xFFFFF0C0);
+        if ((permissions & 0x3) != 0
+            || (permissions & requiredOneBits) != requiredOneBits)
+            throw new InvalidOperationException(
+                "The encryption /P value has invalid reserved permission bits.");
     }
 
     private static long RequireInteger(PdfDictionary dictionary, string key)
