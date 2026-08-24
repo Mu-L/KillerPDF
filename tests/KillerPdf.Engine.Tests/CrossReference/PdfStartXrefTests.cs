@@ -29,11 +29,11 @@ public sealed class PdfStartXrefTests
         Assert.Equal(1, result.Offset);
     }
 
-    [Fact]
-    public void Find_IgnoresStartXrefTextInsideTrailingComment()
+    [Theory]
+    [InlineData("x\nstartxref 1 % trailing startxref startxref text\n%%EOF\n")]
+    [InlineData("x\nstartxref % pointer startxref follows\n1\n%%EOF\n")]
+    public void Find_IgnoresStartXrefTextInsideOffsetComments(string source)
     {
-        string source = "x\nstartxref\n1\n% trailing startxref text\n%%EOF\n";
-
         PdfStartXref result = PdfStartXref.Find(
             Encoding.ASCII.GetBytes(source));
 

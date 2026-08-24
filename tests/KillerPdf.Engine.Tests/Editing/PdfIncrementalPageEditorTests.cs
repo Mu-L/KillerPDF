@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
+using System.Xml.Linq;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
@@ -9,6 +10,7 @@ using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
 using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Filters;
+using KillerPdf.Engine.Syntax;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Editing;
@@ -285,6 +287,245 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_InsertsAndAppendsPagesWithRawContentStreams()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] firstContent = "q 1 0 0 rg 10 20 30 40 re f Q\n"u8.ToArray();
+        byte[] secondContent = "q 0 0 1 rg 5 6 7 8 re f Q\n"u8.ToArray();
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .InsertPage(0, 200, 300, firstContent)
+            .AddPage(400, 500, secondContent)
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(reopened, catalog[Name("Pages")]);
+        PdfArray kids = Assert.IsType<PdfArray>(pages[Name("Kids")]);
+        PdfDictionary first = ResolveDictionary(reopened, kids[0]);
+        PdfDictionary last = ResolveDictionary(reopened, kids[2]);
+
+        Assert.Equal(3, kids.Count);
+        Assert.Equal(firstContent, ResolveStream(
+            reopened, first[Name("Contents")]).EncodedData.ToArray());
+        Assert.Equal(secondContent, ResolveStream(
+            reopened, last[Name("Contents")]).EncodedData.ToArray());
+        Assert.DoesNotContain(firstContent, source);
+        Assert.True(updated.AsSpan(0, source.Length).SequenceEqual(source));
+    }
+
+    [Fact]
+    public void Build_RejectsRawContentPageInExistingTaggedDocument()
+    {
+        PdfDocument tagged = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Tagged source",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(tagged)
+                .AddPage(200, 300, "q Q\n"u8.ToArray())
+                .Build());
+    }
+
+    [Fact]
+    public void Build_AppendsContentWithoutReplacingExistingStream()
+    {
+        byte[] originalContent = "q 1 0 0 rg 1 2 3 4 re f Q\n"u8.ToArray();
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddPage(200, 300, originalContent).Build();
+        PdfDocument source = PdfDocument.Open(sourceBytes);
+        PdfDictionary sourceCatalog = ResolveDictionary(
+            source, source.Trailer[Name("Root")]);
+        PdfDictionary sourcePages = ResolveDictionary(
+            source, sourceCatalog[Name("Pages")]);
+        PdfDictionary sourcePage = ResolveDictionary(source,
+            Assert.IsType<PdfArray>(sourcePages[Name("Kids")])[0]);
+        PdfIndirectReference originalReference =
+            Assert.IsType<PdfIndirectReference>(sourcePage[Name("Contents")]);
+
+        byte[] firstAppend = "q 0 1 0 rg 5 6 7 8 re f Q\n"u8.ToArray();
+        byte[] secondAppend = "q 0 0 1 rg 9 10 11 12 re f Q\n"u8.ToArray();
+        byte[] updated = new PdfIncrementalPageEditor(source)
+                .AppendPageContent(0, firstAppend)
+                .AppendPageContent(0, secondAppend)
+                .Build();
+        PdfDocument reopened = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary pages = ResolveDictionary(reopened, catalog[Name("Pages")]);
+        PdfDictionary page = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
+        PdfArray contents = Assert.IsType<PdfArray>(page[Name("Contents")]);
+        PdfIndirectReference retained = Assert.IsType<PdfIndirectReference>(contents[0]);
+
+        Assert.Equal(2, contents.Count);
+        Assert.Equal(originalReference.ObjectNumber, retained.ObjectNumber);
+        Assert.Equal(originalReference.Generation, retained.Generation);
+        Assert.Equal(originalContent,
+            ResolveStream(reopened, contents[0]).EncodedData.ToArray());
+        Assert.Equal([.. firstAppend, .. secondAppend],
+            ResolveStream(reopened, contents[1]).EncodedData.ToArray());
+        Assert.True(updated.AsSpan(0, sourceBytes.Length)
+            .SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void Build_ReplacesRemovesAndUpdatesImportedPageContent()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(200, 300, "old\n"u8.ToArray()).Build());
+        PdfDocument replaced = PdfDocument.Open(
+            new PdfIncrementalPageEditor(source)
+                .SetPageContent(0, "new\n"u8.ToArray())
+                .Build());
+        PdfDictionary replacedCatalog = ResolveDictionary(
+            replaced, replaced.Trailer[Name("Root")]);
+        PdfDictionary replacedPages = ResolveDictionary(
+            replaced, replacedCatalog[Name("Pages")]);
+        PdfDictionary replacedPage = ResolveDictionary(replaced,
+            Assert.IsType<PdfArray>(replacedPages[Name("Kids")])[0]);
+        Assert.Equal("new\n"u8.ToArray(), ResolveStream(
+            replaced, replacedPage[Name("Contents")]).EncodedData.ToArray());
+
+        PdfDocument removed = PdfDocument.Open(
+            new PdfIncrementalPageEditor(replaced)
+                .SetPageContent(0, ReadOnlyMemory<byte>.Empty)
+                .Build());
+        PdfDictionary removedCatalog = ResolveDictionary(
+            removed, removed.Trailer[Name("Root")]);
+        PdfDictionary removedPages = ResolveDictionary(
+            removed, removedCatalog[Name("Pages")]);
+        Assert.False(ResolveDictionary(removed,
+            Assert.IsType<PdfArray>(removedPages[Name("Kids")])[0])
+            .ContainsKey(Name("Contents")));
+
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument imported = PdfDocument.Open(
+            new PdfIncrementalPageEditor(target)
+                .AddImportedPage(source, 0)
+                .AppendPageContent(1, "after\n"u8.ToArray())
+                .Build());
+        PdfDictionary importedCatalog = ResolveDictionary(
+            imported, imported.Trailer[Name("Root")]);
+        PdfDictionary importedPages = ResolveDictionary(
+            imported, importedCatalog[Name("Pages")]);
+        PdfDictionary importedPage = ResolveDictionary(imported,
+            Assert.IsType<PdfArray>(importedPages[Name("Kids")])[1]);
+        PdfArray importedContents = Assert.IsType<PdfArray>(
+            importedPage[Name("Contents")]);
+        Assert.Equal("old\n"u8.ToArray(), ResolveStream(
+            imported, importedContents[0]).EncodedData.ToArray());
+        Assert.Equal("after\n"u8.ToArray(), ResolveStream(
+            imported, importedContents[1]).EncodedData.ToArray());
+    }
+
+    [Fact]
+    public void Build_RejectsContentUpdatesInExistingTaggedDocument()
+    {
+        PdfDocument tagged = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Tagged source",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(tagged)
+                .AppendPageContent(0, "q Q\n"u8.ToArray())
+                .Build());
+    }
+
+    [Fact]
+    public void Build_InsertsTypedPageWithResourcesAtMinimumRequiredVersion()
+    {
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder(PdfVersion.Pdf10)
+            .AddBlankPage().Build());
+        var text = new PdfContentStreamBuilder()
+            .BeginText()
+            .SetFont(PdfStandardFont.Helvetica, 12)
+            .SetTextMatrix(1, 0, 0, 1, 20, 100)
+            .ShowLatin1Text("Typed page")
+            .EndText();
+        PdfDocument withText = PdfDocument.Open(
+            new PdfIncrementalPageEditor(target)
+                .AddPage(200, 300, text)
+                .Build());
+        PdfDictionary textPage = FlatPages(withText).Pages[1];
+        PdfDictionary textResources = ResolveDictionary(
+            withText, textPage[Name("Resources")]);
+
+        Assert.Equal(PdfVersion.Pdf10, withText.Header.Version);
+        Assert.False(ResolveDictionary(withText,
+            withText.Trailer[Name("Root")]).ContainsKey(Name("Version")));
+        Assert.True(ResolveDictionary(withText,
+            textResources[Name("Font")]).ContainsKey(Name("F1")));
+
+        PdfImage rgba = PdfImage.FromRgba(
+            1, 1, new byte[] { 10, 20, 30, 128 });
+        var imageContent = new PdfContentStreamBuilder()
+            .DrawImage(rgba, 10, 20, 30, 40);
+        PdfDocument withImage = PdfDocument.Open(
+            new PdfIncrementalPageEditor(target)
+                .AddPage(200, 300, imageContent)
+                .Build());
+        PdfDictionary imageCatalog = ResolveDictionary(
+            withImage, withImage.Trailer[Name("Root")]);
+        PdfDictionary imagePage = FlatPages(withImage).Pages[1];
+        PdfDictionary imageResources = ResolveDictionary(
+            withImage, imagePage[Name("Resources")]);
+        PdfDictionary xobjects = ResolveDictionary(
+            withImage, imageResources[Name("XObject")]);
+        PdfStream image = ResolveStream(withImage, xobjects[Name("Im1")]);
+
+        Assert.Equal("1.4", Assert.IsType<PdfName>(
+            imageCatalog[Name("Version")]).ValueAsLatin1());
+        Assert.IsType<PdfIndirectReference>(image.Dictionary[Name("SMask")]);
+    }
+
+    [Fact]
+    public void Build_InsertsTypedOptionalContentPageAndCatalogDependencies()
+    {
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder(PdfVersion.Pdf10)
+            .AddBlankPage().Build());
+        var layer = new PdfOptionalContentGroup(
+            "Typed review layer", initiallyVisible: false);
+        var content = new PdfContentStreamBuilder()
+            .BeginOptionalContent(layer)
+            .Rectangle(10, 20, 30, 40)
+            .Fill()
+            .EndMarkedContent();
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(target)
+                .AddPage(200, 300, content)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary page = FlatPages(reopened).Pages[1];
+        PdfDictionary resources = ResolveDictionary(
+            reopened, page[Name("Resources")]);
+        PdfDictionary properties = ResolveDictionary(
+            reopened, resources[Name("Properties")]);
+        PdfDictionary optionalContent = ResolveDictionary(
+            reopened, catalog[Name("OCProperties")]);
+
+        Assert.Equal("1.5", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+        Assert.True(properties.ContainsKey(Name("OC1")));
+        Assert.Single(Assert.IsType<PdfArray>(optionalContent[Name("OCGs")]));
+    }
+
+    [Fact]
     public void Build_DoesNotMisclassifyStaleNameTreeGenerationAsCycle()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -515,6 +756,1040 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Equal([-10d, -20d, 490d, 680d], Box(pages[0], "MediaBox"));
         Assert.Equal([20d, 30d, 420d, 630d], Box(pages[0], "CropBox"));
         Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+    }
+
+    [Fact]
+    public void Build_ChangesEverySubordinatePageBox()
+    {
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage(200, 300).Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageBox(0, PdfPageBox.Crop, 5, 5, 190, 290)
+            .SetPageBox(0, PdfPageBox.Bleed, 6, 6, 188, 288)
+            .SetPageBox(0, PdfPageBox.Trim, 7, 7, 186, 286)
+            .SetPageBox(0, PdfPageBox.Art, 8, 8, 184, 284)
+            .Build());
+        PdfDictionary page = FlatPages(reopened).Pages[0];
+
+        Assert.Equal([5d, 5d, 195d, 295d], Box(page, "CropBox"));
+        Assert.Equal([6d, 6d, 194d, 294d], Box(page, "BleedBox"));
+        Assert.Equal([7d, 7d, 193d, 293d], Box(page, "TrimBox"));
+        Assert.Equal([8d, 8d, 192d, 292d], Box(page, "ArtBox"));
+    }
+
+    [Fact]
+    public void Build_AppliesProductionBoxEditsToImportedPages()
+    {
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .SetPageBox(0, PdfPageBox.Trim, 5, 5, 190, 290)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .AddImportedPage(source, 0)
+            .SetPageBox(1, PdfPageBox.Trim, 20, 30, 160, 240)
+            .Build());
+
+        Assert.Equal([20d, 30d, 180d, 270d],
+            Box(FlatPages(reopened).Pages[1], "TrimBox"));
+    }
+
+    [Fact]
+    public void Build_UpgradesEffectiveVersionForProductionBoxEdits()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 2)).AddBlankPage(200, 300).Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageBox(0, PdfPageBox.Trim, 10, 10, 180, 280)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal(new PdfVersion(1, 2), reopened.Header.Version);
+        Assert.Equal("1.4", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_PreservesHigherImportedVersionWithProductionBoxEdits()
+    {
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 2)).AddBlankPage().Build());
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder(PdfVersion.Pdf20).AddBlankPage(200, 300).Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .AddImportedPage(source, 0)
+            .SetPageBox(1, PdfPageBox.Art, 10, 10, 180, 280)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal(new PdfVersion(1, 2), reopened.Header.Version);
+        Assert.Equal("2.0", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+        Assert.Equal([10d, 10d, 190d, 290d],
+            Box(FlatPages(reopened).Pages[1], "ArtBox"));
+    }
+
+    [Fact]
+    public void Build_SetsUserUnitsOnExistingNewAndImportedPages()
+    {
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .SetPageUserUnit(0, 2)
+            .AddBlankPage()
+            .SetPageUserUnit(1, 3)
+            .AddImportedPage(source, 0)
+            .SetPageUserUnit(2, 4)
+            .Build());
+        PdfDictionary[] pages = FlatPages(reopened).Pages;
+
+        Assert.Equal(2, Assert.IsType<PdfInteger>(pages[0][Name("UserUnit")]).Value);
+        Assert.Equal(3, Assert.IsType<PdfInteger>(pages[1][Name("UserUnit")]).Value);
+        Assert.Equal(4, Assert.IsType<PdfInteger>(pages[2][Name("UserUnit")]).Value);
+    }
+
+    [Fact]
+    public void Build_UpgradesEffectiveVersionForUserUnitEdits()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 5)).AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageUserUnit(0, 2.5)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal(new PdfVersion(1, 5), reopened.Header.Version);
+        Assert.Equal("1.6", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+        Assert.Equal(2.5, Assert.IsType<PdfReal>(
+            FlatPages(reopened).Pages[0][Name("UserUnit")]).Value);
+    }
+
+    [Fact]
+    public void Build_SetsPresentationTimingOnExistingNewAndImportedPages()
+    {
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .SetPageDisplayDuration(0, 2)
+            .SetPageTransition(0, PdfPageTransition.Dissolve(0.5))
+            .AddBlankPage()
+            .SetPageDisplayDuration(1, 3)
+            .SetPageTransition(1, PdfPageTransition.Wipe(90))
+            .AddImportedPage(source, 0)
+            .SetPageDisplayDuration(2, 4)
+            .SetPageTransition(2, PdfPageTransition.Fade())
+            .Build());
+        PdfDictionary[] pages = FlatPages(reopened).Pages;
+
+        Assert.Equal(2, Assert.IsType<PdfInteger>(pages[0][Name("Dur")]).Value);
+        Assert.Equal("Dissolve", Assert.IsType<PdfName>(
+            Assert.IsType<PdfDictionary>(pages[0][Name("Trans")])[Name("S")]).ValueAsLatin1());
+        Assert.Equal(3, Assert.IsType<PdfInteger>(pages[1][Name("Dur")]).Value);
+        Assert.Equal("Wipe", Assert.IsType<PdfName>(
+            Assert.IsType<PdfDictionary>(pages[1][Name("Trans")])[Name("S")]).ValueAsLatin1());
+        Assert.Equal(4, Assert.IsType<PdfInteger>(pages[2][Name("Dur")]).Value);
+        Assert.Equal("Fade", Assert.IsType<PdfName>(
+            Assert.IsType<PdfDictionary>(pages[2][Name("Trans")])[Name("S")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_UpgradesEffectiveVersionForAdvancedPageTransitions()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 4)).AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageTransition(0, PdfPageTransition.Push(90))
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal(new PdfVersion(1, 4), reopened.Header.Version);
+        Assert.Equal("1.5", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_SetsTabOrderOnExistingNewAndImportedPages()
+    {
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .SetPageTabOrder(0, PdfPageTabOrder.Row)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .SetPageTabOrder(0, PdfPageTabOrder.Column)
+            .AddBlankPage()
+            .SetPageTabOrder(1, PdfPageTabOrder.Structure)
+            .AddImportedPage(source, 0)
+            .SetPageTabOrder(2, PdfPageTabOrder.Column)
+            .Build());
+        PdfDictionary[] pages = FlatPages(reopened).Pages;
+
+        Assert.Equal("C", Assert.IsType<PdfName>(
+            pages[0][Name("Tabs")]).ValueAsLatin1());
+        Assert.Equal("S", Assert.IsType<PdfName>(
+            pages[1][Name("Tabs")]).ValueAsLatin1());
+        Assert.Equal("C", Assert.IsType<PdfName>(
+            pages[2][Name("Tabs")]).ValueAsLatin1());
+    }
+
+    [Theory]
+    [InlineData(PdfPageTabOrder.Row, "1.5")]
+    [InlineData(PdfPageTabOrder.AnnotationArray, "2.0")]
+    public void Build_UpgradesEffectiveVersionForPageTabOrder(
+        PdfPageTabOrder tabOrder, string expectedVersion)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 4)).AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageTabOrder(0, tabOrder)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal(expectedVersion, Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_SetsThumbnailsOnExistingNewAndImportedPages()
+    {
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .SetPageThumbnail(0, PdfImage.FromRgb(1, 1, new byte[] { 10, 20, 30 }))
+            .AddBlankPage()
+            .SetPageThumbnail(1, PdfImage.FromRgb(2, 1,
+                new byte[] { 10, 20, 30, 40, 50, 60 }))
+            .AddImportedPage(source, 0)
+            .SetPageThumbnail(2, PdfImage.FromGray(3, 1, new byte[] { 10, 20, 30 }))
+            .Build());
+        PdfDictionary[] pages = FlatPages(reopened).Pages;
+
+        Assert.Equal(1, ThumbnailWidth(reopened, pages[0]));
+        Assert.Equal(2, ThumbnailWidth(reopened, pages[1]));
+        Assert.Equal(3, ThumbnailWidth(reopened, pages[2]));
+
+        static long ThumbnailWidth(PdfDocument document, PdfDictionary page)
+        {
+            PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(
+                Assert.IsType<PdfIndirectReference>(page[Name("Thumb")])));
+            return Assert.IsType<PdfInteger>(
+                stream.Dictionary[Name("Width")]).Value;
+        }
+    }
+
+    [Fact]
+    public void Build_WritesThumbnailSoftMaskAndUpgradesEffectiveVersion()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 3)).AddBlankPage().Build());
+        PdfImage thumbnail = PdfImage.FromRgba(1, 1, new byte[] { 20, 80, 160, 192 });
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageThumbnail(0, thumbnail)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary page = FlatPages(reopened).Pages[0];
+        PdfStream image = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(page[Name("Thumb")])));
+        PdfStream mask = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(image.Dictionary[Name("SMask")])));
+
+        Assert.Equal("1.4", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+        Assert.Equal("DeviceGray", Assert.IsType<PdfName>(
+            mask.Dictionary[Name("ColorSpace")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_ReusesSharedThumbnailImageGraph()
+    {
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfImage thumbnail = PdfImage.FromRgba(
+            1, 1, new byte[] { 20, 80, 160, 192 });
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageThumbnail(0, thumbnail)
+            .AddBlankPage()
+            .SetPageThumbnail(1, thumbnail)
+            .Build());
+        PdfDictionary[] pages = FlatPages(reopened).Pages;
+        PdfIndirectReference first = Assert.IsType<PdfIndirectReference>(
+            pages[0][Name("Thumb")]);
+        PdfIndirectReference second = Assert.IsType<PdfIndirectReference>(
+            pages[1][Name("Thumb")]);
+
+        Assert.Equal(first.ObjectNumber, second.ObjectNumber);
+        Assert.Equal(first.Generation, second.Generation);
+    }
+
+    [Fact]
+    public void Build_SetsCatalogPageLayoutAndModeWithoutRebuildingPageTree()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 4)).AddBlankPage().Build());
+        PdfIndirectReference originalPages = FlatPages(source).Root;
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetPageLayout(PdfPageLayout.TwoPageRight)
+            .SetPageMode(PdfPageMode.UseAttachments)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal("TwoPageRight", Assert.IsType<PdfName>(
+            catalog[Name("PageLayout")]).ValueAsLatin1());
+        Assert.Equal("UseAttachments", Assert.IsType<PdfName>(
+            catalog[Name("PageMode")]).ValueAsLatin1());
+        Assert.Equal("1.6", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+        Assert.Equal(originalPages.ObjectNumber, FlatPages(reopened).Root.ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_ComposesCatalogPresentationWithPageReordering()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(100, 100)
+            .AddBlankPage(200, 200)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .MovePage(0, 1)
+            .SetPageLayout(PdfPageLayout.OneColumn)
+            .SetPageMode(PdfPageMode.FullScreen)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal("OneColumn", Assert.IsType<PdfName>(
+            catalog[Name("PageLayout")]).ValueAsLatin1());
+        Assert.Equal("FullScreen", Assert.IsType<PdfName>(
+            catalog[Name("PageMode")]).ValueAsLatin1());
+        Assert.Equal([200d, 200d], Box(FlatPages(reopened).Pages[0], "MediaBox")[2..]);
+    }
+
+    [Fact]
+    public void Build_SetsViewerPreferencesAndUpgradesEffectiveVersion()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 4)).AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetViewerPreferences(new PdfViewerPreferences
+            {
+                HideToolbar = true,
+                DisplayDocumentTitle = true,
+                ReadingDirection = PdfReadingDirection.RightToLeft,
+                PrintScaling = PdfPrintScaling.None,
+                Duplex = PdfDuplexMode.DuplexFlipLongEdge,
+                PickTrayByPdfSize = true
+            })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary preferences = Assert.IsType<PdfDictionary>(
+            catalog[Name("ViewerPreferences")]);
+
+        Assert.True(Assert.IsType<PdfBoolean>(
+            preferences[Name("HideToolbar")]).Value);
+        Assert.True(Assert.IsType<PdfBoolean>(
+            preferences[Name("DisplayDocTitle")]).Value);
+        Assert.True(Assert.IsType<PdfBoolean>(
+            preferences[Name("PickTrayByPDFSize")]).Value);
+        Assert.Equal("R2L", Assert.IsType<PdfName>(
+            preferences[Name("Direction")]).ValueAsLatin1());
+        Assert.Equal("None", Assert.IsType<PdfName>(
+            preferences[Name("PrintScaling")]).ValueAsLatin1());
+        Assert.Equal("DuplexFlipLongEdge", Assert.IsType<PdfName>(
+            preferences[Name("Duplex")]).ValueAsLatin1());
+        Assert.Equal("1.7", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_RetainsOpenActionPageIdentityAcrossReordering()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(100, 100)
+            .AddBlankPage(200, 200)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetOpenAction(0, PdfDestination.At(12, 34, 1.5))
+            .MovePage(0, 1)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfArray action = Assert.IsType<PdfArray>(catalog[Name("OpenAction")]);
+        PdfIndirectReference target = Assert.IsType<PdfIndirectReference>(action[0]);
+
+        Assert.Equal(FlatPages(reopened).References[1].ObjectNumber, target.ObjectNumber);
+        Assert.Equal("XYZ", Assert.IsType<PdfName>(action[1]).ValueAsLatin1());
+        Assert.Equal(12, Assert.IsType<PdfInteger>(action[2]).Value);
+        Assert.Equal(34, Assert.IsType<PdfInteger>(action[3]).Value);
+        Assert.Equal(1.5, Assert.IsType<PdfReal>(action[4]).Value);
+    }
+
+    [Fact]
+    public void Build_SetsExistingUnicodeNamedDestinationAsOpenAction()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddNamedDestination("résumé", 0)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetNamedOpenAction("résumé")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfString action = Assert.IsType<PdfString>(catalog[Name("OpenAction")]);
+
+        Assert.Equal("résumé",
+            Encoding.BigEndianUnicode.GetString(action.Bytes.Span[2..]));
+    }
+
+    [Fact]
+    public void Build_RejectsOpenActionWhosePageWasRemoved()
+    {
+        var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().AddBlankPage().Build()))
+            .SetOpenAction(0, PdfDestination.FitPage())
+            .RemovePage(0);
+
+        Assert.Throws<InvalidOperationException>(() => editor.Build());
+    }
+
+    [Fact]
+    public void Build_AddsNamedDestinationAndUsesItAsOpenAction()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(100, 100)
+            .AddBlankPage(200, 200)
+            .AddNamedDestination("alpha", 0)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddNamedDestination("résumé", 1, PdfDestination.FitWidth(72))
+            .SetNamedOpenAction("résumé")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary names = ResolveDictionary(reopened, catalog[Name("Names")]);
+        PdfDictionary destinations = ResolveDictionary(
+            reopened, names[Name("Dests")]);
+        PdfArray values = Assert.IsType<PdfArray>(
+            destinations[Name("Names")]);
+
+        Assert.Equal(4, values.Count);
+        Assert.Equal("alpha", DecodeText(Assert.IsType<PdfString>(values[0])));
+        Assert.Equal("résumé", DecodeText(Assert.IsType<PdfString>(values[2])));
+        PdfArray added = Assert.IsType<PdfArray>(values[3]);
+        Assert.Equal(FlatPages(reopened).References[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(added[0]).ObjectNumber);
+        Assert.Equal("FitH", Assert.IsType<PdfName>(added[1]).ValueAsLatin1());
+        Assert.Equal(72, Assert.IsType<PdfInteger>(added[2]).Value);
+        Assert.Equal("résumé", DecodeText(
+            Assert.IsType<PdfString>(catalog[Name("OpenAction")])));
+
+        static string DecodeText(PdfString value) =>
+            value.Bytes.Span.StartsWith(new byte[] { 0xFE, 0xFF })
+                ? Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..])
+                : Encoding.Latin1.GetString(value.Bytes.Span);
+    }
+
+    [Fact]
+    public void Build_AddsNamedDestinationForNewPage()
+    {
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddBlankPage(300, 400)
+            .AddNamedDestination("new-page", 1, PdfDestination.FitPage())
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary names = ResolveDictionary(reopened, catalog[Name("Names")]);
+        PdfDictionary destinations = ResolveDictionary(
+            reopened, names[Name("Dests")]);
+        PdfArray values = Assert.IsType<PdfArray>(
+            destinations[Name("Names")]);
+        PdfArray added = Assert.IsType<PdfArray>(values[1]);
+
+        Assert.Equal(FlatPages(reopened).References[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(added[0]).ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_RejectsNamedDestinationWhosePageWasRemoved()
+    {
+        var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().AddBlankPage().Build()))
+            .AddNamedDestination("removed", 0, PdfDestination.FitPage())
+            .RemovePage(0);
+
+        Assert.Throws<InvalidOperationException>(() => editor.Build());
+    }
+
+    [Fact]
+    public void Build_AddsPageLabelRangeAndUpgradesEffectiveVersion()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+                new PdfVersion(1, 2))
+            .AddBlankPage()
+            .AddBlankPage()
+            .AddBlankPage()
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddPageLabelRange(1, PdfPageLabelStyle.Decimal, "S-", 4)
+            .Build());
+        (long PageIndex, PdfDictionary Label)[] ranges = PageLabelRanges(reopened);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal([0L, 1L], ranges.Select(range => range.PageIndex));
+        Assert.Equal("D", Assert.IsType<PdfName>(
+            ranges[0].Label[Name("S")]).ValueAsLatin1());
+        Assert.Equal("D", Assert.IsType<PdfName>(
+            ranges[1].Label[Name("S")]).ValueAsLatin1());
+        Assert.Equal(4, Assert.IsType<PdfInteger>(
+            ranges[1].Label[Name("St")]).Value);
+        Assert.Equal("S-", Encoding.BigEndianUnicode.GetString(
+            Assert.IsType<PdfString>(
+                ranges[1].Label[Name("P")]).Bytes.Span[2..]));
+        Assert.Equal("1.4", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_AddsUnnumberedPageLabelRangeForNewPage()
+    {
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddBlankPage()
+            .AddPageLabelRange(1, PdfPageLabelStyle.None, "Appendix")
+            .Build());
+        (long PageIndex, PdfDictionary Label)[] ranges = PageLabelRanges(reopened);
+
+        Assert.Equal([0L, 1L], ranges.Select(range => range.PageIndex));
+        Assert.False(ranges[1].Label.ContainsKey(Name("S")));
+        Assert.Equal("Appendix", Encoding.BigEndianUnicode.GetString(
+            Assert.IsType<PdfString>(
+                ranges[1].Label[Name("P")]).Bytes.Span[2..]));
+    }
+
+    [Fact]
+    public void Build_RejectsPageLabelRangeWhosePageWasRemoved()
+    {
+        var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().AddBlankPage().Build()))
+            .AddPageLabelRange(0, PdfPageLabelStyle.Decimal)
+            .RemovePage(0);
+
+        Assert.Throws<InvalidOperationException>(() => editor.Build());
+
+        var empty = new PdfIncrementalPageEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()))
+            .AddPageLabelRange(0, PdfPageLabelStyle.Decimal)
+            .RemovePage(0);
+
+        Assert.Throws<InvalidOperationException>(() => empty.Build());
+    }
+
+    [Fact]
+    public void Build_ReplacesInfoAndXmpWhilePreservingPrivateSchemas()
+    {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Old title",
+                Language = "en-US",
+                Producer = "Old producer"
+            })
+            .AddBlankPage()
+            .Build());
+        PdfDictionary authoredCatalog = ResolveDictionary(
+            authored, authored.Trailer[Name("Root")]);
+        PdfIndirectReference metadataReference = Assert.IsType<PdfIndirectReference>(
+            authoredCatalog[Name("Metadata")]);
+        PdfStream metadataStream = Assert.IsType<PdfStream>(
+            authored.Resolve(metadataReference));
+        string packet = Encoding.UTF8.GetString(metadataStream.EncodedData.Span)
+            .Replace("rdf:about=\"\"",
+                "rdf:about=\"\" xmlns:legacyPdf=\"http://ns.adobe.com/pdf/1.3/\""
+                + " legacyPdf:Producer=\"Attribute producer\"",
+                StringComparison.Ordinal)
+            .Replace("</rdf:Description>",
+                "<custom:flag xmlns:custom=\"urn:killer:test\">keep</custom:flag>"
+                + "</rdf:Description>", StringComparison.Ordinal);
+        byte[] customized = new PdfIncrementalUpdateBuilder(authored)
+            .ReplaceObject(metadataReference.ObjectNumber,
+                new PdfStream(metadataStream.Dictionary, Encoding.UTF8.GetBytes(packet)))
+            .Build();
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(customized))
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "New title",
+                Author = "Steve",
+                Language = "fr-CA",
+                Producer = "New producer"
+            })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary info = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Info")]);
+        PdfStream updatedStream = ResolveStream(
+            reopened, catalog[Name("Metadata")]);
+        XDocument xmp = XDocument.Parse(
+            Encoding.UTF8.GetString(updatedStream.EncodedData.Span));
+
+        Assert.Equal("New title", DecodeUnicode(
+            Assert.IsType<PdfString>(info[Name("Title")])));
+        Assert.Equal("fr-CA", DecodeUnicode(
+            Assert.IsType<PdfString>(catalog[Name("Lang")])));
+        Assert.Contains(xmp.Descendants(), element =>
+            element.Name == XName.Get("flag", "urn:killer:test")
+            && element.Value == "keep");
+        Assert.Contains(xmp.Descendants(), element =>
+            element.Name.LocalName == "title" && element.Value == "New title");
+        Assert.DoesNotContain(xmp.Descendants(), element =>
+            element.Name.LocalName == "title" && element.Value == "Old title");
+        Assert.DoesNotContain(xmp.Descendants().Attributes(), attribute =>
+            attribute.Name.LocalName == "Producer");
+    }
+
+    [Fact]
+    public void Build_AddsMetadataDuringPageReorderingAndRemovesLanguage()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(100, 100)
+            .AddBlankPage(200, 200)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .MovePage(0, 1)
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Reordered",
+                Language = null
+            })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.False(catalog.ContainsKey(Name("Lang")));
+        Assert.True(catalog.ContainsKey(Name("Metadata")));
+        Assert.Equal("Reordered", DecodeUnicode(Assert.IsType<PdfString>(
+            ResolveDictionary(reopened, reopened.Trailer[Name("Info")])
+                [Name("Title")])));
+        Assert.Equal([200d, 200d],
+            Box(FlatPages(reopened).Pages[0], "MediaBox")[2..]);
+    }
+
+    [Fact]
+    public void Build_ReplacesMetadataInsideEncryptedIncrementalRevision()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "Old" })
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(
+                PdfDocument.Open(source, "owner"))
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Encrypted update",
+                Language = "en-US"
+            })
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(updated, "owner");
+        PdfDictionary info = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Info")]);
+
+        Assert.Equal("Encrypted update", DecodeUnicode(
+            Assert.IsType<PdfString>(info[Name("Title")])));
+    }
+
+    [Fact]
+    public void Build_ExplicitCatalogEditsOverrideCompleteImportProperties()
+    {
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().Build());
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Imported",
+                Language = "de-DE"
+            })
+            .SetPageMode(PdfPageMode.UseThumbs)
+            .AddBlankPage()
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .AddImportedDocument(source)
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Explicit",
+                Language = "en-US"
+            })
+            .SetPageMode(PdfPageMode.FullScreen)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary info = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Info")]);
+
+        Assert.Equal("Explicit", DecodeUnicode(
+            Assert.IsType<PdfString>(info[Name("Title")])));
+        Assert.Equal("en-US", DecodeUnicode(
+            Assert.IsType<PdfString>(catalog[Name("Lang")])));
+        Assert.Equal("FullScreen", Assert.IsType<PdfName>(
+            catalog[Name("PageMode")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_AddsAttachmentAlongsideExistingEmbeddedFiles()
+    {
+        byte[] payload = Encoding.UTF8.GetBytes("incremental payload");
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddAttachment("alpha.txt", "alpha"u8.ToArray(), "text/plain")
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddAttachment("résumé.txt", payload, "text/plain",
+                "Incremental attachment",
+                PdfAssociatedFileRelationship.Supplement,
+                new DateTimeOffset(
+                    2026, 8, 24, 10, 30, 0, TimeSpan.FromHours(-7)))
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary names = ResolveDictionary(
+            reopened, catalog[Name("Names")]);
+        PdfDictionary embeddedFiles = ResolveDictionary(
+            reopened, names[Name("EmbeddedFiles")]);
+        PdfArray entries = Assert.IsType<PdfArray>(
+            embeddedFiles[Name("Names")]);
+        PdfArray associated = Assert.IsType<PdfArray>(
+            catalog[Name("AF")]);
+        int addedIndex = Enumerable.Range(0, entries.Count / 2)
+            .Single(index => DecodeUnicode(
+                Assert.IsType<PdfString>(entries[index * 2])) == "résumé.txt");
+        PdfIndirectReference fileReference =
+            Assert.IsType<PdfIndirectReference>(entries[addedIndex * 2 + 1]);
+        PdfDictionary file = ResolveDictionary(reopened, fileReference);
+        PdfDictionary streams = Assert.IsType<PdfDictionary>(
+            file[Name("EF")]);
+        PdfStream embedded = ResolveStream(reopened, streams[Name("UF")]);
+
+        Assert.Equal(4, entries.Count);
+        Assert.Equal(2, associated.Count);
+        Assert.Equal("Supplement", Assert.IsType<PdfName>(
+            file[Name("AFRelationship")]).ValueAsLatin1());
+        Assert.Equal(payload, embedded.EncodedData.ToArray());
+        Assert.Contains(associated, item =>
+            Assert.IsType<PdfIndirectReference>(item).ObjectNumber
+            == fileReference.ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_AddsAttachmentAndUpgradesEffectiveVersionToPdf20()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            PdfVersion.Pdf17).AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddAttachment("data.bin", new byte[] { 1, 2, 3 })
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.Equal("2.0", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_RejectsAttachmentNameAlreadyRegisteredByDocument()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddAttachment("readme.txt", ReadOnlyMemory<byte>.Empty)
+            .Build());
+        var editor = new PdfIncrementalPageEditor(source)
+            .AddAttachment("README.TXT", ReadOnlyMemory<byte>.Empty);
+
+        Assert.Throws<ArgumentException>(() => editor.Build());
+    }
+
+    [Fact]
+    public void AddAttachment_PreservesPdfA4AndPdfUa2Constraints()
+    {
+        PdfDocument pdfA4 = WithIdentification(
+            "<pdfaid:part xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">4</pdfaid:part>");
+        PdfDocument pdfA4f = WithIdentification(
+            "<pdfaid:part xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">4</pdfaid:part>"
+            + "<pdfaid:conformance xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">F</pdfaid:conformance>");
+        PdfDocument pdfUa2 = WithIdentification(
+            "<pdfuaid:part xmlns:pdfuaid=\"http://www.aiim.org/pdfua/ns/id/\">2</pdfuaid:part>");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(pdfA4)
+                .AddAttachment("data.bin", ReadOnlyMemory<byte>.Empty));
+        Assert.Null(Record.Exception(() =>
+            new PdfIncrementalPageEditor(pdfA4f)
+                .AddAttachment("data.bin", ReadOnlyMemory<byte>.Empty)));
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(pdfUa2)
+                .AddAttachment("data.bin", ReadOnlyMemory<byte>.Empty));
+        Assert.Null(Record.Exception(() =>
+            new PdfIncrementalPageEditor(pdfUa2)
+                .AddAttachment("data.bin", ReadOnlyMemory<byte>.Empty,
+                    description: "Accessible data")));
+
+        static PdfDocument WithIdentification(string identification)
+        {
+            PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+                .SetMetadata(new PdfDocumentMetadata { Title = "Conformance" })
+                .AddBlankPage()
+                .Build());
+            PdfDictionary catalog = ResolveDictionary(
+                authored, authored.Trailer[Name("Root")]);
+            PdfIndirectReference reference = Assert.IsType<PdfIndirectReference>(
+                catalog[Name("Metadata")]);
+            PdfStream stream = Assert.IsType<PdfStream>(
+                authored.Resolve(reference));
+            string packet = Encoding.UTF8.GetString(stream.EncodedData.Span)
+                .Replace("</rdf:Description>",
+                    identification + "</rdf:Description>",
+                    StringComparison.Ordinal);
+            return PdfDocument.Open(new PdfIncrementalUpdateBuilder(authored)
+                .ReplaceObject(reference.ObjectNumber,
+                    new PdfStream(stream.Dictionary,
+                        Encoding.UTF8.GetBytes(packet)))
+                .Build());
+        }
+    }
+
+    [Fact]
+    public void Build_AddsHierarchicalBookmarksWithPageIdentityAndStyling()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(100, 100)
+            .AddBlankPage(200, 200)
+            .AddNamedDestination("second", 1)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddBookmark("Parent", 0, options: new PdfBookmarkOptions
+            {
+                Style = PdfBookmarkStyle.Bold,
+                Color = new PdfRgbColor(0.1, 0.2, 0.3),
+                Destination = PdfDestination.FitWidth(80)
+            })
+            .AddBookmark("Child", 1, level: 1)
+            .AddNamedDestinationBookmark("Named", "second", options:
+                new PdfBookmarkOptions { Style = PdfBookmarkStyle.Italic })
+            .MovePage(0, 1)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(
+            reopened, catalog[Name("Outlines")]);
+        PdfDictionary parent = ResolveDictionary(
+            reopened, root[Name("First")]);
+        PdfDictionary child = ResolveDictionary(
+            reopened, parent[Name("First")]);
+        PdfDictionary named = ResolveDictionary(
+            reopened, parent[Name("Next")]);
+        PdfArray parentDestination = Assert.IsType<PdfArray>(
+            parent[Name("Dest")]);
+
+        Assert.Equal(3, Assert.IsType<PdfInteger>(
+            root[Name("Count")]).Value);
+        Assert.Equal("UseOutlines", Assert.IsType<PdfName>(
+            catalog[Name("PageMode")]).ValueAsLatin1());
+        Assert.Equal("Parent", DecodeUnicode(
+            Assert.IsType<PdfString>(parent[Name("Title")])));
+        Assert.Equal(2, Assert.IsType<PdfInteger>(
+            parent[Name("F")]).Value);
+        Assert.Equal([0.1, 0.2, 0.3],
+            Assert.IsType<PdfArray>(parent[Name("C")])
+                .Select(item => Assert.IsType<PdfReal>(item).Value));
+        Assert.Equal(FlatPages(reopened).References[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(
+                parentDestination[0]).ObjectNumber);
+        Assert.Equal("Child", DecodeUnicode(
+            Assert.IsType<PdfString>(child[Name("Title")])));
+        Assert.Equal("second", DecodeUnicode(
+            Assert.IsType<PdfString>(named[Name("Dest")])));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(
+            named[Name("F")]).Value);
+    }
+
+    [Fact]
+    public void Build_AppendsBookmarkToExistingOutlineList()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBookmark("Existing", 0)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .AddBookmark("Added", 0)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(
+            reopened, catalog[Name("Outlines")]);
+        PdfIndirectReference firstReference =
+            Assert.IsType<PdfIndirectReference>(root[Name("First")]);
+        PdfDictionary first = ResolveDictionary(reopened, firstReference);
+        PdfIndirectReference secondReference =
+            Assert.IsType<PdfIndirectReference>(first[Name("Next")]);
+        PdfDictionary second = ResolveDictionary(reopened, secondReference);
+
+        Assert.Equal("Added", DecodeUnicode(
+            Assert.IsType<PdfString>(second[Name("Title")])));
+        Assert.Equal(firstReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(
+                second[Name("Prev")]).ObjectNumber);
+        Assert.Equal(secondReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(
+                root[Name("Last")]).ObjectNumber);
+        Assert.Equal(2, Assert.IsType<PdfInteger>(
+            root[Name("Count")]).Value);
+    }
+
+    [Fact]
+    public void Build_RejectsBookmarkWhosePageWasRemoved()
+    {
+        var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()))
+            .AddBookmark("Removed", 0)
+            .RemovePage(0);
+
+        Assert.Throws<InvalidOperationException>(() => editor.Build());
+    }
+
+    [Fact]
+    public void Build_LinksExistingImportedAndAuthoredBookmarkSegments()
+    {
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBookmark("Target", 0)
+            .Build());
+        PdfDocument imported = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBookmark("Imported", 0)
+            .Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .AddImportedDocument(imported)
+            .AddBookmark("Authored", 1)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(
+            reopened, catalog[Name("Outlines")]);
+        var titles = new List<string>();
+        PdfIndirectReference? previous = null;
+        PdfIndirectReference? current = Assert.IsType<PdfIndirectReference>(
+            root[Name("First")]);
+        while (current is not null)
+        {
+            PdfDictionary item = ResolveDictionary(reopened, current);
+            titles.Add(DecodeUnicode(
+                Assert.IsType<PdfString>(item[Name("Title")])));
+            if (previous is null)
+                Assert.False(item.ContainsKey(Name("Prev")));
+            else
+                Assert.Equal(previous.ObjectNumber,
+                    Assert.IsType<PdfIndirectReference>(
+                        item[Name("Prev")]).ObjectNumber);
+            previous = current;
+            current = item.TryGetValue(Name("Next"), out PdfObject? next)
+                ? Assert.IsType<PdfIndirectReference>(next) : null;
+        }
+
+        Assert.Equal(["Target", "Imported", "Authored"], titles);
+        Assert.Equal(3, Assert.IsType<PdfInteger>(
+            root[Name("Count")]).Value);
+        Assert.Equal(previous!.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(
+            root[Name("Last")]).ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_SetsOutputIntentAndUpgradesEffectiveVersion()
+    {
+        PdfIccProfile profile = PdfIccProfile.Load(BuildRgbProfile());
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder(
+            new PdfVersion(1, 3)).AddBlankPage().Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(source)
+            .SetOutputIntent(profile, "Test RGB",
+                "Screen RGB", "https://example.test/icc", "Test profile")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfArray intents = Assert.IsType<PdfArray>(
+            catalog[Name("OutputIntents")]);
+        PdfDictionary intent = ResolveDictionary(reopened, intents[0]);
+        PdfStream outputProfile = ResolveStream(
+            reopened, intent[Name("DestOutputProfile")]);
+
+        Assert.Equal("1.4", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+        Assert.Equal("OutputIntent", Assert.IsType<PdfName>(
+            intent[Name("Type")]).ValueAsLatin1());
+        Assert.Equal("GTS_PDFA1", Assert.IsType<PdfName>(
+            intent[Name("S")]).ValueAsLatin1());
+        Assert.Equal("Test RGB", DecodeUnicode(Assert.IsType<PdfString>(
+            intent[Name("OutputConditionIdentifier")])));
+        Assert.Equal(3, Assert.IsType<PdfInteger>(
+            outputProfile.Dictionary[Name("N")]).Value);
+        Assert.Equal(profile.Data.ToArray(),
+            outputProfile.EncodedData.ToArray());
     }
 
     [Fact]
@@ -10742,6 +12017,76 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetRotation(0, 45));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetMediaBox(0, 0, 0, 0, 100));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetCropBox(0, 0, 0, 100, double.NaN));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetPageBox(
+            0, (PdfPageBox)int.MaxValue, 0, 0, 100, 100));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetPageUserUnit(0, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetPageUserUnit(0, 75_001));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.SetPageDisplayDuration(0, 0));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.SetPageTransition(0, null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.SetPageTabOrder(0, (PdfPageTabOrder)99));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.SetPageThumbnail(0, null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.SetPageLayout((PdfPageLayout)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.SetPageMode((PdfPageMode)99));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.SetViewerPreferences(null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.SetViewerPreferences(new PdfViewerPreferences
+            {
+                Duplex = (PdfDuplexMode)99
+            }));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.SetOpenAction(1, PdfDestination.FitPage()));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.SetOpenAction(0, null!));
+        Assert.Throws<ArgumentException>(() =>
+            editor.SetNamedOpenAction("missing"));
+        Assert.Throws<ArgumentException>(() =>
+            editor.AddNamedDestination("", 0, PdfDestination.FitPage()));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.AddNamedDestination("missing-page", 1, PdfDestination.FitPage()));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.AddNamedDestination("null", 0, null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.AddPageLabelRange(1, PdfPageLabelStyle.Decimal));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.AddPageLabelRange(0, (PdfPageLabelStyle)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.AddPageLabelRange(0, PdfPageLabelStyle.Decimal, startNumber: 0));
+        Assert.Throws<ArgumentException>(() =>
+            editor.AddPageLabelRange(0, PdfPageLabelStyle.None));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.SetMetadata(null!));
+        Assert.Throws<ArgumentException>(() =>
+            editor.SetMetadata(new PdfDocumentMetadata
+            {
+                Language = "not_a_language"
+            }));
+        Assert.Throws<ArgumentException>(() =>
+            editor.AddAttachment("../secret.txt", ReadOnlyMemory<byte>.Empty));
+        Assert.Throws<ArgumentException>(() =>
+            editor.AddAttachment("file.bin", ReadOnlyMemory<byte>.Empty, "invalid"));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.AddAttachment("file.bin", ReadOnlyMemory<byte>.Empty,
+                relationship: (PdfAssociatedFileRelationship)99));
+        Assert.Throws<ArgumentException>(() =>
+            editor.AddBookmark("", 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.AddBookmark("Missing", 1));
+        Assert.Throws<ArgumentException>(() =>
+            editor.AddBookmark("Child first", 0, level: 1));
+        Assert.Throws<ArgumentException>(() =>
+            editor.AddNamedDestinationBookmark("Named", "missing"));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.SetOutputIntent(null!, "profile"));
+        Assert.Throws<ArgumentException>(() =>
+            editor.SetOutputIntent(
+                PdfIccProfile.Load(BuildRgbProfile()), " "));
         Assert.Throws<InvalidOperationException>(() => editor.Build());
     }
 

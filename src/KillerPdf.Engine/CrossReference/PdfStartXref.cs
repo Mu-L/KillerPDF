@@ -67,20 +67,22 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
             int candidate = source[..searchEnd].LastIndexOf(Marker);
             if (candidate < 0)
                 return -1;
-            if (!IsInsideComment(source, candidate))
+            int commentStart = CommentStart(source, candidate);
+            if (commentStart < 0)
                 return candidate;
-            searchEnd = candidate;
+            searchEnd = commentStart;
         }
         return -1;
     }
 
-    private static bool IsInsideComment(ReadOnlySpan<byte> source, int offset)
+    private static int CommentStart(ReadOnlySpan<byte> source, int offset)
     {
         int lineStart = offset;
         while (lineStart > 0
             && source[lineStart - 1] is not ((byte)'\r') and not ((byte)'\n'))
             lineStart--;
-        return source[lineStart..offset].Contains((byte)'%');
+        int relative = source[lineStart..offset].IndexOf((byte)'%');
+        return relative >= 0 ? lineStart + relative : -1;
     }
 
     private static void SkipWhitespace(ReadOnlySpan<byte> source, ref int position)

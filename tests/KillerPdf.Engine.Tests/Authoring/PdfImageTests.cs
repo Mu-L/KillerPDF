@@ -3,6 +3,7 @@ using System.Text;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Syntax;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Authoring;
@@ -171,6 +172,25 @@ public sealed class PdfImageTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => builder.SetPageThumbnail(1, image));
         Assert.Throws<ArgumentNullException>(() => builder.SetPageThumbnail(0, null!));
+    }
+
+    [Fact]
+    public void SetPageThumbnail_RequiresPdf14ForAnAlphaSoftMask()
+    {
+        PdfImage thumbnail = PdfImage.FromRgba(
+            1, 1, new byte[] { 20, 80, 160, 192 });
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfDocumentBuilder(new PdfVersion(1, 3))
+                .AddBlankPage()
+                .SetPageThumbnail(0, thumbnail)
+                .Build());
+
+        Assert.Contains("image soft masks", error.Message);
+        Assert.NotEmpty(new PdfDocumentBuilder(new PdfVersion(1, 4))
+            .AddBlankPage()
+            .SetPageThumbnail(0, thumbnail)
+            .Build());
     }
 
     [Fact]

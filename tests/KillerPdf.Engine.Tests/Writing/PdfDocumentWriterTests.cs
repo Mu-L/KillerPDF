@@ -842,14 +842,12 @@ public sealed class PdfDocumentWriterTests
     }
 
     [Fact]
-    public void Write_RejectsMalformedPreservedDocumentIdentifiers()
+    public void Open_RejectsMalformedDocumentIdentifiersBeforeRewrite()
     {
-        PdfDocument document = PdfDocument.Open(SourcePdf(" /ID [<01>]"));
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfDocument.Open(SourcePdf(" /ID [<01>]")));
 
-        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
-            () => PdfDocumentWriter.Write(document));
-
-        Assert.Contains("trailer /ID to be an array of two strings",
+        Assert.Contains("Trailer /ID must be an array of two strings",
             error.Message, StringComparison.Ordinal);
     }
 

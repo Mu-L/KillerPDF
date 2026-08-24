@@ -345,7 +345,7 @@ public sealed class PdfEncryptionTests
             PdfDocumentWriter.Write(user));
 
         Assert.Contains("assembly", assemblyError.Message, StringComparison.Ordinal);
-        Assert.Contains("page-box modification", modificationError.Message, StringComparison.Ordinal);
+        Assert.Contains("page-geometry modification", modificationError.Message, StringComparison.Ordinal);
         Assert.Contains("annotation modification", annotationError.Message, StringComparison.Ordinal);
         Assert.Contains("full document rewrite", rewriteError.Message, StringComparison.Ordinal);
         Assert.NotEmpty(new PdfIncrementalPageEditor(PdfDocument.Open(bytes, "owner"))

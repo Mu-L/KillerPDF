@@ -403,10 +403,14 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                 : revision.Hybrid is not null
                     && revision.Hybrid.Trailer.TryGetValue(IdName, out PdfObject hybrid)
                         ? hybrid : null;
+            if (value is null)
+                continue;
             if (value is not PdfArray { Count: 2 } identifiers
                 || identifiers[0] is not PdfString first
                 || identifiers[1] is not PdfString)
-                continue;
+                throw new PdfSyntaxException(
+                    "Trailer /ID must be an array of two strings",
+                    ClampOffset(revision.Primary.Offset));
             if (permanentIdentifier.HasValue
                 && !permanentIdentifier.Value.Span.SequenceEqual(first.Bytes.Span))
                 throw new PdfSyntaxException(

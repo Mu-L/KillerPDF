@@ -3,6 +3,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Writing;
 using Xunit;
 
@@ -186,19 +187,15 @@ public sealed class PdfIncrementalUpdateBuilderTests
     }
 
     [Fact]
-    public void Build_RejectsMalformedInheritedDocumentIdentifiers()
+    public void Open_RejectsMalformedInheritedDocumentIdentifiersBeforeUpdate()
     {
         string sourceText = Encoding.ASCII.GetString(SourceWithTrailerState())
             .Replace("/DocChecksum", "/ID [<01>] /DocChecksum",
                 StringComparison.Ordinal);
-        var update = new PdfIncrementalUpdateBuilder(
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
             PdfDocument.Open(Encoding.ASCII.GetBytes(sourceText)));
-        update.AddObject(new PdfInteger(1));
 
-        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
-            () => update.Build());
-
-        Assert.Contains("trailer /ID to be an array of two strings",
+        Assert.Contains("Trailer /ID must be an array of two strings",
             error.Message, StringComparison.Ordinal);
     }
 

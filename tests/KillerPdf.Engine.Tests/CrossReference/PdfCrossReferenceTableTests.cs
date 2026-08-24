@@ -609,6 +609,26 @@ public sealed class PdfCrossReferenceTableTests
             StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("<01>")]
+    [InlineData("[<01>]")]
+    [InlineData("[<01> <02> <03>]")]
+    [InlineData("[<01> 2]")]
+    public void Read_RejectsMalformedTrailerIdentifiers(string identifiers)
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append($"trailer\n<< /Size 1 /ID {identifiers} >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/ID must be an array of two strings", error.Message,
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Read_RejectsEncryptionIntroducedByIncrementalRevision()
     {

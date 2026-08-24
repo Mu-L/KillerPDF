@@ -78,9 +78,8 @@ public sealed partial class PdfDocumentBuilder
         string? registryName = null,
         string? information = null)
     {
-        ArgumentNullException.ThrowIfNull(profile);
-        if (string.IsNullOrWhiteSpace(outputConditionIdentifier))
-            throw new ArgumentException("An output-condition identifier cannot be empty.", nameof(outputConditionIdentifier));
+        PdfOutputIntentFactory.Validate(
+            profile, outputConditionIdentifier);
         _outputIntent = new OutputIntentDefinition(
             profile, outputConditionIdentifier, outputCondition, registryName, information);
         return this;
@@ -282,15 +281,12 @@ public sealed partial class PdfDocumentBuilder
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidateRectangle(x, y, width, height);
-        PdfUnicodeEncoding.EncodeUtf8(uri);
-        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed)
-            || parsed.Scheme is not ("http" or "https" or "mailto"))
-            throw new ArgumentException("A link URI must use http, https, or mailto.", nameof(uri));
+        string normalizedUri = PdfLinkAnnotationFactory.ValidateUri(uri);
         PageDefinition page = _pages[pageIndex];
         _pages[pageIndex] = page with
         {
             Links = [.. page.Links, new UriLinkDefinition(
-                x, y, width, height, appearance ?? new PdfLinkAppearance(), parsed.AbsoluteUri,
+                x, y, width, height, appearance ?? new PdfLinkAppearance(), normalizedUri,
                 null, annotationMetadata, contents)]
         };
         return this;
@@ -302,18 +298,15 @@ public sealed partial class PdfDocumentBuilder
         PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
-        PdfTextQuad[] values = ValidateLinkQuads(quads);
-        PdfUnicodeEncoding.EncodeUtf8(uri);
-        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed)
-            || parsed.Scheme is not ("http" or "https" or "mailto"))
-            throw new ArgumentException("A link URI must use http, https, or mailto.", nameof(uri));
+        PdfTextQuad[] values = PdfLinkAnnotationFactory.ValidateQuads(quads);
+        string normalizedUri = PdfLinkAnnotationFactory.ValidateUri(uri);
         (double minX, double minY, double maxX, double maxY) = TextMarkupBounds(values);
         PageDefinition page = _pages[pageIndex];
         _pages[pageIndex] = page with
         {
             Links = [.. page.Links, new UriLinkDefinition(
                 minX, minY, maxX - minX, maxY - minY,
-                appearance ?? new PdfLinkAppearance(), parsed.AbsoluteUri, values,
+                appearance ?? new PdfLinkAppearance(), normalizedUri, values,
                 annotationMetadata, contents)]
         };
         return this;
@@ -346,7 +339,7 @@ public sealed partial class PdfDocumentBuilder
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         ValidatePageIndex(destinationPageIndex, nameof(destinationPageIndex));
-        PdfTextQuad[] values = ValidateLinkQuads(quads);
+        PdfTextQuad[] values = PdfLinkAnnotationFactory.ValidateQuads(quads);
         (double minX, double minY, double maxX, double maxY) = TextMarkupBounds(values);
         PageDefinition page = _pages[pageIndex];
         _pages[pageIndex] = page with
@@ -388,7 +381,7 @@ public sealed partial class PdfDocumentBuilder
         PdfAnnotationMetadata? annotationMetadata = null, string? contents = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
-        PdfTextQuad[] values = ValidateLinkQuads(quads);
+        PdfTextQuad[] values = PdfLinkAnnotationFactory.ValidateQuads(quads);
         if (string.IsNullOrWhiteSpace(destinationName)
             || !_namedDestinations.Any(destination =>
                 string.Equals(destination.Name, destinationName, StringComparison.Ordinal)))
@@ -403,15 +396,6 @@ public sealed partial class PdfDocumentBuilder
                 annotationMetadata, contents)]
         };
         return this;
-    }
-
-    private static PdfTextQuad[] ValidateLinkQuads(IReadOnlyList<PdfTextQuad> quads)
-    {
-        ArgumentNullException.ThrowIfNull(quads);
-        if (quads.Count == 0)
-            throw new ArgumentException("At least one link quad is required.", nameof(quads));
-        foreach (PdfTextQuad quad in quads) quad.Validate();
-        return [.. quads];
     }
 
     public PdfDocumentBuilder AddNamedDestination(string name, int pageIndex) =>
@@ -589,64 +573,13 @@ public sealed partial class PdfDocumentBuilder
         PdfAssociatedFileRelationship relationship = PdfAssociatedFileRelationship.Data,
         DateTimeOffset? modificationDate = null)
     {
-        if (!IsPortableFileName(fileName))
-            throw new ArgumentException(
-                "An attachment name must be a portable plain file name.", nameof(fileName));
-        PdfUnicodeEncoding.EncodeBigEndian(fileName);
+        PdfAttachmentFactory.Validate(fileName, mimeType, relationship);
         if (_attachments.Any(item => string.Equals(item.FileName, fileName, StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException("Attachment file names must be unique.", nameof(fileName));
-        int separator = mimeType?.IndexOf('/') ?? -1;
-        if (separator <= 0 || separator != mimeType!.LastIndexOf('/')
-            || separator == mimeType.Length - 1
-            || !IsMimeToken(mimeType.AsSpan(0, separator))
-            || !IsMimeToken(mimeType.AsSpan(separator + 1)))
-            throw new ArgumentException(
-                "An attachment MIME type must contain exactly two valid token components.",
-                nameof(mimeType));
-        if (!Enum.IsDefined(relationship))
-            throw new ArgumentOutOfRangeException(nameof(relationship));
         _attachments.Add(new AttachmentDefinition(
             fileName, data.ToArray(), mimeType, description, relationship, modificationDate));
         return this;
     }
-
-    private static bool IsMimeTokenCharacter(char value) =>
-        value is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9'
-            or '!' or '#' or '$' or '%' or '&' or '\'' or '*' or '+' or '-'
-            or '.' or '^' or '_' or '`' or '|' or '~';
-
-    private static bool IsMimeToken(ReadOnlySpan<char> value)
-    {
-        foreach (char character in value)
-            if (!IsMimeTokenCharacter(character)) return false;
-        return true;
-    }
-
-    private static bool IsPortableFileName(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || value is "." or ".."
-            || value.EndsWith(' ') || value.EndsWith('.'))
-            return false;
-        foreach (char character in value)
-            if (char.IsControl(character) || character is '<' or '>' or ':' or '"'
-                or '/' or '\\' or '|' or '?' or '*')
-                return false;
-        int extension = value.IndexOf('.');
-        ReadOnlySpan<char> stem = extension < 0 ? value : value.AsSpan(0, extension);
-        if (stem.Equals("CON", StringComparison.OrdinalIgnoreCase)
-            || stem.Equals("PRN", StringComparison.OrdinalIgnoreCase)
-            || stem.Equals("AUX", StringComparison.OrdinalIgnoreCase)
-            || stem.Equals("NUL", StringComparison.OrdinalIgnoreCase)
-            || IsNumberedDeviceName(stem, "COM")
-            || IsNumberedDeviceName(stem, "LPT"))
-            return false;
-        return true;
-    }
-
-    private static bool IsNumberedDeviceName(ReadOnlySpan<char> value, string prefix) =>
-        value.Length == 4
-        && value[..3].Equals(prefix, StringComparison.OrdinalIgnoreCase)
-        && value[3] is >= '1' and <= '9';
 
     public PdfDocumentBuilder AddFileAttachmentAnnotation(
         int pageIndex,
@@ -1481,6 +1414,19 @@ public sealed partial class PdfDocumentBuilder
         if (_pages.Any(page => page.TabOrder.HasValue)
             && Version.CompareTo(new PdfVersion(1, 5)) < 0)
             throw new InvalidOperationException("Page tab ordering requires PDF 1.5 or later.");
+        if (_pageLayout is PdfPageLayout.TwoPageLeft or PdfPageLayout.TwoPageRight
+            && Version.CompareTo(new PdfVersion(1, 5)) < 0)
+            throw new InvalidOperationException("Two-page layouts require PDF 1.5 or later.");
+        if (_pageMode == PdfPageMode.UseOptionalContent
+            && Version.CompareTo(new PdfVersion(1, 5)) < 0)
+            throw new InvalidOperationException(
+                "Optional-content page mode requires PDF 1.5 or later.");
+        if (_pageMode == PdfPageMode.UseAttachments
+            && Version.CompareTo(new PdfVersion(1, 6)) < 0)
+            throw new InvalidOperationException(
+                "Attachments page mode requires PDF 1.6 or later.");
+        if (_viewerPreferences is not null)
+            RequireVersion(_viewerPreferences.MinimumVersion(), "viewer preferences");
         if (pdfA4 && _encryption is not null)
             throw new InvalidOperationException("PDF/A documents cannot be encrypted.");
         var forms = new List<PdfFormXObject>();
@@ -1601,6 +1547,8 @@ public sealed partial class PdfDocumentBuilder
             || _redactionAnnotations.Any(annotation => annotation.OverlayFont is not null))
             RequireVersion(new PdfVersion(1, 2), "embedded CID fonts");
         IEnumerable<PdfImage> authoredImages = _pages.SelectMany(page => page.Images.Keys)
+            .Concat(_pages.Select(page => page.Thumbnail)
+                .Where(image => image is not null).Cast<PdfImage>())
             .Concat(forms.SelectMany(form => form.Images.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.Images.Keys))
             .Concat(_imageStamps.Select(stamp => stamp.Image))
@@ -2221,9 +2169,8 @@ public sealed partial class PdfDocumentBuilder
         if (_openAction is not null)
             catalogEntries.Add(("OpenAction", _openAction.NamedDestination is not null
                 ? UnicodeString(_openAction.NamedDestination)
-                : DestinationArray(
-                    DestinationReference(_openAction.PageIndex!.Value),
-                    _openAction.Destination!)));
+                : _openAction.Destination!.ToArray(
+                    DestinationReference(_openAction.PageIndex!.Value))));
         if (structureRootNumber.HasValue)
         {
             catalogEntries.Add(("StructTreeRoot",
@@ -2232,7 +2179,8 @@ public sealed partial class PdfDocumentBuilder
         }
         if (_viewerPreferences is not null || _pdfUa2Conformance)
             catalogEntries.Add(("ViewerPreferences",
-                ViewerPreferencesDictionary(_viewerPreferences, _pdfUa2Conformance)));
+                (_viewerPreferences ?? new PdfViewerPreferences())
+                    .ToDictionary(_pdfUa2Conformance)));
         var catalogNameEntries = new List<(string Name, PdfObject Value)>();
         if (allocatedAttachments.Length > 0)
         {
@@ -2703,15 +2651,7 @@ public sealed partial class PdfDocumentBuilder
                 shadingNumbers[shading], 0, ShadingDictionary(shading), 0));
         foreach (PdfIccProfile profile in allIccProfiles)
             objects.Add(new PdfIndirectObject(iccProfileNumbers[profile], 0,
-                new PdfStream(Dictionary(
-                    ("N", new PdfInteger(profile.ComponentCount)),
-                    ("Alternate", Name(profile.ComponentCount switch
-                    {
-                        1 => "DeviceGray",
-                        3 => "DeviceRGB",
-                        4 => "DeviceCMYK",
-                        _ => throw new NotSupportedException()
-                    }))), profile.Data.Span), 0));
+                PdfOutputIntentFactory.Profile(profile), 0));
         for (int index = 0; index < allocatedTextNotes.Length; index++)
             AddTextNoteObjects(objects, allocatedTextNotes[index], allocated, index + 1,
                 textNoteNumbersByName);
@@ -2854,7 +2794,7 @@ public sealed partial class PdfDocumentBuilder
             if (allocatedPage.Definition.DisplayDuration.HasValue)
                 entries.Add(("Dur", Number(allocatedPage.Definition.DisplayDuration.Value)));
             if (allocatedPage.Definition.Transition is not null)
-                entries.Add(("Trans", PageTransitionDictionary(allocatedPage.Definition.Transition)));
+                entries.Add(("Trans", allocatedPage.Definition.Transition.ToDictionary()));
             if (allocatedPage.Definition.Thumbnail is not null)
                 entries.Add(("Thumb", new PdfIndirectReference(
                     imageNumbers[allocatedPage.Definition.Thumbnail], 0)));
@@ -3045,32 +2985,14 @@ public sealed partial class PdfDocumentBuilder
         ICollection<PdfIndirectObject> objects, AllocatedAttachment allocated)
     {
         AttachmentDefinition attachment = allocated.Definition;
-        var parameterEntries = new List<(string Name, PdfObject Value)>
-        {
-            ("Size", new PdfInteger(attachment.Data.Length))
-        };
-        if (attachment.ModificationDate.HasValue)
-            parameterEntries.Add(("ModDate", Latin1String(PdfDate(attachment.ModificationDate.Value))));
         objects.Add(new PdfIndirectObject(allocated.EmbeddedFileNumber, 0,
-            new PdfStream(Dictionary(
-                ("Type", Name("EmbeddedFile")),
-                ("Subtype", Name(attachment.MimeType)),
-                ("Params", Dictionary(parameterEntries.ToArray()))), attachment.Data), 0));
-
-        var fileEntries = new List<(string Name, PdfObject Value)>
-        {
-            ("Type", Name("Filespec")),
-            ("F", UnicodeString(attachment.FileName)),
-            ("UF", UnicodeString(attachment.FileName)),
-            ("EF", Dictionary(
-                ("F", new PdfIndirectReference(allocated.EmbeddedFileNumber, 0)),
-                ("UF", new PdfIndirectReference(allocated.EmbeddedFileNumber, 0)))),
-            ("AFRelationship", Name(attachment.Relationship.ToString()))
-        };
-        if (!string.IsNullOrEmpty(attachment.Description))
-            fileEntries.Add(("Desc", UnicodeString(attachment.Description)));
+            PdfAttachmentFactory.EmbeddedFile(
+                attachment.Data, attachment.MimeType, attachment.ModificationDate), 0));
         objects.Add(new PdfIndirectObject(allocated.FileSpecificationNumber, 0,
-            Dictionary(fileEntries.ToArray()), 0));
+            PdfAttachmentFactory.FileSpecification(
+                attachment.FileName, attachment.Description,
+                attachment.Relationship,
+                new PdfIndirectReference(allocated.EmbeddedFileNumber, 0)), 0));
     }
 
     private static void AddFileAttachmentAnnotationObjects(
@@ -4408,23 +4330,12 @@ public sealed partial class PdfDocumentBuilder
         int profileNumber,
         int outputIntentNumber)
     {
-        var entries = new List<(string Name, PdfObject Value)>
-        {
-            ("Type", Name("OutputIntent")),
-            ("S", Name("GTS_PDFA1")),
-            ("OutputConditionIdentifier", UnicodeString(definition.Identifier)),
-            ("DestOutputProfile", new PdfIndirectReference(profileNumber, 0))
-        };
-        Add("OutputCondition", definition.Condition);
-        Add("RegistryName", definition.RegistryName);
-        Add("Info", definition.Information);
         objects.Add(new PdfIndirectObject(
-            outputIntentNumber, 0, Dictionary(entries.ToArray()), 0));
-
-        void Add(string name, string? value)
-        {
-            if (!string.IsNullOrEmpty(value)) entries.Add((name, UnicodeString(value)));
-        }
+            outputIntentNumber, 0,
+            PdfOutputIntentFactory.OutputIntent(
+                new PdfIndirectReference(profileNumber, 0),
+                definition.Identifier, definition.Condition,
+                definition.RegistryName, definition.Information), 0));
     }
 
     private static void AddTextNoteObjects(
@@ -5665,7 +5576,7 @@ public sealed partial class PdfDocumentBuilder
         return new PdfString(bytes, PdfStringForm.Hexadecimal);
     }
 
-    private static PdfDictionary BuildInfo(PdfDocumentMetadata metadata)
+    internal static PdfDictionary BuildInfo(PdfDocumentMetadata metadata)
     {
         var entries = new List<(string Name, PdfObject Value)>();
         Add("Title", metadata.Title);
@@ -5777,6 +5688,9 @@ public sealed partial class PdfDocumentBuilder
         }
         return output.ToArray();
     }
+
+    internal static byte[] BuildXmp(PdfDocumentMetadata metadata) =>
+        BuildXmp(metadata, PdfA4Flavor.None, pdfUa2: false);
 
     private enum PdfA4Flavor
     {
@@ -6134,77 +6048,9 @@ public sealed partial class PdfDocumentBuilder
         _ => throw new ArgumentOutOfRangeException(nameof(mode))
     };
 
-    private static PdfDictionary ViewerPreferencesDictionary(
-        PdfViewerPreferences? preferences, bool requireDocumentTitle)
-    {
-        preferences ??= new PdfViewerPreferences();
-        var entries = new List<(string Name, PdfObject Value)>();
-        void AddTrue(string name, bool value)
-        {
-            if (value) entries.Add((name, new PdfBoolean(true)));
-        }
-        AddTrue("HideToolbar", preferences.HideToolbar);
-        AddTrue("HideMenubar", preferences.HideMenuBar);
-        AddTrue("HideWindowUI", preferences.HideWindowUi);
-        AddTrue("FitWindow", preferences.FitWindow);
-        AddTrue("CenterWindow", preferences.CenterWindow);
-        AddTrue("DisplayDocTitle", preferences.DisplayDocumentTitle || requireDocumentTitle);
-        AddTrue("PickTrayByPDFSize", preferences.PickTrayByPdfSize);
-        if (preferences.ReadingDirection == PdfReadingDirection.RightToLeft)
-            entries.Add(("Direction", Name("R2L")));
-        if (preferences.PrintScaling == PdfPrintScaling.None)
-            entries.Add(("PrintScaling", Name("None")));
-        if (preferences.Duplex != PdfDuplexMode.Default)
-            entries.Add(("Duplex", Name(preferences.Duplex switch
-            {
-                PdfDuplexMode.Simplex => "Simplex",
-                PdfDuplexMode.DuplexFlipShortEdge => "DuplexFlipShortEdge",
-                PdfDuplexMode.DuplexFlipLongEdge => "DuplexFlipLongEdge",
-                _ => throw new ArgumentOutOfRangeException(nameof(preferences))
-            })));
-        return Dictionary(entries.ToArray());
-    }
-
-    private static PdfDictionary PageTransitionDictionary(PdfPageTransition transition)
-    {
-        var entries = new List<(string Name, PdfObject Value)>
-        {
-            ("S", Name(transition.Style == PdfPageTransitionStyle.Replace
-                ? "R" : transition.Style.ToString())),
-            ("D", Number(transition.Duration))
-        };
-        if (transition.Dimension.HasValue)
-            entries.Add(("Dm", Name(transition.Dimension == PdfTransitionDimension.Horizontal ? "H" : "V")));
-        if (transition.Motion.HasValue)
-            entries.Add(("M", Name(transition.Motion == PdfTransitionMotion.Inward ? "I" : "O")));
-        if (transition.Direction.HasValue)
-            entries.Add(("Di", new PdfInteger(transition.Direction.Value)));
-        if (transition.Scale.HasValue)
-            entries.Add(("SS", Number(transition.Scale.Value)));
-        if (transition.Opaque)
-            entries.Add(("B", new PdfBoolean(true)));
-        return Dictionary(entries.ToArray());
-    }
-
     private static PdfArray DestinationArray(
         PdfIndirectReference page, PdfDestination destination)
-    {
-        var values = new List<PdfObject> { page, Name(destination.Kind switch
-        {
-            PdfDestinationKind.Xyz => "XYZ",
-            PdfDestinationKind.Fit => "Fit",
-            PdfDestinationKind.FitH => "FitH",
-            PdfDestinationKind.FitV => "FitV",
-            PdfDestinationKind.FitR => "FitR",
-            PdfDestinationKind.FitB => "FitB",
-            PdfDestinationKind.FitBH => "FitBH",
-            PdfDestinationKind.FitBV => "FitBV",
-            _ => throw new ArgumentOutOfRangeException(nameof(destination))
-        }) };
-        values.AddRange(destination.Values.Select(value =>
-            value.HasValue ? Number(value.Value) : PdfNull.Instance));
-        return new PdfArray(values);
-    }
+        => destination.ToArray(page);
 
     private sealed record PageDefinition(
         double Width,

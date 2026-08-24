@@ -1,3 +1,6 @@
+using System.Text;
+using KillerPdf.Engine.Objects;
+
 namespace KillerPdf.Engine.Authoring;
 
 /// <summary>Controls how a destination page is positioned in a conforming viewer.</summary>
@@ -39,12 +42,40 @@ public sealed class PdfDestination
     internal PdfDestinationKind Kind { get; }
     internal IReadOnlyList<double?> Values { get; }
 
+    internal PdfArray ToArray(PdfIndirectReference page)
+    {
+        var values = new List<PdfObject> { page, Name(Kind switch
+        {
+            PdfDestinationKind.Xyz => "XYZ",
+            PdfDestinationKind.Fit => "Fit",
+            PdfDestinationKind.FitH => "FitH",
+            PdfDestinationKind.FitV => "FitV",
+            PdfDestinationKind.FitR => "FitR",
+            PdfDestinationKind.FitB => "FitB",
+            PdfDestinationKind.FitBH => "FitBH",
+            PdfDestinationKind.FitBV => "FitBV",
+            _ => throw new ArgumentOutOfRangeException(nameof(Kind))
+        }) };
+        values.AddRange(Values.Select(value => value switch
+        {
+            null => (PdfObject)PdfNull.Instance,
+            double number when number == Math.Truncate(number)
+                && number is >= long.MinValue and <= long.MaxValue =>
+                new PdfInteger((long)number),
+            double number => new PdfReal(number)
+        }));
+        return new PdfArray(values);
+    }
+
     private static double? Optional(double? value, string name)
     {
         if (value.HasValue && !double.IsFinite(value.Value))
             throw new ArgumentOutOfRangeException(name);
         return value;
     }
+
+    private static PdfName Name(string value) =>
+        new(Encoding.ASCII.GetBytes(value));
 }
 
 internal enum PdfDestinationKind { Xyz, Fit, FitH, FitV, FitR, FitB, FitBH, FitBV }

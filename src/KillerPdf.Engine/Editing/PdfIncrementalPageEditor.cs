@@ -1,4 +1,6 @@
 using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Filters;
@@ -16,8 +18,18 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName PagesName = Name("Pages");
     private static readonly PdfName ParentName = Name("Parent");
     private static readonly PdfName RotateName = Name("Rotate");
+    private static readonly PdfName VersionName = Name("Version");
     private static readonly PdfName MediaBoxName = Name("MediaBox");
     private static readonly PdfName CropBoxName = Name("CropBox");
+    private static readonly PdfName BleedBoxName = Name("BleedBox");
+    private static readonly PdfName TrimBoxName = Name("TrimBox");
+    private static readonly PdfName ArtBoxName = Name("ArtBox");
+    private static readonly PdfName UserUnitName = Name("UserUnit");
+    private static readonly PdfName DurationName = Name("Dur");
+    private static readonly PdfName TransitionName = Name("Trans");
+    private static readonly PdfName TabsName = Name("Tabs");
+    private static readonly PdfName ThumbnailName = Name("Thumb");
+    private static readonly PdfName ContentsName = Name("Contents");
     private static readonly PdfName AnnotsName = Name("Annots");
     private static readonly PdfName SubtypeName = Name("Subtype");
     private static readonly PdfName WidgetName = Name("Widget");
@@ -73,6 +85,8 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName EmbeddedFilesName = Name("EmbeddedFiles");
     private static readonly PdfName AssociatedFilesName = Name("AF");
     private static readonly PdfName PageModeName = Name("PageMode");
+    private static readonly PdfName PageLayoutName = Name("PageLayout");
+    private static readonly PdfName OpenActionName = Name("OpenAction");
     private static readonly PdfName FirstName = Name("First");
     private static readonly PdfName LastName = Name("Last");
     private static readonly PdfName NextName = Name("Next");
@@ -93,7 +107,22 @@ public sealed class PdfIncrementalPageEditor
     private readonly List<PageState> _pages;
     private bool _orderChanged;
     private bool _rotationChanged;
-    private bool _pageBoxesChanged;
+    private bool _pageGeometryChanged;
+    private bool _pagePresentationChanged;
+    private bool _catalogPresentationChanged;
+    private PdfPageLayout? _pageLayout;
+    private PdfPageMode? _pageMode;
+    private PdfViewerPreferences? _viewerPreferences;
+    private PageState? _openActionPage;
+    private PdfDestination? _openActionDestination;
+    private string? _namedOpenAction;
+    private readonly List<PendingNamedDestination> _namedDestinations = [];
+    private readonly List<PendingPageLabel> _pageLabels = [];
+    private readonly List<PendingAttachment> _attachments = [];
+    private readonly List<PendingBookmark> _bookmarks = [];
+    private PendingOutputIntent? _outputIntent;
+    private PdfDocumentMetadata? _metadata;
+    private PdfVersion? _minimumFeatureVersion;
     private int _nextImportBatchId;
 
     public PdfIncrementalPageEditor(PdfDocument document)
@@ -104,6 +133,273 @@ public sealed class PdfIncrementalPageEditor
     }
 
     public int PageCount => _pages.Count;
+
+    /// <summary>Replaces document information and descriptive XMP metadata.</summary>
+    public PdfIncrementalPageEditor SetMetadata(PdfDocumentMetadata metadata)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        if (metadata.Language is not null
+            && !PdfLanguageTag.IsValid(metadata.Language))
+            throw new ArgumentException(
+                "The document language is not a valid BCP 47 language tag.",
+                nameof(metadata));
+        _metadata = metadata;
+        _catalogPresentationChanged = true;
+        RequireVersion(new PdfVersion(1, 4));
+        return this;
+    }
+
+    /// <summary>Sets the document output intent and destination ICC profile.</summary>
+    public PdfIncrementalPageEditor SetOutputIntent(
+        PdfIccProfile profile, string outputConditionIdentifier,
+        string? outputCondition = null,
+        string? registryName = null,
+        string? information = null)
+    {
+        PdfOutputIntentFactory.Validate(
+            profile, outputConditionIdentifier);
+        _outputIntent = new PendingOutputIntent(
+            profile, outputConditionIdentifier,
+            outputCondition, registryName, information);
+        _catalogPresentationChanged = true;
+        RequireVersion(new PdfVersion(1, 4));
+        return this;
+    }
+
+    /// <summary>Sets the initial page layout selected by conforming viewers.</summary>
+    public PdfIncrementalPageEditor SetPageLayout(PdfPageLayout layout)
+    {
+        if (!Enum.IsDefined(layout))
+            throw new ArgumentOutOfRangeException(nameof(layout));
+        _pageLayout = layout;
+        _catalogPresentationChanged = true;
+        if (layout is PdfPageLayout.TwoPageLeft or PdfPageLayout.TwoPageRight)
+            RequireVersion(new PdfVersion(1, 5));
+        return this;
+    }
+
+    /// <summary>Sets the initial document panel or full-screen mode.</summary>
+    public PdfIncrementalPageEditor SetPageMode(PdfPageMode mode)
+    {
+        if (!Enum.IsDefined(mode))
+            throw new ArgumentOutOfRangeException(nameof(mode));
+        _pageMode = mode;
+        _catalogPresentationChanged = true;
+        if (mode == PdfPageMode.UseOptionalContent)
+            RequireVersion(new PdfVersion(1, 5));
+        else if (mode == PdfPageMode.UseAttachments)
+            RequireVersion(new PdfVersion(1, 6));
+        return this;
+    }
+
+    /// <summary>Sets the viewer-preference dictionary used when the document opens.</summary>
+    public PdfIncrementalPageEditor SetViewerPreferences(
+        PdfViewerPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        if (!Enum.IsDefined(preferences.ReadingDirection)
+            || !Enum.IsDefined(preferences.PrintScaling)
+            || !Enum.IsDefined(preferences.Duplex))
+            throw new ArgumentOutOfRangeException(nameof(preferences));
+        _viewerPreferences = preferences;
+        _catalogPresentationChanged = true;
+        RequireVersion(preferences.MinimumVersion());
+        return this;
+    }
+
+    /// <summary>Opens the document at a destination on the selected page.</summary>
+    public PdfIncrementalPageEditor SetOpenAction(
+        int pageIndex, PdfDestination destination)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(destination);
+        _openActionPage = _pages[pageIndex];
+        _openActionDestination = destination;
+        _namedOpenAction = null;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Opens the document at an existing named destination.</summary>
+    public PdfIncrementalPageEditor SetNamedOpenAction(string destinationName)
+    {
+        if (string.IsNullOrWhiteSpace(destinationName)
+            || !HasNamedDestination(destinationName))
+            throw new ArgumentException(
+                "A named open action requires an existing destination.",
+                nameof(destinationName));
+        _openActionPage = null;
+        _openActionDestination = null;
+        _namedOpenAction = destinationName;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Adds a named destination targeting the selected page.</summary>
+    public PdfIncrementalPageEditor AddNamedDestination(
+        string name, int pageIndex, PdfDestination destination)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException(
+                "A named destination cannot be empty.", nameof(name));
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(destination);
+        if (HasNamedDestination(name))
+            throw new ArgumentException(
+                "Named destinations must be unique.", nameof(name));
+        _namedDestinations.Add(new PendingNamedDestination(
+            name, _pages[pageIndex], destination));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Begins a page-label range at the selected page.</summary>
+    public PdfIncrementalPageEditor AddPageLabelRange(
+        int pageIndex, PdfPageLabelStyle style,
+        string? prefix = null, int startNumber = 1)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        if (!Enum.IsDefined(style))
+            throw new ArgumentOutOfRangeException(nameof(style));
+        if (startNumber < 1)
+            throw new ArgumentOutOfRangeException(nameof(startNumber));
+        if (style == PdfPageLabelStyle.None && string.IsNullOrEmpty(prefix))
+            throw new ArgumentException(
+                "A page-label range without numbering requires a prefix.",
+                nameof(prefix));
+        PageState page = _pages[pageIndex];
+        if (_pageLabels.Any(label => ReferenceEquals(label.Page, page)))
+            throw new ArgumentException(
+                "A page-label range already begins on this page.",
+                nameof(pageIndex));
+        _pageLabels.Add(new PendingPageLabel(
+            page, style, prefix, startNumber));
+        _catalogPresentationChanged = true;
+        RequireVersion(new PdfVersion(1, 3));
+        return this;
+    }
+
+    /// <summary>Embeds and associates a file with the document.</summary>
+    public PdfIncrementalPageEditor AddAttachment(
+        string fileName, ReadOnlyMemory<byte> data,
+        string mimeType = "application/octet-stream",
+        string? description = null,
+        PdfAssociatedFileRelationship relationship =
+            PdfAssociatedFileRelationship.Data,
+        DateTimeOffset? modificationDate = null)
+    {
+        PdfAttachmentFactory.Validate(fileName, mimeType, relationship);
+        (bool pdfA4, string? pdfA4Conformance, bool pdfUa2) =
+            ReadDocumentConformance();
+        if (pdfA4 && pdfA4Conformance is not ("F" or "E"))
+            throw new InvalidOperationException(
+                "General PDF/A-4 does not permit attachments.");
+        if (pdfUa2 && string.IsNullOrWhiteSpace(description))
+            throw new InvalidOperationException(
+                "PDF/UA-2 embedded files require descriptive file-specification metadata.");
+        if (_attachments.Any(attachment => string.Equals(
+                attachment.FileName, fileName,
+                StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException(
+                "Attachment file names must be unique.", nameof(fileName));
+        _attachments.Add(new PendingAttachment(
+            fileName, data.ToArray(), mimeType, description,
+            relationship, modificationDate));
+        _catalogPresentationChanged = true;
+        RequireVersion(PdfVersion.Pdf20);
+        return this;
+    }
+
+    /// <summary>Adds a bookmark targeting a page in the edited document.</summary>
+    public PdfIncrementalPageEditor AddBookmark(
+        string title, int pageIndex, int level = 0,
+        PdfBookmarkOptions? options = null)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException(
+                "A bookmark title cannot be empty.", nameof(title));
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateBookmarkLevel(level);
+        options ??= new PdfBookmarkOptions();
+        ArgumentNullException.ThrowIfNull(options.Destination);
+        _bookmarks.Add(new PendingBookmark(
+            title, _pages[pageIndex], null, level, options));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Adds a bookmark targeting an existing or pending named destination.</summary>
+    public PdfIncrementalPageEditor AddNamedDestinationBookmark(
+        string title, string destinationName, int level = 0,
+        PdfBookmarkOptions? options = null)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException(
+                "A bookmark title cannot be empty.", nameof(title));
+        if (string.IsNullOrWhiteSpace(destinationName)
+            || !HasNamedDestination(destinationName))
+            throw new ArgumentException(
+                "A named-destination bookmark requires an existing destination.",
+                nameof(destinationName));
+        ValidateBookmarkLevel(level);
+        options ??= new PdfBookmarkOptions();
+        _bookmarks.Add(new PendingBookmark(
+            title, null, destinationName, level, options));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    private void ValidateBookmarkLevel(int level)
+    {
+        if (level < 0)
+            throw new ArgumentOutOfRangeException(nameof(level));
+        if (_bookmarks.Count == 0 && level != 0)
+            throw new ArgumentException(
+                "The first bookmark must be at level zero.", nameof(level));
+        if (_bookmarks.Count > 0
+            && level > _bookmarks[^1].Level + 1)
+            throw new ArgumentException(
+                "A bookmark level cannot skip its parent level.", nameof(level));
+    }
+
+    private (bool PdfA4, string? PdfA4Conformance, bool PdfUa2)
+        ReadDocumentConformance()
+    {
+        if (!_tree.Catalog.TryGetValue(
+            MetadataName, out PdfObject? metadataValue))
+            return (false, null, false);
+        ValidateMetadataStream(
+            _document, metadataValue, "The catalog /Metadata value");
+        PdfStream stream = (PdfStream)ResolveCatalogValue(
+            _document, metadataValue, "The catalog /Metadata value");
+        byte[] decoded = PdfStreamDecoder.Decode(
+            stream, reference => _document.Resolve(reference),
+            maximumDecodedBytes: 32 * 1024 * 1024);
+        XDocument xmp;
+        try
+        {
+            xmp = XDocument.Parse(
+                new UTF8Encoding(false, true).GetString(decoded),
+                LoadOptions.PreserveWhitespace);
+        }
+        catch (Exception error) when (
+            error is XmlException or DecoderFallbackException)
+        {
+            throw new InvalidOperationException(
+                "The existing XMP metadata packet is not well-formed UTF-8 XML.",
+                error);
+        }
+        XNamespace pdfa = "http://www.aiim.org/pdfa/ns/id/";
+        XNamespace pdfua = "http://www.aiim.org/pdfua/ns/id/";
+        bool pdfA4 = xmp.Descendants(pdfa + "part")
+            .Any(value => value.Value.Trim() == "4");
+        string? conformance = xmp.Descendants(
+            pdfa + "conformance").Select(value => value.Value.Trim())
+            .FirstOrDefault();
+        bool pdfUa2 = xmp.Descendants(pdfua + "part")
+            .Any(value => value.Value.Trim() == "2");
+        return (pdfA4, conformance, pdfUa2);
+    }
 
     /// <summary>Moves a page to its final zero-based position.</summary>
     public PdfIncrementalPageEditor MovePage(int sourceIndex, int destinationIndex)
@@ -130,11 +426,18 @@ public sealed class PdfIncrementalPageEditor
     /// <summary>Inserts a blank page at a zero-based position in the current page order.</summary>
     public PdfIncrementalPageEditor InsertBlankPage(
         int pageIndex, double width = 612, double height = 792)
+        => InsertPage(pageIndex, width, height, ReadOnlyMemory<byte>.Empty);
+
+    /// <summary>Inserts a page with a raw PDF content stream.</summary>
+    public PdfIncrementalPageEditor InsertPage(
+        int pageIndex, double width, double height,
+        ReadOnlyMemory<byte> content)
     {
         ValidateInsertionIndex(pageIndex, nameof(pageIndex));
         PdfArray mediaBox = Rectangle(0, 0, width, height);
         EnsurePageCapacity(1);
-        _pages.Insert(pageIndex, new PageState(mediaBox));
+        _pages.Insert(pageIndex, new PageState(
+            mediaBox, content.Length == 0 ? null : content.ToArray()));
         _orderChanged = true;
         return this;
     }
@@ -142,6 +445,94 @@ public sealed class PdfIncrementalPageEditor
     /// <summary>Appends a blank page to the current page order.</summary>
     public PdfIncrementalPageEditor AddBlankPage(double width = 612, double height = 792) =>
         InsertBlankPage(_pages.Count, width, height);
+
+    /// <summary>Appends a page with a raw PDF content stream.</summary>
+    public PdfIncrementalPageEditor AddPage(
+        double width, double height, ReadOnlyMemory<byte> content) =>
+        InsertPage(_pages.Count, width, height, content);
+
+    /// <summary>
+    /// Inserts a page produced by the typed content builder, including all referenced resources.
+    /// </summary>
+    public PdfIncrementalPageEditor InsertPage(
+        int pageIndex, double width, double height,
+        PdfContentStreamBuilder content)
+    {
+        ValidateInsertionIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(content);
+        PdfDocument authoredPage = BuildTypedPage(width, height, content);
+        return InsertImportedPage(pageIndex, authoredPage, 0);
+    }
+
+    /// <summary>
+    /// Appends a page produced by the typed content builder, including all referenced resources.
+    /// </summary>
+    public PdfIncrementalPageEditor AddPage(
+        double width, double height, PdfContentStreamBuilder content) =>
+        InsertPage(_pages.Count, width, height, content);
+
+    private PdfDocument BuildTypedPage(
+        double width, double height, PdfContentStreamBuilder content)
+    {
+        PdfVersion effective = EffectiveVersion(_document, _tree.Catalog);
+        PdfVersion[] versions =
+        [
+            new PdfVersion(1, 0), new PdfVersion(1, 1),
+            new PdfVersion(1, 2), new PdfVersion(1, 3),
+            new PdfVersion(1, 4), new PdfVersion(1, 5),
+            new PdfVersion(1, 6), new PdfVersion(1, 7),
+            PdfVersion.Pdf20
+        ];
+        foreach (PdfVersion version in versions.Where(candidate =>
+                     candidate.CompareTo(effective) >= 0))
+        {
+            try
+            {
+                return PdfDocument.Open(new PdfDocumentBuilder(version)
+                    .AddPage(width, height, content)
+                    .Build());
+            }
+            catch (InvalidOperationException error) when (
+                version.CompareTo(PdfVersion.Pdf20) < 0
+                && error.Message.Contains(" requires PDF ",
+                    StringComparison.Ordinal))
+            {
+                // Retry only a declared feature-version boundary. All other
+                // validation failures belong to the caller's authored content.
+            }
+        }
+        throw new InvalidOperationException(
+            "The typed page could not be authored at a supported PDF version.");
+    }
+
+    /// <summary>Replaces a page's content with one new raw PDF content stream.</summary>
+    public PdfIncrementalPageEditor SetPageContent(
+        int pageIndex, ReadOnlyMemory<byte> content)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        PageState page = _pages[pageIndex];
+        page.Content = content.ToArray();
+        page.ContentUpdate = PageContentUpdate.Replace;
+        _pagePresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Appends a raw PDF content stream after a page's existing content.</summary>
+    public PdfIncrementalPageEditor AppendPageContent(
+        int pageIndex, ReadOnlyMemory<byte> content)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        if (content.Length == 0) return this;
+        PageState page = _pages[pageIndex];
+        page.Content = page.Content is null
+            ? content.ToArray()
+            : [.. page.Content, .. content.Span];
+        if (page.Entry is not null || page.ImportedEntry is not null)
+            page.ContentUpdate = page.ContentUpdate == PageContentUpdate.Replace
+                ? PageContentUpdate.Replace : PageContentUpdate.Append;
+        _pagePresentationChanged = true;
+        return this;
+    }
 
     /// <summary>Copies a page from another document into the current page order.</summary>
     public PdfIncrementalPageEditor InsertImportedPage(
@@ -261,33 +652,121 @@ public sealed class PdfIncrementalPageEditor
     {
         ValidateIndex(pageIndex, nameof(pageIndex));
         _pages[pageIndex].MediaBox = Rectangle(x, y, width, height);
-        _pageBoxesChanged = true;
+        _pageGeometryChanged = true;
         return this;
     }
 
     /// <summary>Sets the page's visible crop box from an origin, width, and height in PDF points.</summary>
     public PdfIncrementalPageEditor SetCropBox(
         int pageIndex, double x, double y, double width, double height)
+        => SetPageBox(pageIndex, PdfPageBox.Crop, x, y, width, height);
+
+    /// <summary>Sets a visible, print-production, or artwork boundary.</summary>
+    public PdfIncrementalPageEditor SetPageBox(
+        int pageIndex, PdfPageBox box,
+        double x, double y, double width, double height)
     {
         ValidateIndex(pageIndex, nameof(pageIndex));
-        _pages[pageIndex].CropBox = Rectangle(x, y, width, height);
-        _pageBoxesChanged = true;
+        PdfName name = box switch
+        {
+            PdfPageBox.Crop => CropBoxName,
+            PdfPageBox.Bleed => BleedBoxName,
+            PdfPageBox.Trim => TrimBoxName,
+            PdfPageBox.Art => ArtBoxName,
+            _ => throw new ArgumentOutOfRangeException(nameof(box))
+        };
+        _pages[pageIndex].PageBoxes[name] = Rectangle(x, y, width, height);
+        _pageGeometryChanged = true;
+        if (box != PdfPageBox.Crop)
+            RequireVersion(new PdfVersion(1, 3));
+        return this;
+    }
+
+    /// <summary>Scales default user-space units for an existing, new, or imported page.</summary>
+    public PdfIncrementalPageEditor SetPageUserUnit(int pageIndex, double userUnit)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        if (!double.IsFinite(userUnit) || userUnit is <= 0 or > 75_000)
+            throw new ArgumentOutOfRangeException(nameof(userUnit),
+                "Page user-unit scale must be finite, positive, and at most 75,000.");
+        _pages[pageIndex].UserUnit = userUnit;
+        _pageGeometryChanged = true;
+        RequireVersion(new PdfVersion(1, 6));
+        return this;
+    }
+
+    /// <summary>Sets how long a page remains visible during automatic presentation.</summary>
+    public PdfIncrementalPageEditor SetPageDisplayDuration(
+        int pageIndex, double seconds)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        if (!double.IsFinite(seconds) || seconds <= 0)
+            throw new ArgumentOutOfRangeException(nameof(seconds));
+        _pages[pageIndex].DisplayDuration = seconds;
+        _pagePresentationChanged = true;
+        RequireVersion(new PdfVersion(1, 1));
+        return this;
+    }
+
+    public PdfIncrementalPageEditor SetPageTransition(
+        int pageIndex, PdfPageTransition transition)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(transition);
+        _pages[pageIndex].Transition = transition;
+        _pagePresentationChanged = true;
+        RequireVersion(transition.Style is
+            PdfPageTransitionStyle.Replace or PdfPageTransitionStyle.Fly
+            or PdfPageTransitionStyle.Push or PdfPageTransitionStyle.Cover
+            or PdfPageTransitionStyle.Uncover or PdfPageTransitionStyle.Fade
+                ? new PdfVersion(1, 5) : new PdfVersion(1, 1));
+        return this;
+    }
+
+    /// <summary>Sets the order in which annotations receive focus on a page.</summary>
+    public PdfIncrementalPageEditor SetPageTabOrder(
+        int pageIndex, PdfPageTabOrder tabOrder)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        if (!Enum.IsDefined(tabOrder))
+            throw new ArgumentOutOfRangeException(nameof(tabOrder));
+        _pages[pageIndex].TabOrder = tabOrder;
+        _pagePresentationChanged = true;
+        RequireVersion(tabOrder == PdfPageTabOrder.AnnotationArray
+            ? PdfVersion.Pdf20 : new PdfVersion(1, 5));
+        return this;
+    }
+
+    /// <summary>Sets the page's thumbnail image.</summary>
+    public PdfIncrementalPageEditor SetPageThumbnail(int pageIndex, PdfImage thumbnail)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(thumbnail);
+        _pages[pageIndex].Thumbnail = thumbnail;
+        _pagePresentationChanged = true;
+        if (HasImageSoftMask(thumbnail))
+            RequireVersion(new PdfVersion(1, 4));
         return this;
     }
 
     public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
-        if (!_orderChanged && !_rotationChanged && !_pageBoxesChanged)
+        if (!_orderChanged && !_rotationChanged && !_pageGeometryChanged
+            && !_pagePresentationChanged && !_catalogPresentationChanged)
             throw new InvalidOperationException("The incremental page update is empty.");
         EnforcePasswordPermissions();
         if (PdfSignatureReader.ReadCertificationPermission(_document).HasValue)
             throw new InvalidOperationException(
                 "The document certification signature prohibits page-tree changes.");
+        ValidateExistingStructureTreePageSet();
         var update = new PdfIncrementalUpdateBuilder(_document);
         if (_orderChanged)
             BuildReorderedTree(update);
         else
+        {
             BuildPageChanges(update);
+            ApplyRequiredVersionUpgrade(update);
+        }
         return update.Build(options);
     }
 
@@ -301,9 +780,15 @@ public sealed class PdfIncrementalPageEditor
         if ((_orderChanged || _rotationChanged) && !permissions.AllowDocumentAssembly)
             throw new InvalidOperationException(
                 "The PDF user password does not permit document assembly or page rotation.");
-        if (_pageBoxesChanged && !permissions.AllowDocumentModification)
+        if (_pageGeometryChanged && !permissions.AllowDocumentModification)
             throw new InvalidOperationException(
-                "The PDF user password does not permit page-box modification.");
+                "The PDF user password does not permit page-geometry modification.");
+        if (_pagePresentationChanged && !permissions.AllowDocumentModification)
+            throw new InvalidOperationException(
+                "The PDF user password does not permit page-presentation modification.");
+        if (_catalogPresentationChanged && !permissions.AllowDocumentModification)
+            throw new InvalidOperationException(
+                "The PDF user password does not permit catalog-presentation modification.");
     }
 
     private static void EnforceSourceCopyPermission(PdfDocument source)
@@ -326,8 +811,13 @@ public sealed class PdfIncrementalPageEditor
 
     private void BuildPageChanges(PdfIncrementalUpdateBuilder update)
     {
+        var images = new Dictionary<PdfImage, PdfIndirectReference>();
         foreach (PageState state in _pages.Where(page =>
-                     page.Rotation.HasValue || page.MediaBox is not null || page.CropBox is not null))
+                     page.Rotation.HasValue || page.MediaBox is not null
+                     || page.PageBoxes.Count > 0 || page.UserUnit.HasValue
+                     || page.DisplayDuration.HasValue || page.Transition is not null
+                     || page.TabOrder.HasValue || page.Thumbnail is not null
+                     || page.ContentUpdate != PageContentUpdate.None))
         {
             PdfPageTreeEntry entry = state.Entry
                 ?? throw new InvalidOperationException("New pages require a rebuilt page tree.");
@@ -336,16 +826,85 @@ public sealed class PdfIncrementalPageEditor
                 replacements[RotateName] = new PdfInteger(state.Rotation.Value);
             if (state.MediaBox is not null)
                 replacements[MediaBoxName] = state.MediaBox;
-            if (state.CropBox is not null)
-                replacements[CropBoxName] = state.CropBox;
+            foreach ((PdfName name, PdfArray box) in state.PageBoxes)
+                replacements[name] = box;
+            if (state.UserUnit.HasValue)
+                replacements[UserUnitName] = Number(state.UserUnit.Value);
+            if (state.DisplayDuration.HasValue)
+                replacements[DurationName] = Number(state.DisplayDuration.Value);
+            if (state.Transition is not null)
+                replacements[TransitionName] = state.Transition.ToDictionary();
+            if (state.TabOrder.HasValue)
+                replacements[TabsName] = PageTabOrderName(state.TabOrder.Value);
+            if (state.Thumbnail is not null)
+                replacements[ThumbnailName] = AddImage(update, state.Thumbnail, images);
+            var removals = new List<PdfName>();
+            ApplyPageContentUpdate(
+                update, state, entry.Dictionary, replacements, removals);
             update.ReplaceObject(entry.Reference.ObjectNumber,
-                ReplaceMany(entry.Dictionary, replacements));
+                ReplaceMany(entry.Dictionary, replacements, removals));
         }
+    }
+
+    private void ApplyPageContentUpdate(
+        PdfIncrementalUpdateBuilder update, PageState state,
+        PdfDictionary page,
+        IDictionary<PdfName, PdfObject> replacements,
+        ICollection<PdfName> removals)
+    {
+        if (state.ContentUpdate == PageContentUpdate.None) return;
+        if (state.ContentUpdate == PageContentUpdate.Replace)
+        {
+            if (state.Content is null || state.Content.Length == 0)
+            {
+                removals.Add(ContentsName);
+                return;
+            }
+            replacements[ContentsName] = update.AddObject(
+                new PdfStream(new PdfDictionary([]), state.Content));
+            return;
+        }
+
+        PdfIndirectReference appended = update.AddObject(
+            new PdfStream(new PdfDictionary([]), state.Content!));
+        if (!page.TryGetValue(ContentsName, out PdfObject? existing))
+        {
+            replacements[ContentsName] = appended;
+            return;
+        }
+        var items = ExistingPageContentItems(update, existing);
+        items.Add(appended);
+        replacements[ContentsName] = new PdfArray(items);
+    }
+
+    private List<PdfObject> ExistingPageContentItems(
+        PdfIncrementalUpdateBuilder update, PdfObject value)
+    {
+        PdfObject resolved = ResolveCatalogValue(
+            _document, value, "A page /Contents value");
+        if (resolved is PdfStream stream)
+            return [value is PdfIndirectReference ? value : update.AddObject(stream)];
+        if (resolved is not PdfArray array)
+            throw new InvalidOperationException(
+                "A page /Contents value is not a stream or stream array.");
+        var result = new List<PdfObject>(array.Count);
+        foreach (PdfObject item in array)
+        {
+            PdfObject resolvedItem = ResolveCatalogValue(
+                _document, item, "A page /Contents array entry");
+            if (resolvedItem is not PdfStream itemStream)
+                throw new InvalidOperationException(
+                    "A page /Contents array entry is not a stream.");
+            result.Add(item is PdfIndirectReference
+                ? item : update.AddObject(itemStream));
+        }
+        return result;
     }
 
     private void BuildReorderedTree(PdfIncrementalUpdateBuilder update)
     {
         ValidateExistingStructureTreePageSet();
+        var images = new Dictionary<PdfImage, PdfIndirectReference>();
         PdfIndirectReference newRoot = update.ReserveObject();
         var references = new Dictionary<PageState, PdfIndirectReference>();
         foreach (PageState state in _pages)
@@ -387,24 +946,36 @@ public sealed class PdfIncrementalPageEditor
         PreserveIndirectCatalogDictionary(
             update, AcroFormName, catalogReplacements,
             "The destination /AcroForm");
-        AddImportedNamedDestinations(importedGroups, importers, catalogReplacements);
+        AddImportedNamedDestinations(
+            importedGroups, importers, catalogReplacements, references);
         AddImportedEmbeddedFiles(importedGroups, importers, catalogReplacements);
         AddImportedNameTreeCategories(importedGroups, importers, catalogReplacements);
+        AddPendingAttachments(update, catalogReplacements);
         PreserveIndirectCatalogDictionary(
             update, NamesName, catalogReplacements,
             "The destination catalog /Names value");
         AddImportedLegacyDestinations(importedGroups, importers, catalogReplacements);
-        AddImportedOutlines(update, importedGroups, importers, catalogReplacements);
+        AddImportedOutlines(
+            update, importedGroups, importers, catalogReplacements, references);
         bool removePageLabels = AddPageLabels(importedGroups, catalogReplacements);
+        AddCatalogPresentationChanges(catalogReplacements, references);
+        AddMetadata(update, catalogReplacements);
+        AddOutputIntent(update, catalogReplacements);
+        ApplyRequiredVersionUpgrade(catalogReplacements, importedGroups);
+        var catalogRemovals = new List<PdfName>();
+        if (removePageLabels) catalogRemovals.Add(PageLabelsName);
+        if (_metadata is not null && _metadata.Language is null)
+            catalogRemovals.Add(LanguageName);
         update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
             ReplaceMany(_tree.Catalog, catalogReplacements,
-                removePageLabels ? [PageLabelsName] : null));
+                catalogRemovals));
 
         foreach (PageState state in _pages)
         {
             if (state.ImportedEntry is not null)
             {
-                BuildImportedPage(update, state, references[state], newRoot, importers[state]);
+                BuildImportedPage(
+                    update, state, references[state], newRoot, importers[state], images);
                 continue;
             }
             if (state.Entry is null)
@@ -417,7 +988,21 @@ public sealed class PdfIncrementalPageEditor
                         ?? throw new InvalidOperationException("A new page has no /MediaBox.")),
                     ("Resources", new PdfDictionary([]))
                 };
-                if (state.CropBox is not null) entries.Add(("CropBox", state.CropBox));
+                foreach ((PdfName name, PdfArray box) in state.PageBoxes)
+                    entries.Add((name.ValueAsLatin1(), box));
+                if (state.UserUnit.HasValue)
+                    entries.Add(("UserUnit", Number(state.UserUnit.Value)));
+                if (state.DisplayDuration.HasValue)
+                    entries.Add(("Dur", Number(state.DisplayDuration.Value)));
+                if (state.Transition is not null)
+                    entries.Add(("Trans", state.Transition.ToDictionary()));
+                if (state.TabOrder.HasValue)
+                    entries.Add(("Tabs", PageTabOrderName(state.TabOrder.Value)));
+                if (state.Thumbnail is not null)
+                    entries.Add(("Thumb", AddImage(update, state.Thumbnail, images)));
+                if (state.Content is { Length: > 0 })
+                    entries.Add(("Contents", update.AddObject(
+                        new PdfStream(new PdfDictionary([]), state.Content))));
                 if (state.Rotation.HasValue)
                     entries.Add(("Rotate", new PdfInteger(state.Rotation.Value)));
                 update.SetObject(references[state], Dictionary(entries.ToArray()));
@@ -438,10 +1023,23 @@ public sealed class PdfIncrementalPageEditor
                 replacements[RotateName] = new PdfInteger(state.Rotation.Value);
             if (state.MediaBox is not null)
                 replacements[MediaBoxName] = state.MediaBox;
-            if (state.CropBox is not null)
-                replacements[CropBoxName] = state.CropBox;
+            foreach ((PdfName name, PdfArray box) in state.PageBoxes)
+                replacements[name] = box;
+            if (state.UserUnit.HasValue)
+                replacements[UserUnitName] = Number(state.UserUnit.Value);
+            if (state.DisplayDuration.HasValue)
+                replacements[DurationName] = Number(state.DisplayDuration.Value);
+            if (state.Transition is not null)
+                replacements[TransitionName] = state.Transition.ToDictionary();
+            if (state.TabOrder.HasValue)
+                replacements[TabsName] = PageTabOrderName(state.TabOrder.Value);
+            if (state.Thumbnail is not null)
+                replacements[ThumbnailName] = AddImage(update, state.Thumbnail, images);
+            var removals = new List<PdfName>();
+            ApplyPageContentUpdate(
+                update, state, entry.Dictionary, replacements, removals);
             update.ReplaceObject(entry.Reference.ObjectNumber,
-                ReplaceMany(entry.Dictionary, replacements));
+                ReplaceMany(entry.Dictionary, replacements, removals));
         }
     }
 
@@ -868,7 +1466,8 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedNamedDestinations(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        IDictionary<PdfName, PdfObject> catalogReplacements,
+        IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences)
     {
         var combined = new List<PdfNameTreeEntry>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -884,6 +1483,19 @@ public sealed class PdfIncrementalPageEditor
         }
 
         bool importedAny = false;
+        foreach (PendingNamedDestination pending in _namedDestinations)
+        {
+            if (!_pages.Contains(pending.Page))
+                throw new InvalidOperationException(
+                    $"Named destination '{pending.Name}' targets a removed page.");
+            PdfString key = TextString(pending.Name);
+            if (!keys.Add(Convert.ToBase64String(key.Bytes.Span)))
+                throw new InvalidOperationException(
+                    $"Named destination '{pending.Name}' conflicts with an existing destination.");
+            combined.Add(new PdfNameTreeEntry(
+                key, pending.Destination.ToArray(pageReferences[pending.Page])));
+            importedAny = true;
+        }
         foreach (PageState[] group in importedGroups)
         {
             PdfPageTree sourceTree = group[0].ImportedTree!;
@@ -1461,7 +2073,12 @@ public sealed class PdfIncrementalPageEditor
         PageState[][] groups = importedGroups.ToArray();
         bool importedHasLabels = groups.Any(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(PageLabelsName));
-        if (!targetHasLabels && !importedHasLabels) return false;
+        if (!targetHasLabels && !importedHasLabels && _pageLabels.Count == 0)
+            return false;
+        if (_pageLabels.Any(label => !_pages.Any(
+                page => ReferenceEquals(page, label.Page))))
+            throw new InvalidOperationException(
+                "A page-label range targets a removed page.");
         if (_pages.Count == 0) return true;
 
         IReadOnlyList<PageLabelSpec>? targetLabels = targetHasLabels
@@ -1489,6 +2106,29 @@ public sealed class PdfIncrementalPageEditor
                     : DefaultPageLabel(page.ImportedEntry.Index));
             else
                 effective.Add(DefaultPageLabel(index));
+        }
+
+        (PendingPageLabel Label, int Index)[] pending = _pageLabels
+            .Select(label => (label,
+                _pages.FindIndex(page => ReferenceEquals(page, label.Page))))
+            .OrderBy(item => item.Item2)
+            .ToArray();
+        if (pending.Any(item => item.Index < 0))
+            throw new InvalidOperationException(
+                "A page-label range targets a removed page.");
+        for (int rangeIndex = 0; rangeIndex < pending.Length; rangeIndex++)
+        {
+            PendingPageLabel range = pending[rangeIndex].Label;
+            int start = pending[rangeIndex].Index;
+            int end = rangeIndex + 1 < pending.Length
+                ? pending[rangeIndex + 1].Index
+                : _pages.Count;
+            PdfName? style = PageLabelStyleValue(range.Style);
+            PdfString? prefix = range.Prefix is null
+                ? null : TextString(range.Prefix);
+            for (int index = start; index < end; index++)
+                effective[index] = new PageLabelSpec(
+                    style, prefix, range.StartNumber + index - start);
         }
 
         var numbers = new List<PdfObject>();
@@ -2530,12 +3170,13 @@ public sealed class PdfIncrementalPageEditor
         PdfIncrementalUpdateBuilder update,
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        IDictionary<PdfName, PdfObject> catalogReplacements,
+        IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences)
     {
         PageState[][] outlineGroups = importedGroups.Where(group =>
             IsCompleteImport(group, group[0].ImportedTree!) &&
             group[0].ImportedTree!.Catalog.ContainsKey(OutlinesName)).ToArray();
-        if (outlineGroups.Length == 0) return;
+        if (outlineGroups.Length == 0 && _bookmarks.Count == 0) return;
 
         PdfIndirectReference? targetRootReference = null;
         PdfDictionary? targetRoot = null;
@@ -2585,9 +3226,35 @@ public sealed class PdfIncrementalPageEditor
                 source, root, importer, topLevel, mapped,
                 OutlineCount(source, root, topLevel.Length)));
         }
-        if (importedSegments.Count == 0) return;
+        if (importedSegments.Count == 0 && _bookmarks.Count == 0) return;
 
         PdfIndirectReference mergedRoot = targetRootReference ?? update.ReserveObject();
+        var bookmarkReferences = _bookmarks
+            .Select((_, index) => (index, reference: update.ReserveObject()))
+            .ToDictionary(item => item.index, item => item.reference);
+        var bookmarkParents = new int?[_bookmarks.Count];
+        var bookmarkChildren = Enumerable.Range(0, _bookmarks.Count)
+            .Select(_ => new List<int>()).ToArray();
+        var bookmarkTopLevel = new List<int>();
+        var levelStack = new List<int>();
+        for (int index = 0; index < _bookmarks.Count; index++)
+        {
+            int level = _bookmarks[index].Level;
+            while (levelStack.Count > level)
+                levelStack.RemoveAt(levelStack.Count - 1);
+            if (level == 0)
+                bookmarkTopLevel.Add(index);
+            else
+            {
+                int parent = levelStack[level - 1];
+                bookmarkParents[index] = parent;
+                bookmarkChildren[parent].Add(index);
+            }
+            if (levelStack.Count == level)
+                levelStack.Add(index);
+            else
+                levelStack[level] = index;
+        }
         var segmentStarts = new List<PdfIndirectReference>();
         var segmentEnds = new List<PdfIndirectReference>();
         if (targetFirst is not null)
@@ -2599,6 +3266,11 @@ public sealed class PdfIncrementalPageEditor
             segment.Mapped[OutlineKey(segment.TopLevel[0])]));
         segmentEnds.AddRange(importedSegments.Select(segment =>
             segment.Mapped[OutlineKey(segment.TopLevel[^1])]));
+        if (bookmarkTopLevel.Count > 0)
+        {
+            segmentStarts.Add(bookmarkReferences[bookmarkTopLevel[0]]);
+            segmentEnds.Add(bookmarkReferences[bookmarkTopLevel[^1]]);
+        }
 
         int offset = targetFirst is null ? 0 : 1;
         for (int segmentIndex = 0; segmentIndex < importedSegments.Count; segmentIndex++)
@@ -2672,7 +3344,68 @@ public sealed class PdfIncrementalPageEditor
                     }));
             }
         }
-        long mergedCount = checked(targetCount + importedSegments.Sum(segment => segment.Count));
+        for (int index = 0; index < _bookmarks.Count; index++)
+        {
+            PendingBookmark bookmark = _bookmarks[index];
+            var entries = new List<KeyValuePair<PdfName, PdfObject>>
+            {
+                new(Name("Title"), TextString(bookmark.Title)),
+                new(ParentName, bookmarkParents[index].HasValue
+                    ? bookmarkReferences[bookmarkParents[index]!.Value]
+                    : mergedRoot),
+                new(Name("Dest"), bookmark.NamedDestination is not null
+                    ? TextString(bookmark.NamedDestination)
+                    : bookmark.Destination!.ToArray(
+                        BookmarkPageReference(bookmark)))
+            };
+            if (bookmark.Options.Color.HasValue)
+            {
+                PdfRgbColor color = bookmark.Options.Color.Value;
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    Name("C"), new PdfArray([
+                        Number(color.Red), Number(color.Green),
+                        Number(color.Blue)])));
+            }
+            if (bookmark.Options.Style != PdfBookmarkStyle.Regular)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    Name("F"), new PdfInteger(
+                        (int)bookmark.Options.Style)));
+            List<int> siblings = bookmarkParents[index].HasValue
+                ? bookmarkChildren[bookmarkParents[index]!.Value]
+                : bookmarkTopLevel;
+            int siblingIndex = siblings.IndexOf(index);
+            if (siblingIndex > 0)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    PrevName, bookmarkReferences[siblings[siblingIndex - 1]]));
+            else if (!bookmarkParents[index].HasValue
+                && segmentStarts.Count > 1)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    PrevName, segmentEnds[^2]));
+            if (siblingIndex + 1 < siblings.Count)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    NextName, bookmarkReferences[siblings[siblingIndex + 1]]));
+            if (bookmarkChildren[index].Count > 0)
+            {
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    FirstName, bookmarkReferences[bookmarkChildren[index][0]]));
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    LastName, bookmarkReferences[bookmarkChildren[index][^1]]));
+                int descendants = VisibleBookmarkDescendantCount(index);
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                    CountName, new PdfInteger(
+                        bookmark.Options.IsOpen
+                            ? descendants : -descendants)));
+            }
+            update.SetObject(
+                bookmarkReferences[index], new PdfDictionary(entries));
+        }
+
+        long pendingCount = bookmarkTopLevel.Sum(index =>
+            1L + (_bookmarks[index].Options.IsOpen
+                ? VisibleBookmarkDescendantCount(index) : 0));
+        long mergedCount = checked(targetCount
+            + importedSegments.Sum(segment => segment.Count)
+            + pendingCount);
         PdfDictionary rootValue = targetRoot is null
             ? Dictionary(("Type", Name("Outlines")))
             : targetRoot;
@@ -2691,21 +3424,44 @@ public sealed class PdfIncrementalPageEditor
         else
             update.ReplaceObject(targetRootReference.ObjectNumber, mergedRootValue);
 
-        PdfPageTree firstSourceTree = outlineGroups[0][0].ImportedTree!;
-        if (!_tree.Catalog.ContainsKey(PageModeName)
-            && firstSourceTree.Catalog.TryGetValue(PageModeName, out PdfObject? pageMode))
+        if (outlineGroups.Length > 0)
         {
-            PdfDocument source = outlineGroups[0][0].ImportedDocument!;
-            PdfObject resolvedPageMode = ResolveOutlineScalar(
-                source, pageMode, "A source catalog /PageMode value");
-            if (resolvedPageMode is not PdfName)
-                throw new InvalidOperationException(
-                    "A source catalog /PageMode value is not a name or resolves to null.");
-            ValidateCatalogPageMode(resolvedPageMode,
-                "A source catalog /PageMode value");
-            catalogReplacements[PageModeName] =
-                importers[outlineGroups[0][0]].Import(pageMode);
+            PdfPageTree firstSourceTree = outlineGroups[0][0].ImportedTree!;
+            if (!_tree.Catalog.ContainsKey(PageModeName)
+                && firstSourceTree.Catalog.TryGetValue(
+                    PageModeName, out PdfObject? pageMode))
+            {
+                PdfDocument source = outlineGroups[0][0].ImportedDocument!;
+                PdfObject resolvedPageMode = ResolveOutlineScalar(
+                    source, pageMode, "A source catalog /PageMode value");
+                if (resolvedPageMode is not PdfName)
+                    throw new InvalidOperationException(
+                        "A source catalog /PageMode value is not a name or resolves to null.");
+                ValidateCatalogPageMode(resolvedPageMode,
+                    "A source catalog /PageMode value");
+                catalogReplacements[PageModeName] =
+                    importers[outlineGroups[0][0]].Import(pageMode);
+            }
         }
+
+        if (!_tree.Catalog.ContainsKey(PageModeName)
+            && _pageMode is null && _bookmarks.Count > 0)
+            catalogReplacements[PageModeName] = Name("UseOutlines");
+
+        PdfIndirectReference BookmarkPageReference(PendingBookmark bookmark)
+        {
+            if (bookmark.Page is null
+                || !_pages.Any(page => ReferenceEquals(
+                    page, bookmark.Page)))
+                throw new InvalidOperationException(
+                    $"Bookmark '{bookmark.Title}' targets a removed page.");
+            return pageReferences[bookmark.Page];
+        }
+
+        int VisibleBookmarkDescendantCount(int index) =>
+            bookmarkChildren[index].Sum(child =>
+                1 + (_bookmarks[child].Options.IsOpen
+                    ? VisibleBookmarkDescendantCount(child) : 0));
     }
 
     private static PdfIndirectReference[] ReadTopLevelOutlines(
@@ -4593,9 +5349,13 @@ public sealed class PdfIncrementalPageEditor
     private void ValidateExistingStructureTreePageSet()
     {
         if (!_tree.Catalog.ContainsKey(StructTreeRootName)) return;
+        if (_pages.Any(page => page.ContentUpdate != PageContentUpdate.None))
+            throw new NotSupportedException(
+                "Raw content cannot be appended to or replace content in an existing tagged PDF without matching structure updates.");
         bool additionsAreSupported = _pages.Where(page => page.Entry is null)
-            .All(page => page.ImportedDocument is null
-                || page.ImportedTree!.Catalog.ContainsKey(StructTreeRootName));
+            .All(page => page.Content is null
+                && (page.ImportedDocument is null
+                    || page.ImportedTree!.Catalog.ContainsKey(StructTreeRootName)));
         if (!additionsAreSupported)
             throw new NotSupportedException(
                 "Untagged content cannot be imported into an existing tagged PDF. Reordering, removing, adding blank pages, and merging complete tagged documents are supported.");
@@ -7060,12 +7820,13 @@ public sealed class PdfIncrementalPageEditor
             document, item, "An imported color-space component-count value");
     }
 
-    private static void BuildImportedPage(
+    private void BuildImportedPage(
         PdfIncrementalUpdateBuilder update,
         PageState state,
         PdfIndirectReference destinationReference,
         PdfIndirectReference newRoot,
-        PdfObjectGraphImporter importer)
+        PdfObjectGraphImporter importer,
+        Dictionary<PdfImage, PdfIndirectReference> images)
     {
         PdfPageTreeEntry source = state.ImportedEntry!;
         var entries = source.Dictionary
@@ -7095,8 +7856,8 @@ public sealed class PdfIncrementalPageEditor
         {
             PdfObject? value = name.Equals(MediaBoxName) && state.MediaBox is not null
                 ? state.MediaBox
-                : name.Equals(CropBoxName) && state.CropBox is not null
-                    ? state.CropBox
+                : state.PageBoxes.TryGetValue(name, out PdfArray? pendingBox)
+                    ? pendingBox
                     : name.Equals(RotateName) && state.Rotation.HasValue
                         ? new PdfInteger(state.Rotation.Value)
                         : source.InheritedValues.TryGetValue(name, out PdfObject? inherited)
@@ -7105,11 +7866,69 @@ public sealed class PdfIncrementalPageEditor
             if (value is not null)
                 entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
         }
+        foreach ((PdfName name, PdfArray box) in state.PageBoxes)
+        {
+            entries.RemoveAll(entry => entry.Key.Equals(name));
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(name, box));
+        }
+        if (state.UserUnit.HasValue)
+        {
+            entries.RemoveAll(entry => entry.Key.Equals(UserUnitName));
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                UserUnitName, Number(state.UserUnit.Value)));
+        }
+        if (state.DisplayDuration.HasValue)
+        {
+            entries.RemoveAll(entry => entry.Key.Equals(DurationName));
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                DurationName, Number(state.DisplayDuration.Value)));
+        }
+        if (state.Transition is not null)
+        {
+            entries.RemoveAll(entry => entry.Key.Equals(TransitionName));
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                TransitionName, state.Transition.ToDictionary()));
+        }
+        if (state.TabOrder.HasValue)
+        {
+            entries.RemoveAll(entry => entry.Key.Equals(TabsName));
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                TabsName, PageTabOrderName(state.TabOrder.Value)));
+        }
+        if (state.Thumbnail is not null)
+        {
+            entries.RemoveAll(entry => entry.Key.Equals(ThumbnailName));
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(
+                ThumbnailName, AddImage(update, state.Thumbnail, images)));
+        }
         if (!entries.Any(entry => entry.Key.Equals(MediaBoxName)))
             throw new InvalidOperationException(
                 $"Imported page {source.Index + 1} has no effective /MediaBox.");
-        update.SetObject(destinationReference,
-            importer.ApplyDictionaryTransform(new PdfDictionary(entries)));
+        PdfDictionary importedPage = importer.ApplyDictionaryTransform(
+            new PdfDictionary(entries));
+        if (state.ContentUpdate != PageContentUpdate.None)
+        {
+            var contentEntries = importedPage.ToDictionary(
+                entry => entry.Key, entry => entry.Value);
+            if (state.ContentUpdate == PageContentUpdate.Replace)
+                contentEntries.Remove(ContentsName);
+            PdfIndirectReference? newContent = state.Content is { Length: > 0 }
+                ? update.AddObject(new PdfStream(
+                    new PdfDictionary([]), state.Content)) : null;
+            if (state.ContentUpdate == PageContentUpdate.Append
+                && newContent is not null
+                && contentEntries.TryGetValue(
+                    ContentsName, out PdfObject? existingContent))
+            {
+                contentEntries[ContentsName] = existingContent is PdfArray array
+                    ? new PdfArray([.. array, newContent])
+                    : new PdfArray([existingContent, newContent]);
+            }
+            else if (newContent is not null)
+                contentEntries[ContentsName] = newContent;
+            importedPage = new PdfDictionary(contentEntries);
+        }
+        update.SetObject(destinationReference, importedPage);
 
         PdfObject NormalizeStructureParent(PdfObject value)
         {
@@ -12779,6 +13598,469 @@ public sealed class PdfIncrementalPageEditor
         return NormalizeRotation((int)rotation.Value);
     }
 
+    private void ApplyRequiredVersionUpgrade(PdfIncrementalUpdateBuilder update)
+    {
+        var replacements = new Dictionary<PdfName, PdfObject>();
+        if (_bookmarks.Count > 0)
+        {
+            var pageReferences = _pages.ToDictionary(
+                page => page,
+                page => page.Entry?.Reference
+                    ?? throw new InvalidOperationException(
+                        "A new page bookmark requires a rebuilt page tree."));
+            AddImportedOutlines(
+                update, [], new Dictionary<PageState, PdfObjectGraphImporter>(),
+                replacements, pageReferences);
+        }
+        AddCatalogPresentationChanges(replacements);
+        AddMetadata(update, replacements);
+        AddOutputIntent(update, replacements);
+        AddPendingAttachments(update, replacements);
+        PreserveIndirectCatalogDictionary(
+            update, NamesName, replacements,
+            "The destination catalog /Names value");
+        if (_minimumFeatureVersion.HasValue)
+        {
+            PdfVersion effective = EffectiveVersion(_document, _tree.Catalog);
+            if (effective.CompareTo(_minimumFeatureVersion.Value) < 0)
+            {
+                PdfVersion required = _minimumFeatureVersion.Value.CompareTo(
+                    new PdfVersion(1, 4)) < 0
+                        ? new PdfVersion(1, 4) : _minimumFeatureVersion.Value;
+                replacements[VersionName] = Name(required.ToString());
+            }
+        }
+        if (replacements.Count == 0) return;
+        IReadOnlyCollection<PdfName>? removals =
+            _metadata is not null && _metadata.Language is null
+                ? [LanguageName] : null;
+        update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
+            ReplaceMany(_tree.Catalog, replacements, removals));
+    }
+
+    private void AddCatalogPresentationChanges(
+        IDictionary<PdfName, PdfObject> replacements,
+        IReadOnlyDictionary<PageState, PdfIndirectReference>? pageReferences = null)
+    {
+        if (_pageLayout.HasValue)
+            replacements[PageLayoutName] = PageLayoutValue(_pageLayout.Value);
+        if (_pageMode.HasValue)
+            replacements[PageModeName] = PageModeValue(_pageMode.Value);
+        if (_viewerPreferences is not null)
+            replacements[ViewerPreferencesName] = _viewerPreferences.ToDictionary();
+        if (_namedOpenAction is not null)
+            replacements[OpenActionName] = TextString(_namedOpenAction);
+        else if (_openActionPage is not null)
+        {
+            if (!_pages.Contains(_openActionPage))
+                throw new InvalidOperationException(
+                    "The page selected by the open action has been removed.");
+            PdfIndirectReference page = pageReferences is not null
+                ? pageReferences[_openActionPage]
+                : _openActionPage.Entry?.Reference
+                    ?? throw new InvalidOperationException(
+                        "A new page open action requires a rebuilt page tree.");
+            replacements[OpenActionName] =
+                _openActionDestination!.ToArray(page);
+        }
+        if (pageReferences is null && _namedDestinations.Count > 0)
+            AddPendingNamedDestinations(replacements);
+        if (pageReferences is null && _pageLabels.Count > 0)
+            AddPageLabels([], replacements);
+    }
+
+    private void AddMetadata(
+        PdfIncrementalUpdateBuilder update,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        if (_metadata is null) return;
+        byte[] xmp;
+        if (_tree.Catalog.TryGetValue(MetadataName, out PdfObject? metadataValue))
+        {
+            ValidateMetadataStream(
+                _document, metadataValue, "The catalog /Metadata value");
+            PdfStream existing = (PdfStream)ResolveCatalogValue(
+                _document, metadataValue, "The catalog /Metadata value");
+            byte[] decoded = PdfStreamDecoder.Decode(
+                existing, reference => _document.Resolve(reference),
+                maximumDecodedBytes: 32 * 1024 * 1024);
+            xmp = UpdateXmp(decoded, _metadata);
+        }
+        else
+        {
+            xmp = PdfDocumentBuilder.BuildXmp(_metadata);
+        }
+
+        PdfIndirectReference metadataReference = update.ReserveObject();
+        update.SetObject(metadataReference, new PdfStream(Dictionary(
+            ("Type", Name("Metadata")),
+            ("Subtype", Name("XML"))), xmp));
+        catalogReplacements[MetadataName] = metadataReference;
+        if (_metadata.Language is not null)
+            catalogReplacements[LanguageName] = TextString(_metadata.Language);
+
+        PdfIndirectReference informationReference = update.ReserveObject();
+        update.SetObject(
+            informationReference, PdfDocumentBuilder.BuildInfo(_metadata));
+        update.SetDocumentInformation(informationReference);
+    }
+
+    private void AddOutputIntent(
+        PdfIncrementalUpdateBuilder update,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        if (_outputIntent is null) return;
+        PdfIndirectReference profile = update.ReserveObject();
+        update.SetObject(profile,
+            PdfOutputIntentFactory.Profile(_outputIntent.Profile));
+        PdfIndirectReference intent = update.ReserveObject();
+        update.SetObject(intent,
+            PdfOutputIntentFactory.OutputIntent(
+                profile, _outputIntent.Identifier,
+                _outputIntent.Condition, _outputIntent.RegistryName,
+                _outputIntent.Information));
+        catalogReplacements[OutputIntentsName] =
+            new PdfArray([intent]);
+    }
+
+    private void AddPendingAttachments(
+        PdfIncrementalUpdateBuilder update,
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        if (_attachments.Count == 0) return;
+        PdfDictionary currentNames = CurrentNamesDictionary(catalogReplacements);
+        var nameEntries = currentNames
+            .Where(entry => !entry.Key.Equals(EmbeddedFilesName))
+            .ToList();
+        var files = new List<PdfNameTreeEntry>();
+        var fileNames = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+        if (currentNames.TryGetValue(
+            EmbeddedFilesName, out PdfObject? embeddedFiles))
+            foreach (PdfNameTreeEntry entry in PdfNameTree.Read(
+                _document, embeddedFiles))
+            {
+                string name = PdfUnicodeEncoding.DecodeTextString(
+                    entry.Key.Bytes.Span, "An embedded-file name");
+                if (!fileNames.Add(name))
+                    throw new InvalidOperationException(
+                        "The embedded-files name tree contains duplicate file names.");
+                files.Add(entry);
+            }
+
+        var associated = new List<PdfObject>();
+        if (catalogReplacements.TryGetValue(
+                AssociatedFilesName, out PdfObject? replacementAssociated))
+        {
+            if (replacementAssociated is not PdfArray replacementArray)
+                throw new InvalidOperationException(
+                    "The replacement catalog /AF value is not an array.");
+            associated.AddRange(replacementArray);
+        }
+        else if (_tree.Catalog.TryGetValue(
+            AssociatedFilesName, out PdfObject? existingAssociated))
+        {
+            PdfArray existing = ResolveArray(
+                _document, existingAssociated,
+                "The destination catalog /AF value");
+            foreach (PdfObject value in existing)
+            {
+                ValidateFileSpecification(
+                    _document, value, "A catalog /AF entry");
+                associated.Add(value);
+            }
+        }
+
+        foreach (PendingAttachment attachment in _attachments)
+        {
+            if (!fileNames.Add(attachment.FileName))
+                throw new ArgumentException(
+                    $"Attachment file name '{attachment.FileName}' already exists.",
+                    "fileName");
+            PdfIndirectReference embeddedReference = update.ReserveObject();
+            update.SetObject(embeddedReference,
+                PdfAttachmentFactory.EmbeddedFile(
+                    attachment.Data, attachment.MimeType,
+                    attachment.ModificationDate));
+            PdfIndirectReference fileReference = update.ReserveObject();
+            update.SetObject(fileReference,
+                PdfAttachmentFactory.FileSpecification(
+                    attachment.FileName, attachment.Description,
+                    attachment.Relationship, embeddedReference));
+            files.Add(new PdfNameTreeEntry(
+                TextString(attachment.FileName), fileReference));
+            associated.Add(fileReference);
+        }
+
+        if (files.Count > PdfNameTree.MaximumEntryCount)
+            throw new NotSupportedException(
+                "The embedded-files name tree contains too many entries.");
+        files.Sort((left, right) =>
+            left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
+        var values = new List<PdfObject>(files.Count * 2);
+        foreach (PdfNameTreeEntry file in files)
+        {
+            values.Add(file.Key);
+            values.Add(file.Value);
+        }
+        nameEntries.Add(new KeyValuePair<PdfName, PdfObject>(
+            EmbeddedFilesName,
+            Dictionary(("Names", new PdfArray(values)))));
+        catalogReplacements[NamesName] =
+            new PdfDictionary(nameEntries);
+        catalogReplacements[AssociatedFilesName] =
+            new PdfArray(associated);
+    }
+
+    private static byte[] UpdateXmp(
+        byte[] source, PdfDocumentMetadata metadata)
+    {
+        XDocument document;
+        try
+        {
+            using var input = new MemoryStream(source, writable: false);
+            using XmlReader reader = XmlReader.Create(input, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                MaxCharactersInDocument = 32 * 1024 * 1024,
+                XmlResolver = null
+            });
+            document = XDocument.Load(
+                reader, LoadOptions.PreserveWhitespace);
+        }
+        catch (XmlException error)
+        {
+            throw new InvalidOperationException(
+                "The existing XMP metadata packet is not well-formed XML.", error);
+        }
+
+        XNamespace rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        XNamespace pdf = "http://ns.adobe.com/pdf/1.3/";
+        XNamespace xmp = "http://ns.adobe.com/xap/1.0/";
+        XElement description = document.Descendants(rdf + "Description").FirstOrDefault()
+            ?? throw new InvalidOperationException(
+                "The existing XMP metadata packet has no RDF description.");
+
+        SetAlternative(dc + "title", metadata.Title);
+        SetSequence(dc + "creator", metadata.Author);
+        SetAlternative(dc + "description", metadata.Subject);
+        SetBag(dc + "language", metadata.Language);
+        SetSimple(pdf + "Keywords", metadata.Keywords);
+        SetSimple(pdf + "Producer", metadata.Producer);
+        SetSimple(pdf + "Trapped", metadata.Trapped?.ToString());
+        SetSimple(xmp + "CreatorTool", metadata.Creator);
+        SetSimple(xmp + "CreateDate", XmpDate(metadata.CreationDate));
+        SetSimple(xmp + "ModifyDate", XmpDate(metadata.ModificationDate));
+
+        using var output = new MemoryStream();
+        using (XmlWriter writer = XmlWriter.Create(output, new XmlWriterSettings
+        {
+            Encoding = new UTF8Encoding(
+                encoderShouldEmitUTF8Identifier: false,
+                throwOnInvalidBytes: true),
+            OmitXmlDeclaration = true,
+            NewLineHandling = NewLineHandling.None
+        }))
+            document.Save(writer);
+        return output.ToArray();
+
+        void SetSimple(XName name, string? value)
+        {
+            Clear(name);
+            if (!string.IsNullOrEmpty(value))
+                description.Add(new XElement(name, value));
+        }
+
+        void SetAlternative(XName name, string? value)
+        {
+            Clear(name);
+            if (string.IsNullOrEmpty(value)) return;
+            description.Add(new XElement(name,
+                new XElement(rdf + "Alt",
+                    new XElement(rdf + "li",
+                        new XAttribute(XNamespace.Xml + "lang", "x-default"),
+                        value))));
+        }
+
+        void SetSequence(XName name, string? value)
+        {
+            Clear(name);
+            if (string.IsNullOrEmpty(value)) return;
+            description.Add(new XElement(name,
+                new XElement(rdf + "Seq",
+                    new XElement(rdf + "li", value))));
+        }
+
+        void SetBag(XName name, string? value)
+        {
+            Clear(name);
+            if (string.IsNullOrEmpty(value)) return;
+            description.Add(new XElement(name,
+                new XElement(rdf + "Bag",
+                    new XElement(rdf + "li", value))));
+        }
+
+        void Clear(XName name)
+        {
+            document.Descendants(name).Remove();
+            document.Descendants().Attributes(name).Remove();
+        }
+
+        static string? XmpDate(DateTimeOffset? value) =>
+            value?.ToString(
+                "yyyy-MM-dd'T'HH:mm:sszzz",
+                System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private void AddPendingNamedDestinations(
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        var entries = new List<PdfNameTreeEntry>();
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        var namesEntries = new List<KeyValuePair<PdfName, PdfObject>>();
+        if (_tree.Catalog.TryGetValue(NamesName, out PdfObject? namesValue))
+        {
+            PdfDictionary existingNames = ResolveDictionary(
+                _document, namesValue, "The catalog /Names value");
+            namesEntries.AddRange(existingNames.Where(
+                entry => !entry.Key.Equals(DestsName)));
+            if (existingNames.TryGetValue(DestsName, out PdfObject? destinations))
+                foreach (PdfNameTreeEntry entry in PdfNameTree.Read(
+                    _document, destinations))
+                {
+                    ValidateExistingNamedDestination(entry.Value);
+                    keys.Add(Convert.ToBase64String(entry.Key.Bytes.Span));
+                    entries.Add(entry);
+                }
+        }
+        foreach (PendingNamedDestination pending in _namedDestinations)
+        {
+            if (!_pages.Contains(pending.Page))
+                throw new InvalidOperationException(
+                    $"Named destination '{pending.Name}' targets a removed page.");
+            PdfString key = TextString(pending.Name);
+            if (!keys.Add(Convert.ToBase64String(key.Bytes.Span)))
+                throw new InvalidOperationException(
+                    $"Named destination '{pending.Name}' conflicts with an existing destination.");
+            PdfIndirectReference page = pending.Page.Entry?.Reference
+                ?? throw new InvalidOperationException(
+                    "A new page named destination requires a rebuilt page tree.");
+            entries.Add(new PdfNameTreeEntry(
+                key, pending.Destination.ToArray(page)));
+        }
+        if (entries.Count > PdfNameTree.MaximumEntryCount)
+            throw new NotSupportedException(
+                "The named-destination tree contains too many entries.");
+        entries.Sort((left, right) =>
+            left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
+        var values = new List<PdfObject>(entries.Count * 2);
+        foreach (PdfNameTreeEntry entry in entries)
+        {
+            values.Add(entry.Key);
+            values.Add(entry.Value);
+        }
+        namesEntries.Add(new KeyValuePair<PdfName, PdfObject>(
+            DestsName, Dictionary(("Names", new PdfArray(values)))));
+        catalogReplacements[NamesName] = new PdfDictionary(namesEntries);
+    }
+
+    private void ValidateExistingNamedDestination(PdfObject value)
+    {
+        PdfObject resolved = ResolveCatalogValue(
+            _document, value, "A destination name-tree value");
+        if (resolved is PdfArray array)
+        {
+            ValidateExplicitDestination(
+                _document, array, "A destination name-tree value");
+            return;
+        }
+        if (resolved is PdfDictionary dictionary
+            && dictionary.TryGetValue(DestinationName, out PdfObject? destination)
+            && ResolveCatalogValue(_document, destination,
+                "A destination name-tree dictionary /D value")
+                is PdfArray dictionaryDestination)
+        {
+            ValidateExplicitDestination(_document, dictionaryDestination,
+                "A destination name-tree dictionary /D value");
+            return;
+        }
+        throw new InvalidOperationException(
+            "A destination name-tree value is neither a non-empty destination array nor a destination dictionary.");
+    }
+
+    private bool HasNamedDestination(string destinationName)
+    {
+        if (_namedDestinations.Any(destination => string.Equals(
+                destination.Name, destinationName, StringComparison.Ordinal)))
+            return true;
+        if (_tree.Catalog.TryGetValue(NamesName, out PdfObject? namesValue))
+        {
+            PdfDictionary names = ResolveDictionary(
+                _document, namesValue, "The catalog /Names value");
+            if (names.TryGetValue(DestsName, out PdfObject? destinations)
+                && PdfNameTree.Read(_document, destinations).Any(entry =>
+                    string.Equals(PdfUnicodeEncoding.DecodeTextString(
+                            entry.Key.Bytes.Span, "A named-destination key"),
+                        destinationName, StringComparison.Ordinal)))
+                return true;
+        }
+        if (_tree.Catalog.TryGetValue(DestsName, out PdfObject? legacyValue))
+        {
+            PdfDictionary legacy = ResolveDictionary(
+                _document, legacyValue, "The catalog /Dests value");
+            if (legacy.Keys.Any(key => string.Equals(
+                    key.ValueAsLatin1(), destinationName, StringComparison.Ordinal)))
+                return true;
+        }
+        return false;
+    }
+
+    private void ApplyRequiredVersionUpgrade(
+        IDictionary<PdfName, PdfObject> catalogReplacements,
+        IEnumerable<PageState[]> importedGroups)
+    {
+        PdfVersion original = EffectiveVersion(_document, _tree.Catalog);
+        PdfVersion effective = original;
+        foreach (PageState[] group in importedGroups)
+        {
+            PdfVersion sourceVersion = EffectiveVersion(
+                group[0].ImportedDocument!, group[0].ImportedTree!.Catalog);
+            if (sourceVersion.CompareTo(effective) > 0)
+                effective = sourceVersion;
+        }
+        if (_minimumFeatureVersion.HasValue
+            && effective.CompareTo(_minimumFeatureVersion.Value) < 0)
+            effective = _minimumFeatureVersion.Value;
+        if (effective.CompareTo(original) <= 0) return;
+        if (effective.CompareTo(new PdfVersion(1, 4)) < 0)
+            effective = new PdfVersion(1, 4);
+        if (effective.CompareTo(_document.Header.Version) > 0)
+            catalogReplacements[VersionName] = Name(effective.ToString());
+    }
+
+    private void RequireVersion(PdfVersion version)
+    {
+        if (!_minimumFeatureVersion.HasValue
+            || version.CompareTo(_minimumFeatureVersion.Value) > 0)
+            _minimumFeatureVersion = version;
+    }
+
+    private static PdfVersion EffectiveVersion(
+        PdfDocument document, PdfDictionary catalog)
+    {
+        PdfVersion version = document.Header.Version;
+        if (!catalog.TryGetValue(VersionName, out PdfObject? value))
+            return version;
+        PdfObject resolved = ResolveCatalogValue(
+            document, value, "A catalog /Version value");
+        ValidateCatalogVersion(resolved,
+            "A catalog /Version value");
+        string text = ((PdfName)resolved).ValueAsLatin1();
+        var declared = new PdfVersion(text[0] - '0', text[2] - '0');
+        return declared.CompareTo(version) > 0 ? declared : version;
+    }
+
     private static int NormalizeRotation(int value)
     {
         int normalized = value % 360;
@@ -13078,7 +14360,11 @@ public sealed class PdfIncrementalPageEditor
     private sealed class PageState
     {
         internal PageState(PdfPageTreeEntry entry) => Entry = entry;
-        internal PageState(PdfArray mediaBox) => MediaBox = mediaBox;
+        internal PageState(PdfArray mediaBox, byte[]? content = null)
+        {
+            MediaBox = mediaBox;
+            Content = content;
+        }
         internal PageState(
             PdfDocument importedDocument, PdfPageTree importedTree,
             PdfPageTreeEntry importedEntry, bool wholeDocument, int importBatchId)
@@ -13097,6 +14383,100 @@ public sealed class PdfIncrementalPageEditor
         internal int ImportBatchId { get; }
         internal int? Rotation { get; set; }
         internal PdfArray? MediaBox { get; set; }
-        internal PdfArray? CropBox { get; set; }
+        internal Dictionary<PdfName, PdfArray> PageBoxes { get; } = [];
+        internal double? UserUnit { get; set; }
+        internal double? DisplayDuration { get; set; }
+        internal PdfPageTransition? Transition { get; set; }
+        internal PdfPageTabOrder? TabOrder { get; set; }
+        internal PdfImage? Thumbnail { get; set; }
+        internal byte[]? Content { get; set; }
+        internal PageContentUpdate ContentUpdate { get; set; }
     }
+
+    private sealed record PendingNamedDestination(
+        string Name, PageState Page, PdfDestination Destination);
+    private sealed record PendingPageLabel(
+        PageState Page, PdfPageLabelStyle Style, string? Prefix, int StartNumber);
+    private sealed record PendingAttachment(
+        string FileName, byte[] Data, string MimeType,
+        string? Description,
+        PdfAssociatedFileRelationship Relationship,
+        DateTimeOffset? ModificationDate);
+    private sealed record PendingBookmark(
+        string Title, PageState? Page, string? NamedDestination,
+        int Level, PdfBookmarkOptions Options)
+    {
+        internal PdfDestination? Destination =>
+            NamedDestination is null ? Options.Destination : null;
+    }
+    private sealed record PendingOutputIntent(
+        PdfIccProfile Profile, string Identifier,
+        string? Condition, string? RegistryName,
+        string? Information);
+
+    private enum PageContentUpdate { None, Append, Replace }
+
+    private static PdfName PageTabOrderName(PdfPageTabOrder tabOrder) => tabOrder switch
+    {
+        PdfPageTabOrder.Row => Name("R"),
+        PdfPageTabOrder.Column => Name("C"),
+        PdfPageTabOrder.Structure => Name("S"),
+        PdfPageTabOrder.AnnotationArray => Name("A"),
+        _ => throw new ArgumentOutOfRangeException(nameof(tabOrder))
+    };
+
+    private static PdfName PageLayoutValue(PdfPageLayout layout) => layout switch
+    {
+        PdfPageLayout.SinglePage => Name("SinglePage"),
+        PdfPageLayout.OneColumn => Name("OneColumn"),
+        PdfPageLayout.TwoColumnLeft => Name("TwoColumnLeft"),
+        PdfPageLayout.TwoColumnRight => Name("TwoColumnRight"),
+        PdfPageLayout.TwoPageLeft => Name("TwoPageLeft"),
+        PdfPageLayout.TwoPageRight => Name("TwoPageRight"),
+        _ => throw new ArgumentOutOfRangeException(nameof(layout))
+    };
+
+    private static PdfName PageModeValue(PdfPageMode mode) => mode switch
+    {
+        PdfPageMode.UseNone => Name("UseNone"),
+        PdfPageMode.UseOutlines => Name("UseOutlines"),
+        PdfPageMode.UseThumbs => Name("UseThumbs"),
+        PdfPageMode.FullScreen => Name("FullScreen"),
+        PdfPageMode.UseOptionalContent => Name("UseOC"),
+        PdfPageMode.UseAttachments => Name("UseAttachments"),
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
+
+    private static PdfName? PageLabelStyleValue(PdfPageLabelStyle style) => style switch
+    {
+        PdfPageLabelStyle.None => null,
+        PdfPageLabelStyle.Decimal => Name("D"),
+        PdfPageLabelStyle.UpperRoman => Name("R"),
+        PdfPageLabelStyle.LowerRoman => Name("r"),
+        PdfPageLabelStyle.UpperLetters => Name("A"),
+        PdfPageLabelStyle.LowerLetters => Name("a"),
+        _ => throw new ArgumentOutOfRangeException(nameof(style))
+    };
+
+    private static PdfIndirectReference AddImage(
+        PdfIncrementalUpdateBuilder update, PdfImage image,
+        Dictionary<PdfImage, PdfIndirectReference> images)
+    {
+        if (images.TryGetValue(image, out PdfIndirectReference? existing))
+            return existing;
+        PdfIndirectReference? softMask = image.SoftMask is null
+            ? null : AddImage(update, image.SoftMask, images);
+        PdfIndirectReference reference = update.ReserveObject();
+        images.Add(image, reference);
+        update.SetObject(reference, PdfImageXObjectFactory.Create(image, softMask));
+        return reference;
+    }
+
+    private static bool HasImageSoftMask(PdfImage image) =>
+        image.SoftMask is not null && (image.SoftMask.SoftMask is null
+            || HasImageSoftMask(image.SoftMask));
+
+    private static PdfString TextString(string value) =>
+        new([0xFE, 0xFF, .. PdfUnicodeEncoding.EncodeBigEndian(value)],
+            PdfStringForm.Hexadecimal);
 }

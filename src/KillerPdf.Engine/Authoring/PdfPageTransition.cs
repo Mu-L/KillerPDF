@@ -1,3 +1,5 @@
+using KillerPdf.Engine.Objects;
+
 namespace KillerPdf.Engine.Authoring;
 
 public enum PdfTransitionDimension { Horizontal, Vertical }
@@ -67,6 +69,35 @@ public sealed class PdfPageTransition
     internal int? Direction { get; }
     internal double? Scale { get; }
     internal bool Opaque { get; }
+
+    internal PdfDictionary ToDictionary()
+    {
+        var entries = new List<KeyValuePair<PdfName, PdfObject>>
+        {
+            new(Name("S"), Name(Style == PdfPageTransitionStyle.Replace
+                ? "R" : Style.ToString())),
+            new(Name("D"), Number(Duration))
+        };
+        if (Dimension.HasValue)
+            entries.Add(new(Name("Dm"), Name(
+                Dimension == PdfTransitionDimension.Horizontal ? "H" : "V")));
+        if (Motion.HasValue)
+            entries.Add(new(Name("M"), Name(
+                Motion == PdfTransitionMotion.Inward ? "I" : "O")));
+        if (Direction.HasValue)
+            entries.Add(new(Name("Di"), new PdfInteger(Direction.Value)));
+        if (Scale.HasValue)
+            entries.Add(new(Name("SS"), Number(Scale.Value)));
+        if (Opaque)
+            entries.Add(new(Name("B"), new PdfBoolean(true)));
+        return new PdfDictionary(entries);
+
+        static PdfName Name(string value) =>
+            new(System.Text.Encoding.ASCII.GetBytes(value));
+        static PdfObject Number(double value) =>
+            value == Math.Truncate(value) && value is >= long.MinValue and <= long.MaxValue
+                ? new PdfInteger((long)value) : new PdfReal(value);
+    }
 
     private static int Cardinal(int direction)
     {

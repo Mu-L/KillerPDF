@@ -2,6 +2,7 @@ using System.Text;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Syntax;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Authoring;
@@ -82,6 +83,54 @@ public sealed class PdfViewerPreferencesTests
             {
                 Duplex = (PdfDuplexMode)4
             }));
+    }
+
+    [Theory]
+    [InlineData(1, 4, PdfPageLayout.TwoPageLeft, PdfPageMode.UseNone)]
+    [InlineData(1, 4, PdfPageLayout.SinglePage, PdfPageMode.UseOptionalContent)]
+    [InlineData(1, 5, PdfPageLayout.SinglePage, PdfPageMode.UseAttachments)]
+    public void Build_EnforcesLayoutAndModeVersionRequirements(
+        int major, int minor, PdfPageLayout layout, PdfPageMode mode)
+    {
+        Assert.Throws<InvalidOperationException>(() => new PdfDocumentBuilder(
+                new PdfVersion(major, minor))
+            .SetPageLayout(layout)
+            .SetPageMode(mode)
+            .AddBlankPage()
+            .Build());
+    }
+
+    [Fact]
+    public void Build_EnforcesViewerPreferenceVersionRequirements()
+    {
+        Assert.Throws<InvalidOperationException>(() => Build(
+            new PdfVersion(1, 1), new PdfViewerPreferences()));
+        Assert.Throws<InvalidOperationException>(() => Build(
+            new PdfVersion(1, 2), new PdfViewerPreferences
+            {
+                ReadingDirection = PdfReadingDirection.RightToLeft
+            }));
+        Assert.Throws<InvalidOperationException>(() => Build(
+            new PdfVersion(1, 3), new PdfViewerPreferences
+            {
+                DisplayDocumentTitle = true
+            }));
+        Assert.Throws<InvalidOperationException>(() => Build(
+            new PdfVersion(1, 5), new PdfViewerPreferences
+            {
+                PrintScaling = PdfPrintScaling.None
+            }));
+        Assert.Throws<InvalidOperationException>(() => Build(
+            new PdfVersion(1, 6), new PdfViewerPreferences
+            {
+                Duplex = PdfDuplexMode.Simplex
+            }));
+
+        static byte[] Build(PdfVersion version, PdfViewerPreferences preferences) =>
+            new PdfDocumentBuilder(version)
+                .SetViewerPreferences(preferences)
+                .AddBlankPage()
+                .Build();
     }
 
     private static PdfDictionary Catalog(PdfDocument document) =>

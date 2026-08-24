@@ -6,6 +6,7 @@ using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Security;
+using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Tests.Fonts;
 using KillerPdf.Engine.Writing;
 using Xunit;
@@ -1350,6 +1351,1113 @@ public sealed class PdfIncrementalAnnotationEditorTests
         Assert.IsType<PdfIndirectReference>(imageStream.Dictionary[Name("SMask")]);
     }
 
+    [Fact]
+    public void Build_AppendsUriPageAndNamedDestinationLinks()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddNamedDestination("chapter", 1)
+            .Build());
+        var metadata = new PdfAnnotationMetadata
+        {
+            Author = "KillerPDF",
+            Subject = "Navigation",
+            Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.NoZoom
+        };
+        var quad = new PdfTextQuad(
+            new PdfPoint(20, 46), new PdfPoint(100, 46),
+            new PdfPoint(20, 30), new PdfPoint(100, 30));
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(source)
+                .AddUriLink(0, [quad], "https://killerpdf.net/docs",
+                    new PdfLinkAppearance(
+                        2, PdfLinkBorderStyle.Dashed, [4, 2],
+                        new PdfRgbColor(0.1, 0.4, 0.9),
+                        PdfLinkHighlightMode.Push), metadata, "Documentation")
+                .AddPageLink(0, 20, 60, 80, 16, 1,
+                    destination: PdfDestination.FitWidth(700))
+                .AddNamedDestinationLink(0, 20, 90, 80, 16, "chapter")
+                .Build());
+
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+        PdfDictionary uri = ResolveDictionary(reopened, annotations[0]);
+        PdfDictionary action = Assert.IsType<PdfDictionary>(uri[Name("A")]);
+        PdfDictionary border = Assert.IsType<PdfDictionary>(uri[Name("BS")]);
+        PdfDictionary page = ResolveDictionary(reopened, annotations[1]);
+        PdfArray pageDestination = Assert.IsType<PdfArray>(page[Name("Dest")]);
+        PdfDictionary named = ResolveDictionary(reopened, annotations[2]);
+
+        Assert.Equal(3, annotations.Count);
+        Assert.Equal("Link", Assert.IsType<PdfName>(uri[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal("URI", Assert.IsType<PdfName>(action[Name("S")]).ValueAsLatin1());
+        Assert.Equal("D", Assert.IsType<PdfName>(border[Name("S")]).ValueAsLatin1());
+        Assert.Equal("P", Assert.IsType<PdfName>(uri[Name("H")]).ValueAsLatin1());
+        Assert.Equal(8, Assert.IsType<PdfArray>(uri[Name("QuadPoints")]).Count);
+        Assert.Equal(12, Assert.IsType<PdfInteger>(uri[Name("F")]).Value);
+        Assert.False(uri.ContainsKey(Name("AP")));
+        PdfIndirectReference expectedPage = Pages(reopened)[1].Reference;
+        PdfIndirectReference actualPage =
+            Assert.IsType<PdfIndirectReference>(pageDestination[0]);
+        Assert.Equal(expectedPage.ObjectNumber, actualPage.ObjectNumber);
+        Assert.Equal(expectedPage.Generation, actualPage.Generation);
+        Assert.Equal("FitH", Assert.IsType<PdfName>(pageDestination[1]).ValueAsLatin1());
+        Assert.Equal(
+            new byte[] { 0xFE, 0xFF, 0, 0x63, 0, 0x68, 0, 0x61,
+                0, 0x70, 0, 0x74, 0, 0x65, 0, 0x72 },
+            Assert.IsType<PdfString>(named[Name("Dest")]).Bytes.ToArray());
+    }
+
+    [Fact]
+    public void LinkArguments_AreRejectedBeforeWriting()
+    {
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        var editor = new PdfIncrementalAnnotationEditor(source);
+
+        Assert.Throws<ArgumentException>(() => editor.AddUriLink(
+            0, 0, 0, 10, 10, "javascript:alert(1)"));
+        Assert.Throws<ArgumentException>(() => editor.AddUriLink(
+            0, Array.Empty<PdfTextQuad>(), "https://killerpdf.net"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddPageLink(
+            0, 0, 0, 10, 10, 1));
+        Assert.Throws<ArgumentException>(() => editor.AddNamedDestinationLink(
+            0, 0, 0, 10, 10, "missing"));
+    }
+
+    [Fact]
+    public void Build_AppendsTaggedFileAttachmentUsingExistingFileSpecification()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Tagged attachment",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddAttachment("evidence.txt", "proof"u8.ToArray(),
+                "text/plain", "Supporting evidence")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        var metadata = new PdfAnnotationMetadata
+        {
+            Author = "KillerPDF",
+            Subject = "Evidence",
+            Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.NoZoom
+        };
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(source)
+                .AddFileAttachmentAnnotation(0, 20, 30, 24, "EVIDENCE.TXT",
+                    "Open the evidence", PdfFileAttachmentIcon.PushPin,
+                    new PdfRgbColor(0.2, 0.5, 0.8), metadata)
+                .Build());
+
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        PdfIndirectReference fileReference =
+            Assert.IsType<PdfIndirectReference>(annotation[Name("FS")]);
+        PdfDictionary fileSpecification = ResolveDictionary(reopened, fileReference);
+
+        Assert.Equal("FileAttachment", Assert.IsType<PdfName>(
+            annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal("PushPin", Assert.IsType<PdfName>(
+            annotation[Name("Name")]).ValueAsLatin1());
+        Assert.Equal(12, Assert.IsType<PdfInteger>(annotation[Name("F")]).Value);
+        Assert.IsType<PdfInteger>(annotation[Name("StructParent")]);
+        Assert.Equal("Filespec", Assert.IsType<PdfName>(
+            fileSpecification[Name("Type")]).ValueAsLatin1());
+        Assert.IsType<PdfStream>(reopened.Resolve(Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+    }
+
+    [Fact]
+    public void FileAttachmentArguments_RejectMissingFilesAndInvalidGeometry()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddAttachment("present.txt", "data"u8.ToArray(), "text/plain")
+            .Build());
+        var editor = new PdfIncrementalAnnotationEditor(source);
+
+        Assert.Throws<ArgumentException>(() => editor.AddFileAttachmentAnnotation(
+            0, 0, 0, 24, "missing.txt"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddFileAttachmentAnnotation(
+            0, 0, 0, 0, "present.txt"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddFileAttachmentAnnotation(
+            0, 0, 0, 24, "present.txt", icon: (PdfFileAttachmentIcon)99));
+    }
+
+    [Fact]
+    public void Build_WritesLifecycleMetadataForEveryVisualAnnotationFamily()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfImage image = PdfImage.FromRgb(1, 1, new byte[] { 10, 20, 30 });
+        var metadata = new PdfAnnotationMetadata
+        {
+            Author = "Editor",
+            Subject = "Review",
+            CreationDate = new DateTimeOffset(2026, 8, 24, 10, 11, 12,
+                TimeSpan.FromHours(-7)),
+            ModificationDate = new DateTimeOffset(2026, 8, 24, 11, 12, 13,
+                TimeSpan.FromHours(-7)),
+            Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.Locked
+        };
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddTextNote(0, 10, 10, "Note",
+                    annotationMetadata: metadata)
+                .AddHighlight(0, 10, 40, 50, 12, "Highlight",
+                    annotationMetadata: metadata)
+                .AddFreeText(0, 10, 70, 80, 30, "A", font,
+                    annotationMetadata: metadata)
+                .AddLine(0, new PdfPoint(10, 120), new PdfPoint(80, 125),
+                    contents: "Line", annotationMetadata: metadata)
+                .AddRectangle(0, 10, 150, 50, 25, contents: "Rectangle",
+                    annotationMetadata: metadata)
+                .AddInk(0, [new PdfPoint(10, 200), new PdfPoint(30, 210)],
+                    contents: "Ink", annotationMetadata: metadata)
+                .AddImageStamp(0, 10, 240, 30, 30, image, "Image", metadata)
+                .Build());
+
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+        Assert.Equal(7, annotations.Count);
+        foreach (PdfObject reference in annotations)
+        {
+            PdfDictionary annotation = ResolveDictionary(reopened, reference);
+            Assert.Equal(132, Assert.IsType<PdfInteger>(
+                annotation[Name("F")]).Value);
+            Assert.IsType<PdfString>(annotation[Name("T")]);
+            Assert.IsType<PdfString>(annotation[Name("Subj")]);
+            Assert.IsType<PdfString>(annotation[Name("CreationDate")]);
+            Assert.IsType<PdfString>(annotation[Name("M")]);
+        }
+    }
+
+    [Fact]
+    public void Build_AppendsEveryMultiQuadTextMarkupTypeWithTightGeometry()
+    {
+        PdfTextQuad first = new(
+            new PdfPoint(10, 30), new PdfPoint(60, 35),
+            new PdfPoint(11, 20), new PdfPoint(61, 25));
+        PdfTextQuad second = new(
+            new PdfPoint(15, 55), new PdfPoint(65, 60),
+            new PdfPoint(16, 45), new PdfPoint(66, 50));
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddHighlight(0, [first, second], "Highlight")
+                .AddUnderline(0, [first, second], "Underline")
+                .AddStrikeOut(0, [first, second], "Strikeout")
+                .AddSquiggly(0, [first, second], "Squiggly")
+                .Build());
+
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+        Assert.Equal(4, annotations.Count);
+        Assert.Equal(["Highlight", "Underline", "StrikeOut", "Squiggly"],
+            annotations.Select(reference => Assert.IsType<PdfName>(
+                ResolveDictionary(reopened, reference)[Name("Subtype")])
+                .ValueAsLatin1()).ToArray());
+        foreach (PdfObject reference in annotations)
+        {
+            PdfDictionary annotation = ResolveDictionary(reopened, reference);
+            Assert.Equal(16, Assert.IsType<PdfArray>(
+                annotation[Name("QuadPoints")]).Count);
+            PdfArray rectangle = Assert.IsType<PdfArray>(annotation[Name("Rect")]);
+            Assert.Equal(10, Assert.IsType<PdfInteger>(rectangle[0]).Value);
+            Assert.Equal(20, Assert.IsType<PdfInteger>(rectangle[1]).Value);
+            Assert.Equal(66, Assert.IsType<PdfInteger>(rectangle[2]).Value);
+            Assert.Equal(60, Assert.IsType<PdfInteger>(rectangle[3]).Value);
+            PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+                Assert.IsType<PdfIndirectReference>(
+                    Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+            Assert.NotEmpty(appearance.EncodedData.ToArray());
+        }
+    }
+
+    [Fact]
+    public void MultiQuadTextMarkupRejectsEmptyGeometry()
+    {
+        var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()));
+        Assert.Throws<ArgumentException>(() => editor.AddHighlight(
+            0, Array.Empty<PdfTextQuad>()));
+        Assert.Throws<ArgumentException>(() => editor.AddSquiggly(
+            0, Array.Empty<PdfTextQuad>()));
+    }
+
+    [Fact]
+    public void Build_WritesDashedLineShapeAndInkStylesIntoDictionariesAndAppearances()
+    {
+        double[] dash = [3, 2];
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddLine(0, new PdfPoint(10, 20), new PdfPoint(80, 30),
+                    dashPattern: dash)
+                .AddRectangle(0, 10, 50, 70, 30, dashPattern: dash)
+                .AddEllipse(0, 10, 100, 70, 30, dashPattern: dash)
+                .AddInk(0, [new PdfPoint(10, 150), new PdfPoint(80, 160)],
+                    dashPattern: dash)
+                .Build());
+
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+        Assert.Equal(4, annotations.Count);
+        foreach (PdfObject reference in annotations)
+        {
+            PdfDictionary annotation = ResolveDictionary(reopened, reference);
+            PdfDictionary border = Assert.IsType<PdfDictionary>(annotation[Name("BS")]);
+            Assert.Equal("D", Assert.IsType<PdfName>(
+                border[Name("S")]).ValueAsLatin1());
+            PdfArray dictionaryDash = Assert.IsType<PdfArray>(border[Name("D")]);
+            Assert.Equal([3L, 2L], dictionaryDash.Select(value =>
+                Assert.IsType<PdfInteger>(value).Value).ToArray());
+            PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+                Assert.IsType<PdfIndirectReference>(
+                    Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+            Assert.Contains("[3 2] 0 d", Encoding.ASCII.GetString(
+                appearance.EncodedData.Span));
+        }
+    }
+
+    [Fact]
+    public void DashedAnnotationsRejectEmptyNegativeAndAllZeroPatterns()
+    {
+        var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddLine(
+            0, new PdfPoint(0, 0), new PdfPoint(10, 10), dashPattern: []));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddRectangle(
+            0, 0, 0, 10, 10, dashPattern: [1, -1]));
+        Assert.Throws<ArgumentException>(() => editor.AddInk(
+            0, [new PdfPoint(0, 0), new PdfPoint(10, 10)], dashPattern: [0, 0]));
+    }
+
+    [Fact]
+    public void Build_WritesPolylineAndPolygonWithAuthoredEquivalentGeometryAndStyling()
+    {
+        var metadata = new PdfAnnotationMetadata { Author = "Editor" };
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddPolyline(0,
+                    [new PdfPoint(10, 20), new PdfPoint(70, 30), new PdfPoint(90, 50)],
+                    lineWidth: 2, contents: "Route",
+                    startEnding: PdfLineEndingStyle.Circle,
+                    endEnding: PdfLineEndingStyle.ClosedArrow,
+                    dashPattern: [4, 2], interiorColor: PdfRgbColor.Yellow,
+                    annotationMetadata: metadata,
+                    intent: PdfVertexAnnotationIntent.Dimension)
+                .AddPolygon(0,
+                    [new PdfPoint(20, 100), new PdfPoint(80, 110), new PdfPoint(50, 150)],
+                    fillColor: PdfRgbColor.Yellow, lineWidth: 3,
+                    contents: "Area", dashPattern: [5, 1],
+                    annotationMetadata: metadata,
+                    intent: PdfVertexAnnotationIntent.Cloud)
+                .Build());
+
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+        PdfDictionary polyline = ResolveDictionary(reopened, annotations[0]);
+        PdfDictionary polygon = ResolveDictionary(reopened, annotations[1]);
+        Assert.Equal("PolyLine", Assert.IsType<PdfName>(
+            polyline[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal("Polygon", Assert.IsType<PdfName>(
+            polygon[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal(6, Assert.IsType<PdfArray>(
+            polyline[Name("Vertices")]).Count);
+        Assert.Equal(6, Assert.IsType<PdfArray>(
+            polygon[Name("Vertices")]).Count);
+        Assert.Equal(["Circle", "ClosedArrow"],
+            Assert.IsType<PdfArray>(polyline[Name("LE")]).Select(value =>
+                Assert.IsType<PdfName>(value).ValueAsLatin1()).ToArray());
+        Assert.Equal("PolyLineDimension", Assert.IsType<PdfName>(
+            polyline[Name("IT")]).ValueAsLatin1());
+        Assert.Equal("PolygonCloud", Assert.IsType<PdfName>(
+            polygon[Name("IT")]).ValueAsLatin1());
+        Assert.IsType<PdfArray>(polyline[Name("IC")]);
+        Assert.IsType<PdfArray>(polygon[Name("IC")]);
+        Assert.IsType<PdfString>(polyline[Name("T")]);
+        Assert.IsType<PdfString>(polygon[Name("T")]);
+        foreach (PdfDictionary annotation in new[] { polyline, polygon })
+        {
+            PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+                Assert.IsType<PdfIndirectReference>(
+                    Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+            Assert.Contains(" d\n", Encoding.ASCII.GetString(
+                appearance.EncodedData.Span));
+        }
+    }
+
+    [Fact]
+    public void VertexAnnotationsRejectMalformedGeometryAndIntent()
+    {
+        var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()));
+
+        Assert.Throws<ArgumentException>(() => editor.AddPolyline(
+            0, [new PdfPoint(0, 0)]));
+        Assert.Throws<ArgumentException>(() => editor.AddPolygon(
+            0, [new PdfPoint(0, 0), new PdfPoint(10, 10)]));
+        Assert.Throws<ArgumentException>(() => editor.AddPolyline(0,
+            [new PdfPoint(0, 0), new PdfPoint(10, 10)],
+            intent: PdfVertexAnnotationIntent.Cloud));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddPolygon(0,
+            [new PdfPoint(0, 0), new PdfPoint(10, 10), new PdfPoint(20, 0)],
+            intent: (PdfVertexAnnotationIntent)99));
+    }
+
+    [Fact]
+    public void Build_WritesCaretSymbolMetadataTaggingAndAppearance()
+    {
+        var metadata = new PdfAnnotationMetadata
+        {
+            Author = "Editor",
+            Subject = "Insertion"
+        };
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddCaretAnnotation(0, 20, 30, 24, 30, "Insert here",
+                    new PdfRgbColor(0.1, 0.35, 0.9), 0.75,
+                    PdfCaretSymbol.Paragraph, metadata)
+                .Build());
+
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        Assert.Equal("Caret", Assert.IsType<PdfName>(
+            annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal("P", Assert.IsType<PdfName>(
+            annotation[Name("Sy")]).ValueAsLatin1());
+        Assert.IsType<PdfString>(annotation[Name("T")]);
+        Assert.IsType<PdfString>(annotation[Name("Subj")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+        Assert.Contains(" m\n", Encoding.ASCII.GetString(
+            appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void CaretRejectsInvalidGeometryOpacityAndSymbol()
+    {
+        var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddCaret(
+            0, 0, 0, 0, 10));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddCaret(
+            0, 0, 0, 10, 10, opacity: 2));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddCaret(
+            0, 0, 0, 10, 10, symbol: (PdfCaretSymbol)99));
+    }
+
+    [Fact]
+    public void Build_WritesSelectedImageStampIconAndRejectsUnknownValues()
+    {
+        PdfImage image = PdfImage.FromRgb(1, 1, new byte[] { 10, 20, 30 });
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(source)
+                .AddImageStamp(0, 10, 10, 30, 30, image,
+                    icon: PdfStampIcon.Confidential)
+                .Build());
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+
+        Assert.Equal("Confidential", Assert.IsType<PdfName>(
+            annotation[Name("Name")]).ValueAsLatin1());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfIncrementalAnnotationEditor(source).AddImageStamp(
+                0, 10, 10, 30, 30, image, icon: (PdfStampIcon)99));
+    }
+
+    [Fact]
+    public void Build_AuthorizesExactMinimumVersionsForOpacityAndVertexAnnotations()
+    {
+        byte[] source = new PdfDocumentBuilder(PdfVersion.Pdf10)
+            .AddBlankPage().Build();
+        PdfDocument opacity = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(source))
+                .AddHighlight(0, 10, 10, 30, 10)
+                .Build());
+        PdfDocument vertex = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(source))
+                .AddPolyline(0,
+                    [new PdfPoint(10, 10), new PdfPoint(30, 30)])
+                .Build());
+
+        Assert.Equal("1.4", Assert.IsType<PdfName>(ResolveDictionary(
+            opacity, opacity.Trailer[Name("Root")])[Name("Version")]).ValueAsLatin1());
+        Assert.Equal("1.5", Assert.IsType<PdfName>(ResolveDictionary(
+            vertex, vertex.Trailer[Name("Root")])[Name("Version")]).ValueAsLatin1());
+        Assert.Equal(PdfVersion.Pdf10, opacity.Header.Version);
+        Assert.Equal(PdfVersion.Pdf10, vertex.Header.Version);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedExistingCatalogVersionBeforeAnnotationUpgrade()
+    {
+        PdfDocument source = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        setup.ReplaceObject(catalogReference.ObjectNumber,
+            Replace(ResolveDictionary(source, catalogReference), Name("Version"),
+                Name("1.9")));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(setup.Build()))
+                .AddHighlight(0, 10, 10, 30, 10)
+                .Build());
+    }
+
+    [Fact]
+    public void Build_WritesMultiQuadRedactionWithRepeatedBaselineOverlayAndPdf17Upgrade()
+    {
+        PdfTextQuad first = Quad(10, 20, 80, 14);
+        PdfTextQuad second = Quad(10, 50, 100, 14);
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder(PdfVersion.Pdf10).AddBlankPage().Build()))
+                .AddRedactionMark(0, [first, second], "Remove account number",
+                    overlayText: "REDACTED", repeatOverlayText: true,
+                    overlayAlignment: PdfTextAlignment.Right)
+                .Build());
+
+        PdfDictionary catalog = ResolveDictionary(reopened,
+            reopened.Trailer[Name("Root")]);
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        Assert.Equal("1.7", Assert.IsType<PdfName>(
+            catalog[Name("Version")]).ValueAsLatin1());
+        Assert.Equal("Redact", Assert.IsType<PdfName>(
+            annotation[Name("Subtype")]).ValueAsLatin1());
+        Assert.Equal(16, Assert.IsType<PdfArray>(
+            annotation[Name("QuadPoints")]).Count);
+        Assert.True(Assert.IsType<PdfBoolean>(annotation[Name("Repeat")]).Value);
+        Assert.Equal(2, Assert.IsType<PdfInteger>(annotation[Name("Q")]).Value);
+        Assert.IsType<PdfString>(annotation[Name("DA")]);
+        PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+        Assert.Equal(2, content.Split("(REDACTED) Tj", StringSplitOptions.None).Length - 1);
+        PdfDictionary fonts = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")])
+                [Name("Font")]);
+        Assert.Equal("Type1", Assert.IsType<PdfName>(ResolveDictionary(
+            reopened, fonts[Name("Helv")])[Name("Subtype")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void Build_EmbedsTrueTypeFontForUnicodeRedactionOverlay()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddRedactionMark(0,
+                    [Quad(10, 20, 80, 14)],
+                    overlayText: "AA", overlayFont: font)
+                .Build());
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+        PdfDictionary fonts = Assert.IsType<PdfDictionary>(
+            Assert.IsType<PdfDictionary>(appearance.Dictionary[Name("Resources")])
+                [Name("Font")]);
+        PdfDictionary type0 = ResolveDictionary(reopened, fonts.Single().Value);
+        Assert.Equal("Type0", Assert.IsType<PdfName>(
+            type0[Name("Subtype")]).ValueAsLatin1());
+        Assert.Contains("<00010001> Tj", Encoding.ASCII.GetString(
+            appearance.EncodedData.Span));
+    }
+
+    [Fact]
+    public void RedactionOverlayRequiresEmbeddedFontWhenExistingXmpClaimsPdfA4()
+    {
+        const string xmp = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <x:xmpmeta xmlns:x="adobe:ns:meta/">
+              <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+                <rdf:Description xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/">
+                  <pdfaid:part>4</pdfaid:part>
+                  <pdfaid:rev>2020</pdfaid:rev>
+                </rdf:Description>
+              </rdf:RDF>
+            </x:xmpmeta>
+            """;
+        PdfDocument initial = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            initial.Trailer[Name("Root")]);
+        var setup = new PdfIncrementalUpdateBuilder(initial);
+        PdfIndirectReference metadata = setup.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("Metadata")),
+                new(Name("Subtype"), Name("XML"))
+            ]), Encoding.UTF8.GetBytes(xmp)));
+        setup.ReplaceObject(catalogReference.ObjectNumber,
+            Replace(ResolveDictionary(initial, catalogReference),
+                Name("Metadata"), metadata));
+        PdfDocument pdfA4 = PdfDocument.Open(setup.Build());
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: false));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(pdfA4).AddRedactionMark(0,
+                [Quad(10, 20, 80, 14)], overlayText: "REDACTED"));
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(pdfA4).AddRedactionMark(0,
+                [Quad(10, 20, 80, 14)], overlayText: "AA", overlayFont: font)
+                .Build());
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        Assert.Equal("Redact", Assert.IsType<PdfName>(
+            annotation[Name("Subtype")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void RedactionRejectsInvalidGeometryOverlayAndPresentationArguments()
+    {
+        var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()));
+        Assert.Throws<ArgumentException>(() => editor.AddRedactionMark(
+            0, Array.Empty<PdfTextQuad>()));
+        Assert.Throws<ArgumentException>(() => editor.AddRedactionMark(0,
+            [Quad(0, 0, 10, 10)], overlayText: "é"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddRedactionMark(0,
+            [Quad(0, 0, 10, 10)], opacity: 2));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddRedactionMark(0,
+            [Quad(0, 0, 10, 10)], overlayFontSize: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddRedactionMark(0,
+            [Quad(0, 0, 10, 10)],
+            overlayAlignment: (PdfTextAlignment)99));
+    }
+
+    [Fact]
+    public void Build_WritesLineEndingsInteriorColorIntentAndExpandedAppearanceBounds()
+    {
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddLine(0, new PdfPoint(20, 30), new PdfPoint(120, 80),
+                    lineWidth: 3, dashPattern: [4, 2],
+                    startEnding: PdfLineEndingStyle.Circle,
+                    endEnding: PdfLineEndingStyle.ClosedArrow,
+                    interiorColor: PdfRgbColor.Yellow,
+                    intent: PdfLineAnnotationIntent.Arrow)
+                .Build());
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        Assert.Equal(["Circle", "ClosedArrow"],
+            Assert.IsType<PdfArray>(annotation[Name("LE")]).Select(value =>
+                Assert.IsType<PdfName>(value).ValueAsLatin1()).ToArray());
+        Assert.Equal("LineArrow", Assert.IsType<PdfName>(
+            annotation[Name("IT")]).ValueAsLatin1());
+        Assert.IsType<PdfArray>(annotation[Name("IC")]);
+        PdfArray rectangle = Assert.IsType<PdfArray>(annotation[Name("Rect")]);
+        Assert.True(Assert.IsType<PdfInteger>(rectangle[0]).Value < 20);
+        Assert.True(Assert.IsType<PdfInteger>(rectangle[1]).Value < 30);
+        PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+        Assert.Contains(" c\n", content);
+        Assert.Contains("h\nB\n", content);
+    }
+
+    [Fact]
+    public void LineRejectsUndefinedEndingsAndIntent()
+    {
+        var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddLine(
+            0, new PdfPoint(0, 0), new PdfPoint(10, 10),
+            startEnding: (PdfLineEndingStyle)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddLine(
+            0, new PdfPoint(0, 0), new PdfPoint(10, 10),
+            intent: (PdfLineAnnotationIntent)99));
+    }
+
+    [Fact]
+    public void Build_WritesAlignedDashedCalloutFreeTextWithExpandedBounds()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: false));
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().AddBlankPage().Build()))
+                .AddFreeText(0, 100, 100, 120, 50, "AA", font,
+                    alignment: PdfTextAlignment.Right,
+                    dashPattern: [3, 2], intent: PdfFreeTextIntent.Callout,
+                    calloutLine:
+                    [
+                        new PdfPoint(20, 40),
+                        new PdfPoint(60, 70),
+                        new PdfPoint(100, 100)
+                    ],
+                    calloutEnding: PdfLineEndingStyle.ClosedArrow)
+                .Build());
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
+        Assert.Equal(2, Assert.IsType<PdfInteger>(annotation[Name("Q")]).Value);
+        Assert.Equal("FreeTextCallout", Assert.IsType<PdfName>(
+            annotation[Name("IT")]).ValueAsLatin1());
+        Assert.Equal("ClosedArrow", Assert.IsType<PdfName>(
+            annotation[Name("LE")]).ValueAsLatin1());
+        Assert.Equal(6, Assert.IsType<PdfArray>(annotation[Name("CL")]).Count);
+        Assert.Equal("D", Assert.IsType<PdfName>(Assert.IsType<PdfDictionary>(
+            annotation[Name("BS")])[Name("S")]).ValueAsLatin1());
+        PdfArray rectangle = Assert.IsType<PdfArray>(annotation[Name("Rect")]);
+        Assert.True(Assert.IsType<PdfInteger>(rectangle[0]).Value < 20);
+        Assert.True(Assert.IsType<PdfInteger>(rectangle[1]).Value < 40);
+        PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
+        string content = Encoding.ASCII.GetString(appearance.EncodedData.Span);
+        Assert.Contains("[3 2] 0 d", content);
+        Assert.Contains("h\nS\n", content);
+        Assert.Contains(" Tm\n<00010001> Tj", content);
+    }
+
+    [Fact]
+    public void FreeTextRejectsInvalidAlignmentIntentEndingAndCalloutCombinations()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: false));
+        var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build()));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddFreeText(
+            0, 0, 0, 50, 20, "A", font,
+            alignment: (PdfTextAlignment)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddFreeText(
+            0, 0, 0, 50, 20, "A", font,
+            intent: (PdfFreeTextIntent)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddFreeText(
+            0, 0, 0, 50, 20, "A", font,
+            calloutEnding: (PdfLineEndingStyle)99));
+        Assert.Throws<ArgumentException>(() => editor.AddFreeText(
+            0, 0, 0, 50, 20, "A", font,
+            intent: PdfFreeTextIntent.Callout));
+        Assert.Throws<ArgumentException>(() => editor.AddFreeText(
+            0, 0, 0, 50, 20, "A", font,
+            calloutLine: [new PdfPoint(0, 0), new PdfPoint(10, 10)]));
+    }
+
+    [Fact]
+    public void Build_WritesNamedStatefulRepliesAndReciprocalPopup()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Existing", name: "existing")
+            .Build());
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(source)
+                .AddTextNote(0, 40, 40, "First reply",
+                    icon: PdfTextNoteIcon.Comment,
+                    state: PdfTextNoteState.Accepted,
+                    name: "new-note", inReplyTo: "existing")
+                .AddTextNote(0, 70, 70, "Grouped reply",
+                    icon: PdfTextNoteIcon.Key,
+                    name: "grouped", inReplyTo: "new-note",
+                    replyType: PdfAnnotationReplyType.Group,
+                    popup: new PdfAnnotationPopup(100, 100, 180, 90, open: true))
+                .Build());
+
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+        Assert.Equal(4, annotations.Count);
+        PdfIndirectReference existingReference = Assert.IsType<PdfIndirectReference>(annotations[0]);
+        PdfIndirectReference firstReference = Assert.IsType<PdfIndirectReference>(annotations[1]);
+        PdfIndirectReference groupedReference = Assert.IsType<PdfIndirectReference>(annotations[2]);
+        PdfIndirectReference popupReference = Assert.IsType<PdfIndirectReference>(annotations[3]);
+        PdfDictionary first = ResolveDictionary(reopened, firstReference);
+        PdfDictionary grouped = ResolveDictionary(reopened, groupedReference);
+        PdfDictionary popup = ResolveDictionary(reopened, popupReference);
+        Assert.Equal("Comment", Assert.IsType<PdfName>(
+            first[Name("Name")]).ValueAsLatin1());
+        Assert.Equal("Accepted", Assert.IsType<PdfName>(
+            first[Name("State")]).ValueAsLatin1());
+        Assert.Equal("Review", Assert.IsType<PdfName>(
+            first[Name("StateModel")]).ValueAsLatin1());
+        Assert.Equal(existingReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(first[Name("IRT")]).ObjectNumber);
+        Assert.Equal(firstReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(grouped[Name("IRT")]).ObjectNumber);
+        Assert.Equal("Group", Assert.IsType<PdfName>(
+            grouped[Name("RT")]).ValueAsLatin1());
+        Assert.Equal(popupReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(grouped[Name("Popup")]).ObjectNumber);
+        Assert.Equal(groupedReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(popup[Name("Parent")]).ObjectNumber);
+        Assert.True(Assert.IsType<PdfBoolean>(popup[Name("Open")]).Value);
+    }
+
+    [Fact]
+    public void TextNoteRejectsDuplicateNamesMissingTargetsAndInvalidWorkflowValues()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddTextNote(0, 0, 0, "Existing", name: "existing")
+            .Build());
+        var editor = new PdfIncrementalAnnotationEditor(source);
+        Assert.Throws<ArgumentException>(() => editor.AddTextNote(
+            0, 10, 10, "Duplicate", name: "existing"));
+        Assert.Throws<ArgumentException>(() => editor.AddTextNote(
+            0, 10, 10, "Missing", inReplyTo: "missing"));
+        Assert.Throws<ArgumentException>(() => editor.AddTextNote(
+            0, 10, 10, "Group", replyType: PdfAnnotationReplyType.Group));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddTextNote(
+            0, 10, 10, "Icon", icon: (PdfTextNoteIcon)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddTextNote(
+            0, 10, 10, "State", state: (PdfTextNoteState)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddTextNote(
+            0, 10, 10, "Reply", replyType: (PdfAnnotationReplyType)99));
+    }
+
+    [Fact]
+    public void RemoveAnnotation_RemovesNamedNoteAndReciprocalPopupOnly()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Keep", name: "keep")
+            .AddTextNote(0, 40, 40, "Remove", name: "remove",
+                popup: new PdfAnnotationPopup(100, 100, 180, 90, open: true))
+            .Build();
+        byte[] output = new PdfIncrementalAnnotationEditor(PdfDocument.Open(sourceBytes))
+                .RemoveAnnotation(0, "remove")
+                .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+
+        Assert.Single(annotations);
+        PdfDictionary retained = ResolveDictionary(reopened, annotations[0]);
+        ReadOnlySpan<byte> retainedName = Assert.IsType<PdfString>(
+            retained[Name("NM")]).Bytes.Span;
+        Assert.Equal("keep", Encoding.BigEndianUnicode.GetString(
+            retainedName[2..]));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void RemoveAnnotation_RejectsMissingDuplicateAndOrphaningReplyTargets()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Parent", name: "parent")
+            .AddTextNote(0, 40, 40, "Reply", name: "reply",
+                inReplyTo: "parent")
+            .Build());
+        var editor = new PdfIncrementalAnnotationEditor(source);
+        Assert.Throws<ArgumentException>(() => editor.RemoveAnnotation(0, "missing"));
+        editor.RemoveAnnotation(0, "parent");
+        Assert.Throws<ArgumentException>(() => editor.RemoveAnnotation(0, "parent"));
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => editor.Build());
+        Assert.Contains("would orphan a retained /IRT relationship",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RemoveAnnotation_PrunesTaggedParentTreeAndDocumentChild()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Accessible note", name: "remove")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        byte[] output = new PdfIncrementalAnnotationEditor(PdfDocument.Open(sourceBytes))
+                .RemoveAnnotation(0, "remove")
+                .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(reopened,
+            reopened.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(reopened,
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary parentTree = ResolveDictionary(reopened,
+            root[Name("ParentTree")]);
+        PdfObject documentValue = root[Name("K")];
+        if (documentValue is PdfArray documentKids)
+            documentValue = documentKids[0];
+        PdfDictionary document = ResolveDictionary(reopened, documentValue);
+
+        Assert.Empty(Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]));
+        Assert.Empty(Assert.IsType<PdfArray>(parentTree[Name("Nums")]));
+        Assert.False(document.ContainsKey(Name("K")));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void RemoveAnnotation_PrunesPdfUaStructParentMappingElementAndObjr()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Remove accessible annotation",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Accessible note", name: "remove")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        PdfDocument initial = PdfDocument.Open(sourceBytes);
+        PdfDictionary initialAnnotation = ResolveDictionary(initial,
+            Assert.IsType<PdfArray>(Pages(initial)[0].Page[Name("Annots")])[0]);
+        long removedKey = Assert.IsType<PdfInteger>(
+            initialAnnotation[Name("StructParent")]).Value;
+        PdfDictionary initialCatalog = ResolveDictionary(initial,
+            initial.Trailer[Name("Root")]);
+        PdfDictionary initialRoot = ResolveDictionary(initial,
+            initialCatalog[Name("StructTreeRoot")]);
+        PdfArray initialNumbers = Assert.IsType<PdfArray>(ResolveDictionary(
+            initial, initialRoot[Name("ParentTree")])[Name("Nums")]);
+        int keyIndex = Enumerable.Range(0, initialNumbers.Count / 2)
+            .Select(index => index * 2)
+            .Single(index => Assert.IsType<PdfInteger>(
+                initialNumbers[index]).Value == removedKey);
+        PdfIndirectReference removedElement = Assert.IsType<PdfIndirectReference>(
+            initialNumbers[keyIndex + 1]);
+
+        byte[] output = new PdfIncrementalAnnotationEditor(initial)
+            .RemoveAnnotation(0, "remove").Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(reopened,
+            reopened.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(reopened,
+            catalog[Name("StructTreeRoot")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(ResolveDictionary(
+            reopened, root[Name("ParentTree")])[Name("Nums")]);
+        PdfObject documentValue = root[Name("K")];
+        if (documentValue is PdfArray rootKids) documentValue = rootKids[0];
+        PdfDictionary document = ResolveDictionary(reopened, documentValue);
+        IEnumerable<PdfObject> documentKids = document.TryGetValue(
+                Name("K"), out PdfObject? kidsValue)
+            ? kidsValue is PdfArray kids ? kids : [kidsValue]
+            : [];
+
+        Assert.Empty(Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]));
+        Assert.DoesNotContain(Enumerable.Range(0, numbers.Count / 2)
+            .Select(index => Assert.IsType<PdfInteger>(numbers[index * 2]).Value),
+            key => key == removedKey);
+        Assert.DoesNotContain(documentKids, kid => kid is PdfIndirectReference reference
+            && reference.ObjectNumber == removedElement.ObjectNumber
+            && reference.Generation == removedElement.Generation);
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void Build_ComposesTaggedRemovalAndSameNameReplacementInOneRevision()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Replace accessible annotation",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Old accessible note", name: "review")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        PdfDocument initial = PdfDocument.Open(sourceBytes);
+        PdfDictionary oldAnnotation = ResolveDictionary(initial,
+            Assert.IsType<PdfArray>(Pages(initial)[0].Page[Name("Annots")])[0]);
+        long oldKey = Assert.IsType<PdfInteger>(
+            oldAnnotation[Name("StructParent")]).Value;
+
+        byte[] output = new PdfIncrementalAnnotationEditor(initial)
+            .RemoveAnnotation(0, "review")
+            .AddTextNote(0, 40, 40, "New accessible note", name: "review")
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfArray annotations = Assert.IsType<PdfArray>(
+            Pages(reopened)[0].Page[Name("Annots")]);
+        PdfDictionary replacement = ResolveDictionary(reopened,
+            Assert.Single(annotations));
+        long newKey = Assert.IsType<PdfInteger>(
+            replacement[Name("StructParent")]).Value;
+        PdfDictionary catalog = ResolveDictionary(reopened,
+            reopened.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(reopened,
+            catalog[Name("StructTreeRoot")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(ResolveDictionary(
+            reopened, root[Name("ParentTree")])[Name("Nums")]);
+        long[] keys = Enumerable.Range(0, numbers.Count / 2)
+            .Select(index => Assert.IsType<PdfInteger>(numbers[index * 2]).Value)
+            .ToArray();
+
+        Assert.NotEqual(oldKey, newKey);
+        Assert.DoesNotContain(oldKey, keys);
+        Assert.Contains(newKey, keys);
+        Assert.Equal("review", Encoding.BigEndianUnicode.GetString(
+            Assert.IsType<PdfString>(replacement[Name("NM")]).Bytes.Span[2..]));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void RemoveAnnotationAt_RemovesUnnamedAnnotationAndRejectsPopupIndex()
+    {
+        PdfDocument baseDocument = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        var setup = new PdfIncrementalUpdateBuilder(baseDocument);
+        var page = Pages(baseDocument)[0];
+        PdfIndirectReference unnamed = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Square")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(10), new PdfInteger(10),
+                new PdfInteger(40), new PdfInteger(40)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("F"), new PdfInteger(4))
+        ]));
+        setup.ReplaceObject(page.Reference.ObjectNumber,
+            new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(
+                    Name("Annots"), new PdfArray([unnamed])))));
+        PdfDocument unnamedSource = PdfDocument.Open(setup.Build());
+        PdfDocument removed = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(unnamedSource)
+                .RemoveAnnotationAt(0, 0).Build());
+        Assert.Empty(Assert.IsType<PdfArray>(
+            Pages(removed)[0].Page[Name("Annots")]));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfIncrementalAnnotationEditor(unnamedSource)
+                .RemoveAnnotationAt(0, 1));
+
+        PdfDocument popupSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Popup parent", name: "parent",
+                popup: new PdfAnnotationPopup(50, 50, 100, 80))
+            .Build());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(popupSource)
+                .RemoveAnnotationAt(0, 1));
+    }
+
+    [Fact]
+    public void SetAnnotationContentsAndMetadata_ReplaceOnlyLifecycleFields()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Before", name: "review",
+                annotationMetadata: new PdfAnnotationMetadata
+                {
+                    Author = "Before author",
+                    Subject = "Before subject",
+                    Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.NoZoom
+                })
+            .Build();
+        byte[] output = new PdfIncrementalAnnotationEditor(
+                PdfDocument.Open(sourceBytes))
+            .SetAnnotationContents(0, "review", "After")
+            .SetAnnotationMetadata(0, "review", new PdfAnnotationMetadata
+            {
+                Author = "After author",
+                Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.Locked
+            })
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.Single(Assert.IsType<PdfArray>(
+                Pages(reopened)[0].Page[Name("Annots")])));
+
+        Assert.Equal("After", Encoding.BigEndianUnicode.GetString(
+            Assert.IsType<PdfString>(annotation[Name("Contents")]).Bytes.Span[2..]));
+        Assert.Equal("After author", Encoding.BigEndianUnicode.GetString(
+            Assert.IsType<PdfString>(annotation[Name("T")]).Bytes.Span[2..]));
+        Assert.False(annotation.ContainsKey(Name("Subj")));
+        Assert.Equal((long)(PdfAnnotationFlags.Print | PdfAnnotationFlags.Locked),
+            Assert.IsType<PdfInteger>(annotation[Name("F")]).Value);
+        Assert.True(annotation.ContainsKey(Name("AP")));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void SetAnnotationContents_AllowsRemovalAndRejectsRemovedTarget()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Before", name: "review")
+            .Build());
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalAnnotationEditor(source)
+                .SetAnnotationContents(0, "review", null)
+                .Build());
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.Single(Assert.IsType<PdfArray>(
+                Pages(reopened)[0].Page[Name("Annots")])));
+        Assert.False(annotation.ContainsKey(Name("Contents")));
+
+        var editor = new PdfIncrementalAnnotationEditor(source)
+            .RemoveAnnotation(0, "review");
+        Assert.Throws<InvalidOperationException>(() =>
+            editor.SetAnnotationContents(0, "review", "After"));
+    }
+
+    [Fact]
+    public void SetAnnotationContents_SynchronizesTaggedAlternateDescription()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Update accessible annotation",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Before", name: "review")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        PdfDocument initial = PdfDocument.Open(sourceBytes);
+        byte[] output = new PdfIncrementalAnnotationEditor(initial)
+            .SetAnnotationContents(0, "review", "After accessible description")
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.Single(Assert.IsType<PdfArray>(
+                Pages(reopened)[0].Page[Name("Annots")])));
+        long key = Assert.IsType<PdfInteger>(
+            annotation[Name("StructParent")]).Value;
+        PdfDictionary catalog = ResolveDictionary(reopened,
+            reopened.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(reopened,
+            catalog[Name("StructTreeRoot")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(ResolveDictionary(
+            reopened, root[Name("ParentTree")])[Name("Nums")]);
+        int index = Enumerable.Range(0, numbers.Count / 2)
+            .Select(value => value * 2)
+            .Single(value => Assert.IsType<PdfInteger>(numbers[value]).Value == key);
+        PdfDictionary element = ResolveDictionary(reopened, numbers[index + 1]);
+
+        Assert.Equal("After accessible description",
+            Encoding.BigEndianUnicode.GetString(Assert.IsType<PdfString>(
+                annotation[Name("Contents")]).Bytes.Span[2..]));
+        Assert.Equal("After accessible description",
+            Encoding.BigEndianUnicode.GetString(Assert.IsType<PdfString>(
+                element[Name("Alt")]).Bytes.Span[2..]));
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(initial)
+                .SetAnnotationContents(0, "review", null).Build());
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
     private static IReadOnlyList<(PdfIndirectReference Reference, PdfDictionary Page)> Pages(
         PdfDocument document)
     {
@@ -1361,6 +2469,11 @@ public sealed class PdfIncrementalAnnotationEditorTests
             return (reference, ResolveDictionary(document, reference));
         }).ToArray();
     }
+
+    private static PdfTextQuad Quad(
+        double x, double y, double width, double height) =>
+        new(new PdfPoint(x, y + height), new PdfPoint(x + width, y + height),
+            new PdfPoint(x, y), new PdfPoint(x + width, y));
 
     private static PdfDictionary Replace(PdfDictionary source, PdfName name, PdfObject value) =>
         new(source.Where(entry => !entry.Key.Equals(name))
