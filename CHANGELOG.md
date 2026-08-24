@@ -48,6 +48,26 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Shared page-tree traversal resolves bounded trailer `/Root` and catalog `/Pages` alias chains to their final indirect identities, allowing edits through legal aliases while rejecting root and page-root cycles.
 - Full metadata removal follows complete `/Info` and catalog `/Metadata` alias chains, deletes every unshared link, and updates the final catalog identity behind an aliased trailer root while preserving shared-object fail-closed behavior.
 - Incremental updates treat freeing any live member of an inherited `/Info` alias chain as document-information removal and restore the inherited registration when that object is replaced in the same update.
+- Signature discovery compares the final resolved identities of field `/V` and catalog `/Perms /DocMDP` chains, correctly classifying certification signatures hidden behind distinct aliases to the same `/Sig` dictionary.
+- Detached signing resolves final AcroForm, field-array, field, and permissions identities before traversal or replacement, preserving legal alias chains while updating the actual form and field objects.
+- Tagged detached signing updates the final structure-root and parent-tree dictionaries behind aliases instead of overwriting alias nodes.
+- Tagged detached signing appends through final structure-kids arrays and updates final top-level element dictionaries while preserving their outer aliases.
+- Shared name-tree and number-tree traversal follows bounded node alias chains while retaining cycle and reused-node detection across every identity in each chain.
+- Incremental tagged-annotation editing replaces the final structure-root dictionary behind catalog aliases while preserving the original alias chain.
+- Incremental annotation editing appends to final indirect annotation arrays and detects duplicate annotations by final identity without replacing page-level aliases.
+- Shared annotation arrays remain copy-on-write: only unshared final arrays are updated in place, while pages sharing the same final identity detach before appending.
+- Tagged page merging updates final destination structure-root, ParentTree, and Document-element identities and seeds imported roots and Document elements by final source identity.
+- Complete outline imports resolve final source and destination bookmark-root identities, preserving catalog-level outline aliases during destination updates.
+- Bookmark traversal validates cycles, endpoints, parents, and previous links by final item identity; destination updates preserve outer list aliases while replacing final bookmark dictionaries.
+- Partial AcroForm imports select widgets, prune fields, retain calculation-order entries, apply overrides, and detect reused fields by final identity while preserving outer field aliases.
+- Tagged page removal rewrites final structure-root, ParentTree, kids-array, element, and page identities while preserving outer structure references.
+- Optional-content merging updates the final destination `/OCProperties` dictionary behind aliases instead of flattening the catalog value.
+- Named destinations, embedded files, and other name-tree category merges update the final catalog `/Names` dictionary while preserving its outer aliases.
+- AcroForm merging updates the final destination form dictionary behind aliases, and calculation-order membership is checked by final field identity.
+- Transplanted XFA form calculation-order entries use the same final field identities as ordinary complete and partial form merges.
+- Structure ID-tree values, indirect root-kids arrays, and top-level parent links resolve bounded alias chains during tagged merges and direct-root normalization.
+- Optional-content registration, visibility, radio groups, order arrays, and selected-page pruning compare final OCG identities across alias chains.
+- Tagged-annotation traversal updates final top-level structure-element identities and validates reciprocal parent links after bounded alias resolution.
 - Stream parsing now resolves bounded multi-hop indirect `/Length` chains and reports reference cycles or excessive depth deterministically before consuming payload bytes.
 - Compressed-object loading now resolves bounded indirect object-stream `/Type`, `/N`, and `/First` scalars after cross-reference bootstrap, while cross-reference stream fields remain deliberately direct because no document resolver exists yet.
 - Added a standalone, UI-free .NET 10 document-engine project and test project that will replace KillerPDF's PdfSharpCore document pipeline without replacing PDFium rendering.

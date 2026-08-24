@@ -269,6 +269,8 @@ public sealed class PdfDetachedSignatureWriterTests
         PdfIndirectReference lockType = indirectLockUpdate.AddObject(originalLock[Name("Type")]);
         PdfIndirectReference lockAction = indirectLockUpdate.AddObject(originalLock[Name("Action")]);
         PdfIndirectReference lockPermission = indirectLockUpdate.AddObject(originalLock[Name("P")]);
+        PdfIndirectReference fieldAlias = indirectLockUpdate.AddObject(fieldReference);
+        PdfIndirectReference fieldSecondAlias = indirectLockUpdate.AddObject(fieldAlias);
         indirectLockUpdate.ReplaceObject(lockReference.ObjectNumber,
             new PdfDictionary(originalLock.Select(entry => entry.Key.Equals(Name("Type"))
                 ? new KeyValuePair<PdfName, PdfObject>(entry.Key, lockType)
@@ -277,6 +279,19 @@ public sealed class PdfDetachedSignatureWriterTests
                     : entry.Key.Equals(Name("P"))
                         ? new KeyValuePair<PdfName, PdfObject>(entry.Key, lockPermission)
                         : entry)));
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfArray aliasedFields = new(originalFields.Select((field, index) =>
+            index == 1 ? (PdfObject)fieldSecondAlias : field));
+        PdfDictionary aliasedForm = new(originalForm.Select(entry =>
+            entry.Key.Equals(Name("Fields"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, aliasedFields)
+                : entry));
+        indirectLockUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(originalCatalog.Select(entry =>
+                entry.Key.Equals(Name("AcroForm"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, aliasedForm)
+                    : entry)));
         original = PdfDocument.Open(indirectLockUpdate.Build());
 
         PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
@@ -289,11 +304,13 @@ public sealed class PdfDetachedSignatureWriterTests
         PdfDictionary catalog = ResolveDictionary(signed, signed.Trailer[Name("Root")]);
         PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
         PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
-        PdfDictionary field = ResolveDictionary(signed, fields[1]);
+        PdfDictionary field = Assert.IsType<PdfDictionary>(ResolveChain(signed, fields[1]));
 
         Assert.Equal(2, fields.Count);
-        Assert.Equal(fieldReference.ObjectNumber,
+        Assert.Equal(fieldSecondAlias.ObjectNumber,
             Assert.IsType<PdfIndirectReference>(fields[1]).ObjectNumber);
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            signed.CrossReferences[fieldReference.ObjectNumber].Type);
         Assert.Equal(appearanceReference.ObjectNumber, Assert.IsType<PdfIndirectReference>(
             Assert.IsType<PdfDictionary>(field[Name("AP")])[Name("N")]).ObjectNumber);
         Assert.Equal(lockReference.ObjectNumber,
@@ -476,10 +493,31 @@ public sealed class PdfDetachedSignatureWriterTests
         var taggedUpdate = new PdfIncrementalUpdateBuilder(tagged);
         PdfIndirectReference nextKey = taggedUpdate.AddObject(
             taggedRoot[Name("ParentTreeNextKey")]);
+        PdfIndirectReference parentTreeReference = Assert.IsType<PdfIndirectReference>(
+            taggedRoot[Name("ParentTree")]);
+        PdfIndirectReference parentTreeAlias = taggedUpdate.AddObject(parentTreeReference);
+        PdfIndirectReference parentTreeOuterAlias = taggedUpdate.AddObject(parentTreeAlias);
+        PdfArray originalStructureKids = Assert.IsType<PdfArray>(taggedRoot[Name("K")]);
+        PdfIndirectReference structureKidsReference = taggedUpdate.AddObject(originalStructureKids);
+        PdfIndirectReference structureKidsAlias = taggedUpdate.AddObject(structureKidsReference);
+        PdfIndirectReference structureKidsOuterAlias = taggedUpdate.AddObject(structureKidsAlias);
         taggedUpdate.ReplaceObject(taggedRootReference.ObjectNumber,
             new PdfDictionary(taggedRoot.Select(entry =>
                 entry.Key.Equals(Name("ParentTreeNextKey"))
                     ? new KeyValuePair<PdfName, PdfObject>(entry.Key, nextKey)
+                    : entry.Key.Equals(Name("ParentTree"))
+                        ? new KeyValuePair<PdfName, PdfObject>(entry.Key, parentTreeOuterAlias)
+                    : entry.Key.Equals(Name("K"))
+                        ? new KeyValuePair<PdfName, PdfObject>(entry.Key, structureKidsOuterAlias)
+                    : entry)));
+        PdfIndirectReference rootAlias = taggedUpdate.AddObject(taggedRootReference);
+        PdfIndirectReference rootOuterAlias = taggedUpdate.AddObject(rootAlias);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            tagged.Trailer[Name("Root")]);
+        taggedUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(taggedCatalog.Select(entry =>
+                entry.Key.Equals(Name("StructTreeRoot"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, rootOuterAlias)
                     : entry)));
         source = taggedUpdate.Build();
 
@@ -495,16 +533,17 @@ public sealed class PdfDetachedSignatureWriterTests
             Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
         long structureParentKey = Assert.IsType<PdfInteger>(
             field[Name("StructParent")]).Value;
-        PdfDictionary structureRoot = ResolveDictionary(
-            signed, catalog[Name("StructTreeRoot")]);
-        PdfArray structureKids = Assert.IsType<PdfArray>(structureRoot[Name("K")]);
+        PdfDictionary structureRoot = Assert.IsType<PdfDictionary>(ResolveChain(
+            signed, catalog[Name("StructTreeRoot")]));
+        PdfArray structureKids = Assert.IsType<PdfArray>(ResolveChain(
+            signed, structureRoot[Name("K")]));
         PdfIndirectReference structureElementReference = Assert.IsType<PdfIndirectReference>(
             structureKids[^1]);
         PdfDictionary structureElement = ResolveDictionary(signed, structureElementReference);
         PdfDictionary objectReference = Assert.IsType<PdfDictionary>(
             structureElement[Name("K")]);
-        PdfDictionary parentTree = ResolveDictionary(
-            signed, structureRoot[Name("ParentTree")]);
+        PdfDictionary parentTree = Assert.IsType<PdfDictionary>(ResolveChain(
+            signed, structureRoot[Name("ParentTree")]));
         PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
         int keyIndex = Enumerable.Range(0, numbers.Count / 2)
             .Select(index => index * 2)
@@ -520,6 +559,12 @@ public sealed class PdfDetachedSignatureWriterTests
             Assert.IsType<PdfIndirectReference>(objectReference[Name("Obj")]).ObjectNumber);
         Assert.Equal(structureElementReference.ObjectNumber,
             Assert.IsType<PdfIndirectReference>(numbers[keyIndex + 1]).ObjectNumber);
+        Assert.Equal(rootOuterAlias.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(catalog[Name("StructTreeRoot")]).ObjectNumber);
+        Assert.Equal(parentTreeOuterAlias.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(structureRoot[Name("ParentTree")]).ObjectNumber);
+        Assert.Equal(structureKidsOuterAlias.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(structureRoot[Name("K")]).ObjectNumber);
     }
 
     [Theory]
@@ -1051,12 +1096,16 @@ public sealed class PdfDetachedSignatureWriterTests
         PdfDictionary catalog = ResolveDictionary(reopened, reopened.Trailer[Name("Root")]);
         PdfIndirectReference formReference = Assert.IsType<PdfIndirectReference>(
             catalog[Name("AcroForm")]);
-        PdfDictionary form = ResolveDictionary(reopened, formReference);
-        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(ResolveChain(
+            reopened, formReference));
+        PdfArray fields = Assert.IsType<PdfArray>(ResolveChain(
+            reopened, form[Name("Fields")]));
 
-        Assert.Equal(5, formReference.ObjectNumber);
+        Assert.Equal(8, formReference.ObjectNumber);
         Assert.Equal(2, fields.Count);
         Assert.Equal(3, Assert.IsType<PdfInteger>(form[Name("SigFlags")]).Value);
+        Assert.Equal(PdfCrossReferenceEntryType.InUse,
+            reopened.CrossReferences[5].Type);
         Assert.Equal(catalogNumber, Assert.IsType<PdfIndirectReference>(
             reopened.Trailer[Name("Root")]).ObjectNumber);
         Assert.Equal(originalCatalog[Name("Pages")].GetType(), catalog[Name("Pages")].GetType());
@@ -1141,21 +1190,27 @@ public sealed class PdfDetachedSignatureWriterTests
     private static byte[] BuildIndirectAcroFormDocument()
     {
         var source = new StringBuilder("%PDF-2.0\n");
-        var offsets = new int[7];
-        Add(1, "<< /Type /Catalog /Pages 2 0 R /AcroForm 5 0 R >>");
+        var offsets = new int[13];
+        Add(1, "<< /Type /Catalog /Pages 2 0 R /AcroForm 8 0 R >>");
         Add(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
         Add(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] " +
             "/Resources <<>> /Annots [4 0 R] >>");
         Add(4, "<< /Type /Annot /Subtype /Widget /FT /Btn /T (existing) " +
             "/Rect [10 10 20 20] /P 3 0 R >>");
-        Add(5, "<< /Fields 6 0 R /SigFlags 1 >>");
-        Add(6, "[4 0 R]");
+        Add(5, "<< /Fields 10 0 R /SigFlags 1 >>");
+        Add(6, "[12 0 R]");
+        Add(7, "5 0 R");
+        Add(8, "7 0 R");
+        Add(9, "6 0 R");
+        Add(10, "9 0 R");
+        Add(11, "4 0 R");
+        Add(12, "11 0 R");
         int xrefOffset = source.Length;
-        source.Append("xref\n0 7\n0000000000 65535 f \n");
-        for (int index = 1; index <= 6; index++)
+        source.Append("xref\n0 13\n0000000000 65535 f \n");
+        for (int index = 1; index <= 12; index++)
             source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
                 .Append(" 00000 n \n");
-        source.Append("trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n")
+        source.Append("trailer\n<< /Size 13 /Root 1 0 R >>\nstartxref\n")
             .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
 
@@ -1164,6 +1219,13 @@ public sealed class PdfDetachedSignatureWriterTests
             offsets[number] = source.Length;
             source.Append(number).Append(" 0 obj\n").Append(value).Append("\nendobj\n");
         }
+    }
+
+    private static PdfObject ResolveChain(PdfDocument document, PdfObject value)
+    {
+        while (value is PdfIndirectReference reference)
+            value = document.Resolve(reference);
+        return value;
     }
 
     private static byte[] BuildDirectSignatureFieldDocument(bool nested)

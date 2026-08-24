@@ -134,11 +134,12 @@ public static class PdfSignatureReader
     {
         if (!field.TryGetValue(ValueName, out PdfObject? value))
             return new PdfSignatureInfo { FieldName = fieldName };
-        PdfObject resolvedValue = Resolve(document, value,
+        ResolvedValue resolvedSignatureValue = ResolveWithIdentity(document, value,
             $"The signature field '{fieldName}' /V value");
+        PdfObject resolvedValue = resolvedSignatureValue.Value;
         if (resolvedValue is PdfNull)
             return new PdfSignatureInfo { FieldName = fieldName };
-        PdfIndirectReference? signatureReference = value as PdfIndirectReference;
+        PdfIndirectReference? signatureReference = resolvedSignatureValue.FinalReference;
         PdfDictionary signature = resolvedValue as PdfDictionary
             ?? throw new InvalidOperationException(
                 $"The signature field '{fieldName}' /V value is not a dictionary.");
@@ -348,11 +349,14 @@ public static class PdfSignatureReader
         PdfIndirectReference reference = docMdpValue as PdfIndirectReference
             ?? throw new InvalidOperationException(
                 "The catalog /Perms /DocMDP value is not indirect.");
-        PdfDictionary signature = ResolveDictionary(
+        ResolvedValue resolvedSignature = ResolveWithIdentity(
             document, reference, "The catalog certification signature");
+        PdfDictionary signature = resolvedSignature.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The catalog certification signature is not a dictionary.");
         ValidateSignatureDictionaryType(
             document, signature, "The catalog certification signature");
-        return reference;
+        return resolvedSignature.FinalReference;
     }
 
     private static void ValidateSignatureDictionaryType(
@@ -383,20 +387,29 @@ public static class PdfSignatureReader
 
     private static PdfObject Resolve(
         PdfDocument document, PdfObject value, string description = "A signature value")
+        => ResolveWithIdentity(document, value, description).Value;
+
+    private static ResolvedValue ResolveWithIdentity(
+        PdfDocument document, PdfObject value, string description)
     {
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        PdfIndirectReference? finalReference = null;
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException(
                     $"{description} is too deeply indirect.");
             if (!visited.Add((reference.ObjectNumber, reference.Generation)))
                 throw new InvalidOperationException(
                     $"{description} contains an indirect-reference cycle.");
+            finalReference = reference;
             value = document.Resolve(reference);
         }
-        return value;
+        return new ResolvedValue(value, finalReference);
     }
+
+    private sealed record ResolvedValue(
+        PdfObject Value, PdfIndirectReference? FinalReference);
 
     private static PdfArray ResolveArray(PdfDocument document, PdfObject value, string description)
     {

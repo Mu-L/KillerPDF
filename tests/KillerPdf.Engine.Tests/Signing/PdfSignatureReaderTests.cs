@@ -240,6 +240,38 @@ public sealed class PdfSignatureReaderTests
         PdfDictionary signature = Assert.IsType<PdfDictionary>(
             signed.Resolve(signatureReference));
         var update = new PdfIncrementalUpdateBuilder(signed);
+        PdfIndirectReference signatureAlias = update.AddObject(signatureReference);
+        PdfIndirectReference signatureSecondAlias = update.AddObject(signatureAlias);
+        PdfDictionary aliasedPermissions = new(permissions.Select(entry =>
+            entry.Key.Equals(Name("DocMDP"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, signatureSecondAlias)
+                : entry));
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            signed.Trailer[Name("Root")]);
+        update.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Select(entry => entry.Key.Equals(Name("Perms"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, aliasedPermissions)
+                : entry)));
+        PdfObject formValue = catalog[Name("AcroForm")];
+        PdfDictionary form = formValue is PdfIndirectReference formReference
+            ? Assert.IsType<PdfDictionary>(signed.Resolve(formReference))
+            : Assert.IsType<PdfDictionary>(formValue);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        PdfIndirectReference certificationFieldReference = fields
+            .Select(Assert.IsType<PdfIndirectReference>)
+            .Single(reference =>
+            {
+                PdfDictionary field = Assert.IsType<PdfDictionary>(signed.Resolve(reference));
+                return field.TryGetValue(Name("T"), out PdfObject? nameValue)
+                    && nameValue is PdfString name
+                    && Encoding.BigEndianUnicode.GetString(name.Bytes.Span[2..]) == "certification";
+            });
+        PdfDictionary certificationField = Assert.IsType<PdfDictionary>(
+            signed.Resolve(certificationFieldReference));
+        update.ReplaceObject(certificationFieldReference.ObjectNumber,
+            new PdfDictionary(certificationField.Select(entry => entry.Key.Equals(Name("V"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, signatureSecondAlias)
+                : entry)));
         PdfIndirectReference Indirect(PdfObject value)
         {
             PdfIndirectReference terminal = update.AddObject(value);
@@ -298,6 +330,7 @@ public sealed class PdfSignatureReaderTests
             result.FieldLockPermission);
         Assert.Equal(["approval"], result.LockedFields);
         Assert.NotNull(result.ByteRange);
+        Assert.True(result.IsCertificationSignature);
     }
 
     [Fact]

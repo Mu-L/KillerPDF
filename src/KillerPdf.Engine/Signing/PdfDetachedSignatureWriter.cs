@@ -251,8 +251,12 @@ public static class PdfDetachedSignatureWriter
         PdfIndirectReference? formReference = null;
         if (tree.Catalog.TryGetValue(AcroFormName, out PdfObject? formValue))
         {
-            formReference = formValue as PdfIndirectReference;
-            form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
+            ResolvedValue resolvedForm = ResolveWithIdentity(
+                document, formValue, "The catalog /AcroForm value");
+            formReference = resolvedForm.FinalReference;
+            form = resolvedForm.Value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    "The catalog /AcroForm value is not a dictionary.");
         }
         else
         {
@@ -301,7 +305,9 @@ public static class PdfDetachedSignatureWriter
             if (++fieldCount > 1_000_000)
                 throw new NotSupportedException(
                     "The AcroForm field tree contains too many fields.");
-            PdfIndirectReference? reference = value as PdfIndirectReference;
+            ResolvedValue resolvedField = ResolveWithIdentity(
+                document, value, "An AcroForm field");
+            PdfIndirectReference? reference = resolvedField.FinalReference;
             if (reference is not null)
             {
                 var identity = (reference.ObjectNumber, reference.Generation);
@@ -311,7 +317,8 @@ public static class PdfDetachedSignatureWriter
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
-            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            PdfDictionary field = resolvedField.Value as PdfDictionary
+                ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
             string? fullName = parentName;
             bool definesName = false;
             if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
@@ -356,7 +363,9 @@ public static class PdfDetachedSignatureWriter
             if (++fieldCount > 1_000_000)
                 throw new NotSupportedException(
                     "The AcroForm field tree contains too many fields.");
-            PdfIndirectReference? reference = value as PdfIndirectReference;
+            ResolvedValue resolvedField = ResolveWithIdentity(
+                document, value, "An AcroForm field");
+            PdfIndirectReference? reference = resolvedField.FinalReference;
             if (reference is not null)
             {
                 var identity = (reference.ObjectNumber, reference.Generation);
@@ -366,7 +375,8 @@ public static class PdfDetachedSignatureWriter
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
-            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            PdfDictionary field = resolvedField.Value as PdfDictionary
+                ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
                 fieldType = Resolve(document, typeValue) as PdfName
@@ -904,7 +914,9 @@ public static class PdfDetachedSignatureWriter
             if (++fieldCount > 1_000_000)
                 throw new NotSupportedException(
                     "The AcroForm field tree contains too many fields.");
-            PdfIndirectReference? reference = value as PdfIndirectReference;
+            ResolvedValue resolvedField = ResolveWithIdentity(
+                document, value, "An AcroForm field");
+            PdfIndirectReference? reference = resolvedField.FinalReference;
             if (reference is not null)
             {
                 var identity = (reference.ObjectNumber, reference.Generation);
@@ -914,7 +926,8 @@ public static class PdfDetachedSignatureWriter
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
-            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            PdfDictionary field = resolvedField.Value as PdfDictionary
+                ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
                 fieldType = Resolve(document, typeValue) as PdfName
@@ -962,9 +975,12 @@ public static class PdfDetachedSignatureWriter
                 [PermissionsName] = Dictionary(("DocMDP", signatureReference))
             });
 
-        PdfIndirectReference? permissionsReference = permissionsValue as PdfIndirectReference;
-        PdfDictionary permissions = ResolveDictionary(
+        ResolvedValue resolvedPermissions = ResolveWithIdentity(
             document, permissionsValue, "The catalog /Perms value");
+        PdfIndirectReference? permissionsReference = resolvedPermissions.FinalReference;
+        PdfDictionary permissions = resolvedPermissions.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The catalog /Perms value is not a dictionary.");
         if (permissions.ContainsKey(DocMdpName))
             throw new InvalidOperationException(
                 "The document already contains a certification signature.");
@@ -993,9 +1009,12 @@ public static class PdfDetachedSignatureWriter
         string fieldName)
     {
         PdfObject rootValue = tree.Catalog[StructureTreeRootName];
-        PdfIndirectReference? existingRootReference = rootValue as PdfIndirectReference;
-        PdfDictionary root = ResolveDictionary(
+        ResolvedValue resolvedRoot = ResolveWithIdentity(
             document, rootValue, "The catalog /StructTreeRoot value");
+        PdfIndirectReference? existingRootReference = resolvedRoot.FinalReference;
+        PdfDictionary root = resolvedRoot.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The catalog /StructTreeRoot value is not a dictionary.");
         if (!root.TryGetValue(Name("ParentTree"), out PdfObject? parentTreeValue))
             throw new InvalidOperationException(
                 "The tagged PDF structure root has no /ParentTree value.");
@@ -1023,18 +1042,37 @@ public static class PdfDetachedSignatureWriter
         PdfDictionary parentTreeReplacement = Dictionary(
             ("Nums", new PdfArray(parentNumbers)));
         PdfDictionary rootReplacement = root;
-        if (parentTreeValue is PdfIndirectReference parentTreeReference)
+        ResolvedValue resolvedParentTree = ResolveWithIdentity(
+            document, parentTreeValue, "The structure root /ParentTree value");
+        if (resolvedParentTree.Value is not PdfDictionary)
+            throw new InvalidOperationException(
+                "The structure root /ParentTree value is not a dictionary.");
+        if (resolvedParentTree.FinalReference is PdfIndirectReference parentTreeReference)
             update.ReplaceObject(parentTreeReference.ObjectNumber, parentTreeReplacement);
         else
             rootReplacement = ReplaceMany(rootReplacement, new Dictionary<PdfName, PdfObject>
             {
                 [Name("ParentTree")] = parentTreeReplacement
             });
-        PdfObject structureKids = rootReplacement.TryGetValue(Name("K"), out PdfObject? kidsValue)
-            ? kidsValue is PdfArray kids
-                ? new PdfArray(kids.Append(structureElementReference))
-                : new PdfArray([kidsValue, structureElementReference])
-            : structureElementReference;
+        PdfObject structureKids = structureElementReference;
+        if (rootReplacement.TryGetValue(Name("K"), out PdfObject? kidsValue))
+        {
+            ResolvedValue resolvedKids = ResolveWithIdentity(
+                document, kidsValue, "The structure root /K value");
+            if (resolvedKids.Value is PdfArray kids)
+            {
+                var appendedKids = new PdfArray(kids.Append(structureElementReference));
+                if (resolvedKids.FinalReference is PdfIndirectReference kidsReference)
+                {
+                    update.ReplaceObject(kidsReference.ObjectNumber, appendedKids);
+                    structureKids = kidsValue;
+                }
+                else
+                    structureKids = appendedKids;
+            }
+            else
+                structureKids = new PdfArray([kidsValue, structureElementReference]);
+        }
         rootReplacement = ReplaceMany(rootReplacement, new Dictionary<PdfName, PdfObject>
         {
             [Name("K")] = structureKids,
@@ -1057,15 +1095,20 @@ public static class PdfDetachedSignatureWriter
         }
         if (root.TryGetValue(Name("K"), out PdfObject? existingKids))
         {
-            IEnumerable<PdfObject> topLevelKids = existingKids is PdfArray array
+            PdfObject resolvedExistingKids = Resolve(
+                document, existingKids, "The structure root /K value");
+            IEnumerable<PdfObject> topLevelKids = resolvedExistingKids is PdfArray array
                 ? array : [existingKids];
             foreach (PdfObject kidValue in topLevelKids)
             {
-                PdfIndirectReference kidReference = kidValue as PdfIndirectReference
+                ResolvedValue resolvedKid = ResolveWithIdentity(
+                    document, kidValue, "A top-level structure element");
+                PdfIndirectReference kidReference = resolvedKid.FinalReference
                     ?? throw new InvalidOperationException(
                         "A direct structure root contains a non-indirect top-level element.");
-                PdfDictionary kid = ResolveDictionary(
-                    document, kidReference, "A top-level structure element");
+                PdfDictionary kid = resolvedKid.Value as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        "A top-level structure element is not a dictionary.");
                 update.ReplaceObject(kidReference.ObjectNumber,
                     ReplaceMany(kid, new Dictionary<PdfName, PdfObject>
                     {
@@ -1085,8 +1128,12 @@ public static class PdfDetachedSignatureWriter
         PdfDocument document, PdfPageTree tree, PdfIncrementalUpdateBuilder update)
     {
         PdfObject formValue = tree.Catalog[AcroFormName];
-        PdfIndirectReference? formReference = formValue as PdfIndirectReference;
-        PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
+        ResolvedValue resolvedForm = ResolveWithIdentity(
+            document, formValue, "The catalog /AcroForm value");
+        PdfIndirectReference? formReference = resolvedForm.FinalReference;
+        PdfDictionary form = resolvedForm.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The catalog /AcroForm value is not a dictionary.");
         long flags = 0;
         if (form.TryGetValue(SignatureFlagsName, out PdfObject? flagsValue))
             flags = Resolve(document, flagsValue) is PdfInteger integer && integer.Value >= 0
@@ -1116,8 +1163,12 @@ public static class PdfDetachedSignatureWriter
         PdfIndirectReference signatureReference)
     {
         PdfObject formValue = tree.Catalog[AcroFormName];
-        PdfIndirectReference? formReference = formValue as PdfIndirectReference;
-        PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
+        ResolvedValue resolvedForm = ResolveWithIdentity(
+            document, formValue, "The catalog /AcroForm value");
+        PdfIndirectReference? formReference = resolvedForm.FinalReference;
+        PdfDictionary form = resolvedForm.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The catalog /AcroForm value is not a dictionary.");
         PdfObject fieldsValue = form[FieldsName];
         int fieldCount = 0;
         RewriteResult rewrittenFields = RewriteArray(fieldsValue, null, null, 0);
@@ -1143,8 +1194,12 @@ public static class PdfDetachedSignatureWriter
         RewriteResult RewriteArray(
             PdfObject value, string? parentName, PdfName? inheritedType, int depth)
         {
-            PdfIndirectReference? reference = value as PdfIndirectReference;
-            PdfArray array = ResolveArray(document, value, "An AcroForm field array");
+            ResolvedValue resolvedArray = ResolveWithIdentity(
+                document, value, "An AcroForm field array");
+            PdfIndirectReference? reference = resolvedArray.FinalReference;
+            PdfArray array = resolvedArray.Value as PdfArray
+                ?? throw new InvalidOperationException(
+                    "An AcroForm field array is not an array.");
             var rewritten = new List<PdfObject>(array.Count);
             bool changed = false;
             bool found = false;
@@ -1173,8 +1228,11 @@ public static class PdfDetachedSignatureWriter
             if (++fieldCount > 1_000_000)
                 throw new NotSupportedException(
                     "The AcroForm field tree contains too many fields.");
-            PdfIndirectReference? reference = value as PdfIndirectReference;
-            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            ResolvedValue resolvedField = ResolveWithIdentity(
+                document, value, "An AcroForm field");
+            PdfIndirectReference? reference = resolvedField.FinalReference;
+            PdfDictionary field = resolvedField.Value as PdfDictionary
+                ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
                 fieldType = Resolve(document, typeValue) as PdfName
@@ -1538,19 +1596,25 @@ public static class PdfDetachedSignatureWriter
 
     private static PdfObject Resolve(
         PdfDocument document, PdfObject value, string description = "A signature value")
+        => ResolveWithIdentity(document, value, description).Value;
+
+    private static ResolvedValue ResolveWithIdentity(
+        PdfDocument document, PdfObject value, string description)
     {
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        PdfIndirectReference? finalReference = null;
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException(
                     $"{description} is too deeply indirect.");
             if (!visited.Add((reference.ObjectNumber, reference.Generation)))
                 throw new InvalidOperationException(
                     $"{description} contains an indirect-reference cycle.");
+            finalReference = reference;
             value = document.Resolve(reference);
         }
-        return value;
+        return new ResolvedValue(value, finalReference);
     }
 
     private static PdfDictionary ReplaceMany(
@@ -1590,6 +1654,8 @@ public static class PdfDetachedSignatureWriter
 
     private sealed record ExistingFormField(
         PdfIndirectReference? Reference, PdfDictionary Dictionary, PdfName FieldType);
+    private sealed record ResolvedValue(
+        PdfObject Value, PdfIndirectReference? FinalReference);
     private readonly record struct RewriteResult(
         PdfObject Value, bool ContainerChanged, bool Found);
     private readonly record struct TaggedSignatureAssociation(

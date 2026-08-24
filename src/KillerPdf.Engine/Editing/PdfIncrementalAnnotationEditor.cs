@@ -292,8 +292,11 @@ public sealed class PdfIncrementalAnnotationEditor
     {
         if (!_tree.Catalog.TryGetValue(StructTreeRootName, out PdfObject? rootValue))
             return new Dictionary<int, long>();
-        PdfDictionary root = ResolveDictionary(rootValue,
-            "The document structure-tree root is not a dictionary.");
+        ResolvedValue resolvedRoot = ResolveWithIdentity(rootValue,
+            "The document structure-tree root");
+        PdfDictionary root = resolvedRoot.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The document structure-tree root is not a dictionary.");
         if (!root.TryGetValue(Name("Type"), out PdfObject? rootType))
             throw new InvalidOperationException(
                 "The document structure-tree root has no /Type /StructTreeRoot value.");
@@ -304,7 +307,7 @@ public sealed class PdfIncrementalAnnotationEditor
             throw new InvalidOperationException(
                 "The document structure-tree root has an invalid /Type value.");
         PdfIndirectReference rootReference;
-        if (rootValue is PdfIndirectReference indirectRoot)
+        if (resolvedRoot.FinalReference is PdfIndirectReference indirectRoot)
             rootReference = indirectRoot;
         else
         {
@@ -503,7 +506,9 @@ public sealed class PdfIncrementalAnnotationEditor
             PdfDictionary child = ResolveDictionary(kid,
                 "A top-level structure element is not a dictionary.");
             if (!child.TryGetValue(Name("P"), out PdfObject? parent)
-                || parent is not PdfIndirectReference parentReference)
+                || ResolveWithIdentity(parent,
+                    "A top-level structure element /P value").FinalReference
+                    is not PdfIndirectReference parentReference)
                 return null;
             if (result is not null
                 && (result.ObjectNumber != parentReference.ObjectNumber
@@ -528,13 +533,18 @@ public sealed class PdfIncrementalAnnotationEditor
         for (int index = 0; index < kids.Length; index++)
         {
             PdfObject kid = kids[index];
-            PdfDictionary dictionary = ResolveDictionary(kid,
-                "A top-level structure element is not a dictionary.");
-            if (kid is PdfIndirectReference reference)
+            ResolvedValue resolvedKid = ResolveWithIdentity(kid,
+                "A top-level structure element");
+            PdfDictionary dictionary = resolvedKid.Value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    "A top-level structure element is not a dictionary.");
+            if (resolvedKid.FinalReference is PdfIndirectReference reference)
             {
                 fallback ??= reference;
                 if (!dictionary.TryGetValue(Name("P"), out PdfObject? parent)
-                    || parent is not PdfIndirectReference parentReference
+                    || ResolveWithIdentity(parent,
+                        "A top-level structure element /P value").FinalReference
+                        is not PdfIndirectReference parentReference
                     || parentReference.ObjectNumber != rootReference.ObjectNumber
                     || parentReference.Generation != rootReference.Generation)
                     throw new InvalidOperationException(
@@ -562,7 +572,9 @@ public sealed class PdfIncrementalAnnotationEditor
         (PdfIndirectReference, PdfDictionary, PdfDictionary, bool) Target(
             PdfObject value, PdfDictionary dictionary, int index)
         {
-            if (value is PdfIndirectReference reference)
+            if (ResolveWithIdentity(value,
+                    "A top-level structure element").FinalReference
+                is PdfIndirectReference reference)
                 return (reference, dictionary, root, false);
             PdfIndirectReference? documentReference =
                 FindStructureElementParentReference(dictionary);
@@ -682,19 +694,24 @@ public sealed class PdfIncrementalAnnotationEditor
             ?? throw new InvalidOperationException(message);
 
     private PdfObject ResolveValue(PdfObject value, string description)
+        => ResolveWithIdentity(value, description).Value;
+
+    private ResolvedValue ResolveWithIdentity(PdfObject value, string description)
     {
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        PdfIndirectReference? finalReference = null;
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException(
                     $"{description} is too deeply indirect.");
             if (!visited.Add((reference.ObjectNumber, reference.Generation)))
                 throw new InvalidOperationException(
                     $"{description} contains an indirect-reference cycle.");
+            finalReference = reference;
             value = _document.Resolve(reference);
         }
-        return value;
+        return new ResolvedValue(value, finalReference);
     }
 
     private static PdfDictionary WithStructureParent(
@@ -783,34 +800,34 @@ public sealed class PdfIncrementalAnnotationEditor
         var annotationNames = new HashSet<string>(StringComparer.Ordinal);
         if (page.Dictionary.TryGetValue(AnnotsName, out PdfObject existing))
         {
-            PdfArray array;
-            if (existing is PdfIndirectReference reference)
-            {
-                array = ResolveValue(reference,
-                    $"Page {page.Index + 1} /Annots value") as PdfArray
-                    ?? throw new InvalidOperationException($"Page {page.Index + 1} /Annots reference is not an array.");
-                PrepareExistingAnnotations(array);
-                foreach (PdfObject annotation in array)
-                    ValidateExistingAnnotation(annotation);
-                values.AddRange(array);
-                AddPendingAnnotations();
-                PdfIndirectReference replacementArray = update.AddObject(
-                    new PdfArray(values));
-                PdfDictionary replacementPage = new(page.Dictionary
-                    .Where(entry => !entry.Key.Equals(AnnotsName))
-                    .Append(new KeyValuePair<PdfName, PdfObject>(
-                        AnnotsName, replacementArray)));
-                update.ReplaceObject(page.Reference.ObjectNumber, replacementPage);
-                return;
-            }
-            array = existing as PdfArray
+            ResolvedValue resolvedArray = ResolveWithIdentity(existing,
+                $"Page {page.Index + 1} /Annots value");
+            PdfArray array = resolvedArray.Value as PdfArray
                 ?? throw new InvalidOperationException($"Page {page.Index + 1} /Annots value is not an array.");
             PrepareExistingAnnotations(array);
             foreach (PdfObject annotation in array)
                 ValidateExistingAnnotation(annotation);
             values.AddRange(array);
+            AddPendingAnnotations();
+            if (resolvedArray.FinalReference is PdfIndirectReference arrayReference)
+            {
+                if (IsSharedAnnotationArray(arrayReference))
+                {
+                    PdfIndirectReference replacementArray = update.AddObject(
+                        new PdfArray(values));
+                    PdfDictionary replacementPage = new(page.Dictionary
+                        .Where(entry => !entry.Key.Equals(AnnotsName))
+                        .Append(new KeyValuePair<PdfName, PdfObject>(
+                            AnnotsName, replacementArray)));
+                    update.ReplaceObject(page.Reference.ObjectNumber, replacementPage);
+                    return;
+                }
+                update.ReplaceObject(arrayReference.ObjectNumber, new PdfArray(values));
+                return;
+            }
         }
-        AddPendingAnnotations();
+        else
+            AddPendingAnnotations();
         var replacement = new PdfDictionary(page.Dictionary
             .Where(entry => !entry.Key.Equals(AnnotsName))
             .Append(new KeyValuePair<PdfName, PdfObject>(AnnotsName, new PdfArray(values))));
@@ -834,7 +851,13 @@ public sealed class PdfIncrementalAnnotationEditor
                 if (annotation is not PdfIndirectReference reference)
                     throw new InvalidOperationException(
                         $"Page {page.Index + 1} /Annots contains a direct annotation entry.");
-                if (!annotationIdentities.Add((reference.ObjectNumber, reference.Generation)))
+                ResolvedValue resolvedAnnotation = ResolveWithIdentity(reference,
+                    $"Page {page.Index + 1} annotation value");
+                PdfIndirectReference finalReference = resolvedAnnotation.FinalReference
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} /Annots contains a direct annotation entry.");
+                if (!annotationIdentities.Add(
+                        (finalReference.ObjectNumber, finalReference.Generation)))
                     throw new InvalidOperationException(
                         $"Page {page.Index + 1} /Annots contains a duplicate annotation reference.");
             }
@@ -1186,6 +1209,25 @@ public sealed class PdfIncrementalAnnotationEditor
                 return double.IsFinite(number);
             }
         }
+    }
+
+    private bool IsSharedAnnotationArray(PdfIndirectReference expected)
+    {
+        int matches = 0;
+        foreach (PdfPageTreeEntry candidate in _pages)
+        {
+            if (!candidate.Dictionary.TryGetValue(AnnotsName, out PdfObject? value))
+                continue;
+            ResolvedValue resolved = ResolveWithIdentity(value,
+                $"Page {candidate.Index + 1} /Annots value");
+            if (resolved.FinalReference is not PdfIndirectReference reference
+                || reference.ObjectNumber != expected.ObjectNumber
+                || reference.Generation != expected.Generation)
+                continue;
+            matches++;
+            if (matches > 1) return true;
+        }
+        return false;
     }
 
     private static PdfDictionary TextNoteDictionary(
@@ -1652,6 +1694,8 @@ public sealed class PdfIncrementalAnnotationEditor
         PdfIndirectReference AppearanceReference);
     private sealed record EditorFontBinding(
         PdfName Resource, PdfIndirectReference Type0Reference, EmbeddedFontUsage Usage);
+    private sealed record ResolvedValue(
+        PdfObject Value, PdfIndirectReference? FinalReference);
     private sealed record Bounds(double X, double Y, double Width, double Height);
     private enum PendingShapeType { Square, Circle }
 }

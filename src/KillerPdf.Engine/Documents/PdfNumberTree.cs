@@ -27,15 +27,19 @@ internal static class PdfNumberTree
         {
             if (depth > MaximumDepth)
                 throw new InvalidOperationException("The number tree exceeds the supported nesting depth.");
-            (int ObjectNumber, int Generation)? referenceKey = null;
-            if (value is PdfIndirectReference reference)
+            var referenceKeys = new List<(int ObjectNumber, int Generation)>();
+            for (int aliasDepth = 0; value is PdfIndirectReference reference; aliasDepth++)
             {
-                referenceKey = (reference.ObjectNumber, reference.Generation);
-                if (!active.Add(referenceKey.Value))
+                if (aliasDepth >= 32)
+                    throw new InvalidOperationException(
+                        "A number-tree node is too deeply indirect.");
+                var referenceKey = (reference.ObjectNumber, reference.Generation);
+                if (!active.Add(referenceKey))
                     throw new InvalidOperationException("The number tree contains a cycle.");
-                if (!visited.Add(referenceKey.Value))
+                referenceKeys.Add(referenceKey);
+                if (!visited.Add(referenceKey))
                 {
-                    active.Remove(referenceKey.Value);
+                    foreach (var key in referenceKeys) active.Remove(key);
                     throw new InvalidOperationException(
                         "The number tree references the same node more than once.");
                 }
@@ -101,7 +105,7 @@ internal static class PdfNumberTree
             }
             finally
             {
-                if (referenceKey.HasValue) active.Remove(referenceKey.Value);
+                foreach (var referenceKey in referenceKeys) active.Remove(referenceKey);
             }
         }
 

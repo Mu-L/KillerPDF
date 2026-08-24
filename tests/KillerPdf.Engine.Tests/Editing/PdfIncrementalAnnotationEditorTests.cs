@@ -275,7 +275,21 @@ public sealed class PdfIncrementalAnnotationEditorTests
         alteredRoot[Name("Namespaces")] = namespaceArrayAlias;
         PdfIndirectReference nextKey = setup.AddObject(new PdfInteger(0));
         alteredRoot[Name("ParentTreeNextKey")] = setup.AddObject(nextKey);
+        PdfIndirectReference documentReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(initialRoot[Name("K")])[0]);
+        PdfIndirectReference documentAlias = setup.AddObject(documentReference);
+        PdfIndirectReference documentOuterAlias = setup.AddObject(documentAlias);
+        alteredRoot[Name("K")] = new PdfArray([documentOuterAlias]);
         setup.ReplaceObject(initialRootReference.ObjectNumber, new PdfDictionary(alteredRoot));
+        PdfIndirectReference rootAlias = setup.AddObject(initialRootReference);
+        PdfIndirectReference rootOuterAlias = setup.AddObject(rootAlias);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            initial.Trailer[Name("Root")]);
+        setup.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(initialCatalog.Select(entry =>
+                entry.Key.Equals(Name("StructTreeRoot"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, rootOuterAlias)
+                    : entry)));
         source = setup.Build();
         byte[] output = new PdfIncrementalAnnotationEditor(
                 PdfDocument.Open(source))
@@ -306,6 +320,10 @@ public sealed class PdfIncrementalAnnotationEditorTests
             new byte[] { 0xEF, 0xBB, 0xBF }));
         Assert.Equal("http://iso.org/pdf2/ssn", Encoding.UTF8.GetString(
             selectedUri.Bytes.Span[3..]));
+        Assert.Equal(rootOuterAlias.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(catalog[Name("StructTreeRoot")]).ObjectNumber);
+        Assert.Equal(documentOuterAlias.ObjectNumber, Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(structureRoot[Name("K")])[0]).ObjectNumber);
         Assert.True(output.AsSpan(0, source.Length).SequenceEqual(source));
     }
 
@@ -1052,7 +1070,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
     }
 
     [Fact]
-    public void Build_DetachesAnExistingIndirectAnnotationArray()
+    public void Build_UpdatesFinalIndirectAnnotationArrayWithoutReplacingAliases()
     {
         byte[] initial = new PdfDocumentBuilder().AddBlankPage().Build();
         PdfDocument firstDocument = PdfDocument.Open(initial);
@@ -1060,8 +1078,9 @@ public sealed class PdfIncrementalAnnotationEditorTests
         var setup = new PdfIncrementalUpdateBuilder(firstDocument);
         PdfIndirectReference arrayReference = setup.AddObject(new PdfArray([]));
         PdfIndirectReference arrayAlias = setup.AddObject(arrayReference);
+        PdfIndirectReference arrayOuterAlias = setup.AddObject(arrayAlias);
         setup.ReplaceObject(pageReference.ObjectNumber, Replace(
-            page, Name("Annots"), arrayAlias));
+            page, Name("Annots"), arrayOuterAlias));
         byte[] source = setup.Build();
 
         PdfDocument reopened = PdfDocument.Open(new PdfIncrementalAnnotationEditor(PdfDocument.Open(source))
@@ -1070,10 +1089,13 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDictionary reopenedPage = Pages(reopened)[0].Page;
         PdfIndirectReference reopenedArrayReference = Assert.IsType<PdfIndirectReference>(
             reopenedPage[Name("Annots")]);
-        PdfArray annotations = Assert.IsType<PdfArray>(reopened.Resolve(reopenedArrayReference));
+        PdfObject resolvedArray = reopenedArrayReference;
+        while (resolvedArray is PdfIndirectReference reference)
+            resolvedArray = reopened.Resolve(reference);
+        PdfArray annotations = Assert.IsType<PdfArray>(resolvedArray);
 
-        Assert.NotEqual(arrayReference.ObjectNumber, reopenedArrayReference.ObjectNumber);
-        Assert.Empty(Assert.IsType<PdfArray>(reopened.Resolve(arrayReference)));
+        Assert.Equal(arrayOuterAlias.ObjectNumber, reopenedArrayReference.ObjectNumber);
+        Assert.Single(Assert.IsType<PdfArray>(reopened.Resolve(arrayReference)));
         Assert.Single(annotations);
         Assert.Equal(3, reopened.CrossReferences.Sections.Count);
     }
@@ -1266,8 +1288,12 @@ public sealed class PdfIncrementalAnnotationEditorTests
     private static PdfDictionary Replace(PdfDictionary source, PdfName name, PdfObject value) =>
         new(source.Where(entry => !entry.Key.Equals(name))
             .Append(new KeyValuePair<PdfName, PdfObject>(name, value)));
-    private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
-        Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
+    private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value)
+    {
+        while (value is PdfIndirectReference reference)
+            value = document.Resolve(reference);
+        return Assert.IsType<PdfDictionary>(value);
+    }
     private static byte[] CertifiedSource(int permission)
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
