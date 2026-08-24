@@ -66,7 +66,8 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - AcroForm merging updates the final destination form dictionary behind aliases, and calculation-order membership is checked by final field identity.
 - Transplanted XFA form calculation-order entries use the same final field identities as ordinary complete and partial form merges.
 - Structure ID-tree values, indirect root-kids arrays, and top-level parent links resolve bounded alias chains during tagged merges and direct-root normalization.
-- Optional-content registration, visibility, radio groups, order arrays, and selected-page pruning compare final OCG identities across alias chains.
+  - Optional-content registration, visibility, radio groups, order arrays, and selected-page pruning compare final OCG identities across alias chains.
+  - Incremental document-information removal follows pending alias replacements, so freeing an object from the superseded `/Info` chain does not remove the redirected live registration.
 - Tagged-annotation traversal updates final top-level structure-element identities and validates reciprocal parent links after bounded alias resolution.
 - Stream parsing now resolves bounded multi-hop indirect `/Length` chains and reports reference cycles or excessive depth deterministically before consuming payload bytes.
 - Compressed-object loading now resolves bounded indirect object-stream `/Type`, `/N`, and `/First` scalars after cross-reference bootstrap, while cross-reference stream fields remain deliberately direct because no document resolver exists yet.

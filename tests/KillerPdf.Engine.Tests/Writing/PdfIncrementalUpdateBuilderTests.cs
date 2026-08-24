@@ -527,6 +527,20 @@ public sealed class PdfIncrementalUpdateBuilderTests
         Assert.Equal("restored", Encoding.Latin1.GetString(
             Assert.IsType<PdfString>(Assert.IsType<PdfDictionary>(
                 restoredValue)[Name("Title")]).Bytes.Span));
+
+        var redirect = new PdfIncrementalUpdateBuilder(aliasedInfo);
+        PdfIndirectReference replacementInfo = redirect.AddObject(new PdfDictionary([
+            new(Name("Title"), Latin1("redirected"))
+        ]));
+        redirect.ReplaceObject(infoSecondAlias.ObjectNumber, replacementInfo);
+        redirect.FreeObject(info.ObjectNumber);
+        PdfDocument redirected = PdfDocument.Open(redirect.Build());
+        PdfObject redirectedValue = redirected.Trailer[Name("Info")];
+        while (redirectedValue is PdfIndirectReference reference)
+            redirectedValue = redirected.Resolve(reference);
+        Assert.Equal("redirected", Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(Assert.IsType<PdfDictionary>(
+                redirectedValue)[Name("Title")]).Bytes.Span));
     }
 
     [Fact]

@@ -502,7 +502,11 @@ public sealed class PdfIncrementalUpdateBuilder
                 && reference.Generation == (entry.Type == PdfCrossReferenceEntryType.InUse
                     ? entry.Field2 : 0))
                 return true;
-            value = _document.Resolve(reference);
+            value = _objects.TryGetValue(reference.ObjectNumber,
+                    out PendingObject? pending)
+                && pending.Generation == reference.Generation
+                    ? pending.Value
+                    : _document.Resolve(reference);
         }
         return false;
     }
