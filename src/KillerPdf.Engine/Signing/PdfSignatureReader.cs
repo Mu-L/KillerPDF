@@ -3,6 +3,7 @@ using System.Formats.Asn1;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Writing;
 
 namespace KillerPdf.Engine.Signing;
@@ -52,7 +53,7 @@ public static class PdfSignatureReader
         PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
         if (!form.TryGetValue(FieldsName, out PdfObject? fieldsValue)) return [];
         PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
-        int? certificationObject = CertificationObjectNumber(document, catalog);
+        PdfIndirectReference? certificationObject = CertificationObjectReference(document, catalog);
         var result = new List<PdfSignatureInfo>();
         var active = new HashSet<int>();
         var visited = new HashSet<int>();
@@ -119,7 +120,8 @@ public static class PdfSignatureReader
     }
 
     private static PdfSignatureInfo ReadSignature(
-        PdfDocument document, PdfDictionary field, string fieldName, int? certificationObject)
+        PdfDocument document, PdfDictionary field, string fieldName,
+        PdfIndirectReference? certificationObject)
     {
         if (!field.TryGetValue(ValueName, out PdfObject? value))
             return new PdfSignatureInfo { FieldName = fieldName };
@@ -149,18 +151,23 @@ public static class PdfSignatureReader
                     && range[0] <= length && range[1] <= length - range[0]
                     && range[2] > range[0] + range[1] && range[2] <= length
                     && range[3] <= length - range[2];
-                coversWholeDocument = valid && range[2] + range[3] == length;
             }
         }
         ReadOnlyMemory<byte> contents = signature.TryGetValue(Name("Contents"), out PdfObject? contentsValue)
             && contentsValue is PdfString contentsString ? contentsString.Bytes : ReadOnlyMemory<byte>.Empty;
+        valid = valid && contentsValue is PdfString byteString
+            && GapIsExactContentsString(document.Source, range!, byteString);
+        coversWholeDocument = valid && range![2] + range[3] == document.Source.Length;
         (ReadOnlyMemory<byte> cms, bool validCms) = ReadCms(contents);
         SignatureTransforms transforms = ReadTransforms(document, signature);
         return new PdfSignatureInfo
         {
             FieldName = fieldName,
             IsSigned = true,
-            IsCertificationSignature = signatureReference?.ObjectNumber == certificationObject,
+            IsCertificationSignature = signatureReference is not null
+                && certificationObject is not null
+                && signatureReference.ObjectNumber == certificationObject.ObjectNumber
+                && signatureReference.Generation == certificationObject.Generation,
             CertificationPermission = transforms.CertificationPermission,
             FieldLockAction = transforms.FieldLockAction,
             FieldLockPermission = transforms.FieldLockPermission,
@@ -174,6 +181,35 @@ public static class PdfSignatureReader
             HasValidByteRange = valid,
             CoversWholeDocument = coversWholeDocument
         };
+    }
+
+    private static bool GapIsExactContentsString(
+        ReadOnlyMemory<byte> source,
+        IReadOnlyList<long> range,
+        PdfString contents)
+    {
+        int gapStart = checked((int)(range[0] + range[1]));
+        int gapLength = checked((int)(range[2] - gapStart));
+        try
+        {
+            var tokenizer = new PdfTokenizer(source.Slice(gapStart, gapLength));
+            PdfToken token = tokenizer.Read();
+            bool formMatches = contents.Form switch
+            {
+                PdfStringForm.Literal => token.Kind == PdfTokenKind.LiteralString,
+                PdfStringForm.Hexadecimal => token.Kind == PdfTokenKind.HexString,
+                _ => false
+            };
+            return formMatches
+                && token.Offset == 0
+                && token.Length == gapLength
+                && token.Value.Span.SequenceEqual(contents.Bytes.Span)
+                && tokenizer.Read().Kind == PdfTokenKind.EndOfInput;
+        }
+        catch (PdfSyntaxException)
+        {
+            return false;
+        }
     }
 
     private static SignatureTransforms ReadTransforms(
@@ -200,6 +236,7 @@ public static class PdfSignatureReader
                 document, parametersValue, "The signature transform parameters");
             if (method.ValueAsLatin1() == "DocMDP")
             {
+                ValidateTransformParameters(parameters, "DocMDP");
                 if (certification.HasValue)
                     throw new InvalidOperationException(
                         "The signature contains more than one DocMDP transform.");
@@ -212,6 +249,7 @@ public static class PdfSignatureReader
             }
             else if (method.ValueAsLatin1() == "FieldMDP")
             {
+                ValidateTransformParameters(parameters, "FieldMDP");
                 if (lockAction.HasValue)
                     throw new InvalidOperationException(
                         "The signature contains more than one FieldMDP transform.");
@@ -244,6 +282,20 @@ public static class PdfSignatureReader
             certification, lockAction, lockPermission, lockedFields);
     }
 
+    private static void ValidateTransformParameters(PdfDictionary parameters, string method)
+    {
+        if (parameters.TryGetValue(Name("Type"), out PdfObject? typeValue)
+            && (typeValue is not PdfName type
+                || type.ValueAsLatin1() != "TransformParams"))
+            throw new InvalidOperationException(
+                $"The {method} transform parameters have an invalid /Type.");
+        if (parameters.TryGetValue(Name("V"), out PdfObject? versionValue)
+            && (versionValue is not PdfName version
+                || version.ValueAsLatin1() != "1.2"))
+            throw new InvalidOperationException(
+                $"The {method} transform parameters have an invalid version; /V must be /1.2.");
+    }
+
     private static (ReadOnlyMemory<byte> Cms, bool IsValid) ReadCms(ReadOnlyMemory<byte> contents)
     {
         if (contents.IsEmpty) return (ReadOnlyMemory<byte>.Empty, false);
@@ -261,15 +313,18 @@ public static class PdfSignatureReader
         }
     }
 
-    private static int? CertificationObjectNumber(PdfDocument document, PdfDictionary catalog)
+    private static PdfIndirectReference? CertificationObjectReference(
+        PdfDocument document, PdfDictionary catalog)
     {
         if (!catalog.TryGetValue(Name("Perms"), out PdfObject? permissionsValue)) return null;
         PdfDictionary permissions = ResolveDictionary(document, permissionsValue,
             "The catalog /Perms value");
         if (!permissions.TryGetValue(Name("DocMDP"), out PdfObject? docMdpValue)) return null;
-        return docMdpValue is PdfIndirectReference reference
-            ? reference.ObjectNumber
-            : throw new InvalidOperationException("The catalog /Perms /DocMDP value is not indirect.");
+        PdfIndirectReference reference = docMdpValue as PdfIndirectReference
+            ?? throw new InvalidOperationException(
+                "The catalog /Perms /DocMDP value is not indirect.");
+        _ = ResolveDictionary(document, reference, "The catalog certification signature");
+        return reference;
     }
 
     private static string? OptionalName(PdfDictionary dictionary, string key)

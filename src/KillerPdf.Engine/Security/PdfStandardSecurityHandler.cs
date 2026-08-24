@@ -1,12 +1,20 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using KillerPdf.Engine.Objects;
 
 namespace KillerPdf.Engine.Security;
 
+internal sealed class PdfPasswordAuthenticationException(string message)
+    : CryptographicException(message);
+
 internal sealed class PdfStandardSecurityHandler
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(
+        encoderShouldEmitUTF8Identifier: false,
+        throwOnInvalidBytes: true);
+
     private static readonly PdfName MetadataName = Name("Metadata");
     private static readonly PdfName EmbeddedFileName = Name("EmbeddedFile");
     private static readonly PdfName CrossReferenceName = Name("XRef");
@@ -49,7 +57,7 @@ internal sealed class PdfStandardSecurityHandler
         RequireName(encryption, "Filter", "Standard");
         long version = RequireInteger(encryption, "V");
         long revision = RequireInteger(encryption, "R");
-        if (revision is >= 2 and <= 4 && version is >= 1 and <= 4)
+        if ((version, revision) is (1, 2) or (2, 3) or (4, 4))
             return CreateLegacy(
                 encryption, password, permanentIdentifier.Span, version, revision);
         if (version != 5 || revision is not (5 or 6))
@@ -67,15 +75,17 @@ internal sealed class PdfStandardSecurityHandler
             passwordBytes, owner, user, ownerEncryptedKey, revision)
             ?? TryUserPassword(passwordBytes, user, userEncryptedKey, revision);
         if (fileKey is null)
-            throw new CryptographicException("The PDF password is incorrect.");
+            throw new PdfPasswordAuthenticationException("The PDF password is incorrect.");
         byte[] permissions = DecryptEcb(fileKey, RequireBytes(encryption, "Perms", 16));
+        if (permissions.AsSpan(4, 4).IndexOfAnyExcept((byte)0xFF) >= 0)
+            throw new CryptographicException(
+                "The PDF encryption permission block has invalid reserved bytes.");
         if (!permissions.AsSpan(9, 3).SequenceEqual("adb"u8))
             throw new CryptographicException("The PDF encryption permission block is invalid.");
         int declaredPermissions = checked((int)RequireInteger(encryption, "P"));
         if (BinaryPrimitives.ReadInt32LittleEndian(permissions) != declaredPermissions)
             throw new CryptographicException("The PDF encryption permissions do not authenticate.");
-        bool encryptMetadata = !encryption.TryGetValue(Name("EncryptMetadata"), out PdfObject? metadata)
-            || metadata is PdfBoolean { Value: true };
+        bool encryptMetadata = ReadEncryptMetadata(encryption);
         if (permissions[8] != (encryptMetadata ? (byte)'T' : (byte)'F'))
             throw new CryptographicException("The PDF metadata-encryption setting does not authenticate.");
         CryptMethod stringMethod = ReadModernCryptFilter(encryption, "StrF", "AESV3");
@@ -236,29 +246,49 @@ internal sealed class PdfStandardSecurityHandler
     private CryptMethod? ExplicitStreamMethod(PdfDictionary dictionary)
     {
         if (!dictionary.TryGetValue(Name("Filter"), out PdfObject? filterValue)) return null;
-        PdfName? firstFilter = filterValue switch
+        IReadOnlyList<PdfName> filters = filterValue switch
         {
-            PdfName name => name,
-            PdfArray { Count: > 0 } array => array[0] as PdfName,
-            _ => null
+            PdfName name => [name],
+            PdfArray array => array.Select(item => item as PdfName
+                ?? throw new InvalidOperationException(
+                    "Every stream /Filter array entry must be a name.")).ToArray(),
+            _ => throw new InvalidOperationException(
+                "A stream /Filter value must be a name or an array of names.")
         };
-        if (firstFilter?.ValueAsLatin1() != "Crypt")
+        if (filters.Count == 0) return null;
+        if (filters[0].ValueAsLatin1() != "Crypt")
         {
-            if (filterValue is PdfArray filters && filters.OfType<PdfName>()
-                    .Any(name => name.ValueAsLatin1() == "Crypt"))
+            if (filters.Any(name => name.ValueAsLatin1() == "Crypt"))
                 throw new InvalidOperationException("A stream /Crypt filter must be first in its filter pipeline.");
             return null;
         }
         PdfDictionary? parameters = null;
         if (dictionary.TryGetValue(Name("DecodeParms"), out PdfObject? parameterValue))
+        {
+            if (parameterValue is PdfArray parameterArray
+                && parameterArray.Any(item => item is not (PdfDictionary or PdfNull)))
+                throw new InvalidOperationException(
+                    "Each stream /DecodeParms entry must be a dictionary or null.");
             parameters = parameterValue switch
             {
-                PdfDictionary single => single,
-                PdfArray { Count: > 0 } array => array[0] as PdfDictionary,
+                PdfDictionary single when filters.Count == 1 => single,
+                PdfDictionary => throw new InvalidOperationException(
+                    "A single stream /DecodeParms dictionary requires exactly one filter."),
+                PdfArray array when array.Count != filters.Count =>
+                    throw new InvalidOperationException(
+                        "A stream /DecodeParms array must have one entry per filter."),
+                PdfArray { Count: > 0 } array => array[0] switch
+                {
+                    PdfDictionary first => first,
+                    PdfNull => null,
+                    _ => throw new InvalidOperationException(
+                        "Each stream /DecodeParms entry must be a dictionary or null.")
+                },
                 PdfNull => null,
                 _ => throw new InvalidOperationException(
                     "A stream /DecodeParms value does not match its /Crypt filter.")
             };
+        }
         string filterName = parameters is not null
             && parameters.TryGetValue(Name("Name"), out PdfObject? nameValue)
             ? (nameValue as PdfName)?.ValueAsLatin1()
@@ -280,15 +310,22 @@ internal sealed class PdfStandardSecurityHandler
         if (permanentIdentifier.IsEmpty)
             throw new InvalidOperationException(
                 "Legacy Standard security requires a permanent document identifier.");
-        int keyLength = revision == 2 ? 5 : checked((int)RequireInteger(encryption, "Length") / 8);
-        if (keyLength is < 5 or > 16)
+        long keyLengthBits = revision == 2
+            ? 40
+            : encryption.TryGetValue(Name("Length"), out PdfObject? lengthValue)
+                ? lengthValue is PdfInteger length
+                    ? length.Value
+                    : throw new InvalidOperationException(
+                        "The encryption dictionary /Length value is not an integer.")
+                : 40;
+        if (keyLengthBits is < 40 or > 128 || keyLengthBits % 8 != 0)
             throw new InvalidOperationException(
-                "Legacy Standard security requires a 40-bit through 128-bit key.");
+                "Legacy Standard security requires a byte-aligned 40-bit through 128-bit key.");
+        int keyLength = checked((int)(keyLengthBits / 8));
         byte[] owner = RequireBytes(encryption, "O", 32);
         byte[] user = RequireBytes(encryption, "U", 32);
         int permissions = checked((int)RequireInteger(encryption, "P"));
-        bool encryptMetadata = !encryption.TryGetValue(Name("EncryptMetadata"), out PdfObject? metadata)
-            || metadata is PdfBoolean { Value: true };
+        bool encryptMetadata = ReadEncryptMetadata(encryption);
         byte[] supplied = PadLegacyPassword(password);
         byte[]? fileKey = TryLegacyUserPassword(
             supplied, owner, user, permissions, permanentIdentifier,
@@ -302,7 +339,7 @@ internal sealed class PdfStandardSecurityHandler
                 keyLength, revision, encryptMetadata);
         }
         if (fileKey is null)
-            throw new CryptographicException("The PDF password is incorrect.");
+            throw new PdfPasswordAuthenticationException("The PDF password is incorrect.");
         CryptMethod stringMethod;
         CryptMethod streamMethod;
         CryptMethod embeddedFileMethod;
@@ -394,12 +431,47 @@ internal sealed class PdfStandardSecurityHandler
 
     private static byte[] PadLegacyPassword(string password)
     {
-        byte[] encoded = Encoding.Latin1.GetBytes(password);
+        byte[] encoded = EncodePdfDocPassword(password);
         byte[] result = new byte[32];
         int copied = Math.Min(encoded.Length, result.Length);
         encoded.AsSpan(0, copied).CopyTo(result);
         PasswordPadding.AsSpan(0, result.Length - copied).CopyTo(result.AsSpan(copied));
         return result;
+    }
+
+    private static byte[] EncodePdfDocPassword(string password)
+    {
+        var encoded = new List<byte>(password.Length);
+        foreach (char character in password)
+        {
+            int value = character switch
+            {
+                <= '\u0017' => character,
+                >= '\u0020' and <= '\u007E' => character,
+                >= '\u00A1' and <= '\u00FF' => character,
+                '\u02D8' => 0x18, '\u02C7' => 0x19, '\u02C6' => 0x1A,
+                '\u02D9' => 0x1B, '\u02DD' => 0x1C, '\u02DB' => 0x1D,
+                '\u02DA' => 0x1E, '\u02DC' => 0x1F,
+                '\u2022' => 0x80, '\u2020' => 0x81, '\u2021' => 0x82,
+                '\u2026' => 0x83, '\u2014' => 0x84, '\u2013' => 0x85,
+                '\u0192' => 0x86, '\u2044' => 0x87, '\u2039' => 0x88,
+                '\u203A' => 0x89, '\u2212' => 0x8A, '\u2030' => 0x8B,
+                '\u201E' => 0x8C, '\u201C' => 0x8D, '\u201D' => 0x8E,
+                '\u2018' => 0x8F, '\u2019' => 0x90, '\u201A' => 0x91,
+                '\u2122' => 0x92, '\uFB01' => 0x93, '\uFB02' => 0x94,
+                '\u0141' => 0x95, '\u0152' => 0x96, '\u0160' => 0x97,
+                '\u0178' => 0x98, '\u017D' => 0x99, '\u0131' => 0x9A,
+                '\u0142' => 0x9B, '\u0153' => 0x9C, '\u0161' => 0x9D,
+                '\u017E' => 0x9E, '\u20AC' => 0xA0,
+                _ => -1
+            };
+            if (value < 0)
+                throw new ArgumentException(
+                    $"Legacy PDF passwords cannot represent character U+{(int)character:X4} in PDFDocEncoding.",
+                    nameof(password));
+            encoded.Add((byte)value);
+        }
+        return encoded.ToArray();
     }
 
     private static byte[]? TryOwnerPassword(
@@ -459,9 +531,89 @@ internal sealed class PdfStandardSecurityHandler
 
     private static byte[] PasswordBytes(string password, bool normalize)
     {
-        string value = normalize ? password.Normalize(NormalizationForm.FormKC) : password;
-        byte[] bytes = Encoding.UTF8.GetBytes(value);
-        return bytes.Length <= 127 ? bytes : bytes[..127];
+        string value;
+        if (normalize)
+        {
+            string mapped = MapSaslPrep(password);
+            PdfSaslPrepTables.ValidateAssigned(mapped);
+            try
+            {
+                value = mapped.Normalize(NormalizationForm.FormKC);
+            }
+            catch (ArgumentException exception)
+            {
+                throw new ArgumentException(
+                    "A PDF password must contain only valid Unicode scalar values.",
+                    nameof(password), exception);
+            }
+        }
+        else
+            value = password;
+        if (normalize)
+        {
+            ValidateSaslPrepOutput(value);
+            PdfSaslPrepTables.Validate(value);
+        }
+        try
+        {
+            byte[] bytes = StrictUtf8.GetBytes(value);
+            return bytes.Length <= 127 ? bytes : bytes[..127];
+        }
+        catch (EncoderFallbackException exception)
+        {
+            throw new ArgumentException(
+                "A PDF password must contain only valid Unicode scalar values.",
+                nameof(password), exception);
+        }
+    }
+
+    private static string MapSaslPrep(string value)
+    {
+        var mapped = new StringBuilder(value.Length);
+        foreach (char character in value)
+        {
+            if (character is '\u00AD' or '\u034F' or '\u1806'
+                or >= '\u180B' and <= '\u180D'
+                or >= '\u200B' and <= '\u200D'
+                or '\u2060'
+                or >= '\uFE00' and <= '\uFE0F'
+                or '\uFEFF')
+                continue;
+            mapped.Append(character is '\u00A0' or '\u1680'
+                or >= '\u2000' and <= '\u200A'
+                or '\u202F' or '\u205F' or '\u3000'
+                ? ' ' : character);
+        }
+        return mapped.ToString();
+    }
+
+    private static void ValidateSaslPrepOutput(string value)
+    {
+        foreach (Rune rune in value.EnumerateRunes())
+        {
+            int scalar = rune.Value;
+            UnicodeCategory category = Rune.GetUnicodeCategory(rune);
+            bool prohibited = category is UnicodeCategory.Control
+                or UnicodeCategory.Format
+                or UnicodeCategory.PrivateUse
+                or UnicodeCategory.Surrogate
+                or UnicodeCategory.LineSeparator
+                or UnicodeCategory.ParagraphSeparator
+                or UnicodeCategory.OtherNotAssigned
+                || scalar is >= 0x2FF0 and <= 0x2FFB
+                || scalar is >= 0xFFF9 and <= 0xFFFD
+                || scalar is 0x0340 or 0x0341 or 0x200E or 0x200F
+                || scalar is >= 0x202A and <= 0x202E
+                || scalar is >= 0x206A and <= 0x206F
+                || scalar == 0xE0001
+                || scalar is >= 0xE0020 and <= 0xE007F
+                || scalar is >= 0xFDD0 and <= 0xFDEF
+                || (scalar & 0xFFFF) is 0xFFFE or 0xFFFF;
+            if (prohibited)
+                throw new ArgumentException(
+                    $"A PDF revision 6 password contains prohibited SASLprep character U+{scalar:X4}.",
+                    nameof(value));
+        }
     }
 
     private static byte[] DecryptKey(byte[] key, byte[] encrypted)
@@ -583,6 +735,12 @@ internal sealed class PdfStandardSecurityHandler
             || !filters.TryGetValue(filter, out PdfObject? selectedValue)
             || selectedValue is not PdfDictionary selected)
             throw new InvalidOperationException($"The encryption crypt filter /{filter.ValueAsLatin1()} is missing.");
+        if (key != "EFF"
+            && selected.TryGetValue(Name("AuthEvent"), out PdfObject? eventValue)
+            && eventValue is PdfName authenticationEvent
+            && authenticationEvent.ValueAsLatin1() == "EFOpen")
+            throw new InvalidOperationException(
+                $"The encryption crypt filter /{filter.ValueAsLatin1()} cannot use /EFOpen for /{key}.");
         return ReadCryptFilterMethod(selected, filter.ValueAsLatin1(), requiredMethod);
     }
 
@@ -611,6 +769,28 @@ internal sealed class PdfStandardSecurityHandler
         if (requiredMethod is not null && methodName != requiredMethod && methodName != "None")
             throw new NotSupportedException(
                 $"The encryption crypt filter method /{methodName} is not /{requiredMethod}.");
+        if (selected.TryGetValue(Name("Length"), out PdfObject? lengthValue))
+        {
+            if (lengthValue is not PdfInteger length)
+                throw new InvalidOperationException(
+                    $"The encryption crypt filter /{filterName} /Length value is not an integer.");
+            bool validLength = methodName switch
+            {
+                "V2" => length.Value is >= 5 and <= 16,
+                "AESV2" => length.Value == 16,
+                "AESV3" => length.Value == 32,
+                "None" => length.Value >= 0,
+                _ => true
+            };
+            if (!validLength)
+                throw new InvalidOperationException(
+                    $"The encryption crypt filter /{filterName} has an invalid /Length for /{methodName}.");
+        }
+        if (selected.TryGetValue(Name("AuthEvent"), out PdfObject? eventValue)
+            && (eventValue is not PdfName authenticationEvent
+                || authenticationEvent.ValueAsLatin1() is not ("DocOpen" or "EFOpen")))
+            throw new InvalidOperationException(
+                $"The encryption crypt filter /{filterName} has an invalid /AuthEvent.");
         return methodName switch
         {
             "V2" => CryptMethod.Rc4,
@@ -655,6 +835,16 @@ internal sealed class PdfStandardSecurityHandler
             throw new InvalidOperationException(
                 $"The encryption dictionary /{key} value is not a {length}-byte string.");
         return text.Bytes.ToArray();
+    }
+
+    private static bool ReadEncryptMetadata(PdfDictionary encryption)
+    {
+        if (!encryption.TryGetValue(Name("EncryptMetadata"), out PdfObject? value))
+            return true;
+        return value is PdfBoolean flag
+            ? flag.Value
+            : throw new InvalidOperationException(
+                "The encryption /EncryptMetadata value is not boolean.");
     }
 
     private static long RequireInteger(PdfDictionary dictionary, string key)

@@ -1,5 +1,9 @@
 using System.Text;
+using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Diagnostics;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Syntax;
 using Xunit;
 
@@ -128,6 +132,100 @@ public sealed class PdfDocumentInspectorTests
         Assert.Equal(1, report.InspectedObjectCount);
         Assert.Contains(report.Diagnostics, item => item.Code == PdfDiagnosticCode.InspectionLimitReached);
         Assert.True(report.IsStructurallyValid);
+    }
+
+    [Fact]
+    public void InspectAuthenticated_ResolvesEncryptedCompressedObjects()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user-password",
+                OwnerPassword = "owner-password"
+            })
+            .AddPage(612, 792, "q 0 0 10 10 re f Q"u8.ToArray())
+            .Build();
+
+        PdfInspectionReport report = PdfDocumentInspector.InspectAuthenticated(
+            source, "owner-password");
+        PdfInspectionReport rejected = PdfDocumentInspector.InspectAuthenticated(
+            source, "wrong");
+        PdfInspectionReport unauthenticated = PdfDocumentInspector.Inspect(source);
+
+        Assert.True(report.IsStructurallyValid);
+        Assert.Contains(rejected.Diagnostics,
+            item => item.Code == PdfDiagnosticCode.AuthenticationFailed);
+        Assert.True(rejected.RequiresAuthentication);
+        Assert.True(rejected.IsStructurallyValid);
+        Assert.False(rejected.RequiresRepair);
+        Assert.True(unauthenticated.RequiresAuthentication);
+        Assert.True(unauthenticated.IsStructurallyValid);
+        Assert.False(unauthenticated.RequiresRepair);
+        Assert.Equal(0, unauthenticated.InspectedObjectCount);
+    }
+
+    [Fact]
+    public void InspectAuthenticated_ReportsCorruptedEncryptedStreamWithoutThrowing()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user-password",
+                OwnerPassword = "owner-password"
+            })
+            .AddPage(612, 792, "q 0 0 10 10 re f Q"u8.ToArray())
+            .Build();
+        PdfDocument raw = PdfDocument.Open(source);
+        PdfStream encryptedStream = raw.CrossReferences.Values
+            .Where(entry => entry.Type == KillerPdf.Engine.CrossReference.PdfCrossReferenceEntryType.InUse)
+            .Select(entry => raw.Resolve(entry.ObjectNumber))
+            .OfType<PdfStream>()
+            .First();
+        int streamOffset = source.AsSpan().IndexOf(encryptedStream.EncodedData.Span);
+        Assert.True(streamOffset >= 0);
+        source[streamOffset + encryptedStream.EncodedData.Length - 1] ^= 0xFF;
+
+        PdfInspectionReport report = PdfDocumentInspector.InspectAuthenticated(
+            source, "owner-password");
+
+        Assert.True(report.RequiresRepair);
+        Assert.False(report.RequiresAuthentication);
+        Assert.Contains(report.Diagnostics,
+            item => item.Code == PdfDiagnosticCode.InvalidIndirectObject);
+    }
+
+    [Fact]
+    public void InspectAuthenticated_ClassifiesCorruptedPermissionBlockAsDamage()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user-password",
+                OwnerPassword = "owner-password"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument raw = PdfDocument.Open(source);
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            raw.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            raw.Resolve(encryptionReference));
+        PdfString permissions = Assert.IsType<PdfString>(
+            encryption[new PdfName("Perms"u8)]);
+        string permissionsHex = Convert.ToHexString(permissions.Bytes.Span);
+        int permissionsOffset = source.AsSpan().IndexOf(
+            Encoding.ASCII.GetBytes(permissionsHex));
+        Assert.True(permissionsOffset >= 0);
+        source[permissionsOffset] = source[permissionsOffset] == (byte)'0'
+            ? (byte)'1' : (byte)'0';
+
+        PdfInspectionReport report = PdfDocumentInspector.InspectAuthenticated(
+            source, "owner-password");
+
+        Assert.True(report.RequiresRepair);
+        Assert.False(report.RequiresAuthentication);
+        Assert.Contains(report.Diagnostics,
+            item => item.Code == PdfDiagnosticCode.InvalidCrossReference);
     }
 
     private static byte[] ClassicPdf(string objectDeclaration, bool includeRoot)

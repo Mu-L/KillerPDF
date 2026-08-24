@@ -2,7 +2,9 @@ using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Syntax;
+using System.Security.Cryptography;
 
 namespace KillerPdf.Engine.Diagnostics;
 
@@ -16,6 +18,22 @@ public static class PdfDocumentInspector
     public static PdfInspectionReport Inspect(
         ReadOnlyMemory<byte> source,
         int maximumInspectedObjects = DefaultMaximumInspectedObjects)
+        => InspectCore(source, password: null, maximumInspectedObjects);
+
+    /// <summary>Performs bounded structural inspection after password authentication.</summary>
+    public static PdfInspectionReport InspectAuthenticated(
+        ReadOnlyMemory<byte> source,
+        string password,
+        int maximumInspectedObjects = DefaultMaximumInspectedObjects)
+    {
+        ArgumentNullException.ThrowIfNull(password);
+        return InspectCore(source, password, maximumInspectedObjects);
+    }
+
+    private static PdfInspectionReport InspectCore(
+        ReadOnlyMemory<byte> source,
+        string? password,
+        int maximumInspectedObjects)
     {
         if (maximumInspectedObjects < 1)
             throw new ArgumentOutOfRangeException(nameof(maximumInspectedObjects));
@@ -53,11 +71,30 @@ public static class PdfDocumentInspector
         PdfDocument document;
         try
         {
-            document = PdfDocument.Open(source);
+            document = password is null
+                ? PdfDocument.Open(source)
+                : PdfDocument.Open(source, password);
+        }
+        catch (PdfPasswordAuthenticationException error)
+        {
+            diagnostics.Add(new PdfDiagnostic(
+                PdfDiagnosticCode.AuthenticationFailed,
+                PdfDiagnosticSeverity.Warning,
+                error.Message));
+            return Report(version, startXrefOffset, table.Count, 0, diagnostics);
         }
         catch (Exception error) when (IsStructuralFailure(error))
         {
             diagnostics.Add(Diagnostic(PdfDiagnosticCode.InvalidCrossReference, error.Message));
+            return Report(version, startXrefOffset, table.Count, 0, diagnostics);
+        }
+
+        if (document.IsEncrypted && !document.IsDecrypted)
+        {
+            diagnostics.Add(new PdfDiagnostic(
+                PdfDiagnosticCode.AuthenticationFailed,
+                PdfDiagnosticSeverity.Warning,
+                "Password authentication is required to inspect encrypted indirect objects."));
             return Report(version, startXrefOffset, table.Count, 0, diagnostics);
         }
 
@@ -179,7 +216,8 @@ public static class PdfDocumentInspector
 
     private static bool IsStructuralFailure(Exception error) =>
         error is ArgumentException or InvalidOperationException or FormatException
-            or NotSupportedException or PdfFilterException or OverflowException;
+            or NotSupportedException or PdfFilterException or OverflowException
+            or CryptographicException;
 
     private static PdfDiagnostic Diagnostic(
         PdfDiagnosticCode code,

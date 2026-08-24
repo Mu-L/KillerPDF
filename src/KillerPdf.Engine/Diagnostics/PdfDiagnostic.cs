@@ -17,7 +17,8 @@ public enum PdfDiagnosticCode
     InvalidIndirectObject,
     MissingCatalogRoot,
     InvalidCatalogRoot,
-    InspectionLimitReached
+    InspectionLimitReached,
+    AuthenticationFailed
 }
 
 /// <summary>A stable, machine-readable structural finding with a human-readable explanation.</summary>
@@ -52,7 +53,10 @@ public sealed class PdfInspectionReport
     public int? CrossReferenceEntryCount { get; }
     public int InspectedObjectCount { get; }
     public IReadOnlyList<PdfDiagnostic> Diagnostics => _diagnostics;
+    public bool RequiresAuthentication =>
+        _diagnostics.Any(diagnostic => diagnostic.Code == PdfDiagnosticCode.AuthenticationFailed);
     public bool IsStructurallyValid =>
-        !_diagnostics.Any(diagnostic => diagnostic.Severity == PdfDiagnosticSeverity.Error);
+        !_diagnostics.Any(diagnostic => diagnostic.Severity == PdfDiagnosticSeverity.Error
+            && diagnostic.Code != PdfDiagnosticCode.AuthenticationFailed);
     public bool RequiresRepair => !IsStructurallyValid;
 }

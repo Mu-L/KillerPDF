@@ -32,7 +32,7 @@ public sealed class PdfEncryptionTests
         Assert.True(document.IsEncrypted);
         Assert.True(document.IsDecrypted);
         Assert.Equal(-1, bytes.AsSpan().IndexOf("private authored text"u8));
-        Assert.Throws<CryptographicException>(() => PdfDocument.Open(bytes, "wrong"));
+        Assert.ThrowsAny<CryptographicException>(() => PdfDocument.Open(bytes, "wrong"));
     }
 
     [Fact]
@@ -47,6 +47,130 @@ public sealed class PdfEncryptionTests
             });
 
         Assert.Throws<InvalidOperationException>(() => builder.Build());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Authoring_RejectsPasswordsContainingUnpairedSurrogates(bool invalidUser)
+    {
+        string invalid = new([invalidUser ? '\uD800' : '\uDC00']);
+        var builder = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = invalidUser ? invalid : "user",
+                OwnerPassword = invalidUser ? "owner" : invalid
+            })
+            .AddBlankPage();
+
+        ArgumentException error = Assert.Throws<ArgumentException>(() => builder.Build());
+
+        Assert.Contains("Unicode scalar", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Revision6PasswordPreparationRemovesSaslPrepTableB1Characters()
+    {
+        byte[] bytes = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "pass\u00ADword",
+                OwnerPassword = "owner\uFEFFpassword"
+            })
+            .AddBlankPage()
+            .Build();
+
+        Assert.True(PdfDocument.Open(bytes, "password").IsDecrypted);
+        Assert.True(PdfDocument.Open(bytes, "ownerpassword").IsDecrypted);
+    }
+
+    [Fact]
+    public void Revision6PasswordPreparationMapsSpacesAndAppliesCompatibilityNormalization()
+    {
+        byte[] bytes = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "p\u00A0\u00AAs",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+
+        Assert.True(PdfDocument.Open(bytes, "p as").IsDecrypted);
+    }
+
+    [Theory]
+    [InlineData("password\u0007")]
+    [InlineData("password\uE000")]
+    [InlineData("password\uFDD0")]
+    [InlineData("password\u202E")]
+    public void Authoring_RejectsSaslPrepProhibitedPasswordCharacters(string password)
+    {
+        var builder = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = password,
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage();
+
+        ArgumentException error = Assert.Throws<ArgumentException>(() => builder.Build());
+
+        Assert.Contains("prohibited SASLprep", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("\u05D0Latin\u05D1", "mix RandALCat and LCat")]
+    [InlineData("1\u05D0", "begin and end")]
+    [InlineData("\u05D01", "begin and end")]
+    public void Authoring_RejectsInvalidSaslPrepBidirectionalPasswords(
+        string password,
+        string expectedMessage)
+    {
+        var builder = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = password,
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage();
+
+        ArgumentException error = Assert.Throws<ArgumentException>(() => builder.Build());
+
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Authoring_AcceptsSaslPrepBidirectionalPasswordWithRandAlAtBothEnds()
+    {
+        const string password = "\u05D01\u05D1";
+        byte[] bytes = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = password,
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+
+        Assert.True(PdfDocument.Open(bytes, password).IsDecrypted);
+    }
+
+    [Fact]
+    public void Authoring_RejectsUnicode32UnassignedPasswordCharacters()
+    {
+        const string emojiAssignedAfterUnicode32 = "password\U0001F600";
+        var builder = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = emojiAssignedAfterUnicode32,
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage();
+
+        ArgumentException error = Assert.Throws<ArgumentException>(() => builder.Build());
+
+        Assert.Contains("Unicode 3.2 unassigned", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -100,8 +224,141 @@ public sealed class PdfEncryptionTests
     [Fact]
     public void Open_RejectsWrongRevision6Password()
     {
-        Assert.Throws<CryptographicException>(() =>
+        Assert.ThrowsAny<CryptographicException>(() =>
             PdfDocument.Open(Revision6Fixture(), "wrong-password"));
+    }
+
+    [Fact]
+    public void Open_RejectsNonBooleanRevision6EncryptMetadataValue()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument document = PdfDocument.Open(source, "owner");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        var malformed = new PdfDictionary(encryption.Select(entry =>
+            entry.Key.Equals(new PdfName("EncryptMetadata"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, new PdfName("Invalid"u8))
+                : entry));
+        var update = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, malformed);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocument.Open(update.Build(), "owner"));
+
+        Assert.Contains("not boolean", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Open_RejectsNonBooleanLegacyEncryptMetadataValue()
+    {
+        PdfDocument document = PdfDocument.Open(Revision4Fixture(), "owner-password");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        var malformed = new PdfDictionary(encryption.Append(
+            new KeyValuePair<PdfName, PdfObject>(
+                new PdfName("EncryptMetadata"u8), new PdfName("Invalid"u8))));
+        var update = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, malformed);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocument.Open(update.Build(), "owner-password"));
+
+        Assert.Contains("not boolean", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Open_RejectsInvalidAes256CryptFilterLength()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument document = PdfDocument.Open(source, "owner");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        PdfDictionary filters = Assert.IsType<PdfDictionary>(
+            encryption[new PdfName("CF"u8)]);
+        PdfName filterName = Assert.IsType<PdfName>(encryption[new PdfName("StmF"u8)]);
+        PdfDictionary filter = Assert.IsType<PdfDictionary>(filters[filterName]);
+        var malformedFilter = new PdfDictionary(filter.Select(entry =>
+            entry.Key.Equals(new PdfName("Length"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, new PdfInteger(31))
+                : entry));
+        var malformedFilters = new PdfDictionary(filters.Select(entry =>
+            entry.Key.Equals(filterName)
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, malformedFilter)
+                : entry));
+        var malformedEncryption = new PdfDictionary(encryption.Select(entry =>
+            entry.Key.Equals(new PdfName("CF"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, malformedFilters)
+                : entry));
+        var update = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, malformedEncryption);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocument.Open(update.Build(), "owner"));
+
+        Assert.Contains("invalid /Length", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Open_RejectsEmbeddedFileAuthenticationEventForStringAndStreamFilters()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument document = PdfDocument.Open(source, "owner");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Encrypt"u8)]);
+        PdfDictionary encryption = Assert.IsType<PdfDictionary>(
+            document.Resolve(encryptionReference));
+        PdfDictionary filters = Assert.IsType<PdfDictionary>(
+            encryption[new PdfName("CF"u8)]);
+        PdfName filterName = Assert.IsType<PdfName>(encryption[new PdfName("StmF"u8)]);
+        PdfDictionary filter = Assert.IsType<PdfDictionary>(filters[filterName]);
+        var malformedFilter = new PdfDictionary(filter.Select(entry =>
+            entry.Key.Equals(new PdfName("AuthEvent"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, new PdfName("EFOpen"u8))
+                : entry));
+        var malformedFilters = new PdfDictionary(filters.Select(entry =>
+            entry.Key.Equals(filterName)
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, malformedFilter)
+                : entry));
+        var malformedEncryption = new PdfDictionary(encryption.Select(entry =>
+            entry.Key.Equals(new PdfName("CF"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, malformedFilters)
+                : entry));
+        var update = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(encryptionReference.ObjectNumber, malformedEncryption);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocument.Open(update.Build(), "owner"));
+
+        Assert.Contains("cannot use /EFOpen", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -118,6 +375,75 @@ public sealed class PdfEncryptionTests
                     Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream)));
             }
         }
+    }
+
+    [Theory]
+    [InlineData("user€")]
+    [InlineData("owner€")]
+    public void Open_AuthenticatesQpdfLegacyPasswordsUsingPdfDocEncoding(string password)
+    {
+        PdfDocument document = PdfDocument.Open(PdfDocEncodingRevision4Fixture(), password);
+        PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(4));
+
+        Assert.True(document.IsDecrypted);
+        Assert.Equal(
+            "q\n0.9 0.2 0.4 rg\n72 72 200 100 re\nf\nQ\n",
+            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream)));
+    }
+
+    [Fact]
+    public void Open_RejectsLegacyPasswordCharactersOutsidePdfDocEncoding()
+    {
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
+            PdfDocument.Open(PdfDocEncodingRevision4Fixture(), "password😀"));
+
+        Assert.Contains("PDFDocEncoding", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Open_RejectsNonByteAlignedLegacyEncryptionKeyLength()
+    {
+        byte[] fixture = Revision4Fixture();
+        int lengthOffset = fixture.AsSpan().IndexOf("/Length 128"u8);
+        Assert.True(lengthOffset >= 0);
+        fixture[lengthOffset + "/Length 12".Length] = (byte)'7';
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocument.Open(fixture, "owner-password"));
+
+        Assert.Contains("byte-aligned", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Open_DefaultsOmittedLegacyEncryptionKeyLengthToFortyBits()
+    {
+        byte[] fixture = Revision4Fixture();
+        int offset = fixture.AsSpan().IndexOf("/Length 128"u8);
+        Assert.True(offset >= 0);
+        fixture.AsSpan(offset, "/Length 128".Length).Fill((byte)' ');
+
+        CryptographicException error = Assert.ThrowsAny<CryptographicException>(() =>
+            PdfDocument.Open(fixture, "owner-password"));
+
+        Assert.Contains("password is incorrect", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/V 4", "/V 1")]
+    [InlineData("/R 4", "/R 3")]
+    public void Open_RejectsIncompatibleLegacySecurityVersionAndRevision(
+        string original,
+        string replacement)
+    {
+        byte[] fixture = Revision4Fixture();
+        int offset = fixture.AsSpan().IndexOf(Encoding.ASCII.GetBytes(original));
+        Assert.True(offset >= 0);
+        Encoding.ASCII.GetBytes(replacement).CopyTo(fixture.AsSpan(offset));
+
+        NotSupportedException error = Assert.Throws<NotSupportedException>(() =>
+            PdfDocument.Open(fixture, "owner-password"));
+
+        Assert.Contains("not supported", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -249,6 +575,61 @@ public sealed class PdfEncryptionTests
     }
 
     [Fact]
+    public void ExplicitCryptFilter_RejectsNonNameFilterArrayEntries()
+    {
+        PdfDocument document = PdfDocument.Open(Revision6Fixture(), "owner-password");
+        var update = new PdfIncrementalUpdateBuilder(document);
+        update.AddObject(new PdfStream(new PdfDictionary([
+            new(new PdfName("Filter"u8), new PdfArray([
+                new PdfInteger(0), new PdfName("Crypt"u8)
+            ]))
+        ]), "payload"u8));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            update.Build());
+
+        Assert.Contains("entry must be a name", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExplicitCryptFilter_RejectsMismatchedDecodeParameters()
+    {
+        PdfDocument document = PdfDocument.Open(Revision6Fixture(), "owner-password");
+        var update = new PdfIncrementalUpdateBuilder(document);
+        update.AddObject(new PdfStream(new PdfDictionary([
+            new(new PdfName("Filter"u8), new PdfArray([
+                new PdfName("Crypt"u8), new PdfName("FlateDecode"u8)
+            ])),
+            new(new PdfName("DecodeParms"u8), new PdfArray([PdfNull.Instance]))
+        ]), "payload"u8));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            update.Build());
+
+        Assert.Contains("one entry per filter", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExplicitCryptFilter_RejectsInvalidLaterDecodeParameterEntry()
+    {
+        PdfDocument document = PdfDocument.Open(Revision6Fixture(), "owner-password");
+        var update = new PdfIncrementalUpdateBuilder(document);
+        update.AddObject(new PdfStream(new PdfDictionary([
+            new(new PdfName("Filter"u8), new PdfArray([
+                new PdfName("Crypt"u8), new PdfName("FlateDecode"u8)
+            ])),
+            new(new PdfName("DecodeParms"u8), new PdfArray([
+                PdfNull.Instance, new PdfInteger(0)
+            ]))
+        ]), "payload"u8));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            update.Build());
+
+        Assert.Contains("dictionary or null", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FullRewrite_PreservesAes256EncryptionAndDecryptedPageContent()
     {
         PdfDocument document = PdfDocument.Open(Revision6Fixture(), "owner-password");
@@ -288,6 +669,9 @@ public sealed class PdfEncryptionTests
 
     private static byte[] Revision4Fixture() => Convert.FromBase64String(
         "JVBERi0yLjAKJb/3ov4KMSAwIG9iago8PCAvUGFnZXMgMiAwIFIgL1R5cGUgL0NhdGFsb2cgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0NvdW50IDEgL0tpZHMgWyAzIDAgUiBdIC9UeXBlIC9QYWdlcyA+PgplbmRvYmoKMyAwIG9iago8PCAvQ29udGVudHMgNCAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDIgMCBSIC9SZXNvdXJjZXMgPDwgPj4gL1R5cGUgL1BhZ2UgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA2NCAvRmlsdGVyIC9GbGF0ZURlY29kZSA+PgpzdHJlYW0KSecG3kRpaOSia/ml8moYxg5UAbhcuHXETddfMkbVaiLNqBIvOAbsW/taa+++E9SDkYUAvilCEhW/u1gABF0i+2VuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvQ0YgPDwgL1N0ZENGIDw8IC9BdXRoRXZlbnQgL0RvY09wZW4gL0NGTSAvQUVTVjIgL0xlbmd0aCAxNiA+PiA+PiAvRmlsdGVyIC9TdGFuZGFyZCAvTGVuZ3RoIDEyOCAvTyA8ZmQ0YmUyZjAyYWI2YzMzOTUyYTg2NDBlYzFlZmFkZjRlY2Y3MTM4NTgyZDE0MTIzMmY0MDdjYmNiYzhmZDMwMz4gL09FIDw+IC9QIC00IC9SIDQgL1N0bUYgL1N0ZENGIC9TdHJGIC9TdGRDRiAvVSA8MmI0YzdmMDg0ODJmMTRhNzI0ZWNmY2I2OTg4YjRhZTYwMDIxNDQ2OTkwYjllNDExNDA3MWE0ZDkxMDQ5ODRjMT4gL1VFIDw+IC9WIDQgPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDY0IDAwMDAwIG4gCjAwMDAwMDAxMjMgMDAwMDAgbiAKMDAwMDAwMDIyOSAwMDAwMCBuIAowMDAwMDAwMzYzIDAwMDAwIG4gCnRyYWlsZXIgPDwgL1Jvb3QgMSAwIFIgL1NpemUgNiAvSUQgWzw0YjhjNjg5ZWU5YTIxMmUwZWU5NGQxYzZhZGYxNmE1OT48OTI2YTkzNGFjNWM2MmEwYTA4MTgwMjdkOWQ5YTEyYzI+XSAvRW5jcnlwdCA1IDAgUiA+PgpzdGFydHhyZWYKNjc2CiUlRU9GCg==");
+
+    private static byte[] PdfDocEncodingRevision4Fixture() => Convert.FromBase64String(
+        "JVBERi0yLjAKJb/3ov4KMSAwIG9iago8PCAvUGFnZXMgMiAwIFIgL1R5cGUgL0NhdGFsb2cgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0NvdW50IDEgL0tpZHMgWyAzIDAgUiBdIC9UeXBlIC9QYWdlcyA+PgplbmRvYmoKMyAwIG9iago8PCAvQ29udGVudHMgNCAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDIgMCBSIC9SZXNvdXJjZXMgPDwgPj4gL1R5cGUgL1BhZ2UgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA2NCAvRmlsdGVyIC9GbGF0ZURlY29kZSA+PgpzdHJlYW0Kgw0KuscQ6ntGAfOAWGBA9lB4R994D/eetGoaHzFLGmvo2W2nAimdor9VyeoVS9z1hwlIqPT3ViCgcKHm3W1VPGVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvQ0YgPDwgL1N0ZENGIDw8IC9BdXRoRXZlbnQgL0RvY09wZW4gL0NGTSAvQUVTVjIgL0xlbmd0aCAxNiA+PiA+PiAvRmlsdGVyIC9TdGFuZGFyZCAvTGVuZ3RoIDEyOCAvTyA8MjliNWEzNmExMzRkODA1ZDlkZThkNGQyZDNjOTQwMmRjZWQ5NGIyNTgyN2QyMzk1MTRkOGRiYmExN2IyMTFjMz4gL09FIDw+IC9QIC00IC9SIDQgL1N0bUYgL1N0ZENGIC9TdHJGIC9TdGRDRiAvVSA8NzYxNjQ2NmI2YTBjN2JkNzE2MjdiN2Q1YmQ2NWVmNTcwMDIxNDQ2OTkwYjllNDExNDA3MWE0ZDkxMDQ5ODRjMT4gL1VFIDw+IC9WIDQgPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDY0IDAwMDAwIG4gCjAwMDAwMDAxMjMgMDAwMDAgbiAKMDAwMDAwMDIyOSAwMDAwMCBuIAowMDAwMDAwMzYzIDAwMDAwIG4gCnRyYWlsZXIgPDwgL1Jvb3QgMSAwIFIgL1NpemUgNiAvSUQgWzw0YjhjNjg5ZWU5YTIxMmUwZWU5NGQxYzZhZGYxNmE1OT48YzU4YzA2ODA0MGRkZWZlNWFhODgzM2M1MzFmMTRlYmY+XSAvRW5jcnlwdCA1IDAgUiA+PgpzdGFydHhyZWYKNjc2CiUlRU9GCg==");
 
     private static byte[] Revision2Fixture() => Convert.FromBase64String(
         "JVBERi0yLjAKJb/3ov4KMSAwIG9iago8PCAvUGFnZXMgMiAwIFIgL1R5cGUgL0NhdGFsb2cgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0NvdW50IDEgL0tpZHMgWyAzIDAgUiBdIC9UeXBlIC9QYWdlcyA+PgplbmRvYmoKMyAwIG9iago8PCAvQ29udGVudHMgNCAwIFIgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXSAvUGFyZW50IDIgMCBSIC9SZXNvdXJjZXMgPDwgPj4gL1R5cGUgL1BhZ2UgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0MSAvRmlsdGVyIC9GbGF0ZURlY29kZSA+PgpzdHJlYW0KZaBGAVdUcOQTTqKiDmfiA7SZnHAUZxFG/VQF8F5tnO4kjPqx1cmsYkdlbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL0ZpbHRlciAvU3RhbmRhcmQgL0xlbmd0aCA0MCAvTyA8M2Q0YzFmYjdlOWE3Nzc3ODI3ZTZmNmRjZDMxZmEwMzQ4ZTg1NDExODliYWYwMGZlZTJiMjZlNmNlN2QyNzIzZD4gL1AgLTQgL1IgMiAvVSA8ODhiOWI0NjdkNjkwODk1OTNmMjIxOWY5YTZlNWZiMTc3NTZhNjkwMGMxMDcyMjY4NDcxZDM1NDdmOTRhZDBkYz4gL1YgMSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjQgMDAwMDAgbiAKMDAwMDAwMDEyMyAwMDAwMCBuIAowMDAwMDAwMjI5IDAwMDAwIG4gCjAwMDAwMDAzNDAgMDAwMDAgbiAKdHJhaWxlciA8PCAvUm9vdCAxIDAgUiAvU2l6ZSA2IC9JRCBbPDRiOGM2ODllZTlhMjEyZTBlZTk0ZDFjNmFkZjE2YTU5PjwyYWFiOTA2NjI2ODFlY2Y5NTAwZmY3ZGU5ZjFmMjM2Mz5dIC9FbmNyeXB0IDUgMCBSID4+CnN0YXJ0eHJlZgo1NDYKJSVFT0YK");

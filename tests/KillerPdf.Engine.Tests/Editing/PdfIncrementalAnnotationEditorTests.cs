@@ -355,7 +355,8 @@ public sealed class PdfIncrementalAnnotationEditorTests
         var update = new PdfIncrementalUpdateBuilder(document);
         PdfIndirectReference parameters = update.AddObject(new PdfDictionary([
             new(Name("Type"), Name("TransformParams")),
-            new(Name("P"), new PdfInteger(permission))
+            new(Name("P"), new PdfInteger(permission)),
+            new(Name("V"), Name("1.2"))
         ]));
         PdfIndirectReference transform = update.AddObject(new PdfDictionary([
             new(Name("TransformMethod"), Name("DocMDP")),

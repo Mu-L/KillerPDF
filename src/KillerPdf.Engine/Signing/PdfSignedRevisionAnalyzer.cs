@@ -1,6 +1,7 @@
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Filters;
 
 namespace KillerPdf.Engine.Signing;
 
@@ -27,7 +28,10 @@ public static class PdfSignedRevisionAnalyzer
             }
             catch (Exception exception) when (exception is FormatException
                 or ArgumentException
-                or InvalidOperationException)
+                or InvalidOperationException
+                or NotSupportedException
+                or PdfFilterException
+                or OverflowException)
             {
                 validRevision = false;
             }

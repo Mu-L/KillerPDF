@@ -1,5 +1,9 @@
 using System.Text;
+using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Validation;
+using KillerPdf.Engine.Writing;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Validation;
@@ -11,7 +15,7 @@ public sealed class PdfRoundTripValidatorTests
     {
         PdfRoundTripResult result = PdfRoundTripValidator.Validate(ValidPdf());
 
-        Assert.True(result.Succeeded);
+        Assert.True(result.Succeeded, result.FailureMessage);
         Assert.True(result.IsDeterministic);
         Assert.NotNull(result.RewrittenBytes);
         Assert.Equal(64, result.RewrittenSha256!.Length);
@@ -27,6 +31,77 @@ public sealed class PdfRoundTripValidatorTests
         Assert.False(result.Succeeded);
         Assert.True(result.SourceInspection.RequiresRepair);
         Assert.Null(result.RewrittenBytes);
+    }
+
+    [Fact]
+    public void ValidateAuthenticated_VerifiesSemanticStabilityWithRandomizedCiphertext()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user-password",
+                OwnerPassword = "owner-password"
+            })
+            .AddBlankPage()
+            .Build();
+
+        PdfRoundTripResult result = PdfRoundTripValidator.ValidateAuthenticated(
+            source, "owner-password", new PdfDocumentWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream,
+                UseObjectStreams = true,
+                CompressStructuralStreams = true
+            });
+
+        Assert.True(result.Succeeded, result.FailureMessage);
+        Assert.False(result.IsDeterministic);
+        Assert.NotNull(result.RewrittenBytes);
+        PdfDocument rewritten = PdfDocument.Open(
+            result.RewrittenBytes, "user-password");
+        Assert.True(rewritten.IsDecrypted);
+        Assert.True(rewritten.CrossReferences.Sections[0].IsStream);
+        Assert.Null(result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_ReturnsAFailureForAnIncorrectEncryptionPassword()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user-password",
+                OwnerPassword = "owner-password"
+            })
+            .AddBlankPage()
+            .Build();
+
+        PdfRoundTripResult result = PdfRoundTripValidator.ValidateAuthenticated(source, "wrong");
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.IsDeterministic);
+        Assert.Null(result.RewrittenBytes);
+        Assert.Contains("password is incorrect", result.FailureMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_RequestsAuthenticationForEncryptedInputWithoutCredentials()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user-password",
+                OwnerPassword = "owner-password"
+            })
+            .AddBlankPage()
+            .Build();
+
+        PdfRoundTripResult result = PdfRoundTripValidator.Validate(source);
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.SourceInspection.RequiresAuthentication);
+        Assert.False(result.SourceInspection.RequiresRepair);
+        Assert.Contains("authentication is required", result.FailureMessage,
+            StringComparison.Ordinal);
     }
 
     private static byte[] ValidPdf()

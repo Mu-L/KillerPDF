@@ -1,4 +1,6 @@
 using System.Text;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
@@ -137,6 +139,43 @@ public sealed class PdfSignatureReaderTests
     }
 
     [Fact]
+    public void Analyze_ReportsMalformedFilteredSignedRevisionWithoutThrowing()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int malformedXrefOffset = source.Length;
+        source.Append("1 0 obj\n")
+            .Append("<< /Type /XRef /Size 1 /W [1 1 1] /Filter /Bogus /Length 1 >>\n")
+            .Append("stream\nx\nendstream\nendobj\n")
+            .Append($"startxref\n{malformedXrefOffset}\n%%EOF\n");
+        int signedLength = Encoding.ASCII.GetByteCount(source.ToString());
+        int catalogOffset = source.Length;
+        source.Append("2 0 obj << /Type /Catalog >> endobj\n");
+        int currentXrefOffset = source.Length;
+        source.Append("xref\n0 3\n")
+            .Append("0000000000 65535 f\n")
+            .Append("0000000000 00000 f\n")
+            .Append($"{catalogOffset:0000000000} 00000 n\n")
+            .Append("trailer << /Size 3 /Root 2 0 R >>\n")
+            .Append($"startxref\n{currentXrefOffset}\n%%EOF\n");
+        PdfDocument document = PdfDocument.Open(
+            Encoding.ASCII.GetBytes(source.ToString()));
+        var signature = new PdfSignatureInfo
+        {
+            FieldName = "malformed-history",
+            IsSigned = true,
+            HasValidByteRange = true,
+            ByteRange = [0, 0, 1, signedLength - 1]
+        };
+
+        PdfSignedRevisionAnalysis analysis =
+            PdfSignedRevisionAnalyzer.Analyze(document, signature);
+
+        Assert.False(analysis.SignedRevisionIsValidPdf);
+        Assert.True(analysis.HasLaterChanges);
+        Assert.Equal(1, analysis.LaterRevisionCount);
+    }
+
+    [Fact]
     public void Read_ReportsInvalidByteRangeWithoutReadingOutsideTheDocument()
     {
         byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
@@ -159,4 +198,111 @@ public sealed class PdfSignatureReaderTests
         Assert.Throws<InvalidOperationException>(() =>
             PdfSignatureReader.GetSignedContent(PdfDocument.Open(signed), signature));
     }
+
+    [Fact]
+    public void Read_RejectsByteRangeGapThatIncludesBytesBeyondContents()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
+            {
+                ReservedSignatureSize = 8
+            });
+        string text = Encoding.ASCII.GetString(signed);
+        Match match = Regex.Match(text,
+            @"/ByteRange \[(\d{10}) (\d{10}) (\d{10}) (\d{10})\]");
+        Assert.True(match.Success);
+        int secondStart = int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
+        int secondLength = int.Parse(match.Groups[4].Value, CultureInfo.InvariantCulture);
+        Encoding.ASCII.GetBytes($"{secondStart + 1:0000000000}")
+            .CopyTo(signed.AsSpan(match.Groups[3].Index, 10));
+        Encoding.ASCII.GetBytes($"{secondLength - 1:0000000000}")
+            .CopyTo(signed.AsSpan(match.Groups[4].Index, 10));
+
+        PdfSignatureInfo signature = Assert.Single(
+            PdfSignatureReader.Read(PdfDocument.Open(signed)));
+
+        Assert.False(signature.HasValidByteRange);
+        Assert.False(signature.CoversWholeDocument);
+    }
+
+    [Fact]
+    public void Read_RejectsStaleCertificationSignatureReference()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
+            {
+                CertificationPermission = PdfSignatureCertificationPermission.NoChanges,
+                ReservedSignatureSize = 8
+            });
+        PdfDocument document = PdfDocument.Open(signed);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[Name("Root")]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(document.Resolve(catalogReference));
+        PdfDictionary permissions = Assert.IsType<PdfDictionary>(catalog[Name("Perms")]);
+        PdfIndirectReference certification = Assert.IsType<PdfIndirectReference>(
+            permissions[Name("DocMDP")]);
+        var stalePermissions = new PdfDictionary(permissions.Select(entry =>
+            entry.Key.Equals(Name("DocMDP"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key,
+                    new PdfIndirectReference(
+                        certification.ObjectNumber, certification.Generation + 1))
+                : entry));
+        var staleCatalog = new PdfDictionary(catalog.Select(entry =>
+            entry.Key.Equals(Name("Perms"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, stalePermissions)
+                : entry));
+        var update = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(catalogReference.ObjectNumber, staleCatalog);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfSignatureReader.Read(PdfDocument.Open(update.Build())));
+
+        Assert.Contains("certification signature", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsInvalidCertificationTransformVersion()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
+            {
+                CertificationPermission = PdfSignatureCertificationPermission.NoChanges,
+                ReservedSignatureSize = 8
+            });
+        PdfDocument document = PdfDocument.Open(signed);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(
+            document.Resolve(Assert.IsType<PdfIndirectReference>(document.Trailer[Name("Root")])));
+        PdfDictionary permissions = Assert.IsType<PdfDictionary>(catalog[Name("Perms")]);
+        PdfIndirectReference signatureReference = Assert.IsType<PdfIndirectReference>(
+            permissions[Name("DocMDP")]);
+        PdfDictionary signature = Assert.IsType<PdfDictionary>(document.Resolve(signatureReference));
+        PdfArray references = Assert.IsType<PdfArray>(signature[Name("Reference")]);
+        PdfDictionary reference = Assert.IsType<PdfDictionary>(Assert.Single(references));
+        PdfDictionary parameters = Assert.IsType<PdfDictionary>(reference[Name("TransformParams")]);
+        var malformedParameters = new PdfDictionary(parameters.Select(entry =>
+            entry.Key.Equals(Name("V"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, Name("2.0"))
+                : entry));
+        var malformedReference = new PdfDictionary(reference.Select(entry =>
+            entry.Key.Equals(Name("TransformParams"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, malformedParameters)
+                : entry));
+        var malformedSignature = new PdfDictionary(signature.Select(entry =>
+            entry.Key.Equals(Name("Reference"))
+                ? new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, new PdfArray([malformedReference]))
+                : entry));
+        var update = new PdfIncrementalUpdateBuilder(document)
+            .ReplaceObject(signatureReference.ObjectNumber, malformedSignature);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfSignatureReader.Read(PdfDocument.Open(update.Build())));
+
+        Assert.Contains("/1.2", error.Message, StringComparison.Ordinal);
+    }
+
+    private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 }
