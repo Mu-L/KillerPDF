@@ -1,8 +1,10 @@
 using System.Text;
 using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Signing;
+using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Writing;
 
 namespace KillerPdf.Engine.Editing;
@@ -44,6 +46,9 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName LanguageName = Name("Lang");
     private static readonly PdfName ViewerPreferencesName = Name("ViewerPreferences");
     private static readonly PdfName OptionalContentPropertiesName = Name("OCProperties");
+    private static readonly PdfName OptionalContentName = Name("OC");
+    private static readonly PdfName OptionalContentGroupName = Name("OCG");
+    private static readonly PdfName OptionalContentMembershipName = Name("OCMD");
     private static readonly PdfName OutputIntentsName = Name("OutputIntents");
     private static readonly PdfName ExtensionsName = Name("Extensions");
     private static readonly PdfName PermissionsName = Name("Perms");
@@ -146,9 +151,10 @@ public sealed class PdfIncrementalPageEditor
         if (sourcePageIndex < 0 || sourcePageIndex >= sourceTree.Pages.Count)
             throw new ArgumentOutOfRangeException(nameof(sourcePageIndex));
         PdfPageTreeEntry sourcePage = sourceTree.Pages[sourcePageIndex];
-        if (sourceTree.Catalog.ContainsKey(OptionalContentPropertiesName))
+        if (sourceTree.Catalog.ContainsKey(OptionalContentPropertiesName)
+            && PageUsesOptionalContent(source, sourcePage))
             throw new NotSupportedException(
-                "Pages using optional-content layers must be imported as a complete document into an empty destination.");
+                "Pages using optional-content layers must be imported as a complete document.");
         ValidateImportablePage(source, sourcePage,
             allowFormWidgets: false, allowTaggedPage: false);
         int batchId = _nextImportBatchId++;
@@ -190,7 +196,8 @@ public sealed class PdfIncrementalPageEditor
                     "A selected source page index cannot appear more than once.",
                     nameof(sourcePageIndices));
             PdfPageTreeEntry sourcePage = sourceTree.Pages[sourcePageIndex];
-            if (sourceTree.Catalog.ContainsKey(OptionalContentPropertiesName))
+            if (sourceTree.Catalog.ContainsKey(OptionalContentPropertiesName)
+                && PageUsesOptionalContent(source, sourcePage))
                 throw new NotSupportedException(
                     "Pages using optional-content layers must be imported as a complete document.");
             ValidateImportablePage(source, sourcePage,
@@ -435,11 +442,16 @@ public sealed class PdfIncrementalPageEditor
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
         IDictionary<PdfName, PdfObject> catalogReplacements)
     {
-        PageState[][] formGroups = importedGroups.Where(group =>
+        PageState[][] sourceFormGroups = importedGroups.Where(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(AcroFormName)).ToArray();
+        foreach (PageState[] group in sourceFormGroups.Where(group =>
+                     !IsCompleteImport(group, group[0].ImportedTree!)))
+            foreach (PageState page in group)
+                ValidateImportablePage(page.ImportedDocument!, page.ImportedEntry!,
+                    allowFormWidgets: false, allowTaggedPage: true);
+        PageState[][] formGroups = sourceFormGroups.Where(group =>
+            IsCompleteImport(group, group[0].ImportedTree!)).ToArray();
         if (formGroups.Length == 0) return;
-        foreach (PageState[] group in formGroups)
-            RequireCompleteImport(group, group[0].ImportedTree!, "AcroForms");
         if (!_tree.Catalog.ContainsKey(AcroFormName) && formGroups.Length == 1)
         {
             PageState first = formGroups[0][0];
@@ -1071,9 +1083,11 @@ public sealed class PdfIncrementalPageEditor
         IDictionary<PdfName, PdfObject> catalogReplacements)
     {
         PageState[][] groups = importedGroups.ToArray();
-        bool hasImportedEmbeddedFiles = groups.Any(group => HasNameTreeCategory(
+        PageState[][] completeGroups = groups.Where(group =>
+            IsCompleteImport(group, group[0].ImportedTree!)).ToArray();
+        bool hasImportedEmbeddedFiles = completeGroups.Any(group => HasNameTreeCategory(
             group[0].ImportedDocument!, group[0].ImportedTree!.Catalog, EmbeddedFilesName));
-        bool hasImportedAssociatedFiles = groups.Any(group =>
+        bool hasImportedAssociatedFiles = completeGroups.Any(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(AssociatedFilesName));
         if (!hasImportedEmbeddedFiles && !hasImportedAssociatedFiles) return;
 
@@ -1086,14 +1100,13 @@ public sealed class PdfIncrementalPageEditor
             var keys = new HashSet<string>(StringComparer.Ordinal);
             if (currentNames.TryGetValue(EmbeddedFilesName, out PdfObject? targetFiles))
                 AddFiles(PdfNameTree.Read(_document, targetFiles), null);
-            foreach (PageState[] group in groups)
+            foreach (PageState[] group in completeGroups)
             {
                 PdfDocument source = group[0].ImportedDocument!;
                 PdfPageTree sourceTree = group[0].ImportedTree!;
                 if (!TryGetNameTreeCategory(
                     source, sourceTree.Catalog, EmbeddedFilesName, out PdfObject? sourceFiles))
                     continue;
-                RequireCompleteImport(group, sourceTree, "Embedded files");
                 AddFiles(PdfNameTree.Read(source, sourceFiles!), importers[group[0]]);
             }
             files.Sort((left, right) =>
@@ -1136,12 +1149,11 @@ public sealed class PdfIncrementalPageEditor
             if (_tree.Catalog.TryGetValue(AssociatedFilesName, out PdfObject? targetAssociated))
                 associated.AddRange(ResolveArray(
                     _document, targetAssociated, "The destination catalog /AF value"));
-            foreach (PageState[] group in groups)
+            foreach (PageState[] group in completeGroups)
             {
                 PdfPageTree sourceTree = group[0].ImportedTree!;
                 if (!sourceTree.Catalog.TryGetValue(
                     AssociatedFilesName, out PdfObject? sourceAssociated)) continue;
-                RequireCompleteImport(group, sourceTree, "Associated files");
                 associated.AddRange(ResolveArray(group[0].ImportedDocument!, sourceAssociated,
                     "The source catalog /AF value").Select(importers[group[0]].Import));
             }
@@ -1154,7 +1166,8 @@ public sealed class PdfIncrementalPageEditor
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
         IDictionary<PdfName, PdfObject> catalogReplacements)
     {
-        PageState[][] groups = importedGroups.ToArray();
+        PageState[][] groups = importedGroups.Where(group =>
+            IsCompleteImport(group, group[0].ImportedTree!)).ToArray();
         var sourceCategories = new HashSet<PdfName>();
         foreach (PageState[] group in groups)
         {
@@ -1185,8 +1198,6 @@ public sealed class PdfIncrementalPageEditor
                 PdfDictionary names = ResolveDictionary(
                     source, namesValue, "A source catalog /Names value");
                 if (!names.TryGetValue(category, out PdfObject? sourceValue)) continue;
-                RequireCompleteImport(group, tree,
-                    $"The /Names /{category.ValueAsLatin1()} name tree");
                 Add(PdfNameTree.Read(source, sourceValue), importers[group[0]]);
             }
             entries.Sort((left, right) =>
@@ -1221,10 +1232,9 @@ public sealed class PdfIncrementalPageEditor
         IDictionary<PdfName, PdfObject> catalogReplacements)
     {
         PageState[][] outlineGroups = importedGroups.Where(group =>
+            IsCompleteImport(group, group[0].ImportedTree!) &&
             group[0].ImportedTree!.Catalog.ContainsKey(OutlinesName)).ToArray();
         if (outlineGroups.Length == 0) return;
-        foreach (PageState[] group in outlineGroups)
-            RequireCompleteImport(group, group[0].ImportedTree!, "Bookmarks");
 
         PdfIndirectReference? targetRootReference = null;
         PdfDictionary? targetRoot = null;
@@ -1426,14 +1436,6 @@ public sealed class PdfIncrementalPageEditor
         return names.TryGetValue(category, out value);
     }
 
-    private static void RequireCompleteImport(
-        PageState[] group, PdfPageTree sourceTree, string feature)
-    {
-        if (group.Length != sourceTree.Pages.Count || group.Any(page => !page.ImportedWholeDocument))
-            throw new NotSupportedException(
-                $"{feature} can be preserved only when all pages from their source document are retained.");
-    }
-
     private static bool IsCompleteImport(PageState[] group, PdfPageTree sourceTree) =>
         group.Length == sourceTree.Pages.Count && group.All(page => page.ImportedWholeDocument);
 
@@ -1444,17 +1446,23 @@ public sealed class PdfIncrementalPageEditor
         IDictionary<PdfName, PdfObject> catalogReplacements,
         StructureRewriteState? rewriteState)
     {
-        PageState[][] taggedGroups = importedGroups.Where(group =>
+        PageState[][] sourceTaggedGroups = importedGroups.Where(group =>
         {
             PdfPageTree sourceTree = group[0].ImportedTree!;
             return sourceTree.Catalog.ContainsKey(StructTreeRootName)
                 || group.Any(page => page.ImportedEntry!.Dictionary.ContainsKey(StructParentsName));
         }).ToArray();
+        foreach (PageState[] group in sourceTaggedGroups.Where(group =>
+                     !IsCompleteImport(group, group[0].ImportedTree!)))
+            foreach (PageState page in group)
+                ValidateImportablePage(page.ImportedDocument!, page.ImportedEntry!,
+                    allowFormWidgets: true, allowTaggedPage: false);
+        PageState[][] taggedGroups = sourceTaggedGroups.Where(group =>
+            IsCompleteImport(group, group[0].ImportedTree!)).ToArray();
         if (taggedGroups.Length == 0) return;
         foreach (PageState[] taggedGroup in taggedGroups)
         {
             PdfPageTree taggedTree = taggedGroup[0].ImportedTree!;
-            RequireCompleteImport(taggedGroup, taggedTree, "Tagged PDF structure");
             if (!taggedTree.Catalog.ContainsKey(StructTreeRootName))
                 throw new InvalidOperationException(
                     "An imported page has /StructParents but its source catalog has no /StructTreeRoot.");
@@ -1860,8 +1868,8 @@ public sealed class PdfIncrementalPageEditor
         foreach (PageState[] group in importedGroups)
         {
             PdfPageTree tree = group[0].ImportedTree!;
+            if (!IsCompleteImport(group, tree)) continue;
             if (!tree.Catalog.TryGetValue(ExtensionsName, out PdfObject? sourceValue)) continue;
-            RequireCompleteImport(group, tree, "The catalog /Extensions dictionary");
             PdfDocument source = group[0].ImportedDocument!;
             PdfDictionary extensions = ResolveDictionary(
                 source, sourceValue, "A source catalog /Extensions value");
@@ -2072,12 +2080,17 @@ public sealed class PdfIncrementalPageEditor
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
         IDictionary<PdfName, PdfObject> catalogReplacements)
     {
-        PageState[][] layeredGroups = importedGroups.Where(group =>
+        PageState[][] sourceLayeredGroups = importedGroups.Where(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(OptionalContentPropertiesName)).ToArray();
+        foreach (PageState[] group in sourceLayeredGroups.Where(group =>
+                     !IsCompleteImport(group, group[0].ImportedTree!)))
+            if (group.Any(page => PageUsesOptionalContent(
+                    page.ImportedDocument!, page.ImportedEntry!)))
+                throw new NotSupportedException(
+                    "Pages using optional-content layers must be imported as a complete document.");
+        PageState[][] layeredGroups = sourceLayeredGroups.Where(group =>
+            IsCompleteImport(group, group[0].ImportedTree!)).ToArray();
         if (layeredGroups.Length == 0) return;
-        foreach (PageState[] layeredGroup in layeredGroups)
-            RequireCompleteImport(
-                layeredGroup, layeredGroup[0].ImportedTree!, "Optional-content layers");
 
         if (!_tree.Catalog.TryGetValue(
                 OptionalContentPropertiesName, out PdfObject? targetPropertiesValue))
@@ -2501,6 +2514,122 @@ public sealed class PdfIncrementalPageEditor
                 throw new NotSupportedException(
                     "Pages containing form widgets must be imported as a complete document.");
             }
+        }
+    }
+
+    private static bool PageUsesOptionalContent(
+        PdfDocument source, PdfPageTreeEntry page)
+    {
+        const int maximumObjects = 1_000_000;
+        const int maximumDepth = 256;
+        const int maximumContentBytes = 64 * 1024 * 1024;
+        var visited = new HashSet<string>(StringComparer.Ordinal)
+        {
+            $"{page.Reference.ObjectNumber}:{page.Reference.Generation}"
+        };
+        int objectCount = 0;
+
+        if (page.InheritedValues.TryGetValue(Name("Resources"), out PdfObject? resources)
+            && UsesOptionalContent(resources, 0, scanContent: false))
+            return true;
+        foreach (var entry in page.Dictionary)
+        {
+            if (entry.Key.Equals(ParentName) || entry.Key.Equals(Name("Resources"))) continue;
+            if (UsesOptionalContent(entry.Value, 0, entry.Key.Equals(Name("Contents"))))
+                return true;
+        }
+        return false;
+
+        bool UsesOptionalContent(PdfObject value, int depth, bool scanContent)
+        {
+            if (depth >= maximumDepth)
+                throw new NotSupportedException(
+                    "The selected page graph is too deeply nested to prove optional-content independence.");
+            if (value is PdfIndirectReference reference)
+            {
+                string key = $"{reference.ObjectNumber}:{reference.Generation}";
+                if (!visited.Add(key)) return false;
+                if (++objectCount > maximumObjects)
+                    throw new NotSupportedException(
+                        "The selected page graph is too large to prove optional-content independence.");
+                return UsesOptionalContent(source.Resolve(reference), depth + 1, scanContent);
+            }
+            if (value is PdfArray array)
+                return array.Any(item => UsesOptionalContent(item, depth + 1, scanContent));
+            if (value is PdfStream stream)
+            {
+                if (UsesDictionary(stream.Dictionary, depth + 1)) return true;
+                bool isForm = stream.Dictionary.TryGetValue(SubtypeName, out PdfObject? subtype)
+                    && subtype is PdfName subtypeName && subtypeName.ValueAsLatin1() == "Form";
+                bool isPattern = stream.Dictionary.TryGetValue(TypeName, out PdfObject? type)
+                    && type is PdfName typeName && typeName.ValueAsLatin1() == "Pattern";
+                return (scanContent || isForm || isPattern) && ContentUsesOptionalContent(stream);
+            }
+            return value is PdfDictionary dictionary && UsesDictionary(dictionary, depth + 1);
+        }
+
+        bool UsesDictionary(PdfDictionary dictionary, int depth)
+        {
+            if (dictionary.TryGetValue(TypeName, out PdfObject? type)
+                && type is PdfName typeName
+                && (typeName.Equals(OptionalContentGroupName)
+                    || typeName.Equals(OptionalContentMembershipName)))
+                return true;
+            if (dictionary.ContainsKey(OptionalContentName)) return true;
+            return dictionary.Any(entry => !entry.Key.Equals(ParentName)
+                && UsesOptionalContent(entry.Value, depth + 1, scanContent: false));
+        }
+
+        static bool ContentUsesOptionalContent(PdfStream stream)
+        {
+            byte[] decoded = PdfStreamDecoder.Decode(stream, maximumContentBytes);
+            var tokenizer = new PdfTokenizer(decoded);
+            while (true)
+            {
+                PdfToken token = tokenizer.Read();
+                if (token.Kind == PdfTokenKind.EndOfInput) return false;
+                if (token.Kind == PdfTokenKind.Name
+                    && token.Value.Span.SequenceEqual("OC"u8)) return true;
+                if (token.Kind == PdfTokenKind.Keyword
+                    && token.Value.Span.SequenceEqual("BI"u8))
+                    tokenizer = SkipInlineImage(decoded, tokenizer);
+            }
+
+            static PdfTokenizer SkipInlineImage(byte[] content, PdfTokenizer tokenizer)
+            {
+                while (true)
+                {
+                    PdfToken token = tokenizer.Read();
+                    if (token.Kind == PdfTokenKind.EndOfInput)
+                        throw new InvalidOperationException(
+                            "An inline image dictionary has no ID operator.");
+                    if (token.Kind != PdfTokenKind.Keyword
+                        || !token.Value.Span.SequenceEqual("ID"u8)) continue;
+                    int dataStart = tokenizer.Position;
+                    if (dataStart >= content.Length || !IsContentWhitespace(content[dataStart]))
+                        throw new InvalidOperationException(
+                            "An inline image ID operator is not followed by whitespace.");
+                    for (int index = dataStart + 1; index + 1 < content.Length; index++)
+                    {
+                        if (content[index] != (byte)'E' || content[index + 1] != (byte)'I') continue;
+                        if (index == 0 || !IsContentWhitespace(content[index - 1])) continue;
+                        int after = index + 2;
+                        if (after < content.Length
+                            && !IsContentWhitespace(content[after])
+                            && !IsContentDelimiter(content[after])) continue;
+                        return new PdfTokenizer(content, after);
+                    }
+                    throw new InvalidOperationException("An inline image has no EI operator.");
+                }
+            }
+
+            static bool IsContentWhitespace(byte value) =>
+                value is 0 or 9 or 10 or 12 or 13 or 32;
+
+            static bool IsContentDelimiter(byte value) => value is
+                (byte)'(' or (byte)')' or (byte)'<' or (byte)'>' or
+                (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or
+                (byte)'/' or (byte)'%';
         }
     }
 

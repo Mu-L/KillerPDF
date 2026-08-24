@@ -1646,9 +1646,91 @@ if (args.Length == 3 && args[0] == "--pdfa-navigation-smoke")
     return 0;
 }
 
+if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
+{
+    string directory = Path.GetFullPath(args[1]);
+    int importMaximum = int.MaxValue;
+    if (args.Length == 4)
+    {
+        if (args[2] != "--max" || !int.TryParse(args[3], out importMaximum) || importMaximum <= 0)
+            throw new ArgumentException("Use --max followed by a positive integer.");
+    }
+    string[] importFiles = Directory.EnumerateFiles(directory, "*.pdf", SearchOption.AllDirectories)
+        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+        .Take(importMaximum)
+        .ToArray();
+    byte[] emptyTarget = new PdfDocumentBuilder().Build();
+    int imported = 0;
+    int unsupported = 0;
+    int empty = 0;
+    int malformed = 0;
+    int importFailed = 0;
+    foreach (string file in importFiles)
+    {
+        PdfDocument source;
+        try
+        {
+            source = PdfDocument.Open(File.ReadAllBytes(file));
+            if (new PdfIncrementalPageEditor(source).PageCount == 0)
+            {
+                empty++;
+                continue;
+            }
+        }
+        catch (Exception exception)
+        {
+            malformed++;
+            Console.WriteLine($"SOURCE {file}: {exception.GetType().Name}: {exception.Message}");
+            continue;
+        }
+        byte[] output;
+        try
+        {
+            output = new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
+                .AddImportedPage(source, 0)
+                .Build();
+        }
+        catch (NotSupportedException)
+        {
+            unsupported++;
+            continue;
+        }
+        catch (PdfSyntaxException exception)
+        {
+            malformed++;
+            Console.WriteLine($"SOURCE {file}: {exception.GetType().Name}: {exception.Message}");
+            continue;
+        }
+        catch (Exception exception)
+        {
+            importFailed++;
+            Console.WriteLine($"FAIL {file}: {exception.GetType().Name}: {exception.Message}");
+            continue;
+        }
+        try
+        {
+            PdfDocument reopened = PdfDocument.Open(output);
+            if (new PdfIncrementalPageEditor(reopened).PageCount != 1)
+                throw new InvalidDataException("The selected-page output does not contain exactly one page.");
+            imported++;
+        }
+        catch (Exception exception)
+        {
+            importFailed++;
+            Console.WriteLine($"FAIL {file}: {exception.GetType().Name}: {exception.Message}");
+        }
+    }
+    Console.WriteLine(
+        $"Selected-page corpus: {importFiles.Length:N0} files, {imported:N0} imported, " +
+        $"{unsupported:N0} intentionally unsupported, {empty:N0} empty, " +
+        $"{malformed:N0} malformed or credential-protected sources, {importFailed:N0} unexpected failures.");
+    return importFailed == 0 ? 0 : 1;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
     Console.WriteLine("Usage: KillerPdf.Engine.Corpus <directory> [--max <count>] [--structural|--incremental-structural]");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --selected-page-import-corpus <directory> [--max <count>]");
     Console.WriteLine("       KillerPdf.Engine.Corpus --authoring-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --tagged-import-smoke <output.pdf>");

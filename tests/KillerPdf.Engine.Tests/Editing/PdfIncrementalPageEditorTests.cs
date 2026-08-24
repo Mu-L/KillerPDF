@@ -460,6 +460,22 @@ public sealed class PdfIncrementalPageEditorTests
                 .AddImportedDocument(tagged)
                 .AddImportedDocument(tagged)
                 .Build());
+
+        PdfDocument mixed = PdfDocument.Open(BuildTaggedDocument());
+        (_, PdfIndirectReference[] mixedReferences, PdfDictionary[] mixedPages) = FlatPages(mixed);
+        var update = new PdfIncrementalUpdateBuilder(mixed);
+        update.ReplaceObject(mixedReferences[1].ObjectNumber, new PdfDictionary(
+            mixedPages[1].Where(entry => !entry.Key.Equals(Name("StructParents")))));
+        PdfDocument independentPageSource = PdfDocument.Open(update.Build());
+        PdfDocument independentPage = PdfDocument.Open(
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(independentPageSource, 1)
+                .Build());
+        PdfDictionary independentCatalog = ResolveDictionary(
+            independentPage, independentPage.Trailer[Name("Root")]);
+        Assert.False(independentCatalog.ContainsKey(Name("StructTreeRoot")));
+        Assert.False(independentCatalog.ContainsKey(Name("MarkInfo")));
+        Assert.False(FlatPages(independentPage).Pages[0].ContainsKey(Name("StructParents")));
     }
 
     [Fact]
@@ -908,6 +924,62 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<NotSupportedException>(() =>
             new PdfIncrementalPageEditor(empty)
                 .AddImportedDocument(layered).RemovePage(1).Build());
+
+        var mixedLayer = new PdfOptionalContentGroup("Mixed layer", initiallyVisible: true);
+        PdfDocument mixed = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder()
+                .BeginOptionalContent(mixedLayer)
+                .Rectangle(10, 10, 20, 20).Stroke()
+                .EndMarkedContent())
+            .AddPage(100, 100, new PdfContentStreamBuilder()
+                .BeginText().SetFont(PdfStandardFont.Helvetica, 10)
+                .MoveText(10, 50).ShowLatin1Text("literal /OC text").EndText())
+            .Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty).AddImportedPage(mixed, 0));
+        PdfDocument independent = PdfDocument.Open(
+            new PdfIncrementalPageEditor(empty).AddImportedPage(mixed, 1).Build());
+        Assert.False(ResolveDictionary(independent, independent.Trailer[Name("Root")])
+            .ContainsKey(Name("OCProperties")));
+        Assert.False(Assert.IsType<PdfDictionary>(FlatPages(independent).Pages[0][Name("Resources")])
+            .ContainsKey(Name("Properties")));
+        PdfDocument reducedMixed = PdfDocument.Open(
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(mixed).RemovePage(0).Build());
+        Assert.False(ResolveDictionary(reducedMixed, reducedMixed.Trailer[Name("Root")])
+            .ContainsKey(Name("OCProperties")));
+
+        (_, _, PdfDictionary[] mixedPages) = FlatPages(mixed);
+        PdfIndirectReference mixedContentReference = Assert.IsType<PdfIndirectReference>(
+            mixedPages[1][Name("Contents")]);
+        PdfStream mixedContent = ResolveStream(mixed, mixedContentReference);
+        var inlineUpdate = new PdfIncrementalUpdateBuilder(mixed);
+        inlineUpdate.ReplaceObject(mixedContentReference.ObjectNumber, new PdfStream(
+            new PdfDictionary(mixedContent.Dictionary.Where(entry =>
+                !entry.Key.Equals(Name("Length"))
+                && !entry.Key.Equals(Name("Filter"))
+                && !entry.Key.Equals(Name("DecodeParms")))),
+            "BI /W 2 /H 1 /BPC 8 /CS /RGB ID /OCabc EI\n"u8));
+        PdfDocument inlineImageSource = PdfDocument.Open(inlineUpdate.Build());
+        PdfDocument inlineImagePage = PdfDocument.Open(
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(inlineImageSource, 1).Build());
+        Assert.False(ResolveDictionary(
+                inlineImagePage, inlineImagePage.Trailer[Name("Root")])
+            .ContainsKey(Name("OCProperties")));
+
+        var nestedLayer = new PdfOptionalContentGroup("Nested layer");
+        var layeredForm = new PdfFormXObject(20, 20, new PdfContentStreamBuilder()
+            .BeginOptionalContent(nestedLayer)
+            .Rectangle(0, 0, 20, 20).Fill()
+            .EndMarkedContent());
+        PdfDocument nested = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddPage(100, 100, new PdfContentStreamBuilder()
+                .DrawForm(layeredForm, 10, 10))
+            .Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty).AddImportedPage(nested, 0));
+
         PdfDocument occupiedMerge = PdfDocument.Open(
             new PdfIncrementalPageEditor(occupied)
                 .AddImportedDocument(layered).Build());
@@ -1010,7 +1082,8 @@ public sealed class PdfIncrementalPageEditorTests
         PdfDocument linkedPages = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage().AddBlankPage().AddPageLink(0, 0, 0, 20, 20, 1).Build());
         PdfDocument formPage = PdfDocument.Open(new PdfDocumentBuilder()
-            .AddBlankPage().AddTextField(0, "name", 10, 10, 100, 20).Build());
+            .AddBlankPage().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20).Build());
         byte[] target = new PdfDocumentBuilder().Build();
 
         Assert.Throws<NotSupportedException>(() =>
@@ -1019,6 +1092,14 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<NotSupportedException>(() =>
             new PdfIncrementalPageEditor(PdfDocument.Open(target))
                 .AddImportedPage(formPage, 0));
+
+        PdfDocument ordinaryPage = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(target))
+                .AddImportedPage(formPage, 1)
+                .Build());
+        PdfDictionary ordinaryCatalog = ResolveDictionary(
+            ordinaryPage, ordinaryPage.Trailer[Name("Root")]);
+        Assert.False(ordinaryCatalog.ContainsKey(Name("AcroForm")));
     }
 
     [Fact]
@@ -1227,9 +1308,12 @@ public sealed class PdfIncrementalPageEditorTests
             combinedSources, combinedCatalog[Name("AcroForm")]);
         Assert.Equal(2, Assert.IsType<PdfArray>(combinedForm[Name("Fields")]).Count);
 
-        Assert.Throws<NotSupportedException>(() =>
+        PdfDocument ordinaryRemainder = PdfDocument.Open(
             new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
                 .AddImportedDocument(source).RemovePage(0).Build());
+        PdfDictionary remainderCatalog = ResolveDictionary(
+            ordinaryRemainder, ordinaryRemainder.Trailer[Name("Root")]);
+        Assert.False(remainderCatalog.ContainsKey(Name("AcroForm")));
 
         PdfDocument collision = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage().AddCheckBox(0, "target", 20, 20, 18, 18).Build());
@@ -1573,6 +1657,30 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void PartialPageImport_PreservesOnlyTheDestinationBookmarkTree()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddBookmark("Source bookmark", 1)
+            .Build());
+        byte[] target = new PdfDocumentBuilder()
+            .AddBlankPage().AddBookmark("Target bookmark", 0).Build();
+
+        byte[] importedBytes = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+            .AddImportedPage(source, 1)
+            .Build();
+        PdfDocument imported = PdfDocument.Open(importedBytes);
+        PdfDictionary catalog = ResolveDictionary(imported, imported.Trailer[Name("Root")]);
+        PdfDictionary outlines = DictionaryValue(imported, catalog[Name("Outlines")]);
+        PdfDictionary first = ResolveDictionary(imported, outlines[Name("First")]);
+
+        Assert.Equal("Target bookmark",
+            DecodeUnicode(Assert.IsType<PdfString>(first[Name("Title")])));
+        Assert.Equal(-1, importedBytes.AsSpan().IndexOf("Source bookmark"u8));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(outlines[Name("Count")]).Value);
+    }
+
+    [Fact]
     public void Build_MergesBookmarkTreesFromTheTargetAndMultipleSources()
     {
         byte[] target = new PdfDocumentBuilder()
@@ -1698,10 +1806,20 @@ public sealed class PdfIncrementalPageEditorTests
             .Select(index => DecodeUnicode(Assert.IsType<PdfString>(fileNames[index * 2]))));
         Assert.Equal(2, associatedFiles.Count);
         Assert.Equal("source payload"u8.ToArray(), importedPayload.EncodedData.ToArray());
-        Assert.Throws<NotSupportedException>(() =>
-            new PdfIncrementalPageEditor(PdfDocument.Open(target))
-                .AddImportedPage(source, 0)
-                .Build());
+        byte[] partialBytes = new PdfIncrementalPageEditor(PdfDocument.Open(target))
+            .AddImportedPage(source, 0)
+            .Build();
+        PdfDocument partial = PdfDocument.Open(partialBytes);
+        PdfDictionary partialCatalog = ResolveDictionary(
+            partial, partial.Trailer[Name("Root")]);
+        PdfDictionary partialNames = DictionaryValue(
+            partial, partialCatalog[Name("Names")]);
+        PdfArray partialFiles = Assert.IsType<PdfArray>(DictionaryValue(
+            partial, partialNames[Name("EmbeddedFiles")])[Name("Names")]);
+        Assert.Equal(-1, partialBytes.AsSpan().IndexOf("source payload"u8));
+        Assert.Equal(["target.txt"], Enumerable.Range(0, partialFiles.Count / 2)
+            .Select(index => DecodeUnicode(Assert.IsType<PdfString>(partialFiles[index * 2]))));
+        Assert.Single(Assert.IsType<PdfArray>(partialCatalog[Name("AF")]));
 
         PdfDocument collision = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage().AddAttachment("target.txt", ReadOnlyMemory<byte>.Empty).Build());
@@ -1717,6 +1835,39 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Equal(["target.txt", "target.txt (2)"],
             Enumerable.Range(0, collisionFiles.Count / 2).Select(index =>
                 DecodeUnicode(Assert.IsType<PdfString>(collisionFiles[index * 2]))));
+    }
+
+    [Fact]
+    public void PartialPageImport_PreservesLocalFileAttachmentWithoutGlobalRegistration()
+    {
+        byte[] payload = "selected attachment payload"u8.ToArray();
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddAttachment("selected.txt", payload, "text/plain")
+            .AddFileAttachmentAnnotation(0, 20, 20, 24, "selected.txt")
+            .Build());
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        byte[] importedBytes = new PdfIncrementalPageEditor(target)
+            .AddImportedPage(source, 0)
+            .Build();
+        PdfDocument imported = PdfDocument.Open(importedBytes);
+        (_, _, PdfDictionary[] pages) = FlatPages(imported);
+        PdfDictionary annotation = ResolveDictionary(imported,
+            Assert.IsType<PdfArray>(pages[0][Name("Annots")])[0]);
+        PdfDictionary file = ResolveDictionary(imported, annotation[Name("FS")]);
+        PdfDictionary streams = DictionaryValue(imported, file[Name("EF")]);
+        PdfStream embedded = ResolveStream(imported, streams[Name("UF")]);
+        PdfDictionary catalog = ResolveDictionary(imported, imported.Trailer[Name("Root")]);
+
+        Assert.Equal(payload, embedded.EncodedData.ToArray());
+        Assert.False(catalog.ContainsKey(Name("Names")));
+        Assert.False(catalog.ContainsKey(Name("AF")));
+
+        byte[] unrelatedPage = new PdfIncrementalPageEditor(target)
+            .AddImportedPage(source, 1)
+            .Build();
+        Assert.Equal(-1, unrelatedPage.AsSpan().IndexOf(payload));
     }
 
     [Fact]
@@ -1740,8 +1891,17 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Equal(["source script", "target script"],
             Enumerable.Range(0, values.Count / 2).Select(index => DecodeUnicode(
                 Assert.IsType<PdfString>(Resolved(merged, values[index * 2 + 1])))));
-        Assert.Throws<NotSupportedException>(() => new PdfIncrementalPageEditor(target)
-            .AddImportedPage(source, 0).Build());
+        byte[] partialBytes = new PdfIncrementalPageEditor(target)
+            .AddImportedPage(source, 0).Build();
+        PdfDocument partial = PdfDocument.Open(partialBytes);
+        PdfDictionary partialCatalog = ResolveDictionary(
+            partial, partial.Trailer[Name("Root")]);
+        PdfDictionary partialNames = DictionaryValue(partial, partialCatalog[Name("Names")]);
+        PdfArray partialValues = Assert.IsType<PdfArray>(
+            DictionaryValue(partial, partialNames[Name("JavaScript")])[Name("Names")]);
+        Assert.Equal(["target"], Enumerable.Range(0, partialValues.Count / 2)
+            .Select(index => DecodeUnicode(Assert.IsType<PdfString>(partialValues[index * 2]))));
+        Assert.Equal(-1, partialBytes.AsSpan().IndexOf("source script"u8));
         PdfDocument collision = WithNameTree(
             new PdfDocumentBuilder().AddBlankPage().Build(),
             "JavaScript", "target", "other script");
@@ -1799,8 +1959,14 @@ public sealed class PdfIncrementalPageEditorTests
             merged, extensions[Name("ADBE")])[Name("ExtensionLevel")]).Value);
         Assert.Equal(8, Assert.IsType<PdfInteger>(DictionaryValue(
             merged, extensions[Name("ISO_")])[Name("ExtensionLevel")]).Value);
-        Assert.Throws<NotSupportedException>(() => new PdfIncrementalPageEditor(target)
+        PdfDocument partial = PdfDocument.Open(new PdfIncrementalPageEditor(target)
             .AddImportedPage(source, 0).Build());
+        PdfDictionary partialCatalog = ResolveDictionary(
+            partial, partial.Trailer[Name("Root")]);
+        PdfDictionary partialExtensions = DictionaryValue(
+            partial, partialCatalog[Name("Extensions")]);
+        Assert.True(partialExtensions.ContainsKey(Name("ADBE")));
+        Assert.False(partialExtensions.ContainsKey(Name("ISO_")));
         PdfDocument collision = WithExtension(
             new PdfDocumentBuilder().AddBlankPage().Build(), "ADBE", 9);
         Assert.Throws<NotSupportedException>(() => new PdfIncrementalPageEditor(target)
