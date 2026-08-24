@@ -73,6 +73,38 @@ public sealed class PdfCrossReferenceTableTests
             StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r")]
+    public void Read_AllowsLinearizedFirstPageSectionToPointForwardToMainSection(
+        string headerLineEnding)
+    {
+        var source = new StringBuilder($"%PDF-1.7{headerLineEnding}");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int firstPageOffset = source.Length;
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 /Prev 0000000000 >>\n");
+        int mainOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {mainOffset:0000000000}");
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00001 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{firstPageOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {source.Length:0000000000}");
+        source.Replace("/T 0000000000", $"/T {mainOffset:0000000000}");
+
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
+            Encoding.ASCII.GetBytes(source.ToString()));
+
+        Assert.Equal(2, table.Sections.Count);
+        Assert.Equal(firstPageOffset, table.Sections[0].Offset);
+        Assert.Equal(mainOffset, table.Sections[1].Offset);
+    }
+
     [Fact]
     public void Read_RejectsHybridStreamOffsetThatPointsForward()
     {
@@ -92,6 +124,39 @@ public sealed class PdfCrossReferenceTableTests
 
         Assert.Contains("/XRefStm must point to an earlier", error.Message,
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_AllowsLinearizedFirstPageTableToPointForwardToHybridStream()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj << /Linearized 1 /L 0000000000 /H [0 0] " +
+            "/O 1 /E 0000000000 /N 1 /T 0000000000 >> endobj\n");
+        int tableOffset = source.Length;
+        source.Append("xref\n0 3\n0000000000 65535 f\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("0000000000 00000 n\n");
+        source.Append("trailer\n<< /Size 3 /XRefStm 0000000000 >>\n");
+        int streamOffset = source.Length;
+        source.Replace("/XRefStm 0000000000", $"/XRefStm {streamOffset:0000000000}");
+        source.Replace("0000000000 00000 n\ntrailer",
+            $"{streamOffset:0000000000} 00000 n\ntrailer");
+        source.Append("2 0 obj << /Type /XRef /Size 2 /W [1 2 2] " +
+            "/Index [1 1] /Length 5 >> stream\n");
+        source.Append((char)1).Append((char)(objectOffset >> 8))
+            .Append((char)(objectOffset & 0xFF)).Append('\0').Append('\0');
+        source.Append("\nendstream endobj\n");
+        source.Append($"startxref\n{tableOffset}\n%%EOF\n");
+        source.Replace("/L 0000000000", $"/L {source.Length:0000000000}");
+        source.Replace("/E 0000000000", $"/E {source.Length:0000000000}");
+        source.Replace("/T 0000000000", $"/T {tableOffset:0000000000}");
+
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
+            Encoding.Latin1.GetBytes(source.ToString()));
+
+        Assert.Single(table.Sections);
+        Assert.Equal(objectOffset, table[1].Field1);
     }
 
     [Fact]

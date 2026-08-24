@@ -1,5 +1,6 @@
 using System.Collections;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Parsing;
 using KillerPdf.Engine.Syntax;
 
 namespace KillerPdf.Engine.CrossReference;
@@ -14,6 +15,13 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     private static readonly PdfName SizeName = new("Size"u8);
     private static readonly PdfName IdName = new("ID"u8);
     private static readonly PdfName EncryptName = new("Encrypt"u8);
+    private static readonly PdfName LinearizedName = new("Linearized"u8);
+    private static readonly PdfName LinearizedLengthName = new("L"u8);
+    private static readonly PdfName LinearizedHintsName = new("H"u8);
+    private static readonly PdfName LinearizedFirstPageName = new("O"u8);
+    private static readonly PdfName LinearizedEndName = new("E"u8);
+    private static readonly PdfName LinearizedPageCountName = new("N"u8);
+    private static readonly PdfName LinearizedXrefName = new("T"u8);
 
     private readonly Dictionary<int, PdfCrossReferenceEntry> _entries;
     private readonly IReadOnlyList<Revision> _revisions;
@@ -107,6 +115,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     {
         PdfHeader header = PdfHeader.Parse(source.Span);
         PdfStartXref startXref = PdfStartXref.Find(source.Span);
+        LinearizationInfo? linearization = ReadLinearizationInfo(source, header);
         var revisions = new List<Revision>();
         var visitedOffsets = new HashSet<long>();
         long? currentOffset = startXref.Offset;
@@ -119,7 +128,9 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                 throw new PdfSyntaxException("The cross-reference revision chain contains a cycle", (int)currentOffset.Value);
 
             PdfCrossReferenceSection primary = PdfCrossReferenceReader.ReadSection(source, currentOffset.Value);
-            if (primary.PreviousOffset > currentOffset.Value)
+            bool linearizedFirstPageSection = IsLinearizedFirstPageSection(
+                primary, linearization);
+            if (primary.PreviousOffset > currentOffset.Value && !linearizedFirstPageSection)
                 throw new PdfSyntaxException(
                     "Trailer /Prev must point to an earlier cross-reference section",
                     ClampOffset(primary.PreviousOffset.Value));
@@ -129,7 +140,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                 long hybridOffset = primary.HybridStreamOffset.Value;
                 if (!visitedOffsets.Add(hybridOffset))
                     throw new PdfSyntaxException("The hybrid cross-reference chain reuses an offset", (int)hybridOffset);
-                if (hybridOffset > currentOffset.Value)
+                if (hybridOffset > currentOffset.Value && !linearizedFirstPageSection)
                     throw new PdfSyntaxException(
                         "Trailer /XRefStm must point to an earlier cross-reference stream",
                         ClampOffset(hybridOffset));
@@ -146,8 +157,8 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
             currentOffset = primary.PreviousOffset;
         }
 
-        ValidateRevisionSizes(revisions, startXref.Offset);
-        ValidateRevisionGenerations(revisions, startXref.Offset);
+        ValidateRevisionSizes(revisions, startXref.Offset, linearization);
+        ValidateRevisionGenerations(revisions, startXref.Offset, linearization);
         ValidateStructuralStreamEntries(revisions, startXref.Offset);
         ValidatePermanentIdentifiers(revisions, startXref.Offset);
         ValidateEncryptionIntroduction(revisions, startXref.Offset);
@@ -166,7 +177,84 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         return new PdfCrossReferenceTable(header, startXref, revisions, entries);
     }
 
-    private static void ValidateRevisionSizes(IReadOnlyList<Revision> revisions, long offset)
+    private static LinearizationInfo? ReadLinearizationInfo(
+        ReadOnlyMemory<byte> source, PdfHeader header)
+    {
+        int lineEnd = source.Span[header.Offset..].IndexOfAny((byte)'\r', (byte)'\n');
+        if (lineEnd < 0)
+            return null;
+        int objectStart = header.Offset + lineEnd + 1;
+        try
+        {
+            PdfIndirectObject first = new PdfObjectParser(source, objectStart)
+                .ParseIndirectObject();
+            if (first.Offset >= PdfHeader.SearchLimit
+                || first.Value is not PdfDictionary dictionary
+                || !dictionary.TryGetValue(LinearizedName, out PdfObject marker)
+                || marker is not (PdfInteger { Value: 1 } or PdfReal { Value: 1 })
+                || !TryInteger(dictionary, LinearizedLengthName, out long length)
+                || !TryInteger(dictionary, LinearizedFirstPageName, out long firstPage)
+                || !TryInteger(dictionary, LinearizedEndName, out long end)
+                || !TryInteger(dictionary, LinearizedPageCountName, out long pageCount)
+                || !TryInteger(dictionary, LinearizedXrefName, out long mainXref)
+                || !dictionary.TryGetValue(LinearizedHintsName, out PdfObject hints)
+                || hints is not PdfArray hintArray
+                || hintArray.Count is not (2 or 4)
+                || hintArray.Any(item => item is not PdfInteger { Value: >= 0 })
+                || length <= 0 || length > source.Length
+                || firstPage <= 0 || pageCount <= 0
+                || end <= first.Offset || end > length
+                || mainXref <= 0 || mainXref >= length
+                || !ValidHintRanges(hintArray, length))
+                return null;
+            return new LinearizationInfo(end, length);
+        }
+        catch (Exception error) when (error is PdfSyntaxException
+            or FormatException or NotSupportedException or OverflowException)
+        {
+            return null;
+        }
+
+        static bool TryInteger(
+            PdfDictionary dictionary, PdfName name, out long value)
+        {
+            if (dictionary.TryGetValue(name, out PdfObject item)
+                && item is PdfInteger integer)
+            {
+                value = integer.Value;
+                return true;
+            }
+            value = 0;
+            return false;
+        }
+
+        static bool ValidHintRanges(PdfArray hints, long length)
+        {
+            for (int index = 0; index < hints.Count; index += 2)
+            {
+                long offset = ((PdfInteger)hints[index]).Value;
+                long count = ((PdfInteger)hints[index + 1]).Value;
+                if (offset > length || count > length - offset)
+                    return false;
+            }
+            return true;
+        }
+    }
+
+    private static bool IsLinearizedFirstPageSection(
+        PdfCrossReferenceSection section, LinearizationInfo? linearization) =>
+        linearization is { } info
+        && section.Offset < info.EndOffset
+        && ((section.PreviousOffset.HasValue
+                && section.PreviousOffset.Value > section.Offset
+                && section.PreviousOffset.Value < info.OriginalLength)
+            || (section.HybridStreamOffset.HasValue
+                && section.HybridStreamOffset.Value > section.Offset
+                && section.HybridStreamOffset.Value < info.EndOffset));
+
+    private static void ValidateRevisionSizes(
+        IReadOnlyList<Revision> revisions, long offset,
+        LinearizationInfo? linearization)
     {
         long previousSize = 0;
         for (int index = revisions.Count - 1; index >= 0; index--)
@@ -181,7 +269,8 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
             {
                 long hybridSize = ((PdfInteger)
                     revision.Hybrid.Trailer[SizeName]).Value;
-                if (hybridSize != size)
+                if (hybridSize != size
+                    && !IsLinearizedFirstPageSection(revision.Primary, linearization))
                     throw new PdfSyntaxException(
                         "A hybrid cross-reference stream /Size must match its trailer /Size",
                         ClampOffset(revision.Hybrid.Offset));
@@ -191,7 +280,8 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     }
 
     private static void ValidateRevisionGenerations(
-        IReadOnlyList<Revision> revisions, long offset)
+        IReadOnlyList<Revision> revisions, long offset,
+        LinearizationInfo? linearization)
     {
         var states = new Dictionary<int, (bool IsFree, int Generation)>();
         for (int index = revisions.Count - 1; index >= 0; index--)
@@ -216,7 +306,8 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                     continue;
                 }
                 bool isFree = entry.Type == PdfCrossReferenceEntryType.Free;
-                if (states.TryGetValue(entry.ObjectNumber, out var previous))
+                if (states.TryGetValue(entry.ObjectNumber, out var previous)
+                    && !IsLinearizedFirstPageSection(revision.Primary, linearization))
                 {
                     int requiredGeneration = !previous.IsFree && isFree
                         ? Math.Min(previous.Generation + 1, 65_535)
@@ -372,6 +463,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     private sealed record Revision(
         PdfCrossReferenceSection Primary,
         PdfCrossReferenceSection? Hybrid);
+    private readonly record struct LinearizationInfo(long EndOffset, long OriginalLength);
 
     private static int ClampOffset(long offset) => offset switch
     {

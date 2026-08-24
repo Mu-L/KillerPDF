@@ -50,14 +50,17 @@ public static class PdfStreamDecoder
         for (int i = 0; i < filters.Count; i++)
         {
             string filter = filters[i].ValueAsLatin1();
+            int filterLimit = filter is "FlateDecode" or "Fl" or "LZWDecode" or "LZW"
+                ? PredictorEncodedLimit(parameters[i], resolve, maximumDecodedBytes)
+                : maximumDecodedBytes;
             current = filter switch
             {
-                "FlateDecode" or "Fl" => DecodeFlate(current, maximumDecodedBytes),
+                "FlateDecode" or "Fl" => DecodeFlate(current, filterLimit),
                 "ASCIIHexDecode" or "AHx" => DecodeAsciiHex(current, maximumDecodedBytes),
                 "ASCII85Decode" or "A85" => DecodeAscii85(current, maximumDecodedBytes),
                 "RunLengthDecode" or "RL" => DecodeRunLength(current, maximumDecodedBytes),
                 "LZWDecode" or "LZW" => DecodeLzw(
-                    current, parameters[i], resolve, maximumDecodedBytes),
+                    current, parameters[i], resolve, filterLimit),
                 "Crypt" => current,
                 _ => throw new PdfFilterException($"The PDF stream filter /{filter} is not supported yet.")
             };
@@ -65,13 +68,42 @@ public static class PdfStreamDecoder
             // /Crypt is intentionally a no-op here because decryption belongs to the
             // security handler. It must still obey the same expansion boundary as
             // every decoding filter, including when it is the only filter.
-            EnsureWithinLimit(current.Length, maximumDecodedBytes);
+            EnsureWithinLimit(current.Length, filterLimit);
             if (filter is "FlateDecode" or "Fl" or "LZWDecode" or "LZW")
                 current = ReversePredictor(
                     current, parameters[i], resolve, maximumDecodedBytes);
         }
 
         return current;
+    }
+
+    private static int PredictorEncodedLimit(
+        PdfDictionary? parameters,
+        Func<PdfIndirectReference, PdfObject>? resolve,
+        int maximumDecodedBytes)
+    {
+        if (parameters is null)
+            return maximumDecodedBytes;
+        int predictor = GetInteger(parameters, PredictorName, 1, resolve);
+        if (predictor is not (>= 10 and <= 15))
+            return maximumDecodedBytes;
+
+        int colors = GetPositiveInteger(parameters, ColorsName, 1, resolve);
+        int bitsPerComponent = GetPositiveInteger(
+            parameters, BitsPerComponentName, 8, resolve);
+        int columns = GetPositiveInteger(parameters, ColumnsName, 1, resolve);
+        if (bitsPerComponent is not (1 or 2 or 4 or 8 or 16))
+            throw new PdfFilterException("Predictor BitsPerComponent must be 1, 2, 4, 8, or 16.");
+        try
+        {
+            int rowLength = checked(columns * colors * bitsPerComponent + 7) / 8;
+            long rows = maximumDecodedBytes / rowLength;
+            return checked((int)(rows * checked(rowLength + 1L)));
+        }
+        catch (OverflowException ex)
+        {
+            throw new PdfFilterException("Predictor dimensions exceed the supported range.", ex);
+        }
     }
 
     private static byte[] DecodeAsciiHex(ReadOnlySpan<byte> encoded, int maximumDecodedBytes)

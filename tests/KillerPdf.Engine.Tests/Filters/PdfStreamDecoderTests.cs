@@ -9,6 +9,22 @@ namespace KillerPdf.Engine.Tests.Filters;
 public sealed class PdfStreamDecoderTests
 {
     [Fact]
+    public void Decode_AllowsBoundedPngPredictorRowBytesBeforeReconstruction()
+    {
+        byte[] predicted = [0, 1, 2, 3, 4, 0, 5, 6, 7, 8];
+        byte[] compressed = Compress(predicted);
+        var stream = new PdfStream(new PdfDictionary([
+            Pair("Filter", Name("FlateDecode")),
+            Pair("DecodeParms", new PdfDictionary([
+                Pair("Predictor", new PdfInteger(15)),
+                Pair("Columns", new PdfInteger(4))]))]), compressed);
+
+        byte[] decoded = PdfStreamDecoder.Decode(stream, maximumDecodedBytes: 8);
+
+        Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }, decoded);
+    }
+
+    [Fact]
     public void Decode_ReturnsUnfilteredBytes()
     {
         byte[] source = [0x00, 0xFF, 0x41];

@@ -15,7 +15,10 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Authoring and incremental page insertion enforce the shared one-million-page reader ceiling before mutating page state, preventing generated page trees that cannot be reopened.
 - Full rewrites retain canonical complete free lists within the cross-reference reader limit and switch to compact sparse table subsections or stream `/Index` ranges above it, preserving high-water allocation state without unbounded gap expansion.
 - Incremental writers reject revisions whose sparse cross-reference entry count would exceed the shared per-section reader ceiling before serializing the revision.
-- Revision-chain parsing rejects trailer `/Prev` and hybrid `/XRefStm` offsets that point forward in the file instead of to physically earlier cross-reference data.
+- Revision-chain parsing rejects trailer `/Prev` and hybrid `/XRefStm` offsets that point forward in ordinary files, while recognizing the legal forward links from a validated linearized first-page section to its main and hybrid cross-reference data.
+- Hybrid `/Size` equality remains mandatory for ordinary revisions, while a validated linearized first-page hybrid stream may declare the smaller object-number range that precedes its primary table.
+- Generation-transition checks treat a validated linearized first-page and main cross-reference pair as complementary indexes of one revision instead of misclassifying overlapping entries as an incremental generation change.
+- Bounded Flate and LZW decoding accounts for PNG predictor row selector bytes before reconstruction, so exact cross-reference row limits remain resistant to decompression expansion without rejecting legal predicted streams.
 - Final `startxref` declarations reject offsets at or after their own marker, requiring the final cross-reference target to precede the declaration physically.
 - Final `startxref` markers and offsets require PDF whitespace token boundaries, rejecting embedded marker substrings and concatenated offsets or end markers.
 - Revision-chain parsing requires trailer `/Size` to remain nondecreasing across incremental revisions and requires hybrid companion streams to agree with their primary trailer, preserving the document's object-number high-water mark.
