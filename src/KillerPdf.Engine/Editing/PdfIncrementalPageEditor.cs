@@ -132,7 +132,9 @@ public sealed class PdfIncrementalPageEditor
         int pageIndex, double width = 612, double height = 792)
     {
         ValidateInsertionIndex(pageIndex, nameof(pageIndex));
-        _pages.Insert(pageIndex, new PageState(Rectangle(0, 0, width, height)));
+        PdfArray mediaBox = Rectangle(0, 0, width, height);
+        EnsurePageCapacity(1);
+        _pages.Insert(pageIndex, new PageState(mediaBox));
         _orderChanged = true;
         return this;
     }
@@ -155,6 +157,7 @@ public sealed class PdfIncrementalPageEditor
         ValidateImportablePage(source, sourcePage,
             allowFormWidgets: sourceTree.Catalog.ContainsKey(AcroFormName),
             allowTaggedPage: sourceTree.Catalog.ContainsKey(StructTreeRootName));
+        EnsurePageCapacity(1);
         int batchId = _nextImportBatchId++;
         _pages.Insert(pageIndex,
             new PageState(source, sourceTree, sourcePage, wholeDocument: false, batchId));
@@ -200,6 +203,7 @@ public sealed class PdfIncrementalPageEditor
             selected.Add(sourcePage);
         }
         if (selected.Count == 0) return this;
+        EnsurePageCapacity(selected.Count);
         int batchId = _nextImportBatchId++;
         _pages.InsertRange(pageIndex, selected.Select(page =>
             new PageState(source, sourceTree, page, wholeDocument: false, batchId)));
@@ -225,6 +229,7 @@ public sealed class PdfIncrementalPageEditor
             ValidateImportablePage(source, page,
                 allowFormWidgets: hasAcroForm, allowTaggedPage: hasStructureTree);
         if (sourceTree.Pages.Count == 0) return this;
+        EnsurePageCapacity(sourceTree.Pages.Count);
         int batchId = _nextImportBatchId++;
         _pages.InsertRange(pageIndex,
             sourceTree.Pages.Select(page =>
@@ -910,6 +915,9 @@ public sealed class PdfIncrementalPageEditor
                 sourceEntries, group[0].ImportedDocument!, importers[group[0]]);
         }
         if (!importedAny) return;
+        if (combined.Count > PdfNameTree.MaximumEntryCount)
+            throw new NotSupportedException(
+                "The merged named-destination tree would contain too many entries.");
 
         combined.Sort((left, right) =>
             left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
@@ -1225,7 +1233,8 @@ public sealed class PdfIncrementalPageEditor
                 bool hasPartialName = false;
                 if (field.TryGetValue(FieldName, out PdfObject? fieldName))
                 {
-                    PdfString name = fieldName as PdfString
+                    PdfString name = ResolveCatalogValue(document, fieldName,
+                        "An AcroForm /T value") as PdfString
                         ?? throw new InvalidOperationException("An AcroForm /T value is not a string.");
                     path.Add(Convert.ToBase64String(name.Bytes.Span));
                     hasPartialName = true;
@@ -1492,6 +1501,9 @@ public sealed class PdfIncrementalPageEditor
                 previous = label;
                 continue;
             }
+            if (numbers.Count / 2 >= PdfNumberTree.MaximumEntryCount)
+                throw new NotSupportedException(
+                    "The rebuilt page-label number tree would contain too many entries.");
             var entries = new List<KeyValuePair<PdfName, PdfObject>>();
             if (label.Style is not null)
                 entries.Add(new KeyValuePair<PdfName, PdfObject>(StyleName, label.Style));
@@ -1681,6 +1693,9 @@ public sealed class PdfIncrementalPageEditor
                 left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
             if (files.Count > 0)
             {
+                if (files.Count > PdfNameTree.MaximumEntryCount)
+                    throw new NotSupportedException(
+                        "The merged embedded-files name tree would contain too many entries.");
                 var values = new List<PdfObject>(files.Count * 2);
                 foreach (PdfNameTreeEntry file in files)
                 {
@@ -1816,6 +1831,9 @@ public sealed class PdfIncrementalPageEditor
             }
             entries.Sort((left, right) =>
                 left.Key.Bytes.Span.SequenceCompareTo(right.Key.Bytes.Span));
+            if (entries.Count > PdfNameTree.MaximumEntryCount)
+                throw new NotSupportedException(
+                    $"The merged /Names /{category.ValueAsLatin1()} tree would contain too many entries.");
             var values = new List<PdfObject>(entries.Count * 2);
             foreach (PdfNameTreeEntry entry in entries)
             {
@@ -3286,7 +3304,10 @@ public sealed class PdfIncrementalPageEditor
                 }
             }
             if (isPartial)
-                sourceIds = sourceIds.Where(entry => entry.Value is PdfIndirectReference reference
+                sourceIds = sourceIds.Where(entry =>
+                    ResolveCatalogWithIdentity(source, entry.Value,
+                            "A selected source structure-tree IDTree value").FinalReference
+                        is PdfIndirectReference reference
                     && pruningPlan!.RetainedStructureObjects.Contains(
                         (reference.ObjectNumber, reference.Generation)))
                     .ToArray();
@@ -3388,6 +3409,12 @@ public sealed class PdfIncrementalPageEditor
             }
         }
 
+        if (parentEntries.Count > PdfNumberTree.MaximumEntryCount)
+            throw new NotSupportedException(
+                "The merged structure ParentTree would contain too many entries.");
+        if (idEntries.Count > PdfNameTree.MaximumEntryCount)
+            throw new NotSupportedException(
+                "The merged structure IDTree would contain too many entries.");
         var parentNumbers = new List<PdfObject>(parentEntries.Count * 2);
         foreach (PdfNumberTreeEntry entry in parentEntries.OrderBy(entry => entry.Key))
         {
@@ -3565,13 +3592,17 @@ public sealed class PdfIncrementalPageEditor
 
         PdfDictionary ResolveEffectiveDictionary(PdfObject value, string description)
         {
-            if (value is PdfIndirectReference reference
+            var resolved = ResolveCatalogWithIdentity(
+                _document, value, description);
+            if (resolved.FinalReference is PdfIndirectReference reference
                 && rewriteState is not null
                 && rewriteState.RewrittenObjects.TryGetValue(
                     (reference.ObjectNumber, reference.Generation),
                     out PdfDictionary? rewritten))
                 return rewritten;
-            return ResolveDictionary(_document, value, description);
+            return resolved.Value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} is not a dictionary or resolves to null.");
         }
 
         static IReadOnlyList<PdfObject> StructureKids(
@@ -4621,7 +4652,9 @@ public sealed class PdfIncrementalPageEditor
                 .Where(page => removedPages.Contains(
                     (page.Reference.ObjectNumber, page.Reference.Generation)))
                 .Select(page => page.Dictionary.TryGetValue(StructParentsName, out PdfObject? value)
-                    ? (value as PdfInteger)?.Value : null)
+                    && ResolveCatalogValue(document, value,
+                        "A removed page /StructParents value") is PdfInteger key
+                            ? (long?)key.Value : null)
                 .Where(value => value.HasValue).Select(value => value!.Value).ToHashSet();
             retainedParentEntries = PdfNumberTree.Read(
                 document, parentTreeValue).Where(entry => !removedKeys.Contains(entry.Key)).ToArray();
@@ -4845,7 +4878,7 @@ public sealed class PdfIncrementalPageEditor
                 "A source optional-content default configuration");
             ValidateOptionalContentConfiguration(source, sourceDefault,
                 "A source optional-content default configuration");
-            OptionalContentBaseState(sourceDefault);
+            OptionalContentBaseState(source, sourceDefault);
             OptionalContentReferenceSet(source, sourceDefault, "ON", registeredGroups);
             OptionalContentReferenceSet(source, sourceDefault, "OFF", registeredGroups);
             ValidateOptionalContentConfigurationCollections(
@@ -4859,7 +4892,7 @@ public sealed class PdfIncrementalPageEditor
                         "A source /OCProperties /Configs entry");
                     ValidateOptionalContentConfiguration(source, dictionary,
                         "A source /OCProperties /Configs entry");
-                    OptionalContentBaseState(dictionary);
+                    OptionalContentBaseState(source, dictionary);
                     ValidateOptionalContentConfigurationCollections(
                         source, dictionary, registeredGroups,
                         "A source /OCProperties /Configs entry");
@@ -4917,12 +4950,12 @@ public sealed class PdfIncrementalPageEditor
                 "The destination /OCProperties /Configs entry");
             ValidateOptionalContentConfiguration(_document, dictionary,
                 "The destination /OCProperties /Configs entry");
-            OptionalContentBaseState(dictionary);
+            OptionalContentBaseState(_document, dictionary);
             ValidateOptionalContentConfigurationCollections(
                 _document, dictionary, targetGroupReferences,
                 "The destination /OCProperties /Configs entry");
         }
-        string targetBaseState = OptionalContentBaseState(targetDefault);
+        string targetBaseState = OptionalContentBaseState(_document, targetDefault);
 
         foreach (PageState[] group in layeredGroups)
         {
@@ -4958,7 +4991,7 @@ public sealed class PdfIncrementalPageEditor
                 "A source optional-content default configuration");
             ValidateOptionalContentConfiguration(source, sourceDefault,
                 "A source optional-content default configuration");
-            string sourceBaseState = OptionalContentBaseState(sourceDefault);
+            string sourceBaseState = OptionalContentBaseState(source, sourceDefault);
             var sourceOn = OptionalContentReferenceSet(
                 source, sourceDefault, "ON", allSourceGroupReferences);
             var sourceOff = OptionalContentReferenceSet(
@@ -5004,7 +5037,7 @@ public sealed class PdfIncrementalPageEditor
                         configuration, "A source /OCProperties /Configs entry");
                     ValidateOptionalContentConfiguration(source, configurationDictionary,
                         "A source /OCProperties /Configs entry");
-                    OptionalContentBaseState(configurationDictionary);
+                    OptionalContentBaseState(source, configurationDictionary);
                     ValidateOptionalContentConfigurationCollections(
                         source, configurationDictionary, allSourceGroupReferences,
                         "A source /OCProperties /Configs entry",
@@ -5083,10 +5116,12 @@ public sealed class PdfIncrementalPageEditor
         else
             catalogReplacements[OptionalContentPropertiesName] = mergedProperties;
 
-        static string OptionalContentBaseState(PdfDictionary configuration)
+        static string OptionalContentBaseState(
+            PdfDocument document, PdfDictionary configuration)
         {
             string state = configuration.TryGetValue(Name("BaseState"), out PdfObject? value)
-                ? (value as PdfName)?.ValueAsLatin1()
+                ? (ResolveCatalogValue(document, value,
+                    "An optional-content /BaseState value") as PdfName)?.ValueAsLatin1()
                     ?? throw new InvalidOperationException("An optional-content /BaseState is not a name.")
                 : "ON";
             return state is "ON" or "OFF" or "Unchanged" ? state
@@ -5317,18 +5352,22 @@ public sealed class PdfIncrementalPageEditor
                 page.ImportedEntry.Reference.Generation)).ToHashSet();
         var sourcePages = group[0].ImportedTree!.Pages.Select(page =>
             (page.Reference.ObjectNumber, page.Reference.Generation)).ToHashSet();
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
         return TargetsRetainedPage(destination, 0);
 
         bool TargetsRetainedPage(PdfObject value, int depth)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException("A named destination is too deeply indirect.");
             if (value is PdfIndirectReference reference)
             {
                 var identity = (reference.ObjectNumber, reference.Generation);
                 if (sourcePages.Contains(identity))
                     return retainedPages.Contains(identity);
-                value = document.Resolve(reference);
+                if (!visited.Add(identity))
+                    throw new InvalidOperationException(
+                        "A named destination contains an indirect-reference cycle.");
+                return TargetsRetainedPage(document.Resolve(reference), depth + 1);
             }
             if (value is PdfArray array && array.Count > 0)
                 return TargetsRetainedPage(array[0], depth + 1);
@@ -5398,7 +5437,7 @@ public sealed class PdfIncrementalPageEditor
             var scalarVisited = new HashSet<(int ObjectNumber, int Generation)>();
             for (int depth = 0; value is PdfIndirectReference reference; depth++)
             {
-                if (depth > 32)
+                if (depth >= 32)
                     throw new InvalidOperationException(
                         "A named destination is too deeply indirect.");
                 if (!scalarVisited.Add((reference.ObjectNumber, reference.Generation)))
@@ -5489,7 +5528,7 @@ public sealed class PdfIncrementalPageEditor
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException(
                     $"A page-label {name} value is too deeply indirect.");
             if (!visited.Add((reference.ObjectNumber, reference.Generation)))
@@ -12781,6 +12820,14 @@ public sealed class PdfIncrementalPageEditor
     {
         if (pageIndex < 0 || pageIndex > _pages.Count)
             throw new ArgumentOutOfRangeException(parameterName);
+    }
+
+    private void EnsurePageCapacity(int additionalPages)
+    {
+        if (additionalPages < 0
+            || additionalPages > PdfPageTree.MaximumPageCount - _pages.Count)
+            throw new NotSupportedException(
+                "A PDF cannot contain more than 1,000,000 pages.");
     }
 
     private static void ValidateImportablePage(

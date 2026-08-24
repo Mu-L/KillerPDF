@@ -13,8 +13,14 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
         int markerOffset = source.LastIndexOf(Marker);
         if (markerOffset < 0)
             throw new PdfSyntaxException("The PDF does not contain a final startxref declaration", source.Length);
+        if (markerOffset > 0 && !IsWhitespace(source[markerOffset - 1]))
+            throw new PdfSyntaxException(
+                "The final startxref marker is not token-delimited", markerOffset);
 
         int position = markerOffset + Marker.Length;
+        if (position >= source.Length || !IsWhitespace(source[position]))
+            throw new PdfSyntaxException(
+                "The startxref marker is not followed by whitespace", position);
         SkipWhitespace(source, ref position);
         int numberOffset = position;
         long offset = 0;
@@ -35,7 +41,13 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
             throw new PdfSyntaxException("The startxref declaration does not contain a byte offset", numberOffset);
         if (offset >= source.Length)
             throw new PdfSyntaxException("The startxref offset points beyond the end of the file", numberOffset);
+        if (offset >= markerOffset)
+            throw new PdfSyntaxException(
+                "The startxref offset must point before its declaration", numberOffset);
 
+        if (position >= source.Length || !IsWhitespace(source[position]))
+            throw new PdfSyntaxException(
+                "The startxref offset is not followed by whitespace", position);
         SkipWhitespace(source, ref position);
         if (!source[position..].StartsWith(EndMarker))
             throw new PdfSyntaxException("The startxref declaration is not followed by %%EOF", position);
@@ -49,7 +61,10 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
 
     private static void SkipWhitespace(ReadOnlySpan<byte> source, ref int position)
     {
-        while (position < source.Length && source[position] is 0x00 or 0x09 or 0x0A or 0x0C or 0x0D or 0x20)
+        while (position < source.Length && IsWhitespace(source[position]))
             position++;
     }
+
+    private static bool IsWhitespace(byte value) =>
+        value is 0x00 or 0x09 or 0x0A or 0x0C or 0x0D or 0x20;
 }

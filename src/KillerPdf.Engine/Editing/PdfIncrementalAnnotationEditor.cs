@@ -337,6 +337,9 @@ public sealed class PdfIncrementalAnnotationEditor
         foreach (PdfNumberTreeEntry entry in existingEntries)
             ValidateParentTreeValue(entry.Value,
                 $"The structure-tree ParentTree value for key {entry.Key}");
+        if (annotations.Count > PdfNumberTree.MaximumEntryCount - existingEntries.Count)
+            throw new NotSupportedException(
+                "The structure-tree ParentTree would contain too many entries.");
         long nextKey = root.TryGetValue(ParentTreeNextKeyName, out PdfObject? nextValue)
             ? (ResolveValue(nextValue,
                     "The structure-tree /ParentTreeNextKey value") as PdfInteger)?.Value

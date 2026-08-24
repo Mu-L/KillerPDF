@@ -56,7 +56,8 @@ public sealed class PdfCrossReferenceReaderTests
             1, 0, 10, 0, 0,   // in use: byte offset 10, generation 0
             2, 0, 7, 0, 3     // compressed: object stream 7, index 3
         ];
-        byte[] source = XrefStream(rows, "<< /Type /XRef /Size 3 /W [1 2 2] /Length 15 >>");
+        byte[] source = XrefStream(rows,
+            "<< /Type /XRef /Size 8 /W [1 2 2] /Index [0 3] /Length 15 >>");
 
         PdfCrossReferenceSection section = PdfCrossReferenceReader.ReadSection(source, 0);
 
@@ -125,6 +126,24 @@ public sealed class PdfCrossReferenceReaderTests
             error.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void ReadSection_RejectsImpossibleCompressedObjectStreamReferences(
+        int objectStreamNumber)
+    {
+        byte[] source = XrefStream(
+            [2, (byte)objectStreamNumber, 0],
+            "<< /Type /XRef /Size 3 /W [1 1 1] /Index [1 1] /Length 3 >>");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceReader.ReadSection(source, 0));
+
+        Assert.Contains("invalid object-stream field", error.Message,
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ReadSection_RejectsNonzeroCrossReferenceStreamGeneration()
     {
@@ -143,9 +162,11 @@ public sealed class PdfCrossReferenceReaderTests
     [Theory]
     [InlineData("xref\n0 1\n0000009999 00000 n\ntrailer\n<< /Size 1 >>")]
     [InlineData("xref\n0 1\n0000000000 70000 f\ntrailer\n<< /Size 1 >>")]
+    [InlineData("xref\n1 1\n0000000000 65535 n\ntrailer\n<< /Size 2 >>")]
     [InlineData("xref\n0 1\n0000000000 65535 z\ntrailer\n<< /Size 1 >>")]
     [InlineData("xref\n0 1\n0000000000 65535 f\ntrailer\n<< /Size 0 >>")]
     [InlineData("xref\n0 1\n0000000002 65535 f\ntrailer\n<< /Size 1 >>")]
+    [InlineData("xref\n2 1\n0000000000 00000 f\ntrailer\n<< /Size 1 >>")]
     public void ReadSection_RejectsMalformedClassicTables(string source)
     {
         Assert.Throws<PdfSyntaxException>(() =>
@@ -161,6 +182,20 @@ public sealed class PdfCrossReferenceReaderTests
             PdfCrossReferenceReader.ReadSection(Encoding.ASCII.GetBytes(source), 0));
 
         Assert.Contains("cannot contain more than", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadSection_RejectsRetiredGenerationInUseInCrossReferenceStream()
+    {
+        byte[] source = XrefStream(
+            [1, 0, 0, 255, 255],
+            "<< /Type /XRef /Size 10 /W [1 2 2] /Index [9 1] /Length 5 >>");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceReader.ReadSection(source, 0));
+
+        Assert.Contains("invalid offset or generation", error.Message,
+            StringComparison.Ordinal);
     }
 
     [Theory]
@@ -181,7 +216,8 @@ public sealed class PdfCrossReferenceReaderTests
     public void ReadSection_RejectsOversizedCrossReferenceStreamIndexBeforeDecodingRows()
     {
         int count = PdfCrossReferenceReader.MaximumEntriesPerSection + 1;
-        byte[] source = XrefStream([], $"<< /Type /XRef /Size {count} /W [1 0 0] /Length 0 >>");
+        byte[] source = XrefStream([], $"<< /Type /XRef /Size {count} /W [1 0 0] " +
+            "/Filter /Unsupported /Length 0 >>");
 
         PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
             PdfCrossReferenceReader.ReadSection(source, 0));

@@ -6682,12 +6682,15 @@ public sealed class PdfIncrementalPageEditorTests
             var update = new PdfIncrementalUpdateBuilder(document);
             PdfObject structureId = indirect
                 ? update.AddObject(update.AddObject(id)) : id;
+            PdfObject idTreeFigure = indirect
+                ? update.AddObject(update.AddObject(figureReference))
+                : figureReference;
             update.ReplaceObject(figureReference.ObjectNumber, new PdfDictionary(figure.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("ID"), structureId))));
             update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("IDTree"),
                     new PdfDictionary([new(Name("Names"),
-                        new PdfArray([id, figureReference]))])))));
+                        new PdfArray([id, idTreeFigure]))])))));
             return PdfDocument.Open(update.Build());
         }
     }
@@ -6868,6 +6871,19 @@ public sealed class PdfIncrementalPageEditorTests
         PdfDictionary firstFigure = ResolveDictionary(authored, firstFigureReference);
         PdfInteger markedContentId = Assert.IsType<PdfInteger>(firstFigure[Name("K")]);
         PdfIndirectReference firstPageReference = FlatPages(authored).References[0];
+        PdfDictionary firstPage = ResolveDictionary(authored, firstPageReference);
+        PdfInteger structureParentKey = Assert.IsType<PdfInteger>(
+            firstPage[Name("StructParents")]);
+        PdfIndirectReference structureParentAlias =
+            aliasUpdate.AddObject(structureParentKey);
+        PdfIndirectReference structureParentOuterAlias =
+            aliasUpdate.AddObject(structureParentAlias);
+        aliasUpdate.ReplaceObject(firstPageReference.ObjectNumber,
+            new PdfDictionary(firstPage.Select(entry =>
+                entry.Key.Equals(Name("StructParents"))
+                    ? new KeyValuePair<PdfName, PdfObject>(
+                        entry.Key, structureParentOuterAlias)
+                    : entry)));
         PdfIndirectReference markedContentTypeAlias = aliasUpdate.AddObject(Name("MCR"));
         PdfIndirectReference markedContentTypeOuterAlias =
             aliasUpdate.AddObject(markedContentTypeAlias);
@@ -6946,6 +6962,25 @@ public sealed class PdfIncrementalPageEditorTests
     {
         PdfDocument target = PdfDocument.Open(BuildTaggedDocument());
         PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
+        PdfDictionary targetCatalog = ResolveDictionary(
+            target, target.Trailer[Name("Root")]);
+        PdfIndirectReference targetRootReference = Assert.IsType<PdfIndirectReference>(
+            targetCatalog[Name("StructTreeRoot")]);
+        PdfDictionary targetRoot = ResolveDictionary(target, targetRootReference);
+        PdfIndirectReference targetDocumentReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(targetRoot[Name("K")])[0]);
+        var aliasUpdate = new PdfIncrementalUpdateBuilder(target);
+        PdfIndirectReference targetDocumentAlias =
+            aliasUpdate.AddObject(targetDocumentReference);
+        PdfIndirectReference targetDocumentOuterAlias =
+            aliasUpdate.AddObject(targetDocumentAlias);
+        aliasUpdate.ReplaceObject(targetRootReference.ObjectNumber,
+            new PdfDictionary(targetRoot.Select(entry =>
+                entry.Key.Equals(Name("K"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key,
+                        new PdfArray([targetDocumentOuterAlias]))
+                    : entry)));
+        target = PdfDocument.Open(aliasUpdate.Build());
         int removedPageNumber = FlatPages(target).References[0].ObjectNumber;
 
         PdfDocument merged = PdfDocument.Open(new PdfIncrementalPageEditor(target)
@@ -6961,6 +6996,9 @@ public sealed class PdfIncrementalPageEditorTests
 
         Assert.Equal(3, pages.Length);
         Assert.Equal(3, documentKids.Count);
+        Assert.Equal(targetDocumentOuterAlias.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfArray>(root[Name("K")])[0]).ObjectNumber);
         Assert.Equal([1L, 2L, 3L], Enumerable.Range(0, numbers.Count / 2)
             .Select(index => Assert.IsType<PdfInteger>(numbers[index * 2]).Value));
         AssertStructureTreeDoesNotReferencePage(merged, root, removedPageNumber);
@@ -7216,8 +7254,12 @@ public sealed class PdfIncrementalPageEditorTests
         PdfStream nestedFormStream = ResolveStream(nested, nestedFormReference);
         PdfDictionary nestedCatalog = ResolveDictionary(
             nested, nested.Trailer[Name("Root")]);
+        PdfIndirectReference nestedCatalogReference = Assert.IsType<PdfIndirectReference>(
+            nested.Trailer[Name("Root")]);
         PdfDictionary nestedProperties = DictionaryValue(
             nested, nestedCatalog[Name("OCProperties")]);
+        PdfDictionary nestedDefault = Assert.IsType<PdfDictionary>(
+            nestedProperties[Name("D")]);
         PdfIndirectReference nestedGroupReference = Assert.IsType<PdfIndirectReference>(
             Assert.Single(Assert.IsType<PdfArray>(nestedProperties[Name("OCGs")])));
         PdfDictionary nestedGroup = ResolveDictionary(nested, nestedGroupReference);
@@ -7229,6 +7271,8 @@ public sealed class PdfIncrementalPageEditorTests
         PdfIndirectReference groupName = nestedAliasUpdate.AddObject(
             new PdfString("Nested layer"u8, PdfStringForm.Literal));
         PdfIndirectReference groupNameAlias = nestedAliasUpdate.AddObject(groupName);
+        PdfIndirectReference baseState = nestedAliasUpdate.AddObject(Name("ON"));
+        PdfIndirectReference baseStateAlias = nestedAliasUpdate.AddObject(baseState);
         nestedAliasUpdate.ReplaceObject(nestedFormReference.ObjectNumber,
             new PdfStream(new PdfDictionary(nestedFormStream.Dictionary.Select(entry =>
                 entry.Key.Equals(Name("Subtype"))
@@ -7241,6 +7285,20 @@ public sealed class PdfIncrementalPageEditorTests
                     : entry.Key.Equals(Name("Name"))
                         ? new KeyValuePair<PdfName, PdfObject>(entry.Key, groupNameAlias)
                         : entry)));
+        PdfDictionary aliasedProperties = new(nestedProperties.Select(entry =>
+            entry.Key.Equals(Name("D"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key,
+                    new PdfDictionary(nestedDefault.Select(defaultEntry =>
+                        defaultEntry.Key.Equals(Name("BaseState"))
+                            ? new KeyValuePair<PdfName, PdfObject>(
+                                defaultEntry.Key, baseStateAlias)
+                            : defaultEntry)))
+                : entry));
+        nestedAliasUpdate.ReplaceObject(nestedCatalogReference.ObjectNumber,
+            new PdfDictionary(nestedCatalog.Select(entry =>
+                entry.Key.Equals(Name("OCProperties"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, aliasedProperties)
+                    : entry)));
         nested = PdfDocument.Open(nestedAliasUpdate.Build());
         PdfDocument selectedNestedLayer = PdfDocument.Open(
             new PdfIncrementalPageEditor(empty).AddImportedPage(nested, 0).Build());
@@ -8722,6 +8780,24 @@ public sealed class PdfIncrementalPageEditorTests
     {
         PdfDocument hierarchical = PdfDocument.Open(
             BuildHierarchicalAcroFormDocument("customer", 1, 1));
+        PdfDictionary aliasedCatalog = ResolveDictionary(
+            hierarchical, hierarchical.Trailer[Name("Root")]);
+        PdfDictionary aliasedForm = DictionaryValue(
+            hierarchical, aliasedCatalog[Name("AcroForm")]);
+        PdfIndirectReference aliasedParentReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(aliasedForm[Name("Fields")])));
+        PdfDictionary aliasedParent = ResolveDictionary(
+            hierarchical, aliasedParentReference);
+        PdfString aliasedParentName = Assert.IsType<PdfString>(aliasedParent[Name("T")]);
+        var fieldNameUpdate = new PdfIncrementalUpdateBuilder(hierarchical);
+        PdfIndirectReference parentNameAlias = fieldNameUpdate.AddObject(aliasedParentName);
+        PdfIndirectReference parentNameOuterAlias = fieldNameUpdate.AddObject(parentNameAlias);
+        fieldNameUpdate.ReplaceObject(aliasedParentReference.ObjectNumber,
+            new PdfDictionary(aliasedParent.Select(entry =>
+                entry.Key.Equals(Name("T"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, parentNameOuterAlias)
+                    : entry)));
+        hierarchical = PdfDocument.Open(fieldNameUpdate.Build());
         PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
         PdfDocument selectedHierarchy = PdfDocument.Open(
             new PdfIncrementalPageEditor(empty)
@@ -9278,6 +9354,36 @@ public sealed class PdfIncrementalPageEditorTests
             .AddNamedDestination("retained", 0)
             .AddNamedDestinationLink(0, 10, 10, 50, 20, "retained")
             .Build());
+        PdfIndirectReference retainedCatalogReference = Assert.IsType<PdfIndirectReference>(
+            retainedDestination.Trailer[Name("Root")]);
+        PdfDictionary retainedCatalog = ResolveDictionary(
+            retainedDestination, retainedCatalogReference);
+        PdfDictionary retainedNames = DictionaryValue(
+            retainedDestination, retainedCatalog[Name("Names")]);
+        PdfDictionary retainedDestinations = DictionaryValue(
+            retainedDestination, retainedNames[Name("Dests")]);
+        PdfArray retainedEntries = Assert.IsType<PdfArray>(
+            retainedDestinations[Name("Names")]);
+        PdfArray retainedValue = Assert.IsType<PdfArray>(retainedEntries[1]);
+        var retainedUpdate = new PdfIncrementalUpdateBuilder(retainedDestination);
+        PdfIndirectReference pageAlias = retainedUpdate.AddObject(retainedValue[0]);
+        PdfIndirectReference pageOuterAlias = retainedUpdate.AddObject(pageAlias);
+        var aliasedValue = new PdfArray([pageOuterAlias, .. retainedValue.Skip(1)]);
+        var aliasedEntries = new PdfArray([retainedEntries[0], aliasedValue]);
+        var aliasedDestinations = new PdfDictionary(retainedDestinations.Select(entry =>
+            entry.Key.Equals(Name("Names"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, aliasedEntries)
+                : entry));
+        var aliasedNames = new PdfDictionary(retainedNames.Select(entry =>
+            entry.Key.Equals(Name("Dests"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, aliasedDestinations)
+                : entry));
+        retainedUpdate.ReplaceObject(retainedCatalogReference.ObjectNumber,
+            new PdfDictionary(retainedCatalog.Select(entry =>
+                entry.Key.Equals(Name("Names"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, aliasedNames)
+                    : entry)));
+        retainedDestination = PdfDocument.Open(retainedUpdate.Build());
         PdfDocument split = PdfDocument.Open(
             new PdfIncrementalPageEditor(PdfDocument.Open(emptyTarget))
                 .AddImportedPage(retainedDestination, 0)
@@ -9285,7 +9391,20 @@ public sealed class PdfIncrementalPageEditorTests
         PdfDictionary splitCatalog = ResolveDictionary(split, split.Trailer[Name("Root")]);
         PdfDictionary splitNames = DictionaryValue(split, splitCatalog[Name("Names")]);
         PdfDictionary splitDestinations = DictionaryValue(split, splitNames[Name("Dests")]);
-        Assert.Equal(2, Assert.IsType<PdfArray>(splitDestinations[Name("Names")]).Count);
+        PdfArray splitEntries = Assert.IsType<PdfArray>(splitDestinations[Name("Names")]);
+        PdfArray splitValue = Assert.IsType<PdfArray>(splitEntries[1]);
+        PdfIndirectReference splitPage = FlatPages(split).References[0];
+        PdfObject splitTarget = splitValue[0];
+        PdfIndirectReference? finalSplitTarget = null;
+        while (splitTarget is PdfIndirectReference targetReference)
+        {
+            finalSplitTarget = targetReference;
+            splitTarget = split.Resolve(targetReference);
+        }
+        Assert.Equal(2, splitEntries.Count);
+        Assert.NotNull(finalSplitTarget);
+        Assert.Equal(splitPage.ObjectNumber, finalSplitTarget.ObjectNumber);
+        Assert.Equal(splitPage.Generation, finalSplitTarget.Generation);
     }
 
     [Fact]

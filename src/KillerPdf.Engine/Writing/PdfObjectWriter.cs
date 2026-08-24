@@ -45,6 +45,9 @@ public static class PdfObjectWriter
         if (value.ObjectNumber == 0)
             throw new InvalidOperationException(
                 "PDF object number zero is reserved and cannot be written as an indirect object.");
+        if (value.Generation == 65_535)
+            throw new InvalidOperationException(
+                "PDF generation 65,535 is retired and cannot be written as an indirect object.");
 
         WriteAscii(destination, value.ObjectNumber.ToString(CultureInfo.InvariantCulture));
         destination.WriteByte((byte)' ');

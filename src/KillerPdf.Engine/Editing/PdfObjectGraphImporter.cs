@@ -118,7 +118,7 @@ internal sealed class PdfObjectGraphImporter
         var visited = new HashSet<SourceReference>();
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException(
                     "An imported scalar is too deeply indirect.");
             var identity = new SourceReference(reference.ObjectNumber, reference.Generation);

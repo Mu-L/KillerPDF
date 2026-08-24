@@ -200,6 +200,13 @@ public sealed class PdfIncrementalUpdateBuilder
         var packedNumbers = packed.Select(item => item.ObjectNumber).ToHashSet();
         List<PendingObject[]> chunks = packed.Chunk(MaximumObjectsPerObjectStream)
             .Select(chunk => chunk.ToArray()).ToList();
+        long crossReferenceEntryCount = options.CrossReferenceFormat
+            == PdfCrossReferenceFormat.Stream
+                ? (long)_objects.Count + chunks.Count + _freed.Count + 2
+                : (long)_objects.Count + _freed.Count + 1;
+        if (crossReferenceEntryCount > PdfCrossReferenceReader.MaximumEntriesPerSection)
+            throw new NotSupportedException(
+                "The incremental cross-reference section would contain too many entries.");
         if (_nextObjectNumber > int.MaxValue - chunks.Count - 1)
             throw new NotSupportedException(
                 "The PDF object-number range has no room for incremental structural streams.");
@@ -721,7 +728,7 @@ public sealed class PdfIncrementalUpdateBuilder
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw new InvalidOperationException(
                     $"{description} is too deeply indirect.");
             if (!visited.Add((reference.ObjectNumber, reference.Generation)))

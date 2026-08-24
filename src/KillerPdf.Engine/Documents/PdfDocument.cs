@@ -200,7 +200,7 @@ public sealed class PdfDocument
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
         for (int depth = 0; value is PdfIndirectReference current; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw Error(
                     $"Stream Length reference {reference.ObjectNumber} {reference.Generation} is too deeply indirect",
                     0);
@@ -239,6 +239,8 @@ public sealed class PdfDocument
         if (!CrossReferences.TryGetValue(streamNumber, out PdfCrossReferenceEntry entry)
             || entry.Type != PdfCrossReferenceEntryType.InUse)
             throw Error($"Object stream {streamNumber} is not an uncompressed in-use object", streamNumber);
+        if (entry.Field2 != 0)
+            throw Error($"Object stream {streamNumber} must have generation 0", EntryOffset(entry));
 
         PdfObject resolved = ResolveEntry(entry);
         if (resolved is not PdfStream stream)
@@ -256,6 +258,8 @@ public sealed class PdfDocument
             throw Error("Object stream /First points beyond the decoded stream", EntryOffset(entry));
 
         List<ObjectHeader> headers = ReadObjectHeaders(decoded, objectCount, firstObjectOffset, EntryOffset(entry));
+        HashSet<(int ObjectNumber, int Index)> registeredHeaders =
+            CrossReferences.RegisteredHeadersForCurrentObjectStream(streamNumber);
         var items = new List<ObjectStreamItem>(objectCount);
         var objectNumbers = new HashSet<int>();
         for (int index = 0; index < headers.Count; index++)
@@ -263,14 +267,29 @@ public sealed class PdfDocument
             ObjectHeader header = headers[index];
             if (!objectNumbers.Add(header.ObjectNumber))
                 throw Error($"Object stream contains object {header.ObjectNumber} more than once", EntryOffset(entry));
+            if (header.ObjectNumber == streamNumber)
+                throw Error(
+                    $"Object stream {streamNumber} cannot contain itself",
+                    EntryOffset(entry));
             if (!CrossReferences.TryGetValue(header.ObjectNumber,
-                    out PdfCrossReferenceEntry compressedEntry)
-                || compressedEntry.Type != PdfCrossReferenceEntryType.Compressed
-                || compressedEntry.Field1 != streamNumber
-                || compressedEntry.Field2 != index)
+                    out PdfCrossReferenceEntry compressedEntry))
+                throw Error(
+                    $"Object stream header entry {index} for object {header.ObjectNumber} " +
+                    "has no cross-reference entry",
+                    EntryOffset(entry));
+            bool isCurrent = compressedEntry.Type == PdfCrossReferenceEntryType.Compressed
+                && compressedEntry.Field1 == streamNumber;
+            if (isCurrent && compressedEntry.Field2 != index)
                 throw Error(
                     $"Object stream header entry {index} for object {header.ObjectNumber} " +
                     "does not match its compressed cross-reference entry",
+                    EntryOffset(entry));
+            bool wasRegistered = isCurrent
+                || registeredHeaders.Contains((header.ObjectNumber, index));
+            if (!wasRegistered)
+                throw Error(
+                    $"Object stream header entry {index} for object {header.ObjectNumber} " +
+                    "does not match any compressed cross-reference entry",
                     EntryOffset(entry));
 
             int start = checked(firstObjectOffset + header.RelativeOffset);
@@ -280,7 +299,9 @@ public sealed class PdfDocument
             if (start >= end || end > decoded.Length)
                 throw Error("Object stream offsets do not define non-empty objects in ascending order", EntryOffset(entry));
 
-            PdfObject value = new PdfObjectParser(decoded.AsMemory(start, end - start)).ParseSingleObject();
+            PdfObject value = isCurrent
+                ? new PdfObjectParser(decoded.AsMemory(start, end - start)).ParseSingleObject()
+                : PdfNull.Instance;
             items.Add(new ObjectStreamItem(header.ObjectNumber, value));
         }
 
@@ -339,7 +360,7 @@ public sealed class PdfDocument
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
         for (int depth = 0; value is PdfIndirectReference reference; depth++)
         {
-            if (depth > 32)
+            if (depth >= 32)
                 throw Error($"{description} is too deeply indirect", 0);
             if (!visited.Add((reference.ObjectNumber, reference.Generation)))
                 throw Error($"{description} contains an indirect-reference cycle", 0);

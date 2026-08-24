@@ -68,7 +68,7 @@ public sealed class PdfDocumentInspectorTests
     [Fact]
     public void Inspect_DistinguishesABrokenXrefTargetFromABrokenStartXrefDeclaration()
     {
-        byte[] source = "%PDF-2.0\nstartxref\n9\n%%EOF\n"u8.ToArray();
+        byte[] source = "%PDF-2.0\nstartxref\n1\n%%EOF\n"u8.ToArray();
 
         PdfInspectionReport report = PdfDocumentInspector.Inspect(source);
 

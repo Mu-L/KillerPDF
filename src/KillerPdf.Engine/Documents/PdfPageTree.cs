@@ -18,7 +18,7 @@ internal sealed class PdfPageTree
         Name("Resources"), Name("MediaBox"), Name("CropBox"), Name("Rotate")
     ];
     private const int MaximumDepth = 256;
-    private const int MaximumPageCount = 1_000_000;
+    internal const int MaximumPageCount = 1_000_000;
 
     private PdfPageTree(
         PdfIndirectReference catalogReference, PdfDictionary catalog,
@@ -73,7 +73,7 @@ internal sealed class PdfPageTree
             PdfIndirectReference reference, PdfIndirectReference? expectedParent, int depth,
             IReadOnlyDictionary<PdfName, PdfObject> inherited)
         {
-            if (depth > MaximumDepth)
+            if (depth >= MaximumDepth)
                 throw new InvalidOperationException("The page tree exceeds the supported nesting depth.");
             (PdfObject resolvedNode, PdfIndirectReference resolvedReference) =
                 ResolveReference(reference, "A page-tree node");
@@ -165,7 +165,7 @@ internal sealed class PdfPageTree
             var visitedReferences = new HashSet<(int ObjectNumber, int Generation)>();
             for (int depth = 0; value is PdfIndirectReference reference; depth++)
             {
-                if (depth > 32)
+                if (depth >= 32)
                     throw new InvalidOperationException(
                         "A page-tree structural value is too deeply indirect.");
                 if (!visitedReferences.Add((reference.ObjectNumber, reference.Generation)))

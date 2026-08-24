@@ -71,7 +71,9 @@ public static class PdfSignatureReader
             if (++fieldCount > 1_000_000)
                 throw new NotSupportedException(
                     "The AcroForm field tree contains too many fields.");
-            PdfIndirectReference? fieldReference = value as PdfIndirectReference;
+            ResolvedValue resolvedField = ResolveWithIdentity(
+                document, value, "An AcroForm field");
+            PdfIndirectReference? fieldReference = resolvedField.FinalReference;
             if (fieldReference is not null)
             {
                 var identity = (fieldReference.ObjectNumber, fieldReference.Generation);
@@ -81,7 +83,9 @@ public static class PdfSignatureReader
                     throw new InvalidOperationException(
                         "The AcroForm field tree references the same field more than once.");
             }
-            PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
+            PdfDictionary field = resolvedField.Value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    "An AcroForm field is not a dictionary.");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(FieldTypeName, out PdfObject? typeValue))
                 fieldType = Resolve(document, typeValue) as PdfName

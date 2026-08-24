@@ -37,6 +37,16 @@ public sealed class PdfHeaderTests
         Assert.Throws<NotSupportedException>(() => PdfHeader.Parse("%PDF-3.0\n"u8));
     }
 
+    [Theory]
+    [InlineData("%PDF-2.00\n")]
+    [InlineData("%PDF-2.0x")]
+    [InlineData("%PDF-2.0")]
+    public void Parse_RequiresLineEndingImmediatelyAfterVersion(string source)
+    {
+        Assert.Throws<FormatException>(() =>
+            PdfHeader.Parse(System.Text.Encoding.ASCII.GetBytes(source)));
+    }
+
     [Fact]
     public void Parse_DoesNotSearchPastFirstKilobyte()
     {

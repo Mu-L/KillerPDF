@@ -220,7 +220,7 @@ public static class PdfDocumentInspector
                 var visited = new HashSet<(int ObjectNumber, int Generation)>();
                 for (int depth = 0; value is PdfIndirectReference current; depth++)
                 {
-                    if (depth > 32)
+                    if (depth >= 32)
                         throw new InvalidOperationException(
                             $"{description} is too deeply indirect.");
                     if (!visited.Add((current.ObjectNumber, current.Generation)))

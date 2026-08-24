@@ -14,11 +14,13 @@ public sealed class PdfCrossReferenceSection : IReadOnlyDictionary<int, PdfCross
         long offset,
         IEnumerable<PdfCrossReferenceEntry> entries,
         PdfDictionary trailer,
-        bool isStream)
+        bool isStream,
+        int? streamObjectNumber = null)
     {
         Offset = offset;
         Trailer = trailer;
         IsStream = isStream;
+        StreamObjectNumber = streamObjectNumber;
         _entries = entries.ToDictionary(entry => entry.ObjectNumber);
         PreviousOffset = OptionalOffset(trailer, PrevName);
         HybridStreamOffset = OptionalOffset(trailer, XRefStmName);
@@ -27,6 +29,7 @@ public sealed class PdfCrossReferenceSection : IReadOnlyDictionary<int, PdfCross
     public long Offset { get; }
     public PdfDictionary Trailer { get; }
     public bool IsStream { get; }
+    public int? StreamObjectNumber { get; }
     public long? PreviousOffset { get; }
     public long? HybridStreamOffset { get; }
 

@@ -9,7 +9,7 @@ internal static class PdfNameTree
     private static readonly PdfName KidsName = Name("Kids");
     private static readonly PdfName LimitsName = Name("Limits");
     private const int MaximumDepth = 256;
-    private const int MaximumEntryCount = 1_000_000;
+    internal const int MaximumEntryCount = 1_000_000;
 
     internal static IReadOnlyList<PdfNameTreeEntry> Read(PdfDocument document, PdfObject root)
     {
@@ -25,7 +25,7 @@ internal static class PdfNameTree
 
         void Visit(PdfObject value, int depth)
         {
-            if (depth > MaximumDepth)
+            if (depth >= MaximumDepth)
                 throw new InvalidOperationException("The name tree exceeds the supported nesting depth.");
             var referenceKeys = new List<(int ObjectNumber, int Generation)>();
             for (int aliasDepth = 0; value is PdfIndirectReference reference; aliasDepth++)
@@ -115,7 +115,7 @@ internal static class PdfNameTree
             var visitedReferences = new HashSet<(int ObjectNumber, int Generation)>();
             for (int depth = 0; value is PdfIndirectReference reference; depth++)
             {
-                if (depth > 32)
+                if (depth >= 32)
                     throw new InvalidOperationException(
                         "A name-tree structural value is too deeply indirect.");
                 if (!visitedReferences.Add((reference.ObjectNumber, reference.Generation)))

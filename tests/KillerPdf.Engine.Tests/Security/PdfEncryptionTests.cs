@@ -15,6 +15,43 @@ namespace KillerPdf.Engine.Tests.Security;
 public sealed class PdfEncryptionTests
 {
     [Fact]
+    public void IncrementalEncryption_ResolvesIndirectMetadataTypeBeforeApplyingExemption()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "initial metadata" })
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner",
+                EncryptMetadata = false
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument document = PdfDocument.Open(source, "owner");
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(document.Trailer[new PdfName("Root"u8)])));
+        PdfIndirectReference metadataReference = Assert.IsType<PdfIndirectReference>(
+            catalog[new PdfName("Metadata"u8)]);
+        PdfStream metadata = Assert.IsType<PdfStream>(document.Resolve(metadataReference));
+        var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference metadataType = update.AddObject(new PdfName("Metadata"u8));
+        PdfIndirectReference metadataTypeAlias = update.AddObject(metadataType);
+        var dictionary = new PdfDictionary(metadata.Dictionary.Select(entry =>
+            entry.Key.Equals(new PdfName("Type"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, metadataTypeAlias)
+                : entry));
+        const string replacement = "aliased metadata payload unique";
+        byte[] incremented = update.ReplaceObject(metadataReference.ObjectNumber,
+            new PdfStream(dictionary, Encoding.ASCII.GetBytes(replacement))).Build();
+
+        Assert.True(incremented.AsSpan().IndexOf(Encoding.ASCII.GetBytes(replacement)) >= 0);
+        PdfStream reopenedMetadata = Assert.IsType<PdfStream>(
+            PdfDocument.Open(incremented, "owner").Resolve(metadataReference));
+        Assert.Equal(replacement,
+            Encoding.ASCII.GetString(reopenedMetadata.EncodedData.Span));
+    }
+
+    [Fact]
     public void PdfUa2_EncryptionRequiresAccessibilityExtractionPermission()
     {
         static PdfDocumentBuilder Builder(bool allowAccessibility) => new PdfDocumentBuilder()

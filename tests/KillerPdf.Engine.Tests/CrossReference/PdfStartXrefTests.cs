@@ -23,6 +23,10 @@ public sealed class PdfStartXrefTests
     [InlineData("startxref\n\n%%EOF")]
     [InlineData("startxref\n999\n%%EOF")]
     [InlineData("startxref\n0\nnot-eof")]
+    [InlineData("startxref\n0\n%%EOF")]
+    [InlineData("xstartxref\n0\n%%EOF")]
+    [InlineData("x startxref0\n%%EOF")]
+    [InlineData("x startxref\n0%%EOF")]
     [InlineData("startxref\n0\n%%EOF\ntrash")]
     public void Find_RejectsMalformedFinalDeclaration(string source)
     {

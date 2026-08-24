@@ -220,7 +220,8 @@ internal sealed class PdfStandardSecurityHandler
         Func<PdfIndirectReference, PdfObject>? resolve)
     {
         bool isSignature = dictionary.TryGetValue(TypeName, out PdfObject? type)
-                && type is PdfName name && name.Equals(SignatureName)
+                && ResolveStreamValue(type, resolve, "signature dictionary /Type")
+                    is PdfName name && name.Equals(SignatureName)
             || dictionary.ContainsKey(ByteRangeName) && dictionary.ContainsKey(ContentsName);
         return new PdfDictionary(dictionary.Select(entry =>
             new KeyValuePair<PdfName, PdfObject>(entry.Key,
@@ -236,14 +237,16 @@ internal sealed class PdfStandardSecurityHandler
         Func<PdfIndirectReference, PdfObject>? resolve)
     {
         if (stream.Dictionary.TryGetValue(TypeName, out PdfObject? rawType)
-            && rawType is PdfName rawName && rawName.Equals(CrossReferenceName))
+            && ResolveStreamValue(rawType, resolve, "stream /Type")
+                is PdfName rawName && rawName.Equals(CrossReferenceName))
             return stream;
         PdfDictionary dictionary = (PdfDictionary)Decrypt(
             stream.Dictionary, objectNumber, generation, resolve);
-        bool isMetadata = dictionary.TryGetValue(TypeName, out PdfObject? type)
-            && type is PdfName name && name.Equals(MetadataName);
-        bool isEmbeddedFile = type is PdfName embeddedName
-            && embeddedName.Equals(EmbeddedFileName);
+        PdfName? type = dictionary.TryGetValue(TypeName, out PdfObject? typeValue)
+            ? ResolveStreamValue(typeValue, resolve, "stream /Type") as PdfName
+            : null;
+        bool isMetadata = type?.Equals(MetadataName) == true;
+        bool isEmbeddedFile = type?.Equals(EmbeddedFileName) == true;
         CryptMethod method = ExplicitStreamMethod(stream.Dictionary, resolve)
             ?? (isEmbeddedFile ? _embeddedFileMethod : _streamMethod);
         ReadOnlySpan<byte> data = stream.EncodedData.Span;
@@ -258,10 +261,11 @@ internal sealed class PdfStandardSecurityHandler
     {
         PdfDictionary dictionary = (PdfDictionary)Encrypt(
             stream.Dictionary, objectNumber, generation, resolve);
-        bool isMetadata = dictionary.TryGetValue(TypeName, out PdfObject? type)
-            && type is PdfName name && name.Equals(MetadataName);
-        bool isEmbeddedFile = type is PdfName embeddedName
-            && embeddedName.Equals(EmbeddedFileName);
+        PdfName? type = dictionary.TryGetValue(TypeName, out PdfObject? typeValue)
+            ? ResolveStreamValue(typeValue, resolve, "stream /Type") as PdfName
+            : null;
+        bool isMetadata = type?.Equals(MetadataName) == true;
+        bool isEmbeddedFile = type?.Equals(EmbeddedFileName) == true;
         CryptMethod method = ExplicitStreamMethod(stream.Dictionary, resolve)
             ?? (isEmbeddedFile ? _embeddedFileMethod : _streamMethod);
         ReadOnlySpan<byte> data = stream.EncodedData.Span;

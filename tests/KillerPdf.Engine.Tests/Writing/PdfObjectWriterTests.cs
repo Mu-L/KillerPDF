@@ -194,6 +194,18 @@ public sealed class PdfObjectWriterTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Write_RejectsRetiredGenerationDeclaration()
+    {
+        var value = new PdfIndirectObject(1, 65_535, PdfNull.Instance, 0);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => PdfObjectWriter.Write(value));
+
+        Assert.Contains("generation 65,535 is retired", error.Message,
+            StringComparison.Ordinal);
+    }
+
     private static PdfObject Parse(byte[] source) => new PdfObjectParser(source).ParseSingleObject();
     private static string Text(byte[] value) => Encoding.ASCII.GetString(value);
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

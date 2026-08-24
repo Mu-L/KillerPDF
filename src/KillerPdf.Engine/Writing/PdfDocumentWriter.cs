@@ -219,8 +219,18 @@ public static class PdfDocumentWriter
         IReadOnlyList<WrittenOffset> offsets, int size)
     {
         var occupied = offsets.ToDictionary(item => item.ObjectNumber);
-        int[] free = Enumerable.Range(1, size - 1)
-            .Where(number => !occupied.ContainsKey(number)).ToArray();
+        int highWater = size - 1;
+        int[] numbers = size <= PdfCrossReferenceReader.MaximumEntriesPerSection
+            ? Enumerable.Range(0, size).ToArray()
+            : occupied.Keys.Append(0)
+                .Concat(highWater > 0 && !occupied.ContainsKey(highWater)
+                    ? [highWater] : [])
+                .Distinct().Order().ToArray();
+        if (numbers.Length > PdfCrossReferenceReader.MaximumEntriesPerSection)
+            throw new NotSupportedException(
+                "The rewritten cross-reference section contains too many entries.");
+        int[] free = numbers.Where(number => number != 0
+            && !occupied.ContainsKey(number)).ToArray();
         var nextFree = free.Select((number, index) => new
             {
                 Number = number,
@@ -228,15 +238,25 @@ public static class PdfDocumentWriter
             })
             .ToDictionary(item => item.Number, item => item.Next);
         output.Write("xref\n"u8);
-        WriteAscii(output, $"0 {size}\n");
-        WriteAscii(output, $"{free.FirstOrDefault():0000000000} 65535 f \n");
-        for (int number = 1; number < size; number++)
+        for (int start = 0; start < numbers.Length;)
         {
-            if (occupied.TryGetValue(number, out WrittenOffset? item))
-                WriteAscii(output, $"{item.Offset:0000000000} {item.Generation:00000} n \n");
-            else
-                WriteAscii(output,
-                    $"{nextFree[number]:0000000000} {FreeGeneration(document, number):00000} f \n");
+            int end = start + 1;
+            while (end < numbers.Length && numbers[end] == numbers[end - 1] + 1)
+                end++;
+            WriteAscii(output, $"{numbers[start]} {end - start}\n");
+            for (int index = start; index < end; index++)
+            {
+                int number = numbers[index];
+                if (number == 0)
+                    WriteAscii(output, $"{free.FirstOrDefault():0000000000} 65535 f \n");
+                else if (occupied.TryGetValue(number, out WrittenOffset? item))
+                    WriteAscii(output,
+                        $"{item.Offset:0000000000} {item.Generation:00000} n \n");
+                else
+                    WriteAscii(output,
+                        $"{nextFree[number]:0000000000} {FreeGeneration(document, number):00000} f \n");
+            }
+            start = end;
         }
     }
 
@@ -246,30 +266,60 @@ public static class PdfDocumentWriter
         IReadOnlyList<ObjectStreamChunk> objectStreams)
     {
         int size = checked(objectNumber + 1);
-        var rows = new byte[checked(size * 9)];
         var occupied = new HashSet<int> { objectNumber };
         occupied.UnionWith(offsets.Select(item => item.ObjectNumber));
         foreach (ObjectStreamChunk chunk in objectStreams)
             occupied.UnionWith(chunk.Objects.Select(item => item.ObjectNumber));
-        int[] free = Enumerable.Range(1, size - 1)
-            .Where(number => !occupied.Contains(number)).ToArray();
-        WriteXrefRow(rows, 0, 0, free.FirstOrDefault(), 65535);
-        for (int index = 0; index < free.Length; index++)
-            WriteXrefRow(rows, free[index], 0,
-                index + 1 < free.Length ? free[index + 1] : 0,
-                FreeGeneration(document, free[index]));
-        foreach (WrittenOffset item in offsets)
-            WriteXrefRow(rows, item.ObjectNumber, 1, item.Offset, item.Generation);
-        foreach (ObjectStreamChunk chunk in objectStreams)
-            for (int index = 0; index < chunk.Objects.Count; index++)
-                WriteXrefRow(rows, chunk.Objects[index].ObjectNumber, 2,
-                    chunk.ObjectNumber, index);
-        WriteXrefRow(rows, objectNumber, 1, xrefOffset, 0);
+        int highWater = objectNumber - objectStreams.Count - 1;
+        int[] numbers = size <= PdfCrossReferenceReader.MaximumEntriesPerSection
+            ? Enumerable.Range(0, size).ToArray()
+            : occupied.Append(0)
+                .Concat(highWater > 0 && !occupied.Contains(highWater)
+                    ? [highWater] : [])
+                .Distinct().Order().ToArray();
+        if (numbers.Length > PdfCrossReferenceReader.MaximumEntriesPerSection)
+            throw new NotSupportedException(
+                "The rewritten cross-reference stream contains too many entries.");
+        var rows = new byte[checked(numbers.Length * 9)];
+        int[] free = numbers.Where(number => number != 0
+            && !occupied.Contains(number)).ToArray();
+        var offsetsByNumber = offsets.ToDictionary(item => item.ObjectNumber);
+        var compressedByNumber = objectStreams.SelectMany(chunk =>
+            chunk.Objects.Select((item, index) => new
+            {
+                item.ObjectNumber,
+                StreamNumber = chunk.ObjectNumber,
+                Index = index
+            })).ToDictionary(item => item.ObjectNumber);
+        int freeCursor = 0;
+        for (int index = 0; index < numbers.Length; index++)
+        {
+            int number = numbers[index];
+            if (number == 0)
+                WriteXrefRow(rows, index, 0, free.FirstOrDefault(), 65535);
+            else if (!occupied.Contains(number))
+            {
+                WriteXrefRow(rows, index, 0,
+                    freeCursor + 1 < free.Length ? free[freeCursor + 1] : 0,
+                    FreeGeneration(document, number));
+                freeCursor++;
+            }
+            else if (number == objectNumber)
+                WriteXrefRow(rows, index, 1, xrefOffset, 0);
+            else if (compressedByNumber.TryGetValue(number, out var compressed))
+                WriteXrefRow(rows, index, 2, compressed.StreamNumber, compressed.Index);
+            else
+            {
+                WrittenOffset item = offsetsByNumber[number];
+                WriteXrefRow(rows, index, 1, item.Offset, item.Generation);
+            }
+        }
 
         var entries = BuildTrailer(document, size, root, options).ToList();
         entries.Add(new(TypeName, XRefName));
         entries.Add(new(WName, new PdfArray([
             new PdfInteger(1), new PdfInteger(4), new PdfInteger(4)])));
+        entries.Add(new(IndexName, BuildIndexRanges(numbers)));
         entries.Add(new(LengthName, new PdfInteger(rows.Length)));
         byte[] encodedRows = options.CompressStructuralStreams ? Compress(rows) : rows;
         if (options.CompressStructuralStreams)
@@ -334,6 +384,21 @@ public static class PdfDocumentWriter
         rows[offset + 8] = (byte)field2;
     }
 
+    private static PdfArray BuildIndexRanges(IReadOnlyList<int> numbers)
+    {
+        var ranges = new List<PdfObject>();
+        for (int start = 0; start < numbers.Count;)
+        {
+            int end = start + 1;
+            while (end < numbers.Count && numbers[end] == numbers[end - 1] + 1)
+                end++;
+            ranges.Add(new PdfInteger(numbers[start]));
+            ranges.Add(new PdfInteger(end - start));
+            start = end;
+        }
+        return new PdfArray(ranges);
+    }
+
     private static int FreeGeneration(PdfDocument document, int objectNumber)
     {
         if (!document.CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry))
@@ -359,7 +424,7 @@ public static class PdfDocumentWriter
         if (entry.Type is PdfCrossReferenceEntryType.Free or PdfCrossReferenceEntryType.Null)
             return high;
         PdfObject value = document.Resolve(high);
-        return IsObsoleteStructuralObject(value) ? 0 : high;
+        return IsObsoleteStructuralObject(document, value) ? 0 : high;
     }
 
     private static List<WritableObject> ReadCurrentObjects(PdfDocument document)
@@ -370,7 +435,7 @@ public static class PdfDocumentWriter
                      .OrderBy(entry => entry.ObjectNumber))
         {
             PdfObject value = document.Resolve(entry.ObjectNumber);
-            if (IsObsoleteStructuralObject(value))
+            if (IsObsoleteStructuralObject(document, value))
                 continue;
             int generation = entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0;
             result.Add(new WritableObject(entry.ObjectNumber, generation, value));
@@ -472,7 +537,7 @@ public static class PdfDocumentWriter
         _ => false
     };
 
-    private static bool IsObsoleteStructuralObject(PdfObject value)
+    private static bool IsObsoleteStructuralObject(PdfDocument document, PdfObject value)
     {
         if (value is PdfDictionary dictionary
             && new[] { LinearizedName, LinearizedLengthName, LinearizedHintsName,
@@ -481,7 +546,8 @@ public static class PdfDocumentWriter
             return true;
         if (value is not PdfStream stream
             || !stream.Dictionary.TryGetValue(TypeName, out PdfObject type)
-            || type is not PdfName name)
+            || ResolveValue(document, type,
+                "A structural stream /Type value") is not PdfName name)
             return false;
         return name.Equals(XRefName) || name.Equals(ObjStmName);
     }

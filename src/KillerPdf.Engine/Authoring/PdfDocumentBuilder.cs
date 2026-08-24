@@ -1,4 +1,5 @@
 using System.Globalization;
+using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Writing;
@@ -146,6 +147,7 @@ public sealed partial class PdfDocumentBuilder
     {
         ValidateDimension(width, nameof(width));
         ValidateDimension(height, nameof(height));
+        EnsurePageCapacity();
         _pages.Add(new PageDefinition(width, height, content.ToArray(),
             new Dictionary<PdfStandardFont, PdfName>(), [],
             new Dictionary<PdfImage, PdfName>(),
@@ -168,6 +170,7 @@ public sealed partial class PdfDocumentBuilder
         ArgumentNullException.ThrowIfNull(content);
         ValidateDimension(width, nameof(width));
         ValidateDimension(height, nameof(height));
+        EnsurePageCapacity();
         _pages.Add(new PageDefinition(
             width,
             height,
@@ -188,6 +191,13 @@ public sealed partial class PdfDocumentBuilder
             content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null, null));
         return this;
+    }
+
+    private void EnsurePageCapacity()
+    {
+        if (_pages.Count >= PdfPageTree.MaximumPageCount)
+            throw new NotSupportedException(
+                "A PDF cannot contain more than 1,000,000 pages.");
     }
 
     /// <summary>Sets the clockwise page rotation shown by conforming viewers.</summary>
@@ -2226,6 +2236,9 @@ public sealed partial class PdfDocumentBuilder
         var catalogNameEntries = new List<(string Name, PdfObject Value)>();
         if (allocatedAttachments.Length > 0)
         {
+            if (allocatedAttachments.Length > PdfNameTree.MaximumEntryCount)
+                throw new NotSupportedException(
+                    "The embedded-files name tree contains too many entries.");
             var names = new List<PdfObject>();
             foreach (AllocatedAttachment attachment in allocatedAttachments
                 .OrderBy(value => value.Definition.FileName, StringComparer.Ordinal))
@@ -2240,6 +2253,9 @@ public sealed partial class PdfDocumentBuilder
         }
         if (_namedDestinations.Count > 0)
         {
+            if (_namedDestinations.Count > PdfNameTree.MaximumEntryCount)
+                throw new NotSupportedException(
+                    "The named-destination tree contains too many entries.");
             var names = new List<PdfObject>();
             foreach (NamedDestinationDefinition destination in _namedDestinations
                 .OrderBy(value => value.Name, StringComparer.Ordinal))
@@ -2255,6 +2271,9 @@ public sealed partial class PdfDocumentBuilder
             catalogEntries.Add(("Names", Dictionary(catalogNameEntries.ToArray())));
         if (_pageLabels.Count > 0)
         {
+            if (_pageLabels.Count > PdfNumberTree.MaximumEntryCount)
+                throw new NotSupportedException(
+                    "The page-label number tree contains too many entries.");
             var numbers = new List<PdfObject>();
             foreach (PageLabelDefinition label in _pageLabels.OrderBy(value => value.PageIndex))
             {
@@ -2449,6 +2468,10 @@ public sealed partial class PdfDocumentBuilder
                 else levelStack[level] = index;
             }
 
+            if (structureParentKeys.Count > PdfNumberTree.MaximumEntryCount
+                - accessibleAnnotations.Length)
+                throw new NotSupportedException(
+                    "The structure ParentTree contains too many entries.");
             var parentTreeNumbers = new List<PdfObject>();
             foreach ((int pageIndex, int key) in structureParentKeys.OrderBy(item => item.Value))
             {

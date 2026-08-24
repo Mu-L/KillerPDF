@@ -629,6 +629,25 @@ public sealed class PdfDocumentWriterTests
             new PdfIncrementalUpdateBuilder(reopened).ReserveObject().ObjectNumber);
     }
 
+    [Theory]
+    [InlineData(PdfCrossReferenceFormat.Table, 1_000_005)]
+    [InlineData(PdfCrossReferenceFormat.Stream, 1_000_006)]
+    public void Write_UsesSparseCrossReferenceRangesBeyondReaderSectionLimit(
+        PdfCrossReferenceFormat format, int nextObjectNumber)
+    {
+        PdfDocument source = PdfDocument.Open(SourcePdf(declaredSize: 1_000_005));
+
+        byte[] rewritten = PdfDocumentWriter.Write(source,
+            new PdfDocumentWriteOptions { CrossReferenceFormat = format });
+        PdfDocument reopened = PdfDocument.Open(rewritten);
+
+        Assert.True(rewritten.Length < 100_000);
+        Assert.Equal(PdfCrossReferenceEntryType.Free,
+            reopened.CrossReferences[1_000_004].Type);
+        Assert.Equal(nextObjectNumber,
+            new PdfIncrementalUpdateBuilder(reopened).ReserveObject().ObjectNumber);
+    }
+
     [Fact]
     public void Write_RemovesObsoleteLinearizationDictionary()
     {
@@ -686,8 +705,10 @@ public sealed class PdfDocumentWriterTests
         PdfDictionary catalog = Assert.IsType<PdfDictionary>(
             authored.Resolve(rootReference));
         var update = new PdfIncrementalUpdateBuilder(authored);
+        PdfIndirectReference xrefType = update.AddObject(Name("XRef"));
+        PdfIndirectReference xrefTypeAlias = update.AddObject(xrefType);
         PdfIndirectReference obsolete = update.AddObject(new PdfStream(
-            new PdfDictionary([new(Name("Type"), Name("XRef"))]), []));
+            new PdfDictionary([new(Name("Type"), xrefTypeAlias)]), []));
         PdfDocument referencesObsolete = PdfDocument.Open(update
             .ReplaceObject(rootReference.ObjectNumber,
                 new PdfDictionary(catalog.Append(

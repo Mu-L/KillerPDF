@@ -1,7 +1,9 @@
 using System.Text;
 using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Syntax;
+using KillerPdf.Engine.Writing;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Documents;
@@ -69,6 +71,51 @@ public sealed class PdfDocumentTests
     }
 
     [Fact]
+    public void Resolve_AllowsSupersededMembersInAnOlderObjectStream()
+    {
+        PdfDocument original = PdfDocument.Open(ObjectStreamPdf());
+        PdfDocument incremented = PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+            .ReplaceObject(1, new PdfDictionary([
+                new(Name("Type"), Name("Catalog")),
+                new(Name("Updated"), new PdfBoolean(true))
+            ]))
+            .Build());
+
+        PdfDictionary retained = Assert.IsType<PdfDictionary>(incremented.Resolve(2));
+
+        Assert.Equal(42, Assert.IsType<PdfInteger>(retained[Name("Answer")]).Value);
+    }
+
+    [Fact]
+    public void Resolve_RejectsHistoricalMembershipFromAnOlderObjectStreamVersion()
+    {
+        const string catalog = "<< /Type /Catalog >>";
+        const string second = "<< /Answer 42 >>";
+        const string third = "(old)";
+        string header = $"1 0 2 {catalog.Length} 3 {catalog.Length + second.Length} ";
+        string body = catalog + second + third;
+        PdfDocument original = PdfDocument.Open(ObjectStreamPdf(
+            header: header, objectCount: 3, body: body, thirdCompressedIndex: 2));
+        byte[] data = Encoding.ASCII.GetBytes(header + body);
+        var replacementStream = new PdfStream(new PdfDictionary([
+            new(Name("Type"), Name("ObjStm")),
+            new(Name("N"), new PdfInteger(3)),
+            new(Name("First"), new PdfInteger(header.Length)),
+            new(Name("Length"), new PdfInteger(data.Length))
+        ]), data);
+        var update = new PdfIncrementalUpdateBuilder(original)
+            .ReplaceObject(3, new PdfInteger(99))
+            .ReplaceObject(5, replacementStream);
+        PdfDocument incremented = PdfDocument.Open(update.Build());
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            incremented.Resolve(1));
+
+        Assert.Contains("does not match any compressed cross-reference entry",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Resolve_RejectsAnObjectStreamWithTrailingHeaderEntries()
     {
         PdfDocument document = PdfDocument.Open(ObjectStreamPdf(header: "1 0 2 7 3 9 "));
@@ -103,6 +150,17 @@ public sealed class PdfDocumentTests
     }
 
     [Fact]
+    public void Resolve_RejectsNonzeroObjectStreamGeneration()
+    {
+        PdfDocument document = PdfDocument.Open(ObjectStreamPdf(objectStreamGeneration: 1));
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() => document.Resolve(1));
+
+        Assert.Contains("Object stream 5 must have generation 0", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Resolve_RejectsCyclicIndirectStreamLengths()
     {
         var source = new StringBuilder("%PDF-2.0\n");
@@ -126,13 +184,107 @@ public sealed class PdfDocumentTests
         Assert.Contains("cycle", error.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(31, true)]
+    [InlineData(32, false)]
+    public void Resolve_BoundsIndirectStreamLengthChains(int referenceCount, bool accepted)
+    {
+        PdfDocument document = PdfDocument.Open(StreamLengthChainPdf(referenceCount));
+        int streamNumber = referenceCount + 2;
+
+        if (accepted)
+        {
+            var stream = Assert.IsType<PdfStream>(document.Resolve(streamNumber));
+            Assert.Equal("X", Encoding.ASCII.GetString(stream.EncodedData.Span));
+            return;
+        }
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(
+            () => document.Resolve(streamNumber));
+        Assert.Contains("too deeply indirect", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(256, true)]
+    [InlineData(257, false)]
+    public void PageTree_EnforcesDeclaredNestingLimit(int nodeCount, bool accepted)
+    {
+        PdfDocument document = PdfDocument.Open(DeepPageTreePdf(nodeCount));
+
+        if (accepted)
+        {
+            Assert.Equal(1, new PdfIncrementalPageEditor(document).PageCount);
+            return;
+        }
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => new PdfIncrementalPageEditor(document));
+        Assert.Contains("nesting depth", error.Message, StringComparison.Ordinal);
+    }
+
+    private static byte[] StreamLengthChainPdf(int referenceCount)
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        var offsets = new List<int> { 0 };
+        for (int objectNumber = 1; objectNumber <= referenceCount; objectNumber++)
+        {
+            offsets.Add(source.Length);
+            source.Append($"{objectNumber} 0 obj {objectNumber + 1} 0 R endobj\n");
+        }
+        int lengthNumber = referenceCount + 1;
+        offsets.Add(source.Length);
+        source.Append($"{lengthNumber} 0 obj 1 endobj\n");
+        int streamNumber = referenceCount + 2;
+        offsets.Add(source.Length);
+        source.Append($"{streamNumber} 0 obj << /Length 1 0 R >> stream\nX\nendstream endobj\n");
+        int xrefOffset = source.Length;
+        source.Append($"xref\n0 {streamNumber + 1}\n0000000000 65535 f\n");
+        foreach (int offset in offsets.Skip(1))
+            source.Append($"{offset:0000000000} 00000 n\n");
+        source.Append($"trailer << /Size {streamNumber + 1} >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
+    private static byte[] DeepPageTreePdf(int nodeCount)
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        var offsets = new List<int> { 0 };
+        offsets.Add(source.Length);
+        source.Append("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
+        for (int index = 0; index < nodeCount; index++)
+        {
+            int objectNumber = index + 2;
+            offsets.Add(source.Length);
+            if (index == nodeCount - 1)
+            {
+                source.Append($"{objectNumber} 0 obj << /Type /Page /Parent {objectNumber - 1} 0 R " +
+                    "/MediaBox [0 0 10 10] >> endobj\n");
+                continue;
+            }
+            string parent = index == 0 ? string.Empty : $" /Parent {objectNumber - 1} 0 R";
+            source.Append($"{objectNumber} 0 obj << /Type /Pages /Kids [{objectNumber + 1} 0 R] " +
+                $"/Count 1{parent} >> endobj\n");
+        }
+        int size = nodeCount + 2;
+        int xrefOffset = source.Length;
+        source.Append($"xref\n0 {size}\n0000000000 65535 f\n");
+        foreach (int offset in offsets.Skip(1))
+            source.Append($"{offset:0000000000} 00000 n\n");
+        source.Append($"trailer << /Size {size} /Root 1 0 R >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
     private static byte[] ObjectStreamPdf(
         int firstCompressedIndex = 0,
         string header = "1 0 2 7 ",
         int objectCount = 2,
         string body = "(hello)<< /Answer 42 >>",
         bool indirectStructuralValues = false,
-        bool indirectFilterValues = false)
+        bool indirectFilterValues = false,
+        int objectStreamGeneration = 0,
+        int? thirdCompressedIndex = null)
     {
         byte[] decodedObjectStreamData = [
             .. Encoding.ASCII.GetBytes(header), .. Encoding.ASCII.GetBytes(body)];
@@ -169,7 +321,7 @@ public sealed class PdfDocumentTests
         string filter = indirectFilterValues ? " /Filter 8 0 R" : string.Empty;
         WriteAscii(
             output,
-            $"5 0 obj << /Type {objectStreamType} /N {objectStreamCount} /First {firstObject} /Length {objectStreamData.Length}{filter} >> stream\n");
+            $"5 {objectStreamGeneration} obj << /Type {objectStreamType} /N {objectStreamCount} /First {firstObject} /Length {objectStreamData.Length}{filter} >> stream\n");
         output.Write(objectStreamData);
         WriteAscii(output, "\nendstream endobj\n");
 
@@ -178,11 +330,13 @@ public sealed class PdfDocumentTests
         rowBytes.AddRange(XrefRow(0, 0, 65_535));
         rowBytes.AddRange(XrefRow(2, 5, firstCompressedIndex));
         rowBytes.AddRange(XrefRow(2, 5, 1));
-        rowBytes.AddRange(indirectStructuralValues
-            ? XrefRow(1, typeOffset, 0) : XrefRow(0, 0, 0));
+        rowBytes.AddRange(thirdCompressedIndex.HasValue
+            ? XrefRow(2, 5, thirdCompressedIndex.Value)
+            : indirectStructuralValues
+                ? XrefRow(1, typeOffset, 0) : XrefRow(0, 0, 0));
         rowBytes.AddRange(indirectStructuralValues
             ? XrefRow(1, countOffset, 0) : XrefRow(0, 0, 0));
-        rowBytes.AddRange(XrefRow(1, objectStreamOffset, 0));
+        rowBytes.AddRange(XrefRow(1, objectStreamOffset, objectStreamGeneration));
         rowBytes.AddRange(XrefRow(1, xrefOffset, 0));
         if (indirectStructuralValues)
             rowBytes.AddRange(XrefRow(1, firstOffset, 0));

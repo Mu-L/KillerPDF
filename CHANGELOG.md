@@ -10,12 +10,33 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 
 ### PDF document engine development
 
+- Bounded indirect-reference readers now enforce the same 32-reference ceiling at stream lengths, tree structural values, diagnostics, graph import, page labels, named destinations, and writer validation instead of allowing an inconsistent extra hop; page, name, and number trees likewise enforce their declared 256-node nesting ceiling exactly.
+- Authoring, annotation updates, and page merges enforce the same one-million-entry ceiling as shared name-tree and number-tree readers before rebuilding destinations, embedded files, page labels, ParentTree, IDTree, or extension name trees.
+- Authoring and incremental page insertion enforce the shared one-million-page reader ceiling before mutating page state, preventing generated page trees that cannot be reopened.
+- Full rewrites retain canonical complete free lists within the cross-reference reader limit and switch to compact sparse table subsections or stream `/Index` ranges above it, preserving high-water allocation state without unbounded gap expansion.
+- Incremental writers reject revisions whose sparse cross-reference entry count would exceed the shared per-section reader ceiling before serializing the revision.
+- Revision-chain parsing rejects trailer `/Prev` and hybrid `/XRefStm` offsets that point forward in the file instead of to physically earlier cross-reference data.
+- Final `startxref` declarations reject offsets at or after their own marker, requiring the final cross-reference target to precede the declaration physically.
+- Final `startxref` markers and offsets require PDF whitespace token boundaries, rejecting embedded marker substrings and concatenated offsets or end markers.
+- Revision-chain parsing requires trailer `/Size` to remain nondecreasing across incremental revisions and requires hybrid companion streams to agree with their primary trailer, preserving the document's object-number high-water mark.
+- Cross-reference history enforces legal generation transitions: active updates retain their generation, deletion advances it, and free-object reuse retains the free generation, preventing stale or invented identities from replacing current objects.
+- Classic and stream cross-reference entries reject generation 65,535 for in-use objects because that terminal generation is permanently retired.
+- Canonical object serialization likewise rejects indirect object declarations at retired generation 65,535 while continuing to permit references that resolve to a free null identity.
+- Classic tables retain compatibility with a free entry exactly at the trailer `/Size` boundary while rejecting free object numbers beyond that boundary.
+- Compressed-object loading rejects object stream containers with nonzero generations, preserving the generation-zero identity required by object streams.
+- Cross-reference stream type 2 rows reject object stream zero, self-containing compressed objects, and object stream numbers outside the declared `/Size` range during section parsing.
+- Object-stream loading validates header membership across revision history, allowing legitimately superseded members without letting never-registered headers invalidate or masquerade as current compressed objects.
+- Historical object-stream membership is scoped to revisions using the same physical object-stream offset and generation, so a rewritten container cannot authorize inactive headers from its older byte version.
+- Encryption and decryption resolve aliased stream type names before applying signature, metadata, embedded-file, and cross-reference exemptions, preserving cleartext metadata and selecting the correct crypt method through multi-hop `/Type` references.
+- Selected-page imports retain named destinations whose page target is reached through a bounded multi-hop indirect alias chain, with cycle and depth rejection based on final page identity.
 - Corrected selected-page corpus reporting so deliberate fail-closed source-validation rejections are counted separately from unexpected importer failures; the complete 2,236-file gate now reports 2,149 successful imports, 64 validation rejections, 21 unsupported dependency cases, two malformed sources, and zero unexpected failures.
 - Full rewrites now reject application-defined, document-information, and encryption trailer graphs that reference xref or object-stream containers omitted from rewritten output, preventing dangling references in otherwise successful rewrites.
 - Reverified the compressed full-rewrite corpus baseline at 2,231 successful rewrites out of 2,236 files, with only five intentional strict source rejections and no new failure from final trailer-graph validation.
 - Full rewrites now validate all emitted object graphs, including unreachable live objects, against the final writable object set.
 - Cross-reference stream objects now reject nonzero generations.
+- Standalone cross-reference streams require an exact generation-zero in-use entry for their own object and offset; hybrid streams may receive that registration from either companion section in the same revision.
 - Cross-reference stream `/Index` ranges now reject disordered or overlapping subsection declarations before row decoding.
+- Cross-reference streams validate row counts before filter decoding and cap decoded output at one byte beyond the exact `/W` and `/Index` length, preventing oversized declarations and compressed payloads from reaching the generic stream limit.
 - Primitive object serialization now rejects direct and container-nested streams while retaining valid indirect stream output.
 - Logical round-trip comparison now canonicalizes resolved values as indirect objects so stream comparison remains valid under strict stream serialization.
 - Stream decoding now confines TIFF and PNG predictor reversal to Flate and LZW filters instead of applying predictor-like parameters to unrelated filters.
@@ -84,6 +105,13 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
   - AcroForm procedure sets and optional-content dependency scanning resolve indirect name chains, including Form, Pattern, OCG, and OCMD types; optional-content group and usage-application scalars follow the same rule.
   - Tagged page removal resolves indirect MCR and OBJR type names before pruning removed-page structure references.
   - Direct tagged-root normalization follows aliased child parent links to their final structure-root identity.
+  - Full rewrites resolve indirect structural-stream type names before discarding obsolete cross-reference and object streams.
+  - Selected tagged-page pruning retains IDTree entries whose structure elements are reached through indirect aliases.
+  - Tagged page removal resolves indirect page structure-parent keys before pruning ParentTree mappings.
+  - Optional-content merges resolve indirect default and alternate configuration base-state names.
+  - AcroForm qualified-name collection resolves indirect field partial-name strings during complete and selected-page merges.
+  - Combined tagged page removal and document merging reads rewritten top-level structure elements by final identity, preserving outer aliases without reviving pruned children.
+  - Signature discovery detects reused AcroForm fields by final identity when separate aliases target the same field dictionary.
 - Tagged-annotation traversal updates final top-level structure-element identities and validates reciprocal parent links after bounded alias resolution.
 - Stream parsing now resolves bounded multi-hop indirect `/Length` chains and reports reference cycles or excessive depth deterministically before consuming payload bytes.
 - Compressed-object loading now resolves bounded indirect object-stream `/Type`, `/N`, and `/First` scalars after cross-reference bootstrap, while cross-reference stream fields remain deliberately direct because no document resolver exists yet.
@@ -143,6 +171,9 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Classic and stream cross-reference sections now require object 0 to remain free at generation 65,535.
 - Free cross-reference entries now require next-free pointers below trailer `/Size`, preventing impossible inherited free-list heads.
 - Merged cross-reference tables now reject reachable free-list cycles and heads that identify active or missing objects.
+- Merged revision history must define object 0 as the generation-65,535 free-list head even when newer sparse sections omit it.
+- Valid trailer `/ID` pairs retain the same first, permanent identifier across incremental revision history while allowing the second revision identifier to change.
+- Incremental revision history cannot introduce encryption after unencrypted bytes already exist; existing encryption bootstrap references may still redirect through bounded clear aliases to the same dictionary.
 - Full rewrites now traverse the bounded, post-policy catalog object graph and reject stale generations instead of emitting dangling structural references, while the low-level incremental builder remains available for forensic revisions.
 - Imported printer-mark and trap-network annotations now validate their required flags and appearances, optional identifiers and tracking state, font dependencies, printer-mark styles and Separation colorants, and trap-network process models, spot colorants, indirect regions, and descriptions.
 - Imported image and form XObjects now validate OPI 1.3 and 2.0 version dictionaries, external file specifications, required legacy geometry, paired modern crop geometry, bounded crop regions, color and tint operands, included-image dimensions and quality, and defined ink declarations.
@@ -517,6 +548,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Writer document-information validation resolves valid indirect standard fields while stale or mistyped values remain fail-closed.
 - Added rewrite policy for preserving or upgrading the PDF header, retaining or removing document information, and independently retaining document identifiers, plus reusable round-trip and corpus validation.
 - Accepted the complete PDF 2.x header declaration range through `%PDF-2.9` and corrected classic cross-reference `/Size` handling for free boundary entries found in PDF/A-4 fixtures.
+- Header parsing requires CR or LF immediately after the single-digit major and minor version, rejecting truncated declarations and longer strings that merely begin with a defined version.
 
 ### Added
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.

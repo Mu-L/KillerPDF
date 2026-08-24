@@ -55,6 +55,46 @@ public sealed class PdfCrossReferenceTableTests
     }
 
     [Fact]
+    public void Read_RejectsPreviousOffsetThatPointsForward()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int firstOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append("trailer\n<< /Size 1 /Prev 0000000000 >>\n");
+        int laterOffset = source.Length;
+        source.Replace("/Prev 0000000000", $"/Prev {laterOffset:0000000000}");
+        source.Append("xref\n0 1\n0000000000 65535 f\ntrailer\n<< /Size 1 >>\n");
+        source.Append($"startxref\n{firstOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Prev must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsHybridStreamOffsetThatPointsForward()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int tableOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append("trailer\n<< /Size 1 /XRefStm 0000000000 >>\n");
+        int streamOffset = source.Length;
+        source.Replace("/XRefStm 0000000000", $"/XRefStm {streamOffset:0000000000}");
+        source.Append("1 0 obj << /Type /XRef /Size 2 /W [1 1 1] /Index [0 1] /Length 3 >> stream\n");
+        source.Append('\0').Append('\0').Append((char)255);
+        source.Append("\nendstream endobj\n");
+        source.Append($"startxref\n{tableOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.Latin1.GetBytes(source.ToString())));
+
+        Assert.Contains("/XRefStm must point to an earlier", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Read_RejectsRevisionChainsBeyondConfiguredLimit()
     {
         var source = new StringBuilder("%PDF-2.0\n");
@@ -79,6 +119,120 @@ public sealed class PdfCrossReferenceTableTests
 
         Assert.Contains("too many incremental revisions",
             error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsTrailerSizeThatDecreasesAcrossRevisions()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int oldOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\ntrailer\n<< /Size 20 >>\n");
+        int latestOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append($"trailer\n<< /Size 1 /Prev {oldOffset} >>\n");
+        source.Append($"startxref\n{latestOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("/Size cannot decrease", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsObjectGenerationThatDecreasesAcrossRevisions()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int oldObjectOffset = source.Length;
+        source.Append("1 5 obj\n(old)\nendobj\n");
+        int oldOffset = source.Length;
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{oldObjectOffset:0000000000} 00005 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+
+        int newObjectOffset = source.Length;
+        source.Append("1 4 obj\n(new)\nendobj\n");
+        int latestOffset = source.Length;
+        source.Append("xref\n1 1\n");
+        source.Append($"{newObjectOffset:0000000000} 00004 n\n");
+        source.Append($"trailer\n<< /Size 2 /Prev {oldOffset} >>\n");
+        source.Append($"startxref\n{latestOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("generation cannot decrease", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsChangedPermanentIdentifierAcrossRevisions()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int oldOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append("trailer\n<< /Size 1 /ID [<01> <02>] >>\n");
+        int latestOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append($"trailer\n<< /Size 1 /ID [<03> <04>] /Prev {oldOffset} >>\n");
+        source.Append($"startxref\n{latestOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("first trailer /ID value cannot change", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsEncryptionIntroducedByIncrementalRevision()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int firstEncryptionOffset = source.Length;
+        source.Append("1 0 obj\n<< /Filter /Standard >>\nendobj\n");
+        int secondEncryptionOffset = source.Length;
+        source.Append("2 0 obj\n<< /Filter /Standard >>\nendobj\n");
+        int oldOffset = source.Length;
+        source.Append("xref\n0 3\n0000000000 65535 f\n");
+        source.Append($"{firstEncryptionOffset:0000000000} 00000 n\n");
+        source.Append($"{secondEncryptionOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 3 >>\n");
+        int latestOffset = source.Length;
+        source.Append("xref\n0 1\n0000000000 65535 f\n");
+        source.Append($"trailer\n<< /Size 3 /Encrypt 2 0 R /Prev {oldOffset} >>\n");
+        source.Append($"startxref\n{latestOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("cannot be introduced", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_RejectsActiveObjectGenerationThatJumpsAcrossRevisions()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int oldObjectOffset = source.Length;
+        source.Append("1 0 obj\n(old)\nendobj\n");
+        int oldOffset = source.Length;
+        source.Append("xref\n0 2\n0000000000 65535 f\n");
+        source.Append($"{oldObjectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+
+        int newObjectOffset = source.Length;
+        source.Append("1 1 obj\n(new)\nendobj\n");
+        int latestOffset = source.Length;
+        source.Append("xref\n1 1\n");
+        source.Append($"{newObjectOffset:0000000000} 00001 n\n");
+        source.Append($"trailer\n<< /Size 2 /Prev {oldOffset} >>\n");
+        source.Append($"startxref\n{latestOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("invalid generation transition", error.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -112,12 +266,52 @@ public sealed class PdfCrossReferenceTableTests
     }
 
     [Fact]
+    public void Read_RejectsRevisionHistoryThatNeverDefinesObjectZero()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int objectOffset = source.Length;
+        source.Append("1 0 obj\ntrue\nendobj\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n1 1\n");
+        source.Append($"{objectOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 2 >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+
+        Assert.Contains("must define object 0", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Read_RejectsStartxrefThatDoesNotPointToCrossReferenceData()
     {
         string source = "%PDF-2.0\n1 0 obj true endobj\nstartxref\n9\n%%EOF\n";
 
         Assert.Throws<PdfSyntaxException>(() =>
             PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source)));
+    }
+
+    [Fact]
+    public void Read_RejectsUnregisteredStandaloneCrossReferenceStream()
+    {
+        using var source = new MemoryStream();
+        Write("%PDF-2.0\n");
+        int streamOffset = checked((int)source.Position);
+        byte[] row = [0, 0, 0, 255, 255];
+        Write("9 0 obj << /Type /XRef /Size 10 /W [1 2 2] " +
+            "/Index [0 1] /Length 5 >> stream\n");
+        source.Write(row);
+        Write($"\nendstream endobj\nstartxref\n{streamOffset}\n%%EOF\n");
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(source.ToArray()));
+
+        Assert.Contains("entry for itself", error.Message,
+            StringComparison.Ordinal);
+
+        void Write(string value) => source.Write(Encoding.ASCII.GetBytes(value));
     }
 
     [Fact]
@@ -146,7 +340,19 @@ public sealed class PdfCrossReferenceTableTests
             error.Message, StringComparison.Ordinal);
     }
 
-    private static byte[] HybridReferencePdf(bool hybridHasPreviousOffset)
+    [Fact]
+    public void Read_RejectsMismatchedHybridRevisionSizes()
+    {
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
+            PdfCrossReferenceTable.Read(
+                HybridReferencePdf(hybridHasPreviousOffset: false, hybridSize: 4)));
+
+        Assert.Contains("stream /Size must match", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    private static byte[] HybridReferencePdf(
+        bool hybridHasPreviousOffset, int hybridSize = 3)
     {
         using var source = new MemoryStream();
         Write("%PDF-2.0\n");
@@ -161,7 +367,8 @@ public sealed class PdfCrossReferenceTableTests
             1, (byte)(streamOffset >> 24), (byte)(streamOffset >> 16),
                 (byte)(streamOffset >> 8), (byte)streamOffset, 0, 0
         ];
-        Write("2 0 obj\n<< /Type /XRef /Size 3 /W [1 4 2] /Length 21 " +
+        Write($"2 0 obj\n<< /Type /XRef /Size {hybridSize} /W [1 4 2] " +
+            "/Index [0 3] /Length 21 " +
             (hybridHasPreviousOffset ? "/Prev 0 " : string.Empty) +
             "/PrivateState << /Enabled false >> >>\nstream\n");
         source.Write(rows);

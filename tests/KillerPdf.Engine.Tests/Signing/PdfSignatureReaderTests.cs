@@ -707,6 +707,46 @@ public sealed class PdfSignatureReaderTests
     }
 
     [Fact]
+    public void Read_RejectsSeparateAliasesToTheSameSignatureField()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40)
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[Name("Root")]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(
+            document.Resolve(catalogReference));
+        PdfObject formValue = catalog[Name("AcroForm")];
+        PdfDictionary form = formValue is PdfIndirectReference formReference
+            ? Assert.IsType<PdfDictionary>(document.Resolve(formReference))
+            : Assert.IsType<PdfDictionary>(formValue);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(form[Name("Fields")])));
+        var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference firstAlias = update.AddObject(fieldReference);
+        PdfIndirectReference secondAlias = update.AddObject(fieldReference);
+        PdfDictionary malformedForm = new(form
+            .Where(entry => !entry.Key.Equals(Name("Fields")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Fields"),
+                new PdfArray([firstAlias, secondAlias]))));
+        if (formValue is PdfIndirectReference indirectForm)
+            update.ReplaceObject(indirectForm.ObjectNumber, malformedForm);
+        else
+            update.ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog
+                    .Where(entry => !entry.Key.Equals(Name("AcroForm")))
+                    .Append(new KeyValuePair<PdfName, PdfObject>(
+                        Name("AcroForm"), malformedForm))));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfSignatureReader.Read(PdfDocument.Open(update.Build())));
+
+        Assert.Contains("same field more than once", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Read_RejectsInvalidCertificationTransformVersion()
     {
         byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
