@@ -29,6 +29,8 @@ public static class PdfSignatureReader
                 "The catalog /Perms /DocMDP value is not an indirect reference.");
         PdfDictionary signature = ResolveDictionary(
             document, signatureValue, "The certification signature");
+        ValidateSignatureDictionaryType(
+            document, signature, "The certification signature");
         SignatureTransforms transforms = ReadTransforms(document, signature);
         return transforms.CertificationPermission
             ?? throw new InvalidOperationException(
@@ -58,6 +60,7 @@ public static class PdfSignatureReader
         var result = new List<PdfSignatureInfo>();
         var active = new HashSet<(int ObjectNumber, int Generation)>();
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        int fieldCount = 0;
         foreach (PdfObject field in fields) Visit(field, null, null, 0);
         return result;
 
@@ -65,6 +68,9 @@ public static class PdfSignatureReader
         {
             if (depth >= PdfObjectWriter.MaximumNestingDepth)
                 throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            if (++fieldCount > 1_000_000)
+                throw new NotSupportedException(
+                    "The AcroForm field tree contains too many fields.");
             PdfIndirectReference? fieldReference = value as PdfIndirectReference;
             if (fieldReference is not null)
             {
@@ -78,14 +84,14 @@ public static class PdfSignatureReader
             PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(FieldTypeName, out PdfObject? typeValue))
-                fieldType = typeValue as PdfName
+                fieldType = Resolve(document, typeValue) as PdfName
                     ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
             string? fullName = parentName;
             bool definesName = false;
             if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
             {
                 definesName = true;
-                string partialName = nameValue is PdfString name
+                string partialName = Resolve(document, nameValue) is PdfString name
                     ? DecodeString(name)
                     : throw new InvalidOperationException("An AcroForm field /T value is not a string.");
                 fullName = string.IsNullOrEmpty(parentName)
@@ -136,8 +142,10 @@ public static class PdfSignatureReader
         PdfDictionary signature = resolvedValue as PdfDictionary
             ?? throw new InvalidOperationException(
                 $"The signature field '{fieldName}' /V value is not a dictionary.");
-        string? filter = OptionalName(signature, "Filter");
-        string? subFilter = OptionalName(signature, "SubFilter");
+        ValidateSignatureDictionaryType(
+            document, signature, $"The signature field '{fieldName}' /V dictionary");
+        string? filter = OptionalName(document, signature, "Filter");
+        string? subFilter = OptionalName(document, signature, "SubFilter");
         long[]? range = null;
         bool valid = false;
         bool coversWholeDocument = false;
@@ -145,9 +153,11 @@ public static class PdfSignatureReader
         {
             PdfArray rangeArray = ResolveArray(document, rangeValue,
                 $"The signature field '{fieldName}' /ByteRange value");
-            if (rangeArray.Count == 4 && rangeArray.All(item => item is PdfInteger))
+            PdfObject[] rangeValues = rangeArray
+                .Select(item => Resolve(document, item)).ToArray();
+            if (rangeValues.Length == 4 && rangeValues.All(item => item is PdfInteger))
             {
-                range = rangeArray.Cast<PdfInteger>().Select(item => item.Value).ToArray();
+                range = rangeValues.Cast<PdfInteger>().Select(item => item.Value).ToArray();
                 long length = document.Source.Length;
                 valid = range.All(item => item >= 0)
                     && range[0] == 0
@@ -228,8 +238,13 @@ public static class PdfSignatureReader
         {
             PdfDictionary reference = ResolveDictionary(
                 document, referenceValue, "A signature reference");
+            if (reference.TryGetValue(Name("Type"), out PdfObject? referenceTypeValue)
+                && (Resolve(document, referenceTypeValue) is not PdfName referenceType
+                    || referenceType.ValueAsLatin1() != "SigRef"))
+                throw new InvalidOperationException(
+                    "A signature reference has an invalid /Type; it must be /SigRef.");
             if (!reference.TryGetValue(Name("TransformMethod"), out PdfObject? methodValue)
-                || methodValue is not PdfName method)
+                || Resolve(document, methodValue) is not PdfName method)
                 throw new InvalidOperationException(
                     "A signature reference has no valid /TransformMethod.");
             if (!reference.TryGetValue(Name("TransformParams"), out PdfObject? parametersValue))
@@ -239,12 +254,12 @@ public static class PdfSignatureReader
                 document, parametersValue, "The signature transform parameters");
             if (method.ValueAsLatin1() == "DocMDP")
             {
-                ValidateTransformParameters(parameters, "DocMDP");
+                ValidateTransformParameters(document, parameters, "DocMDP");
                 if (certification.HasValue)
                     throw new InvalidOperationException(
                         "The signature contains more than one DocMDP transform.");
                 long permission = parameters.TryGetValue(Name("P"), out PdfObject? permissionValue)
-                    && permissionValue is PdfInteger integer ? integer.Value : 2;
+                    && Resolve(document, permissionValue) is PdfInteger integer ? integer.Value : 2;
                 if (permission is < 1 or > 3)
                     throw new InvalidOperationException(
                         "The DocMDP permission is not an integer from 1 through 3.");
@@ -252,19 +267,19 @@ public static class PdfSignatureReader
             }
             else if (method.ValueAsLatin1() == "FieldMDP")
             {
-                ValidateTransformParameters(parameters, "FieldMDP");
+                ValidateTransformParameters(document, parameters, "FieldMDP");
                 if (lockAction.HasValue)
                     throw new InvalidOperationException(
                         "The signature contains more than one FieldMDP transform.");
                 if (!parameters.TryGetValue(Name("Action"), out PdfObject? actionValue)
-                    || actionValue is not PdfName action
+                    || Resolve(document, actionValue) is not PdfName action
                     || !Enum.TryParse(action.ValueAsLatin1(), out PdfSignatureLockAction parsedAction))
                     throw new InvalidOperationException(
                         "The FieldMDP transform has no valid lock action.");
                 lockAction = parsedAction;
                 if (parameters.TryGetValue(Name("P"), out PdfObject? lockPermissionValue))
                 {
-                    if (lockPermissionValue is not PdfInteger permission
+                    if (Resolve(document, lockPermissionValue) is not PdfInteger permission
                         || permission.Value is < 1 or > 3)
                         throw new InvalidOperationException(
                             "The FieldMDP permission is not an integer from 1 through 3.");
@@ -274,26 +289,33 @@ public static class PdfSignatureReader
                 {
                     PdfArray fields = ResolveArray(
                         document, fieldsValue, "The FieldMDP /Fields value");
-                    if (fields.Any(item => item is not PdfString))
+                    PdfObject[] fieldValues = fields
+                        .Select(item => Resolve(document, item)).ToArray();
+                    if (fieldValues.Any(item => item is not PdfString))
                         throw new InvalidOperationException(
                             "The FieldMDP /Fields array contains a non-string value.");
-                    lockedFields = fields.Cast<PdfString>().Select(DecodeString).ToArray();
+                    lockedFields = fieldValues.Cast<PdfString>().Select(DecodeString).ToArray();
                 }
+                if (lockAction is PdfSignatureLockAction.Include or PdfSignatureLockAction.Exclude
+                    && lockedFields is null)
+                    throw new InvalidOperationException(
+                        "A FieldMDP Include or Exclude transform has no /Fields array.");
             }
         }
         return new SignatureTransforms(
             certification, lockAction, lockPermission, lockedFields);
     }
 
-    private static void ValidateTransformParameters(PdfDictionary parameters, string method)
+    private static void ValidateTransformParameters(
+        PdfDocument document, PdfDictionary parameters, string method)
     {
         if (parameters.TryGetValue(Name("Type"), out PdfObject? typeValue)
-            && (typeValue is not PdfName type
+            && (Resolve(document, typeValue) is not PdfName type
                 || type.ValueAsLatin1() != "TransformParams"))
             throw new InvalidOperationException(
                 $"The {method} transform parameters have an invalid /Type.");
         if (parameters.TryGetValue(Name("V"), out PdfObject? versionValue)
-            && (versionValue is not PdfName version
+            && (Resolve(document, versionValue) is not PdfName version
                 || version.ValueAsLatin1() != "1.2"))
             throw new InvalidOperationException(
                 $"The {method} transform parameters have an invalid version; /V must be /1.2.");
@@ -326,14 +348,28 @@ public static class PdfSignatureReader
         PdfIndirectReference reference = docMdpValue as PdfIndirectReference
             ?? throw new InvalidOperationException(
                 "The catalog /Perms /DocMDP value is not indirect.");
-        _ = ResolveDictionary(document, reference, "The catalog certification signature");
+        PdfDictionary signature = ResolveDictionary(
+            document, reference, "The catalog certification signature");
+        ValidateSignatureDictionaryType(
+            document, signature, "The catalog certification signature");
         return reference;
     }
 
-    private static string? OptionalName(PdfDictionary dictionary, string key)
+    private static void ValidateSignatureDictionaryType(
+        PdfDocument document, PdfDictionary signature, string description)
+    {
+        if (!signature.TryGetValue(Name("Type"), out PdfObject? signatureTypeValue)
+            || Resolve(document, signatureTypeValue) is not PdfName signatureType
+            || signatureType.ValueAsLatin1() != "Sig")
+            throw new InvalidOperationException(
+                $"{description} does not declare /Type /Sig.");
+    }
+
+    private static string? OptionalName(
+        PdfDocument document, PdfDictionary dictionary, string key)
     {
         if (!dictionary.TryGetValue(Name(key), out PdfObject? value)) return null;
-        return value is PdfName name ? name.ValueAsLatin1()
+        return Resolve(document, value) is PdfName name ? name.ValueAsLatin1()
             : throw new InvalidOperationException($"The signature /{key} value is not a name.");
     }
 
@@ -345,6 +381,9 @@ public static class PdfSignatureReader
         return resolved as PdfDictionary
             ?? throw new InvalidOperationException($"{description} is not a dictionary.");
     }
+
+    private static PdfObject Resolve(PdfDocument document, PdfObject value) =>
+        value is PdfIndirectReference reference ? document.Resolve(reference) : value;
 
     private static PdfArray ResolveArray(PdfDocument document, PdfObject value, string description)
     {

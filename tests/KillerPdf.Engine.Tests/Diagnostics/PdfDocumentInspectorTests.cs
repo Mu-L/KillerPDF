@@ -183,7 +183,8 @@ public sealed class PdfDocumentInspectorTests
             .First();
         int streamOffset = source.AsSpan().IndexOf(encryptedStream.EncodedData.Span);
         Assert.True(streamOffset >= 0);
-        source[streamOffset + encryptedStream.EncodedData.Length - 1] ^= 0xFF;
+        Assert.True(encryptedStream.EncodedData.Length >= 32);
+        source[streamOffset + encryptedStream.EncodedData.Length - 17] ^= 0xFF;
 
         PdfInspectionReport report = PdfDocumentInspector.InspectAuthenticated(
             source, "owner-password");

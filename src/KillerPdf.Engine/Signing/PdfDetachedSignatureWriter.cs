@@ -67,7 +67,7 @@ public static class PdfDetachedSignatureWriter
             throw new ArgumentOutOfRangeException(nameof(options),
                 "The signature page index is outside the document.");
         EnforcePasswordPermissions(document, existingField is not null);
-        int? certificationPermission = ReadCertificationPermission(document, tree);
+        int? certificationPermission = ReadCertificationPermission(document);
         if (options.CertificationPermission.HasValue && certificationPermission.HasValue)
             throw new InvalidOperationException(
                 "The document already contains a certification signature.");
@@ -266,7 +266,7 @@ public static class PdfDetachedSignatureWriter
         long signatureFlags = 0;
         if (form.TryGetValue(SignatureFlagsName, out PdfObject? flagsValue))
         {
-            signatureFlags = flagsValue is PdfInteger integer && integer.Value >= 0
+            signatureFlags = Resolve(document, flagsValue) is PdfInteger integer && integer.Value >= 0
                 ? integer.Value
                 : throw new InvalidOperationException("The AcroForm /SigFlags value is not a non-negative integer.");
         }
@@ -291,12 +291,16 @@ public static class PdfDetachedSignatureWriter
     {
         var active = new HashSet<(int ObjectNumber, int Generation)>();
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        int fieldCount = 0;
         foreach (PdfObject value in fields) Visit(value, null, 0);
 
         void Visit(PdfObject value, string? parentName, int depth)
         {
             if (depth >= PdfObjectWriter.MaximumNestingDepth)
                 throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            if (++fieldCount > 1_000_000)
+                throw new NotSupportedException(
+                    "The AcroForm field tree contains too many fields.");
             PdfIndirectReference? reference = value as PdfIndirectReference;
             if (reference is not null)
             {
@@ -313,7 +317,7 @@ public static class PdfDetachedSignatureWriter
             if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
             {
                 definesName = true;
-                string partialName = nameValue is PdfString name
+                string partialName = Resolve(document, nameValue) is PdfString name
                     ? DecodeString(name)
                     : throw new InvalidOperationException("An AcroForm field /T value is not a string.");
                 fullName = string.IsNullOrEmpty(parentName)
@@ -340,6 +344,7 @@ public static class PdfDetachedSignatureWriter
         PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
         var active = new HashSet<(int ObjectNumber, int Generation)>();
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        int fieldCount = 0;
         ExistingFormField? match = null;
         foreach (PdfObject value in fields) Visit(value, null, null, 0);
         return match;
@@ -348,6 +353,9 @@ public static class PdfDetachedSignatureWriter
         {
             if (depth >= PdfObjectWriter.MaximumNestingDepth)
                 throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            if (++fieldCount > 1_000_000)
+                throw new NotSupportedException(
+                    "The AcroForm field tree contains too many fields.");
             PdfIndirectReference? reference = value as PdfIndirectReference;
             if (reference is not null)
             {
@@ -361,14 +369,14 @@ public static class PdfDetachedSignatureWriter
             PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
-                fieldType = typeValue as PdfName
+                fieldType = Resolve(document, typeValue) as PdfName
                     ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
             string? fullName = parentName;
             bool definesName = false;
             if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
             {
                 definesName = true;
-                string partialName = nameValue is PdfString name
+                string partialName = Resolve(document, nameValue) is PdfString name
                     ? DecodeString(name)
                     : throw new InvalidOperationException("An AcroForm field /T value is not a string.");
                 fullName = string.IsNullOrEmpty(parentName)
@@ -404,12 +412,12 @@ public static class PdfDetachedSignatureWriter
         PdfDictionary fieldLock = ResolveDictionary(
             document, lockValue, "The signature field /Lock value");
         if (!fieldLock.TryGetValue(Name("Type"), out PdfObject? lockTypeValue)
-            || lockTypeValue is not PdfName lockType
+            || Resolve(document, lockTypeValue) is not PdfName lockType
             || lockType.ValueAsLatin1() != "SigFieldLock")
             throw new InvalidOperationException(
                 "A signature field lock /Type is not /SigFieldLock.");
         if (!fieldLock.TryGetValue(Name("Action"), out PdfObject? actionValue)
-            || actionValue is not PdfName action
+            || Resolve(document, actionValue) is not PdfName action
             || action.ValueAsLatin1() is not ("All" or "Include" or "Exclude"))
             throw new InvalidOperationException(
                 "A signature field lock has no valid /Action value.");
@@ -418,7 +426,8 @@ public static class PdfDetachedSignatureWriter
         if (fieldLock.TryGetValue(Name("Fields"), out PdfObject? fieldsValue))
         {
             fields = ResolveArray(document, fieldsValue, "The signature field lock /Fields value");
-            if (fields.Count == 0 || fields.Any(value => value is not PdfString))
+            if (fields.Count == 0
+                || fields.Any(value => Resolve(document, value) is not PdfString))
                 throw new InvalidOperationException(
                     "A signature field lock /Fields array must contain field-name strings.");
         }
@@ -438,7 +447,8 @@ public static class PdfDetachedSignatureWriter
         if (fields is not null) entries.Add(("Fields", fields));
         if (fieldLock.TryGetValue(Name("P"), out PdfObject? permissionValue))
         {
-            if (permissionValue is not PdfInteger permission || permission.Value is < 1 or > 3)
+            if (Resolve(document, permissionValue) is not PdfInteger permission
+                || permission.Value is < 1 or > 3)
                 throw new InvalidOperationException(
                     "A signature field lock /P value is not an integer from 1 through 3.");
             entries.Add(("P", permission));
@@ -455,17 +465,18 @@ public static class PdfDetachedSignatureWriter
                 "A signature field /SV value is not an indirect reference.");
         PdfDictionary seed = ResolveDictionary(document, seedValue, "The signature field /SV value");
         if (!seed.TryGetValue(Name("Type"), out PdfObject? typeValue)
-            || typeValue is not PdfName type || type.ValueAsLatin1() != "SV")
+            || Resolve(document, typeValue) is not PdfName type
+            || type.ValueAsLatin1() != "SV")
             throw new InvalidOperationException("A signature seed-value /Type is not /SV.");
         long flags = 0;
         if (seed.TryGetValue(Name("Ff"), out PdfObject? flagsValue))
-            flags = flagsValue is PdfInteger integer && integer.Value >= 0
+            flags = Resolve(document, flagsValue) is PdfInteger integer && integer.Value >= 0
                 ? integer.Value
                 : throw new InvalidOperationException(
                     "A signature seed-value /Ff value is not a non-negative integer.");
 
         if ((flags & 1) != 0)
-            RequireName(seed, "Filter", "Adobe.PPKLite",
+            RequireName(seed, document, "Filter", "Adobe.PPKLite",
                 "The signature seed value requires an unsupported signing handler.");
         if ((flags & (1 << 1)) != 0)
             RequireNameInArray(seed, document, "SubFilter", "ETSI.CAdES.detached",
@@ -473,7 +484,8 @@ public static class PdfDetachedSignatureWriter
         if ((flags & (1 << 2)) != 0)
         {
             if (!seed.TryGetValue(Name("V"), out PdfObject? versionValue)
-                || versionValue is not PdfReal version || version.Value is < 1 or > 3)
+                || Resolve(document, versionValue) is not PdfReal version
+                || version.Value is < 1 or > 3)
                 throw new InvalidOperationException(
                     "The signature seed value requires an unsupported parser version.");
         }
@@ -487,7 +499,7 @@ public static class PdfDetachedSignatureWriter
         if ((flags & (1 << 5)) != 0)
         {
             if (!seed.TryGetValue(Name("AddRevInfo"), out PdfObject? revocationValue)
-                || revocationValue is not PdfBoolean { Value: true }
+                || Resolve(document, revocationValue) is not PdfBoolean { Value: true }
                 || !options.IncludesRevocationInformation)
                 throw new InvalidOperationException(
                     "The signature seed value requires embedded revocation information.");
@@ -510,13 +522,13 @@ public static class PdfDetachedSignatureWriter
                 PdfSignatureDocumentLockIntent.DoNotLock => "false",
                 _ => string.Empty
             };
-            RequireName(seed, "LockDocument", required,
+            RequireName(seed, document, "LockDocument", required,
                 "The document-lock intent does not satisfy the signature seed value.");
         }
         if ((flags & (1 << 8)) != 0)
         {
             if (!seed.TryGetValue(Name("AppearanceFilter"), out PdfObject? appearanceValue)
-                || appearanceValue is not PdfString appearance
+                || Resolve(document, appearanceValue) is not PdfString appearance
                 || options.AppearanceName is null
                 || DecodeString(appearance) != options.AppearanceName)
                 throw new InvalidOperationException(
@@ -528,7 +540,8 @@ public static class PdfDetachedSignatureWriter
             PdfDictionary mdp = ResolveDictionary(document, mdpValue,
                 "The signature seed-value /MDP value");
             if (!mdp.TryGetValue(Name("P"), out PdfObject? permissionValue)
-                || permissionValue is not PdfInteger permission || permission.Value is < 0 or > 3
+                || Resolve(document, permissionValue) is not PdfInteger permission
+                || permission.Value is < 0 or > 3
                 || (int?)permission.Value != (int?)(options.CertificationPermission
                     ?? PdfSignatureCertificationPermission.ApprovalSignature))
                 throw new InvalidOperationException(
@@ -542,13 +555,14 @@ public static class PdfDetachedSignatureWriter
                 "The signature seed-value /TimeStamp value");
             if (timestamp.TryGetValue(Name("Ff"), out PdfObject? timestampFlags))
             {
-                if (timestampFlags is not PdfInteger { Value: >= 0 } timestampFlagInteger)
+                if (Resolve(document, timestampFlags)
+                    is not PdfInteger { Value: >= 0 } timestampFlagInteger)
                     throw new InvalidOperationException(
                         "The signature timestamp /Ff value is not a non-negative integer.");
                 if ((timestampFlagInteger.Value & 1) != 0)
                 {
                     if (!timestamp.TryGetValue(Name("URL"), out PdfObject? timestampUrlValue)
-                        || timestampUrlValue is not PdfString timestampUrl
+                        || Resolve(document, timestampUrlValue) is not PdfString timestampUrl
                         || options.TimestampServerUrl is null
                         || DecodeString(timestampUrl) != options.TimestampServerUrl)
                         throw new InvalidOperationException(
@@ -562,13 +576,14 @@ public static class PdfDetachedSignatureWriter
             PdfDictionary certificate = ResolveDictionary(document, certificateValue,
                 "The signature seed-value /Cert value");
             if (!certificate.TryGetValue(Name("Type"), out PdfObject? certificateTypeValue)
-                || certificateTypeValue is not PdfName certificateType
+                || Resolve(document, certificateTypeValue) is not PdfName certificateType
                 || certificateType.ValueAsLatin1() != "SVCert")
                 throw new InvalidOperationException(
                     "A certificate seed-value /Type is not /SVCert.");
             if (certificate.TryGetValue(Name("Ff"), out PdfObject? certificateFlags))
             {
-                if (certificateFlags is not PdfInteger { Value: >= 0 } certificateFlagInteger)
+                if (Resolve(document, certificateFlags)
+                    is not PdfInteger { Value: >= 0 } certificateFlagInteger)
                     throw new InvalidOperationException(
                         "The certificate seed-value /Ff value is not a non-negative integer.");
                 if (certificateFlagInteger.Value != 0)
@@ -588,7 +603,7 @@ public static class PdfDetachedSignatureWriter
         if ((flags & (1 << 6)) != 0)
         {
             if (!seed.TryGetValue(Name("URL"), out PdfObject? urlValue)
-                || urlValue is not PdfString url
+                || Resolve(document, urlValue) is not PdfString url
                 || options.CertificateAcquisitionUrl is null
                 || DecodeString(url) != options.CertificateAcquisitionUrl)
                 throw new InvalidOperationException(
@@ -645,10 +660,12 @@ public static class PdfDetachedSignatureWriter
         if (!seed.TryGetValue(Name(key), out PdfObject? value)) return false;
         PdfArray certificates = ResolveArray(document, value,
             $"The certificate seed-value /{key} value");
-        if (certificates.Any(item => item is not PdfString))
+        PdfObject[] certificateValues = certificates
+            .Select(item => Resolve(document, item)).ToArray();
+        if (certificateValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 $"The certificate seed-value /{key} array contains a non-string value.");
-        return certificates.Cast<PdfString>()
+        return certificateValues.Cast<PdfString>()
             .Any(item => item.Bytes.Span.SequenceEqual(expected.Span));
     }
 
@@ -661,12 +678,14 @@ public static class PdfDetachedSignatureWriter
         if (!seed.TryGetValue(Name("Issuer"), out PdfObject? value)) return false;
         PdfArray acceptable = ResolveArray(document, value,
             "The certificate seed-value /Issuer value");
-        if (acceptable.Any(item => item is not PdfString))
+        PdfObject[] acceptableValues = acceptable
+            .Select(item => Resolve(document, item)).ToArray();
+        if (acceptableValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 "The certificate seed-value /Issuer array contains a non-string value.");
         foreach (ReadOnlyMemory<byte> candidateBytes in chain)
         {
-            if (!acceptable.Cast<PdfString>().Any(item =>
+            if (!acceptableValues.Cast<PdfString>().Any(item =>
                 item.Bytes.Span.SequenceEqual(candidateBytes.Span))) continue;
             try
             {
@@ -690,7 +709,9 @@ public static class PdfDetachedSignatureWriter
     {
         if (!seed.TryGetValue(Name("OID"), out PdfObject? value)) return false;
         PdfArray required = ResolveArray(document, value, "The certificate seed-value /OID value");
-        if (required.Any(item => item is not PdfString))
+        PdfObject[] requiredValues = required
+            .Select(item => Resolve(document, item)).ToArray();
+        if (requiredValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 "The certificate seed-value /OID array contains a non-string value.");
         var policies = new HashSet<string>(StringComparer.Ordinal);
@@ -712,7 +733,7 @@ public static class PdfDetachedSignatureWriter
                 return false;
             }
         }
-        return required.Cast<PdfString>()
+        return requiredValues.Cast<PdfString>()
             .Any(item => policies.Contains(Encoding.Latin1.GetString(item.Bytes.Span)));
     }
 
@@ -730,7 +751,7 @@ public static class PdfDetachedSignatureWriter
             bool matches = true;
             foreach ((PdfName key, PdfObject expectedValue) in alternative)
             {
-                if (expectedValue is not PdfString expected
+                if (Resolve(document, expectedValue) is not PdfString expected
                     || !subject.TryGetValue(key.ValueAsLatin1(), out List<string>? actual)
                     || !actual.Contains(DecodeString(expected), StringComparer.OrdinalIgnoreCase))
                 {
@@ -791,7 +812,9 @@ public static class PdfDetachedSignatureWriter
         if (!seed.TryGetValue(Name("KeyUsage"), out PdfObject? value)) return false;
         PdfArray patterns = ResolveArray(document, value,
             "The certificate seed-value /KeyUsage value");
-        if (patterns.Any(item => item is not PdfString))
+        PdfObject[] patternValues = patterns
+            .Select(item => Resolve(document, item)).ToArray();
+        if (patternValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 "The certificate seed-value /KeyUsage array contains a non-string value.");
         X509KeyUsageFlags actual = signer.Extensions.OfType<X509KeyUsageExtension>()
@@ -808,7 +831,7 @@ public static class PdfDetachedSignatureWriter
             X509KeyUsageFlags.EncipherOnly,
             X509KeyUsageFlags.DecipherOnly
         ];
-        return patterns.Cast<PdfString>().Any(patternValue =>
+        return patternValues.Cast<PdfString>().Any(patternValue =>
         {
             string pattern = Encoding.Latin1.GetString(patternValue.Bytes.Span);
             return pattern.Length == bits.Length && pattern.Select((constraint, index) =>
@@ -821,11 +844,13 @@ public static class PdfDetachedSignatureWriter
     }
 
     private static void RequireName(
-        PdfDictionary dictionary, string key, string expected, string message)
+        PdfDictionary dictionary, PdfDocument document,
+        string key, string expected, string message)
     {
         if (expected.Length == 0
             || !dictionary.TryGetValue(Name(key), out PdfObject? value)
-            || value is not PdfName name || name.ValueAsLatin1() != expected)
+            || Resolve(document, value) is not PdfName name
+            || name.ValueAsLatin1() != expected)
             throw new InvalidOperationException(message);
     }
 
@@ -836,8 +861,9 @@ public static class PdfDetachedSignatureWriter
         if (!dictionary.TryGetValue(Name(key), out PdfObject? value))
             throw new InvalidOperationException(message);
         PdfArray values = ResolveArray(document, value, $"The signature seed-value /{key} value");
-        if (!values.OfType<PdfName>().Any(name => name.ValueAsLatin1() == expected)
-            || values.Any(item => item is not PdfName))
+        PdfObject[] resolved = values.Select(item => Resolve(document, item)).ToArray();
+        if (!resolved.OfType<PdfName>().Any(name => name.ValueAsLatin1() == expected)
+            || resolved.Any(item => item is not PdfName))
             throw new InvalidOperationException(message);
     }
 
@@ -848,60 +874,15 @@ public static class PdfDetachedSignatureWriter
         if (expected is null || !dictionary.TryGetValue(Name(key), out PdfObject? value))
             throw new InvalidOperationException(message);
         PdfArray values = ResolveArray(document, value, $"The signature seed-value /{key} value");
-        if (!values.OfType<PdfString>().Any(item => DecodeString(item) == expected)
-            || values.Any(item => item is not PdfString))
+        PdfObject[] resolved = values.Select(item => Resolve(document, item)).ToArray();
+        if (!resolved.OfType<PdfString>().Any(item => DecodeString(item) == expected)
+            || resolved.Any(item => item is not PdfString))
             throw new InvalidOperationException(message);
     }
 
-    private static int? ReadCertificationPermission(
-        PdfDocument document, PdfPageTree tree)
-    {
-        if (!tree.Catalog.TryGetValue(PermissionsName, out PdfObject? permissionsValue))
-            return null;
-        PdfDictionary permissions = ResolveDictionary(
-            document, permissionsValue, "The catalog /Perms value");
-        if (!permissions.TryGetValue(DocMdpName, out PdfObject? signatureValue))
-            return null;
-        if (signatureValue is not PdfIndirectReference)
-            throw new InvalidOperationException(
-                "The certification /Perms /DocMDP value is not an indirect reference.");
-        PdfDictionary signature = ResolveDictionary(
-            document, signatureValue, "The certification signature");
-        if (!signature.TryGetValue(Name("Reference"), out PdfObject? referencesValue))
-            throw new InvalidOperationException(
-                "The certification signature has no /Reference array.");
-        PdfArray references = ResolveArray(
-            document, referencesValue, "The certification signature /Reference value");
-        PdfDictionary? transformParameters = null;
-        foreach (PdfObject referenceValue in references)
-        {
-            PdfDictionary reference = ResolveDictionary(
-                document, referenceValue, "A certification signature reference");
-            if (!reference.TryGetValue(Name("TransformMethod"), out PdfObject? methodValue))
-                continue;
-            if (methodValue is not PdfName method)
-                throw new InvalidOperationException(
-                    "A certification signature /TransformMethod value is not a name.");
-            if (!method.Equals(DocMdpName)) continue;
-            if (transformParameters is not null)
-                throw new InvalidOperationException(
-                    "The certification signature has more than one DocMDP transform.");
-            if (!reference.TryGetValue(Name("TransformParams"), out PdfObject? parametersValue))
-                throw new InvalidOperationException(
-                    "The certification signature DocMDP transform has no parameters.");
-            transformParameters = ResolveDictionary(
-                document, parametersValue, "The DocMDP transform parameters");
-        }
-        if (transformParameters is null)
-            throw new InvalidOperationException(
-                "The certification signature has no DocMDP transform.");
-        if (!transformParameters.TryGetValue(Name("P"), out PdfObject? permissionValue))
-            return 2;
-        if (permissionValue is not PdfInteger permission || permission.Value is < 1 or > 3)
-            throw new InvalidOperationException(
-                "The DocMDP transform permission is not an integer from 1 through 3.");
-        return (int)permission.Value;
-    }
+    private static int? ReadCertificationPermission(PdfDocument document) =>
+        PdfSignatureReader.ReadCertificationPermission(document) is { } permission
+            ? (int)permission : null;
 
     private static bool HasSignedSignatureField(PdfDocument document, PdfPageTree tree)
     {
@@ -911,6 +892,7 @@ public static class PdfDetachedSignatureWriter
         PdfArray fields = ResolveArray(document, fieldsValue, "The AcroForm /Fields value");
         var active = new HashSet<(int ObjectNumber, int Generation)>();
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        int fieldCount = 0;
         foreach (PdfObject field in fields)
             if (Visit(field, null, 0)) return true;
         return false;
@@ -919,6 +901,9 @@ public static class PdfDetachedSignatureWriter
         {
             if (depth >= PdfObjectWriter.MaximumNestingDepth)
                 throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            if (++fieldCount > 1_000_000)
+                throw new NotSupportedException(
+                    "The AcroForm field tree contains too many fields.");
             PdfIndirectReference? reference = value as PdfIndirectReference;
             if (reference is not null)
             {
@@ -932,14 +917,25 @@ public static class PdfDetachedSignatureWriter
             PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
-                fieldType = typeValue as PdfName
+                fieldType = Resolve(document, typeValue) as PdfName
                     ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
             if (fieldType?.Equals(Name("Sig")) == true
                 && field.TryGetValue(Name("V"), out PdfObject? signatureValue))
             {
                 PdfObject resolved = signatureValue is PdfIndirectReference signatureReference
                     ? document.Resolve(signatureReference) : signatureValue;
-                if (resolved is not PdfNull) return true;
+                if (resolved is not PdfNull)
+                {
+                    PdfDictionary signature = resolved as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            "A signed signature field /V value is not a dictionary.");
+                    if (!signature.TryGetValue(Name("Type"), out PdfObject? signatureTypeValue)
+                        || Resolve(document, signatureTypeValue) is not PdfName signatureType
+                        || !signatureType.Equals(Name("Sig")))
+                        throw new InvalidOperationException(
+                            "A signed signature field /V dictionary does not declare /Type /Sig.");
+                    return true;
+                }
             }
             if (field.TryGetValue(KidsName, out PdfObject? kidsValue))
             {
@@ -1008,7 +1004,8 @@ public static class PdfDetachedSignatureWriter
         long structureParentKey = minimumNextKey;
         if (root.TryGetValue(Name("ParentTreeNextKey"), out PdfObject? nextKeyValue))
         {
-            if (nextKeyValue is not PdfInteger nextKey || nextKey.Value < minimumNextKey)
+            if (Resolve(document, nextKeyValue) is not PdfInteger nextKey
+                || nextKey.Value < minimumNextKey)
                 throw new InvalidOperationException(
                     "The structure root /ParentTreeNextKey value is not a valid next key.");
             structureParentKey = nextKey.Value;
@@ -1092,7 +1089,7 @@ public static class PdfDetachedSignatureWriter
         PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
         long flags = 0;
         if (form.TryGetValue(SignatureFlagsName, out PdfObject? flagsValue))
-            flags = flagsValue is PdfInteger integer && integer.Value >= 0
+            flags = Resolve(document, flagsValue) is PdfInteger integer && integer.Value >= 0
                 ? integer.Value
                 : throw new InvalidOperationException(
                     "The AcroForm /SigFlags value is not a non-negative integer.");
@@ -1122,6 +1119,7 @@ public static class PdfDetachedSignatureWriter
         PdfIndirectReference? formReference = formValue as PdfIndirectReference;
         PdfDictionary form = ResolveDictionary(document, formValue, "The catalog /AcroForm value");
         PdfObject fieldsValue = form[FieldsName];
+        int fieldCount = 0;
         RewriteResult rewrittenFields = RewriteArray(fieldsValue, null, null, 0);
         if (!rewrittenFields.Found)
             throw new InvalidOperationException(
@@ -1131,7 +1129,7 @@ public static class PdfDetachedSignatureWriter
             {
                 [FieldsName] = rewrittenFields.Value
             }) : form;
-        rewrittenForm = WithSignatureFlags(rewrittenForm);
+        rewrittenForm = WithSignatureFlags(document, rewrittenForm);
         if (formReference is not null)
         {
             update.ReplaceObject(formReference.ObjectNumber, rewrittenForm);
@@ -1172,18 +1170,21 @@ public static class PdfDetachedSignatureWriter
         {
             if (depth >= PdfObjectWriter.MaximumNestingDepth)
                 throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            if (++fieldCount > 1_000_000)
+                throw new NotSupportedException(
+                    "The AcroForm field tree contains too many fields.");
             PdfIndirectReference? reference = value as PdfIndirectReference;
             PdfDictionary field = ResolveDictionary(document, value, "An AcroForm field");
             PdfName? fieldType = inheritedType;
             if (field.TryGetValue(Name("FT"), out PdfObject? typeValue))
-                fieldType = typeValue as PdfName
+                fieldType = Resolve(document, typeValue) as PdfName
                     ?? throw new InvalidOperationException("An AcroForm field /FT value is not a name.");
             string? fullName = parentName;
             bool definesName = false;
             if (field.TryGetValue(FieldNameName, out PdfObject? nameValue))
             {
                 definesName = true;
-                string partialName = nameValue is PdfString name
+                string partialName = Resolve(document, nameValue) is PdfString name
                     ? DecodeString(name)
                     : throw new InvalidOperationException("An AcroForm field /T value is not a string.");
                 fullName = string.IsNullOrEmpty(parentName)
@@ -1219,11 +1220,12 @@ public static class PdfDetachedSignatureWriter
         }
     }
 
-    private static PdfDictionary WithSignatureFlags(PdfDictionary form)
+    private static PdfDictionary WithSignatureFlags(
+        PdfDocument document, PdfDictionary form)
     {
         long flags = 0;
         if (form.TryGetValue(SignatureFlagsName, out PdfObject? flagsValue))
-            flags = flagsValue is PdfInteger integer && integer.Value >= 0
+            flags = Resolve(document, flagsValue) is PdfInteger integer && integer.Value >= 0
                 ? integer.Value
                 : throw new InvalidOperationException(
                     "The AcroForm /SigFlags value is not a non-negative integer.");
@@ -1535,6 +1537,9 @@ public static class PdfDetachedSignatureWriter
         return resolved as PdfArray
             ?? throw new InvalidOperationException($"{description} is not an array.");
     }
+
+    private static PdfObject Resolve(PdfDocument document, PdfObject value) =>
+        value is PdfIndirectReference reference ? document.Resolve(reference) : value;
 
     private static PdfDictionary ReplaceMany(
         PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements) =>

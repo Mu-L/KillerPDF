@@ -195,6 +195,22 @@ public sealed class PdfDetachedSignatureWriterTests
             .AddBlankPage()
             .AddCheckBox(0, "approved", 20, 20, 12, 12, isChecked: true)
             .Build();
+        PdfDocument authored = PdfDocument.Open(source);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        PdfDictionary authoredCatalog = ResolveDictionary(authored, catalogReference);
+        PdfDictionary authoredForm = Assert.IsType<PdfDictionary>(
+            authoredCatalog[Name("AcroForm")]);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(authoredForm[Name("Fields")])[0]);
+        PdfDictionary authoredField = ResolveDictionary(authored, fieldReference);
+        var update = new PdfIncrementalUpdateBuilder(authored);
+        PdfIndirectReference fieldName = update.AddObject(authoredField[Name("T")]);
+        update.ReplaceObject(fieldReference.ObjectNumber,
+            new PdfDictionary(authoredField.Select(entry => entry.Key.Equals(Name("T"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, fieldName)
+                : entry)));
+        source = update.Build();
 
         PdfDocument reopened = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
@@ -210,8 +226,9 @@ public sealed class PdfDetachedSignatureWriterTests
             Assert.IsType<PdfArray>(pages[Name("Kids")])[0]);
 
         Assert.Equal(2, fields.Count);
-        Assert.Equal("approved", DecodeUnicode(Assert.IsType<PdfString>(
-            ResolveDictionary(reopened, fields[0])[Name("T")])));
+        Assert.Equal("approved", DecodeUnicode(Assert.IsType<PdfString>(reopened.Resolve(
+            Assert.IsType<PdfIndirectReference>(
+                ResolveDictionary(reopened, fields[0])[Name("T")])))));
         Assert.Equal("signature", DecodeUnicode(Assert.IsType<PdfString>(
             ResolveDictionary(reopened, fields[1])[Name("T")])));
         Assert.Equal(2, Assert.IsType<PdfArray>(page[Name("Annots")]).Count);
@@ -247,6 +264,20 @@ public sealed class PdfDetachedSignatureWriterTests
             originalField[Name("Lock")]);
         PdfIndirectReference seedReference = Assert.IsType<PdfIndirectReference>(
             originalField[Name("SV")]);
+        PdfDictionary originalLock = ResolveDictionary(original, lockReference);
+        var indirectLockUpdate = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference lockType = indirectLockUpdate.AddObject(originalLock[Name("Type")]);
+        PdfIndirectReference lockAction = indirectLockUpdate.AddObject(originalLock[Name("Action")]);
+        PdfIndirectReference lockPermission = indirectLockUpdate.AddObject(originalLock[Name("P")]);
+        indirectLockUpdate.ReplaceObject(lockReference.ObjectNumber,
+            new PdfDictionary(originalLock.Select(entry => entry.Key.Equals(Name("Type"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, lockType)
+                : entry.Key.Equals(Name("Action"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, lockAction)
+                    : entry.Key.Equals(Name("P"))
+                        ? new KeyValuePair<PdfName, PdfObject>(entry.Key, lockPermission)
+                        : entry)));
+        original = PdfDocument.Open(indirectLockUpdate.Build());
 
         PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
             original, _ => [1, 2, 3], new PdfSignatureOptions
@@ -356,12 +387,49 @@ public sealed class PdfDetachedSignatureWriterTests
     [Fact]
     public void Sign_FillsPreAuthoredQualifiedSignatureField()
     {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "workflow.owner", 20, 20, 120, 20, "Steve")
+            .AddSignatureField(0, "workflow.approval", 20, 60, 160, 40)
+            .Build());
+        PdfIndirectReference authoredCatalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        PdfDictionary authoredCatalog = ResolveDictionary(
+            authored, authoredCatalogReference);
+        PdfDictionary authoredForm = Assert.IsType<PdfDictionary>(
+            authoredCatalog[Name("AcroForm")]);
+        PdfIndirectReference parentReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(authoredForm[Name("Fields")])));
+        PdfDictionary authoredParent = ResolveDictionary(authored, parentReference);
+        PdfIndirectReference signatureReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(authoredParent[Name("Kids")])[1]);
+        PdfDictionary authoredSignature = ResolveDictionary(authored, signatureReference);
+        var update = new PdfIncrementalUpdateBuilder(authored);
+        PdfIndirectReference parentName = update.AddObject(authoredParent[Name("T")]);
+        PdfIndirectReference signatureType = update.AddObject(authoredSignature[Name("FT")]);
+        PdfIndirectReference signatureName = update.AddObject(authoredSignature[Name("T")]);
+        PdfIndirectReference signatureFlags = update.AddObject(authoredForm[Name("SigFlags")]);
+        PdfDictionary indirectFlagsForm = new(authoredForm.Select(entry =>
+            entry.Key.Equals(Name("SigFlags"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, signatureFlags)
+                : entry));
+        update.ReplaceObject(authoredCatalogReference.ObjectNumber,
+            new PdfDictionary(authoredCatalog.Select(entry =>
+                entry.Key.Equals(Name("AcroForm"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectFlagsForm)
+                    : entry)));
+        update.ReplaceObject(parentReference.ObjectNumber,
+            new PdfDictionary(authoredParent.Select(entry => entry.Key.Equals(Name("T"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, parentName)
+                : entry)));
+        update.ReplaceObject(signatureReference.ObjectNumber,
+            new PdfDictionary(authoredSignature.Select(entry => entry.Key.Equals(Name("FT"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, signatureType)
+                : entry.Key.Equals(Name("T"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, signatureName)
+                    : entry)));
         PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
-            PdfDocument.Open(new PdfDocumentBuilder()
-                .AddBlankPage()
-                .AddTextField(0, "workflow.owner", 20, 20, 120, 20, "Steve")
-                .AddSignatureField(0, "workflow.approval", 20, 60, 160, 40)
-                .Build()),
+            PdfDocument.Open(update.Build()),
             _ => [1],
             new PdfSignatureOptions
             {
@@ -376,8 +444,11 @@ public sealed class PdfDetachedSignatureWriterTests
         PdfDictionary signature = ResolveDictionary(signed,
             Assert.IsType<PdfArray>(parent[Name("Kids")])[1]);
 
-        Assert.Equal("workflow", DecodeUnicode(Assert.IsType<PdfString>(parent[Name("T")])));
-        Assert.Equal("approval", DecodeUnicode(Assert.IsType<PdfString>(signature[Name("T")])));
+        Assert.Equal("workflow", DecodeUnicode(Assert.IsType<PdfString>(signed.Resolve(
+            Assert.IsType<PdfIndirectReference>(parent[Name("T")])))));
+        Assert.Equal("approval", DecodeUnicode(Assert.IsType<PdfString>(signed.Resolve(
+            Assert.IsType<PdfIndirectReference>(signature[Name("T")])))));
+        Assert.Equal(3, Assert.IsType<PdfInteger>(form[Name("SigFlags")]).Value);
         PdfSignatureInfo info = Assert.Single(PdfSignatureReader.Read(signed));
         Assert.Equal("workflow.approval", info.FieldName);
         Assert.True(info.IsSigned);
@@ -396,6 +467,21 @@ public sealed class PdfDetachedSignatureWriterTests
             .AddStructureElement(PdfStructureType.Figure, 0, 0, 1,
                 alternateDescription: "Square")
             .Build();
+        PdfDocument tagged = PdfDocument.Open(source);
+        PdfDictionary taggedCatalog = ResolveDictionary(
+            tagged, tagged.Trailer[Name("Root")]);
+        PdfIndirectReference taggedRootReference = Assert.IsType<PdfIndirectReference>(
+            taggedCatalog[Name("StructTreeRoot")]);
+        PdfDictionary taggedRoot = ResolveDictionary(tagged, taggedRootReference);
+        var taggedUpdate = new PdfIncrementalUpdateBuilder(tagged);
+        PdfIndirectReference nextKey = taggedUpdate.AddObject(
+            taggedRoot[Name("ParentTreeNextKey")]);
+        taggedUpdate.ReplaceObject(taggedRootReference.ObjectNumber,
+            new PdfDictionary(taggedRoot.Select(entry =>
+                entry.Key.Equals(Name("ParentTreeNextKey"))
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, nextKey)
+                    : entry)));
+        source = taggedUpdate.Build();
 
         PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
             PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
@@ -584,6 +670,44 @@ public sealed class PdfDetachedSignatureWriterTests
             }));
     }
 
+    [Fact]
+    public void Sign_RejectsExistingSignedValueWithoutSignatureDictionaryType()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "first", 20, 80, 160, 40)
+            .AddSignatureField(0, "second", 20, 20, 160, 40)
+            .Build();
+        PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
+            {
+                FieldName = "first",
+                ReservedSignatureSize = 8
+            }));
+        PdfDictionary catalog = ResolveDictionary(signed, signed.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary firstField = ResolveDictionary(signed,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfIndirectReference signatureReference = Assert.IsType<PdfIndirectReference>(
+            firstField[Name("V")]);
+        PdfDictionary signature = ResolveDictionary(signed, signatureReference);
+        PdfDocument malformed = PdfDocument.Open(new PdfIncrementalUpdateBuilder(signed)
+            .ReplaceObject(signatureReference.ObjectNumber,
+                new PdfDictionary(signature.Where(entry => !entry.Key.Equals(Name("Type")))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            PdfDetachedSignatureWriter.Sign(malformed, _ => [1], new PdfSignatureOptions
+            {
+                FieldName = "second",
+                CertificationPermission =
+                    PdfSignatureCertificationPermission.FormFillingAndSignatures,
+                ReservedSignatureSize = 8
+            }));
+
+        Assert.Contains("does not declare /Type /Sig", error.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(PdfSignatureCertificationPermission.ApprovalSignature)]
     [InlineData((PdfSignatureCertificationPermission)99)]
@@ -630,6 +754,38 @@ public sealed class PdfDetachedSignatureWriterTests
                     RequireAppearance = true
                 })
             .Build();
+        PdfDocument authored = PdfDocument.Open(source);
+        PdfDictionary authoredCatalog = ResolveDictionary(
+            authored, authored.Trailer[Name("Root")]);
+        PdfDictionary authoredForm = Assert.IsType<PdfDictionary>(
+            authoredCatalog[Name("AcroForm")]);
+        PdfDictionary authoredField = ResolveDictionary(authored,
+            Assert.IsType<PdfArray>(authoredForm[Name("Fields")])[0]);
+        PdfIndirectReference seedReference = Assert.IsType<PdfIndirectReference>(
+            authoredField[Name("SV")]);
+        PdfDictionary seed = ResolveDictionary(authored, seedReference);
+        var seedUpdate = new PdfIncrementalUpdateBuilder(authored);
+        PdfIndirectReference Indirect(PdfObject value) => seedUpdate.AddObject(value);
+        PdfDictionary indirectSeed = new(seed.Select(entry =>
+        {
+            if (entry.Value is PdfArray array)
+                return new KeyValuePair<PdfName, PdfObject>(entry.Key,
+                    new PdfArray(array.Select(item => (PdfObject)Indirect(item))));
+            if (entry.Key.Equals(Name("MDP")))
+            {
+                PdfDictionary mdp = Assert.IsType<PdfDictionary>(entry.Value);
+                return new KeyValuePair<PdfName, PdfObject>(entry.Key,
+                    new PdfDictionary(mdp.Select(item => item.Value is PdfInteger
+                        ? new KeyValuePair<PdfName, PdfObject>(
+                            item.Key, Indirect(item.Value))
+                        : item)));
+            }
+            return entry.Value is PdfName or PdfInteger or PdfReal or PdfBoolean or PdfString
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, Indirect(entry.Value))
+                : entry;
+        }));
+        seedUpdate.ReplaceObject(seedReference.ObjectNumber, indirectSeed);
+        source = seedUpdate.Build();
         var valid = new PdfSignatureOptions
         {
             FieldName = "approval",
@@ -711,6 +867,25 @@ public sealed class PdfDetachedSignatureWriterTests
                         "https://timestamp.example.test", Required: true)
                 })
             .Build();
+        PdfDocument authored = PdfDocument.Open(source);
+        PdfDictionary catalog = ResolveDictionary(authored, authored.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(authored,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfIndirectReference seedReference = Assert.IsType<PdfIndirectReference>(field[Name("SV")]);
+        PdfDictionary seed = ResolveDictionary(authored, seedReference);
+        PdfDictionary timestamp = Assert.IsType<PdfDictionary>(seed[Name("TimeStamp")]);
+        var update = new PdfIncrementalUpdateBuilder(authored);
+        PdfDictionary indirectTimestamp = new(timestamp.Select(entry =>
+            new KeyValuePair<PdfName, PdfObject>(entry.Key, update.AddObject(entry.Value))));
+        update.ReplaceObject(seedReference.ObjectNumber,
+            new PdfDictionary(seed.Select(entry => entry.Key.Equals(Name("TimeStamp"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectTimestamp)
+                : entry.Value is PdfName or PdfInteger
+                    ? new KeyValuePair<PdfName, PdfObject>(
+                        entry.Key, update.AddObject(entry.Value))
+                    : entry)));
+        source = update.Build();
         var options = new PdfSignatureOptions
         {
             FieldName = "approval",
@@ -789,6 +964,46 @@ public sealed class PdfDetachedSignatureWriterTests
                     }
                 })
             .Build();
+        PdfDocument certificateDocument = PdfDocument.Open(source);
+        PdfDictionary certificateCatalog = ResolveDictionary(
+            certificateDocument, certificateDocument.Trailer[Name("Root")]);
+        PdfDictionary certificateForm = Assert.IsType<PdfDictionary>(
+            certificateCatalog[Name("AcroForm")]);
+        PdfDictionary certificateField = ResolveDictionary(certificateDocument,
+            Assert.IsType<PdfArray>(certificateForm[Name("Fields")])[0]);
+        PdfIndirectReference certificateSeedReference = Assert.IsType<PdfIndirectReference>(
+            certificateField[Name("SV")]);
+        PdfDictionary certificateSeed = ResolveDictionary(
+            certificateDocument, certificateSeedReference);
+        PdfDictionary certificateConstraints = Assert.IsType<PdfDictionary>(
+            certificateSeed[Name("Cert")]);
+        var certificateUpdate = new PdfIncrementalUpdateBuilder(certificateDocument);
+        PdfIndirectReference IndirectCertificateValue(PdfObject value) =>
+            certificateUpdate.AddObject(value);
+        PdfDictionary indirectCertificateConstraints = new(certificateConstraints.Select(entry =>
+        {
+            if (entry.Value is PdfArray array)
+            {
+                IEnumerable<PdfObject> values = entry.Key.Equals(Name("SubjectDN"))
+                    ? array.Select(item => (PdfObject)new PdfDictionary(
+                        Assert.IsType<PdfDictionary>(item).Select(attribute =>
+                            new KeyValuePair<PdfName, PdfObject>(attribute.Key,
+                                IndirectCertificateValue(attribute.Value)))))
+                    : array.Select(item => (PdfObject)IndirectCertificateValue(item));
+                return new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, new PdfArray(values));
+            }
+            return entry.Value is PdfName or PdfInteger or PdfString
+                ? new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, IndirectCertificateValue(entry.Value))
+                : entry;
+        }));
+        certificateUpdate.ReplaceObject(certificateSeedReference.ObjectNumber,
+            new PdfDictionary(certificateSeed.Select(entry => entry.Key.Equals(Name("Cert"))
+                ? new KeyValuePair<PdfName, PdfObject>(
+                    entry.Key, indirectCertificateConstraints)
+                : entry)));
+        source = certificateUpdate.Build();
         var valid = new PdfSignatureOptions
         {
             FieldName = "approval",

@@ -15,6 +15,7 @@ internal sealed class PdfObjectGraphImporter
     private readonly PdfIncrementalUpdateBuilder _update;
     private readonly HashSet<SourceReference> _sourcePages;
     private readonly Dictionary<SourceReference, PdfIndirectReference> _references = [];
+    private readonly Dictionary<SourceReference, SourceReference> _sourcesByDestination = [];
     private Func<PdfIndirectReference?, PdfDictionary, PdfDictionary>? _dictionaryTransform;
     private Dictionary<SourceReference, PdfDictionary>? _sourceObjectOverrides;
     private readonly HashSet<SourceReference> _populated = [];
@@ -43,6 +44,8 @@ internal sealed class PdfObjectGraphImporter
         var key = new SourceReference(source.ObjectNumber, source.Generation);
         if (!_references.TryAdd(key, destination))
             throw new InvalidOperationException($"Source object {source.ObjectNumber} was mapped more than once.");
+        _sourcesByDestination.Add(
+            new SourceReference(destination.ObjectNumber, destination.Generation), key);
         _populated.Add(key);
     }
 
@@ -89,6 +92,8 @@ internal sealed class PdfObjectGraphImporter
             throw new InvalidOperationException("Page references must be seeded before graph import.");
         PdfIndirectReference destination = _update.ReserveObject();
         _references.Add(key, destination);
+        _sourcesByDestination.Add(
+            new SourceReference(destination.ObjectNumber, destination.Generation), key);
         return destination;
     }
 
@@ -96,6 +101,34 @@ internal sealed class PdfObjectGraphImporter
 
     internal PdfDictionary ApplyDictionaryTransform(PdfDictionary dictionary) =>
         _dictionaryTransform?.Invoke(null, dictionary) ?? dictionary;
+
+    internal PdfObject ResolveImportedSourceValue(PdfObject value)
+    {
+        if (value is not PdfIndirectReference reference) return value;
+        return _sourcesByDestination.TryGetValue(
+            new SourceReference(reference.ObjectNumber, reference.Generation),
+            out SourceReference source)
+                ? ResolveSourceValue(new PdfIndirectReference(
+                    source.ObjectNumber, source.Generation))
+                : value;
+    }
+
+    internal PdfObject ResolveSourceValue(PdfObject value)
+    {
+        var visited = new HashSet<SourceReference>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth > 32)
+                throw new InvalidOperationException(
+                    "An imported scalar is too deeply indirect.");
+            var identity = new SourceReference(reference.ObjectNumber, reference.Generation);
+            if (!visited.Add(identity))
+                throw new InvalidOperationException(
+                    "An imported scalar contains an indirect-reference cycle.");
+            value = ResolveSource(reference);
+        }
+        return value;
+    }
 
     private PdfObject Import(PdfObject value, int depth, PdfIndirectReference? context)
     {
@@ -132,6 +165,9 @@ internal sealed class PdfObjectGraphImporter
         _importedObjectCount++;
         PdfIndirectReference destinationReference = _update.ReserveObject();
         _references.Add(key, destinationReference);
+        _sourcesByDestination.Add(
+            new SourceReference(destinationReference.ObjectNumber,
+                destinationReference.Generation), key);
         PopulateReference(key, sourceReference, destinationReference, depth);
         return destinationReference;
     }

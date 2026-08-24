@@ -72,12 +72,17 @@ internal static class PdfUnicodeEncoding
             : value.Length >= 3 && value[0] == 0xEF && value[1] == 0xBB
                 && value[2] == 0xBF
                 ? DecodeUtf8(value[3..], description)
-                : DecodePdfDocEncoding(value);
+                : DecodePdfDocEncoding(value, description);
 
-    private static string DecodePdfDocEncoding(ReadOnlySpan<byte> value)
+    private static string DecodePdfDocEncoding(
+        ReadOnlySpan<byte> value, string description)
     {
         var characters = new char[value.Length];
         for (int index = 0; index < value.Length; index++)
+        {
+            if (value[index] is 0x7F or 0x9F or 0xAD)
+                throw new InvalidOperationException(
+                    $"{description} contains undefined PDFDocEncoding byte 0x{value[index]:X2}.");
             characters[index] = value[index] switch
             {
                 0x18 => '\u02D8', 0x19 => '\u02C7', 0x1A => '\u02C6',
@@ -96,6 +101,7 @@ internal static class PdfUnicodeEncoding
                 0x9E => '\u017E', 0xA0 => '\u20AC',
                 byte item => (char)item
             };
+        }
         return new string(characters);
     }
 }

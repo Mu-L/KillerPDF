@@ -8,7 +8,10 @@ internal sealed class PdfPageTree
     private static readonly PdfName RootName = Name("Root");
     private static readonly PdfName PagesName = Name("Pages");
     private static readonly PdfName KidsName = Name("Kids");
+    private static readonly PdfName CountName = Name("Count");
+    private static readonly PdfName ParentName = Name("Parent");
     private static readonly PdfName TypeName = Name("Type");
+    private static readonly PdfName CatalogName = Name("Catalog");
     private static readonly PdfName PageName = Name("Page");
     private static readonly PdfName[] InheritableNames =
     [
@@ -42,6 +45,12 @@ internal sealed class PdfPageTree
             : throw new InvalidOperationException("The PDF trailer has no /Root.");
         PdfDictionary catalog = document.Resolve(catalogReference) as PdfDictionary
             ?? throw new InvalidOperationException("The document catalog is not a dictionary.");
+        if (!catalog.TryGetValue(TypeName, out PdfObject? catalogTypeValue)
+            || (catalogTypeValue is PdfIndirectReference catalogTypeReference
+                    ? document.Resolve(catalogTypeReference) : catalogTypeValue) is not PdfName catalogType
+            || !catalogType.Equals(CatalogName))
+            throw new InvalidOperationException(
+                "The trailer /Root dictionary does not declare /Type /Catalog.");
         PdfIndirectReference rootReference = catalog.TryGetValue(PagesName, out PdfObject pagesValue)
             ? pagesValue as PdfIndirectReference
                 ?? throw new InvalidOperationException("The catalog /Pages is not an indirect reference.")
@@ -50,11 +59,11 @@ internal sealed class PdfPageTree
         var pages = new List<PdfPageTreeEntry>();
         var active = new HashSet<(int ObjectNumber, int Generation)>();
         var visitedNodes = new HashSet<(int ObjectNumber, int Generation)>();
-        Visit(rootReference, 0, new Dictionary<PdfName, PdfObject>());
+        Visit(rootReference, null, 0, new Dictionary<PdfName, PdfObject>());
         return new PdfPageTree(catalogReference, catalog, rootReference, pages);
 
-        void Visit(
-            PdfIndirectReference reference, int depth,
+        int Visit(
+            PdfIndirectReference reference, PdfIndirectReference? expectedParent, int depth,
             IReadOnlyDictionary<PdfName, PdfObject> inherited)
         {
             if (depth > MaximumDepth)
@@ -72,31 +81,75 @@ internal sealed class PdfPageTree
             {
                 PdfDictionary node = document.Resolve(reference) as PdfDictionary
                     ?? throw new InvalidOperationException("A page-tree reference is not a dictionary.");
+                if (expectedParent is null)
+                {
+                    if (node.ContainsKey(ParentName))
+                        throw new InvalidOperationException(
+                            "The root page-tree node contains a /Parent entry.");
+                }
+                else
+                {
+                    PdfIndirectReference parent = node.TryGetValue(
+                        ParentName, out PdfObject? parentValue)
+                        ? parentValue as PdfIndirectReference
+                            ?? throw new InvalidOperationException(
+                                "A non-root page-tree node /Parent is not an indirect reference.")
+                        : throw new InvalidOperationException(
+                            "A non-root page-tree node has no /Parent reference.");
+                    if (parent.ObjectNumber != expectedParent.ObjectNumber
+                        || parent.Generation != expectedParent.Generation)
+                        throw new InvalidOperationException(
+                            "A page-tree node /Parent does not identify the node that contains it.");
+                }
                 var effective = new Dictionary<PdfName, PdfObject>(inherited);
                 foreach (PdfName name in InheritableNames)
                     if (node.TryGetValue(name, out PdfObject value)) effective[name] = value;
-                if (node.TryGetValue(TypeName, out PdfObject type)
-                    && type is PdfName typeName && typeName.Equals(PageName))
+                PdfObject type = node.TryGetValue(TypeName, out PdfObject? typeValue)
+                    ? Resolve(typeValue)
+                    : throw new InvalidOperationException("A page-tree node has no /Type value.");
+                if (type is PdfName typeName && typeName.Equals(PageName))
                 {
+                    if (node.ContainsKey(KidsName) || node.ContainsKey(CountName))
+                        throw new InvalidOperationException(
+                            "A /Type /Page leaf contains page-tree /Kids or /Count entries.");
                     if (pages.Count >= MaximumPageCount)
                         throw new InvalidOperationException("The PDF contains too many pages.");
                     pages.Add(new PdfPageTreeEntry(pages.Count, reference, node, effective));
-                    return;
+                    return 1;
                 }
+                if (type is not PdfName pagesType || !pagesType.Equals(PagesName))
+                    throw new InvalidOperationException(
+                        "A page-tree node /Type value is neither /Page nor /Pages.");
                 PdfArray kids = node.TryGetValue(KidsName, out PdfObject kidsValue)
-                    ? kidsValue as PdfArray
+                    ? Resolve(kidsValue) as PdfArray
                         ?? throw new InvalidOperationException("A page-tree /Kids value is not an array.")
                     : throw new InvalidOperationException("A page-tree node has neither /Type /Page nor /Kids.");
+                if (depth > 0 && kids.Count == 0)
+                    throw new InvalidOperationException("A non-root page-tree /Kids array is empty.");
+                PdfInteger count = node.TryGetValue(CountName, out PdfObject? countValue)
+                    ? Resolve(countValue) as PdfInteger
+                        ?? throw new InvalidOperationException("A page-tree /Count value is not an integer.")
+                    : throw new InvalidOperationException("A /Type /Pages node has no /Count value.");
+                if (count.Value < 0)
+                    throw new InvalidOperationException("A page-tree /Count value is negative.");
+                int actualCount = 0;
                 foreach (PdfObject kid in kids)
-                    Visit(kid as PdfIndirectReference
+                    actualCount = checked(actualCount + Visit(kid as PdfIndirectReference
                         ?? throw new InvalidOperationException("A page-tree kid is not an indirect reference."),
-                        depth + 1, effective);
+                        reference, depth + 1, effective));
+                if (count.Value != actualCount)
+                    throw new InvalidOperationException(
+                        "A page-tree /Count value does not match its descendant page count.");
+                return actualCount;
             }
             finally
             {
                 active.Remove(key);
             }
         }
+
+        PdfObject Resolve(PdfObject value) => value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
     }
 
     internal static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

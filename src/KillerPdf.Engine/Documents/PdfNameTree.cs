@@ -7,6 +7,7 @@ internal static class PdfNameTree
 {
     private static readonly PdfName NamesName = Name("Names");
     private static readonly PdfName KidsName = Name("Kids");
+    private static readonly PdfName LimitsName = Name("Limits");
     private const int MaximumDepth = 256;
     private const int MaximumEntryCount = 1_000_000;
 
@@ -18,6 +19,7 @@ internal static class PdfNameTree
         var keys = new HashSet<string>(StringComparer.Ordinal);
         var active = new HashSet<(int ObjectNumber, int Generation)>();
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        byte[]? previousKey = null;
         Visit(root, 0);
         return result;
 
@@ -43,6 +45,7 @@ internal static class PdfNameTree
             {
                 PdfDictionary node = value as PdfDictionary
                     ?? throw new InvalidOperationException("A name-tree node is not a dictionary.");
+                int firstEntryIndex = result.Count;
                 bool hasNames = node.TryGetValue(NamesName, out PdfObject? namesValue);
                 bool hasKids = node.TryGetValue(KidsName, out PdfObject? kidsValue);
                 if (hasNames == hasKids)
@@ -50,31 +53,61 @@ internal static class PdfNameTree
                         "A name-tree node must contain exactly one of /Names or /Kids.");
                 if (hasNames)
                 {
-                    PdfArray names = namesValue as PdfArray
+                    PdfArray names = Resolve(namesValue!) as PdfArray
                         ?? throw new InvalidOperationException("A name-tree /Names value is not an array.");
                     if (names.Count % 2 != 0)
                         throw new InvalidOperationException("A name-tree /Names array has an unmatched key.");
                     for (int index = 0; index < names.Count; index += 2)
                     {
-                        PdfString key = names[index] as PdfString
+                        PdfString key = Resolve(names[index]) as PdfString
                             ?? throw new InvalidOperationException("A name-tree key is not a string.");
                         if (!keys.Add(Convert.ToBase64String(key.Bytes.Span)))
                             throw new InvalidOperationException("The name tree contains a duplicate key.");
+                        if (previousKey is not null
+                            && previousKey.AsSpan().SequenceCompareTo(key.Bytes.Span) >= 0)
+                            throw new InvalidOperationException(
+                                "The name tree contains keys that are not strictly ordered.");
+                        previousKey = key.Bytes.ToArray();
                         if (result.Count >= MaximumEntryCount)
                             throw new NotSupportedException("The name tree contains too many entries.");
                         result.Add(new PdfNameTreeEntry(key, names[index + 1]));
                     }
-                    return;
                 }
-                PdfArray kids = kidsValue as PdfArray
-                    ?? throw new InvalidOperationException("A name-tree /Kids value is not an array.");
-                foreach (PdfObject kid in kids) Visit(kid, depth + 1);
+                else
+                {
+                    PdfArray kids = Resolve(kidsValue!) as PdfArray
+                        ?? throw new InvalidOperationException("A name-tree /Kids value is not an array.");
+                    if (kids.Count == 0)
+                        throw new InvalidOperationException("A name-tree /Kids array is empty.");
+                    foreach (PdfObject kid in kids) Visit(kid, depth + 1);
+                }
+                bool hasLimits = node.TryGetValue(LimitsName, out PdfObject? limitsValue);
+                if (depth > 0 && !hasLimits)
+                    throw new InvalidOperationException(
+                        "A non-root name-tree node has no /Limits value.");
+                if (hasLimits)
+                {
+                    PdfArray limits = Resolve(limitsValue!) as PdfArray
+                        ?? throw new InvalidOperationException("A name-tree /Limits value is not an array.");
+                    if (limits.Count != 2 || Resolve(limits[0]) is not PdfString lower
+                        || Resolve(limits[1]) is not PdfString upper)
+                        throw new InvalidOperationException(
+                            "A name-tree /Limits value is not a two-string array.");
+                    if (result.Count == firstEntryIndex
+                        || !lower.Bytes.Span.SequenceEqual(result[firstEntryIndex].Key.Bytes.Span)
+                        || !upper.Bytes.Span.SequenceEqual(result[^1].Key.Bytes.Span))
+                        throw new InvalidOperationException(
+                            "A name-tree /Limits value does not match its descendant key range.");
+                }
             }
             finally
             {
                 if (referenceKey.HasValue) active.Remove(referenceKey.Value);
             }
         }
+
+        PdfObject Resolve(PdfObject value) => value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
     }
 
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
