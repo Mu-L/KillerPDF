@@ -47,6 +47,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Password authentication resolves bounded multi-hop trailer `/Encrypt` aliases, rejects cycles and excessive depth, and keeps every bootstrap alias uncompressed through incremental and full rewrites so authentication remains possible.
 - Shared page-tree traversal resolves bounded trailer `/Root` and catalog `/Pages` alias chains to their final indirect identities, allowing edits through legal aliases while rejecting root and page-root cycles.
 - Full metadata removal follows complete `/Info` and catalog `/Metadata` alias chains, deletes every unshared link, and updates the final catalog identity behind an aliased trailer root while preserving shared-object fail-closed behavior.
+- Incremental updates treat freeing any live member of an inherited `/Info` alias chain as document-information removal and restore the inherited registration when that object is replaced in the same update.
 - Stream parsing now resolves bounded multi-hop indirect `/Length` chains and reports reference cycles or excessive depth deterministically before consuming payload bytes.
 - Compressed-object loading now resolves bounded indirect object-stream `/Type`, `/N`, and `/First` scalars after cross-reference bootstrap, while cross-reference stream fields remain deliberately direct because no document resolver exists yet.
 - Added a standalone, UI-free .NET 10 document-engine project and test project that will replace KillerPDF's PdfSharpCore document pipeline without replacing PDFium rendering.

@@ -502,6 +502,31 @@ public sealed class PdfIncrementalUpdateBuilderTests
         Assert.False(withoutInfo.Trailer.ContainsKey(Name("Info")));
         Assert.Equal(PdfCrossReferenceEntryType.Free,
             withoutInfo.CrossReferences[info.ObjectNumber].Type);
+
+        var aliasUpdate = new PdfIncrementalUpdateBuilder(withInfo);
+        PdfIndirectReference infoAlias = aliasUpdate.AddObject(info);
+        PdfIndirectReference infoSecondAlias = aliasUpdate.AddObject(infoAlias);
+        PdfDocument aliasedInfo = PdfDocument.Open(aliasUpdate
+            .SetDocumentInformation(infoSecondAlias).Build());
+        PdfDocument removedAliasedInfo = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(aliasedInfo)
+                .FreeObject(info.ObjectNumber).Build());
+        Assert.False(removedAliasedInfo.Trailer.ContainsKey(Name("Info")));
+        Assert.Equal(PdfCrossReferenceEntryType.Free,
+            removedAliasedInfo.CrossReferences[info.ObjectNumber].Type);
+
+        var restore = new PdfIncrementalUpdateBuilder(aliasedInfo);
+        restore.FreeObject(info.ObjectNumber);
+        restore.ReplaceObject(info.ObjectNumber, new PdfDictionary([
+            new(Name("Title"), Latin1("restored"))
+        ]));
+        PdfDocument restored = PdfDocument.Open(restore.Build());
+        PdfObject restoredValue = restored.Trailer[Name("Info")];
+        while (restoredValue is PdfIndirectReference reference)
+            restoredValue = restored.Resolve(reference);
+        Assert.Equal("restored", Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(Assert.IsType<PdfDictionary>(
+                restoredValue)[Name("Title")]).Bytes.Span));
     }
 
     [Fact]

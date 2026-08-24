@@ -102,7 +102,7 @@ public sealed class PdfIncrementalUpdateBuilder
             throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));
         int generation = entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0;
         if (_documentInformationRemovedByFree
-            && IsInheritedActiveTrailerReference(InfoName, objectNumber))
+            && IsInheritedActiveTrailerChainReference(InfoName, objectNumber))
         {
             _documentInformationSpecified = false;
             _documentInformationRemovedByFree = false;
@@ -120,7 +120,7 @@ public sealed class PdfIncrementalUpdateBuilder
         if (!_document.CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry)
             || entry.Type is not (PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed))
             throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));
-        if (IsInheritedActiveTrailerReference(InfoName, objectNumber)
+        if (IsInheritedActiveTrailerChainReference(InfoName, objectNumber)
             && !_documentInformationSpecified)
         {
             _documentInformationSpecified = true;
@@ -484,14 +484,28 @@ public sealed class PdfIncrementalUpdateBuilder
         && value is PdfIndirectReference reference
         && reference.ObjectNumber == objectNumber;
 
-    private bool IsInheritedActiveTrailerReference(PdfName name, int objectNumber) =>
-        IsInheritedTrailerReference(name, objectNumber)
-        && _document.CrossReferences.TryGetTrailerValue(name, out PdfObject value)
-        && value is PdfIndirectReference reference
-        && _document.CrossReferences.TryGetValue(objectNumber,
-            out PdfCrossReferenceEntry entry)
-        && reference.Generation == (entry.Type == PdfCrossReferenceEntryType.InUse
-            ? entry.Field2 : 0);
+    private bool IsInheritedActiveTrailerChainReference(PdfName name, int objectNumber)
+    {
+        if (!_document.CrossReferences.TryGetTrailerValue(name, out PdfObject value))
+            return false;
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth >= 32 || !visited.Add(
+                    (reference.ObjectNumber, reference.Generation)))
+                return false;
+            if (reference.ObjectNumber == objectNumber
+                && _document.CrossReferences.TryGetValue(
+                    objectNumber, out PdfCrossReferenceEntry entry)
+                && entry.Type is PdfCrossReferenceEntryType.InUse
+                    or PdfCrossReferenceEntryType.Compressed
+                && reference.Generation == (entry.Type == PdfCrossReferenceEntryType.InUse
+                    ? entry.Field2 : 0))
+                return true;
+            value = _document.Resolve(reference);
+        }
+        return false;
+    }
 
     private PdfVersion EffectiveVersion()
     {
