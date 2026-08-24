@@ -765,7 +765,11 @@ public sealed class PdfDetachedSignatureWriterTests
             authoredField[Name("SV")]);
         PdfDictionary seed = ResolveDictionary(authored, seedReference);
         var seedUpdate = new PdfIncrementalUpdateBuilder(authored);
-        PdfIndirectReference Indirect(PdfObject value) => seedUpdate.AddObject(value);
+        PdfIndirectReference Indirect(PdfObject value)
+        {
+            PdfIndirectReference terminal = seedUpdate.AddObject(value);
+            return seedUpdate.AddObject(terminal);
+        }
         PdfDictionary indirectSeed = new(seed.Select(entry =>
         {
             if (entry.Value is PdfArray array)

@@ -105,8 +105,21 @@ internal static class PdfNumberTree
             }
         }
 
-        PdfObject Resolve(PdfObject value) => value is PdfIndirectReference reference
-            ? document.Resolve(reference) : value;
+        PdfObject Resolve(PdfObject value)
+        {
+            var visitedReferences = new HashSet<(int ObjectNumber, int Generation)>();
+            for (int depth = 0; value is PdfIndirectReference reference; depth++)
+            {
+                if (depth > 32)
+                    throw new InvalidOperationException(
+                        "A number-tree structural value is too deeply indirect.");
+                if (!visitedReferences.Add((reference.ObjectNumber, reference.Generation)))
+                    throw new InvalidOperationException(
+                        "A number-tree structural value contains an indirect-reference cycle.");
+                value = document.Resolve(reference);
+            }
+            return value;
+        }
     }
 
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));

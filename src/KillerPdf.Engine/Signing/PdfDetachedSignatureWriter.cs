@@ -52,8 +52,8 @@ public static class PdfDetachedSignatureWriter
                     $"The AcroForm field '{options.FieldName}' is not a signature field.");
             if (existingField.Dictionary.TryGetValue(Name("V"), out PdfObject? existingValue))
             {
-                PdfObject resolvedValue = existingValue is PdfIndirectReference valueReference
-                    ? document.Resolve(valueReference) : existingValue;
+                PdfObject resolvedValue = Resolve(document, existingValue,
+                    $"The signature field '{options.FieldName}' /V value");
                 if (resolvedValue is not PdfNull)
                     throw new InvalidOperationException(
                         $"The signature field '{options.FieldName}' is already signed.");
@@ -922,8 +922,8 @@ public static class PdfDetachedSignatureWriter
             if (fieldType?.Equals(Name("Sig")) == true
                 && field.TryGetValue(Name("V"), out PdfObject? signatureValue))
             {
-                PdfObject resolved = signatureValue is PdfIndirectReference signatureReference
-                    ? document.Resolve(signatureReference) : signatureValue;
+                PdfObject resolved = Resolve(document, signatureValue,
+                    "A signed signature field /V value");
                 if (resolved is not PdfNull)
                 {
                     PdfDictionary signature = resolved as PdfDictionary
@@ -1523,8 +1523,7 @@ public static class PdfDetachedSignatureWriter
     private static PdfDictionary ResolveDictionary(
         PdfDocument document, PdfObject value, string description)
     {
-        PdfObject resolved = value is PdfIndirectReference reference
-            ? document.Resolve(reference) : value;
+        PdfObject resolved = Resolve(document, value, description);
         return resolved as PdfDictionary
             ?? throw new InvalidOperationException($"{description} is not a dictionary.");
     }
@@ -1532,14 +1531,27 @@ public static class PdfDetachedSignatureWriter
     private static PdfArray ResolveArray(
         PdfDocument document, PdfObject value, string description)
     {
-        PdfObject resolved = value is PdfIndirectReference reference
-            ? document.Resolve(reference) : value;
+        PdfObject resolved = Resolve(document, value, description);
         return resolved as PdfArray
             ?? throw new InvalidOperationException($"{description} is not an array.");
     }
 
-    private static PdfObject Resolve(PdfDocument document, PdfObject value) =>
-        value is PdfIndirectReference reference ? document.Resolve(reference) : value;
+    private static PdfObject Resolve(
+        PdfDocument document, PdfObject value, string description = "A signature value")
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth > 32)
+                throw new InvalidOperationException(
+                    $"{description} is too deeply indirect.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} contains an indirect-reference cycle.");
+            value = document.Resolve(reference);
+        }
+        return value;
+    }
 
     private static PdfDictionary ReplaceMany(
         PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements) =>

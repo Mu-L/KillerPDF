@@ -496,18 +496,13 @@ public sealed class PdfIncrementalUpdateBuilder
         if (!_document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject rootValue)
             || rootValue is not PdfIndirectReference rootReference)
             return version;
-        PdfObject root = _objects.TryGetValue(
-                rootReference.ObjectNumber, out PendingObject? pending)
-            && pending.Generation == rootReference.Generation
-            ? pending.Value : _document.Resolve(rootReference);
+        PdfObject root = ResolveCurrentValue(
+            rootReference, "The catalog root value");
         if (root is not PdfDictionary catalog
             || !catalog.TryGetValue(VersionName, out PdfObject catalogVersionValue))
             return version;
-        PdfObject resolvedCatalogVersion = catalogVersionValue is PdfIndirectReference versionReference
-            ? _objects.TryGetValue(versionReference.ObjectNumber, out PendingObject? versionPending)
-                && versionPending.Generation == versionReference.Generation
-                    ? versionPending.Value : _document.Resolve(versionReference)
-            : catalogVersionValue;
+        PdfObject resolvedCatalogVersion = ResolveCurrentValue(
+            catalogVersionValue, "The catalog /Version value");
         if (resolvedCatalogVersion is not PdfName catalogVersion)
             throw new InvalidOperationException("The catalog /Version value is not a name.");
         string text = catalogVersion.ValueAsLatin1();
@@ -593,10 +588,11 @@ public sealed class PdfIncrementalUpdateBuilder
         if (!_document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject root)
             || root is not PdfIndirectReference rootReference
             || !IsLive(rootReference)
-            || ResolveCurrent(rootReference) is not PdfDictionary catalog
+            || ResolveCurrentValue(rootReference,
+                "The trailer /Root value") is not PdfDictionary catalog
             || !catalog.TryGetValue(TypeName, out PdfObject catalogType)
-            || (catalogType is PdfIndirectReference catalogTypeReference
-                    ? ResolveCurrent(catalogTypeReference) : catalogType) is not PdfName catalogTypeName
+            || ResolveCurrentValue(catalogType,
+                "The catalog /Type value") is not PdfName catalogTypeName
             || catalogTypeName.ValueAsLatin1() != "Catalog")
             throw new InvalidOperationException(
                 "An incremental update requires trailer /Root to reference a live catalog dictionary.");
@@ -608,16 +604,18 @@ public sealed class PdfIncrementalUpdateBuilder
         if (information is not null
             && (information is not PdfIndirectReference informationReference
                 || !IsLive(informationReference)
-                || ResolveCurrent(informationReference) is not PdfDictionary))
+                || ResolveCurrentValue(informationReference,
+                    "The trailer /Info value") is not PdfDictionary))
             throw new InvalidOperationException(
                 "An incremental update requires trailer /Info to reference a live dictionary.");
         if (information is PdfIndirectReference liveInformation
-            && ResolveCurrent(liveInformation) is PdfDictionary informationDictionary)
+            && ResolveCurrentValue(liveInformation,
+                "The trailer /Info value") is PdfDictionary informationDictionary)
         {
             if (_documentInformationSpecified)
                 ValidateDocumentInformation(informationDictionary, value =>
-                    value is PdfIndirectReference reference
-                        ? ResolveCurrent(reference) : value);
+                    ResolveCurrentValue(value,
+                        "A document-information value"));
             ValidateInformationGraph(informationDictionary, 0,
                 new HashSet<(int ObjectNumber, int Generation)>());
         }
@@ -638,14 +636,10 @@ public sealed class PdfIncrementalUpdateBuilder
                 EncryptName, out PdfObject encryption)
             && (encryption is not PdfIndirectReference encryptionReference
                 || !IsLive(encryptionReference)
-                || ResolveCurrent(encryptionReference) is not PdfDictionary))
+                || ResolveCurrentValue(encryptionReference,
+                    "The trailer /Encrypt value") is not PdfDictionary))
             throw new InvalidOperationException(
                 "An incremental update requires trailer /Encrypt to reference a live dictionary.");
-
-        PdfObject ResolveCurrent(PdfIndirectReference reference) =>
-            _objects.TryGetValue(reference.ObjectNumber, out PendingObject? pending)
-            && pending.Generation == reference.Generation
-                ? pending.Value : _document.Resolve(reference);
 
         bool IsLive(PdfIndirectReference reference)
         {
@@ -675,7 +669,8 @@ public sealed class PdfIncrementalUpdateBuilder
                     throw new InvalidOperationException(
                         "Trailer /Info value contains a stale indirect reference.");
                 if (!visited.Add((reference.ObjectNumber, reference.Generation))) return;
-                ValidateInformationGraph(ResolveCurrent(reference), depth + 1, visited);
+                ValidateInformationGraph(ResolveCurrentValue(reference,
+                    "Trailer /Info value"), depth + 1, visited);
                 return;
             }
             if (value is PdfArray array)
@@ -694,6 +689,27 @@ public sealed class PdfIncrementalUpdateBuilder
             foreach (var entry in dictionary)
                 ValidateInformationGraph(entry.Value, depth + 1, visited);
         }
+    }
+
+    private PdfObject ResolveCurrentValue(PdfObject value, string description)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth > 32)
+                throw new InvalidOperationException(
+                    $"{description} is too deeply indirect.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} contains an indirect-reference cycle.");
+            if (_freed.ContainsKey(reference.ObjectNumber))
+                return PdfNull.Instance;
+            value = _objects.TryGetValue(reference.ObjectNumber, out PendingObject? pending)
+                    && pending.Generation == reference.Generation
+                ? pending.Value
+                : _document.Resolve(reference);
+        }
+        return value;
     }
 
     private static void ValidateDocumentInformation(

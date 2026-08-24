@@ -103,13 +103,16 @@ public sealed class PdfIncrementalPageEditorTests
         PdfIndirectReference indirectType = indirectUpdate.AddObject(Name("Pages"));
         PdfIndirectReference indirectKids = indirectUpdate.AddObject(root[Name("Kids")]);
         PdfIndirectReference indirectCount = indirectUpdate.AddObject(root[Name("Count")]);
+        PdfIndirectReference indirectTypeAlias = indirectUpdate.AddObject(indirectType);
+        PdfIndirectReference indirectKidsAlias = indirectUpdate.AddObject(indirectKids);
+        PdfIndirectReference indirectCountAlias = indirectUpdate.AddObject(indirectCount);
         indirectUpdate.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Select(entry =>
             entry.Key.Equals(Name("Type"))
-                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectType)
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectTypeAlias)
                 : entry.Key.Equals(Name("Kids"))
-                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectKids)
+                    ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectKidsAlias)
                     : entry.Key.Equals(Name("Count"))
-                        ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectCount)
+                        ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectCountAlias)
                         : entry)));
 
         var indirectEditor = new PdfIncrementalPageEditor(
@@ -119,12 +122,48 @@ public sealed class PdfIncrementalPageEditorTests
 
         var indirectCatalogUpdate = new PdfIncrementalUpdateBuilder(document);
         PdfIndirectReference indirectCatalogType = indirectCatalogUpdate.AddObject(Name("Catalog"));
+        PdfIndirectReference indirectCatalogTypeAlias =
+            indirectCatalogUpdate.AddObject(indirectCatalogType);
         indirectCatalogUpdate.ReplaceObject(catalogReference.ObjectNumber,
             new PdfDictionary(catalog.Select(entry => entry.Key.Equals(Name("Type"))
-                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectCatalogType)
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, indirectCatalogTypeAlias)
                 : entry)));
+        PdfDocument indirectCatalogDocument = PdfDocument.Open(
+            indirectCatalogUpdate.Build());
         Assert.Equal(1, new PdfIncrementalPageEditor(
-            PdfDocument.Open(indirectCatalogUpdate.Build())).PageCount);
+            indirectCatalogDocument).PageCount);
+        Assert.Equal(1, new PdfIncrementalPageEditor(PdfDocument.Open(
+            PdfDocumentWriter.Write(indirectCatalogDocument))).PageCount);
+
+        var catalogCycleUpdate = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference catalogCycleA = catalogCycleUpdate.ReserveObject();
+        PdfIndirectReference catalogCycleB = catalogCycleUpdate.ReserveObject();
+        catalogCycleUpdate.SetObject(catalogCycleA, catalogCycleB);
+        catalogCycleUpdate.SetObject(catalogCycleB, catalogCycleA);
+        catalogCycleUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Select(entry => entry.Key.Equals(Name("Type"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, catalogCycleA)
+                : entry)));
+        InvalidOperationException catalogCycleError =
+            Assert.Throws<InvalidOperationException>(() => catalogCycleUpdate.Build());
+        Assert.Contains("indirect-reference cycle", catalogCycleError.Message,
+            StringComparison.Ordinal);
+
+        var pageTreeCycleUpdate = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference pageTreeCycleA = pageTreeCycleUpdate.ReserveObject();
+        PdfIndirectReference pageTreeCycleB = pageTreeCycleUpdate.ReserveObject();
+        pageTreeCycleUpdate.SetObject(pageTreeCycleA, pageTreeCycleB);
+        pageTreeCycleUpdate.SetObject(pageTreeCycleB, pageTreeCycleA);
+        pageTreeCycleUpdate.ReplaceObject(rootReference.ObjectNumber,
+            new PdfDictionary(root.Select(entry => entry.Key.Equals(Name("Type"))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, pageTreeCycleA)
+                : entry)));
+        InvalidOperationException pageTreeCycleError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(
+                    PdfDocument.Open(pageTreeCycleUpdate.Build())));
+        Assert.Contains("indirect-reference cycle", pageTreeCycleError.Message,
+            StringComparison.Ordinal);
 
         PdfDocument wrongCount = PdfDocument.Open(new PdfIncrementalUpdateBuilder(document)
             .ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Select(entry =>
@@ -3796,6 +3835,64 @@ public sealed class PdfIncrementalPageEditorTests
 
         (_, PdfIndirectReference[] outputPages, _) = FlatPages(PdfDocument.Open(output));
         Assert.Single(outputPages);
+    }
+
+    [Fact]
+    public void Build_PreservesMultiHopIndirectImportedPageValues()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(original);
+        var update = new PdfIncrementalUpdateBuilder(original);
+
+        PdfIndirectReference userUnit = update.AddObject(new PdfInteger(2));
+        PdfIndirectReference userUnitAlias = update.AddObject(userUnit);
+        PdfIndirectReference zoom = update.AddObject(new PdfReal(1.25));
+        PdfIndirectReference zoomAlias = update.AddObject(zoom);
+        PdfIndirectReference tabs = update.AddObject(Name("S"));
+        PdfIndirectReference tabsAlias = update.AddObject(tabs);
+        PdfIndirectReference modified = update.AddObject(
+            new PdfString("D:20260824120000-07'00'"u8, PdfStringForm.Literal));
+        PdfIndirectReference modifiedAlias = update.AddObject(modified);
+        PdfIndirectReference content = update.AddObject(new PdfStream(
+            new PdfDictionary([]), "q Q"u8.ToArray()));
+        PdfIndirectReference contentAlias = update.AddObject(content);
+        PdfIndirectReference contents = update.AddObject(new PdfArray([contentAlias]));
+        PdfIndirectReference contentsAlias = update.AddObject(contents);
+
+        update.ReplaceObject(pageReferences[0].ObjectNumber,
+            new PdfDictionary(pages[0]
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("UserUnit"), userUnitAlias))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("PZ"), zoomAlias))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Tabs"), tabsAlias))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("LastModified"), modifiedAlias))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Contents"), contentsAlias))));
+        PdfDocument source = PdfDocument.Open(update.Build());
+
+        PdfDocument imported = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0)
+            .Build());
+        PdfDictionary page = FlatPages(imported).Pages[0];
+        PdfArray importedContents = Assert.IsType<PdfArray>(
+            ResolveFully(imported, page[Name("Contents")]));
+
+        Assert.Equal(2, Assert.IsType<PdfInteger>(
+            ResolveFully(imported, page[Name("UserUnit")])).Value);
+        Assert.Equal(1.25, Assert.IsType<PdfReal>(
+            ResolveFully(imported, page[Name("PZ")])).Value);
+        Assert.Equal("S", Assert.IsType<PdfName>(
+            ResolveFully(imported, page[Name("Tabs")])).ValueAsLatin1());
+        Assert.Equal("q Q", Encoding.ASCII.GetString(PdfStreamDecoder.Decode(
+            Assert.IsType<PdfStream>(ResolveFully(imported, importedContents[0])))));
+
+        static PdfObject ResolveFully(PdfDocument document, PdfObject value)
+        {
+            while (value is PdfIndirectReference reference)
+                value = document.Resolve(reference);
+            return value;
+        }
     }
 
     [Fact]
@@ -9386,20 +9483,26 @@ public sealed class PdfIncrementalPageEditorTests
 
         var indirectNamesUpdate = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference indirectNameKey = indirectNamesUpdate.AddObject(scriptValues[0]);
+        PdfIndirectReference indirectNameKeyAlias =
+            indirectNamesUpdate.AddObject(indirectNameKey);
         PdfIndirectReference indirectNamesArray = indirectNamesUpdate.AddObject(
-            new PdfArray([indirectNameKey, scriptValues[1]]));
+            new PdfArray([indirectNameKeyAlias, scriptValues[1]]));
+        PdfIndirectReference indirectNamesArrayAlias =
+            indirectNamesUpdate.AddObject(indirectNamesArray);
         PdfIndirectReference indirectNameLimits = indirectNamesUpdate.AddObject(
-            new PdfArray([indirectNameKey, indirectNameKey]));
+            new PdfArray([indirectNameKeyAlias, indirectNameKeyAlias]));
+        PdfIndirectReference indirectNameLimitsAlias =
+            indirectNamesUpdate.AddObject(indirectNameLimits);
         PdfIndirectReference indirectNameLeaf = indirectNamesUpdate.AddObject(
             new PdfDictionary([
-                new(Name("Names"), indirectNamesArray),
-                new(Name("Limits"), indirectNameLimits)
+                new(Name("Names"), indirectNamesArrayAlias),
+                new(Name("Limits"), indirectNameLimitsAlias)
             ]));
         PdfIndirectReference indirectNameKids = indirectNamesUpdate.AddObject(
             new PdfArray([indirectNameLeaf]));
         PdfDictionary indirectScripts = new([
             new(Name("Kids"), indirectNameKids),
-            new(Name("Limits"), indirectNameLimits)
+            new(Name("Limits"), indirectNameLimitsAlias)
         ]);
         PdfDictionary indirectNames = new(sourceNames
             .Where(entry => !entry.Key.Equals(Name("JavaScript")))
@@ -9738,22 +9841,30 @@ public sealed class PdfIncrementalPageEditorTests
         var indirectNumbersUpdate = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference indirectFirstNumber = indirectNumbersUpdate.AddObject(numbers[0]);
         PdfIndirectReference indirectLastNumber = indirectNumbersUpdate.AddObject(numbers[2]);
+        PdfIndirectReference indirectFirstNumberAlias =
+            indirectNumbersUpdate.AddObject(indirectFirstNumber);
+        PdfIndirectReference indirectLastNumberAlias =
+            indirectNumbersUpdate.AddObject(indirectLastNumber);
         PdfIndirectReference indirectNumbersArray = indirectNumbersUpdate.AddObject(
             new PdfArray([
-                indirectFirstNumber, numbers[1], indirectLastNumber, numbers[3]
+                indirectFirstNumberAlias, numbers[1], indirectLastNumberAlias, numbers[3]
             ]));
+        PdfIndirectReference indirectNumbersArrayAlias =
+            indirectNumbersUpdate.AddObject(indirectNumbersArray);
         PdfIndirectReference indirectNumberLimits = indirectNumbersUpdate.AddObject(
-            new PdfArray([indirectFirstNumber, indirectLastNumber]));
+            new PdfArray([indirectFirstNumberAlias, indirectLastNumberAlias]));
+        PdfIndirectReference indirectNumberLimitsAlias =
+            indirectNumbersUpdate.AddObject(indirectNumberLimits);
         PdfIndirectReference indirectNumberLeaf = indirectNumbersUpdate.AddObject(
             new PdfDictionary([
-                new(Name("Nums"), indirectNumbersArray),
-                new(Name("Limits"), indirectNumberLimits)
+                new(Name("Nums"), indirectNumbersArrayAlias),
+                new(Name("Limits"), indirectNumberLimitsAlias)
             ]));
         PdfIndirectReference indirectNumberKids = indirectNumbersUpdate.AddObject(
             new PdfArray([indirectNumberLeaf]));
         PdfDictionary indirectLabels = new([
             new(Name("Kids"), indirectNumberKids),
-            new(Name("Limits"), indirectNumberLimits)
+            new(Name("Limits"), indirectNumberLimitsAlias)
         ]);
         indirectNumbersUpdate.ReplaceObject(catalogReference.ObjectNumber,
             new PdfDictionary(catalog

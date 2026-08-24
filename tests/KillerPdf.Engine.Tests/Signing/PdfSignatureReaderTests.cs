@@ -240,7 +240,11 @@ public sealed class PdfSignatureReaderTests
         PdfDictionary signature = Assert.IsType<PdfDictionary>(
             signed.Resolve(signatureReference));
         var update = new PdfIncrementalUpdateBuilder(signed);
-        PdfIndirectReference Indirect(PdfObject value) => update.AddObject(value);
+        PdfIndirectReference Indirect(PdfObject value)
+        {
+            PdfIndirectReference terminal = update.AddObject(value);
+            return update.AddObject(terminal);
+        }
         PdfArray references = Assert.IsType<PdfArray>(signature[Name("Reference")]);
         var rewrittenReferences = new PdfArray(references.Select(item =>
         {

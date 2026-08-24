@@ -256,10 +256,12 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfIndirectReference indirectPdf2Uri = setup.AddObject(new PdfString(
             [0xEF, 0xBB, 0xBF, .. "http://iso.org/pdf2/ssn"u8.ToArray()],
             PdfStringForm.Hexadecimal));
+        PdfIndirectReference indirectPdf2UriAlias = setup.AddObject(indirectPdf2Uri);
         setup.ReplaceObject(pdf2NamespaceReference.ObjectNumber,
             new PdfDictionary(pdf2Namespace
                 .Where(entry => !entry.Key.Equals(Name("NS")))
-                .Append(new KeyValuePair<PdfName, PdfObject>(Name("NS"), indirectPdf2Uri))));
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("NS"), indirectPdf2UriAlias))));
         PdfIndirectReference customNamespace = setup.AddObject(new PdfDictionary([
             new(Name("Type"), Name("Namespace")),
             new(Name("NS"), new PdfString(
@@ -269,8 +271,10 @@ public sealed class PdfIncrementalAnnotationEditorTests
         var alteredRoot = initialRoot.ToDictionary(entry => entry.Key, entry => entry.Value);
         PdfIndirectReference namespaceArray = setup.AddObject(new PdfArray(
             [customNamespace, .. initialNamespaces]));
-        alteredRoot[Name("Namespaces")] = namespaceArray;
-        alteredRoot[Name("ParentTreeNextKey")] = setup.AddObject(new PdfInteger(0));
+        PdfIndirectReference namespaceArrayAlias = setup.AddObject(namespaceArray);
+        alteredRoot[Name("Namespaces")] = namespaceArrayAlias;
+        PdfIndirectReference nextKey = setup.AddObject(new PdfInteger(0));
+        alteredRoot[Name("ParentTreeNextKey")] = setup.AddObject(nextKey);
         setup.ReplaceObject(initialRootReference.ObjectNumber, new PdfDictionary(alteredRoot));
         source = setup.Build();
         byte[] output = new PdfIncrementalAnnotationEditor(
@@ -294,8 +298,10 @@ public sealed class PdfIncrementalAnnotationEditorTests
             Assert.IsType<PdfName>(ResolveDictionary(document, value)[Name("S")]).ValueAsLatin1()));
         PdfDictionary appendedElement = ResolveDictionary(document, numbers[3]);
         PdfDictionary selectedNamespace = ResolveDictionary(document, appendedElement[Name("NS")]);
-        PdfString selectedUri = Assert.IsType<PdfString>(document.Resolve(
-            Assert.IsType<PdfIndirectReference>(selectedNamespace[Name("NS")])));
+        PdfObject selectedUriValue = selectedNamespace[Name("NS")];
+        while (selectedUriValue is PdfIndirectReference selectedUriReference)
+            selectedUriValue = document.Resolve(selectedUriReference);
+        PdfString selectedUri = Assert.IsType<PdfString>(selectedUriValue);
         Assert.True(selectedUri.Bytes.Span.StartsWith(
             new byte[] { 0xEF, 0xBB, 0xBF }));
         Assert.Equal("http://iso.org/pdf2/ssn", Encoding.UTF8.GetString(
@@ -1053,8 +1059,9 @@ public sealed class PdfIncrementalAnnotationEditorTests
         (PdfIndirectReference pageReference, PdfDictionary page) = Pages(firstDocument)[0];
         var setup = new PdfIncrementalUpdateBuilder(firstDocument);
         PdfIndirectReference arrayReference = setup.AddObject(new PdfArray([]));
+        PdfIndirectReference arrayAlias = setup.AddObject(arrayReference);
         setup.ReplaceObject(pageReference.ObjectNumber, Replace(
-            page, Name("Annots"), arrayReference));
+            page, Name("Annots"), arrayAlias));
         byte[] source = setup.Build();
 
         PdfDocument reopened = PdfDocument.Open(new PdfIncrementalAnnotationEditor(PdfDocument.Open(source))

@@ -79,10 +79,11 @@ public static class PdfDocumentWriter
         if (root is not PdfIndirectReference rootReference)
             throw new InvalidOperationException(
                 "A full rewrite requires trailer /Root to be an indirect reference.");
-        if (document.Resolve(rootReference) is not PdfDictionary rootCatalog
+        if (ResolveValue(document, rootReference,
+                "The trailer /Root value") is not PdfDictionary rootCatalog
             || !rootCatalog.TryGetValue(TypeName, out PdfObject rootType)
-            || (rootType is PdfIndirectReference rootTypeReference
-                    ? document.Resolve(rootTypeReference) : rootType) is not PdfName rootTypeName
+            || ResolveValue(document, rootType,
+                "The catalog /Type value") is not PdfName rootTypeName
             || rootTypeName.ValueAsLatin1() != "Catalog")
             throw new InvalidOperationException(
                 "A full rewrite requires trailer /Root to resolve to a catalog dictionary.");
@@ -92,12 +93,13 @@ public static class PdfDocumentWriter
             if (info is not PdfIndirectReference infoReference)
                 throw new InvalidOperationException(
                     "A full rewrite requires trailer /Info to be an indirect reference.");
-            if (document.Resolve(infoReference) is not PdfDictionary informationDictionary)
+            if (ResolveValue(document, infoReference,
+                    "The trailer /Info value") is not PdfDictionary informationDictionary)
                 throw new InvalidOperationException(
                     "A full rewrite requires trailer /Info to resolve to a dictionary.");
             ValidateDocumentInformation(informationDictionary,
-                value => value is PdfIndirectReference reference
-                    ? document.Resolve(reference) : value);
+                value => ResolveValue(document, value,
+                    "A document-information value"));
             ValidateDocumentInformationGraph(document, informationDictionary);
         }
         bool preservesIdentifiers = options.PreserveDocumentIdentifiers || document.IsEncrypted;
@@ -409,11 +411,10 @@ public static class PdfDocumentWriter
     {
         if (policy != PdfMetadataPolicy.RemoveDocumentInformationAndXmp)
             return root;
-        PdfDictionary catalog = root is PdfIndirectReference rootReference
-            ? document.Resolve(rootReference) as PdfDictionary
-                ?? throw new InvalidOperationException("The trailer /Root value is not a catalog dictionary.")
-            : root as PdfDictionary
-                ?? throw new InvalidOperationException("The trailer /Root value is not a catalog dictionary.");
+        PdfDictionary catalog = ResolveValue(document, root,
+                "The trailer /Root value") as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The trailer /Root value is not a catalog dictionary.");
         if (!catalog.TryGetValue(MetadataName, out PdfObject metadataValue))
             return root;
         var replacement = new PdfDictionary(catalog.Where(entry =>
@@ -478,13 +479,13 @@ public static class PdfDocumentWriter
     private static PdfVersion EffectiveVersion(
         PdfDocument document, PdfObject rootValue, PdfVersion headerVersion)
     {
-        PdfObject root = rootValue is PdfIndirectReference reference
-            ? document.Resolve(reference) : rootValue;
+        PdfObject root = ResolveValue(document, rootValue,
+            "The catalog root value");
         if (root is not PdfDictionary catalog
             || !catalog.TryGetValue(VersionName, out PdfObject versionValue))
             return headerVersion;
-        PdfObject resolvedVersion = versionValue is PdfIndirectReference versionReference
-            ? document.Resolve(versionReference) : versionValue;
+        PdfObject resolvedVersion = ResolveValue(document, versionValue,
+            "The catalog /Version value");
         if (resolvedVersion is not PdfName versionName)
             throw new InvalidOperationException("The catalog /Version value is not a name.");
         string text = versionName.ValueAsLatin1();
@@ -498,6 +499,23 @@ public static class PdfDocumentWriter
                 $"The catalog /Version PDF {major}.{minor} is not defined.");
         PdfVersion declared = new(major, minor);
         return declared.CompareTo(headerVersion) > 0 ? declared : headerVersion;
+    }
+
+    private static PdfObject ResolveValue(
+        PdfDocument document, PdfObject value, string description)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth > 32)
+                throw new InvalidOperationException(
+                    $"{description} is too deeply indirect.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} contains an indirect-reference cycle.");
+            value = document.Resolve(reference);
+        }
+        return value;
     }
 
     private static PdfDictionary BuildTrailer(

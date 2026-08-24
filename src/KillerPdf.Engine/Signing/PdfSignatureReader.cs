@@ -134,8 +134,8 @@ public static class PdfSignatureReader
     {
         if (!field.TryGetValue(ValueName, out PdfObject? value))
             return new PdfSignatureInfo { FieldName = fieldName };
-        PdfObject resolvedValue = value is PdfIndirectReference resolvedReference
-            ? document.Resolve(resolvedReference) : value;
+        PdfObject resolvedValue = Resolve(document, value,
+            $"The signature field '{fieldName}' /V value");
         if (resolvedValue is PdfNull)
             return new PdfSignatureInfo { FieldName = fieldName };
         PdfIndirectReference? signatureReference = value as PdfIndirectReference;
@@ -376,19 +376,31 @@ public static class PdfSignatureReader
     private static PdfDictionary ResolveDictionary(
         PdfDocument document, PdfObject value, string description)
     {
-        PdfObject resolved = value is PdfIndirectReference reference
-            ? document.Resolve(reference) : value;
+        PdfObject resolved = Resolve(document, value, description);
         return resolved as PdfDictionary
             ?? throw new InvalidOperationException($"{description} is not a dictionary.");
     }
 
-    private static PdfObject Resolve(PdfDocument document, PdfObject value) =>
-        value is PdfIndirectReference reference ? document.Resolve(reference) : value;
+    private static PdfObject Resolve(
+        PdfDocument document, PdfObject value, string description = "A signature value")
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth > 32)
+                throw new InvalidOperationException(
+                    $"{description} is too deeply indirect.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} contains an indirect-reference cycle.");
+            value = document.Resolve(reference);
+        }
+        return value;
+    }
 
     private static PdfArray ResolveArray(PdfDocument document, PdfObject value, string description)
     {
-        PdfObject resolved = value is PdfIndirectReference reference
-            ? document.Resolve(reference) : value;
+        PdfObject resolved = Resolve(document, value, description);
         return resolved as PdfArray
             ?? throw new InvalidOperationException($"{description} is not an array.");
     }

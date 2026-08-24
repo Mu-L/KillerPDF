@@ -297,8 +297,8 @@ public sealed class PdfIncrementalAnnotationEditor
         if (!root.TryGetValue(Name("Type"), out PdfObject? rootType))
             throw new InvalidOperationException(
                 "The document structure-tree root has no /Type /StructTreeRoot value.");
-        PdfObject resolvedRootType = rootType is PdfIndirectReference rootTypeReference
-            ? _document.Resolve(rootTypeReference) : rootType;
+        PdfObject resolvedRootType = ResolveValue(rootType,
+            "The document structure-tree root /Type value");
         if (resolvedRootType is not PdfName rootTypeName
             || rootTypeName.ValueAsLatin1() != "StructTreeRoot")
             throw new InvalidOperationException(
@@ -335,8 +335,8 @@ public sealed class PdfIncrementalAnnotationEditor
             ValidateParentTreeValue(entry.Value,
                 $"The structure-tree ParentTree value for key {entry.Key}");
         long nextKey = root.TryGetValue(ParentTreeNextKeyName, out PdfObject? nextValue)
-            ? ((nextValue is PdfIndirectReference nextReference
-                    ? _document.Resolve(nextReference) : nextValue) as PdfInteger)?.Value
+            ? (ResolveValue(nextValue,
+                    "The structure-tree /ParentTreeNextKey value") as PdfInteger)?.Value
                 ?? throw new InvalidOperationException(
                     "The structure-tree /ParentTreeNextKey is not an integer.")
             : existingEntries.Count == 0 ? 0 : checked(existingEntries.Max(entry => entry.Key) + 1);
@@ -396,8 +396,8 @@ public sealed class PdfIncrementalAnnotationEditor
         var kids = new List<PdfObject>();
         if (documentEntries.TryGetValue(StructureKidsName, out PdfObject? existingKids))
         {
-            PdfObject resolvedKids = existingKids is PdfIndirectReference arrayReference
-                ? _document.Resolve(arrayReference) : existingKids;
+            PdfObject resolvedKids = ResolveValue(existingKids,
+                "The document structure element /K value");
             if (resolvedKids is PdfNull)
                 throw new InvalidOperationException(
                     "The document structure element /K value contains a stale indirect reference.");
@@ -427,27 +427,28 @@ public sealed class PdfIncrementalAnnotationEditor
 
         void ValidateDocumentKid(PdfObject kid)
         {
-            PdfObject resolved = kid is PdfIndirectReference reference
-                ? _document.Resolve(reference) : kid;
+            PdfObject resolved = ResolveValue(kid,
+                "The document structure element /K value");
             if (resolved is PdfInteger mcid && mcid.Value >= 0) return;
             if (resolved is PdfDictionary dictionary)
             {
                 if (dictionary.TryGetValue(Name("S"), out PdfObject? role))
                 {
-                    PdfObject resolvedRole = role is PdfIndirectReference roleReference
-                        ? _document.Resolve(roleReference) : role;
+                    PdfObject resolvedRole = ResolveValue(role,
+                        "A document structure child /S value");
                     if (resolvedRole is PdfName) return;
                 }
                 if (dictionary.TryGetValue(Name("MCID"), out PdfObject? markedContent))
                 {
-                    PdfObject resolvedMcid = markedContent is PdfIndirectReference mcidReference
-                        ? _document.Resolve(mcidReference) : markedContent;
+                    PdfObject resolvedMcid = ResolveValue(markedContent,
+                        "A document structure child /MCID value");
                     if (resolvedMcid is PdfInteger dictionaryMcid
                         && dictionaryMcid.Value >= 0) return;
                 }
                 if (dictionary.TryGetValue(Name("Obj"), out PdfObject? referencedObject)
                     && referencedObject is PdfIndirectReference objectReference
-                    && _document.Resolve(objectReference) is PdfDictionary)
+                    && ResolveValue(objectReference,
+                        "A document structure OBJR /Obj value") is PdfDictionary)
                     return;
             }
             throw new InvalidOperationException(
@@ -456,15 +457,15 @@ public sealed class PdfIncrementalAnnotationEditor
 
         void ValidateParentTreeValue(PdfObject value, string description)
         {
-            PdfObject resolved = value is PdfIndirectReference reference
-                ? _document.Resolve(reference) : value;
+            PdfObject resolved = ResolveValue(value, description);
             if (resolved is PdfArray array)
             {
                 foreach (PdfObject item in array)
                 {
                     if (item is PdfNull) continue;
                     if (item is not PdfIndirectReference itemReference
-                        || _document.Resolve(itemReference) is not PdfDictionary element)
+                        || ResolveValue(itemReference,
+                            $"{description} array entry") is not PdfDictionary element)
                         throw new InvalidOperationException(
                             $"{description} array contains a non-structure-element entry.");
                     ValidateStructureElement(element, description);
@@ -482,8 +483,8 @@ public sealed class PdfIncrementalAnnotationEditor
             if (!element.TryGetValue(Name("S"), out PdfObject? role))
                 throw new InvalidOperationException(
                     $"{description} structure element has no /S role name.");
-            PdfObject resolvedRole = role is PdfIndirectReference reference
-                ? _document.Resolve(reference) : role;
+            PdfObject resolvedRole = ResolveValue(
+                role, $"{description} structure element /S value");
             if (resolvedRole is not PdfName)
                 throw new InvalidOperationException(
                     $"{description} structure element /S value is not a name.");
@@ -493,9 +494,8 @@ public sealed class PdfIncrementalAnnotationEditor
     private PdfIndirectReference? FindStructureRootParentReference(PdfDictionary root)
     {
         if (!root.TryGetValue(StructureKidsName, out PdfObject? kidsValue)) return null;
-        PdfObject resolvedKids = kidsValue is PdfIndirectReference arrayReference
-            && _document.Resolve(arrayReference) is PdfArray indirectArray
-                ? indirectArray : kidsValue;
+        PdfObject resolvedKids = ResolveValue(
+            kidsValue, "The structure-tree root /K value");
         IEnumerable<PdfObject> kids = resolvedKids is PdfArray array ? array : [resolvedKids];
         PdfIndirectReference? result = null;
         foreach (PdfObject kid in kids)
@@ -521,9 +521,8 @@ public sealed class PdfIncrementalAnnotationEditor
     {
         if (!root.TryGetValue(StructureKidsName, out PdfObject? kidsValue))
             throw new InvalidOperationException("The structure-tree root has no children.");
-        PdfObject resolvedKids = kidsValue is PdfIndirectReference arrayReference
-            && _document.Resolve(arrayReference) is PdfArray indirectArray
-                ? indirectArray : kidsValue;
+        PdfObject resolvedKids = ResolveValue(
+            kidsValue, "The structure-tree root /K value");
         PdfObject[] kids = resolvedKids is PdfArray array ? array.ToArray() : [resolvedKids];
         PdfIndirectReference? fallback = null;
         for (int index = 0; index < kids.Length; index++)
@@ -544,8 +543,8 @@ public sealed class PdfIncrementalAnnotationEditor
             if (!dictionary.TryGetValue(Name("S"), out PdfObject? type))
                 throw new InvalidOperationException(
                     "A top-level structure element has no /S role name.");
-            PdfObject resolvedType = type is PdfIndirectReference typeReference
-                ? _document.Resolve(typeReference) : type;
+            PdfObject resolvedType = ResolveValue(
+                type, "A top-level structure element /S value");
             PdfName name = resolvedType as PdfName
                 ?? throw new InvalidOperationException(
                     "A top-level structure element /S value is not a name.");
@@ -593,8 +592,8 @@ public sealed class PdfIncrementalAnnotationEditor
         PdfIndirectReference? result = null;
         foreach (PdfObject kid in StructureKids(kidsValue))
         {
-            PdfObject resolved = kid is PdfIndirectReference reference
-                ? _document.Resolve(reference) : kid;
+            PdfObject resolved = ResolveValue(
+                kid, "A direct structure-element child");
             if (resolved is not PdfDictionary child) continue;
             if (!child.TryGetValue(Name("P"), out PdfObject? parent)
                 || parent is not PdfIndirectReference parentReference)
@@ -613,8 +612,8 @@ public sealed class PdfIncrementalAnnotationEditor
         if (!element.TryGetValue(StructureKidsName, out PdfObject? kidsValue)) return false;
         return StructureKids(kidsValue).Any(kid =>
         {
-            PdfObject resolved = kid is PdfIndirectReference reference
-                ? _document.Resolve(reference) : kid;
+            PdfObject resolved = ResolveValue(
+                kid, "A direct structure-element child");
             return resolved is PdfDictionary child
                 && child.TryGetValue(Name("P"), out PdfObject? parent)
                 && parent is PdfIndirectReference;
@@ -623,16 +622,16 @@ public sealed class PdfIncrementalAnnotationEditor
 
     private IReadOnlyList<PdfObject> StructureKids(PdfObject value)
     {
-        PdfObject resolved = value is PdfIndirectReference reference
-            ? _document.Resolve(reference) : value;
+        PdfObject resolved = ResolveValue(value,
+            "A structure-element /K value");
         return resolved is PdfArray array ? array.ToArray() : [value];
     }
 
     private PdfIndirectReference? FindStructureNamespace(PdfDictionary root)
     {
         if (!root.TryGetValue(NamespacesName, out PdfObject? value)) return null;
-        PdfObject resolved = value is PdfIndirectReference arrayReference
-            ? _document.Resolve(arrayReference) : value;
+        PdfObject resolved = ResolveValue(value,
+            "The structure-tree /Namespaces value");
         PdfArray namespaces = resolved as PdfArray
             ?? throw new InvalidOperationException("The structure-tree /Namespaces value is not an array.");
         PdfIndirectReference? result = null;
@@ -646,8 +645,8 @@ public sealed class PdfIncrementalAnnotationEditor
             if (!definition.TryGetValue(Name("Type"), out PdfObject? type))
                 throw new InvalidOperationException(
                     "A structure namespace has no /Type /Namespace value.");
-            PdfObject resolvedType = type is PdfIndirectReference typeReference
-                ? _document.Resolve(typeReference) : type;
+            PdfObject resolvedType = ResolveValue(
+                type, "A structure namespace /Type value");
             if (resolvedType is not PdfName typeName
                 || typeName.ValueAsLatin1() != "Namespace")
                 throw new InvalidOperationException(
@@ -655,14 +654,14 @@ public sealed class PdfIncrementalAnnotationEditor
             if (!definition.TryGetValue(Name("NS"), out PdfObject? uri))
                 throw new InvalidOperationException(
                     "A structure namespace has no /NS string.");
-            PdfObject resolvedUri = uri is PdfIndirectReference uriReference
-                ? _document.Resolve(uriReference) : uri;
+            PdfObject resolvedUri = ResolveValue(
+                uri, "A structure namespace /NS value");
             PdfString text = resolvedUri as PdfString
                 ?? throw new InvalidOperationException(
                     "A structure namespace /NS value is not a string.");
             if (definition.TryGetValue(Name("Schema"), out PdfObject? schema)
-                && (schema is PdfIndirectReference schemaReference
-                        ? _document.Resolve(schemaReference) : schema) is not PdfDictionary)
+                && ResolveValue(schema,
+                    "A structure namespace /Schema value") is not PdfDictionary)
                 throw new InvalidOperationException(
                     "A structure namespace /Schema value is not a dictionary.");
             if (DecodePdfString(text) != "http://iso.org/pdf2/ssn") continue;
@@ -679,8 +678,24 @@ public sealed class PdfIncrementalAnnotationEditor
             value.Bytes.Span, "A structure namespace URI");
 
     private PdfDictionary ResolveDictionary(PdfObject value, string message) =>
-        (value is PdfIndirectReference reference ? _document.Resolve(reference) : value)
-            as PdfDictionary ?? throw new InvalidOperationException(message);
+        ResolveValue(value, message) as PdfDictionary
+            ?? throw new InvalidOperationException(message);
+
+    private PdfObject ResolveValue(PdfObject value, string description)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth > 32)
+                throw new InvalidOperationException(
+                    $"{description} is too deeply indirect.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} contains an indirect-reference cycle.");
+            value = _document.Resolve(reference);
+        }
+        return value;
+    }
 
     private static PdfDictionary WithStructureParent(
         PdfDictionary dictionary, AllocatedAnnotation annotation,
@@ -771,7 +786,8 @@ public sealed class PdfIncrementalAnnotationEditor
             PdfArray array;
             if (existing is PdfIndirectReference reference)
             {
-                array = _document.Resolve(reference) as PdfArray
+                array = ResolveValue(reference,
+                    $"Page {page.Index + 1} /Annots value") as PdfArray
                     ?? throw new InvalidOperationException($"Page {page.Index + 1} /Annots reference is not an array.");
                 PrepareExistingAnnotations(array);
                 foreach (PdfObject annotation in array)
@@ -827,12 +843,13 @@ public sealed class PdfIncrementalAnnotationEditor
         void ValidateExistingAnnotation(PdfObject value)
         {
             PdfIndirectReference reference = (PdfIndirectReference)value;
-            PdfObject resolved = _document.Resolve(reference);
+            PdfObject resolved = ResolveValue(reference,
+                $"Page {page.Index + 1} annotation value");
             PdfDictionary annotation = resolved as PdfDictionary
                 ?? throw new InvalidOperationException(
                     $"Page {page.Index + 1} /Annots contains a stale or non-dictionary entry.");
-            PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
-                ? _document.Resolve(reference) : item;
+            PdfObject Resolve(PdfObject item) => ResolveValue(item,
+                $"Page {page.Index + 1} annotation value");
             if (annotation.TryGetValue(Name("Type"), out PdfObject? type)
                 && (Resolve(type) is not PdfName typeName
                     || typeName.ValueAsLatin1() != "Annot"))
