@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Filters;
+using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Signing;
@@ -77,6 +78,25 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName XfaName = Name("XFA");
     private static readonly PdfName FieldTypeName = Name("FT");
     private static readonly PdfName FieldName = Name("T");
+    private static readonly PdfName FieldValueName = Name("V");
+    private static readonly PdfName AppearanceStateName = Name("AS");
+    private static readonly PdfName AppearanceName = Name("AP");
+    private static readonly PdfName NormalAppearanceName = Name("N");
+    private static readonly PdfName ButtonFieldName = Name("Btn");
+    private static readonly PdfName FieldFlagsName = Name("Ff");
+    private static readonly PdfName TextFieldName = Name("Tx");
+    private static readonly PdfName RectangleName = Name("Rect");
+    private static readonly PdfName AppearanceCharacteristicsName = Name("MK");
+    private static readonly PdfName BorderStyleName = Name("BS");
+    private static readonly PdfName MaximumLengthName = Name("MaxLen");
+    private static readonly PdfName RichValueName = Name("RV");
+    private static readonly PdfName ChoiceFieldName = Name("Ch");
+    private static readonly PdfName OptionsName = Name("Opt");
+    private static readonly PdfName SelectedIndexesName = Name("I");
+    private static readonly PdfName TopIndexName = Name("TI");
+    private static readonly PdfName DefaultValueName = Name("DV");
+    private static readonly PdfName TooltipName = Name("TU");
+    private static readonly PdfName MappingName = Name("TM");
     private static readonly PdfName KidsName = Name("Kids");
     private static readonly PdfName NamesName = Name("Names");
     private static readonly PdfName DestsName = Name("Dests");
@@ -113,15 +133,48 @@ public sealed class PdfIncrementalPageEditor
     private PdfPageLayout? _pageLayout;
     private PdfPageMode? _pageMode;
     private PdfViewerPreferences? _viewerPreferences;
+    private bool _clearPageLayout;
+    private bool _clearPageMode;
+    private bool _clearViewerPreferences;
     private PageState? _openActionPage;
     private PdfDestination? _openActionDestination;
     private string? _namedOpenAction;
+    private bool _clearOpenAction;
     private readonly List<PendingNamedDestination> _namedDestinations = [];
+    private readonly List<PendingNamedDestinationReplacement>
+        _namedDestinationReplacements = [];
     private readonly List<PendingPageLabel> _pageLabels = [];
+    private bool _clearPageLabels;
     private readonly List<PendingAttachment> _attachments = [];
+    private readonly HashSet<string> _removedAttachments =
+        new(StringComparer.OrdinalIgnoreCase);
+    private bool _removeCatalogAssociatedFiles;
     private readonly List<PendingBookmark> _bookmarks = [];
+    private bool _clearOutlines;
     private PendingOutputIntent? _outputIntent;
+    private bool _clearOutputIntents;
     private PdfDocumentMetadata? _metadata;
+    private bool _clearMetadata;
+    private readonly Dictionary<string, bool> _checkBoxValues =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _radioButtonValues =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PendingTextFieldValue> _textFieldValues =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PendingChoiceFieldValue> _choiceFieldValues =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TrueTypeFont?> _resetFieldValues =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PdfFormFieldMetadata?> _fieldMetadataChanges =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PendingFieldDefaultValue> _fieldDefaultChanges =
+        new(StringComparer.Ordinal);
+    private readonly HashSet<string> _removedFormFields = new(StringComparer.Ordinal);
+    private readonly HashSet<(int ObjectNumber, int Generation)>
+        _removedTaggedWidgets = [];
+    private bool _removeAcroForm;
+    private PdfObject? _replacementAcroForm;
+    private readonly List<PendingAuthoredForm> _authoredForms = [];
     private PdfVersion? _minimumFeatureVersion;
     private int _nextImportBatchId;
 
@@ -134,6 +187,554 @@ public sealed class PdfIncrementalPageEditor
 
     public int PageCount => _pages.Count;
 
+    /// <summary>Sets an existing checkbox field to its on or off appearance state.</summary>
+    public PdfIncrementalPageEditor SetCheckBoxValue(string fieldName, bool isChecked)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        _radioButtonValues.Remove(fieldName);
+        _textFieldValues.Remove(fieldName);
+        _choiceFieldValues.Remove(fieldName);
+        _resetFieldValues.Remove(fieldName);
+        _checkBoxValues[fieldName] = isChecked;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Sets an existing radio-button group selection, or clears it with a null value.</summary>
+    public PdfIncrementalPageEditor SetRadioButtonValue(
+        string fieldName, string? selectedValue)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        if (selectedValue is not null && string.IsNullOrWhiteSpace(selectedValue))
+            throw new ArgumentException(
+                "The selected radio-button value cannot be empty.", nameof(selectedValue));
+        _checkBoxValues.Remove(fieldName);
+        _textFieldValues.Remove(fieldName);
+        _choiceFieldValues.Remove(fieldName);
+        _resetFieldValues.Remove(fieldName);
+        _radioButtonValues[fieldName] = selectedValue;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Sets an existing text-field value and regenerates its widget appearance.</summary>
+    public PdfIncrementalPageEditor SetTextFieldValue(
+        string fieldName, string value, TrueTypeFont? embeddedFont = null)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        ArgumentNullException.ThrowIfNull(value);
+        _checkBoxValues.Remove(fieldName);
+        _radioButtonValues.Remove(fieldName);
+        _choiceFieldValues.Remove(fieldName);
+        _resetFieldValues.Remove(fieldName);
+        _textFieldValues[fieldName] = new PendingTextFieldValue(value, embeddedFont);
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Sets the selected value of an existing combo box or single-select list box.</summary>
+    public PdfIncrementalPageEditor SetChoiceFieldValue(
+        string fieldName, string selectedValue, TrueTypeFont? embeddedFont = null)
+    {
+        ArgumentNullException.ThrowIfNull(selectedValue);
+        return SetChoiceFieldValues(fieldName, [selectedValue], embeddedFont);
+    }
+
+    /// <summary>Sets the selected values of an existing multiselect list box.</summary>
+    public PdfIncrementalPageEditor SetChoiceFieldValues(
+        string fieldName, IEnumerable<string> selectedValues,
+        TrueTypeFont? embeddedFont = null)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        ArgumentNullException.ThrowIfNull(selectedValues);
+        string[] values = selectedValues.ToArray();
+        if (values.Any(value => value is null))
+            throw new ArgumentException("Choice-field values cannot contain null.", nameof(selectedValues));
+        if (values.Distinct(StringComparer.Ordinal).Count() != values.Length)
+            throw new ArgumentException("Choice-field values must be unique.", nameof(selectedValues));
+        _checkBoxValues.Remove(fieldName);
+        _radioButtonValues.Remove(fieldName);
+        _textFieldValues.Remove(fieldName);
+        _resetFieldValues.Remove(fieldName);
+        _choiceFieldValues[fieldName] = new PendingChoiceFieldValue(
+            values, embeddedFont, AllowEmptySingle: false);
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Restores an existing field to its default value and matching appearance.</summary>
+    public PdfIncrementalPageEditor ResetFormField(
+        string fieldName, TrueTypeFont? embeddedFont = null)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        _checkBoxValues.Remove(fieldName);
+        _radioButtonValues.Remove(fieldName);
+        _textFieldValues.Remove(fieldName);
+        _choiceFieldValues.Remove(fieldName);
+        _resetFieldValues[fieldName] = embeddedFont;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Sets or clears the tooltip and export mapping name of an existing field.</summary>
+    public PdfIncrementalPageEditor SetFormFieldMetadata(
+        string fieldName, PdfFormFieldMetadata? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        if (metadata?.Tooltip is not null && string.IsNullOrWhiteSpace(metadata.Tooltip))
+            throw new ArgumentException("A field tooltip cannot be empty.", nameof(metadata));
+        if (metadata?.MappingName is not null && string.IsNullOrWhiteSpace(metadata.MappingName))
+            throw new ArgumentException("A field mapping name cannot be empty.", nameof(metadata));
+        _fieldMetadataChanges[fieldName] = metadata;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor SetTextFieldDefaultValue(
+        string fieldName, string value, TrueTypeFont? embeddedFont = null)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return SetFieldDefault(fieldName,
+            new PendingFieldDefaultValue(FieldDefaultKind.Text, [value], false, embeddedFont));
+    }
+
+    public PdfIncrementalPageEditor SetCheckBoxDefaultValue(
+        string fieldName, bool isChecked) => SetFieldDefault(fieldName,
+            new PendingFieldDefaultValue(FieldDefaultKind.CheckBox, [], isChecked, null));
+
+    public PdfIncrementalPageEditor SetRadioButtonDefaultValue(
+        string fieldName, string? selectedValue) => SetFieldDefault(fieldName,
+            new PendingFieldDefaultValue(FieldDefaultKind.Radio,
+                selectedValue is null ? [] : [selectedValue], false, null));
+
+    public PdfIncrementalPageEditor SetChoiceFieldDefaultValue(
+        string fieldName, string selectedValue, TrueTypeFont? embeddedFont = null)
+    {
+        ArgumentNullException.ThrowIfNull(selectedValue);
+        return SetChoiceFieldDefaultValues(fieldName, [selectedValue], embeddedFont);
+    }
+
+    public PdfIncrementalPageEditor SetChoiceFieldDefaultValues(
+        string fieldName, IEnumerable<string> selectedValues,
+        TrueTypeFont? embeddedFont = null)
+    {
+        ArgumentNullException.ThrowIfNull(selectedValues);
+        string[] values = selectedValues.ToArray();
+        if (values.Any(value => value is null))
+            throw new ArgumentException("Choice-field defaults cannot contain null.", nameof(selectedValues));
+        if (values.Distinct(StringComparer.Ordinal).Count() != values.Length)
+            throw new ArgumentException("Choice-field defaults must be unique.", nameof(selectedValues));
+        return SetFieldDefault(fieldName,
+            new PendingFieldDefaultValue(FieldDefaultKind.Choice, values, false, embeddedFont));
+    }
+
+    public PdfIncrementalPageEditor ClearFormFieldDefaultValue(string fieldName) =>
+        SetFieldDefault(fieldName,
+            new PendingFieldDefaultValue(FieldDefaultKind.Remove, [], false, null));
+
+    private PdfIncrementalPageEditor SetFieldDefault(
+        string fieldName, PendingFieldDefaultValue value)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        _fieldDefaultChanges[fieldName] = value;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Removes an existing field, its widgets, and its calculation-order entry.</summary>
+    public PdfIncrementalPageEditor RemoveFormField(string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+            throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
+        _checkBoxValues.Remove(fieldName);
+        _radioButtonValues.Remove(fieldName);
+        _textFieldValues.Remove(fieldName);
+        _choiceFieldValues.Remove(fieldName);
+        _resetFieldValues.Remove(fieldName);
+        _fieldMetadataChanges.Remove(fieldName);
+        _fieldDefaultChanges.Remove(fieldName);
+        _removedFormFields.Add(fieldName);
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddCheckBox(
+        int pageIndex, string name, double x, double y, double width, double height,
+        bool isChecked = false, string exportValue = "Yes",
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? options = null,
+        PdfCheckBoxMark mark = PdfCheckBoxMark.Check,
+        bool? defaultChecked = null,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        byte[] authored = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddCheckBox(0, name, x, y, width, height, isChecked, exportValue,
+                fieldMetadata, options, mark, defaultChecked, appearanceStyle)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddRadioGroup(
+        string name, IEnumerable<PdfRadioButtonOption> options,
+        string? selectedValue = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfRadioGroupOptions? radioOptions = null,
+        string? defaultSelectedValue = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        PdfRadioButtonOption[] requested = options.ToArray();
+        foreach (PdfRadioButtonOption option in requested)
+        {
+            ArgumentNullException.ThrowIfNull(option);
+            ValidateIndex(option.PageIndex, nameof(options));
+        }
+        int[] pageIndexes = requested.Select(option => option.PageIndex)
+            .Distinct().OrderBy(index => index).ToArray();
+        var compactIndexes = pageIndexes.Select((page, compact) => (page, compact))
+            .ToDictionary(item => item.page, item => item.compact);
+        var builder = new PdfDocumentBuilder();
+        foreach (int _ in pageIndexes) builder.AddBlankPage();
+        PdfRadioButtonOption[] compactOptions = requested.Select(option =>
+            new PdfRadioButtonOption(compactIndexes[option.PageIndex],
+                option.X, option.Y, option.Width, option.Height, option.ExportValue)).ToArray();
+        byte[] authored = builder.AddRadioGroup(
+                name, compactOptions, selectedValue, fieldMetadata,
+                fieldOptions, radioOptions, defaultSelectedValue)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            pageIndexes.Select(index => _pages[index]).ToArray(),
+            PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddTextField(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string value = "", double fontSize = 12,
+        PdfTextFieldOptions? options = null,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        string? defaultValue = null,
+        string? richTextValue = null,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, name, x, y, width, height, value, fontSize,
+                options, embeddedFont, fieldMetadata, defaultValue,
+                richTextValue, appearanceStyle)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddComboBox(
+        int pageIndex, string name, double x, double y, double width, double height,
+        IEnumerable<string> options, string? selectedValue = null,
+        bool editable = false, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfChoiceFieldOptions? choiceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddComboBox(0, name, x, y, width, height, options,
+                selectedValue, editable, fontSize, embeddedFont,
+                fieldMetadata, fieldOptions, choiceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddListBox(
+        int pageIndex, string name, double x, double y, double width, double height,
+        IEnumerable<string> options, string? selectedValue = null,
+        double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null, int topIndex = 0,
+        PdfChoiceFieldOptions? choiceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddListBox(0, name, x, y, width, height, options,
+                selectedValue, fontSize, embeddedFont, fieldMetadata,
+                fieldOptions, topIndex, choiceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddMultiSelectListBox(
+        int pageIndex, string name, double x, double y, double width, double height,
+        IEnumerable<string> options, IEnumerable<string>? selectedValues = null,
+        double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null, int topIndex = 0,
+        PdfChoiceFieldOptions? choiceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddMultiSelectListBox(0, name, x, y, width, height, options,
+                selectedValues, fontSize, embeddedFont, fieldMetadata,
+                fieldOptions, topIndex, choiceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddComboBoxOptions(
+        int pageIndex, string name, double x, double y, double width, double height,
+        IEnumerable<PdfChoiceOption> options, string? selectedExportValue = null,
+        bool editable = false, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfChoiceFieldOptions? choiceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddComboBoxOptions(0, name, x, y, width, height, options,
+                selectedExportValue, editable, fontSize, embeddedFont,
+                fieldMetadata, fieldOptions, choiceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddListBoxOptions(
+        int pageIndex, string name, double x, double y, double width, double height,
+        IEnumerable<PdfChoiceOption> options, string? selectedExportValue = null,
+        double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null, int topIndex = 0,
+        PdfChoiceFieldOptions? choiceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddListBoxOptions(0, name, x, y, width, height, options,
+                selectedExportValue, fontSize, embeddedFont, fieldMetadata,
+                fieldOptions, topIndex, choiceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddMultiSelectListBoxOptions(
+        int pageIndex, string name, double x, double y, double width, double height,
+        IEnumerable<PdfChoiceOption> options,
+        IEnumerable<string>? selectedExportValues = null,
+        double fontSize = 12, TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null, int topIndex = 0,
+        PdfChoiceFieldOptions? choiceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddMultiSelectListBoxOptions(0, name, x, y, width, height,
+                options, selectedExportValues, fontSize, embeddedFont,
+                fieldMetadata, fieldOptions, topIndex, choiceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddUriPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, string uri, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddUriPushButton(0, name, x, y, width, height, label, uri,
+                fontSize, embeddedFont, fieldMetadata, fieldOptions,
+                highlightMode, appearanceStyle, appearanceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddPagePushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, int destinationPageIndex,
+        PdfDestination? destination = null, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        ValidateIndex(destinationPageIndex, nameof(destinationPageIndex));
+        PageState[] destinationPages = pageIndex == destinationPageIndex
+            ? [_pages[pageIndex]] : [_pages[pageIndex], _pages[destinationPageIndex]];
+        var builder = new PdfDocumentBuilder();
+        foreach (PageState _ in destinationPages) builder.AddBlankPage();
+        int compactDestination = pageIndex == destinationPageIndex ? 0 : 1;
+        byte[] authored = builder.AddPagePushButton(
+                0, name, x, y, width, height, label, compactDestination,
+                destination, fontSize, embeddedFont, fieldMetadata,
+                fieldOptions, highlightMode, appearanceStyle, appearanceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            destinationPages, PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddNamedDestinationPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, string destinationName, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        if (string.IsNullOrWhiteSpace(destinationName) || !HasNamedDestination(destinationName))
+            throw new ArgumentException(
+                "The named destination has not been defined.", nameof(destinationName));
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddNamedDestination(destinationName, 0)
+            .AddNamedDestinationPushButton(0, name, x, y, width, height,
+                label, destinationName, fontSize, embeddedFont, fieldMetadata,
+                fieldOptions, highlightMode, appearanceStyle, appearanceOptions)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddResetFormPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, IEnumerable<string>? fields = null, bool excludeFields = false,
+        double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        string[]? fieldNames = ValidateActionFieldNames(fields, excludeFields, nameof(fields));
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddResetFormPushButton(0, name, x, y, width, height, label,
+                fontSize: fontSize, embeddedFont: embeddedFont,
+                fieldMetadata: fieldMetadata, fieldOptions: fieldOptions,
+                highlightMode: highlightMode, appearanceStyle: appearanceStyle,
+                appearanceOptions: appearanceOptions)
+            .Build();
+        authored = AddPushButtonActionFields(authored, fieldNames, excludeFields);
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddSubmitPdfPushButton(
+        int pageIndex, string name, double x, double y, double width, double height,
+        string label, string uri, IEnumerable<string>? fields = null,
+        bool excludeFields = false, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfPushButtonHighlightMode highlightMode = PdfPushButtonHighlightMode.Push,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfPushButtonAppearanceOptions? appearanceOptions = null)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidateFormAppearanceFont(embeddedFont);
+        string[]? fieldNames = ValidateActionFieldNames(fields, excludeFields, nameof(fields));
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddSubmitPdfPushButton(0, name, x, y, width, height, label, uri,
+                fontSize: fontSize, embeddedFont: embeddedFont,
+                fieldMetadata: fieldMetadata, fieldOptions: fieldOptions,
+                highlightMode: highlightMode, appearanceStyle: appearanceStyle,
+                appearanceOptions: appearanceOptions)
+            .Build();
+        authored = AddPushButtonActionFields(authored, fieldNames, excludeFields);
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    public PdfIncrementalPageEditor AddSignatureField(
+        int pageIndex, string name, double x, double y, double width, double height,
+        PdfFormFieldMetadata? fieldMetadata = null,
+        PdfFormFieldOptions? fieldOptions = null,
+        PdfSignatureFieldLock? fieldLock = null,
+        PdfSignatureSeedValue? seedValue = null,
+        string? appearanceText = null, double fontSize = 12,
+        TrueTypeFont? embeddedFont = null,
+        PdfFormFieldAppearanceStyle? appearanceStyle = null,
+        PdfTextFieldAlignment appearanceAlignment = PdfTextFieldAlignment.Left)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        if (appearanceText is not null) ValidateFormAppearanceFont(embeddedFont);
+        byte[] authored = new PdfDocumentBuilder().AddBlankPage()
+            .AddSignatureField(0, name, x, y, width, height,
+                fieldMetadata, fieldOptions, fieldLock, seedValue,
+                appearanceText, fontSize, embeddedFont, appearanceStyle,
+                appearanceAlignment)
+            .Build();
+        _authoredForms.Add(new PendingAuthoredForm(
+            [_pages[pageIndex]], PdfDocument.Open(authored)));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
     /// <summary>Replaces document information and descriptive XMP metadata.</summary>
     public PdfIncrementalPageEditor SetMetadata(PdfDocumentMetadata metadata)
     {
@@ -144,8 +745,22 @@ public sealed class PdfIncrementalPageEditor
                 "The document language is not a valid BCP 47 language tag.",
                 nameof(metadata));
         _metadata = metadata;
+        _clearMetadata = false;
         _catalogPresentationChanged = true;
         RequireVersion(new PdfVersion(1, 4));
+        return this;
+    }
+
+    /// <summary>Removes XMP, document information, and catalog language metadata.</summary>
+    public PdfIncrementalPageEditor ClearMetadata()
+    {
+        (bool pdfA4, _, bool pdfUa2) = ReadDocumentConformance();
+        if (pdfA4 || pdfUa2)
+            throw new InvalidOperationException(
+                "PDF/A-4 and PDF/UA-2 documents must retain their conformance metadata.");
+        _metadata = null;
+        _clearMetadata = true;
+        _catalogPresentationChanged = true;
         return this;
     }
 
@@ -161,8 +776,22 @@ public sealed class PdfIncrementalPageEditor
         _outputIntent = new PendingOutputIntent(
             profile, outputConditionIdentifier,
             outputCondition, registryName, information);
+        _clearOutputIntents = false;
         _catalogPresentationChanged = true;
         RequireVersion(new PdfVersion(1, 4));
+        return this;
+    }
+
+    /// <summary>Removes every catalog output intent from a non-PDF/A document.</summary>
+    public PdfIncrementalPageEditor ClearOutputIntents()
+    {
+        (bool pdfA4, _, _) = ReadDocumentConformance();
+        if (pdfA4)
+            throw new InvalidOperationException(
+                "PDF/A-4 documents must retain a conforming output intent.");
+        _outputIntent = null;
+        _clearOutputIntents = true;
+        _catalogPresentationChanged = true;
         return this;
     }
 
@@ -172,9 +801,19 @@ public sealed class PdfIncrementalPageEditor
         if (!Enum.IsDefined(layout))
             throw new ArgumentOutOfRangeException(nameof(layout));
         _pageLayout = layout;
+        _clearPageLayout = false;
         _catalogPresentationChanged = true;
         if (layout is PdfPageLayout.TwoPageLeft or PdfPageLayout.TwoPageRight)
             RequireVersion(new PdfVersion(1, 5));
+        return this;
+    }
+
+    /// <summary>Removes the catalog page-layout preference.</summary>
+    public PdfIncrementalPageEditor ClearPageLayout()
+    {
+        _pageLayout = null;
+        _clearPageLayout = true;
+        _catalogPresentationChanged = true;
         return this;
     }
 
@@ -184,11 +823,21 @@ public sealed class PdfIncrementalPageEditor
         if (!Enum.IsDefined(mode))
             throw new ArgumentOutOfRangeException(nameof(mode));
         _pageMode = mode;
+        _clearPageMode = false;
         _catalogPresentationChanged = true;
         if (mode == PdfPageMode.UseOptionalContent)
             RequireVersion(new PdfVersion(1, 5));
         else if (mode == PdfPageMode.UseAttachments)
             RequireVersion(new PdfVersion(1, 6));
+        return this;
+    }
+
+    /// <summary>Removes the catalog page-mode preference.</summary>
+    public PdfIncrementalPageEditor ClearPageMode()
+    {
+        _pageMode = null;
+        _clearPageMode = true;
+        _catalogPresentationChanged = true;
         return this;
     }
 
@@ -202,8 +851,18 @@ public sealed class PdfIncrementalPageEditor
             || !Enum.IsDefined(preferences.Duplex))
             throw new ArgumentOutOfRangeException(nameof(preferences));
         _viewerPreferences = preferences;
+        _clearViewerPreferences = false;
         _catalogPresentationChanged = true;
         RequireVersion(preferences.MinimumVersion());
+        return this;
+    }
+
+    /// <summary>Removes the catalog viewer-preference dictionary.</summary>
+    public PdfIncrementalPageEditor ClearViewerPreferences()
+    {
+        _viewerPreferences = null;
+        _clearViewerPreferences = true;
+        _catalogPresentationChanged = true;
         return this;
     }
 
@@ -216,6 +875,7 @@ public sealed class PdfIncrementalPageEditor
         _openActionPage = _pages[pageIndex];
         _openActionDestination = destination;
         _namedOpenAction = null;
+        _clearOpenAction = false;
         _catalogPresentationChanged = true;
         return this;
     }
@@ -231,6 +891,18 @@ public sealed class PdfIncrementalPageEditor
         _openActionPage = null;
         _openActionDestination = null;
         _namedOpenAction = destinationName;
+        _clearOpenAction = false;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Removes the document open action.</summary>
+    public PdfIncrementalPageEditor ClearOpenAction()
+    {
+        _openActionPage = null;
+        _openActionDestination = null;
+        _namedOpenAction = null;
+        _clearOpenAction = true;
         _catalogPresentationChanged = true;
         return this;
     }
@@ -249,6 +921,39 @@ public sealed class PdfIncrementalPageEditor
                 "Named destinations must be unique.", nameof(name));
         _namedDestinations.Add(new PendingNamedDestination(
             name, _pages[pageIndex], destination));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Retargets an existing named destination without changing its name.</summary>
+    public PdfIncrementalPageEditor SetNamedDestination(
+        string name, int pageIndex, PdfDestination destination)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException(
+                "A named destination cannot be empty.", nameof(name));
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ArgumentNullException.ThrowIfNull(destination);
+        int pendingIndex = _namedDestinations.FindIndex(value =>
+            string.Equals(value.Name, name, StringComparison.Ordinal));
+        if (pendingIndex >= 0)
+        {
+            _namedDestinations[pendingIndex] = new PendingNamedDestination(
+                name, _pages[pageIndex], destination);
+            return this;
+        }
+        (bool modern, bool legacy) = ExistingNamedDestinationKinds(name);
+        if (!modern && !legacy)
+            throw new ArgumentException(
+                $"The document has no named destination '{name}'.", nameof(name));
+        if (_namedDestinationReplacements.Any(value => string.Equals(
+                value.Name, name, StringComparison.Ordinal)))
+            throw new ArgumentException(
+                $"Named destination '{name}' already has a pending replacement.",
+                nameof(name));
+        _namedDestinationReplacements.Add(
+            new PendingNamedDestinationReplacement(name, _pages[pageIndex],
+                destination, modern, legacy));
         _catalogPresentationChanged = true;
         return this;
     }
@@ -276,6 +981,15 @@ public sealed class PdfIncrementalPageEditor
             page, style, prefix, startNumber));
         _catalogPresentationChanged = true;
         RequireVersion(new PdfVersion(1, 3));
+        return this;
+    }
+
+    /// <summary>Removes every existing and pending page-label range.</summary>
+    public PdfIncrementalPageEditor ClearPageLabels()
+    {
+        _pageLabels.Clear();
+        _clearPageLabels = true;
+        _catalogPresentationChanged = true;
         return this;
     }
 
@@ -307,6 +1021,44 @@ public sealed class PdfIncrementalPageEditor
             relationship, modificationDate));
         _catalogPresentationChanged = true;
         RequireVersion(PdfVersion.Pdf20);
+        return this;
+    }
+
+    /// <summary>Removes an embedded file and its catalog association by file name.</summary>
+    public PdfIncrementalPageEditor RemoveAttachment(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException(
+                "An attachment file name is required.", nameof(fileName));
+        int pending = _attachments.RemoveAll(value => string.Equals(
+            value.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+        if (pending > 0)
+        {
+            _catalogPresentationChanged = true;
+            return this;
+        }
+        if (_removedAttachments.Contains(fileName))
+            throw new ArgumentException(
+                $"Attachment '{fileName}' is already scheduled for removal.",
+                nameof(fileName));
+        bool exists = false;
+        if (_tree.Catalog.TryGetValue(NamesName, out PdfObject? namesValue))
+        {
+            PdfDictionary names = ResolveDictionary(
+                _document, namesValue, "The catalog /Names value");
+            if (names.TryGetValue(EmbeddedFilesName,
+                    out PdfObject? embeddedFiles))
+                exists = PdfNameTree.Read(_document, embeddedFiles).Any(entry =>
+                    string.Equals(PdfUnicodeEncoding.DecodeTextString(
+                            entry.Key.Bytes.Span, "An embedded-file name"),
+                        fileName, StringComparison.OrdinalIgnoreCase));
+        }
+        if (!exists)
+            throw new ArgumentException(
+                $"The document has no attachment named '{fileName}'.",
+                nameof(fileName));
+        _removedAttachments.Add(fileName);
+        _catalogPresentationChanged = true;
         return this;
     }
 
@@ -345,6 +1097,15 @@ public sealed class PdfIncrementalPageEditor
         options ??= new PdfBookmarkOptions();
         _bookmarks.Add(new PendingBookmark(
             title, null, destinationName, level, options));
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Removes every existing and pending bookmark.</summary>
+    public PdfIncrementalPageEditor ClearBookmarks()
+    {
+        _bookmarks.Clear();
+        _clearOutlines = true;
         _catalogPresentationChanged = true;
         return this;
     }
@@ -399,6 +1160,14 @@ public sealed class PdfIncrementalPageEditor
         bool pdfUa2 = xmp.Descendants(pdfua + "part")
             .Any(value => value.Value.Trim() == "2");
         return (pdfA4, conformance, pdfUa2);
+    }
+
+    private void ValidateFormAppearanceFont(TrueTypeFont? embeddedFont)
+    {
+        (bool pdfA4, _, bool pdfUa2) = ReadDocumentConformance();
+        if ((pdfA4 || pdfUa2) && embeddedFont is null)
+            throw new InvalidOperationException(
+                "PDF/A-4 and PDF/UA-2 form text appearances require an embedded TrueType font.");
     }
 
     /// <summary>Moves a page to its final zero-based position.</summary>
@@ -642,6 +1411,17 @@ public sealed class PdfIncrementalPageEditor
         if (degreesClockwise % 90 != 0)
             throw new ArgumentOutOfRangeException(nameof(degreesClockwise), "Page rotation must be a multiple of 90 degrees.");
         _pages[pageIndex].Rotation = NormalizeRotation(degreesClockwise);
+        _pages[pageIndex].RemoveRotation = false;
+        _rotationChanged = true;
+        return this;
+    }
+
+    /// <summary>Resets the page's effective rotation to zero.</summary>
+    public PdfIncrementalPageEditor ClearRotation(int pageIndex)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].Rotation = null;
+        _pages[pageIndex].RemoveRotation = true;
         _rotationChanged = true;
         return this;
     }
@@ -676,9 +1456,28 @@ public sealed class PdfIncrementalPageEditor
             _ => throw new ArgumentOutOfRangeException(nameof(box))
         };
         _pages[pageIndex].PageBoxes[name] = Rectangle(x, y, width, height);
+        _pages[pageIndex].RemovedPageBoxes.Remove(name);
         _pageGeometryChanged = true;
         if (box != PdfPageBox.Crop)
             RequireVersion(new PdfVersion(1, 3));
+        return this;
+    }
+
+    /// <summary>Removes a crop, production, or artwork page boundary.</summary>
+    public PdfIncrementalPageEditor ClearPageBox(int pageIndex, PdfPageBox box)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        PdfName name = box switch
+        {
+            PdfPageBox.Crop => CropBoxName,
+            PdfPageBox.Bleed => BleedBoxName,
+            PdfPageBox.Trim => TrimBoxName,
+            PdfPageBox.Art => ArtBoxName,
+            _ => throw new ArgumentOutOfRangeException(nameof(box))
+        };
+        _pages[pageIndex].PageBoxes.Remove(name);
+        _pages[pageIndex].RemovedPageBoxes.Add(name);
+        _pageGeometryChanged = true;
         return this;
     }
 
@@ -690,8 +1489,19 @@ public sealed class PdfIncrementalPageEditor
             throw new ArgumentOutOfRangeException(nameof(userUnit),
                 "Page user-unit scale must be finite, positive, and at most 75,000.");
         _pages[pageIndex].UserUnit = userUnit;
+        _pages[pageIndex].RemoveUserUnit = false;
         _pageGeometryChanged = true;
         RequireVersion(new PdfVersion(1, 6));
+        return this;
+    }
+
+    /// <summary>Removes the page's explicit user-unit scale.</summary>
+    public PdfIncrementalPageEditor ClearPageUserUnit(int pageIndex)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].UserUnit = null;
+        _pages[pageIndex].RemoveUserUnit = true;
+        _pageGeometryChanged = true;
         return this;
     }
 
@@ -703,8 +1513,19 @@ public sealed class PdfIncrementalPageEditor
         if (!double.IsFinite(seconds) || seconds <= 0)
             throw new ArgumentOutOfRangeException(nameof(seconds));
         _pages[pageIndex].DisplayDuration = seconds;
+        _pages[pageIndex].RemoveDisplayDuration = false;
         _pagePresentationChanged = true;
         RequireVersion(new PdfVersion(1, 1));
+        return this;
+    }
+
+    /// <summary>Removes the page's automatic display duration.</summary>
+    public PdfIncrementalPageEditor ClearPageDisplayDuration(int pageIndex)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].DisplayDuration = null;
+        _pages[pageIndex].RemoveDisplayDuration = true;
+        _pagePresentationChanged = true;
         return this;
     }
 
@@ -714,12 +1535,23 @@ public sealed class PdfIncrementalPageEditor
         ValidateIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(transition);
         _pages[pageIndex].Transition = transition;
+        _pages[pageIndex].RemoveTransition = false;
         _pagePresentationChanged = true;
         RequireVersion(transition.Style is
             PdfPageTransitionStyle.Replace or PdfPageTransitionStyle.Fly
             or PdfPageTransitionStyle.Push or PdfPageTransitionStyle.Cover
             or PdfPageTransitionStyle.Uncover or PdfPageTransitionStyle.Fade
                 ? new PdfVersion(1, 5) : new PdfVersion(1, 1));
+        return this;
+    }
+
+    /// <summary>Removes the page transition effect.</summary>
+    public PdfIncrementalPageEditor ClearPageTransition(int pageIndex)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].Transition = null;
+        _pages[pageIndex].RemoveTransition = true;
+        _pagePresentationChanged = true;
         return this;
     }
 
@@ -731,9 +1563,20 @@ public sealed class PdfIncrementalPageEditor
         if (!Enum.IsDefined(tabOrder))
             throw new ArgumentOutOfRangeException(nameof(tabOrder));
         _pages[pageIndex].TabOrder = tabOrder;
+        _pages[pageIndex].RemoveTabOrder = false;
         _pagePresentationChanged = true;
         RequireVersion(tabOrder == PdfPageTabOrder.AnnotationArray
             ? PdfVersion.Pdf20 : new PdfVersion(1, 5));
+        return this;
+    }
+
+    /// <summary>Removes the page's explicit annotation tab order.</summary>
+    public PdfIncrementalPageEditor ClearPageTabOrder(int pageIndex)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].TabOrder = null;
+        _pages[pageIndex].RemoveTabOrder = true;
+        _pagePresentationChanged = true;
         return this;
     }
 
@@ -743,9 +1586,20 @@ public sealed class PdfIncrementalPageEditor
         ValidateIndex(pageIndex, nameof(pageIndex));
         ArgumentNullException.ThrowIfNull(thumbnail);
         _pages[pageIndex].Thumbnail = thumbnail;
+        _pages[pageIndex].RemoveThumbnail = false;
         _pagePresentationChanged = true;
         if (HasImageSoftMask(thumbnail))
             RequireVersion(new PdfVersion(1, 4));
+        return this;
+    }
+
+    /// <summary>Removes the page thumbnail image.</summary>
+    public PdfIncrementalPageEditor ClearPageThumbnail(int pageIndex)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        _pages[pageIndex].Thumbnail = null;
+        _pages[pageIndex].RemoveThumbnail = true;
+        _pagePresentationChanged = true;
         return this;
     }
 
@@ -760,14 +1614,1716 @@ public sealed class PdfIncrementalPageEditor
                 "The document certification signature prohibits page-tree changes.");
         ValidateExistingStructureTreePageSet();
         var update = new PdfIncrementalUpdateBuilder(_document);
+        bool mergesFormFields = _authoredForms.Count != 0 || _pages.Any(page =>
+            page.ImportedTree?.Catalog.ContainsKey(AcroFormName) == true);
+        bool deferFormFieldChanges = mergesFormFields
+            && (_checkBoxValues.Count != 0 || _radioButtonValues.Count != 0
+                || _textFieldValues.Count != 0 || _choiceFieldValues.Count != 0
+                || _resetFieldValues.Count != 0 || _fieldMetadataChanges.Count != 0
+                || _fieldDefaultChanges.Count != 0);
+        bool deferFormFieldRemovals = _removedFormFields.Count != 0
+            && mergesFormFields;
+        if (_clearMetadata) update.SetDocumentInformation(null);
+        if (!deferFormFieldChanges) ApplyFormFieldValueChanges(update);
+        if (!deferFormFieldRemovals) ApplyFormFieldRemovals(update);
         if (_orderChanged)
             BuildReorderedTree(update);
         else
         {
+            PreparePendingAuthoredForms(update,
+                _pages.ToDictionary(page => page, page => page.Entry?.Reference
+                    ?? throw new InvalidOperationException(
+                        "Adding a field to a new page requires a rebuilt page tree.")));
             BuildPageChanges(update);
             ApplyRequiredVersionUpgrade(update);
         }
-        return update.Build(options);
+        byte[] result = update.Build(options);
+        if (_removedTaggedWidgets.Count != 0)
+            result = RemoveTaggedWidgetStructure(result, _removedTaggedWidgets);
+        if (_authoredForms.Count != 0 && _tree.Catalog.ContainsKey(StructTreeRootName))
+            result = AddAuthoredWidgetStructure(result);
+        if (deferFormFieldChanges || deferFormFieldRemovals)
+        {
+            var formUpdate = new PdfIncrementalPageEditor(PdfDocument.Open(result));
+            foreach (var entry in _checkBoxValues)
+                formUpdate._checkBoxValues[entry.Key] = entry.Value;
+            foreach (var entry in _radioButtonValues)
+                formUpdate._radioButtonValues[entry.Key] = entry.Value;
+            foreach (var entry in _textFieldValues)
+                formUpdate._textFieldValues[entry.Key] = entry.Value;
+            foreach (var entry in _choiceFieldValues)
+                formUpdate._choiceFieldValues[entry.Key] = entry.Value;
+            foreach (var entry in _resetFieldValues)
+                formUpdate._resetFieldValues[entry.Key] = entry.Value;
+            foreach (var entry in _fieldMetadataChanges)
+                formUpdate._fieldMetadataChanges[entry.Key] = entry.Value;
+            foreach (var entry in _fieldDefaultChanges)
+                formUpdate._fieldDefaultChanges[entry.Key] = entry.Value;
+            foreach (string fieldName in _removedFormFields)
+                formUpdate._removedFormFields.Add(fieldName);
+            formUpdate._catalogPresentationChanged = true;
+            result = formUpdate.Build(options);
+        }
+        return result;
+    }
+
+    private void ApplyFormFieldValueChanges(PdfIncrementalUpdateBuilder update)
+    {
+        if (_checkBoxValues.Count == 0 && _radioButtonValues.Count == 0
+            && _textFieldValues.Count == 0 && _choiceFieldValues.Count == 0
+            && _resetFieldValues.Count == 0 && _fieldMetadataChanges.Count == 0
+            && _fieldDefaultChanges.Count == 0) return;
+        if (!_tree.Catalog.TryGetValue(AcroFormName, out PdfObject? formValue))
+            throw new InvalidOperationException("The document has no AcroForm fields.");
+        PdfDictionary form = ResolveDictionary(
+            _document, formValue, "The catalog /AcroForm value");
+        PdfArray fields = FormFields(_document, form);
+        var matched = new HashSet<string>(StringComparer.Ordinal);
+        var metadataMatched = new HashSet<string>(StringComparer.Ordinal);
+        var defaultMatched = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        foreach (PdfObject field in fields)
+            Visit(field, null, null, 0);
+        foreach (string requested in _checkBoxValues.Keys)
+            if (!matched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no checkbox field named '{requested}'.");
+        foreach (string requested in _radioButtonValues.Keys)
+            if (!matched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no radio-button field named '{requested}'.");
+        foreach (string requested in _textFieldValues.Keys)
+            if (!matched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no text field named '{requested}'.");
+        foreach (string requested in _choiceFieldValues.Keys)
+            if (!matched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no choice field named '{requested}'.");
+        foreach (string requested in _resetFieldValues.Keys)
+            if (!matched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no field named '{requested}'.");
+        foreach (string requested in _fieldMetadataChanges.Keys)
+            if (!metadataMatched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no field named '{requested}'.");
+        foreach (string requested in _fieldDefaultChanges.Keys)
+            if (!defaultMatched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no field named '{requested}'.");
+
+        void Visit(PdfObject value, string? parentName, PdfName? inheritedType, int depth)
+        {
+            if (depth >= 256)
+                throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            var resolved = ResolveOutlineWithIdentity(
+                _document, value, "An AcroForm field");
+            PdfIndirectReference reference = resolved.FinalReference
+                ?? throw new NotSupportedException(
+                    "Editing direct AcroForm fields is not supported because they cannot be replaced safely in place.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    "The AcroForm field tree contains a cycle or reused field.");
+            PdfDictionary field = resolved.Value as PdfDictionary
+                ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
+            PdfName? fieldType = inheritedType;
+            if (field.TryGetValue(FieldTypeName, out PdfObject? typeValue))
+                fieldType = ResolveCatalogValue(
+                    _document, typeValue, "An AcroForm field /FT value") as PdfName
+                    ?? throw new InvalidOperationException(
+                        "An AcroForm field /FT value is not a name.");
+            string? qualifiedName = parentName;
+            bool hasPartialName = field.TryGetValue(FieldName, out PdfObject? nameValue);
+            if (hasPartialName)
+            {
+                PdfString partialName = ResolveCatalogValue(
+                    _document, nameValue, "An AcroForm field /T value") as PdfString
+                    ?? throw new InvalidOperationException(
+                        "An AcroForm field /T value is not a string.");
+                string part = PdfUnicodeEncoding.DecodeTextString(
+                    partialName.Bytes.Span, "An AcroForm field /T value");
+                qualifiedName = parentName is null ? part : $"{parentName}.{part}";
+            }
+            PdfFormFieldMetadata? metadata = null;
+            bool hasMetadataChange = hasPartialName && qualifiedName is not null
+                && _fieldMetadataChanges.TryGetValue(qualifiedName, out metadata);
+            PdfDictionary editedField = field;
+            PendingFieldDefaultValue? defaultChange = null;
+            bool hasDefaultChange = hasPartialName && qualifiedName is not null
+                && _fieldDefaultChanges.TryGetValue(
+                    qualifiedName, out defaultChange);
+            if (hasDefaultChange)
+            {
+                if (!defaultMatched.Add(qualifiedName!))
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                editedField = ApplyFieldDefaultChange(
+                    reference, editedField, form, fieldType,
+                    qualifiedName!, defaultChange!);
+            }
+            if (hasMetadataChange)
+            {
+                if (!metadataMatched.Add(qualifiedName!))
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                var replacements = new Dictionary<PdfName, PdfObject>();
+                var removals = new List<PdfName>();
+                if (metadata?.Tooltip is null) removals.Add(TooltipName);
+                else replacements[TooltipName] = TextString(metadata.Tooltip);
+                if (metadata?.MappingName is null) removals.Add(MappingName);
+                else replacements[MappingName] = TextString(metadata.MappingName);
+                editedField = ReplaceMany(editedField, replacements, removals);
+            }
+            if (hasPartialName && qualifiedName is not null
+                && _resetFieldValues.TryGetValue(
+                    qualifiedName, out TrueTypeFont? resetFont))
+            {
+                if (!matched.Add(qualifiedName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                ResetField(update, reference, editedField, form, fieldType,
+                    qualifiedName, resetFont);
+            }
+            else if (hasPartialName && qualifiedName is not null
+                && _checkBoxValues.TryGetValue(qualifiedName, out bool checkedValue))
+            {
+                if (!matched.Add(qualifiedName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                if (fieldType is null || !fieldType.Equals(ButtonFieldName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm field '{qualifiedName}' is not a checkbox button field.");
+                ValidateCheckBoxFlags(field, qualifiedName);
+                UpdateCheckBoxField(
+                    update, reference, editedField, qualifiedName, checkedValue);
+            }
+            else if (hasPartialName && qualifiedName is not null
+                && _radioButtonValues.TryGetValue(qualifiedName, out string? radioValue))
+            {
+                if (!matched.Add(qualifiedName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                if (fieldType is null || !fieldType.Equals(ButtonFieldName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm field '{qualifiedName}' is not a radio-button field.");
+                ValidateRadioButtonFlags(editedField, qualifiedName);
+                UpdateRadioButtonField(
+                    update, reference, editedField, qualifiedName, radioValue);
+            }
+            else if (hasPartialName && qualifiedName is not null
+                && _textFieldValues.TryGetValue(
+                    qualifiedName, out PendingTextFieldValue? textValue))
+            {
+                if (!matched.Add(qualifiedName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                if (fieldType is null || !fieldType.Equals(TextFieldName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm field '{qualifiedName}' is not a text field.");
+                UpdateTextField(
+                    update, reference, editedField, form, qualifiedName, textValue);
+            }
+            else if (hasPartialName && qualifiedName is not null
+                && _choiceFieldValues.TryGetValue(
+                    qualifiedName, out PendingChoiceFieldValue? choiceValue))
+            {
+                if (!matched.Add(qualifiedName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                if (fieldType is null || !fieldType.Equals(ChoiceFieldName))
+                    throw new InvalidOperationException(
+                        $"The AcroForm field '{qualifiedName}' is not a choice field.");
+                UpdateChoiceField(
+                    update, reference, editedField, form, qualifiedName, choiceValue);
+            }
+            else if (hasMetadataChange || hasDefaultChange)
+                update.ReplaceObject(reference.ObjectNumber, editedField);
+            if (!field.TryGetValue(KidsName, out PdfObject? kidsValue)) return;
+            PdfArray kids = ResolveArray(
+                _document, kidsValue, "An AcroForm field /Kids value");
+            foreach (PdfObject kid in kids)
+                Visit(kid, qualifiedName, fieldType, depth + 1);
+        }
+    }
+
+    private void PreparePendingAuthoredForms(
+        PdfIncrementalUpdateBuilder update,
+        IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences,
+        IDictionary<PdfName, PdfObject>? catalogReplacements = null,
+        IEnumerable<PageState[]>? existingGroups = null,
+        IReadOnlyDictionary<PageState, PdfObjectGraphImporter>? existingImporters = null)
+    {
+        if (_authoredForms.Count == 0) return;
+        var groups = existingGroups?.ToList() ?? [];
+        var importers = existingImporters?.ToDictionary(
+            entry => entry.Key, entry => entry.Value)
+            ?? new Dictionary<PageState, PdfObjectGraphImporter>();
+        var prepared = new List<(PendingAuthoredForm Pending, PdfPageTree Tree,
+            PdfObjectGraphImporter Importer)>();
+        foreach (PendingAuthoredForm pending in _authoredForms)
+        {
+            PdfPageTree tree = PdfPageTree.Read(pending.Document);
+            RequireVersion(EffectiveVersion(pending.Document, tree.Catalog));
+            var importer = new PdfObjectGraphImporter(
+                pending.Document, update, tree.Pages.Select(page => page.Reference));
+            if (tree.Pages.Count != pending.Pages.Count)
+                throw new InvalidOperationException(
+                    "An authored form source page mapping is incomplete.");
+            var syntheticGroup = new PageState[tree.Pages.Count];
+            for (int index = 0; index < tree.Pages.Count; index++)
+            {
+                PdfPageTreeEntry sourcePage = tree.Pages[index];
+                PageState destinationPage = pending.Pages[index];
+                var synthetic = new PageState(
+                    pending.Document, tree, sourcePage,
+                    wholeDocument: true, importBatchId: -1);
+                syntheticGroup[index] = synthetic;
+                importers.Add(synthetic, importer);
+                importer.SeedPage(
+                    sourcePage.Reference, pageReferences[destinationPage]);
+            }
+            groups.Add(syntheticGroup);
+            prepared.Add((pending, tree, importer));
+        }
+
+        var replacements = catalogReplacements
+            ?? new Dictionary<PdfName, PdfObject>();
+        AddImportedAcroForm(groups, importers, replacements);
+        PreserveIndirectCatalogDictionary(
+            update, AcroFormName, replacements, "The destination /AcroForm");
+        foreach (var item in prepared)
+            for (int index = 0; index < item.Tree.Pages.Count; index++)
+            {
+                PdfPageTreeEntry sourcePage = item.Tree.Pages[index];
+                PageState destinationPage = item.Pending.Pages[index];
+                if (!sourcePage.Dictionary.TryGetValue(
+                        AnnotsName, out PdfObject? sourceAnnotationsValue)) continue;
+                PdfArray sourceAnnotations = ResolveArray(
+                    item.Pending.Document, sourceAnnotationsValue,
+                    "An authored form page /Annots value");
+                var annotations = new List<PdfObject>();
+                if (destinationPage.ReplaceAnnotations)
+                {
+                    if (destinationPage.Annotations is not null)
+                        annotations.AddRange(destinationPage.Annotations);
+                }
+                else if (destinationPage.Entry?.Dictionary.TryGetValue(
+                             AnnotsName, out PdfObject? existingAnnotations) == true)
+                    annotations.AddRange(ResolveArray(
+                        _document, existingAnnotations,
+                        "A destination page /Annots value"));
+                annotations.AddRange(sourceAnnotations.Select(item.Importer.Import));
+                destinationPage.ReplaceAnnotations = true;
+                destinationPage.Annotations = new PdfArray(annotations);
+                _pagePresentationChanged = true;
+            }
+        if (catalogReplacements is null)
+            _replacementAcroForm = replacements[AcroFormName];
+    }
+
+    private static byte[] AddAuthoredWidgetStructure(byte[] source)
+    {
+        PdfDocument document = PdfDocument.Open(source);
+        PdfPageTree tree = PdfPageTree.Read(document);
+        var widgets = new List<(PdfIndirectReference Reference,
+            PdfDictionary Dictionary, PdfIndirectReference Page)>();
+        foreach (PdfPageTreeEntry page in tree.Pages)
+        {
+            if (!page.Dictionary.TryGetValue(AnnotsName, out PdfObject? annotationsValue))
+                continue;
+            foreach (PdfObject value in ResolveArray(
+                         document, annotationsValue, "A tagged page /Annots value"))
+            {
+                if (value is not PdfIndirectReference reference) continue;
+                PdfDictionary annotation = ResolveDictionary(
+                    document, reference, "A tagged page annotation");
+                if (annotation.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+                    && ResolveCatalogValue(document, subtypeValue,
+                        "A tagged page annotation /Subtype value") is PdfName subtype
+                    && subtype.Equals(Name("Widget"))
+                    && !annotation.ContainsKey(StructureParentName))
+                    widgets.Add((reference, annotation, page.Reference));
+            }
+        }
+        if (widgets.Count == 0) return source;
+
+        var update = new PdfIncrementalUpdateBuilder(document);
+        var rootIdentity = ResolveCatalogWithIdentity(
+            document, tree.Catalog[StructTreeRootName], "The structure-tree root");
+        PdfDictionary root = rootIdentity.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The structure-tree root is not a dictionary.");
+        PdfIndirectReference rootReference = rootIdentity.FinalReference
+            ?? FindStructureRootParentReference(document, root)
+            ?? update.ReserveObject();
+        bool rootIsNew = rootIdentity.FinalReference is null
+            && document.Resolve(rootReference) is PdfNull;
+        PdfObject[] rootKids = root.TryGetValue(StructureKidsName, out PdfObject? rootKidsValue)
+            ? TaggedWidgetStructureKids(document, rootKidsValue,
+                "The structure-tree root kids").ToArray() : [];
+        if (rootKids.Length != 1)
+            throw new NotSupportedException(
+                "Adding form widgets requires one top-level Document structure element.");
+        var documentIdentity = ResolveCatalogWithIdentity(
+            document, rootKids[0], "The top-level Document structure element");
+        PdfDictionary documentElement = documentIdentity.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The top-level structure element is not a dictionary.");
+        PdfIndirectReference documentReference = documentIdentity.FinalReference
+            ?? FindTaggedStructureElementParentReference(document, documentElement)
+            ?? update.ReserveObject();
+        bool documentIsNew = documentIdentity.FinalReference is null
+            && document.Resolve(documentReference) is PdfNull;
+        if (!IsTaggedDocumentElement(document, documentElement))
+            throw new NotSupportedException(
+                "Adding form widgets requires a top-level Document structure element.");
+
+        List<PdfNumberTreeEntry> parentEntries = root.TryGetValue(
+                ParentTreeName, out PdfObject? parentTreeValue)
+            ? PdfNumberTree.Read(document, parentTreeValue).ToList() : [];
+        long nextKey = parentEntries.Count == 0
+            ? 0 : checked(parentEntries.Max(entry => entry.Key) + 1);
+        if (root.TryGetValue(ParentTreeNextKeyName, out PdfObject? nextValue))
+        {
+            PdfObject resolved = ResolveCatalogValue(
+                document, nextValue, "The /ParentTreeNextKey value");
+            long declared = (resolved as PdfInteger)?.Value
+                ?? throw new InvalidOperationException(
+                    "The /ParentTreeNextKey value is not an integer.");
+            if (declared < 0)
+                throw new InvalidOperationException(
+                    "The /ParentTreeNextKey value cannot be negative.");
+            nextKey = Math.Max(nextKey, declared);
+        }
+        if (widgets.Count > PdfNumberTree.MaximumEntryCount - parentEntries.Count)
+            throw new NotSupportedException(
+                "The structure-tree ParentTree would contain too many entries.");
+
+        PdfIndirectReference? namespaceReference = null;
+        if (documentElement.TryGetValue(Name("NS"), out PdfObject? namespaceValue))
+            namespaceReference = ResolveCatalogWithIdentity(
+                document, namespaceValue, "The Document structure namespace")
+                .FinalReference;
+        var structureReferences = new List<PdfIndirectReference>();
+        foreach ((PdfIndirectReference widgetReference, PdfDictionary widget,
+                     PdfIndirectReference pageReference) in widgets)
+        {
+            long key = nextKey++;
+            string description = FormWidgetDescription(document, widget);
+            PdfIndirectReference structureReference = update.ReserveObject();
+            structureReferences.Add(structureReference);
+            var structureEntries = new List<KeyValuePair<PdfName, PdfObject>>
+            {
+                new(TypeName, StructureElementName),
+                new(StructureTypeName, Name("Form")),
+                new(StructureElementParentName, documentReference),
+                new(Name("Pg"), pageReference),
+                new(Name("Alt"), TextString(description)),
+                new(StructureKidsName, Dictionary(
+                    ("Type", Name("OBJR")),
+                    ("Pg", pageReference),
+                    ("Obj", widgetReference)))
+            };
+            if (namespaceReference is not null)
+                structureEntries.Add(new(Name("NS"), namespaceReference));
+            update.SetObject(structureReference, new PdfDictionary(structureEntries));
+            parentEntries.Add(new PdfNumberTreeEntry(key, structureReference));
+            var widgetEntries = widget.ToDictionary(
+                entry => entry.Key, entry => entry.Value);
+            widgetEntries[StructureParentName] = new PdfInteger(key);
+            if (!widgetEntries.ContainsKey(Name("Contents")))
+                widgetEntries[Name("Contents")] = TextString(description);
+            update.ReplaceObject(widgetReference.ObjectNumber,
+                new PdfDictionary(widgetEntries));
+        }
+
+        var numbers = new List<PdfObject>();
+        foreach (PdfNumberTreeEntry entry in parentEntries.OrderBy(entry => entry.Key))
+        {
+            numbers.Add(new PdfInteger(entry.Key));
+            numbers.Add(entry.Value);
+        }
+        PdfIndirectReference parentTreeReference = update.AddObject(
+            Dictionary(("Nums", new PdfArray(numbers))));
+        var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        if (documentIdentity.FinalReference is null)
+            rootEntries[StructureKidsName] = documentReference;
+        rootEntries[ParentTreeName] = parentTreeReference;
+        rootEntries[ParentTreeNextKeyName] = new PdfInteger(nextKey);
+        if (rootIsNew) update.SetObject(rootReference, new PdfDictionary(rootEntries));
+        else update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(rootEntries));
+        if (rootIdentity.FinalReference is null)
+        {
+            var catalogEntries = tree.Catalog.ToDictionary(
+                entry => entry.Key, entry => entry.Value);
+            catalogEntries[StructTreeRootName] = rootReference;
+            update.ReplaceObject(tree.CatalogReference.ObjectNumber,
+                new PdfDictionary(catalogEntries));
+        }
+
+        var documentEntries = documentElement.ToDictionary(
+            entry => entry.Key, entry => entry.Value);
+        if (documentIdentity.FinalReference is null)
+            documentEntries[StructureElementParentName] = rootReference;
+        var documentKids = new List<PdfObject>();
+        if (documentEntries.TryGetValue(StructureKidsName, out PdfObject? documentKidsValue))
+            documentKids.AddRange(TaggedWidgetStructureKids(
+                document, documentKidsValue, "The Document structure-element kids"));
+        documentKids.AddRange(structureReferences);
+        documentEntries[StructureKidsName] = documentKids.Count == 1
+            ? documentKids[0] : new PdfArray(documentKids);
+        if (documentIsNew)
+            update.SetObject(documentReference, new PdfDictionary(documentEntries));
+        else
+            update.ReplaceObject(documentReference.ObjectNumber,
+                new PdfDictionary(documentEntries));
+        return update.Build();
+    }
+
+    private static byte[] RemoveTaggedWidgetStructure(
+        byte[] source,
+        IReadOnlySet<(int ObjectNumber, int Generation)> removedWidgets)
+    {
+        PdfDocument document = PdfDocument.Open(source);
+        PdfPageTree tree = PdfPageTree.Read(document);
+        var update = new PdfIncrementalUpdateBuilder(document);
+        var rootIdentity = ResolveCatalogWithIdentity(
+            document, tree.Catalog[StructTreeRootName], "The structure-tree root");
+        PdfDictionary root = rootIdentity.Value as PdfDictionary
+            ?? throw new InvalidOperationException(
+                "The structure-tree root is not a dictionary.");
+        PdfIndirectReference rootReference = rootIdentity.FinalReference
+            ?? FindStructureRootParentReference(document, root)
+            ?? update.ReserveObject();
+        bool rootIsNew = rootIdentity.FinalReference is null
+            && document.Resolve(rootReference) is PdfNull;
+        if (!root.TryGetValue(ParentTreeName, out PdfObject? parentTreeValue))
+            throw new InvalidOperationException(
+                "A tagged form widget has no structure-tree ParentTree.");
+        List<PdfNumberTreeEntry> entries = PdfNumberTree.Read(
+            document, parentTreeValue).ToList();
+        var removedStructure = new HashSet<(int ObjectNumber, int Generation)>();
+        var retained = new List<PdfNumberTreeEntry>();
+        var parentRemovals = new Dictionary<
+            (int ObjectNumber, int Generation), HashSet<(int ObjectNumber, int Generation)>>();
+        foreach (PdfNumberTreeEntry entry in entries)
+        {
+            var structureIdentity = ResolveCatalogWithIdentity(
+                document, entry.Value,
+                $"The ParentTree value for key {entry.Key}");
+            if (structureIdentity.FinalReference is not PdfIndirectReference structureReference
+                || structureIdentity.Value is not PdfDictionary structure
+                || !StructureElementTargetsRemovedWidget(
+                    document, structure, removedWidgets))
+            {
+                retained.Add(entry);
+                continue;
+            }
+            var structureKey = (
+                structureReference.ObjectNumber, structureReference.Generation);
+            removedStructure.Add(structureKey);
+            if (!structure.TryGetValue(
+                    StructureElementParentName, out PdfObject? parentValue))
+                throw new InvalidOperationException(
+                    "A tagged form structure element has no parent.");
+            var parentIdentity = ResolveCatalogWithIdentity(
+                document, parentValue, "A tagged form structure-element parent");
+            PdfIndirectReference parentReference = parentIdentity.FinalReference
+                ?? throw new NotSupportedException(
+                    "A tagged form structure-element parent is direct.");
+            var parentKey = (parentReference.ObjectNumber, parentReference.Generation);
+            if (!parentRemovals.TryGetValue(parentKey, out var children))
+                parentRemovals[parentKey] = children = [];
+            children.Add(structureKey);
+        }
+        if (removedStructure.Count == 0)
+            throw new InvalidOperationException(
+                "A removed tagged form widget has no matching ParentTree structure element.");
+
+        foreach (var group in parentRemovals)
+        {
+            var parentReference = new PdfIndirectReference(
+                group.Key.ObjectNumber, group.Key.Generation);
+            PdfDictionary parent = ResolveDictionary(
+                document, parentReference, "A tagged form structure-element parent");
+            if (!parent.TryGetValue(StructureKidsName, out PdfObject? kidsValue))
+                throw new InvalidOperationException(
+                    "A tagged form structure-element parent has no kids.");
+            PdfObject[] kids = TaggedWidgetStructureKids(
+                    document, kidsValue, "A tagged form structure-element parent kids")
+                .Where(value => ResolveCatalogWithIdentity(
+                        document, value, "A structure-element child")
+                    .FinalReference is not PdfIndirectReference child
+                    || !group.Value.Contains((child.ObjectNumber, child.Generation)))
+                .ToArray();
+            var parentEntries = parent.ToDictionary(
+                item => item.Key, item => item.Value);
+            if (kids.Length == 0) parentEntries.Remove(StructureKidsName);
+            else parentEntries[StructureKidsName] = kids.Length == 1
+                ? kids[0] : new PdfArray(kids);
+            update.ReplaceObject(parentReference.ObjectNumber,
+                new PdfDictionary(parentEntries));
+        }
+
+        var numbers = new List<PdfObject>();
+        foreach (PdfNumberTreeEntry entry in retained.OrderBy(entry => entry.Key))
+        {
+            numbers.Add(new PdfInteger(entry.Key));
+            numbers.Add(entry.Value);
+        }
+        var rootEntries = root.ToDictionary(item => item.Key, item => item.Value);
+        if (numbers.Count == 0) rootEntries.Remove(ParentTreeName);
+        else rootEntries[ParentTreeName] = update.AddObject(
+            Dictionary(("Nums", new PdfArray(numbers))));
+        if (rootIsNew) update.SetObject(rootReference, new PdfDictionary(rootEntries));
+        else update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(rootEntries));
+        if (rootIdentity.FinalReference is null)
+        {
+            var catalogEntries = tree.Catalog.ToDictionary(
+                item => item.Key, item => item.Value);
+            catalogEntries[StructTreeRootName] = rootReference;
+            update.ReplaceObject(tree.CatalogReference.ObjectNumber,
+                new PdfDictionary(catalogEntries));
+        }
+        return update.Build();
+    }
+
+    private static bool StructureElementTargetsRemovedWidget(
+        PdfDocument document, PdfDictionary structure,
+        IReadOnlySet<(int ObjectNumber, int Generation)> removedWidgets)
+    {
+        if (!structure.TryGetValue(StructureKidsName, out PdfObject? kidsValue))
+            return false;
+        foreach (PdfObject kidValue in TaggedWidgetStructureKids(
+                     document, kidsValue, "A tagged form structure-element kid"))
+        {
+            PdfObject kid = ResolveCatalogValue(
+                document, kidValue, "A tagged form structure-element kid");
+            if (kid is not PdfDictionary dictionary
+                || !dictionary.TryGetValue(TypeName, out PdfObject? typeValue)
+                || ResolveCatalogValue(document, typeValue,
+                    "A tagged form content-reference type") is not PdfName type
+                || type.ValueAsLatin1() != "OBJR"
+                || !dictionary.TryGetValue(Name("Obj"), out PdfObject? objectValue))
+                continue;
+            var objectIdentity = ResolveCatalogWithIdentity(
+                document, objectValue, "A tagged form OBJR object");
+            if (objectIdentity.FinalReference is PdfIndirectReference reference
+                && removedWidgets.Contains(
+                    (reference.ObjectNumber, reference.Generation)))
+                return true;
+        }
+        return false;
+    }
+
+    private static IReadOnlyList<PdfObject> TaggedWidgetStructureKids(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject resolved = ResolveCatalogValue(document, value, description);
+        if (resolved is PdfNull)
+            throw new InvalidOperationException($"{description} resolves to null.");
+        return resolved is PdfArray array ? array.ToArray() : [value];
+    }
+
+    private static PdfIndirectReference? FindTaggedStructureElementParentReference(
+        PdfDocument document, PdfDictionary element)
+    {
+        if (!element.TryGetValue(StructureKidsName, out PdfObject? kidsValue))
+            return null;
+        PdfIndirectReference? result = null;
+        foreach (PdfObject kidValue in TaggedWidgetStructureKids(
+                     document, kidsValue, "A direct structure-element kids value"))
+        {
+            PdfObject kid = ResolveCatalogValue(
+                document, kidValue, "A direct structure-element child");
+            if (kid is not PdfDictionary child) continue;
+            if (!child.TryGetValue(
+                    StructureElementParentName, out PdfObject? parentValue)
+                || ResolveCatalogWithIdentity(
+                    document, parentValue,
+                    "A direct structure-element child parent").FinalReference
+                    is not PdfIndirectReference parentReference)
+                return null;
+            if (result is not null
+                && (result.ObjectNumber != parentReference.ObjectNumber
+                    || result.Generation != parentReference.Generation))
+                throw new NotSupportedException(
+                    "A direct structure element has ambiguous child parent references.");
+            result = parentReference;
+        }
+        return result;
+    }
+
+    private static bool IsTaggedDocumentElement(
+        PdfDocument document, PdfDictionary dictionary) =>
+        dictionary.TryGetValue(StructureTypeName, out PdfObject? value)
+        && ResolveCatalogValue(document, value,
+            "A Document structure-element role") is PdfName name
+        && name.ValueAsLatin1() == "Document";
+
+    private static string FormWidgetDescription(
+        PdfDocument document, PdfDictionary widget)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        PdfDictionary current = widget;
+        var names = new Stack<string>();
+        for (int depth = 0; depth < 64; depth++)
+        {
+            if (current.TryGetValue(Name("TU"), out PdfObject? tooltipValue)
+                && ResolveCatalogValue(document, tooltipValue,
+                    "A form widget tooltip") is PdfString tooltip)
+                return PdfUnicodeEncoding.DecodeTextString(
+                    tooltip.Bytes.Span, "A form widget tooltip");
+            if (current.TryGetValue(Name("T"), out PdfObject? nameValue)
+                && ResolveCatalogValue(document, nameValue,
+                    "A form field name") is PdfString partialName)
+                names.Push(PdfUnicodeEncoding.DecodeTextString(
+                    partialName.Bytes.Span, "A form field name"));
+            if (!current.TryGetValue(Name("Parent"), out PdfObject? parentValue)) break;
+            var parentIdentity = ResolveCatalogWithIdentity(
+                document, parentValue, "A form field parent");
+            if (parentIdentity.FinalReference is PdfIndirectReference reference
+                && !visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    "A form field parent chain contains a cycle.");
+            current = parentIdentity.Value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    "A form field parent is not a dictionary.");
+        }
+        return names.Count == 0 ? "Form field" : string.Join('.', names);
+    }
+
+    private void ApplyFormFieldRemovals(PdfIncrementalUpdateBuilder update)
+    {
+        if (_removedFormFields.Count == 0) return;
+        if (!_tree.Catalog.TryGetValue(AcroFormName, out PdfObject? formValue))
+            throw new InvalidOperationException("The document has no AcroForm fields.");
+        var resolvedForm = ResolveOutlineWithIdentity(
+            _document, formValue, "The catalog /AcroForm value");
+        PdfDictionary form = resolvedForm.Value as PdfDictionary
+            ?? throw new InvalidOperationException("The catalog /AcroForm value is not a dictionary.");
+        if (!form.TryGetValue(FieldsName, out PdfObject? fieldsValue))
+            throw new InvalidOperationException("The AcroForm has no /Fields array.");
+        var resolvedFields = ResolveOutlineWithIdentity(
+            _document, fieldsValue, "The AcroForm /Fields value");
+        PdfArray fields = resolvedFields.Value as PdfArray
+            ?? throw new InvalidOperationException("The AcroForm /Fields value is not an array.");
+        var removedFields = new HashSet<(int ObjectNumber, int Generation)>();
+        var removedWidgets = new HashSet<(int ObjectNumber, int Generation)>();
+        var matched = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        List<PdfObject> retained = RewriteList(fields, null, 0);
+        foreach (string requested in _removedFormFields)
+            if (!matched.Contains(requested))
+                throw new InvalidOperationException(
+                    $"The AcroForm has no field named '{requested}'.");
+
+        if (retained.Count == 0)
+        {
+            _removeAcroForm = true;
+            _replacementAcroForm = null;
+        }
+        else
+        {
+            PdfObject retainedFields = new PdfArray(retained);
+            if (resolvedFields.FinalReference is PdfIndirectReference fieldsReference)
+            {
+                update.ReplaceObject(fieldsReference.ObjectNumber, retainedFields);
+                retainedFields = fieldsValue;
+            }
+            var replacements = new Dictionary<PdfName, PdfObject>
+            {
+                [FieldsName] = retainedFields
+            };
+            var removals = new List<PdfName>();
+            if (form.TryGetValue(CalculationOrderName, out PdfObject? orderValue))
+            {
+                PdfArray order = ResolveArray(
+                    _document, orderValue, "The AcroForm /CO value");
+                PdfObject[] retainedOrder = order.Where(item =>
+                {
+                    PdfIndirectReference? reference = ResolveOutlineWithIdentity(
+                        _document, item, "An AcroForm /CO entry").FinalReference;
+                    return reference is null || !removedFields.Contains(
+                        (reference.ObjectNumber, reference.Generation));
+                }).ToArray();
+                if (retainedOrder.Length == 0) removals.Add(CalculationOrderName);
+                else replacements[CalculationOrderName] = new PdfArray(retainedOrder);
+            }
+            PdfDictionary replacementForm = ReplaceMany(form, replacements, removals);
+            if (resolvedForm.FinalReference is PdfIndirectReference formReference)
+                update.ReplaceObject(formReference.ObjectNumber, replacementForm);
+            else
+                _replacementAcroForm = replacementForm;
+        }
+
+        foreach (PageState state in _pages.Where(page => page.Entry is not null))
+        {
+            PdfDictionary page = state.Entry!.Dictionary;
+            if (!page.TryGetValue(AnnotsName, out PdfObject? annotationsValue)) continue;
+            PdfArray annotations = ResolveArray(
+                _document, annotationsValue, "A page /Annots value");
+            var retainedAnnotations = new List<PdfObject>(annotations.Count);
+            bool removedAny = false;
+            foreach (PdfObject annotation in annotations)
+            {
+                PdfIndirectReference? reference = ResolveOutlineWithIdentity(
+                    _document, annotation, "A page annotation").FinalReference;
+                if (reference is not null && removedWidgets.Contains(
+                        (reference.ObjectNumber, reference.Generation)))
+                {
+                    removedAny = true;
+                    continue;
+                }
+                retainedAnnotations.Add(annotation);
+            }
+            if (!removedAny) continue;
+            state.ReplaceAnnotations = true;
+            state.Annotations = retainedAnnotations.Count == 0
+                ? null : new PdfArray(retainedAnnotations);
+            _pagePresentationChanged = true;
+        }
+        if (_tree.Catalog.ContainsKey(StructTreeRootName))
+            _removedTaggedWidgets.UnionWith(removedWidgets);
+
+        List<PdfObject> RewriteList(PdfArray list, string? parentName, int depth)
+        {
+            if (depth >= 256)
+                throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            var result = new List<PdfObject>(list.Count);
+            foreach (PdfObject fieldValue in list)
+            {
+                var resolved = ResolveOutlineWithIdentity(
+                    _document, fieldValue, "An AcroForm field");
+                PdfIndirectReference reference = resolved.FinalReference
+                    ?? throw new NotSupportedException(
+                        "Removing direct AcroForm fields is not supported because their graph identity is ambiguous.");
+                var identity = (reference.ObjectNumber, reference.Generation);
+                if (!visited.Add(identity))
+                    throw new InvalidOperationException(
+                        "The AcroForm field tree contains a cycle or reused field.");
+                PdfDictionary field = resolved.Value as PdfDictionary
+                    ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
+                string? qualifiedName = parentName;
+                if (field.TryGetValue(FieldName, out PdfObject? nameValue))
+                {
+                    PdfString partial = ResolveCatalogValue(
+                        _document, nameValue, "An AcroForm field /T value") as PdfString
+                        ?? throw new InvalidOperationException(
+                            "An AcroForm field /T value is not a string.");
+                    string part = PdfUnicodeEncoding.DecodeTextString(
+                        partial.Bytes.Span, "An AcroForm field /T value");
+                    qualifiedName = parentName is null ? part : $"{parentName}.{part}";
+                }
+                if (qualifiedName is not null && _removedFormFields.Contains(qualifiedName))
+                {
+                    if (!matched.Add(qualifiedName))
+                        throw new InvalidOperationException(
+                            $"The AcroForm contains more than one field named '{qualifiedName}'.");
+                    CollectRemoved(fieldValue, 0);
+                    continue;
+                }
+                if (field.TryGetValue(KidsName, out PdfObject? kidsValue))
+                {
+                    PdfArray kids = ResolveArray(
+                        _document, kidsValue, "An AcroForm field /Kids value");
+                    List<PdfObject> retainedKids = RewriteList(kids, qualifiedName, depth + 1);
+                    if (retainedKids.Count != kids.Count)
+                    {
+                        if (retainedKids.Count == 0)
+                        {
+                            removedFields.Add(identity);
+                            continue;
+                        }
+                        update.ReplaceObject(reference.ObjectNumber,
+                            ReplaceMany(field, new Dictionary<PdfName, PdfObject>
+                            {
+                                [KidsName] = new PdfArray(retainedKids)
+                            }));
+                    }
+                }
+                result.Add(fieldValue);
+            }
+            return result;
+        }
+
+        void CollectRemoved(PdfObject value, int depth)
+        {
+            if (depth >= 256)
+                throw new InvalidOperationException("The AcroForm field tree is too deeply nested.");
+            var resolved = ResolveOutlineWithIdentity(
+                _document, value, "A removed AcroForm field");
+            PdfIndirectReference reference = resolved.FinalReference
+                ?? throw new NotSupportedException("Removing direct AcroForm fields is not supported.");
+            removedFields.Add((reference.ObjectNumber, reference.Generation));
+            PdfDictionary field = resolved.Value as PdfDictionary
+                ?? throw new InvalidOperationException("A removed AcroForm field is not a dictionary.");
+            if (field.TryGetValue(SubtypeName, out PdfObject? subtypeValue)
+                && ResolveCatalogValue(_document, subtypeValue,
+                    "A removed field /Subtype value") is PdfName subtype
+                && subtype.Equals(WidgetName))
+                removedWidgets.Add((reference.ObjectNumber, reference.Generation));
+            if (!field.TryGetValue(KidsName, out PdfObject? kidsValue)) return;
+            foreach (PdfObject kid in ResolveArray(
+                         _document, kidsValue, "A removed field /Kids value"))
+                CollectRemoved(kid, depth + 1);
+        }
+    }
+
+    private PdfDictionary ApplyFieldDefaultChange(
+        PdfIndirectReference fieldReference, PdfDictionary field,
+        PdfDictionary form, PdfName? fieldType, string fieldName,
+        PendingFieldDefaultValue pending)
+    {
+        if (fieldType is null)
+            throw new InvalidOperationException(
+                $"The AcroForm field '{fieldName}' has no field type.");
+        PdfDictionary changed;
+        if (pending.Kind == FieldDefaultKind.Remove)
+            changed = ReplaceMany(field, new Dictionary<PdfName, PdfObject>(), [DefaultValueName]);
+        else
+        {
+            PdfObject value;
+            switch (pending.Kind)
+            {
+                case FieldDefaultKind.Text:
+                    if (!fieldType.Equals(TextFieldName))
+                        throw new InvalidOperationException(
+                            $"The AcroForm field '{fieldName}' is not a text field.");
+                    value = TextString(pending.Values[0]);
+                    break;
+                case FieldDefaultKind.CheckBox:
+                    if (!fieldType.Equals(ButtonFieldName)
+                        || (FieldFlags(field, fieldName) & (1L << 15)) != 0)
+                        throw new InvalidOperationException(
+                            $"The AcroForm field '{fieldName}' is not a checkbox field.");
+                    value = pending.BooleanValue
+                        ? FindCheckBoxOnState(field, fieldName)
+                        : Name("Off");
+                    break;
+                case FieldDefaultKind.Radio:
+                    if (!fieldType.Equals(ButtonFieldName)
+                        || (FieldFlags(field, fieldName) & (1L << 15)) == 0)
+                        throw new InvalidOperationException(
+                            $"The AcroForm field '{fieldName}' is not a radio-button field.");
+                    if (pending.Values.Count == 0)
+                        value = Name("Off");
+                    else
+                    {
+                        string selected = pending.Values[0];
+                        if (selected.Length == 0
+                            || selected.Any(character => character is < '!' or > '~')
+                            || selected == "Off")
+                            throw new ArgumentException(
+                                "A radio-button default must be a printable ASCII option other than Off.");
+                        value = Name(selected);
+                    }
+                    break;
+                case FieldDefaultKind.Choice:
+                    if (!fieldType.Equals(ChoiceFieldName))
+                        throw new InvalidOperationException(
+                            $"The AcroForm field '{fieldName}' is not a choice field.");
+                    bool multi = (FieldFlags(field, fieldName) & (1L << 21)) != 0;
+                    if (!multi && pending.Values.Count != 1)
+                        throw new InvalidOperationException(
+                            $"The choice field '{fieldName}' requires exactly one default value.");
+                    value = multi
+                        ? new PdfArray(pending.Values.Select(item => (PdfObject)TextString(item)))
+                        : TextString(pending.Values[0]);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(pending));
+            }
+            changed = ReplaceMany(field, new Dictionary<PdfName, PdfObject>
+            {
+                [DefaultValueName] = value
+            });
+        }
+        var validationUpdate = new PdfIncrementalUpdateBuilder(_document);
+        ResetField(validationUpdate, fieldReference, changed, form, fieldType,
+            fieldName, pending.EmbeddedFont);
+        return changed;
+    }
+
+    private PdfName FindCheckBoxOnState(PdfDictionary field, string fieldName)
+    {
+        var states = new HashSet<PdfName>();
+        Visit(field, 0);
+        if (states.Count != 1)
+            throw new InvalidOperationException(
+                $"The checkbox field '{fieldName}' does not define exactly one on appearance state.");
+        return states.Single();
+
+        void Visit(PdfDictionary candidate, int depth)
+        {
+            if (depth >= 256)
+                throw new InvalidOperationException("The AcroForm widget tree is too deeply nested.");
+            if (candidate.TryGetValue(AppearanceName, out PdfObject? appearanceValue))
+            {
+                PdfDictionary appearance = ResolveDictionary(
+                    _document, appearanceValue, $"The checkbox field '{fieldName}' /AP value");
+                if (appearance.TryGetValue(NormalAppearanceName, out PdfObject? normalValue))
+                {
+                    PdfDictionary normal = ResolveDictionary(
+                        _document, normalValue,
+                        $"The checkbox field '{fieldName}' normal appearance");
+                    foreach (PdfName state in normal.Keys.Where(
+                                 state => !state.Equals(Name("Off"))))
+                        states.Add(state);
+                }
+            }
+            if (!candidate.TryGetValue(KidsName, out PdfObject? kidsValue)) return;
+            foreach (PdfObject kidValue in ResolveArray(
+                         _document, kidsValue, "A checkbox field /Kids value"))
+            {
+                PdfDictionary kid = ResolveOutlineWithIdentity(
+                    _document, kidValue, "A checkbox widget").Value as PdfDictionary
+                    ?? throw new InvalidOperationException("A checkbox widget is not a dictionary.");
+                Visit(kid, depth + 1);
+            }
+        }
+    }
+
+    private void ResetField(
+        PdfIncrementalUpdateBuilder update, PdfIndirectReference fieldReference,
+        PdfDictionary field, PdfDictionary form, PdfName? fieldType,
+        string fieldName, TrueTypeFont? embeddedFont)
+    {
+        if (fieldType is null)
+            throw new InvalidOperationException(
+                $"The AcroForm field '{fieldName}' has no field type.");
+        PdfObject? defaultValue = field.TryGetValue(
+            Name("DV"), out PdfObject? value)
+            ? ResolveCatalogValue(
+                _document, value, $"The field '{fieldName}' /DV value")
+            : null;
+        if (fieldType.Equals(TextFieldName))
+        {
+            string text = defaultValue switch
+            {
+                null => string.Empty,
+                PdfString textValue => PdfUnicodeEncoding.DecodeTextString(
+                    textValue.Bytes.Span, $"The field '{fieldName}' /DV value"),
+                _ => throw new InvalidOperationException(
+                    $"The text field '{fieldName}' /DV value is not a string.")
+            };
+            UpdateTextField(update, fieldReference, field, form, fieldName,
+                new PendingTextFieldValue(text, embeddedFont));
+            return;
+        }
+        if (fieldType.Equals(ButtonFieldName))
+        {
+            PdfName state = defaultValue switch
+            {
+                null => Name("Off"),
+                PdfName name => name,
+                _ => throw new InvalidOperationException(
+                    $"The button field '{fieldName}' /DV value is not a name.")
+            };
+            long flags = FieldFlags(field, fieldName);
+            if ((flags & (1L << 16)) != 0)
+                throw new NotSupportedException(
+                    $"Resetting push-button field '{fieldName}' is not supported because push buttons have no value state.");
+            if ((flags & (1L << 15)) != 0)
+            {
+                ValidateRadioButtonFlags(field, fieldName);
+                UpdateRadioButtonField(update, fieldReference, field, fieldName,
+                    state.Equals(Name("Off")) ? null : state.ValueAsLatin1());
+            }
+            else
+            {
+                ValidateCheckBoxFlags(field, fieldName);
+                UpdateCheckBoxField(update, fieldReference, field, fieldName,
+                    !state.Equals(Name("Off")),
+                    state.Equals(Name("Off")) ? null : state);
+            }
+            return;
+        }
+        if (fieldType.Equals(ChoiceFieldName))
+        {
+            var values = new List<string>();
+            if (defaultValue is PdfString defaultText)
+                values.Add(PdfUnicodeEncoding.DecodeTextString(
+                    defaultText.Bytes.Span, $"The field '{fieldName}' /DV value"));
+            else if (defaultValue is PdfArray defaults)
+                foreach (PdfObject item in defaults)
+                {
+                    PdfString text = ResolveCatalogValue(
+                        _document, item, $"The field '{fieldName}' /DV entry") as PdfString
+                        ?? throw new InvalidOperationException(
+                            $"The choice field '{fieldName}' /DV array contains a non-string value.");
+                    values.Add(PdfUnicodeEncoding.DecodeTextString(
+                        text.Bytes.Span, $"The field '{fieldName}' /DV entry"));
+                }
+            else if (defaultValue is not null)
+                throw new InvalidOperationException(
+                    $"The choice field '{fieldName}' /DV value is not a string or array.");
+            UpdateChoiceField(update, fieldReference, field, form, fieldName,
+                new PendingChoiceFieldValue(
+                    values, embeddedFont, AllowEmptySingle: true));
+            return;
+        }
+        throw new NotSupportedException(
+            $"Resetting AcroForm field type /{fieldType.ValueAsLatin1()} is not supported.");
+    }
+
+    private void UpdateChoiceField(
+        PdfIncrementalUpdateBuilder update, PdfIndirectReference fieldReference,
+        PdfDictionary field, PdfDictionary form, string fieldName,
+        PendingChoiceFieldValue pending)
+    {
+        long flags = FieldFlags(field, fieldName);
+        bool combo = (flags & (1L << 17)) != 0;
+        bool editable = (flags & (1L << 18)) != 0;
+        bool multiSelect = (flags & (1L << 21)) != 0;
+        if (combo && multiSelect)
+            throw new InvalidOperationException(
+                $"The choice field '{fieldName}' combines incompatible combo and multiselect flags.");
+        if (!multiSelect && pending.Values.Count != 1
+            && !(pending.AllowEmptySingle && pending.Values.Count == 0))
+            throw new InvalidOperationException(
+                $"The choice field '{fieldName}' requires exactly one selected value.");
+        PdfChoiceOption[] choices = ChoiceOptions(field, fieldName);
+        var indexes = new List<int>();
+        foreach (string selection in pending.Values)
+        {
+            int index = Array.FindIndex(choices, option => string.Equals(
+                option.ExportValue, selection, StringComparison.Ordinal));
+            if (index < 0 && !(combo && editable))
+                throw new InvalidOperationException(
+                    $"The choice field '{fieldName}' has no option with export value '{selection}'.");
+            if (index >= 0) indexes.Add(index);
+        }
+        if (multiSelect && indexes.Count != pending.Values.Count)
+            throw new InvalidOperationException(
+                $"Every selected value for choice field '{fieldName}' must name an option.");
+        int topIndex = OptionalInteger(
+            field, TopIndexName, 0, choices.Length - 1, fieldName);
+        (double fontSize, PdfRgbColor textColor) = TextDefaultAppearance(field, form, fieldName);
+        var choiceOptions = new PdfChoiceFieldOptions
+        {
+            SortOptions = (flags & (1L << 19)) != 0,
+            DoNotSpellCheck = (flags & (1L << 22)) != 0,
+            CommitOnSelectionChange = (flags & (1L << 26)) != 0,
+            Alignment = (PdfTextFieldAlignment)OptionalInteger(
+                field, QuaddingName, 0, 2, fieldName)
+        };
+        var fieldOptions = new PdfFormFieldOptions
+        {
+            ReadOnly = (flags & 1) != 0,
+            Required = (flags & (1L << 1)) != 0,
+            NoExport = (flags & (1L << 2)) != 0
+        };
+        var widgets = new List<(PdfIndirectReference Reference, PdfDictionary Dictionary)>();
+        Collect(fieldReference, field, 0);
+        if (widgets.Count == 0)
+            throw new InvalidOperationException(
+                $"The choice field '{fieldName}' has no widget rectangle.");
+        foreach ((PdfIndirectReference widgetReference, PdfDictionary widget) in widgets)
+        {
+            (double width, double height) = WidgetSize(widget, fieldName);
+            PdfFormFieldAppearanceStyle style = ExistingAppearanceStyle(
+                widget, textColor, fieldName);
+            PdfChoiceFieldOptions styledOptions = choiceOptions with
+            {
+                AppearanceStyle = style
+            };
+            var builder = new PdfDocumentBuilder()
+                .AddBlankPage(Math.Max(1, width), Math.Max(1, height));
+            if (combo && pending.Values.Count != 0)
+                builder.AddComboBoxOptions(0, "field", 0, 0, width, height,
+                    choices, pending.Values[0], editable, fontSize,
+                    pending.EmbeddedFont, fieldOptions: fieldOptions,
+                    choiceOptions: styledOptions);
+            else if (combo)
+                builder.AddTextField(0, "field", 0, 0, width, height,
+                    string.Empty, fontSize, embeddedFont: pending.EmbeddedFont,
+                    options: new PdfTextFieldOptions
+                    {
+                        ReadOnly = fieldOptions.ReadOnly,
+                        Required = fieldOptions.Required,
+                        NoExport = fieldOptions.NoExport,
+                        Alignment = choiceOptions.Alignment
+                    }, appearanceStyle: style);
+            else if (multiSelect || pending.Values.Count == 0)
+                builder.AddMultiSelectListBoxOptions(0, "field", 0, 0, width, height,
+                    choices, pending.Values, fontSize, pending.EmbeddedFont,
+                    fieldOptions: fieldOptions, topIndex: topIndex,
+                    choiceOptions: styledOptions);
+            else
+                builder.AddListBoxOptions(0, "field", 0, 0, width, height,
+                    choices, pending.Values[0], fontSize, pending.EmbeddedFont,
+                    fieldOptions: fieldOptions, topIndex: topIndex,
+                    choiceOptions: styledOptions);
+            PdfDocument appearanceDocument = PdfDocument.Open(builder.Build());
+            PdfDictionary appearanceCatalog = ResolveDictionary(
+                appearanceDocument, appearanceDocument.Trailer[Name("Root")],
+                "The generated appearance catalog");
+            PdfDictionary appearanceForm = ResolveDictionary(
+                appearanceDocument, appearanceCatalog[AcroFormName],
+                "The generated appearance AcroForm");
+            PdfDictionary appearanceField = ResolveDictionary(
+                appearanceDocument, FormFields(appearanceDocument, appearanceForm)[0],
+                "The generated appearance field");
+            PdfDictionary appearance = ResolveDictionary(
+                appearanceDocument, appearanceField[AppearanceName],
+                "The generated field /AP value");
+            var importer = new PdfObjectGraphImporter(appearanceDocument, update, []);
+            PdfObject importedNormal = importer.Import(appearance[NormalAppearanceName]);
+            PdfDictionary existingAppearance = widget.TryGetValue(
+                    AppearanceName, out PdfObject? existingAppearanceValue)
+                ? ResolveDictionary(_document, existingAppearanceValue,
+                    $"The choice field '{fieldName}' /AP value")
+                : new PdfDictionary([]);
+            var replacements = new Dictionary<PdfName, PdfObject>
+            {
+                [AppearanceName] = ReplaceMany(existingAppearance,
+                    new Dictionary<PdfName, PdfObject>
+                    {
+                        [NormalAppearanceName] = importedNormal
+                    })
+            };
+            if (widgetReference.Equals(fieldReference))
+                AddChoiceValueReplacements(replacements);
+            update.ReplaceObject(widgetReference.ObjectNumber,
+                ReplaceMany(widget, replacements,
+                    widgetReference.Equals(fieldReference) && pending.Values.Count == 0
+                        ? [FieldValueName, SelectedIndexesName] : []));
+        }
+        if (!widgets.Any(widget => widget.Reference.Equals(fieldReference)))
+        {
+            var replacements = new Dictionary<PdfName, PdfObject>();
+            AddChoiceValueReplacements(replacements);
+            update.ReplaceObject(fieldReference.ObjectNumber,
+                ReplaceMany(field, replacements,
+                    pending.Values.Count == 0
+                        ? [FieldValueName, SelectedIndexesName] : []));
+        }
+
+        void AddChoiceValueReplacements(IDictionary<PdfName, PdfObject> replacements)
+        {
+            if (pending.Values.Count == 0) return;
+            if (multiSelect)
+            {
+                replacements[FieldValueName] = new PdfArray(
+                    pending.Values.Select(value => (PdfObject)TextString(value)));
+                replacements[SelectedIndexesName] = new PdfArray(
+                    indexes.Select(index => (PdfObject)new PdfInteger(index)));
+            }
+            else
+                replacements[FieldValueName] = TextString(pending.Values[0]);
+        }
+
+        void Collect(PdfIndirectReference reference, PdfDictionary candidate, int depth)
+        {
+            if (depth >= 256)
+                throw new InvalidOperationException("The AcroForm widget tree is too deeply nested.");
+            if (candidate.ContainsKey(RectangleName))
+                widgets.Add((reference, candidate));
+            if (!candidate.TryGetValue(KidsName, out PdfObject? kidsValue)) return;
+            foreach (PdfObject kidValue in ResolveArray(
+                         _document, kidsValue, "A choice field /Kids value"))
+            {
+                var resolvedKid = ResolveOutlineWithIdentity(
+                    _document, kidValue, "A choice field widget");
+                PdfIndirectReference kidReference = resolvedKid.FinalReference
+                    ?? throw new NotSupportedException(
+                        "Editing direct choice-field widgets is not supported because they cannot be replaced safely in place.");
+                PdfDictionary kid = resolvedKid.Value as PdfDictionary
+                    ?? throw new InvalidOperationException("A choice field widget is not a dictionary.");
+                Collect(kidReference, kid, depth + 1);
+            }
+        }
+    }
+
+    private PdfChoiceOption[] ChoiceOptions(PdfDictionary field, string fieldName)
+    {
+        if (!field.TryGetValue(OptionsName, out PdfObject? value))
+            throw new InvalidOperationException(
+                $"The choice field '{fieldName}' has no /Opt array.");
+        PdfArray options = ResolveArray(
+            _document, value, $"The choice field '{fieldName}' /Opt value");
+        if (options.Count == 0)
+            throw new InvalidOperationException(
+                $"The choice field '{fieldName}' has no options.");
+        var result = new List<PdfChoiceOption>(options.Count);
+        var exports = new HashSet<string>(StringComparer.Ordinal);
+        foreach (PdfObject optionValue in options)
+        {
+            PdfObject option = ResolveCatalogValue(
+                _document, optionValue, $"A choice field '{fieldName}' option");
+            string export;
+            string display;
+            if (option is PdfString text)
+                export = display = Decode(text);
+            else if (option is PdfArray pair && pair.Count == 2)
+            {
+                export = Decode(ResolveCatalogValue(
+                    _document, pair[0], "A choice option export value") as PdfString
+                    ?? throw new InvalidOperationException(
+                        "A choice option export value is not a string."));
+                display = Decode(ResolveCatalogValue(
+                    _document, pair[1], "A choice option display value") as PdfString
+                    ?? throw new InvalidOperationException(
+                        "A choice option display value is not a string."));
+            }
+            else
+                throw new InvalidOperationException(
+                    $"A choice field '{fieldName}' option is not a string or string pair.");
+            if (export.Length == 0 || !exports.Add(export))
+                throw new InvalidOperationException(
+                    $"The choice field '{fieldName}' contains an empty or duplicate export value.");
+            result.Add(new PdfChoiceOption(export, display));
+        }
+        return result.ToArray();
+
+        static string Decode(PdfString text) => PdfUnicodeEncoding.DecodeTextString(
+            text.Bytes.Span, "A choice field option");
+    }
+
+    private void UpdateTextField(
+        PdfIncrementalUpdateBuilder update, PdfIndirectReference fieldReference,
+        PdfDictionary field, PdfDictionary form, string fieldName,
+        PendingTextFieldValue pending)
+    {
+        long flags = FieldFlags(field, fieldName);
+        var options = new PdfTextFieldOptions
+        {
+            ReadOnly = (flags & 1) != 0,
+            Required = (flags & (1L << 1)) != 0,
+            NoExport = (flags & (1L << 2)) != 0,
+            Multiline = (flags & (1L << 12)) != 0,
+            Password = (flags & (1L << 13)) != 0,
+            FileSelect = (flags & (1L << 20)) != 0,
+            DoNotSpellCheck = (flags & (1L << 22)) != 0,
+            DoNotScroll = (flags & (1L << 23)) != 0,
+            Comb = (flags & (1L << 24)) != 0,
+            MaximumLength = OptionalPositiveInteger(field, MaximumLengthName, fieldName),
+            Alignment = (PdfTextFieldAlignment)OptionalInteger(
+                field, QuaddingName, 0, 2, fieldName)
+        };
+        (double fontSize, PdfRgbColor textColor) = TextDefaultAppearance(field, form, fieldName);
+        var widgets = new List<(PdfIndirectReference Reference, PdfDictionary Dictionary)>();
+        Collect(fieldReference, field, 0);
+        if (widgets.Count == 0)
+            throw new InvalidOperationException(
+                $"The text field '{fieldName}' has no widget appearance.");
+
+        foreach ((PdfIndirectReference widgetReference, PdfDictionary widget) in widgets)
+        {
+            (double width, double height) = WidgetSize(widget, fieldName);
+            PdfFormFieldAppearanceStyle style = ExistingAppearanceStyle(
+                widget, textColor, fieldName);
+            byte[] authored = new PdfDocumentBuilder()
+                .AddBlankPage(Math.Max(1, width), Math.Max(1, height))
+                .AddTextField(0, "field", 0, 0, width, height, pending.Value,
+                    fontSize, options, pending.EmbeddedFont,
+                    defaultValue: pending.Value, appearanceStyle: style)
+                .Build();
+            PdfDocument appearanceDocument = PdfDocument.Open(authored);
+            PdfDictionary appearanceCatalog = ResolveDictionary(
+                appearanceDocument, appearanceDocument.Trailer[Name("Root")],
+                "The generated appearance catalog");
+            PdfDictionary appearanceForm = ResolveDictionary(
+                appearanceDocument, appearanceCatalog[AcroFormName],
+                "The generated appearance AcroForm");
+            PdfDictionary appearanceField = ResolveDictionary(
+                appearanceDocument, FormFields(appearanceDocument, appearanceForm)[0],
+                "The generated appearance field");
+            PdfDictionary appearance = ResolveDictionary(
+                appearanceDocument, appearanceField[AppearanceName],
+                "The generated field /AP value");
+            PdfObject normal = appearance[NormalAppearanceName];
+            var importer = new PdfObjectGraphImporter(
+                appearanceDocument, update, []);
+            PdfObject importedNormal = importer.Import(normal);
+            PdfDictionary existingAppearance = widget.TryGetValue(
+                    AppearanceName, out PdfObject? existingAppearanceValue)
+                ? ResolveDictionary(
+                    _document, existingAppearanceValue,
+                    $"The text field '{fieldName}' /AP value")
+                : new PdfDictionary([]);
+            PdfDictionary replacementAppearance = ReplaceMany(
+                existingAppearance, new Dictionary<PdfName, PdfObject>
+                {
+                    [NormalAppearanceName] = importedNormal
+                });
+            var replacements = new Dictionary<PdfName, PdfObject>
+            {
+                [AppearanceName] = replacementAppearance
+            };
+            if (widgetReference.Equals(fieldReference))
+            {
+                replacements[FieldValueName] = TextString(pending.Value);
+                replacements[FieldFlagsName] = new PdfInteger(flags & ~(1L << 25));
+            }
+            update.ReplaceObject(widgetReference.ObjectNumber,
+                ReplaceMany(widget, replacements,
+                    widgetReference.Equals(fieldReference) ? [RichValueName] : []));
+        }
+        if (!widgets.Any(widget => widget.Reference.Equals(fieldReference)))
+            update.ReplaceObject(fieldReference.ObjectNumber,
+                ReplaceMany(field, new Dictionary<PdfName, PdfObject>
+                {
+                    [FieldValueName] = TextString(pending.Value),
+                    [FieldFlagsName] = new PdfInteger(flags & ~(1L << 25))
+                }, [RichValueName]));
+
+        void Collect(PdfIndirectReference reference, PdfDictionary candidate, int depth)
+        {
+            if (depth >= 256)
+                throw new InvalidOperationException("The AcroForm widget tree is too deeply nested.");
+            if (candidate.ContainsKey(RectangleName))
+                widgets.Add((reference, candidate));
+            if (!candidate.TryGetValue(KidsName, out PdfObject? kidsValue)) return;
+            foreach (PdfObject kidValue in ResolveArray(
+                         _document, kidsValue, "A text field /Kids value"))
+            {
+                var resolvedKid = ResolveOutlineWithIdentity(
+                    _document, kidValue, "A text field widget");
+                PdfIndirectReference kidReference = resolvedKid.FinalReference
+                    ?? throw new NotSupportedException(
+                        "Editing direct text-field widgets is not supported because they cannot be replaced safely in place.");
+                PdfDictionary kid = resolvedKid.Value as PdfDictionary
+                    ?? throw new InvalidOperationException("A text field widget is not a dictionary.");
+                Collect(kidReference, kid, depth + 1);
+            }
+        }
+    }
+
+    private long FieldFlags(PdfDictionary field, string fieldName)
+    {
+        if (!field.TryGetValue(FieldFlagsName, out PdfObject? value)) return 0;
+        return ResolveCatalogValue(
+            _document, value, $"The field '{fieldName}' /Ff value") is PdfInteger integer
+            ? integer.Value
+            : throw new InvalidOperationException(
+                $"The field '{fieldName}' /Ff value is not an integer.");
+    }
+
+    private int? OptionalPositiveInteger(
+        PdfDictionary field, PdfName key, string fieldName)
+    {
+        if (!field.TryGetValue(key, out PdfObject? value)) return null;
+        PdfInteger integer = ResolveCatalogValue(
+            _document, value, $"The field '{fieldName}' /{key.ValueAsLatin1()} value") as PdfInteger
+            ?? throw new InvalidOperationException(
+                $"The field '{fieldName}' /{key.ValueAsLatin1()} value is not an integer.");
+        if (integer.Value is <= 0 or > int.MaxValue)
+            throw new InvalidOperationException(
+                $"The field '{fieldName}' /{key.ValueAsLatin1()} value is outside the supported range.");
+        return (int)integer.Value;
+    }
+
+    private int OptionalInteger(
+        PdfDictionary field, PdfName key, int minimum, int maximum, string fieldName)
+    {
+        if (!field.TryGetValue(key, out PdfObject? value)) return minimum;
+        PdfInteger integer = ResolveCatalogValue(
+            _document, value, $"The field '{fieldName}' /{key.ValueAsLatin1()} value") as PdfInteger
+            ?? throw new InvalidOperationException(
+                $"The field '{fieldName}' /{key.ValueAsLatin1()} value is not an integer.");
+        if (integer.Value < minimum || integer.Value > maximum)
+            throw new InvalidOperationException(
+                $"The field '{fieldName}' /{key.ValueAsLatin1()} value is outside the supported range.");
+        return (int)integer.Value;
+    }
+
+    private (double FontSize, PdfRgbColor TextColor) TextDefaultAppearance(
+        PdfDictionary field, PdfDictionary form, string fieldName)
+    {
+        PdfObject value = field.TryGetValue(DefaultAppearanceName, out PdfObject? fieldValue)
+            ? fieldValue
+            : form.TryGetValue(DefaultAppearanceName, out PdfObject? formValue)
+                ? formValue
+                : throw new InvalidOperationException(
+                    $"The text field '{fieldName}' has no default appearance.");
+        PdfString appearance = ResolveCatalogValue(
+            _document, value, $"The text field '{fieldName}' /DA value") as PdfString
+            ?? throw new InvalidOperationException(
+                $"The text field '{fieldName}' /DA value is not a string.");
+        string[] tokens = Encoding.Latin1.GetString(appearance.Bytes.Span)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        double? size = null;
+        PdfRgbColor color = new(0, 0, 0);
+        for (int index = 0; index < tokens.Length; index++)
+        {
+            if (tokens[index] == "Tf" && index >= 1
+                && double.TryParse(tokens[index - 1], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double parsedSize)
+                && double.IsFinite(parsedSize) && parsedSize > 0)
+                size = parsedSize;
+            if (tokens[index] == "rg" && index >= 3
+                && TryUnit(tokens[index - 3], out double red)
+                && TryUnit(tokens[index - 2], out double green)
+                && TryUnit(tokens[index - 1], out double blue))
+                color = new PdfRgbColor(red, green, blue);
+        }
+        return (size ?? throw new InvalidOperationException(
+            $"The text field '{fieldName}' /DA value has no valid font size."), color);
+
+        static bool TryUnit(string text, out double number) =>
+            double.TryParse(text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out number)
+            && double.IsFinite(number) && number is >= 0 and <= 1;
+    }
+
+    private (double Width, double Height) WidgetSize(
+        PdfDictionary widget, string fieldName)
+    {
+        PdfArray rectangle = ResolveArray(
+            _document, widget[RectangleName], $"The text field '{fieldName}' /Rect value");
+        if (rectangle.Count != 4)
+            throw new InvalidOperationException(
+                $"The text field '{fieldName}' /Rect value does not have four numbers.");
+        double[] values = rectangle.Select(NumberValue).ToArray();
+        double width = values[2] - values[0];
+        double height = values[3] - values[1];
+        if (!double.IsFinite(width) || !double.IsFinite(height) || width <= 0 || height <= 0)
+            throw new InvalidOperationException(
+                $"The text field '{fieldName}' has an invalid rectangle.");
+        return (width, height);
+    }
+
+    private PdfFormFieldAppearanceStyle ExistingAppearanceStyle(
+        PdfDictionary widget, PdfRgbColor textColor, string fieldName)
+    {
+        PdfRgbColor? background = new PdfRgbColor(1, 1, 1);
+        PdfRgbColor? border = new PdfRgbColor(0, 0, 0);
+        if (widget.TryGetValue(AppearanceCharacteristicsName, out PdfObject? mkValue))
+        {
+            PdfDictionary mk = ResolveDictionary(
+                _document, mkValue, $"The text field '{fieldName}' /MK value");
+            background = OptionalRgb(mk, Name("BG"), fieldName);
+            border = OptionalRgb(mk, Name("BC"), fieldName);
+        }
+        double width = 1;
+        PdfFormFieldBorderStyle style = PdfFormFieldBorderStyle.Solid;
+        IReadOnlyList<double>? dash = null;
+        if (widget.TryGetValue(BorderStyleName, out PdfObject? bsValue))
+        {
+            PdfDictionary bs = ResolveDictionary(
+                _document, bsValue, $"The text field '{fieldName}' /BS value");
+            if (bs.TryGetValue(Name("W"), out PdfObject? widthValue))
+                width = NumberValue(ResolveCatalogValue(
+                    _document, widthValue, $"The text field '{fieldName}' border width"));
+            if (bs.TryGetValue(Name("S"), out PdfObject? styleValue))
+            {
+                PdfName name = ResolveCatalogValue(
+                    _document, styleValue, $"The text field '{fieldName}' border style") as PdfName
+                    ?? throw new InvalidOperationException("A form-field border style is not a name.");
+                style = name.ValueAsLatin1() switch
+                {
+                    "S" => PdfFormFieldBorderStyle.Solid,
+                    "D" => PdfFormFieldBorderStyle.Dashed,
+                    "B" => PdfFormFieldBorderStyle.Beveled,
+                    "I" => PdfFormFieldBorderStyle.Inset,
+                    "U" => PdfFormFieldBorderStyle.Underline,
+                    _ => throw new InvalidOperationException("A form-field border style is undefined.")
+                };
+            }
+            if (bs.TryGetValue(Name("D"), out PdfObject? dashValue))
+                dash = ResolveArray(_document, dashValue,
+                        $"The text field '{fieldName}' border dash pattern")
+                    .Select(item => NumberValue(ResolveCatalogValue(
+                        _document, item, "A form-field border dash value"))).ToArray();
+        }
+        return new PdfFormFieldAppearanceStyle
+        {
+            BackgroundColor = background,
+            BorderColor = border,
+            TextColor = textColor,
+            BorderWidth = width,
+            BorderStyle = style,
+            DashPattern = dash
+        };
+    }
+
+    private PdfRgbColor? OptionalRgb(
+        PdfDictionary dictionary, PdfName key, string fieldName)
+    {
+        if (!dictionary.TryGetValue(key, out PdfObject? value)) return null;
+        PdfArray array = ResolveArray(
+            _document, value, $"The text field '{fieldName}' /MK /{key.ValueAsLatin1()} value");
+        if (array.Count != 3)
+            throw new InvalidOperationException("A form-field RGB color does not have three components.");
+        double[] components = array.Select(item => NumberValue(ResolveCatalogValue(
+            _document, item, "A form-field RGB color component"))).ToArray();
+        if (components.Any(component => component is < 0 or > 1))
+            throw new InvalidOperationException("A form-field RGB color component is outside 0 through 1.");
+        return new PdfRgbColor(components[0], components[1], components[2]);
+    }
+
+    private static double NumberValue(PdfObject value) => value switch
+    {
+        PdfInteger integer => integer.Value,
+        PdfReal real when double.IsFinite(real.Value) => real.Value,
+        _ => throw new InvalidOperationException("A form-field numeric value is invalid.")
+    };
+
+    private void ValidateCheckBoxFlags(PdfDictionary field, string fieldName)
+    {
+        if (!field.TryGetValue(FieldFlagsName, out PdfObject? flagsValue)) return;
+        PdfInteger flags = ResolveCatalogValue(
+            _document, flagsValue, $"The checkbox field '{fieldName}' /Ff value") as PdfInteger
+            ?? throw new InvalidOperationException(
+                $"The checkbox field '{fieldName}' /Ff value is not an integer.");
+        if ((flags.Value & ((1L << 15) | (1L << 16))) != 0)
+            throw new InvalidOperationException(
+                $"The AcroForm field '{fieldName}' is a radio or push button, not a checkbox.");
+    }
+
+    private void ValidateRadioButtonFlags(PdfDictionary field, string fieldName)
+    {
+        if (!field.TryGetValue(FieldFlagsName, out PdfObject? flagsValue))
+            throw new InvalidOperationException(
+                $"The AcroForm field '{fieldName}' is a checkbox, not a radio-button group.");
+        PdfInteger flags = ResolveCatalogValue(
+            _document, flagsValue, $"The radio-button field '{fieldName}' /Ff value") as PdfInteger
+            ?? throw new InvalidOperationException(
+                $"The radio-button field '{fieldName}' /Ff value is not an integer.");
+        if ((flags.Value & (1L << 15)) == 0 || (flags.Value & (1L << 16)) != 0)
+            throw new InvalidOperationException(
+                $"The AcroForm field '{fieldName}' is not a radio-button group.");
+    }
+
+    private void UpdateRadioButtonField(
+        PdfIncrementalUpdateBuilder update, PdfIndirectReference fieldReference,
+        PdfDictionary field, string fieldName, string? selectedValue)
+    {
+        if (!field.TryGetValue(KidsName, out PdfObject? kidsValue))
+            throw new InvalidOperationException(
+                $"The radio-button field '{fieldName}' has no widget children.");
+        var widgets = new List<(PdfIndirectReference Reference, PdfDictionary Dictionary,
+            PdfName OnState)>();
+        foreach (PdfObject kidValue in ResolveArray(
+                     _document, kidsValue, $"The radio-button field '{fieldName}' /Kids value"))
+        {
+            var resolvedKid = ResolveOutlineWithIdentity(
+                _document, kidValue, $"A radio-button field '{fieldName}' widget");
+            PdfIndirectReference kidReference = resolvedKid.FinalReference
+                ?? throw new NotSupportedException(
+                    "Editing direct radio-button widgets is not supported because they cannot be replaced safely in place.");
+            PdfDictionary widget = resolvedKid.Value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"A radio-button field '{fieldName}' widget is not a dictionary.");
+            PdfName onState = CheckBoxState(widget, fieldName, isChecked: true);
+            widgets.Add((kidReference, widget, onState));
+        }
+        PdfName off = Name("Off");
+        PdfName selected = off;
+        if (selectedValue is not null)
+        {
+            PdfName[] matches = widgets.Select(widget => widget.OnState)
+                .Distinct()
+                .Where(state => string.Equals(
+                    state.ValueAsLatin1(), selectedValue, StringComparison.Ordinal))
+                .ToArray();
+            if (matches.Length != 1)
+                throw new InvalidOperationException(
+                    $"The radio-button field '{fieldName}' has no unique option named '{selectedValue}'.");
+            selected = matches[0];
+        }
+        foreach (var widget in widgets)
+        {
+            PdfName state = widget.OnState.Equals(selected) ? selected : off;
+            update.ReplaceObject(widget.Reference.ObjectNumber,
+                ReplaceMany(widget.Dictionary, new Dictionary<PdfName, PdfObject>
+                {
+                    [AppearanceStateName] = state
+                }));
+        }
+        update.ReplaceObject(fieldReference.ObjectNumber,
+            ReplaceMany(field, new Dictionary<PdfName, PdfObject>
+            {
+                [FieldValueName] = selected
+            }));
+    }
+
+    private void UpdateCheckBoxField(
+        PdfIncrementalUpdateBuilder update, PdfIndirectReference fieldReference,
+        PdfDictionary field, string fieldName, bool isChecked,
+        PdfName? expectedOnState = null)
+    {
+        var widgets = new List<(PdfIndirectReference Reference, PdfDictionary Dictionary)>();
+        Collect(fieldReference, field, 0);
+        if (widgets.Count == 0)
+            throw new InvalidOperationException(
+                $"The checkbox field '{fieldName}' has no widget appearance.");
+        PdfName? selectedState = null;
+        foreach ((PdfIndirectReference widgetReference, PdfDictionary widget) in widgets)
+        {
+            PdfName state = CheckBoxState(widget, fieldName, isChecked);
+            if (isChecked && expectedOnState is not null
+                && !state.Equals(expectedOnState))
+                throw new InvalidOperationException(
+                    $"The checkbox field '{fieldName}' default value has no matching appearance state.");
+            if (isChecked && selectedState is not null && !selectedState.Equals(state))
+                throw new InvalidOperationException(
+                    $"The checkbox field '{fieldName}' has inconsistent widget on states.");
+            selectedState = state;
+            var replacements = new Dictionary<PdfName, PdfObject>
+            {
+                [AppearanceStateName] = state
+            };
+            if (widgetReference.Equals(fieldReference))
+                replacements[FieldValueName] = state;
+            update.ReplaceObject(widgetReference.ObjectNumber,
+                ReplaceMany(widget, replacements));
+        }
+        if (!widgets.Any(widget => widget.Reference.Equals(fieldReference)))
+            update.ReplaceObject(fieldReference.ObjectNumber,
+                ReplaceMany(field, new Dictionary<PdfName, PdfObject>
+                {
+                    [FieldValueName] = selectedState!
+                }));
+
+        void Collect(PdfIndirectReference reference, PdfDictionary candidate, int depth)
+        {
+            if (depth >= 256)
+                throw new InvalidOperationException("The AcroForm widget tree is too deeply nested.");
+            if (candidate.ContainsKey(AppearanceName))
+                widgets.Add((reference, candidate));
+            if (!candidate.TryGetValue(KidsName, out PdfObject? kidsValue)) return;
+            foreach (PdfObject kidValue in ResolveArray(
+                         _document, kidsValue, "A checkbox field /Kids value"))
+            {
+                var resolvedKid = ResolveOutlineWithIdentity(
+                    _document, kidValue, "A checkbox widget");
+                PdfIndirectReference kidReference = resolvedKid.FinalReference
+                    ?? throw new NotSupportedException(
+                        "Editing direct checkbox widgets is not supported because they cannot be replaced safely in place.");
+                PdfDictionary kid = resolvedKid.Value as PdfDictionary
+                    ?? throw new InvalidOperationException("A checkbox widget is not a dictionary.");
+                Collect(kidReference, kid, depth + 1);
+            }
+        }
+    }
+
+    private PdfName CheckBoxState(
+        PdfDictionary widget, string fieldName, bool isChecked)
+    {
+        if (!widget.TryGetValue(AppearanceName, out PdfObject? appearanceValue))
+            throw new InvalidOperationException(
+                $"The checkbox field '{fieldName}' has no appearance dictionary.");
+        PdfDictionary appearance = ResolveDictionary(
+            _document, appearanceValue, $"The checkbox field '{fieldName}' /AP value");
+        if (!appearance.TryGetValue(NormalAppearanceName, out PdfObject? normalValue))
+            throw new InvalidOperationException(
+                $"The checkbox field '{fieldName}' has no normal appearance.");
+        PdfDictionary states = ResolveDictionary(
+            _document, normalValue, $"The checkbox field '{fieldName}' normal appearance");
+        PdfName off = Name("Off");
+        if (!states.ContainsKey(off))
+            throw new InvalidOperationException(
+                $"The checkbox field '{fieldName}' has no /Off appearance state.");
+        if (!isChecked) return off;
+        PdfName[] onStates = states.Keys.Where(name => !name.Equals(off)).ToArray();
+        if (onStates.Length != 1)
+            throw new InvalidOperationException(
+                $"The checkbox field '{fieldName}' does not define exactly one on appearance state.");
+        return onStates[0];
     }
 
     private void EnforcePasswordPermissions()
@@ -805,6 +3361,7 @@ public sealed class PdfIncrementalPageEditor
         ValidateIndex(pageIndex, nameof(pageIndex));
         PageState page = _pages[pageIndex];
         page.Rotation = NormalizeRotation(CurrentRotation(page) + delta);
+        page.RemoveRotation = false;
         _rotationChanged = true;
         return this;
     }
@@ -813,10 +3370,17 @@ public sealed class PdfIncrementalPageEditor
     {
         var images = new Dictionary<PdfImage, PdfIndirectReference>();
         foreach (PageState state in _pages.Where(page =>
-                     page.Rotation.HasValue || page.MediaBox is not null
-                     || page.PageBoxes.Count > 0 || page.UserUnit.HasValue
+                     page.Rotation.HasValue || page.RemoveRotation
+                     || page.MediaBox is not null
+                     || page.PageBoxes.Count > 0 || page.RemovedPageBoxes.Count > 0
+                     || page.UserUnit.HasValue
+                     || page.RemoveUserUnit
                      || page.DisplayDuration.HasValue || page.Transition is not null
-                     || page.TabOrder.HasValue || page.Thumbnail is not null
+                     || page.TabOrder.HasValue || page.RemoveDisplayDuration
+                     || page.RemoveTransition || page.RemoveTabOrder
+                     || page.Thumbnail is not null
+                     || page.RemoveThumbnail
+                     || page.ReplaceAnnotations
                      || page.ContentUpdate != PageContentUpdate.None))
         {
             PdfPageTreeEntry entry = state.Entry
@@ -824,6 +3388,8 @@ public sealed class PdfIncrementalPageEditor
             var replacements = new Dictionary<PdfName, PdfObject>();
             if (state.Rotation.HasValue)
                 replacements[RotateName] = new PdfInteger(state.Rotation.Value);
+            else if (state.RemoveRotation)
+                replacements[RotateName] = new PdfInteger(0);
             if (state.MediaBox is not null)
                 replacements[MediaBoxName] = state.MediaBox;
             foreach ((PdfName name, PdfArray box) in state.PageBoxes)
@@ -838,7 +3404,17 @@ public sealed class PdfIncrementalPageEditor
                 replacements[TabsName] = PageTabOrderName(state.TabOrder.Value);
             if (state.Thumbnail is not null)
                 replacements[ThumbnailName] = AddImage(update, state.Thumbnail, images);
+            if (state.ReplaceAnnotations && state.Annotations is not null)
+                replacements[AnnotsName] = state.Annotations;
             var removals = new List<PdfName>();
+            foreach (PdfName name in state.RemovedPageBoxes) removals.Add(name);
+            if (state.RemoveUserUnit) removals.Add(UserUnitName);
+            if (state.RemoveDisplayDuration) removals.Add(DurationName);
+            if (state.RemoveTransition) removals.Add(TransitionName);
+            if (state.RemoveTabOrder) removals.Add(TabsName);
+            if (state.RemoveThumbnail) removals.Add(ThumbnailName);
+            if (state.ReplaceAnnotations && state.Annotations is null)
+                removals.Add(AnnotsName);
             ApplyPageContentUpdate(
                 update, state, entry.Dictionary, replacements, removals);
             update.ReplaceObject(entry.Reference.ObjectNumber,
@@ -942,10 +3518,17 @@ public sealed class PdfIncrementalPageEditor
         AddImportedTaggedConformanceProperties(
             importedGroups, importers, catalogReplacements);
         AddImportedOptionalContent(update, importedGroups, importers, catalogReplacements);
-        AddImportedAcroForm(importedGroups, importers, catalogReplacements);
-        PreserveIndirectCatalogDictionary(
-            update, AcroFormName, catalogReplacements,
-            "The destination /AcroForm");
+        if (_authoredForms.Count == 0)
+        {
+            AddImportedAcroForm(importedGroups, importers, catalogReplacements);
+            PreserveIndirectCatalogDictionary(
+                update, AcroFormName, catalogReplacements,
+                "The destination /AcroForm");
+        }
+        else
+            PreparePendingAuthoredForms(
+                update, references, catalogReplacements,
+                importedGroups, importers);
         AddImportedNamedDestinations(
             importedGroups, importers, catalogReplacements, references);
         AddImportedEmbeddedFiles(importedGroups, importers, catalogReplacements);
@@ -954,18 +3537,40 @@ public sealed class PdfIncrementalPageEditor
         PreserveIndirectCatalogDictionary(
             update, NamesName, catalogReplacements,
             "The destination catalog /Names value");
-        AddImportedLegacyDestinations(importedGroups, importers, catalogReplacements);
+        AddImportedLegacyDestinations(
+            importedGroups, importers, catalogReplacements, references);
         AddImportedOutlines(
             update, importedGroups, importers, catalogReplacements, references);
         bool removePageLabels = AddPageLabels(importedGroups, catalogReplacements);
         AddCatalogPresentationChanges(catalogReplacements, references);
         AddMetadata(update, catalogReplacements);
         AddOutputIntent(update, catalogReplacements);
+        if (_replacementAcroForm is not null)
+            catalogReplacements[AcroFormName] = _replacementAcroForm;
         ApplyRequiredVersionUpgrade(catalogReplacements, importedGroups);
         var catalogRemovals = new List<PdfName>();
         if (removePageLabels) catalogRemovals.Add(PageLabelsName);
+        if (_clearOpenAction) catalogRemovals.Add(OpenActionName);
+        if (_clearPageLayout) catalogRemovals.Add(PageLayoutName);
+        if (_clearPageMode) catalogRemovals.Add(PageModeName);
+        if (_clearViewerPreferences) catalogRemovals.Add(ViewerPreferencesName);
+        if (_clearOutputIntents) catalogRemovals.Add(OutputIntentsName);
+        if (_clearMetadata)
+        {
+            catalogRemovals.Add(MetadataName);
+            catalogRemovals.Add(LanguageName);
+        }
+        if (_removeCatalogAssociatedFiles)
+            catalogRemovals.Add(AssociatedFilesName);
+        if (_clearOutlines && _bookmarks.Count == 0)
+            catalogRemovals.Add(OutlinesName);
         if (_metadata is not null && _metadata.Language is null)
             catalogRemovals.Add(LanguageName);
+        if (_removeAcroForm)
+        {
+            catalogRemovals.Add(AcroFormName);
+            catalogRemovals.Add(NeedsRenderingName);
+        }
         update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
             ReplaceMany(_tree.Catalog, catalogReplacements,
                 catalogRemovals));
@@ -1017,7 +3622,9 @@ public sealed class PdfIncrementalPageEditor
                 [ParentName] = newRoot
             };
             foreach (PdfName name in InheritableNames)
-                if (entry.InheritedValues.TryGetValue(name, out PdfObject? value))
+                if (!(name.Equals(RotateName) && state.RemoveRotation)
+                    && !state.RemovedPageBoxes.Contains(name)
+                    && entry.InheritedValues.TryGetValue(name, out PdfObject? value))
                     replacements[name] = value;
             if (state.Rotation.HasValue)
                 replacements[RotateName] = new PdfInteger(state.Rotation.Value);
@@ -1035,7 +3642,18 @@ public sealed class PdfIncrementalPageEditor
                 replacements[TabsName] = PageTabOrderName(state.TabOrder.Value);
             if (state.Thumbnail is not null)
                 replacements[ThumbnailName] = AddImage(update, state.Thumbnail, images);
+            if (state.ReplaceAnnotations && state.Annotations is not null)
+                replacements[AnnotsName] = state.Annotations;
             var removals = new List<PdfName>();
+            if (state.RemoveRotation) removals.Add(RotateName);
+            foreach (PdfName name in state.RemovedPageBoxes) removals.Add(name);
+            if (state.RemoveUserUnit) removals.Add(UserUnitName);
+            if (state.RemoveDisplayDuration) removals.Add(DurationName);
+            if (state.RemoveTransition) removals.Add(TransitionName);
+            if (state.RemoveTabOrder) removals.Add(TabsName);
+            if (state.RemoveThumbnail) removals.Add(ThumbnailName);
+            if (state.ReplaceAnnotations && state.Annotations is null)
+                removals.Add(AnnotsName);
             ApplyPageContentUpdate(
                 update, state, entry.Dictionary, replacements, removals);
             update.ReplaceObject(entry.Reference.ObjectNumber,
@@ -1478,11 +4096,32 @@ public sealed class PdfIncrementalPageEditor
                 _document, targetNamesValue, "The destination catalog /Names value");
             namesEntries.AddRange(targetNames.Where(entry => !entry.Key.Equals(DestsName)));
             if (targetNames.TryGetValue(DestsName, out PdfObject? targetDestinations))
-                AddEntries(PdfNameTree.Read(_document, targetDestinations),
-                    _document, importer: null, rejectNull: true);
+            {
+                foreach (PdfNameTreeEntry entry in PdfNameTree.Read(
+                             _document, targetDestinations))
+                {
+                    if (!ValidateDestination(entry.Value, _document,
+                            rejectNull: true)) continue;
+                    string key = Convert.ToBase64String(entry.Key.Bytes.Span);
+                    if (!keys.Add(key))
+                        throw new NotSupportedException(
+                            "Named destinations from merged documents must have unique names.");
+                    string decoded = PdfUnicodeEncoding.DecodeTextString(
+                        entry.Key.Bytes.Span, "A named-destination key");
+                    PendingNamedDestinationReplacement? replacement =
+                        _namedDestinationReplacements.SingleOrDefault(value =>
+                            value.Modern && string.Equals(value.Name, decoded,
+                                StringComparison.Ordinal));
+                    combined.Add(replacement is null
+                        ? entry
+                        : new PdfNameTreeEntry(entry.Key,
+                            replacement.Destination.ToArray(
+                                pageReferences[replacement.Page])));
+                }
+            }
         }
 
-        bool importedAny = false;
+        bool importedAny = _namedDestinationReplacements.Any(value => value.Modern);
         foreach (PendingNamedDestination pending in _namedDestinations)
         {
             if (!_pages.Contains(pending.Page))
@@ -1542,22 +4181,6 @@ public sealed class PdfIncrementalPageEditor
         namesEntries.Add(new KeyValuePair<PdfName, PdfObject>(
             DestsName, Dictionary(("Names", new PdfArray(names)))));
         catalogReplacements[NamesName] = new PdfDictionary(namesEntries);
-
-        void AddEntries(
-            IEnumerable<PdfNameTreeEntry> entries, PdfDocument document,
-            PdfObjectGraphImporter? importer, bool rejectNull)
-        {
-            foreach (PdfNameTreeEntry entry in entries)
-            {
-                if (!ValidateDestination(entry.Value, document, rejectNull)) continue;
-                string key = Convert.ToBase64String(entry.Key.Bytes.Span);
-                if (!keys.Add(key))
-                    throw new NotSupportedException(
-                        "Named destinations from merged documents must have unique names.");
-                combined.Add(new PdfNameTreeEntry(
-                    entry.Key, importer?.Import(entry.Value) ?? entry.Value));
-            }
-        }
 
         bool AddSourceEntries(
             IEnumerable<PdfNameTreeEntry> entries, PdfDocument document,
@@ -2069,10 +4692,12 @@ public sealed class PdfIncrementalPageEditor
         IEnumerable<PageState[]> importedGroups,
         IDictionary<PdfName, PdfObject> catalogReplacements)
     {
-        bool targetHasLabels = _tree.Catalog.ContainsKey(PageLabelsName);
+        bool targetHasLabels = !_clearPageLabels
+            && _tree.Catalog.ContainsKey(PageLabelsName);
         PageState[][] groups = importedGroups.ToArray();
-        bool importedHasLabels = groups.Any(group =>
+        bool importedHasLabels = !_clearPageLabels && groups.Any(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(PageLabelsName));
+        if (_clearPageLabels && _pageLabels.Count == 0) return true;
         if (!targetHasLabels && !importedHasLabels && _pageLabels.Count == 0)
             return false;
         if (_pageLabels.Any(label => !_pages.Any(
@@ -2089,7 +4714,8 @@ public sealed class PdfIncrementalPageEditor
         {
             PdfDocument source = group[0].ImportedDocument!;
             PdfPageTree sourceTree = group[0].ImportedTree!;
-            if (sourceTree.Catalog.ContainsKey(PageLabelsName))
+            if (!_clearPageLabels
+                && sourceTree.Catalog.ContainsKey(PageLabelsName))
                 importedLabels[source] = ReadPageLabels(source, sourceTree);
         }
 
@@ -2162,7 +4788,8 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedLegacyDestinations(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        IDictionary<PdfName, PdfObject> catalogReplacements,
+        IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences)
     {
         var entries = new List<KeyValuePair<PdfName, PdfObject>>();
         var names = new HashSet<PdfName>();
@@ -2196,6 +4823,23 @@ public sealed class PdfIncrementalPageEditor
             if (sourceDestinations.Count == 0) continue;
             importedAny |= AddSourceEntries(
                 sourceDestinations, group[0].ImportedDocument!, importers[group[0]]);
+        }
+        foreach (PendingNamedDestinationReplacement replacement in
+                 _namedDestinationReplacements.Where(value => value.Legacy))
+        {
+            int index = entries.FindIndex(entry => string.Equals(
+                entry.Key.ValueAsLatin1(), replacement.Name,
+                StringComparison.Ordinal));
+            if (index < 0)
+                throw new InvalidOperationException(
+                    $"Legacy named destination '{replacement.Name}' disappeared during the update.");
+            if (!_pages.Contains(replacement.Page))
+                throw new InvalidOperationException(
+                    $"Named destination '{replacement.Name}' targets a removed page.");
+            entries[index] = new KeyValuePair<PdfName, PdfObject>(
+                entries[index].Key,
+                replacement.Destination.ToArray(pageReferences[replacement.Page]));
+            importedAny = true;
         }
         if (importedAny)
             catalogReplacements[DestsName] = new PdfDictionary(entries);
@@ -3173,7 +5817,7 @@ public sealed class PdfIncrementalPageEditor
         IDictionary<PdfName, PdfObject> catalogReplacements,
         IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences)
     {
-        PageState[][] outlineGroups = importedGroups.Where(group =>
+        PageState[][] outlineGroups = _clearOutlines ? [] : importedGroups.Where(group =>
             IsCompleteImport(group, group[0].ImportedTree!) &&
             group[0].ImportedTree!.Catalog.ContainsKey(OutlinesName)).ToArray();
         if (outlineGroups.Length == 0 && _bookmarks.Count == 0) return;
@@ -3184,7 +5828,8 @@ public sealed class PdfIncrementalPageEditor
         PdfIndirectReference? targetLast = null;
         long targetCount = 0;
         bool targetRootWasDirect = false;
-        if (_tree.Catalog.TryGetValue(OutlinesName, out PdfObject? targetOutlineValue))
+        if (!_clearOutlines && _tree.Catalog.TryGetValue(
+                OutlinesName, out PdfObject? targetOutlineValue))
         {
             var resolvedTargetRoot = ResolveOutlineWithIdentity(
                 _document, targetOutlineValue, "The destination bookmark root");
@@ -7854,6 +10499,8 @@ public sealed class PdfIncrementalPageEditor
         entries.Add(new KeyValuePair<PdfName, PdfObject>(ParentName, newRoot));
         foreach (PdfName name in InheritableNames)
         {
+            if (name.Equals(RotateName) && state.RemoveRotation) continue;
+            if (state.RemovedPageBoxes.Contains(name)) continue;
             PdfObject? value = name.Equals(MediaBoxName) && state.MediaBox is not null
                 ? state.MediaBox
                 : state.PageBoxes.TryGetValue(name, out PdfArray? pendingBox)
@@ -7871,36 +10518,48 @@ public sealed class PdfIncrementalPageEditor
             entries.RemoveAll(entry => entry.Key.Equals(name));
             entries.Add(new KeyValuePair<PdfName, PdfObject>(name, box));
         }
+        foreach (PdfName name in state.RemovedPageBoxes)
+            entries.RemoveAll(entry => entry.Key.Equals(name));
         if (state.UserUnit.HasValue)
         {
             entries.RemoveAll(entry => entry.Key.Equals(UserUnitName));
             entries.Add(new KeyValuePair<PdfName, PdfObject>(
                 UserUnitName, Number(state.UserUnit.Value)));
         }
+        else if (state.RemoveUserUnit)
+            entries.RemoveAll(entry => entry.Key.Equals(UserUnitName));
         if (state.DisplayDuration.HasValue)
         {
             entries.RemoveAll(entry => entry.Key.Equals(DurationName));
             entries.Add(new KeyValuePair<PdfName, PdfObject>(
                 DurationName, Number(state.DisplayDuration.Value)));
         }
+        else if (state.RemoveDisplayDuration)
+            entries.RemoveAll(entry => entry.Key.Equals(DurationName));
         if (state.Transition is not null)
         {
             entries.RemoveAll(entry => entry.Key.Equals(TransitionName));
             entries.Add(new KeyValuePair<PdfName, PdfObject>(
                 TransitionName, state.Transition.ToDictionary()));
         }
+        else if (state.RemoveTransition)
+            entries.RemoveAll(entry => entry.Key.Equals(TransitionName));
         if (state.TabOrder.HasValue)
         {
             entries.RemoveAll(entry => entry.Key.Equals(TabsName));
             entries.Add(new KeyValuePair<PdfName, PdfObject>(
                 TabsName, PageTabOrderName(state.TabOrder.Value)));
         }
+        else if (state.RemoveTabOrder)
+            entries.RemoveAll(entry => entry.Key.Equals(TabsName));
         if (state.Thumbnail is not null)
         {
             entries.RemoveAll(entry => entry.Key.Equals(ThumbnailName));
             entries.Add(new KeyValuePair<PdfName, PdfObject>(
                 ThumbnailName, AddImage(update, state.Thumbnail, images)));
         }
+        else if (state.RemoveThumbnail)
+            entries.RemoveAll(entry => entry.Key.Equals(ThumbnailName));
         if (!entries.Any(entry => entry.Key.Equals(MediaBoxName)))
             throw new InvalidOperationException(
                 $"Imported page {source.Index + 1} has no effective /MediaBox.");
@@ -13583,6 +16242,7 @@ public sealed class PdfIncrementalPageEditor
 
     private int CurrentRotation(PageState state)
     {
+        if (state.RemoveRotation) return 0;
         if (state.Rotation.HasValue) return state.Rotation.Value;
         PdfPageTreeEntry? entry = state.Entry ?? state.ImportedEntry;
         if (entry is null
@@ -13616,6 +16276,9 @@ public sealed class PdfIncrementalPageEditor
         AddMetadata(update, replacements);
         AddOutputIntent(update, replacements);
         AddPendingAttachments(update, replacements);
+        if (_replacementAcroForm is not null)
+            replacements[AcroFormName] = _replacementAcroForm;
+        AddPendingLegacyDestinationReplacements(replacements);
         PreserveIndirectCatalogDictionary(
             update, NamesName, replacements,
             "The destination catalog /Names value");
@@ -13630,10 +16293,31 @@ public sealed class PdfIncrementalPageEditor
                 replacements[VersionName] = Name(required.ToString());
             }
         }
-        if (replacements.Count == 0) return;
-        IReadOnlyCollection<PdfName>? removals =
-            _metadata is not null && _metadata.Language is null
-                ? [LanguageName] : null;
+        var removals = new List<PdfName>();
+        if (_metadata is not null && _metadata.Language is null)
+            removals.Add(LanguageName);
+        if (_clearOpenAction) removals.Add(OpenActionName);
+        if (_clearPageLayout) removals.Add(PageLayoutName);
+        if (_clearPageMode) removals.Add(PageModeName);
+        if (_clearViewerPreferences) removals.Add(ViewerPreferencesName);
+        if (_clearOutputIntents) removals.Add(OutputIntentsName);
+        if (_clearMetadata)
+        {
+            removals.Add(MetadataName);
+            removals.Add(LanguageName);
+        }
+        if (_removeCatalogAssociatedFiles)
+            removals.Add(AssociatedFilesName);
+        if (_clearOutlines && _bookmarks.Count == 0)
+            removals.Add(OutlinesName);
+        if (_clearPageLabels && _pageLabels.Count == 0)
+            removals.Add(PageLabelsName);
+        if (_removeAcroForm)
+        {
+            removals.Add(AcroFormName);
+            removals.Add(NeedsRenderingName);
+        }
+        if (replacements.Count == 0 && removals.Count == 0) return;
         update.ReplaceObject(_tree.CatalogReference.ObjectNumber,
             ReplaceMany(_tree.Catalog, replacements, removals));
     }
@@ -13663,9 +16347,11 @@ public sealed class PdfIncrementalPageEditor
             replacements[OpenActionName] =
                 _openActionDestination!.ToArray(page);
         }
-        if (pageReferences is null && _namedDestinations.Count > 0)
+        if (pageReferences is null && (_namedDestinations.Count > 0
+                || _namedDestinationReplacements.Any(value => value.Modern)))
             AddPendingNamedDestinations(replacements);
-        if (pageReferences is null && _pageLabels.Count > 0)
+        if (pageReferences is null
+            && (_pageLabels.Count > 0 || _clearPageLabels))
             AddPageLabels([], replacements);
     }
 
@@ -13727,13 +16413,16 @@ public sealed class PdfIncrementalPageEditor
         PdfIncrementalUpdateBuilder update,
         IDictionary<PdfName, PdfObject> catalogReplacements)
     {
-        if (_attachments.Count == 0) return;
+        if (_attachments.Count == 0 && _removedAttachments.Count == 0) return;
         PdfDictionary currentNames = CurrentNamesDictionary(catalogReplacements);
         var nameEntries = currentNames
             .Where(entry => !entry.Key.Equals(EmbeddedFilesName))
             .ToList();
         var files = new List<PdfNameTreeEntry>();
+        var removedReferences = new HashSet<(int ObjectNumber, int Generation)>();
         var fileNames = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+        var existingFileNames = new HashSet<string>(
             StringComparer.OrdinalIgnoreCase);
         if (currentNames.TryGetValue(
             EmbeddedFilesName, out PdfObject? embeddedFiles))
@@ -13742,9 +16431,20 @@ public sealed class PdfIncrementalPageEditor
             {
                 string name = PdfUnicodeEncoding.DecodeTextString(
                     entry.Key.Bytes.Span, "An embedded-file name");
-                if (!fileNames.Add(name))
+                if (!existingFileNames.Add(name))
                     throw new InvalidOperationException(
                         "The embedded-files name tree contains duplicate file names.");
+                if (_removedAttachments.Contains(name))
+                {
+                    PdfIndirectReference? reference = ResolveCatalogWithIdentity(
+                        _document, entry.Value,
+                        $"Embedded file '{name}' specification").FinalReference;
+                    if (reference is not null)
+                        removedReferences.Add((reference.ObjectNumber,
+                            reference.Generation));
+                    continue;
+                }
+                fileNames.Add(name);
                 files.Add(entry);
             }
 
@@ -13767,6 +16467,27 @@ public sealed class PdfIncrementalPageEditor
             {
                 ValidateFileSpecification(
                     _document, value, "A catalog /AF entry");
+                var resolvedAssociation = ResolveCatalogWithIdentity(
+                    _document, value, "A catalog /AF entry");
+                PdfIndirectReference? reference = resolvedAssociation.FinalReference;
+                if (reference is not null && removedReferences.Contains(
+                        (reference.ObjectNumber, reference.Generation)))
+                    continue;
+                PdfDictionary specification = (PdfDictionary)
+                    resolvedAssociation.Value;
+                PdfObject? fileNameValue = specification.TryGetValue(
+                        Name("UF"), out PdfObject? unicodeName)
+                    ? unicodeName
+                    : specification.TryGetValue(Name("F"), out PdfObject? name)
+                        ? name : null;
+                if (fileNameValue is not null
+                    && ResolveCatalogValue(_document, fileNameValue,
+                        "A catalog /AF file name") is PdfString fileNameText
+                    && _removedAttachments.Contains(
+                        PdfUnicodeEncoding.DecodeTextString(
+                            fileNameText.Bytes.Span,
+                            "A catalog /AF file name")))
+                    continue;
                 associated.Add(value);
             }
         }
@@ -13803,13 +16524,43 @@ public sealed class PdfIncrementalPageEditor
             values.Add(file.Key);
             values.Add(file.Value);
         }
-        nameEntries.Add(new KeyValuePair<PdfName, PdfObject>(
-            EmbeddedFilesName,
-            Dictionary(("Names", new PdfArray(values)))));
+        if (files.Count > 0)
+            nameEntries.Add(new KeyValuePair<PdfName, PdfObject>(
+                EmbeddedFilesName,
+                Dictionary(("Names", new PdfArray(values)))));
         catalogReplacements[NamesName] =
             new PdfDictionary(nameEntries);
-        catalogReplacements[AssociatedFilesName] =
-            new PdfArray(associated);
+        if (associated.Count > 0)
+            catalogReplacements[AssociatedFilesName] = new PdfArray(associated);
+        else
+            _removeCatalogAssociatedFiles = true;
+    }
+
+    private void AddPendingLegacyDestinationReplacements(
+        IDictionary<PdfName, PdfObject> catalogReplacements)
+    {
+        PendingNamedDestinationReplacement[] replacements =
+            _namedDestinationReplacements.Where(value => value.Legacy).ToArray();
+        if (replacements.Length == 0) return;
+        if (!_tree.Catalog.TryGetValue(DestsName, out PdfObject? value))
+            throw new InvalidOperationException(
+                "The legacy named-destination dictionary disappeared during the update.");
+        var entries = ResolveDictionary(_document, value,
+                "The catalog /Dests value")
+            .ToDictionary(entry => entry.Key, entry => entry.Value);
+        foreach (PendingNamedDestinationReplacement replacement in replacements)
+        {
+            PdfName key = entries.Keys.SingleOrDefault(candidate => string.Equals(
+                    candidate.ValueAsLatin1(), replacement.Name,
+                    StringComparison.Ordinal))
+                ?? throw new InvalidOperationException(
+                    $"Legacy named destination '{replacement.Name}' disappeared during the update.");
+            PdfIndirectReference page = replacement.Page.Entry?.Reference
+                ?? throw new InvalidOperationException(
+                    "A new page named destination requires a rebuilt page tree.");
+            entries[key] = replacement.Destination.ToArray(page);
+        }
+        catalogReplacements[DestsName] = new PdfDictionary(entries);
     }
 
     private static byte[] UpdateXmp(
@@ -13930,8 +16681,26 @@ public sealed class PdfIncrementalPageEditor
                     _document, destinations))
                 {
                     ValidateExistingNamedDestination(entry.Value);
+                    PdfNameTreeEntry current = entry;
+                    string decoded = PdfUnicodeEncoding.DecodeTextString(
+                        entry.Key.Bytes.Span, "A named-destination key");
+                    PendingNamedDestinationReplacement? replacement =
+                        _namedDestinationReplacements.SingleOrDefault(value =>
+                            value.Modern && string.Equals(value.Name, decoded,
+                                StringComparison.Ordinal));
+                    if (replacement is not null)
+                    {
+                        if (!_pages.Contains(replacement.Page))
+                            throw new InvalidOperationException(
+                                $"Named destination '{replacement.Name}' targets a removed page.");
+                        PdfIndirectReference page = replacement.Page.Entry?.Reference
+                            ?? throw new InvalidOperationException(
+                                "A new page named destination requires a rebuilt page tree.");
+                        current = new PdfNameTreeEntry(entry.Key,
+                            replacement.Destination.ToArray(page));
+                    }
                     keys.Add(Convert.ToBase64String(entry.Key.Bytes.Span));
-                    entries.Add(entry);
+                    entries.Add(current);
                 }
         }
         foreach (PendingNamedDestination pending in _namedDestinations)
@@ -14014,6 +16783,30 @@ public sealed class PdfIncrementalPageEditor
                 return true;
         }
         return false;
+    }
+
+    private (bool Modern, bool Legacy) ExistingNamedDestinationKinds(string name)
+    {
+        bool modern = false;
+        bool legacy = false;
+        if (_tree.Catalog.TryGetValue(NamesName, out PdfObject? namesValue))
+        {
+            PdfDictionary names = ResolveDictionary(
+                _document, namesValue, "The catalog /Names value");
+            modern = names.TryGetValue(DestsName, out PdfObject? destinations)
+                && PdfNameTree.Read(_document, destinations).Any(entry =>
+                    string.Equals(PdfUnicodeEncoding.DecodeTextString(
+                            entry.Key.Bytes.Span, "A named-destination key"),
+                        name, StringComparison.Ordinal));
+        }
+        if (_tree.Catalog.TryGetValue(DestsName, out PdfObject? legacyValue))
+        {
+            PdfDictionary destinations = ResolveDictionary(
+                _document, legacyValue, "The catalog /Dests value");
+            legacy = destinations.Keys.Any(key => string.Equals(
+                key.ValueAsLatin1(), name, StringComparison.Ordinal));
+        }
+        return (modern, legacy);
     }
 
     private void ApplyRequiredVersionUpgrade(
@@ -14382,19 +17175,31 @@ public sealed class PdfIncrementalPageEditor
         internal bool ImportedWholeDocument { get; }
         internal int ImportBatchId { get; }
         internal int? Rotation { get; set; }
+        internal bool RemoveRotation { get; set; }
         internal PdfArray? MediaBox { get; set; }
         internal Dictionary<PdfName, PdfArray> PageBoxes { get; } = [];
+        internal HashSet<PdfName> RemovedPageBoxes { get; } = [];
         internal double? UserUnit { get; set; }
+        internal bool RemoveUserUnit { get; set; }
         internal double? DisplayDuration { get; set; }
+        internal bool RemoveDisplayDuration { get; set; }
         internal PdfPageTransition? Transition { get; set; }
+        internal bool RemoveTransition { get; set; }
         internal PdfPageTabOrder? TabOrder { get; set; }
+        internal bool RemoveTabOrder { get; set; }
         internal PdfImage? Thumbnail { get; set; }
+        internal bool RemoveThumbnail { get; set; }
         internal byte[]? Content { get; set; }
         internal PageContentUpdate ContentUpdate { get; set; }
+        internal bool ReplaceAnnotations { get; set; }
+        internal PdfArray? Annotations { get; set; }
     }
 
     private sealed record PendingNamedDestination(
         string Name, PageState Page, PdfDestination Destination);
+    private sealed record PendingNamedDestinationReplacement(
+        string Name, PageState Page, PdfDestination Destination,
+        bool Modern, bool Legacy);
     private sealed record PendingPageLabel(
         PageState Page, PdfPageLabelStyle Style, string? Prefix, int StartNumber);
     private sealed record PendingAttachment(
@@ -14413,6 +17218,18 @@ public sealed class PdfIncrementalPageEditor
         PdfIccProfile Profile, string Identifier,
         string? Condition, string? RegistryName,
         string? Information);
+    private sealed record PendingTextFieldValue(
+        string Value, TrueTypeFont? EmbeddedFont);
+    private sealed record PendingChoiceFieldValue(
+        IReadOnlyList<string> Values, TrueTypeFont? EmbeddedFont,
+        bool AllowEmptySingle);
+    private sealed record PendingFieldDefaultValue(
+        FieldDefaultKind Kind, IReadOnlyList<string> Values,
+        bool BooleanValue, TrueTypeFont? EmbeddedFont);
+    private sealed record PendingAuthoredForm(
+        IReadOnlyList<PageState> Pages, PdfDocument Document);
+
+    private enum FieldDefaultKind { Remove, Text, CheckBox, Radio, Choice }
 
     private enum PageContentUpdate { None, Append, Replace }
 
@@ -14475,6 +17292,116 @@ public sealed class PdfIncrementalPageEditor
     private static bool HasImageSoftMask(PdfImage image) =>
         image.SoftMask is not null && (image.SoftMask.SoftMask is null
             || HasImageSoftMask(image.SoftMask));
+
+    private string[]? ValidateActionFieldNames(
+        IEnumerable<string>? fields, bool excludeFields, string parameterName)
+    {
+        string[]? names = fields?.ToArray();
+        if (names is { Length: 0 } || names?.Any(string.IsNullOrWhiteSpace) == true)
+            throw new ArgumentException("Form action field names cannot be empty.", parameterName);
+        if (names?.Distinct(StringComparer.Ordinal).Count() != names?.Length)
+            throw new ArgumentException("Form action field names must be unique.", parameterName);
+        if (excludeFields && names is null)
+            throw new ArgumentException(
+                "Form action exclusion mode requires a field list.", parameterName);
+        if (names?.Any(name => !HasFormField(name)) == true)
+            throw new ArgumentException(
+                "Every form action field must already be defined.", parameterName);
+        return names;
+    }
+
+    private bool HasFormField(string name) => DocumentHasFormField(_document, name)
+        || _authoredForms.Any(form => DocumentHasFormField(form.Document, name));
+
+    private static bool DocumentHasFormField(PdfDocument document, string name)
+    {
+        PdfObject Resolve(PdfObject value)
+        {
+            var visited = new HashSet<PdfIndirectReference>();
+            while (value is PdfIndirectReference reference)
+            {
+                if (!visited.Add(reference)) return PdfNull.Instance;
+                value = document.Resolve(reference);
+            }
+            return value;
+        }
+
+        if (Resolve(document.Trailer[Name("Root")]) is not PdfDictionary catalog
+            || !catalog.TryGetValue(Name("AcroForm"), out PdfObject? formValue)
+            || Resolve(formValue) is not PdfDictionary form
+            || !form.TryGetValue(Name("Fields"), out PdfObject? fieldsValue)
+            || Resolve(fieldsValue) is not PdfArray fields)
+            return false;
+        bool found = false;
+        void Visit(PdfObject value, string? parent, int depth)
+        {
+            if (found || depth > 64 || Resolve(value) is not PdfDictionary field) return;
+            string? qualified = parent;
+            if (field.TryGetValue(Name("T"), out PdfObject? partialValue)
+                && Resolve(partialValue) is PdfString partial)
+            {
+                string part = PdfUnicodeEncoding.DecodeTextString(
+                    partial.Bytes.Span, "AcroForm field name");
+                qualified = parent is null ? part : $"{parent}.{part}";
+            }
+            if (qualified == name && field.ContainsKey(Name("FT")))
+            {
+                found = true;
+                return;
+            }
+            if (field.TryGetValue(Name("Kids"), out PdfObject? kidsValue)
+                && Resolve(kidsValue) is PdfArray kids)
+                foreach (PdfObject kid in kids) Visit(kid, qualified, depth + 1);
+        }
+        foreach (PdfObject field in fields) Visit(field, null, 0);
+        return found;
+    }
+
+    private static byte[] AddPushButtonActionFields(
+        byte[] authored, string[]? fields, bool excludeFields)
+    {
+        if (fields is null) return authored;
+        PdfDocument document = PdfDocument.Open(authored);
+        PdfObject Resolve(PdfObject value) => value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
+        PdfDictionary catalog = (PdfDictionary)Resolve(document.Trailer[Name("Root")]);
+        PdfDictionary form = (PdfDictionary)Resolve(catalog[Name("AcroForm")]);
+        PdfIndirectReference? terminalReference = null;
+        PdfDictionary? terminal = null;
+
+        void Visit(PdfObject value)
+        {
+            PdfIndirectReference? reference = value as PdfIndirectReference;
+            PdfDictionary field = (PdfDictionary)Resolve(value);
+            if (field.ContainsKey(Name("FT")))
+            {
+                terminalReference = reference;
+                terminal = field;
+                return;
+            }
+            if (field.TryGetValue(Name("Kids"), out PdfObject? kidsValue))
+                foreach (PdfObject kid in (PdfArray)Resolve(kidsValue)) Visit(kid);
+        }
+
+        foreach (PdfObject field in (PdfArray)Resolve(form[Name("Fields")])) Visit(field);
+        if (terminalReference is null || terminal is null)
+            throw new InvalidOperationException("The authored push-button field is not indirect.");
+        PdfDictionary action = (PdfDictionary)Resolve(terminal[Name("A")]);
+        long flags = action.TryGetValue(Name("Flags"), out PdfObject? flagsValue)
+            ? ((PdfInteger)Resolve(flagsValue)).Value : 0;
+        if (excludeFields) flags |= 1;
+        var actionEntries = action.Where(entry =>
+            !entry.Key.Equals(Name("Fields")) && !entry.Key.Equals(Name("Flags"))).ToList();
+        actionEntries.Add(new(Name("Fields"),
+            new PdfArray(fields.Select(TextString))));
+        if (flags != 0) actionEntries.Add(new(Name("Flags"), new PdfInteger(flags)));
+        var update = new PdfIncrementalUpdateBuilder(document);
+        update.ReplaceObject(terminalReference.ObjectNumber,
+            new PdfDictionary(terminal.Where(entry => !entry.Key.Equals(Name("A")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("A"), new PdfDictionary(actionEntries)))));
+        return update.Build();
+    }
 
     private static PdfString TextString(string value) =>
         new([0xFE, 0xFF, .. PdfUnicodeEncoding.EncodeBigEndian(value)],

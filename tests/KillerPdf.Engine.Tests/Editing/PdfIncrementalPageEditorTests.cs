@@ -11,6 +11,7 @@ using KillerPdf.Engine.Writing;
 using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Syntax;
+using KillerPdf.Engine.Signing;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Editing;
@@ -673,6 +674,29 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ClearsInheritedRotationInOrdinaryAndRebuiltPageTrees()
+    {
+        byte[] source = BuildNestedPageTree();
+        PdfDocument ordinary = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ClearRotation(0)
+                .Build());
+        Assert.Equal(0, Assert.IsType<PdfInteger>(
+            ResolveDictionary(ordinary,
+                new PdfIndirectReference(4, 0))[Name("Rotate")]).Value);
+
+        PdfDocument rebuilt = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ClearRotation(0)
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary[] pages = FlatPages(rebuilt).Pages;
+        Assert.Equal(90, Assert.IsType<PdfInteger>(
+            pages[0][Name("Rotate")]).Value);
+        Assert.False(pages[1].ContainsKey(Name("Rotate")));
+    }
+
+    [Fact]
     public void Build_RotatesFromAnInheritedValueWithoutRebuildingTheTree()
     {
         PdfDocument direct = PdfDocument.Open(BuildNestedPageTree());
@@ -779,6 +803,48 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ClearsSubordinateBoxesOnExistingAndImportedPages()
+    {
+        PdfDocumentBuilder WithBoxes() => new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .SetPageBox(0, PdfPageBox.Crop, 5, 5, 190, 290)
+            .SetPageBox(0, PdfPageBox.Bleed, 6, 6, 188, 288)
+            .SetPageBox(0, PdfPageBox.Trim, 7, 7, 186, 286)
+            .SetPageBox(0, PdfPageBox.Art, 8, 8, 184, 284);
+        byte[] targetBytes = WithBoxes().Build();
+        PdfDocument imported = PdfDocument.Open(WithBoxes().Build());
+        var boxes = new[]
+        {
+            PdfPageBox.Crop, PdfPageBox.Bleed,
+            PdfPageBox.Trim, PdfPageBox.Art
+        };
+        var ordinaryEditor = new PdfIncrementalPageEditor(
+            PdfDocument.Open(targetBytes));
+        foreach (PdfPageBox box in boxes)
+            ordinaryEditor.ClearPageBox(0, box);
+        AssertBoxesAbsent(FlatPages(PdfDocument.Open(
+            ordinaryEditor.Build())).Pages[0]);
+
+        var editor = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes))
+            .AddImportedPage(imported, 0);
+        foreach (int pageIndex in new[] { 0, 1 })
+            foreach (PdfPageBox box in boxes)
+                editor.ClearPageBox(pageIndex, box);
+        byte[] output = editor.Build();
+        Assert.All(FlatPages(PdfDocument.Open(output)).Pages, AssertBoxesAbsent);
+        Assert.True(output.AsSpan(0, targetBytes.Length).SequenceEqual(targetBytes));
+
+        static void AssertBoxesAbsent(PdfDictionary page)
+        {
+            Assert.False(page.ContainsKey(Name("CropBox")));
+            Assert.False(page.ContainsKey(Name("BleedBox")));
+            Assert.False(page.ContainsKey(Name("TrimBox")));
+            Assert.False(page.ContainsKey(Name("ArtBox")));
+        }
+    }
+
+    [Fact]
     public void Build_AppliesProductionBoxEditsToImportedPages()
     {
         PdfDocument target = PdfDocument.Open(
@@ -878,6 +944,30 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ClearsUserUnitOnExistingAndImportedPages()
+    {
+        byte[] targetBytes = new PdfDocumentBuilder()
+            .AddBlankPage().SetPageUserUnit(0, 2).Build();
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().SetPageUserUnit(0, 3).Build());
+        byte[] ordinaryOutput = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes))
+            .ClearPageUserUnit(0).Build();
+        Assert.False(FlatPages(PdfDocument.Open(ordinaryOutput)).Pages[0]
+            .ContainsKey(Name("UserUnit")));
+
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes))
+            .ClearPageUserUnit(0)
+            .AddImportedPage(source, 0)
+            .ClearPageUserUnit(1)
+            .Build();
+        Assert.All(FlatPages(PdfDocument.Open(output)).Pages,
+            page => Assert.False(page.ContainsKey(Name("UserUnit"))));
+        Assert.True(output.AsSpan(0, targetBytes.Length).SequenceEqual(targetBytes));
+    }
+
+    [Fact]
     public void Build_SetsPresentationTimingOnExistingNewAndImportedPages()
     {
         PdfDocument target = PdfDocument.Open(
@@ -952,6 +1042,52 @@ public sealed class PdfIncrementalPageEditorTests
             pages[2][Name("Tabs")]).ValueAsLatin1());
     }
 
+    [Fact]
+    public void Build_ClearsTimingTransitionAndTabOrderOnExistingAndImportedPages()
+    {
+        byte[] targetBytes = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .SetPageDisplayDuration(0, 2)
+            .SetPageTransition(0, PdfPageTransition.Dissolve())
+            .SetPageTabOrder(0, PdfPageTabOrder.Row)
+            .Build();
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .SetPageDisplayDuration(0, 3)
+            .SetPageTransition(0, PdfPageTransition.Fade())
+            .SetPageTabOrder(0, PdfPageTabOrder.Column)
+            .Build());
+        byte[] ordinaryOutput = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes))
+            .ClearPageDisplayDuration(0)
+            .ClearPageTransition(0)
+            .ClearPageTabOrder(0)
+            .Build();
+        AssertPresentationEntriesAbsent(
+            FlatPages(PdfDocument.Open(ordinaryOutput)).Pages[0]);
+
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes))
+            .ClearPageDisplayDuration(0)
+            .ClearPageTransition(0)
+            .ClearPageTabOrder(0)
+            .AddImportedPage(source, 0)
+            .ClearPageDisplayDuration(1)
+            .ClearPageTransition(1)
+            .ClearPageTabOrder(1)
+            .Build();
+        Assert.All(FlatPages(PdfDocument.Open(output)).Pages,
+            AssertPresentationEntriesAbsent);
+        Assert.True(output.AsSpan(0, targetBytes.Length).SequenceEqual(targetBytes));
+
+        static void AssertPresentationEntriesAbsent(PdfDictionary page)
+        {
+            Assert.False(page.ContainsKey(Name("Dur")));
+            Assert.False(page.ContainsKey(Name("Trans")));
+            Assert.False(page.ContainsKey(Name("Tabs")));
+        }
+    }
+
     [Theory]
     [InlineData(PdfPageTabOrder.Row, "1.5")]
     [InlineData(PdfPageTabOrder.AnnotationArray, "2.0")]
@@ -1000,6 +1136,37 @@ public sealed class PdfIncrementalPageEditorTests
             return Assert.IsType<PdfInteger>(
                 stream.Dictionary[Name("Width")]).Value;
         }
+    }
+
+    [Fact]
+    public void Build_ClearsThumbnailsOnExistingAndImportedPages()
+    {
+        PdfImage thumbnail = PdfImage.FromRgb(
+            1, 1, new byte[] { 10, 20, 30 });
+        byte[] targetBytes = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .SetPageThumbnail(0, thumbnail)
+            .Build();
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .SetPageThumbnail(0, thumbnail)
+            .Build());
+        byte[] ordinaryOutput = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes))
+            .ClearPageThumbnail(0)
+            .Build();
+        Assert.False(FlatPages(PdfDocument.Open(ordinaryOutput)).Pages[0]
+            .ContainsKey(Name("Thumb")));
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(targetBytes))
+            .ClearPageThumbnail(0)
+            .AddImportedPage(source, 0)
+            .ClearPageThumbnail(1)
+            .Build();
+        PdfDictionary[] pages = FlatPages(PdfDocument.Open(output)).Pages;
+
+        Assert.All(pages, page => Assert.False(page.ContainsKey(Name("Thumb"))));
+        Assert.True(output.AsSpan(0, targetBytes.Length).SequenceEqual(targetBytes));
     }
 
     [Fact]
@@ -1134,6 +1301,35 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ClearsCatalogPresentationPreferences()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .SetPageLayout(PdfPageLayout.TwoColumnLeft)
+            .SetPageMode(PdfPageMode.UseOutlines)
+            .SetViewerPreferences(new PdfViewerPreferences
+            {
+                HideToolbar = true,
+                DisplayDocumentTitle = true
+            })
+            .Build();
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .ClearPageLayout()
+            .ClearPageMode()
+            .ClearViewerPreferences()
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(reopened,
+            reopened.Trailer[Name("Root")]);
+
+        Assert.False(catalog.ContainsKey(Name("PageLayout")));
+        Assert.False(catalog.ContainsKey(Name("PageMode")));
+        Assert.False(catalog.ContainsKey(Name("ViewerPreferences")));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
     public void Build_RetainsOpenActionPageIdentityAcrossReordering()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -1246,6 +1442,54 @@ public sealed class PdfIncrementalPageEditorTests
 
         Assert.Equal(FlatPages(reopened).References[1].ObjectNumber,
             Assert.IsType<PdfIndirectReference>(added[0]).ObjectNumber);
+    }
+
+    [Fact]
+    public void Build_RetargetsModernNamedDestinationToNewPage()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage(100, 100)
+            .AddNamedDestination("chapter", 0)
+            .Build();
+        byte[] output = new PdfIncrementalPageEditor(PdfDocument.Open(sourceBytes))
+                .AddBlankPage(200, 200)
+                .SetNamedDestination("chapter", 1,
+                    PdfDestination.FitWidth(42))
+                .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary names = ResolveDictionary(reopened, catalog[Name("Names")]);
+        PdfArray values = Assert.IsType<PdfArray>(ResolveDictionary(
+            reopened, names[Name("Dests")])[Name("Names")]);
+        PdfArray destination = Assert.IsType<PdfArray>(values[1]);
+
+        Assert.Equal(FlatPages(reopened).References[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
+        Assert.Equal("FitH", Assert.IsType<PdfName>(destination[1]).ValueAsLatin1());
+        Assert.Equal(42, Assert.IsType<PdfInteger>(destination[2]).Value);
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void Build_RetargetsLegacyNamedDestinationInPlace()
+    {
+        byte[] sourceBytes = BuildLegacyDestinationDocument();
+        byte[] output = new PdfIncrementalPageEditor(PdfDocument.Open(sourceBytes))
+                .SetNamedDestination("chapter", 0,
+                    PdfDestination.FitHeight(24))
+                .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfArray destination = Assert.IsType<PdfArray>(ResolveDictionary(
+            reopened, catalog[Name("Dests")])[Name("chapter")]);
+
+        Assert.Equal(FlatPages(reopened).References[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
+        Assert.Equal("FitV", Assert.IsType<PdfName>(destination[1]).ValueAsLatin1());
+        Assert.Equal(24, Assert.IsType<PdfInteger>(destination[2]).Value);
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
     }
 
     [Fact]
@@ -1390,6 +1634,56 @@ public sealed class PdfIncrementalPageEditorTests
             element.Name.LocalName == "title" && element.Value == "Old title");
         Assert.DoesNotContain(xmp.Descendants().Attributes(), attribute =>
             attribute.Name.LocalName == "Producer");
+    }
+
+    [Fact]
+    public void Build_ClearsInfoXmpAndLanguageInOrdinaryAndRebuiltUpdates()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Remove metadata",
+                Language = "en-US"
+            })
+            .AddBlankPage(100, 100)
+            .AddBlankPage(200, 200)
+            .Build();
+        byte[] ordinaryOutput = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .ClearMetadata()
+            .Build();
+        AssertMetadataAbsent(PdfDocument.Open(ordinaryOutput));
+
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .ClearMetadata()
+            .MovePage(0, 1)
+            .Build();
+        AssertMetadataAbsent(PdfDocument.Open(output));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+
+        PdfDocument pdfUa = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Accessible metadata",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddTextNote(0, 10, 10, "Accessible note")
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(pdfUa).ClearMetadata());
+
+        static void AssertMetadataAbsent(PdfDocument document)
+        {
+            PdfDictionary catalog = ResolveDictionary(
+                document, document.Trailer[Name("Root")]);
+            Assert.False(document.Trailer.ContainsKey(Name("Info")));
+            Assert.False(catalog.ContainsKey(Name("Metadata")));
+            Assert.False(catalog.ContainsKey(Name("Lang")));
+        }
     }
 
     [Fact]
@@ -1549,6 +1843,64 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_RemovesAttachmentNameTreeAndCatalogAssociation()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddAttachment("remove.txt", "payload"u8.ToArray(), "text/plain")
+            .Build();
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .RemoveAttachment("REMOVE.TXT")
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+        PdfDictionary names = ResolveDictionary(
+            reopened, catalog[Name("Names")]);
+
+        Assert.False(names.ContainsKey(Name("EmbeddedFiles")));
+        Assert.False(catalog.ContainsKey(Name("AF")));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(sourceBytes))
+                .RemoveAttachment("missing.txt"));
+
+        byte[] replacementPayload = "replacement"u8.ToArray();
+        PdfDocument replaced = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(sourceBytes))
+                .RemoveAttachment("remove.txt")
+                .AddAttachment("remove.txt", replacementPayload, "text/plain")
+                .Build());
+        PdfDictionary replacedCatalog = ResolveDictionary(
+            replaced, replaced.Trailer[Name("Root")]);
+        PdfDictionary replacedNames = ResolveDictionary(
+            replaced, replacedCatalog[Name("Names")]);
+        PdfArray files = Assert.IsType<PdfArray>(ResolveDictionary(
+            replaced, replacedNames[Name("EmbeddedFiles")])[Name("Names")]);
+        PdfDictionary specification = ResolveDictionary(replaced, files[1]);
+        PdfDictionary embedded = Assert.IsType<PdfDictionary>(
+            specification[Name("EF")]);
+        Assert.Equal(replacementPayload, ResolveStream(
+            replaced, embedded[Name("UF")]).EncodedData.ToArray());
+
+        byte[] reorderedSource = new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddAttachment("remove.txt", "payload"u8.ToArray(), "text/plain")
+            .Build();
+        PdfDocument reordered = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(reorderedSource))
+                .RemoveAttachment("remove.txt")
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary reorderedCatalog = ResolveDictionary(
+            reordered, reordered.Trailer[Name("Root")]);
+        Assert.False(reorderedCatalog.ContainsKey(Name("AF")));
+        Assert.False(ResolveDictionary(reordered,
+            reorderedCatalog[Name("Names")]).ContainsKey(Name("EmbeddedFiles")));
+    }
+
+    [Fact]
     public void Build_RejectsAttachmentNameAlreadyRegisteredByDocument()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -1664,6 +2016,48 @@ public sealed class PdfIncrementalPageEditorTests
             Assert.IsType<PdfString>(named[Name("Dest")])));
         Assert.Equal(1, Assert.IsType<PdfInteger>(
             named[Name("F")]).Value);
+    }
+
+    [Fact]
+    public void Build_ClearsBookmarksAndSupportsSameRevisionReplacement()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage(100, 100).AddBlankPage(200, 200)
+            .AddBookmark("First", 0)
+            .AddBookmark("Second", 1)
+            .Build();
+        byte[] ordinaryOutput = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .ClearBookmarks().Build();
+        PdfDocument ordinary = PdfDocument.Open(ordinaryOutput);
+        Assert.False(ResolveDictionary(ordinary,
+            ordinary.Trailer[Name("Root")])
+            .ContainsKey(Name("Outlines")));
+
+        byte[] reorderedOutput = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .ClearBookmarks()
+            .MovePage(0, 1)
+            .Build();
+        PdfDocument reordered = PdfDocument.Open(reorderedOutput);
+        Assert.False(ResolveDictionary(reordered,
+            reordered.Trailer[Name("Root")]).ContainsKey(Name("Outlines")));
+
+        PdfDocument replaced = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(sourceBytes))
+                .ClearBookmarks()
+                .AddBookmark("Replacement", 1)
+                .Build());
+        PdfDictionary replacedCatalog = ResolveDictionary(
+            replaced, replaced.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(
+            replaced, replacedCatalog[Name("Outlines")]);
+        PdfDictionary item = ResolveDictionary(replaced, root[Name("First")]);
+        Assert.Equal("Replacement", DecodeUnicode(
+            Assert.IsType<PdfString>(item[Name("Title")])));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(root[Name("Count")]).Value);
+        Assert.True(reorderedOutput.AsSpan(0, sourceBytes.Length)
+            .SequenceEqual(sourceBytes));
     }
 
     [Fact]
@@ -1790,6 +2184,39 @@ public sealed class PdfIncrementalPageEditorTests
             outputProfile.Dictionary[Name("N")]).Value);
         Assert.Equal(profile.Data.ToArray(),
             outputProfile.EncodedData.ToArray());
+    }
+
+    [Fact]
+    public void Build_ClearsOutputIntentsButRetainsPdfARequirement()
+    {
+        PdfIccProfile profile = PdfIccProfile.Load(BuildRgbProfile());
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .SetOutputIntent(profile, "Test RGB")
+            .AddBlankPage()
+            .Build();
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .ClearOutputIntents()
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.False(catalog.ContainsKey(Name("OutputIntents")));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+
+        PdfDocument pdfA = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Archival document",
+                Language = "en-US"
+            })
+            .SetOutputIntent(profile, "Test RGB")
+            .EnablePdfA4Conformance()
+            .AddBlankPage()
+            .Build());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(pdfA).ClearOutputIntents());
     }
 
     [Fact]
@@ -12002,6 +12429,52 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_ClearsOpenActionAndPageLabels()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .SetOpenAction(1, PdfDestination.FitPage())
+            .AddPageLabelRange(0, PdfPageLabelStyle.UpperRoman)
+            .Build();
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .ClearOpenAction()
+            .ClearPageLabels()
+            .MovePage(0, 1)
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary catalog = ResolveDictionary(
+            reopened, reopened.Trailer[Name("Root")]);
+
+        Assert.False(catalog.ContainsKey(Name("OpenAction")));
+        Assert.False(catalog.ContainsKey(Name("PageLabels")));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void Build_ClearThenAddPageLabelRangeReplacesExistingRanges()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddPageLabelRange(0, PdfPageLabelStyle.UpperRoman)
+            .Build());
+        PdfDocument reopened = PdfDocument.Open(
+            new PdfIncrementalPageEditor(source)
+                .ClearPageLabels()
+                .AddPageLabelRange(1, PdfPageLabelStyle.Decimal, "R-", 3)
+                .Build());
+        (long PageIndex, PdfDictionary Label)[] ranges = PageLabelRanges(reopened);
+
+        Assert.Equal([0L, 1L], ranges.Select(value => value.PageIndex));
+        Assert.Equal("D", Assert.IsType<PdfName>(
+            ranges[0].Label[Name("S")]).ValueAsLatin1());
+        Assert.Equal("D", Assert.IsType<PdfName>(
+            ranges[1].Label[Name("S")]).ValueAsLatin1());
+        Assert.Equal(3, Assert.IsType<PdfInteger>(
+            ranges[1].Label[Name("St")]).Value);
+    }
+
+    [Fact]
     public void ArgumentsAndEmptyUpdates_AreRejected()
     {
         var editor = new PdfIncrementalPageEditor(PdfDocument.Open(
@@ -12052,6 +12525,14 @@ public sealed class PdfIncrementalPageEditorTests
             editor.AddNamedDestination("missing-page", 1, PdfDestination.FitPage()));
         Assert.Throws<ArgumentNullException>(() =>
             editor.AddNamedDestination("null", 0, null!));
+        Assert.Throws<ArgumentException>(() =>
+            editor.SetNamedDestination("missing", 0, PdfDestination.FitPage()));
+        Assert.Throws<ArgumentException>(() =>
+            editor.SetNamedDestination("", 0, PdfDestination.FitPage()));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            editor.SetNamedDestination("missing", 1, PdfDestination.FitPage()));
+        Assert.Throws<ArgumentNullException>(() =>
+            editor.SetNamedDestination("missing", 0, null!));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             editor.AddPageLabelRange(1, PdfPageLabelStyle.Decimal));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -12088,6 +12569,1528 @@ public sealed class PdfIncrementalPageEditorTests
             editor.SetOutputIntent(
                 PdfIccProfile.Load(BuildRgbProfile()), " "));
         Assert.Throws<InvalidOperationException>(() => editor.Build());
+    }
+
+    [Fact]
+    public void SetCheckBoxValue_UpdatesValueAndAppearanceStateIncrementally()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddCheckBox(0, "settings.approved", 20, 20, 20, 20,
+                isChecked: false, exportValue: "Approved")
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetCheckBoxValue("settings.approved", true)
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary parent = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(parent[Name("Kids")])[0]);
+        Assert.Equal("Approved", Assert.IsType<PdfName>(field[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Approved", Assert.IsType<PdfName>(field[Name("AS")]).ValueAsLatin1());
+        Assert.Equal("Off", Assert.IsType<PdfName>(field[Name("DV")]).ValueAsLatin1());
+        Assert.False(Assert.IsType<PdfBoolean>(form[Name("NeedAppearances")]).Value);
+    }
+
+    [Fact]
+    public void SetCheckBoxValue_ComposesWithPageReorderingAndCanTurnFieldOff()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddCheckBox(0, "approved", 20, 20, 20, 20,
+                isChecked: true, exportValue: "Yes")
+            .Build();
+
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetCheckBoxValue("approved", false)
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        Assert.Equal("Off", Assert.IsType<PdfName>(field[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Off", Assert.IsType<PdfName>(field[Name("AS")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void SetCheckBoxValue_UpdatesSeparateWidgetChildren()
+    {
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(
+                    BuildSeparateCheckBoxWidgetDocument()))
+                .SetCheckBoxValue("approved", true)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary widget = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(field[Name("Kids")])[0]);
+
+        Assert.Equal("Yes", Assert.IsType<PdfName>(field[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Yes", Assert.IsType<PdfName>(widget[Name("AS")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void SetCheckBoxValue_RejectsMissingAndNonCheckboxFields()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "name", 20, 20, 100, 20)
+            .Build();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetCheckBoxValue("missing", true)
+                .Build());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetCheckBoxValue("name", true)
+                .Build());
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetCheckBoxValue(" ", true));
+    }
+
+    [Fact]
+    public void SetRadioButtonValue_UpdatesParentAndWidgetAppearanceStates()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 20, 20, 20, 20, "Free"),
+                new PdfRadioButtonOption(1, 20, 20, 20, 20, "Pro")], "Free")
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetRadioButtonValue("plan", "Pro")
+            .MovePage(0, 1)
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfArray kids = Assert.IsType<PdfArray>(field[Name("Kids")]);
+        PdfDictionary free = ResolveDictionary(document, kids[0]);
+        PdfDictionary pro = ResolveDictionary(document, kids[1]);
+
+        Assert.Equal("Pro", Assert.IsType<PdfName>(field[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Off", Assert.IsType<PdfName>(free[Name("AS")]).ValueAsLatin1());
+        Assert.Equal("Pro", Assert.IsType<PdfName>(pro[Name("AS")]).ValueAsLatin1());
+        Assert.Equal("Free", Assert.IsType<PdfName>(field[Name("DV")]).ValueAsLatin1());
+    }
+
+    [Fact]
+    public void SetRadioButtonValue_ClearsSelectionAndRejectsInvalidTargets()
+    {
+        byte[] radioSource = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 20, 20, 20, 20, "Free"),
+                new PdfRadioButtonOption(0, 50, 20, 20, 20, "Pro")], "Pro")
+            .Build();
+        PdfDocument cleared = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(radioSource))
+                .SetRadioButtonValue("plan", null)
+                .Build());
+        PdfDictionary clearedCatalog = ResolveDictionary(
+            cleared, cleared.Trailer[Name("Root")]);
+        PdfDictionary clearedForm = DictionaryValue(
+            cleared, clearedCatalog[Name("AcroForm")]);
+        PdfDictionary clearedField = ResolveDictionary(cleared,
+            Assert.IsType<PdfArray>(clearedForm[Name("Fields")])[0]);
+        Assert.Equal("Off",
+            Assert.IsType<PdfName>(clearedField[Name("V")]).ValueAsLatin1());
+        foreach (PdfObject kid in Assert.IsType<PdfArray>(clearedField[Name("Kids")]))
+            Assert.Equal("Off", Assert.IsType<PdfName>(
+                ResolveDictionary(cleared, kid)[Name("AS")]).ValueAsLatin1());
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(radioSource))
+                .SetRadioButtonValue("plan", "Missing")
+                .Build());
+        byte[] checkBoxSource = new PdfDocumentBuilder().AddBlankPage()
+            .AddCheckBox(0, "approved", 20, 20, 20, 20).Build();
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(checkBoxSource))
+                .SetRadioButtonValue("approved", "Yes")
+                .Build());
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(radioSource))
+                .SetRadioButtonValue("plan", " "));
+    }
+
+    [Fact]
+    public void SetTextFieldValue_RegeneratesAppearanceAndPreservesDefaultValue()
+    {
+        var style = new PdfFormFieldAppearanceStyle
+        {
+            BackgroundColor = new PdfRgbColor(0.9, 0.95, 1),
+            BorderColor = new PdfRgbColor(0.1, 0.2, 0.3),
+            TextColor = new PdfRgbColor(0.2, 0.3, 0.4),
+            BorderWidth = 2,
+            BorderStyle = PdfFormFieldBorderStyle.Dashed,
+            DashPattern = [3, 2]
+        };
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "customer.name", 20, 20, 160, 24,
+                "Original", 11,
+                new PdfTextFieldOptions { Alignment = PdfTextFieldAlignment.Right },
+                defaultValue: "Default", appearanceStyle: style)
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetTextFieldValue("customer.name", "Updated")
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary parent = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(parent[Name("Kids")])[0]);
+        Assert.Equal("Updated", DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Equal("Default", DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("DV")])));
+        Assert.False(Assert.IsType<PdfBoolean>(form[Name("NeedAppearances")]).Value);
+        PdfDictionary appearance = DictionaryValue(document, field[Name("AP")]);
+        PdfStream normal = ResolveStream(document, appearance[Name("N")]);
+        string operators = Encoding.Latin1.GetString(PdfStreamDecoder.Decode(normal));
+        Assert.Contains("(Updated) Tj", operators);
+        Assert.Contains("[3 2] 0 d", operators);
+        Assert.Contains("0.2 0.3 0.4 rg", operators);
+    }
+
+    [Fact]
+    public void SetTextFieldValue_PreservesCombBehaviorAndComposesWithReordering()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
+            .AddTextField(0, "code", 20, 20, 120, 20, "1234", 12,
+                new PdfTextFieldOptions
+                {
+                    Comb = true,
+                    MaximumLength = 4,
+                    Alignment = PdfTextFieldAlignment.Center
+                })
+            .Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetTextFieldValue("code", "9876")
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        Assert.Equal("9876", DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Equal(4, Assert.IsType<PdfInteger>(field[Name("MaxLen")]).Value);
+        PdfDictionary appearance = DictionaryValue(document, field[Name("AP")]);
+        string operators = Encoding.Latin1.GetString(PdfStreamDecoder.Decode(
+            ResolveStream(document, appearance[Name("N")])));
+        Assert.Contains("(9) Tj", operators);
+        Assert.Contains("(8) Tj", operators);
+        Assert.Contains("(7) Tj", operators);
+        Assert.Contains("(6) Tj", operators);
+    }
+
+    [Fact]
+    public void SetTextFieldValue_RejectsInvalidValueAndWrongFieldType()
+    {
+        byte[] textSource = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "code", 20, 20, 120, 20, "1234", 12,
+                new PdfTextFieldOptions { MaximumLength = 4 })
+            .Build();
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(textSource))
+                .SetTextFieldValue("code", "too long")
+                .Build());
+        byte[] checkBoxSource = new PdfDocumentBuilder().AddBlankPage()
+            .AddCheckBox(0, "approved", 20, 20, 20, 20).Build();
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(checkBoxSource))
+                .SetTextFieldValue("approved", "Yes")
+                .Build());
+    }
+
+    [Fact]
+    public void SetChoiceFieldValue_UpdatesComboExportValueAndDisplayAppearance()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddComboBoxOptions(0, "country", 20, 20, 160, 24, [
+                new PdfChoiceOption("US", "United States"),
+                new PdfChoiceOption("CA", "Canada")], "US", fontSize: 11,
+                choiceOptions: new PdfChoiceFieldOptions
+                {
+                    Alignment = PdfTextFieldAlignment.Center,
+                    AppearanceStyle = new PdfFormFieldAppearanceStyle
+                    {
+                        BackgroundColor = new PdfRgbColor(0.95, 0.95, 0.8),
+                        TextColor = new PdfRgbColor(0.1, 0.2, 0.3)
+                    },
+                    DefaultSelectedExportValues = ["US"]
+                })
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetChoiceFieldValue("country", "CA")
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        Assert.Equal("CA", DecodeUnicode(Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Equal("US", DecodeUnicode(Assert.IsType<PdfString>(field[Name("DV")])));
+        PdfDictionary appearance = DictionaryValue(document, field[Name("AP")]);
+        string operators = Encoding.Latin1.GetString(PdfStreamDecoder.Decode(
+            ResolveStream(document, appearance[Name("N")])));
+        Assert.Contains("(Canada) Tj", operators);
+        Assert.Contains("0.1 0.2 0.3 rg", operators);
+        Assert.False(Assert.IsType<PdfBoolean>(form[Name("NeedAppearances")]).Value);
+    }
+
+    [Fact]
+    public void SetChoiceFieldValues_UpdatesAndClearsMultiselectListBox()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
+            .AddMultiSelectListBoxOptions(0, "regions", 20, 20, 160, 72, [
+                new PdfChoiceOption("N", "North"),
+                new PdfChoiceOption("S", "South"),
+                new PdfChoiceOption("W", "West")], ["S"], topIndex: 1)
+            .Build();
+
+        PdfDocument selected = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetChoiceFieldValues("regions", ["N", "W"])
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary selectedCatalog = ResolveDictionary(
+            selected, selected.Trailer[Name("Root")]);
+        PdfDictionary selectedForm = DictionaryValue(
+            selected, selectedCatalog[Name("AcroForm")]);
+        PdfDictionary selectedField = ResolveDictionary(selected,
+            Assert.IsType<PdfArray>(selectedForm[Name("Fields")])[0]);
+        Assert.Equal(["N", "W"], Assert.IsType<PdfArray>(selectedField[Name("V")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+        Assert.Equal([0L, 2L], Assert.IsType<PdfArray>(selectedField[Name("I")])
+            .Select(value => Assert.IsType<PdfInteger>(value).Value));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(selectedField[Name("TI")]).Value);
+
+        PdfDocument cleared = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetChoiceFieldValues("regions", [])
+                .Build());
+        PdfDictionary clearedCatalog = ResolveDictionary(
+            cleared, cleared.Trailer[Name("Root")]);
+        PdfDictionary clearedForm = DictionaryValue(
+            cleared, clearedCatalog[Name("AcroForm")]);
+        PdfDictionary clearedField = ResolveDictionary(cleared,
+            Assert.IsType<PdfArray>(clearedForm[Name("Fields")])[0]);
+        Assert.False(clearedField.ContainsKey(Name("V")));
+        Assert.False(clearedField.ContainsKey(Name("I")));
+    }
+
+    [Fact]
+    public void SetChoiceFieldValue_SupportsEditableComboAndRejectsInvalidSelections()
+    {
+        byte[] editable = new PdfDocumentBuilder().AddBlankPage()
+            .AddComboBox(0, "custom", 20, 20, 140, 20,
+                ["Alpha", "Beta"], "Alpha", editable: true)
+            .Build();
+        PdfDocument custom = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(editable))
+                .SetChoiceFieldValue("custom", "Other")
+                .Build());
+        PdfDictionary customCatalog = ResolveDictionary(
+            custom, custom.Trailer[Name("Root")]);
+        PdfDictionary customForm = DictionaryValue(
+            custom, customCatalog[Name("AcroForm")]);
+        PdfDictionary customField = ResolveDictionary(custom,
+            Assert.IsType<PdfArray>(customForm[Name("Fields")])[0]);
+        Assert.Equal("Other", DecodeUnicode(
+            Assert.IsType<PdfString>(customField[Name("V")])));
+
+        byte[] list = new PdfDocumentBuilder().AddBlankPage()
+            .AddListBox(0, "list", 20, 20, 120, 50, ["A", "B"])
+            .Build();
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(list))
+                .SetChoiceFieldValue("list", "Missing")
+                .Build());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(list))
+                .SetChoiceFieldValues("list", ["A", "B"])
+                .Build());
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(list))
+                .SetChoiceFieldValues("list", ["A", "A"]));
+    }
+
+    [Fact]
+    public void ResetFormField_RestoresDefaultsAndRegeneratesEveryAppearanceType()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20, "Current",
+                defaultValue: "Default")
+            .AddCheckBox(0, "approved", 10, 40, 20, 20,
+                isChecked: true, defaultChecked: false)
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 10, 70, 20, 20, "Free"),
+                new PdfRadioButtonOption(1, 10, 70, 20, 20, "Pro")],
+                selectedValue: "Pro", defaultSelectedValue: "Free")
+            .AddComboBoxOptions(0, "country", 10, 100, 120, 20, [
+                new PdfChoiceOption("US", "United States"),
+                new PdfChoiceOption("CA", "Canada")], "CA",
+                choiceOptions: new PdfChoiceFieldOptions
+                {
+                    DefaultSelectedExportValues = ["US"]
+                })
+            .Build();
+
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ResetFormField("name")
+                .ResetFormField("approved")
+                .ResetFormField("plan")
+                .ResetFormField("country")
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
+            .Select(value => ResolveDictionary(document, value)).ToArray();
+
+        Assert.Equal("Default", DecodeUnicode(
+            Assert.IsType<PdfString>(fields[0][Name("V")])));
+        Assert.Equal("Off", Assert.IsType<PdfName>(fields[1][Name("V")]).ValueAsLatin1());
+        Assert.Equal("Off", Assert.IsType<PdfName>(fields[1][Name("AS")]).ValueAsLatin1());
+        Assert.Equal("Free", Assert.IsType<PdfName>(fields[2][Name("V")]).ValueAsLatin1());
+        PdfArray radioKids = Assert.IsType<PdfArray>(fields[2][Name("Kids")]);
+        Assert.Equal("Free", Assert.IsType<PdfName>(
+            ResolveDictionary(document, radioKids[0])[Name("AS")]).ValueAsLatin1());
+        Assert.Equal("Off", Assert.IsType<PdfName>(
+            ResolveDictionary(document, radioKids[1])[Name("AS")]).ValueAsLatin1());
+        Assert.Equal("US", DecodeUnicode(
+            Assert.IsType<PdfString>(fields[3][Name("V")])));
+        PdfDictionary countryAppearance = DictionaryValue(document, fields[3][Name("AP")]);
+        Assert.Contains("(United States) Tj", Encoding.Latin1.GetString(
+            PdfStreamDecoder.Decode(ResolveStream(
+                document, countryAppearance[Name("N")]))));
+    }
+
+    [Fact]
+    public void ResetFormField_RejectsMissingFieldsAndPushButtons()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20)
+            .AddUriPushButton(0, "website", 10, 40, 100, 20,
+                "Website", "https://example.com")
+            .Build();
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ResetFormField("missing")
+                .Build());
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ResetFormField("website")
+                .Build());
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ResetFormField(" "));
+    }
+
+    [Fact]
+    public void ResetFormField_ClearsFieldsThatHaveNoDefaultValue()
+    {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20, "Current")
+            .AddListBox(0, "region", 10, 40, 100, 40, ["North", "South"], "South")
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(authored, authored.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(authored, catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        var withoutDefaults = new PdfIncrementalUpdateBuilder(authored);
+        foreach (PdfObject value in fields)
+        {
+            PdfIndirectReference reference = Assert.IsType<PdfIndirectReference>(value);
+            PdfDictionary field = ResolveDictionary(authored, reference);
+            withoutDefaults.ReplaceObject(reference.ObjectNumber,
+                new PdfDictionary(field.Where(entry => !entry.Key.Equals(Name("DV")))));
+        }
+        byte[] source = withoutDefaults.Build();
+
+        PdfDocument reset = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ResetFormField("name")
+                .ResetFormField("region")
+                .Build());
+        PdfDictionary resetCatalog = ResolveDictionary(reset, reset.Trailer[Name("Root")]);
+        PdfDictionary resetForm = DictionaryValue(reset, resetCatalog[Name("AcroForm")]);
+        PdfDictionary[] resetFields = Assert.IsType<PdfArray>(resetForm[Name("Fields")])
+            .Select(value => ResolveDictionary(reset, value)).ToArray();
+        Assert.Equal(string.Empty, DecodeUnicode(
+            Assert.IsType<PdfString>(resetFields[0][Name("V")])));
+        Assert.False(resetFields[1].ContainsKey(Name("V")));
+        Assert.False(resetFields[1].ContainsKey(Name("I")));
+        PdfDictionary appearance = DictionaryValue(reset, resetFields[1][Name("AP")]);
+        Assert.DoesNotContain("0.75 g", Encoding.Latin1.GetString(
+            PdfStreamDecoder.Decode(ResolveStream(reset, appearance[Name("N")]))));
+    }
+
+    [Fact]
+    public void SetFormFieldMetadata_SetsAndClearsHierarchicalFieldNames()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "customer.name", 10, 10, 100, 20, "Steve",
+                fieldMetadata: new PdfFormFieldMetadata
+                {
+                    Tooltip = "Old tooltip",
+                    MappingName = "old_name"
+                })
+            .Build();
+
+        PdfDocument updated = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetFormFieldMetadata("customer.name", new PdfFormFieldMetadata
+                {
+                    Tooltip = "Customer name",
+                    MappingName = "customer_name"
+                })
+                .Build());
+        PdfDictionary updatedCatalog = ResolveDictionary(
+            updated, updated.Trailer[Name("Root")]);
+        PdfDictionary updatedForm = DictionaryValue(
+            updated, updatedCatalog[Name("AcroForm")]);
+        PdfDictionary parent = ResolveDictionary(updated,
+            Assert.IsType<PdfArray>(updatedForm[Name("Fields")])[0]);
+        PdfDictionary field = ResolveDictionary(updated,
+            Assert.IsType<PdfArray>(parent[Name("Kids")])[0]);
+        Assert.Equal("Customer name", DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("TU")])));
+        Assert.Equal("customer_name", DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("TM")])));
+
+        PdfDocument cleared = PdfDocument.Open(
+            new PdfIncrementalPageEditor(updated)
+                .SetFormFieldMetadata("customer.name", null)
+                .Build());
+        PdfDictionary clearedCatalog = ResolveDictionary(
+            cleared, cleared.Trailer[Name("Root")]);
+        PdfDictionary clearedForm = DictionaryValue(
+            cleared, clearedCatalog[Name("AcroForm")]);
+        PdfDictionary clearedParent = ResolveDictionary(cleared,
+            Assert.IsType<PdfArray>(clearedForm[Name("Fields")])[0]);
+        PdfDictionary clearedField = ResolveDictionary(cleared,
+            Assert.IsType<PdfArray>(clearedParent[Name("Kids")])[0]);
+        Assert.False(clearedField.ContainsKey(Name("TU")));
+        Assert.False(clearedField.ContainsKey(Name("TM")));
+    }
+
+    [Fact]
+    public void SetFormFieldMetadata_ComposesWithValueAndResetChanges()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20,
+                "Current", defaultValue: "Default")
+            .Build();
+        PdfDocument updated = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetTextFieldValue("name", "Updated")
+                .SetFormFieldMetadata("name", new PdfFormFieldMetadata
+                {
+                    Tooltip = "Full name",
+                    MappingName = "full_name"
+                })
+                .Build());
+        PdfDictionary updatedCatalog = ResolveDictionary(
+            updated, updated.Trailer[Name("Root")]);
+        PdfDictionary updatedForm = DictionaryValue(
+            updated, updatedCatalog[Name("AcroForm")]);
+        PdfDictionary updatedField = ResolveDictionary(updated,
+            Assert.IsType<PdfArray>(updatedForm[Name("Fields")])[0]);
+        Assert.Equal("Updated", DecodeUnicode(
+            Assert.IsType<PdfString>(updatedField[Name("V")])));
+        Assert.Equal("Full name", DecodeUnicode(
+            Assert.IsType<PdfString>(updatedField[Name("TU")])));
+
+        PdfDocument reset = PdfDocument.Open(
+            new PdfIncrementalPageEditor(updated)
+                .ResetFormField("name")
+                .SetFormFieldMetadata("name", new PdfFormFieldMetadata
+                {
+                    Tooltip = "Reset name"
+                })
+                .Build());
+        PdfDictionary resetCatalog = ResolveDictionary(reset, reset.Trailer[Name("Root")]);
+        PdfDictionary resetForm = DictionaryValue(reset, resetCatalog[Name("AcroForm")]);
+        PdfDictionary resetField = ResolveDictionary(reset,
+            Assert.IsType<PdfArray>(resetForm[Name("Fields")])[0]);
+        Assert.Equal("Default", DecodeUnicode(
+            Assert.IsType<PdfString>(resetField[Name("V")])));
+        Assert.Equal("Reset name", DecodeUnicode(
+            Assert.IsType<PdfString>(resetField[Name("TU")])));
+        Assert.False(resetField.ContainsKey(Name("TM")));
+    }
+
+    [Fact]
+    public void SetFieldDefaultValues_ChangeDefaultsWithoutChangingCurrentValues()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20, "Current")
+            .AddCheckBox(0, "approved", 10, 40, 20, 20, isChecked: false)
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 10, 70, 20, 20, "Free"),
+                new PdfRadioButtonOption(0, 40, 70, 20, 20, "Pro")], "Free")
+            .AddMultiSelectListBox(0, "regions", 10, 100, 100, 60,
+                ["North", "South", "West"], ["North"])
+            .Build();
+
+        PdfDocument changed = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetTextFieldDefaultValue("name", "New default")
+                .SetCheckBoxDefaultValue("approved", true)
+                .SetRadioButtonDefaultValue("plan", "Pro")
+                .SetChoiceFieldDefaultValues("regions", ["South", "West"])
+                .Build());
+        PdfDictionary changedCatalog = ResolveDictionary(
+            changed, changed.Trailer[Name("Root")]);
+        PdfDictionary changedForm = DictionaryValue(
+            changed, changedCatalog[Name("AcroForm")]);
+        PdfDictionary[] fields = Assert.IsType<PdfArray>(changedForm[Name("Fields")])
+            .Select(value => ResolveDictionary(changed, value)).ToArray();
+        Assert.Equal("Current", DecodeUnicode(
+            Assert.IsType<PdfString>(fields[0][Name("V")])));
+        Assert.Equal("New default", DecodeUnicode(
+            Assert.IsType<PdfString>(fields[0][Name("DV")])));
+        Assert.Equal("Off", Assert.IsType<PdfName>(fields[1][Name("V")]).ValueAsLatin1());
+        Assert.Equal("Yes", Assert.IsType<PdfName>(fields[1][Name("DV")]).ValueAsLatin1());
+        Assert.Equal("Free", Assert.IsType<PdfName>(fields[2][Name("V")]).ValueAsLatin1());
+        Assert.Equal("Pro", Assert.IsType<PdfName>(fields[2][Name("DV")]).ValueAsLatin1());
+        Assert.Equal(["South", "West"], Assert.IsType<PdfArray>(fields[3][Name("DV")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+        Assert.Equal(["North"], Assert.IsType<PdfArray>(fields[3][Name("V")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+
+        PdfDocument reset = PdfDocument.Open(
+            new PdfIncrementalPageEditor(changed)
+                .ResetFormField("name")
+                .ResetFormField("approved")
+                .ResetFormField("plan")
+                .ResetFormField("regions")
+                .Build());
+        PdfDictionary resetCatalog = ResolveDictionary(reset, reset.Trailer[Name("Root")]);
+        PdfDictionary resetForm = DictionaryValue(reset, resetCatalog[Name("AcroForm")]);
+        PdfDictionary[] resetFields = Assert.IsType<PdfArray>(resetForm[Name("Fields")])
+            .Select(value => ResolveDictionary(reset, value)).ToArray();
+        Assert.Equal("New default", DecodeUnicode(
+            Assert.IsType<PdfString>(resetFields[0][Name("V")])));
+        Assert.Equal("Yes", Assert.IsType<PdfName>(resetFields[1][Name("V")]).ValueAsLatin1());
+        Assert.Equal("Pro", Assert.IsType<PdfName>(resetFields[2][Name("V")]).ValueAsLatin1());
+        Assert.Equal(["South", "West"], Assert.IsType<PdfArray>(resetFields[3][Name("V")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+    }
+
+    [Fact]
+    public void ClearFormFieldDefaultValue_ComposesWithMetadataAndValidatesTypes()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20,
+                "Current", defaultValue: "Default")
+            .AddListBox(0, "region", 10, 40, 100, 40,
+                ["North", "South"], "North")
+            .Build();
+        PdfDocument cleared = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .ClearFormFieldDefaultValue("name")
+                .SetFormFieldMetadata("name", new PdfFormFieldMetadata
+                {
+                    Tooltip = "Name"
+                })
+                .Build());
+        PdfDictionary clearedCatalog = ResolveDictionary(
+            cleared, cleared.Trailer[Name("Root")]);
+        PdfDictionary clearedForm = DictionaryValue(
+            cleared, clearedCatalog[Name("AcroForm")]);
+        PdfDictionary clearedName = ResolveDictionary(cleared,
+            Assert.IsType<PdfArray>(clearedForm[Name("Fields")])[0]);
+        Assert.False(clearedName.ContainsKey(Name("DV")));
+        Assert.Equal("Name", DecodeUnicode(
+            Assert.IsType<PdfString>(clearedName[Name("TU")])));
+        Assert.Equal("Current", DecodeUnicode(
+            Assert.IsType<PdfString>(clearedName[Name("V")])));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetCheckBoxDefaultValue("name", true)
+                .Build());
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .SetChoiceFieldDefaultValue("region", "Missing")
+                .Build());
+    }
+
+    [Fact]
+    public void RemoveFormField_PrunesHierarchyWidgetsAndPageAnnotations()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
+            .AddTextField(0, "customer.name", 10, 10, 100, 20, "Steve")
+            .AddCheckBox(0, "approved", 10, 40, 20, 20)
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 10, 70, 20, 20, "Free"),
+                new PdfRadioButtonOption(1, 10, 70, 20, 20, "Pro")], "Free")
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .RemoveFormField("customer.name")
+            .RemoveFormField("plan")
+            .MovePage(0, 1)
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        Assert.Single(fields);
+        PdfDictionary approved = ResolveDictionary(document, fields[0]);
+        Assert.Equal("approved", DecodeUnicode(
+            Assert.IsType<PdfString>(approved[Name("T")])));
+        (_, _, PdfDictionary[] pages) = FlatPages(document);
+        PdfArray annotations = Assert.IsType<PdfArray>(pages[1][Name("Annots")]);
+        Assert.Single(annotations);
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(fields[0]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(annotations[0]).ObjectNumber);
+        Assert.False(pages[0].ContainsKey(Name("Annots")));
+    }
+
+    [Fact]
+    public void RemoveFormField_RemovesEmptyAcroFormAndAnnotationArray()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20, "Steve")
+            .Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .RemoveFormField("name")
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        Assert.False(catalog.ContainsKey(Name("AcroForm")));
+        Assert.False(catalog.ContainsKey(Name("NeedsRendering")));
+        (_, _, PdfDictionary[] pages) = FlatPages(document);
+        Assert.False(pages[0].ContainsKey(Name("Annots")));
+    }
+
+    [Fact]
+    public void RemoveFormField_PrunesCalculationOrderAndRejectsMissingFields()
+    {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "first", 10, 10, 100, 20)
+            .AddTextField(0, "second", 10, 40, 100, 20)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(authored, authored.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(authored, catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        var withOrder = new PdfIncrementalUpdateBuilder(authored);
+        PdfDictionary orderedForm = new(form.Append(new KeyValuePair<PdfName, PdfObject>(
+            Name("CO"), new PdfArray(fields))));
+        withOrder.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Where(entry => !entry.Key.Equals(Name("AcroForm")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("AcroForm"), orderedForm))));
+        byte[] source = withOrder.Build();
+
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .RemoveFormField("first")
+                .Build());
+        PdfDictionary updatedCatalog = ResolveDictionary(
+            document, document.Trailer[Name("Root")]);
+        PdfDictionary updatedForm = DictionaryValue(
+            document, updatedCatalog[Name("AcroForm")]);
+        PdfArray retainedFields = Assert.IsType<PdfArray>(updatedForm[Name("Fields")]);
+        PdfArray order = Assert.IsType<PdfArray>(updatedForm[Name("CO")]);
+        Assert.Single(retainedFields);
+        Assert.Single(order);
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(retainedFields[0]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(order[0]).ObjectNumber);
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .RemoveFormField("missing")
+                .Build());
+    }
+
+    [Fact]
+    public void RemoveFormField_PrunesTaggedFormStructureAndParentTree()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Tagged form removal",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddCheckBox(0, "survey.approved", 20, 30, 24, 24,
+                fieldMetadata: new PdfFormFieldMetadata
+                {
+                    Tooltip = "Approve the survey"
+                })
+            .AddSignatureField(0, "survey.signature", 20, 70, 160, 40,
+                fieldMetadata: new PdfFormFieldMetadata
+                {
+                    Tooltip = "Sign the survey"
+                })
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        PdfDocument original = PdfDocument.Open(source);
+        (_, _, PdfDictionary[] originalPages) = FlatPages(original);
+        int removedWidgetNumber = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(originalPages[0][Name("Annots")])[0]).ObjectNumber;
+
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(original)
+                .RemoveFormField("survey.approved")
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary parentTree = ResolveDictionary(document, root[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        Assert.Single(Enumerable.Range(0, numbers.Count / 2));
+        PdfDictionary retainedStructure = ResolveDictionary(document, numbers[1]);
+        PdfDictionary retainedObjectReference = DictionaryValue(
+            document, retainedStructure[Name("K")]);
+        Assert.NotEqual(removedWidgetNumber,
+            Assert.IsType<PdfIndirectReference>(
+                retainedObjectReference[Name("Obj")]).ObjectNumber);
+        (_, _, PdfDictionary[] pages) = FlatPages(document);
+        PdfArray annotations = Assert.IsType<PdfArray>(pages[0][Name("Annots")]);
+        Assert.Single(annotations);
+        Assert.NotEqual(removedWidgetNumber,
+            Assert.IsType<PdfIndirectReference>(annotations[0]).ObjectNumber);
+        PdfObject rootKid = root[Name("K")];
+        if (rootKid is PdfArray rootKids) rootKid = Assert.Single(rootKids);
+        PdfDictionary documentElement = ResolveDictionary(document, rootKid);
+        Assert.IsType<PdfIndirectReference>(documentElement[Name("K")]);
+    }
+
+    [Fact]
+    public void AddCheckBox_AddsAuthoredFieldAndWidgetToExistingPage()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .AddCheckBox(0, "approved", 20, 30, 24, 24,
+                isChecked: true, exportValue: "Approved",
+                fieldMetadata: new PdfFormFieldMetadata
+                {
+                    Tooltip = "Approved status"
+                }, appearanceStyle: new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.9, 1, 0.9),
+                    BorderColor = new PdfRgbColor(0.1, 0.4, 0.1),
+                    BorderWidth = 2
+                })
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(fields[0]);
+        PdfDictionary field = ResolveDictionary(document, fieldReference);
+        Assert.Equal("approved", DecodeUnicode(Assert.IsType<PdfString>(field[Name("T")])));
+        Assert.Equal("Approved", Assert.IsType<PdfName>(field[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Approved status", DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("TU")])));
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(document);
+        PdfArray annotations = Assert.IsType<PdfArray>(pages[0][Name("Annots")]);
+        Assert.Equal(fieldReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(annotations[0]).ObjectNumber);
+        Assert.Equal(pageReferences[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(field[Name("P")]).ObjectNumber);
+        PdfDictionary normal = DictionaryValue(document,
+            DictionaryValue(document, field[Name("AP")])[Name("N")]);
+        Assert.True(normal.ContainsKey(Name("Off")));
+        Assert.True(normal.ContainsKey(Name("Approved")));
+    }
+
+    [Fact]
+    public void AddCheckBox_AddsFormStructureToTaggedDocumentAfterReordering()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Tagged incremental form",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage().AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build();
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddTextField(0, "survey.name", 20, 70, 120, 20, "Steve"));
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddCheckBox(0, "survey.approved", 20, 30, 24, 24,
+                    fieldMetadata: new PdfFormFieldMetadata
+                    {
+                        Tooltip = "Approve the survey"
+                    })
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary parent = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary widget = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(parent[Name("Kids")])[0]);
+        long key = Assert.IsType<PdfInteger>(widget[Name("StructParent")]).Value;
+        PdfDictionary parentTree = ResolveDictionary(document, root[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        int keyIndex = Enumerable.Range(0, numbers.Count / 2)
+            .Select(index => index * 2)
+            .Single(index => Assert.IsType<PdfInteger>(numbers[index]).Value == key);
+        PdfIndirectReference structureReference = Assert.IsType<PdfIndirectReference>(
+            numbers[keyIndex + 1]);
+        PdfDictionary structure = ResolveDictionary(document, structureReference);
+        Assert.Equal("Form", Assert.IsType<PdfName>(structure[Name("S")]).ValueAsLatin1());
+        Assert.Equal("Approve the survey", DecodeUnicode(
+            Assert.IsType<PdfString>(structure[Name("Alt")])));
+        (_, PdfIndirectReference[] pages, _) = FlatPages(document);
+        Assert.Equal(pages[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(structure[Name("Pg")]).ObjectNumber);
+        PdfDictionary objectReference = DictionaryValue(document, structure[Name("K")]);
+        Assert.Equal(
+            Assert.IsType<PdfIndirectReference>(widget[Name("P")]).ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(objectReference[Name("Pg")]).ObjectNumber);
+        Assert.Equal(Assert.IsType<PdfIndirectReference>(
+                Assert.IsType<PdfArray>(ResolveDictionary(document, pages[1])[Name("Annots")])[0])
+                .ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(objectReference[Name("Obj")]).ObjectNumber);
+    }
+
+    [Fact]
+    public void AddCheckBox_NormalizesDirectTaggedRootAndDocumentElement()
+    {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Direct tagged form",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(authored, catalogReference);
+        PdfDictionary root = ResolveDictionary(authored, catalog[Name("StructTreeRoot")]);
+        PdfObject documentValue = root[Name("K")];
+        if (documentValue is PdfArray rootKids) documentValue = Assert.Single(rootKids);
+        PdfDictionary documentElement = ResolveDictionary(authored, documentValue);
+        PdfDictionary directRoot = new(root.Where(entry => !entry.Key.Equals(Name("K")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("K"), documentElement)));
+        var directUpdate = new PdfIncrementalUpdateBuilder(authored);
+        directUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Where(entry =>
+                    !entry.Key.Equals(Name("StructTreeRoot")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("StructTreeRoot"), directRoot))));
+
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(directUpdate.Build()))
+                .AddCheckBox(0, "approved", 20, 30, 24, 24,
+                    fieldMetadata: new PdfFormFieldMetadata
+                    {
+                        Tooltip = "Approve the document"
+                    })
+                .Build());
+        PdfDictionary normalizedCatalog = ResolveDictionary(
+            document, document.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            normalizedCatalog[Name("StructTreeRoot")]);
+        PdfDictionary normalizedRoot = ResolveDictionary(document, rootReference);
+        PdfIndirectReference documentReference = Assert.IsType<PdfIndirectReference>(
+            normalizedRoot[Name("K")]);
+        PdfDictionary normalizedDocument = ResolveDictionary(document, documentReference);
+        Assert.Equal(rootReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(
+                normalizedDocument[Name("P")]).ObjectNumber);
+        Assert.IsType<PdfIndirectReference>(normalizedDocument[Name("K")]);
+    }
+
+    [Fact]
+    public void AddCheckBox_MergesHierarchicalFieldsAndComposesWithReordering()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
+            .AddTextField(0, "customer.name", 10, 10, 100, 20)
+            .Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddCheckBox(1, "customer.approved", 10, 40, 20, 20)
+                .AddCheckBox(0, "terms", 10, 70, 20, 20)
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        var names = new List<string>();
+        foreach (PdfObject value in Assert.IsType<PdfArray>(form[Name("Fields")]))
+            Collect(value, null);
+        Assert.Contains("customer.name", names);
+        Assert.Contains("customer.approved", names);
+        Assert.Contains("terms", names);
+        Assert.Equal(3, names.Count(name => name.Contains('.', StringComparison.Ordinal)
+            || name == "terms"));
+
+        void Collect(PdfObject value, string? parent)
+        {
+            PdfDictionary field = ResolveDictionary(document, value);
+            string? name = parent;
+            if (field.TryGetValue(Name("T"), out PdfObject? partialValue))
+            {
+                string partial = DecodeUnicode(Assert.IsType<PdfString>(partialValue));
+                name = parent is null ? partial : $"{parent}.{partial}";
+            }
+            if (field.ContainsKey(Name("FT")) && name is not null) names.Add(name);
+            if (field.TryGetValue(Name("Kids"), out PdfObject? kidsValue))
+                foreach (PdfObject kid in Assert.IsType<PdfArray>(kidsValue))
+                    Collect(kid, name);
+        }
+    }
+
+    [Fact]
+    public void AddCheckBox_RejectsDuplicateExistingFieldNames()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddCheckBox(0, "approved", 10, 10, 20, 20)
+            .Build();
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddCheckBox(0, "approved", 40, 10, 20, 20)
+                .Build());
+    }
+
+    [Fact]
+    public void AddRadioGroup_AddsMultiPageWidgetsAndComposesWithReordering()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
+            .AddCheckBox(0, "approved", 10, 10, 20, 20)
+            .Build();
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .AddRadioGroup("plan", [
+                new PdfRadioButtonOption(0, 20, 40, 20, 20, "Free"),
+                new PdfRadioButtonOption(1, 20, 40, 20, 20, "Pro")],
+                selectedValue: "Pro", defaultSelectedValue: "Free")
+            .MovePage(0, 1)
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        Assert.Equal(2, fields.Count);
+        PdfDictionary group = ResolveDictionary(document, fields[1]);
+        Assert.Equal("plan", DecodeUnicode(Assert.IsType<PdfString>(group[Name("T")])));
+        Assert.Equal("Pro", Assert.IsType<PdfName>(group[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Free", Assert.IsType<PdfName>(group[Name("DV")]).ValueAsLatin1());
+        PdfArray widgets = Assert.IsType<PdfArray>(group[Name("Kids")]);
+        Assert.Equal(2, widgets.Count);
+        (_, PdfIndirectReference[] pages, PdfDictionary[] pageDictionaries) = FlatPages(document);
+        PdfDictionary free = ResolveDictionary(document, widgets[0]);
+        PdfDictionary pro = ResolveDictionary(document, widgets[1]);
+        Assert.Equal(pages[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(free[Name("P")]).ObjectNumber);
+        Assert.Equal(pages[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(pro[Name("P")]).ObjectNumber);
+        Assert.Contains(Assert.IsType<PdfArray>(pageDictionaries[1][Name("Annots")]),
+            value => Assert.IsType<PdfIndirectReference>(value).ObjectNumber
+                == Assert.IsType<PdfIndirectReference>(widgets[0]).ObjectNumber);
+        Assert.Contains(Assert.IsType<PdfArray>(pageDictionaries[0][Name("Annots")]),
+            value => Assert.IsType<PdfIndirectReference>(value).ObjectNumber
+                == Assert.IsType<PdfIndirectReference>(widgets[1]).ObjectNumber);
+    }
+
+    [Fact]
+    public void AddRadioGroup_PreservesUnisonOptionsAndRejectsDuplicateNames()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddRadioGroup("choice", [
+                    new PdfRadioButtonOption(0, 10, 10, 20, 20, "Yes"),
+                    new PdfRadioButtonOption(0, 40, 10, 20, 20, "Yes")], "Yes",
+                    radioOptions: new PdfRadioGroupOptions { RadiosInUnison = true })
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary group = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        foreach (PdfObject widgetValue in Assert.IsType<PdfArray>(group[Name("Kids")]))
+            Assert.Equal("Yes", Assert.IsType<PdfName>(
+                ResolveDictionary(document, widgetValue)[Name("AS")]).ValueAsLatin1());
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(document)
+                .AddRadioGroup("choice", [
+                    new PdfRadioButtonOption(0, 10, 40, 20, 20, "A"),
+                    new PdfRadioButtonOption(0, 40, 40, 20, 20, "B")])
+                .Build());
+    }
+
+    [Fact]
+    public void AddTextField_AddsAuthoredValueAppearanceAndMetadata()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .AddTextField(0, "customer.name", 20, 30, 180, 24,
+                "Steve", 11,
+                new PdfTextFieldOptions { Alignment = PdfTextFieldAlignment.Center },
+                fieldMetadata: new PdfFormFieldMetadata { Tooltip = "Customer name" },
+                defaultValue: "Default",
+                appearanceStyle: new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.95, 0.95, 1),
+                    TextColor = new PdfRgbColor(0.2, 0.3, 0.4)
+                })
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary parent = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(parent[Name("Kids")])[0]);
+        Assert.Equal("Steve", DecodeUnicode(Assert.IsType<PdfString>(field[Name("V")])));
+        Assert.Equal("Default", DecodeUnicode(Assert.IsType<PdfString>(field[Name("DV")])));
+        Assert.Equal("Customer name", DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("TU")])));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(field[Name("Q")]).Value);
+        PdfDictionary appearance = DictionaryValue(document, field[Name("AP")]);
+        Assert.Contains("(Steve) Tj", Encoding.Latin1.GetString(
+            PdfStreamDecoder.Decode(ResolveStream(document, appearance[Name("N")]))));
+        (_, _, PdfDictionary[] pages) = FlatPages(document);
+        Assert.Single(Assert.IsType<PdfArray>(pages[0][Name("Annots")]));
+    }
+
+    [Fact]
+    public void AddTextField_RenamesCollidingFormFontResources()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "first", 10, 10, 100, 20, "First")
+            .Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddTextField(0, "second", 10, 40, 100, 20, "Second")
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfArray fields = Assert.IsType<PdfArray>(form[Name("Fields")]);
+        Assert.Equal(2, fields.Count);
+        PdfDictionary first = ResolveDictionary(document, fields[0]);
+        PdfDictionary second = ResolveDictionary(document, fields[1]);
+        string firstDa = Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(first[Name("DA")]).Bytes.Span);
+        string secondDa = Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(second[Name("DA")]).Bytes.Span);
+        Assert.NotEqual(firstDa.Split(' ')[0], secondDa.Split(' ')[0]);
+        PdfDictionary resources = DictionaryValue(document, form[Name("DR")]);
+        PdfDictionary fonts = DictionaryValue(document, resources[Name("Font")]);
+        Assert.Equal(2, fonts.Count);
+        PdfDictionary secondAppearance = DictionaryValue(document, second[Name("AP")]);
+        PdfDictionary normalResources = DictionaryValue(document,
+            ResolveStream(document, secondAppearance[Name("N")]).Dictionary[Name("Resources")]);
+        Assert.True(DictionaryValue(document, normalResources[Name("Font")]).ContainsKey(
+            new PdfName(Encoding.ASCII.GetBytes(firstDa.Split(' ')[0].TrimStart('/')))));
+    }
+
+    [Fact]
+    public void AddChoiceFields_AddsComboSingleAndMultiselectAppearances()
+    {
+        PdfChoiceOption[] options = [
+            new PdfChoiceOption("N", "North"),
+            new PdfChoiceOption("S", "South"),
+            new PdfChoiceOption("W", "West")];
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddComboBoxOptions(0, "region.combo", 10, 10, 120, 20,
+                    options, "S")
+                .AddListBoxOptions(0, "region.single", 10, 40, 120, 50,
+                    options, "W", topIndex: 1)
+                .AddMultiSelectListBoxOptions(0, "region.multiple", 10, 100, 120, 60,
+                    options, ["N", "W"])
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        var terminalFields = new List<PdfDictionary>();
+        foreach (PdfObject value in Assert.IsType<PdfArray>(form[Name("Fields")]))
+            Collect(value);
+        PdfDictionary[] fields = terminalFields.ToArray();
+        Assert.Equal(3, fields.Length);
+        Assert.Equal("S", DecodeUnicode(Assert.IsType<PdfString>(fields[0][Name("V")])));
+        Assert.Equal("W", DecodeUnicode(Assert.IsType<PdfString>(fields[1][Name("V")])));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(fields[1][Name("TI")]).Value);
+        Assert.Equal(["N", "W"], Assert.IsType<PdfArray>(fields[2][Name("V")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+        Assert.Equal([0L, 2L], Assert.IsType<PdfArray>(fields[2][Name("I")])
+            .Select(value => Assert.IsType<PdfInteger>(value).Value));
+        foreach (PdfDictionary field in fields)
+        {
+            PdfDictionary appearance = DictionaryValue(document, field[Name("AP")]);
+            Assert.NotEmpty(PdfStreamDecoder.Decode(
+                ResolveStream(document, appearance[Name("N")])));
+        }
+        (_, _, PdfDictionary[] pages) = FlatPages(document);
+        Assert.Equal(3, Assert.IsType<PdfArray>(pages[0][Name("Annots")]).Count);
+
+        void Collect(PdfObject value)
+        {
+            PdfDictionary field = ResolveDictionary(document, value);
+            if (field.ContainsKey(Name("FT"))) terminalFields.Add(field);
+            if (field.TryGetValue(Name("Kids"), out PdfObject? kidsValue))
+                foreach (PdfObject kid in Assert.IsType<PdfArray>(kidsValue)) Collect(kid);
+        }
+    }
+
+    [Fact]
+    public void AddChoiceFields_MergeWithExistingResourcesAndRejectDuplicateNames()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20)
+            .Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddComboBoxOptions(0, "region", 10, 40, 100, 20, [
+                    new PdfChoiceOption("N", "North"),
+                    new PdfChoiceOption("S", "South")], "N")
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary resources = DictionaryValue(document, form[Name("DR")]);
+        Assert.Equal(2, DictionaryValue(document, resources[Name("Font")]).Count);
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(document)
+                .AddListBoxOptions(0, "region", 10, 70, 100, 40, [
+                    new PdfChoiceOption("A", "Alpha"),
+                    new PdfChoiceOption("B", "Beta")])
+                .Build());
+    }
+
+    [Fact]
+    public void AddAuthoredField_ComposesWithImportedAcroFormInOneRevision()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "existing", 10, 10, 100, 20)
+            .Build();
+        PdfDocument imported = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage()
+                .AddCheckBox(0, "imported", 10, 10, 20, 20)
+                .Build());
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddImportedDocument(imported)
+                .AddTextField(0, "authored", 10, 40, 100, 20, "Added")
+                .SetTextFieldValue("authored", "Updated")
+                .SetCheckBoxValue("imported", true)
+                .SetFormFieldMetadata("imported", new PdfFormFieldMetadata
+                {
+                    Tooltip = "Imported approval"
+                })
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        var names = new List<string>();
+        foreach (PdfObject value in Assert.IsType<PdfArray>(form[Name("Fields")]))
+            Collect(value, null);
+        Assert.Equal(["authored", "existing", "imported"], names.Order());
+        PdfDictionary authoredField = Find("authored");
+        PdfDictionary importedField = Find("imported");
+        Assert.Equal("Updated", DecodeUnicode(
+            Assert.IsType<PdfString>(authoredField[Name("V")])));
+        Assert.Equal("Yes", Assert.IsType<PdfName>(
+            importedField[Name("V")]).ValueAsLatin1());
+        Assert.Equal("Imported approval", DecodeUnicode(
+            Assert.IsType<PdfString>(importedField[Name("TU")])));
+        (_, _, PdfDictionary[] pages) = FlatPages(document);
+        Assert.Equal(2, Assert.IsType<PdfArray>(pages[0][Name("Annots")]).Count);
+        Assert.Single(Assert.IsType<PdfArray>(pages[1][Name("Annots")]));
+
+        void Collect(PdfObject value, string? parent)
+        {
+            PdfDictionary field = ResolveDictionary(document, value);
+            string? qualified = parent;
+            if (field.TryGetValue(Name("T"), out PdfObject? nameValue))
+            {
+                string partial = DecodeUnicode(Assert.IsType<PdfString>(nameValue));
+                qualified = parent is null ? partial : $"{parent}.{partial}";
+            }
+            if (field.ContainsKey(Name("FT")) && qualified is not null)
+                names.Add(qualified);
+            if (field.TryGetValue(Name("Kids"), out PdfObject? kidsValue))
+                foreach (PdfObject kid in Assert.IsType<PdfArray>(kidsValue))
+                    Collect(kid, qualified);
+        }
+
+        PdfDictionary Find(string requested)
+        {
+            foreach (PdfObject value in Assert.IsType<PdfArray>(form[Name("Fields")]))
+            {
+                PdfDictionary field = ResolveDictionary(document, value);
+                if (field.TryGetValue(Name("T"), out PdfObject? nameValue)
+                    && DecodeUnicode(Assert.IsType<PdfString>(nameValue)) == requested)
+                    return field;
+            }
+            throw new InvalidOperationException($"Missing field {requested}.");
+        }
+    }
+
+    [Fact]
+    public void RemoveFormField_ComposesWithImportedAcroFormInOneOperation()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "remove", 10, 10, 100, 20)
+            .AddTextField(0, "retain", 10, 40, 100, 20)
+            .Build();
+        PdfDocument imported = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage()
+                .AddCheckBox(0, "imported", 10, 10, 20, 20)
+                .Build());
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .AddImportedDocument(imported)
+            .AddTextField(0, "authored", 10, 70, 100, 20, "Added")
+            .RemoveFormField("remove")
+            .Build();
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
+            .Select(value => ResolveDictionary(document, value)).ToArray();
+        Assert.Equal(["authored", "imported", "retain"], fields.Select(field => DecodeUnicode(
+            Assert.IsType<PdfString>(field[Name("T")]))).Order());
+        (_, _, PdfDictionary[] pages) = FlatPages(document);
+        Assert.Equal(2, Assert.IsType<PdfArray>(pages[0][Name("Annots")]).Count);
+        Assert.Single(Assert.IsType<PdfArray>(pages[1][Name("Annots")]));
+    }
+
+    [Fact]
+    public void AddStringChoiceFields_ProvideAuthoredSurfaceParity()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddComboBox(0, "combo", 10, 10, 100, 20,
+                    ["North", "South"], "South")
+                .AddListBox(0, "single", 10, 40, 100, 40,
+                    ["Alpha", "Beta"], "Beta", topIndex: 1)
+                .AddMultiSelectListBox(0, "multiple", 10, 90, 100, 50,
+                    ["One", "Two", "Three"], ["One", "Three"])
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
+            .Select(value => ResolveDictionary(document, value)).ToArray();
+        Assert.Equal("South", DecodeUnicode(Assert.IsType<PdfString>(fields[0][Name("V")])));
+        Assert.Equal("Beta", DecodeUnicode(Assert.IsType<PdfString>(fields[1][Name("V")])));
+        Assert.Equal(1, Assert.IsType<PdfInteger>(fields[1][Name("TI")]).Value);
+        Assert.Equal(["One", "Three"], Assert.IsType<PdfArray>(fields[2][Name("V")])
+            .Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
+        Assert.Equal([0L, 2L], Assert.IsType<PdfArray>(fields[2][Name("I")])
+            .Select(value => Assert.IsType<PdfInteger>(value).Value));
+    }
+
+    [Fact]
+    public void AddUriPushButton_AddsActionAppearancesAndWidgetToExistingPage()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .AddUriPushButton(0, "website", 20, 30, 140, 28,
+                "Website", "https://example.com",
+                appearanceOptions: new PdfPushButtonAppearanceOptions
+                {
+                    RolloverLabel = "Open website",
+                    DownLabel = "Opening"
+                })
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfDocument document = PdfDocument.Open(updated);
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        Assert.Equal("Btn", Assert.IsType<PdfName>(field[Name("FT")]).ValueAsLatin1());
+        Assert.NotEqual(0, Assert.IsType<PdfInteger>(field[Name("Ff")]).Value & (1 << 16));
+        PdfDictionary action = DictionaryValue(document, field[Name("A")]);
+        Assert.Equal("URI", Assert.IsType<PdfName>(action[Name("S")]).ValueAsLatin1());
+        Assert.Equal("https://example.com/", DecodeUnicode(
+            Assert.IsType<PdfString>(action[Name("URI")])));
+        PdfDictionary appearances = DictionaryValue(document, field[Name("AP")]);
+        Assert.True(appearances.ContainsKey(Name("N")));
+        Assert.True(appearances.ContainsKey(Name("R")));
+        Assert.True(appearances.ContainsKey(Name("D")));
+        (_, PdfIndirectReference[] pages, PdfDictionary[] pageDictionaries) = FlatPages(document);
+        Assert.Equal(pages[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(field[Name("P")]).ObjectNumber);
+        Assert.Single(Assert.IsType<PdfArray>(pageDictionaries[0][Name("Annots")]));
+    }
+
+    [Fact]
+    public void AddPagePushButton_PreservesDestinationAndWidgetPagesAfterReordering()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage().Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddPagePushButton(0, "next", 20, 30, 100, 24,
+                    "Next", 1, PdfDestination.FitPage())
+                .MovePage(0, 1)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary action = DictionaryValue(document, field[Name("A")]);
+        Assert.Equal("GoTo", Assert.IsType<PdfName>(action[Name("S")]).ValueAsLatin1());
+        PdfArray destination = Assert.IsType<PdfArray>(action[Name("D")]);
+        (_, PdfIndirectReference[] pages, PdfDictionary[] pageDictionaries) = FlatPages(document);
+        Assert.Equal(pages[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(destination[0]).ObjectNumber);
+        Assert.Equal("Fit", Assert.IsType<PdfName>(destination[1]).ValueAsLatin1());
+        Assert.Equal(pages[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(field[Name("P")]).ObjectNumber);
+        Assert.False(pageDictionaries[0].ContainsKey(Name("Annots")));
+        Assert.Single(Assert.IsType<PdfArray>(pageDictionaries[1][Name("Annots")]));
+    }
+
+    [Fact]
+    public void AddNamedDestinationPushButton_TargetsExistingOrPendingDestination()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
+            .AddNamedDestination("chapter", 1)
+            .Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddNamedDestination("appendix", 0, PdfDestination.FitPage())
+                .AddNamedDestinationPushButton(0, "chapter-button", 10, 10, 100, 20,
+                    "Chapter", "chapter")
+                .AddNamedDestinationPushButton(1, "appendix-button", 10, 10, 100, 20,
+                    "Appendix", "appendix")
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
+            .Select(value => ResolveDictionary(document, value)).ToArray();
+        Assert.Equal(["chapter", "appendix"], fields.Select(field => DecodeUnicode(
+            Assert.IsType<PdfString>(DictionaryValue(document, field[Name("A")])[Name("D")]))));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(document)
+                .AddNamedDestinationPushButton(0, "missing-button", 10, 40, 100, 20,
+                    "Missing", "missing"));
+    }
+
+    [Fact]
+    public void AddResetAndSubmitButtons_WriteFieldScopedActions()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "name", 10, 10, 100, 20)
+            .Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddResetFormPushButton(0, "reset", 10, 40, 100, 20, "Reset",
+                    ["name"])
+                .AddSubmitPdfPushButton(0, "submit", 10, 70, 100, 20, "Submit",
+                    "https://example.com/forms", ["name"], excludeFields: true)
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
+            .Select(value => ResolveDictionary(document, value)).ToArray();
+        Assert.Equal(3, fields.Length);
+        PdfDictionary reset = DictionaryValue(document, fields[1][Name("A")]);
+        Assert.Equal("ResetForm", Assert.IsType<PdfName>(reset[Name("S")]).ValueAsLatin1());
+        Assert.Equal("name", DecodeUnicode(Assert.IsType<PdfString>(
+            Assert.IsType<PdfArray>(reset[Name("Fields")])[0])));
+        Assert.False(reset.ContainsKey(Name("Flags")));
+        PdfDictionary submit = DictionaryValue(document, fields[2][Name("A")]);
+        Assert.Equal("SubmitForm", Assert.IsType<PdfName>(submit[Name("S")]).ValueAsLatin1());
+        Assert.Equal((1 << 8) | 1,
+            Assert.IsType<PdfInteger>(submit[Name("Flags")]).Value);
+        Assert.Equal("name", DecodeUnicode(Assert.IsType<PdfString>(
+            Assert.IsType<PdfArray>(submit[Name("Fields")])[0])));
+        PdfDictionary file = DictionaryValue(document, submit[Name("F")]);
+        Assert.Equal("URL", Assert.IsType<PdfName>(file[Name("FS")]).ValueAsLatin1());
+        Assert.Equal("https://example.com/forms", DecodeUnicode(
+            Assert.IsType<PdfString>(file[Name("F")])));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(document)
+                .AddResetFormPushButton(0, "bad-reset", 10, 100, 100, 20,
+                    "Reset", excludeFields: true));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfIncrementalPageEditor(document)
+                .AddSubmitPdfPushButton(0, "bad-submit", 10, 100, 100, 20,
+                    "Submit", "https://example.com/forms", ["missing"]));
+    }
+
+    [Fact]
+    public void AddSignatureField_AddsUnsignedFieldAndPreservesSigningConstraints()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(source))
+                .AddSignatureField(0, "approval", 20, 30, 180, 44,
+                    appearanceText: "Sign here")
+                .Build());
+        PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
+        PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
+        Assert.NotEqual(0, Assert.IsType<PdfInteger>(form[Name("SigFlags")]).Value & 1);
+        PdfDictionary field = ResolveDictionary(document,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        Assert.Equal("Sig", Assert.IsType<PdfName>(field[Name("FT")]).ValueAsLatin1());
+        Assert.False(field.ContainsKey(Name("V")));
+        PdfDictionary appearance = DictionaryValue(document, field[Name("AP")]);
+        Assert.Contains("(Sign here) Tj", Encoding.Latin1.GetString(
+            PdfStreamDecoder.Decode(ResolveStream(document, appearance[Name("N")]))));
+        (_, PdfIndirectReference[] pages, PdfDictionary[] pageDictionaries) = FlatPages(document);
+        Assert.Equal(pages[0].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(field[Name("P")]).ObjectNumber);
+        Assert.Single(Assert.IsType<PdfArray>(pageDictionaries[0][Name("Annots")]));
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(document)
+                .AddSignatureField(0, "approval", 20, 90, 180, 44)
+                .Build());
+
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            document, _ => [1], new PdfSignatureOptions
+            {
+                FieldName = "approval",
+                ReservedSignatureSize = 8
+            });
+        Assert.True(Assert.Single(PdfSignatureReader.Read(
+            PdfDocument.Open(signed))).IsSigned);
     }
 
     [Fact]
@@ -12309,6 +14312,37 @@ public sealed class PdfIncrementalPageEditorTests
             source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
                 .Append(" 00000 n \n");
         source.Append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n")
+            .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+
+        void Add(int number, string value)
+        {
+            offsets[number] = source.Length;
+            source.Append(number).Append(" 0 obj\n").Append(value).Append("\nendobj\n");
+        }
+    }
+
+    private static byte[] BuildSeparateCheckBoxWidgetDocument()
+    {
+        var source = new StringBuilder("%PDF-1.7\n");
+        var offsets = new int[9];
+        Add(1, "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [4 0 R] " +
+            "/NeedAppearances false >> >>");
+        Add(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        Add(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] " +
+            "/Resources <<>> /Annots [5 0 R] >>");
+        Add(4, "<< /FT /Btn /T (approved) /V /Off /Kids [5 0 R] >>");
+        Add(5, "<< /Type /Annot /Subtype /Widget /Parent 4 0 R /P 3 0 R " +
+            "/Rect [10 10 30 30] /AS /Off /AP << /N << /Off 6 0 R /Yes 7 0 R >> >> >>");
+        Add(6, "<< /Type /XObject /Subtype /Form /BBox [0 0 20 20] /Length 0 >>stream\n\nendstream");
+        Add(7, "<< /Type /XObject /Subtype /Form /BBox [0 0 20 20] /Length 0 >>stream\n\nendstream");
+        Add(8, "null");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 9\n0000000000 65535 f \n");
+        for (int index = 1; index <= 8; index++)
+            source.Append(offsets[index].ToString("D10", CultureInfo.InvariantCulture))
+                .Append(" 00000 n \n");
+        source.Append("trailer\n<< /Size 9 /Root 1 0 R >>\nstartxref\n")
             .Append(xrefOffset.ToString(CultureInfo.InvariantCulture)).Append("\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
 

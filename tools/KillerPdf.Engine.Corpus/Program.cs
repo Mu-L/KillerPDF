@@ -186,6 +186,41 @@ if (args.Length == 2 && args[0] == "--pdfua-form-smoke")
     return 0;
 }
 
+if (args.Length == 2 && args[0] == "--pdfua-incremental-form-smoke")
+{
+    byte[] source = new PdfDocumentBuilder()
+        .SetMetadata(new PdfDocumentMetadata
+        {
+            Title = "KillerPDF accessible incremental form smoke test",
+            Language = "en-US"
+        })
+        .EnablePdfUa2Conformance()
+        .AddBlankPage()
+        .AddStructureContainer(PdfStructureType.Document)
+        .Build();
+    byte[] added = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+        .AddCheckBox(0, "survey.accepted", 72, 700, 18, 18,
+            fieldMetadata: new PdfFormFieldMetadata
+            {
+                Tooltip = "Accept the survey terms"
+            })
+        .AddSignatureField(0, "survey.signature", 72, 580, 180, 42,
+            fieldMetadata: new PdfFormFieldMetadata
+            {
+                Tooltip = "Sign the completed survey"
+            })
+        .Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(added))
+        .RemoveFormField("survey.accepted")
+        .Build();
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine(
+        $"Wrote {pdf.Length:N0} byte incremental PDF/UA form PDF to {destination}");
+    return 0;
+}
+
 if (args.Length == 2 && args[0] == "--font-info")
 {
     TrueTypeFont font = TrueTypeFont.Load(File.ReadAllBytes(args[1]));

@@ -2349,6 +2349,9 @@ public sealed class PdfIncrementalAnnotationEditorTests
         Assert.Throws<InvalidOperationException>(() =>
             new PdfIncrementalAnnotationEditor(popupSource)
                 .RemoveAnnotationAt(0, 1));
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(popupSource)
+                .SetAnnotationContentsAt(0, 1, "Invalid popup contents"));
     }
 
     [Fact]
@@ -2409,6 +2412,53 @@ public sealed class PdfIncrementalAnnotationEditorTests
             .RemoveAnnotation(0, "review");
         Assert.Throws<InvalidOperationException>(() =>
             editor.SetAnnotationContents(0, "review", "After"));
+        var reverse = new PdfIncrementalAnnotationEditor(source)
+            .SetAnnotationContents(0, "review", "After");
+        Assert.Throws<InvalidOperationException>(() =>
+            reverse.RemoveAnnotation(0, "review"));
+    }
+
+    [Fact]
+    public void SetAnnotationContentsAtAndMetadataAt_UpdateUnnamedAnnotation()
+    {
+        PdfDocument baseDocument = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        var setup = new PdfIncrementalUpdateBuilder(baseDocument);
+        var page = Pages(baseDocument)[0];
+        PdfIndirectReference unnamed = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Square")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(10), new PdfInteger(10),
+                new PdfInteger(40), new PdfInteger(40)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("F"), new PdfInteger(4))
+        ]));
+        setup.ReplaceObject(page.Reference.ObjectNumber,
+            new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(
+                    Name("Annots"), new PdfArray([unnamed])))));
+        byte[] sourceBytes = setup.Build();
+        byte[] output = new PdfIncrementalAnnotationEditor(
+                PdfDocument.Open(sourceBytes))
+            .SetAnnotationContentsAt(0, 0, "Unnamed contents")
+            .SetAnnotationMetadataAt(0, 0, new PdfAnnotationMetadata
+            {
+                Author = "Editor",
+                Flags = PdfAnnotationFlags.Print | PdfAnnotationFlags.Locked
+            })
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(output);
+        PdfDictionary annotation = ResolveDictionary(reopened,
+            Assert.Single(Assert.IsType<PdfArray>(
+                Pages(reopened)[0].Page[Name("Annots")])));
+
+        Assert.Equal("Unnamed contents", Encoding.BigEndianUnicode.GetString(
+            Assert.IsType<PdfString>(annotation[Name("Contents")]).Bytes.Span[2..]));
+        Assert.Equal("Editor", Encoding.BigEndianUnicode.GetString(
+            Assert.IsType<PdfString>(annotation[Name("T")]).Bytes.Span[2..]));
+        Assert.True(output.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
     }
 
     [Fact]

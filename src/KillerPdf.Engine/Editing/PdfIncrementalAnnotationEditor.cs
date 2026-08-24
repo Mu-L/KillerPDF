@@ -59,7 +59,9 @@ public sealed class PdfIncrementalAnnotationEditor
                 value.Name, name, StringComparison.Ordinal)))
             throw new ArgumentException(
                 $"Annotation '{name}' is already scheduled for removal.", nameof(name));
-        _removals.Add(FindNamedAnnotation(pageIndex, name));
+        PendingRemoval removal = FindNamedAnnotation(pageIndex, name);
+        EnsureNotPendingUpdate(removal);
+        _removals.Add(removal);
         return this;
     }
 
@@ -90,6 +92,7 @@ public sealed class PdfIncrementalAnnotationEditor
             throw new ArgumentException(
                 "The annotation is already scheduled for removal.",
                 nameof(annotationIndex));
+        EnsureNotPendingUpdate(removal);
         _removals.Add(removal);
         return this;
     }
@@ -98,12 +101,7 @@ public sealed class PdfIncrementalAnnotationEditor
         int pageIndex, string name, string? contents)
     {
         PendingRemoval target = FindUpdateTarget(pageIndex, name);
-        if (_updates.Any(value => SameIdentity(value.Reference, target.Reference)
-                && value.UpdateContents))
-            throw new ArgumentException(
-                $"Annotation '{name}' already has a pending contents update.", nameof(name));
-        _updates.Add(new PendingAnnotationUpdate(target.PageIndex, target.Name,
-            target.Reference, target.Dictionary, true, contents, false, null));
+        AddContentsUpdate(target, contents, nameof(name));
         return this;
     }
 
@@ -111,12 +109,23 @@ public sealed class PdfIncrementalAnnotationEditor
         int pageIndex, string name, PdfAnnotationMetadata? metadata)
     {
         PendingRemoval target = FindUpdateTarget(pageIndex, name);
-        if (_updates.Any(value => SameIdentity(value.Reference, target.Reference)
-                && value.UpdateMetadata))
-            throw new ArgumentException(
-                $"Annotation '{name}' already has a pending metadata update.", nameof(name));
-        _updates.Add(new PendingAnnotationUpdate(target.PageIndex, target.Name,
-            target.Reference, target.Dictionary, false, null, true, metadata));
+        AddMetadataUpdate(target, metadata, nameof(name));
+        return this;
+    }
+
+    public PdfIncrementalAnnotationEditor SetAnnotationContentsAt(
+        int pageIndex, int annotationIndex, string? contents)
+    {
+        PendingRemoval target = FindIndexedUpdateTarget(pageIndex, annotationIndex);
+        AddContentsUpdate(target, contents, nameof(annotationIndex));
+        return this;
+    }
+
+    public PdfIncrementalAnnotationEditor SetAnnotationMetadataAt(
+        int pageIndex, int annotationIndex, PdfAnnotationMetadata? metadata)
+    {
+        PendingRemoval target = FindIndexedUpdateTarget(pageIndex, annotationIndex);
+        AddMetadataUpdate(target, metadata, nameof(annotationIndex));
         return this;
     }
 
@@ -1579,10 +1588,73 @@ public sealed class PdfIncrementalAnnotationEditor
             throw new ArgumentException(
                 "An annotation name is required.", nameof(name));
         PendingRemoval target = FindNamedAnnotation(pageIndex, name);
+        EnsureUpdateableAnnotation(target);
         if (_removals.Any(value => SameIdentity(value.Reference, target.Reference)))
             throw new InvalidOperationException(
                 $"Annotation '{name}' is scheduled for removal and cannot be updated.");
         return target;
+    }
+
+    private PendingRemoval FindIndexedUpdateTarget(
+        int pageIndex, int annotationIndex)
+    {
+        ValidatePage(pageIndex);
+        PdfPageTreeEntry page = _pages[pageIndex];
+        if (!page.Dictionary.TryGetValue(AnnotsName, out PdfObject? annotsValue)
+            || ResolveValue(annotsValue,
+                $"Page {pageIndex + 1} /Annots value") is not PdfArray annotations
+            || (uint)annotationIndex >= (uint)annotations.Count)
+            throw new ArgumentOutOfRangeException(nameof(annotationIndex));
+        PendingRemoval target = ReadRemovalTarget(pageIndex,
+            annotations[annotationIndex], $"annotation {annotationIndex + 1}");
+        EnsureUpdateableAnnotation(target);
+        if (_removals.Any(value => SameIdentity(value.Reference, target.Reference)))
+            throw new InvalidOperationException(
+                $"Page {pageIndex + 1} annotation {annotationIndex + 1} is scheduled for removal and cannot be updated.");
+        return target;
+    }
+
+    private void EnsureUpdateableAnnotation(PendingRemoval target)
+    {
+        if (target.Dictionary.TryGetValue(Name("Subtype"),
+                out PdfObject? subtypeValue)
+            && ResolveValue(subtypeValue,
+                $"Annotation '{target.Name}' subtype") is PdfName subtype
+            && subtype.ValueAsLatin1() == "Popup")
+            throw new InvalidOperationException(
+                "A popup annotation must be updated through its parent annotation.");
+    }
+
+    private void AddContentsUpdate(
+        PendingRemoval target, string? contents, string parameterName)
+    {
+        if (_updates.Any(value => SameIdentity(value.Reference, target.Reference)
+                && value.UpdateContents))
+            throw new ArgumentException(
+                $"Annotation '{target.Name}' already has a pending contents update.",
+                parameterName);
+        _updates.Add(new PendingAnnotationUpdate(target.PageIndex, target.Name,
+            target.Reference, target.Dictionary, true, contents, false, null));
+    }
+
+    private void AddMetadataUpdate(
+        PendingRemoval target, PdfAnnotationMetadata? metadata,
+        string parameterName)
+    {
+        if (_updates.Any(value => SameIdentity(value.Reference, target.Reference)
+                && value.UpdateMetadata))
+            throw new ArgumentException(
+                $"Annotation '{target.Name}' already has a pending metadata update.",
+                parameterName);
+        _updates.Add(new PendingAnnotationUpdate(target.PageIndex, target.Name,
+            target.Reference, target.Dictionary, false, null, true, metadata));
+    }
+
+    private void EnsureNotPendingUpdate(PendingRemoval target)
+    {
+        if (_updates.Any(value => SameIdentity(value.Reference, target.Reference)))
+            throw new InvalidOperationException(
+                $"Annotation '{target.Name}' has a pending update and cannot be removed.");
     }
 
     private void ApplyAnnotationUpdates(PdfIncrementalUpdateBuilder update)
