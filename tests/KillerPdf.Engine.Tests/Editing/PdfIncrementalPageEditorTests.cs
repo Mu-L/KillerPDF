@@ -2067,6 +2067,115 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void SelectedPageImports_RemoveStaleAnnotationReferences()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBlankPage()
+            .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.ReplaceObject(pageReferences[0].ObjectNumber, new PdfDictionary(
+            pages[0].Append(new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                new PdfArray([new PdfIndirectReference(
+                    pageReferences[1].ObjectNumber,
+                    pageReferences[1].Generation + 1)])))));
+        source = PdfDocument.Open(update.Build());
+
+        PdfDocument selected = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0)
+            .Build());
+        (_, _, PdfDictionary[] selectedPages) = FlatPages(selected);
+
+        Assert.False(selectedPages[0].ContainsKey(Name("Annots")));
+    }
+
+    [Fact]
+    public void SelectedPageImports_RemoveStaleAssociatedFileReferences()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBlankPage()
+            .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.ReplaceObject(pageReferences[0].ObjectNumber, new PdfDictionary(
+            pages[0].Append(new KeyValuePair<PdfName, PdfObject>(Name("AF"),
+                new PdfArray([new PdfIndirectReference(
+                    pageReferences[1].ObjectNumber,
+                    pageReferences[1].Generation + 1)])))));
+        source = PdfDocument.Open(update.Build());
+
+        PdfDocument selected = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0)
+            .Build());
+        (_, _, PdfDictionary[] selectedPages) = FlatPages(selected);
+
+        Assert.False(selectedPages[0].ContainsKey(Name("AF")));
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RemoveStaleCatalogAssociatedFiles()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        (_, PdfIndirectReference[] pages, _) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("AF"), new PdfArray([
+                new PdfIndirectReference(
+                    pages[1].ObjectNumber, pages[1].Generation + 1)
+            ])))));
+        source = PdfDocument.Open(update.Build());
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument merged = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .AddImportedDocument(source)
+            .Build());
+        PdfDictionary mergedCatalog = ResolveDictionary(
+            merged, merged.Trailer[Name("Root")]);
+
+        Assert.False(mergedCatalog.ContainsKey(Name("AF")));
+    }
+
+    [Fact]
+    public void TaggedDocumentMerges_RemoveStaleStructureRootCollections()
+    {
+        PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        (_, PdfIndirectReference[] pages, _) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("AF"), new PdfArray([
+                new PdfIndirectReference(
+                    pages[0].ObjectNumber, pages[0].Generation + 1)
+            ])))));
+        source = PdfDocument.Open(update.Build());
+
+        PdfDocument merged = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(BuildTaggedDocument()))
+            .AddImportedDocument(source)
+            .Build());
+        PdfDictionary mergedCatalog = ResolveDictionary(
+            merged, merged.Trailer[Name("Root")]);
+        PdfDictionary mergedRoot = ResolveDictionary(
+            merged, mergedCatalog[Name("StructTreeRoot")]);
+
+        Assert.False(mergedRoot.ContainsKey(Name("AF")));
+    }
+
+    [Fact]
     public void SelectedFormImports_RemoveStaleCalculationOrderGenerations()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -2104,6 +2213,46 @@ public sealed class PdfIncrementalPageEditorTests
             selected, selectedCatalog[Name("AcroForm")]);
 
         Assert.False(selectedForm.ContainsKey(Name("CO")));
+    }
+
+    [Fact]
+    public void CompleteFormMerges_RemoveStaleCalculationOrderGenerations()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "source", 20, 20, 120, 20, "Source")
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        PdfDictionary form = DictionaryValue(source, catalog[Name("AcroForm")]);
+        (_, _, PdfDictionary[] pages) = FlatPages(source);
+        PdfIndirectReference widgetReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(pages[0][Name("Annots")])));
+        PdfDictionary staleForm = new(form.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("CO"), new PdfArray([
+                new PdfIndirectReference(
+                    widgetReference.ObjectNumber, widgetReference.Generation + 1)
+            ]))));
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+            .Where(entry => !entry.Key.Equals(Name("AcroForm")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("AcroForm"), staleForm))));
+        source = PdfDocument.Open(update.Build());
+        PdfDocument target = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddTextField(0, "target", 20, 20, 120, 20, "Target")
+            .Build());
+
+        PdfDocument merged = PdfDocument.Open(new PdfIncrementalPageEditor(target)
+            .AddImportedDocument(source)
+            .Build());
+        PdfDictionary mergedCatalog = ResolveDictionary(
+            merged, merged.Trailer[Name("Root")]);
+        PdfDictionary mergedForm = DictionaryValue(
+            merged, mergedCatalog[Name("AcroForm")]);
+
+        Assert.False(mergedForm.ContainsKey(Name("CO")));
     }
 
     [Fact]
