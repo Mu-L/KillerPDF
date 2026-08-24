@@ -52,11 +52,14 @@ public sealed class PdfDocument
     /// </summary>
     public PdfDocumentPermissions? DeclaredPermissions => _security?.Permissions;
     internal int? EncryptionObjectNumber => _encryptionObjectNumber;
-    internal PdfObject EncryptObject(int objectNumber, PdfObject value) =>
+    internal PdfObject EncryptObject(
+        int objectNumber, PdfObject value,
+        Func<PdfIndirectReference, PdfObject>? resolve = null) =>
         _security is not null && objectNumber != _encryptionObjectNumber
             ? _security.Encrypt(value, objectNumber,
                 CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry)
-                    && entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0)
+                    && entry.Type == PdfCrossReferenceEntryType.InUse ? entry.Field2 : 0,
+                resolve ?? Resolve)
             : value;
 
     public static PdfDocument Open(ReadOnlyMemory<byte> source)
@@ -158,13 +161,27 @@ public sealed class PdfDocument
                 checked((int)entry.Field1));
         }
         return _security is not null && entry.ObjectNumber != _encryptionObjectNumber
-            ? _security.Decrypt(indirect.Value, entry.ObjectNumber, entry.Field2)
+            ? _security.Decrypt(
+                indirect.Value, entry.ObjectNumber, entry.Field2, Resolve)
             : indirect.Value;
     }
 
     private long ResolveStreamLength(PdfIndirectReference reference)
     {
-        PdfObject value = Resolve(reference);
+        PdfObject value = reference;
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference current; depth++)
+        {
+            if (depth > 32)
+                throw Error(
+                    $"Stream Length reference {reference.ObjectNumber} {reference.Generation} is too deeply indirect",
+                    0);
+            if (!visited.Add((current.ObjectNumber, current.Generation)))
+                throw Error(
+                    $"Stream Length reference {reference.ObjectNumber} {reference.Generation} contains an indirect-reference cycle",
+                    0);
+            value = Resolve(current);
+        }
         if (value is not PdfInteger integer)
             throw Error($"Stream Length reference {reference.ObjectNumber} {reference.Generation} is not an integer", 0);
         return integer.Value;
@@ -206,7 +223,7 @@ public sealed class PdfDocument
                 $"An object stream cannot contain more than {MaximumObjectsPerObjectStream:N0} objects",
                 EntryOffset(entry));
         int firstObjectOffset = RequiredNonNegativeInt(stream.Dictionary, FirstObjectOffsetName, EntryOffset(entry));
-        byte[] decoded = PdfStreamDecoder.Decode(stream);
+        byte[] decoded = PdfStreamDecoder.Decode(stream, Resolve);
         if (firstObjectOffset > decoded.Length)
             throw Error("Object stream /First points beyond the decoded stream", EntryOffset(entry));
 
@@ -271,21 +288,36 @@ public sealed class PdfDocument
         return headers;
     }
 
-    private static void RequireObjectStreamDictionary(PdfDictionary dictionary, int offset)
+    private void RequireObjectStreamDictionary(PdfDictionary dictionary, int offset)
     {
         if (!dictionary.TryGetValue(TypeName, out PdfObject type)
-            || type is not PdfName name
+            || ResolveObjectStreamScalar(type, "Object stream /Type") is not PdfName name
             || !name.Equals(ObjectStreamTypeName))
             throw Error("A compressed object must be stored in a /Type /ObjStm stream", offset);
     }
 
-    private static int RequiredNonNegativeInt(PdfDictionary dictionary, PdfName name, int offset)
+    private int RequiredNonNegativeInt(PdfDictionary dictionary, PdfName name, int offset)
     {
         if (!dictionary.TryGetValue(name, out PdfObject value)
-            || value is not PdfInteger integer
+            || ResolveObjectStreamScalar(value,
+                $"Object stream {name}") is not PdfInteger integer
             || integer.Value is < 0 or > int.MaxValue)
             throw Error($"Object stream {name} must be a non-negative 32-bit integer", offset);
         return (int)integer.Value;
+    }
+
+    private PdfObject ResolveObjectStreamScalar(PdfObject value, string description)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth > 32)
+                throw Error($"{description} is too deeply indirect", 0);
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw Error($"{description} contains an indirect-reference cycle", 0);
+            value = Resolve(reference);
+        }
+        return value;
     }
 
     private static int RequiredHeaderInteger(PdfToken token, string description, int sourceOffset)

@@ -835,19 +835,30 @@ public sealed class PdfEncryptionTests
     }
 
     [Theory]
-    [InlineData("Identity", true)]
-    [InlineData("StdCF", false)]
+    [InlineData("Identity", true, false)]
+    [InlineData("StdCF", false, false)]
+    [InlineData("Identity", true, true)]
+    [InlineData("StdCF", false, true)]
     public void ExplicitCryptFilter_SelectsIdentityOrNamedEncryption(
-        string cryptFilter, bool remainsCleartext)
+        string cryptFilter, bool remainsCleartext, bool indirectMetadata)
     {
         PdfDocument document = PdfDocument.Open(Revision6Fixture(), "owner-password");
         var update = new PdfIncrementalUpdateBuilder(document);
+        PdfObject filterValue = new PdfName("Crypt"u8);
+        PdfObject filterName = new PdfName(Encoding.ASCII.GetBytes(cryptFilter));
+        if (indirectMetadata)
+        {
+            filterValue = update.AddObject(update.AddObject(filterValue));
+            filterName = update.AddObject(update.AddObject(filterName));
+        }
+        PdfObject decodeParameters = new PdfDictionary([
+            new(new PdfName("Name"u8), filterName)
+        ]);
+        if (indirectMetadata)
+            decodeParameters = update.AddObject(update.AddObject(decodeParameters));
         PdfIndirectReference reference = update.AddObject(new PdfStream(new PdfDictionary([
-            new(new PdfName("Filter"u8), new PdfName("Crypt"u8)),
-            new(new PdfName("DecodeParms"u8), new PdfDictionary([
-                new(new PdfName("Name"u8),
-                    new PdfName(Encoding.ASCII.GetBytes(cryptFilter)))
-            ]))
+            new(new PdfName("Filter"u8), filterValue),
+            new(new PdfName("DecodeParms"u8), decodeParameters)
         ]), "explicit crypt payload"u8));
 
         byte[] updated = update.Build();
@@ -859,9 +870,10 @@ public sealed class PdfEncryptionTests
             rewrittenDocument.Resolve(reference.ObjectNumber));
 
         Assert.Equal("explicit crypt payload",
-            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream)));
+            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream, reopened.Resolve)));
         Assert.Equal("explicit crypt payload",
-            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(rewrittenStream)));
+            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(
+                rewrittenStream, rewrittenDocument.Resolve)));
         Assert.Equal(remainsCleartext,
             updated.AsSpan().IndexOf("explicit crypt payload"u8) >= 0);
         Assert.Equal(remainsCleartext,
@@ -880,6 +892,24 @@ public sealed class PdfEncryptionTests
         ]), "payload"u8));
 
         Assert.Throws<InvalidOperationException>(() => update.Build());
+    }
+
+    [Fact]
+    public void ExplicitCryptFilter_RejectsIndirectMetadataCycles()
+    {
+        PdfDocument document = PdfDocument.Open(Revision6Fixture(), "owner-password");
+        var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference first = update.ReserveObject();
+        PdfIndirectReference second = update.ReserveObject();
+        update.SetObject(first, second).SetObject(second, first);
+        update.AddObject(new PdfStream(new PdfDictionary([
+            new(new PdfName("Filter"u8), first)
+        ]), "payload"u8));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => update.Build());
+
+        Assert.Contains("cycle", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

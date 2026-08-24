@@ -7453,7 +7453,8 @@ public sealed class PdfIncrementalPageEditor
                     try
                     {
                         actualLength = PdfStreamDecoder.Decode(
-                            (PdfStream)lookup, expectedLength + 1).Length;
+                            (PdfStream)lookup, document.Resolve,
+                            expectedLength + 1).Length;
                     }
                     catch (PdfFilterException exception)
                     {
@@ -12604,9 +12605,10 @@ public sealed class PdfIncrementalPageEditor
                 && UsesOptionalContent(entry.Value, depth + 1, scanContent: false));
         }
 
-        static bool ContentUsesOptionalContent(PdfStream stream)
+        bool ContentUsesOptionalContent(PdfStream stream)
         {
-            byte[] decoded = PdfStreamDecoder.Decode(stream, maximumContentBytes);
+            byte[] decoded = PdfStreamDecoder.Decode(
+                stream, source.Resolve, maximumContentBytes);
             var tokenizer = new PdfTokenizer(decoded);
             while (true)
             {

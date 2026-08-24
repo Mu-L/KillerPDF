@@ -5,6 +5,7 @@ using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Syntax;
+using KillerPdf.Engine.Writing;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Diagnostics;
@@ -25,6 +26,32 @@ public sealed class PdfDocumentInspectorTests
         Assert.Equal(2, report.CrossReferenceEntryCount);
         Assert.Equal(1, report.InspectedObjectCount);
         Assert.Empty(report.Diagnostics);
+    }
+
+    [Fact]
+    public void Inspect_ResolvesMultiHopCatalogRoots()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            document.Trailer[new PdfName("Root"u8)]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(
+            document.Resolve(rootReference));
+        var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference catalogType = update.AddObject(new PdfName("Catalog"u8));
+        PdfIndirectReference catalogTypeAlias = update.AddObject(catalogType);
+        PdfIndirectReference movedCatalog = update.AddObject(new PdfDictionary(
+            catalog.Select(entry => entry.Key.Equals(new PdfName("Type"u8))
+                ? new KeyValuePair<PdfName, PdfObject>(entry.Key, catalogTypeAlias)
+                : entry)));
+        update.ReplaceObject(rootReference.ObjectNumber, movedCatalog);
+
+        PdfInspectionReport report = PdfDocumentInspector.Inspect(update.Build());
+
+        Assert.DoesNotContain(report.Diagnostics,
+            item => item.Code == PdfDiagnosticCode.InvalidCatalogRoot);
+        Assert.True(report.IsStructurallyValid);
     }
 
     [Fact]
@@ -108,6 +135,20 @@ public sealed class PdfDocumentInspectorTests
 
         Assert.Contains(report.Diagnostics, item => item.Code == PdfDiagnosticCode.MissingCatalogRoot);
         Assert.DoesNotContain(report.Diagnostics, item => item.Code == PdfDiagnosticCode.InvalidIndirectObject);
+    }
+
+    [Fact]
+    public void Inspect_RejectsRootDictionariesWithoutCatalogType()
+    {
+        byte[] source = ClassicPdf(
+            "1 0 obj << /Type /Example >> endobj\n", includeRoot: true);
+
+        PdfInspectionReport report = PdfDocumentInspector.Inspect(source);
+
+        Assert.Contains(report.Diagnostics,
+            item => item.Code == PdfDiagnosticCode.InvalidCatalogRoot
+                && item.Message.Contains("/Type /Catalog", StringComparison.Ordinal));
+        Assert.False(report.IsStructurallyValid);
     }
 
     [Fact]

@@ -14,6 +14,8 @@ public static class PdfDocumentInspector
     public const int DefaultMaximumInspectedObjects = 100_000;
 
     private static readonly PdfName RootName = new("Root"u8);
+    private static readonly PdfName TypeName = new("Type"u8);
+    private static readonly PdfName CatalogName = new("Catalog"u8);
 
     public static PdfInspectionReport Inspect(
         ReadOnlyMemory<byte> source,
@@ -196,12 +198,37 @@ public static class PdfDocumentInspector
 
         try
         {
-            if (document.Resolve(reference) is not PdfDictionary)
+            PdfObject resolved = ResolveFully(reference, "The trailer /Root value");
+            if (resolved is not PdfDictionary catalog)
             {
                 diagnostics.Add(Diagnostic(
                     PdfDiagnosticCode.InvalidCatalogRoot,
                     $"The trailer /Root reference {reference.ObjectNumber} {reference.Generation} does not resolve to a dictionary.",
                     objectNumber: reference.ObjectNumber));
+                return;
+            }
+            if (!catalog.TryGetValue(TypeName, out PdfObject? type)
+                || ResolveFully(type, "The catalog /Type value") is not PdfName typeName
+                || !typeName.Equals(CatalogName))
+                diagnostics.Add(Diagnostic(
+                    PdfDiagnosticCode.InvalidCatalogRoot,
+                    "The trailer /Root dictionary does not declare /Type /Catalog.",
+                    objectNumber: reference.ObjectNumber));
+
+            PdfObject ResolveFully(PdfObject value, string description)
+            {
+                var visited = new HashSet<(int ObjectNumber, int Generation)>();
+                for (int depth = 0; value is PdfIndirectReference current; depth++)
+                {
+                    if (depth > 32)
+                        throw new InvalidOperationException(
+                            $"{description} is too deeply indirect.");
+                    if (!visited.Add((current.ObjectNumber, current.Generation)))
+                        throw new InvalidOperationException(
+                            $"{description} contains an indirect-reference cycle.");
+                    value = document.Resolve(current);
+                }
+                return value;
             }
         }
         catch (Exception error) when (IsStructuralFailure(error))

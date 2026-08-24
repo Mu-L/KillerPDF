@@ -214,7 +214,9 @@ public sealed class PdfIncrementalUpdateBuilder
             int offset = checked((int)output.Position);
             written.Add(new WrittenObject(pending.ObjectNumber, pending.Generation, offset));
             PdfObject value = _document.EncryptObject(
-                pending.ObjectNumber, pending.Value);
+                pending.ObjectNumber, pending.Value,
+                reference => ResolveCurrentValue(
+                    reference, "An encrypted stream metadata value"));
             PdfObjectWriter.Write(output,
                 new PdfIndirectObject(pending.ObjectNumber, pending.Generation, value, offset));
         }
@@ -230,7 +232,9 @@ public sealed class PdfIncrementalUpdateBuilder
                     chunk[index].ObjectNumber, objectNumber, index));
             PdfStream stream = BuildObjectStream(chunk, options.CompressObjectStreams);
             PdfObjectWriter.Write(output, new PdfIndirectObject(objectNumber, 0,
-                _document.EncryptObject(objectNumber, stream), offset));
+                _document.EncryptObject(objectNumber, stream,
+                    reference => ResolveCurrentValue(
+                        reference, "An encrypted object-stream metadata value")), offset));
         }
 
         byte[] revisionIdentifier = CreateRevisionIdentifier(output);

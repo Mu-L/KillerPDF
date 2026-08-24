@@ -176,7 +176,9 @@ internal sealed class PdfStandardSecurityHandler
         }
     }
 
-    internal PdfObject Decrypt(PdfObject value, int objectNumber, int generation)
+    internal PdfObject Decrypt(
+        PdfObject value, int objectNumber, int generation,
+        Func<PdfIndirectReference, PdfObject>? resolve = null)
     {
         return value switch
         {
@@ -184,15 +186,18 @@ internal sealed class PdfStandardSecurityHandler
                 new PdfString(DecryptBytes(
                     text.Bytes.Span, _stringMethod, objectNumber, generation), text.Form),
             PdfArray array => new PdfArray(array.Select(item =>
-                Decrypt(item, objectNumber, generation))),
+                Decrypt(item, objectNumber, generation, resolve))),
             PdfDictionary dictionary => TransformDictionary(
-                dictionary, objectNumber, generation, decrypt: true),
-            PdfStream stream => DecryptStream(stream, objectNumber, generation),
+                dictionary, objectNumber, generation, decrypt: true, resolve),
+            PdfStream stream => DecryptStream(
+                stream, objectNumber, generation, resolve),
             _ => value
         };
     }
 
-    internal PdfObject Encrypt(PdfObject value, int objectNumber, int generation)
+    internal PdfObject Encrypt(
+        PdfObject value, int objectNumber, int generation,
+        Func<PdfIndirectReference, PdfObject>? resolve = null)
     {
         return value switch
         {
@@ -201,16 +206,18 @@ internal sealed class PdfStandardSecurityHandler
                     text.Bytes.Span, _stringMethod, objectNumber, generation),
                     PdfStringForm.Hexadecimal),
             PdfArray array => new PdfArray(array.Select(item =>
-                Encrypt(item, objectNumber, generation))),
+                Encrypt(item, objectNumber, generation, resolve))),
             PdfDictionary dictionary => TransformDictionary(
-                dictionary, objectNumber, generation, decrypt: false),
-            PdfStream stream => EncryptStream(stream, objectNumber, generation),
+                dictionary, objectNumber, generation, decrypt: false, resolve),
+            PdfStream stream => EncryptStream(
+                stream, objectNumber, generation, resolve),
             _ => value
         };
     }
 
     private PdfDictionary TransformDictionary(
-        PdfDictionary dictionary, int objectNumber, int generation, bool decrypt)
+        PdfDictionary dictionary, int objectNumber, int generation, bool decrypt,
+        Func<PdfIndirectReference, PdfObject>? resolve)
     {
         bool isSignature = dictionary.TryGetValue(TypeName, out PdfObject? type)
                 && type is PdfName name && name.Equals(SignatureName)
@@ -220,22 +227,24 @@ internal sealed class PdfStandardSecurityHandler
                 isSignature && entry.Key.Equals(ContentsName)
                     ? entry.Value
                     : decrypt
-                        ? Decrypt(entry.Value, objectNumber, generation)
-                        : Encrypt(entry.Value, objectNumber, generation))));
+                        ? Decrypt(entry.Value, objectNumber, generation, resolve)
+                        : Encrypt(entry.Value, objectNumber, generation, resolve))));
     }
 
-    private PdfStream DecryptStream(PdfStream stream, int objectNumber, int generation)
+    private PdfStream DecryptStream(
+        PdfStream stream, int objectNumber, int generation,
+        Func<PdfIndirectReference, PdfObject>? resolve)
     {
         if (stream.Dictionary.TryGetValue(TypeName, out PdfObject? rawType)
             && rawType is PdfName rawName && rawName.Equals(CrossReferenceName))
             return stream;
         PdfDictionary dictionary = (PdfDictionary)Decrypt(
-            stream.Dictionary, objectNumber, generation);
+            stream.Dictionary, objectNumber, generation, resolve);
         bool isMetadata = dictionary.TryGetValue(TypeName, out PdfObject? type)
             && type is PdfName name && name.Equals(MetadataName);
         bool isEmbeddedFile = type is PdfName embeddedName
             && embeddedName.Equals(EmbeddedFileName);
-        CryptMethod method = ExplicitStreamMethod(stream.Dictionary)
+        CryptMethod method = ExplicitStreamMethod(stream.Dictionary, resolve)
             ?? (isEmbeddedFile ? _embeddedFileMethod : _streamMethod);
         ReadOnlySpan<byte> data = stream.EncodedData.Span;
         return new PdfStream(dictionary,
@@ -243,15 +252,17 @@ internal sealed class PdfStandardSecurityHandler
                 ? DecryptBytes(data, method, objectNumber, generation) : data);
     }
 
-    private PdfStream EncryptStream(PdfStream stream, int objectNumber, int generation)
+    private PdfStream EncryptStream(
+        PdfStream stream, int objectNumber, int generation,
+        Func<PdfIndirectReference, PdfObject>? resolve)
     {
         PdfDictionary dictionary = (PdfDictionary)Encrypt(
-            stream.Dictionary, objectNumber, generation);
+            stream.Dictionary, objectNumber, generation, resolve);
         bool isMetadata = dictionary.TryGetValue(TypeName, out PdfObject? type)
             && type is PdfName name && name.Equals(MetadataName);
         bool isEmbeddedFile = type is PdfName embeddedName
             && embeddedName.Equals(EmbeddedFileName);
-        CryptMethod method = ExplicitStreamMethod(stream.Dictionary)
+        CryptMethod method = ExplicitStreamMethod(stream.Dictionary, resolve)
             ?? (isEmbeddedFile ? _embeddedFileMethod : _streamMethod);
         ReadOnlySpan<byte> data = stream.EncodedData.Span;
         return new PdfStream(dictionary,
@@ -259,13 +270,16 @@ internal sealed class PdfStandardSecurityHandler
                 ? EncryptBytes(data, method, objectNumber, generation) : data);
     }
 
-    private CryptMethod? ExplicitStreamMethod(PdfDictionary dictionary)
+    private CryptMethod? ExplicitStreamMethod(
+        PdfDictionary dictionary, Func<PdfIndirectReference, PdfObject>? resolve)
     {
         if (!dictionary.TryGetValue(Name("Filter"), out PdfObject? filterValue)) return null;
+        filterValue = ResolveStreamValue(filterValue, resolve, "stream /Filter");
         IReadOnlyList<PdfName> filters = filterValue switch
         {
             PdfName name => [name],
-            PdfArray array => array.Select(item => item as PdfName
+            PdfArray array => array.Select(item =>
+                ResolveStreamValue(item, resolve, "stream /Filter array entry") as PdfName
                 ?? throw new InvalidOperationException(
                     "Every stream /Filter array entry must be a name.")).ToArray(),
             _ => throw new InvalidOperationException(
@@ -281,8 +295,11 @@ internal sealed class PdfStandardSecurityHandler
         PdfDictionary? parameters = null;
         if (dictionary.TryGetValue(Name("DecodeParms"), out PdfObject? parameterValue))
         {
+            parameterValue = ResolveStreamValue(
+                parameterValue, resolve, "stream /DecodeParms");
             if (parameterValue is PdfArray parameterArray
-                && parameterArray.Any(item => item is not (PdfDictionary or PdfNull)))
+                && parameterArray.Any(item => ResolveStreamValue(item, resolve,
+                    "stream /DecodeParms array entry") is not (PdfDictionary or PdfNull)))
                 throw new InvalidOperationException(
                     "Each stream /DecodeParms entry must be a dictionary or null.");
             parameters = parameterValue switch
@@ -293,7 +310,8 @@ internal sealed class PdfStandardSecurityHandler
                 PdfArray array when array.Count != filters.Count =>
                     throw new InvalidOperationException(
                         "A stream /DecodeParms array must have one entry per filter."),
-                PdfArray { Count: > 0 } array => array[0] switch
+                PdfArray { Count: > 0 } array => ResolveStreamValue(
+                    array[0], resolve, "stream /DecodeParms array entry") switch
                 {
                     PdfDictionary first => first,
                     PdfNull => null,
@@ -307,13 +325,32 @@ internal sealed class PdfStandardSecurityHandler
         }
         string filterName = parameters is not null
             && parameters.TryGetValue(Name("Name"), out PdfObject? nameValue)
-            ? (nameValue as PdfName)?.ValueAsLatin1()
+            ? (ResolveStreamValue(nameValue, resolve,
+                    "/Crypt decode parameter /Name") as PdfName)?.ValueAsLatin1()
                 ?? throw new InvalidOperationException("A /Crypt decode parameter /Name is not a name.")
             : "Identity";
         if (filterName == "Identity") return CryptMethod.Identity;
         return _cryptFilters.TryGetValue(filterName, out CryptMethod method)
             ? method : throw new InvalidOperationException(
                 $"The stream selects missing crypt filter /{filterName}.");
+    }
+
+    private static PdfObject ResolveStreamValue(
+        PdfObject value, Func<PdfIndirectReference, PdfObject>? resolve, string description)
+    {
+        if (resolve is null) return value;
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth >= 32)
+                throw new InvalidOperationException(
+                    $"The {description} indirect chain is too deep.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException(
+                    $"The {description} indirect chain contains a cycle.");
+            value = resolve(reference);
+        }
+        return value;
     }
 
     private static PdfStandardSecurityHandler CreateLegacy(

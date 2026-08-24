@@ -37,6 +37,41 @@ public sealed class PdfStreamDecoderTests
     }
 
     [Fact]
+    public void Decode_ResolvesIndirectFilterParametersAndScalarValues()
+    {
+        byte[] expected = Encoding.ASCII.GetBytes("indirect stream metadata");
+        var objects = new Dictionary<int, PdfObject>
+        {
+            [1] = new PdfIndirectReference(2, 0),
+            [2] = Name("FlateDecode"),
+            [3] = new PdfIndirectReference(4, 0),
+            [4] = Dictionary(Pair("Predictor", new PdfIndirectReference(5, 0))),
+            [5] = new PdfInteger(1)
+        };
+        PdfStream stream = Stream(Compress(expected),
+            Pair("Filter", new PdfIndirectReference(1, 0)),
+            Pair("DecodeParms", new PdfIndirectReference(3, 0)));
+
+        Assert.Equal(expected, PdfStreamDecoder.Decode(stream, reference => objects[reference.ObjectNumber]));
+    }
+
+    [Fact]
+    public void Decode_RejectsIndirectFilterCycles()
+    {
+        var objects = new Dictionary<int, PdfObject>
+        {
+            [1] = new PdfIndirectReference(2, 0),
+            [2] = new PdfIndirectReference(1, 0)
+        };
+        PdfStream stream = Stream([], Pair("Filter", new PdfIndirectReference(1, 0)));
+
+        PdfFilterException error = Assert.Throws<PdfFilterException>(() =>
+            PdfStreamDecoder.Decode(stream, reference => objects[reference.ObjectNumber]));
+
+        Assert.Contains("cycle", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Decode_DecodesAsciiHexIncludingOddFinalNibble()
     {
         PdfStream stream = Stream("61 62 6>"u8.ToArray(),

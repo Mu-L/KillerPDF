@@ -14,14 +14,17 @@ public sealed class PdfDocumentTests
         var source = new StringBuilder("%PDF-2.0\n");
         int lengthOffset = source.Length;
         source.Append("1 0 obj 5 endobj\n");
+        int lengthAliasOffset = source.Length;
+        source.Append("3 0 obj 1 0 R endobj\n");
         int streamOffset = source.Length;
-        source.Append("2 0 obj << /Length 1 0 R >> stream\nHello\nendstream endobj\n");
+        source.Append("2 0 obj << /Length 3 0 R >> stream\nHello\nendstream endobj\n");
         int xrefOffset = source.Length;
-        source.Append("xref\n0 3\n");
+        source.Append("xref\n0 4\n");
         source.Append("0000000000 65535 f\n");
         source.Append($"{lengthOffset:0000000000} 00000 n\n");
         source.Append($"{streamOffset:0000000000} 00000 n\n");
-        source.Append("trailer << /Size 3 /Root 2 0 R >>\n");
+        source.Append($"{lengthAliasOffset:0000000000} 00000 n\n");
+        source.Append("trailer << /Size 4 /Root 2 0 R >>\n");
         source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
 
         PdfDocument document = PdfDocument.Open(Encoding.ASCII.GetBytes(source.ToString()));
@@ -35,7 +38,9 @@ public sealed class PdfDocumentTests
     [Fact]
     public void Open_ResolvesMultipleObjectsFromAnObjectStreamByXrefIndex()
     {
-        PdfDocument document = PdfDocument.Open(ObjectStreamPdf());
+        PdfDocument document = PdfDocument.Open(ObjectStreamPdf(
+            indirectStructuralValues: true,
+            indirectFilterValues: true));
 
         Assert.Equal("hello", Text(Assert.IsType<PdfString>(document.Resolve(1))));
         var dictionary = Assert.IsType<PdfDictionary>(document.Resolve(new PdfIndirectReference(2, 0)));
@@ -101,16 +106,22 @@ public sealed class PdfDocumentTests
     public void Resolve_RejectsCyclicIndirectStreamLengths()
     {
         var source = new StringBuilder("%PDF-2.0\n");
-        int objectOffset = source.Length;
-        source.Append("1 0 obj << /Length 1 0 R >> stream\nX\nendstream endobj\n");
+        int firstOffset = source.Length;
+        source.Append("1 0 obj 2 0 R endobj\n");
+        int secondOffset = source.Length;
+        source.Append("2 0 obj 1 0 R endobj\n");
+        int streamOffset = source.Length;
+        source.Append("3 0 obj << /Length 1 0 R >> stream\nX\nendstream endobj\n");
         int xrefOffset = source.Length;
-        source.Append("xref\n0 2\n0000000000 65535 f\n");
-        source.Append($"{objectOffset:0000000000} 00000 n\n");
-        source.Append("trailer << /Size 2 >>\n");
+        source.Append("xref\n0 4\n0000000000 65535 f\n");
+        source.Append($"{firstOffset:0000000000} 00000 n\n");
+        source.Append($"{secondOffset:0000000000} 00000 n\n");
+        source.Append($"{streamOffset:0000000000} 00000 n\n");
+        source.Append("trailer << /Size 4 >>\n");
         source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
         PdfDocument document = PdfDocument.Open(Encoding.ASCII.GetBytes(source.ToString()));
 
-        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() => document.Resolve(1));
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() => document.Resolve(3));
 
         Assert.Contains("cycle", error.Message, StringComparison.Ordinal);
     }
@@ -119,31 +130,72 @@ public sealed class PdfDocumentTests
         int firstCompressedIndex = 0,
         string header = "1 0 2 7 ",
         int objectCount = 2,
-        string body = "(hello)<< /Answer 42 >>")
+        string body = "(hello)<< /Answer 42 >>",
+        bool indirectStructuralValues = false,
+        bool indirectFilterValues = false)
     {
-        byte[] objectStreamData = [
+        byte[] decodedObjectStreamData = [
             .. Encoding.ASCII.GetBytes(header), .. Encoding.ASCII.GetBytes(body)];
+        byte[] objectStreamData = indirectFilterValues
+            ? Encoding.ASCII.GetBytes(Convert.ToHexString(decodedObjectStreamData) + ">")
+            : decodedObjectStreamData;
         using var output = new MemoryStream();
         WriteAscii(output, "%PDF-2.0\n");
+        int typeOffset = 0;
+        int countOffset = 0;
+        int firstOffset = 0;
+        if (indirectStructuralValues)
+        {
+            typeOffset = checked((int)output.Position);
+            WriteAscii(output, "3 0 obj /ObjStm endobj\n");
+            countOffset = checked((int)output.Position);
+            WriteAscii(output, $"4 0 obj {objectCount} endobj\n");
+            firstOffset = checked((int)output.Position);
+            WriteAscii(output, $"7 0 obj {header.Length} endobj\n");
+        }
+        int filterAliasOffset = 0;
+        int filterOffset = 0;
+        if (indirectFilterValues)
+        {
+            filterAliasOffset = checked((int)output.Position);
+            WriteAscii(output, "8 0 obj 9 0 R endobj\n");
+            filterOffset = checked((int)output.Position);
+            WriteAscii(output, "9 0 obj /ASCIIHexDecode endobj\n");
+        }
         int objectStreamOffset = checked((int)output.Position);
+        string objectStreamType = indirectStructuralValues ? "3 0 R" : "/ObjStm";
+        string objectStreamCount = indirectStructuralValues ? "4 0 R" : objectCount.ToString();
+        string firstObject = indirectStructuralValues ? "7 0 R" : header.Length.ToString();
+        string filter = indirectFilterValues ? " /Filter 8 0 R" : string.Empty;
         WriteAscii(
             output,
-            $"5 0 obj << /Type /ObjStm /N {objectCount} /First {header.Length} /Length {objectStreamData.Length} >> stream\n");
+            $"5 0 obj << /Type {objectStreamType} /N {objectStreamCount} /First {firstObject} /Length {objectStreamData.Length}{filter} >> stream\n");
         output.Write(objectStreamData);
         WriteAscii(output, "\nendstream endobj\n");
 
         int xrefOffset = checked((int)output.Position);
-        byte[] rows =
-        [
-            .. XrefRow(0, 0, 65_535),
-            .. XrefRow(2, 5, firstCompressedIndex),
-            .. XrefRow(2, 5, 1),
-            .. XrefRow(0, 0, 0),
-            .. XrefRow(0, 0, 0),
-            .. XrefRow(1, objectStreamOffset, 0),
-            .. XrefRow(1, xrefOffset, 0)
-        ];
-        WriteAscii(output, $"6 0 obj << /Type /XRef /Size 7 /Root 1 0 R /W [1 4 2] /Length {rows.Length} >> stream\n");
+        var rowBytes = new List<byte>();
+        rowBytes.AddRange(XrefRow(0, 0, 65_535));
+        rowBytes.AddRange(XrefRow(2, 5, firstCompressedIndex));
+        rowBytes.AddRange(XrefRow(2, 5, 1));
+        rowBytes.AddRange(indirectStructuralValues
+            ? XrefRow(1, typeOffset, 0) : XrefRow(0, 0, 0));
+        rowBytes.AddRange(indirectStructuralValues
+            ? XrefRow(1, countOffset, 0) : XrefRow(0, 0, 0));
+        rowBytes.AddRange(XrefRow(1, objectStreamOffset, 0));
+        rowBytes.AddRange(XrefRow(1, xrefOffset, 0));
+        if (indirectStructuralValues)
+            rowBytes.AddRange(XrefRow(1, firstOffset, 0));
+        else if (indirectFilterValues)
+            rowBytes.AddRange(XrefRow(0, 0, 0));
+        if (indirectFilterValues)
+        {
+            rowBytes.AddRange(XrefRow(1, filterAliasOffset, 0));
+            rowBytes.AddRange(XrefRow(1, filterOffset, 0));
+        }
+        byte[] rows = rowBytes.ToArray();
+        int size = indirectFilterValues ? 10 : indirectStructuralValues ? 8 : 7;
+        WriteAscii(output, $"6 0 obj << /Type /XRef /Size {size} /Root 1 0 R /W [1 4 2] /Length {rows.Length} >> stream\n");
         output.Write(rows);
         WriteAscii(output, $"\nendstream endobj\nstartxref\n{xrefOffset}\n%%EOF\n");
         return output.ToArray();

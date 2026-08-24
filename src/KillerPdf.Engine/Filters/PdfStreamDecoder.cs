@@ -16,13 +16,29 @@ public static class PdfStreamDecoder
     private static readonly PdfName ColumnsName = new("Columns"u8);
 
     public static byte[] Decode(PdfStream stream, int maximumDecodedBytes = DefaultMaximumDecodedBytes)
+        => DecodeCore(stream, null, maximumDecodedBytes);
+
+    public static byte[] Decode(
+        PdfStream stream,
+        Func<PdfIndirectReference, PdfObject> resolve,
+        int maximumDecodedBytes = DefaultMaximumDecodedBytes)
+    {
+        ArgumentNullException.ThrowIfNull(resolve);
+        return DecodeCore(stream, resolve, maximumDecodedBytes);
+    }
+
+    private static byte[] DecodeCore(
+        PdfStream stream,
+        Func<PdfIndirectReference, PdfObject>? resolve,
+        int maximumDecodedBytes)
     {
         ArgumentNullException.ThrowIfNull(stream);
         if (maximumDecodedBytes < 0)
             throw new ArgumentOutOfRangeException(nameof(maximumDecodedBytes));
 
-        IReadOnlyList<PdfName> filters = ReadFilters(stream.Dictionary);
-        IReadOnlyList<PdfDictionary?> parameters = ReadParameters(stream.Dictionary, filters.Count);
+        IReadOnlyList<PdfName> filters = ReadFilters(stream.Dictionary, resolve);
+        IReadOnlyList<PdfDictionary?> parameters = ReadParameters(
+            stream.Dictionary, filters.Count, resolve);
         if (filters.Count == 0)
         {
             EnsureWithinLimit(stream.EncodedData.Length, maximumDecodedBytes);
@@ -41,7 +57,7 @@ public static class PdfStreamDecoder
                 "ASCII85Decode" or "A85" => DecodeAscii85(current, maximumDecodedBytes),
                 "RunLengthDecode" or "RL" => DecodeRunLength(current, maximumDecodedBytes),
                 "LZWDecode" or "LZW" => DecodeLzw(
-                    current, parameters[i], maximumDecodedBytes),
+                    current, parameters[i], resolve, maximumDecodedBytes),
                 "Crypt" => current,
                 _ => throw new PdfFilterException($"The PDF stream filter /{filter} is not supported yet.")
             };
@@ -52,7 +68,7 @@ public static class PdfStreamDecoder
             EnsureWithinLimit(current.Length, maximumDecodedBytes);
             if (filter is "FlateDecode" or "Fl" or "LZWDecode" or "LZW")
                 current = ReversePredictor(
-                    current, parameters[i], maximumDecodedBytes);
+                    current, parameters[i], resolve, maximumDecodedBytes);
         }
 
         return current;
@@ -161,9 +177,11 @@ public static class PdfStreamDecoder
     }
 
     private static byte[] DecodeLzw(
-        ReadOnlySpan<byte> encoded, PdfDictionary? parameters, int maximumDecodedBytes)
+        ReadOnlySpan<byte> encoded, PdfDictionary? parameters,
+        Func<PdfIndirectReference, PdfObject>? resolve, int maximumDecodedBytes)
     {
-        int earlyChange = GetOptionalInteger(parameters, new PdfName("EarlyChange"u8), 1);
+        int earlyChange = GetOptionalInteger(
+            parameters, new PdfName("EarlyChange"u8), 1, resolve);
         if (earlyChange is not (0 or 1))
             throw new PdfFilterException("LZW EarlyChange must be 0 or 1.");
         var dictionary = new byte[4096][];
@@ -217,10 +235,13 @@ public static class PdfStreamDecoder
         return true;
     }
 
-    private static int GetOptionalInteger(PdfDictionary? dictionary, PdfName name, int defaultValue)
+    private static int GetOptionalInteger(
+        PdfDictionary? dictionary, PdfName name, int defaultValue,
+        Func<PdfIndirectReference, PdfObject>? resolve)
     {
         if (dictionary is null || !dictionary.TryGetValue(name, out PdfObject value))
             return defaultValue;
+        value = Resolve(value, resolve, $"Decode parameter /{name.ValueAsLatin1()}");
         return value is PdfInteger integer && integer.Value is >= int.MinValue and <= int.MaxValue
             ? (int)integer.Value
             : throw new PdfFilterException($"Decode parameter /{name.ValueAsLatin1()} must be an integer.");
@@ -235,18 +256,21 @@ public static class PdfStreamDecoder
 
     private static bool IsWhiteSpace(byte value) => value is 0 or 9 or 10 or 12 or 13 or 32;
 
-    private static IReadOnlyList<PdfName> ReadFilters(PdfDictionary dictionary)
+    private static IReadOnlyList<PdfName> ReadFilters(
+        PdfDictionary dictionary, Func<PdfIndirectReference, PdfObject>? resolve)
     {
         if (!dictionary.TryGetValue(FilterName, out PdfObject filterObject))
             return [];
+        filterObject = Resolve(filterObject, resolve, "stream /Filter");
         if (filterObject is PdfName name)
             return [name];
         if (filterObject is not PdfArray array)
             throw new PdfFilterException("A stream Filter entry must be a name or an array of names.");
 
         var filters = new List<PdfName>(array.Count);
-        foreach (PdfObject item in array)
+        foreach (PdfObject rawItem in array)
         {
+            PdfObject item = Resolve(rawItem, resolve, "stream /Filter array entry");
             if (item is not PdfName filter)
                 throw new PdfFilterException("Every entry in a stream Filter array must be a name.");
             filters.Add(filter);
@@ -254,12 +278,15 @@ public static class PdfStreamDecoder
         return filters;
     }
 
-    private static IReadOnlyList<PdfDictionary?> ReadParameters(PdfDictionary dictionary, int filterCount)
+    private static IReadOnlyList<PdfDictionary?> ReadParameters(
+        PdfDictionary dictionary, int filterCount,
+        Func<PdfIndirectReference, PdfObject>? resolve)
     {
         var result = new PdfDictionary?[filterCount];
-        if (!dictionary.TryGetValue(DecodeParmsName, out PdfObject parameters)
-            || parameters is PdfNull)
+        if (!dictionary.TryGetValue(DecodeParmsName, out PdfObject parameters))
             return result;
+        parameters = Resolve(parameters, resolve, "stream /DecodeParms");
+        if (parameters is PdfNull) return result;
 
         if (parameters is PdfDictionary single)
         {
@@ -274,7 +301,8 @@ public static class PdfStreamDecoder
 
         for (int i = 0; i < array.Count; i++)
         {
-            result[i] = array[i] switch
+            PdfObject resolvedItem = Resolve(array[i], resolve, "stream /DecodeParms array entry");
+            result[i] = resolvedItem switch
             {
                 PdfNull => null,
                 PdfDictionary item => item,
@@ -282,6 +310,22 @@ public static class PdfStreamDecoder
             };
         }
         return result;
+    }
+
+    private static PdfObject Resolve(
+        PdfObject value, Func<PdfIndirectReference, PdfObject>? resolve, string description)
+    {
+        if (resolve is null) return value;
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int depth = 0; value is PdfIndirectReference reference; depth++)
+        {
+            if (depth >= 32)
+                throw new PdfFilterException($"The {description} indirect chain is too deep.");
+            if (!visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new PdfFilterException($"The {description} indirect chain contains a cycle.");
+            value = resolve(reference);
+        }
+        return value;
     }
 
     private static byte[] DecodeFlate(byte[] encoded, int maximumDecodedBytes)
@@ -313,18 +357,21 @@ public static class PdfStreamDecoder
         }
     }
 
-    private static byte[] ReversePredictor(byte[] data, PdfDictionary? parameters, int maximumDecodedBytes)
+    private static byte[] ReversePredictor(
+        byte[] data, PdfDictionary? parameters,
+        Func<PdfIndirectReference, PdfObject>? resolve, int maximumDecodedBytes)
     {
         if (parameters is null)
             return data;
 
-        int predictor = GetInteger(parameters, PredictorName, 1);
+        int predictor = GetInteger(parameters, PredictorName, 1, resolve);
         if (predictor == 1)
             return data;
 
-        int colors = GetPositiveInteger(parameters, ColorsName, 1);
-        int bitsPerComponent = GetPositiveInteger(parameters, BitsPerComponentName, 8);
-        int columns = GetPositiveInteger(parameters, ColumnsName, 1);
+        int colors = GetPositiveInteger(parameters, ColorsName, 1, resolve);
+        int bitsPerComponent = GetPositiveInteger(
+            parameters, BitsPerComponentName, 8, resolve);
+        int columns = GetPositiveInteger(parameters, ColumnsName, 1, resolve);
         if (bitsPerComponent is not (1 or 2 or 4 or 8 or 16))
             throw new PdfFilterException("Predictor BitsPerComponent must be 1, 2, 4, 8, or 16.");
 
@@ -471,18 +518,23 @@ public static class PdfStreamDecoder
         return aboveDistance <= upperLeftDistance ? above : upperLeft;
     }
 
-    private static int GetPositiveInteger(PdfDictionary dictionary, PdfName name, int defaultValue)
+    private static int GetPositiveInteger(
+        PdfDictionary dictionary, PdfName name, int defaultValue,
+        Func<PdfIndirectReference, PdfObject>? resolve)
     {
-        int value = GetInteger(dictionary, name, defaultValue);
+        int value = GetInteger(dictionary, name, defaultValue, resolve);
         if (value <= 0)
             throw new PdfFilterException($"DecodeParms {name} must be greater than zero.");
         return value;
     }
 
-    private static int GetInteger(PdfDictionary dictionary, PdfName name, int defaultValue)
+    private static int GetInteger(
+        PdfDictionary dictionary, PdfName name, int defaultValue,
+        Func<PdfIndirectReference, PdfObject>? resolve)
     {
         if (!dictionary.TryGetValue(name, out PdfObject value))
             return defaultValue;
+        value = Resolve(value, resolve, $"DecodeParms {name}");
         if (value is not PdfInteger integer || integer.Value is < int.MinValue or > int.MaxValue)
             throw new PdfFilterException($"DecodeParms {name} must be an integer.");
         return (int)integer.Value;
