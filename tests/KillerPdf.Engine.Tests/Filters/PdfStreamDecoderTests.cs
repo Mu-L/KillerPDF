@@ -25,6 +25,38 @@ public sealed class PdfStreamDecoderTests
     }
 
     [Fact]
+    public void Decode_AllowsBoundedIntermediateBytesInMultiFilterPipeline()
+    {
+        byte[] expected = [0x41];
+        byte[] compressed = Compress(expected);
+        byte[] hexadecimal = Encoding.ASCII.GetBytes(
+            Convert.ToHexString(compressed) + ">");
+        var stream = new PdfStream(new PdfDictionary([
+            Pair("Filter", new PdfArray([
+                Name("ASCIIHexDecode"), Name("FlateDecode")]))]), hexadecimal);
+
+        byte[] decoded = PdfStreamDecoder.Decode(stream, maximumDecodedBytes: 1);
+
+        Assert.Equal(expected, decoded);
+    }
+
+    [Fact]
+    public void Decode_EnforcesFinalLimitAfterBoundedMultiFilterIntermediate()
+    {
+        byte[] compressed = Compress([0x41, 0x42]);
+        byte[] hexadecimal = Encoding.ASCII.GetBytes(
+            Convert.ToHexString(compressed) + ">");
+        var stream = new PdfStream(new PdfDictionary([
+            Pair("Filter", new PdfArray([
+                Name("ASCIIHexDecode"), Name("FlateDecode")]))]), hexadecimal);
+
+        PdfFilterException error = Assert.Throws<PdfFilterException>(() =>
+            PdfStreamDecoder.Decode(stream, maximumDecodedBytes: 1));
+
+        Assert.Contains("safety limit", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Decode_ReturnsUnfilteredBytes()
     {
         byte[] source = [0x00, 0xFF, 0x41];

@@ -19,6 +19,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Hybrid `/Size` equality remains mandatory for ordinary revisions, while a validated linearized first-page hybrid stream may declare the smaller object-number range that precedes its primary table.
 - Generation-transition checks treat a validated linearized first-page and main cross-reference pair as complementary indexes of one revision instead of misclassifying overlapping entries as an incremental generation change.
 - Bounded Flate and LZW decoding accounts for PNG predictor row selector bytes before reconstruction, so exact cross-reference row limits remain resistant to decompression expansion without rejecting legal predicted streams.
+- Multi-filter decoding bounds intermediate stages by their existing encoded footprint while applying the configured ceiling exactly to final output, allowing legal ASCII-wrapped compressed streams without permitting intermediate expansion beyond source storage.
 - Final `startxref` declarations reject offsets at or after their own marker, requiring the final cross-reference target to precede the declaration physically.
 - Final `startxref` markers and offsets require PDF whitespace token boundaries, rejecting embedded marker substrings and concatenated offsets or end markers.
 - Revision-chain parsing requires trailer `/Size` to remain nondecreasing across incremental revisions and requires hybrid companion streams to agree with their primary trailer, preserving the document's object-number high-water mark.

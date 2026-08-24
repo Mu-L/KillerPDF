@@ -50,15 +50,18 @@ public static class PdfStreamDecoder
         for (int i = 0; i < filters.Count; i++)
         {
             string filter = filters[i].ValueAsLatin1();
-            int filterLimit = filter is "FlateDecode" or "Fl" or "LZWDecode" or "LZW"
-                ? PredictorEncodedLimit(parameters[i], resolve, maximumDecodedBytes)
+            int outputLimit = i + 1 < filters.Count
+                ? Math.Max(maximumDecodedBytes, current.Length)
                 : maximumDecodedBytes;
+            int filterLimit = filter is "FlateDecode" or "Fl" or "LZWDecode" or "LZW"
+                ? PredictorEncodedLimit(parameters[i], resolve, outputLimit)
+                : outputLimit;
             current = filter switch
             {
                 "FlateDecode" or "Fl" => DecodeFlate(current, filterLimit),
-                "ASCIIHexDecode" or "AHx" => DecodeAsciiHex(current, maximumDecodedBytes),
-                "ASCII85Decode" or "A85" => DecodeAscii85(current, maximumDecodedBytes),
-                "RunLengthDecode" or "RL" => DecodeRunLength(current, maximumDecodedBytes),
+                "ASCIIHexDecode" or "AHx" => DecodeAsciiHex(current, filterLimit),
+                "ASCII85Decode" or "A85" => DecodeAscii85(current, filterLimit),
+                "RunLengthDecode" or "RL" => DecodeRunLength(current, filterLimit),
                 "LZWDecode" or "LZW" => DecodeLzw(
                     current, parameters[i], resolve, filterLimit),
                 "Crypt" => current,
@@ -71,7 +74,7 @@ public static class PdfStreamDecoder
             EnsureWithinLimit(current.Length, filterLimit);
             if (filter is "FlateDecode" or "Fl" or "LZWDecode" or "LZW")
                 current = ReversePredictor(
-                    current, parameters[i], resolve, maximumDecodedBytes);
+                    current, parameters[i], resolve, outputLimit);
         }
 
         return current;
