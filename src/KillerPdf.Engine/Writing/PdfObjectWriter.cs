@@ -42,12 +42,18 @@ public static class PdfObjectWriter
         ArgumentNullException.ThrowIfNull(value);
         if (!destination.CanWrite)
             throw new ArgumentException("The destination stream is not writable.", nameof(destination));
+        if (value.ObjectNumber == 0)
+            throw new InvalidOperationException(
+                "PDF object number zero is reserved and cannot be written as an indirect object.");
 
         WriteAscii(destination, value.ObjectNumber.ToString(CultureInfo.InvariantCulture));
         destination.WriteByte((byte)' ');
         WriteAscii(destination, value.Generation.ToString(CultureInfo.InvariantCulture));
         destination.Write(" obj\n"u8);
-        WriteObject(destination, value.Value, 0);
+        if (value.Value is PdfStream stream)
+            WriteStream(destination, stream, 1);
+        else
+            WriteObject(destination, value.Value, 0);
         destination.Write("\nendobj\n"u8);
     }
 
@@ -85,9 +91,9 @@ public static class PdfObjectWriter
             case PdfDictionary dictionary:
                 WriteDictionary(output, dictionary, depth + 1, streamLength: null);
                 break;
-            case PdfStream stream:
-                WriteStream(output, stream, depth + 1);
-                break;
+            case PdfStream:
+                throw new InvalidOperationException(
+                    "PDF streams must be written as indirect objects.");
             default:
                 throw new NotSupportedException($"PDF object type {value.GetType().FullName} cannot be written.");
         }
@@ -142,6 +148,9 @@ public static class PdfObjectWriter
 
     private static void WriteReference(Stream output, PdfIndirectReference reference)
     {
+        if (reference.ObjectNumber == 0)
+            throw new InvalidOperationException(
+                "PDF object number zero is reserved and cannot be written as an indirect reference.");
         WriteAscii(output, reference.ObjectNumber.ToString(CultureInfo.InvariantCulture));
         output.WriteByte((byte)' ');
         WriteAscii(output, reference.Generation.ToString(CultureInfo.InvariantCulture));

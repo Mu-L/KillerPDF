@@ -46,7 +46,8 @@ public static class PdfSignatureReader
     {
         ArgumentNullException.ThrowIfNull(document);
         PdfDictionary catalog = ResolveDictionary(document,
-            document.Trailer.TryGetValue(Name("Root"), out PdfObject? root)
+            document.CrossReferences.TryGetTrailerValue(
+                Name("Root"), out PdfObject? root)
                 ? root : throw new InvalidOperationException("The PDF trailer has no /Root value."),
             "The trailer /Root value");
         if (!catalog.TryGetValue(AcroFormName, out PdfObject? formValue)) return [];
@@ -354,12 +355,8 @@ public static class PdfSignatureReader
     }
 
     private static string DecodeString(PdfString value)
-    {
-        ReadOnlySpan<byte> bytes = value.Bytes.Span;
-        return bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
-            ? PdfUnicodeEncoding.DecodeBigEndian(bytes[2..], "A signature text string")
-            : Encoding.Latin1.GetString(bytes);
-    }
+        => PdfUnicodeEncoding.DecodeTextString(
+            value.Bytes.Span, "A signature text string");
 
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 

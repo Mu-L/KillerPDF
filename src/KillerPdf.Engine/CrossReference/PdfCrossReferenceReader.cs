@@ -16,6 +16,7 @@ public static class PdfCrossReferenceReader
     private static readonly PdfName SizeName = new("Size"u8);
     private static readonly PdfName WidthsName = new("W"u8);
     private static readonly PdfName IndexName = new("Index"u8);
+    private static readonly PdfName XRefStmName = new("XRefStm"u8);
 
     public static PdfCrossReferenceSection ReadSection(ReadOnlyMemory<byte> source, long offset)
     {
@@ -84,6 +85,10 @@ public static class PdfCrossReferenceReader
     {
         if (field2 is < 0 or > 65_535)
             throw Error("An xref generation must be between 0 and 65,535", statusToken.Offset);
+        if (objectNumber == 0
+            && (!IsKeyword(statusToken, "f") || field2 != 65_535))
+            throw Error("Cross-reference object 0 must be free with generation 65,535",
+                statusToken.Offset);
 
         if (IsKeyword(statusToken, "n"))
         {
@@ -105,12 +110,16 @@ public static class PdfCrossReferenceReader
     private static PdfCrossReferenceSection ReadStream(ReadOnlyMemory<byte> source, int offset)
     {
         PdfIndirectObject indirect = new PdfObjectParser(source, offset).ParseIndirectObject();
+        if (indirect.Generation != 0)
+            throw Error("A cross-reference stream object must have generation 0", offset);
         if (indirect.Value is not PdfStream stream)
             throw Error("The startxref target is neither an xref table nor an xref stream", offset);
         if (!stream.Dictionary.TryGetValue(TypeName, out PdfObject type)
             || type is not PdfName name
             || !name.Equals(XRefName))
             throw Error("A cross-reference stream must have /Type /XRef", offset);
+        if (stream.Dictionary.ContainsKey(XRefStmName))
+            throw Error("A cross-reference stream cannot contain /XRefStm", offset);
 
         int size = RequiredNonNegativeInt(stream.Dictionary, SizeName, offset);
         int[] widths = ReadWidths(stream.Dictionary, offset);
@@ -155,21 +164,27 @@ public static class PdfCrossReferenceReader
         ulong type,
         ulong field1,
         ulong field2,
-        int offset) => type switch
+        int offset)
     {
-        0 when field1 <= int.MaxValue && field2 <= 65_535 =>
-            new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.Free, (long)field1, (int)field2),
-        1 when field1 < (ulong)sourceLength && field2 <= 65_535 =>
-            new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.InUse, (long)field1, (int)field2),
-        2 when field1 <= int.MaxValue && field2 <= int.MaxValue =>
-            new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.Compressed, (long)field1, (int)field2),
-        0 => throw Error("A free xref-stream entry contains an invalid field", offset),
-        1 => throw Error("An in-use xref-stream entry contains an invalid offset or generation", offset),
-        2 => throw Error("A compressed xref-stream entry contains an invalid object-stream field", offset),
-        // PDF reserves additional types for future versions and requires older readers to treat
-        // an entry with an unknown type as a reference to the null object.
-        _ => new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.Null, 0, 0)
-    };
+        if (objectNumber == 0 && (type != 0 || field2 != 65_535))
+            throw Error("Cross-reference object 0 must be free with generation 65,535",
+                offset);
+        return type switch
+        {
+            0 when field1 <= int.MaxValue && field2 <= 65_535 =>
+                new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.Free, (long)field1, (int)field2),
+            1 when field1 < (ulong)sourceLength && field2 <= 65_535 =>
+                new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.InUse, (long)field1, (int)field2),
+            2 when field1 <= int.MaxValue && field2 <= int.MaxValue =>
+                new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.Compressed, (long)field1, (int)field2),
+            0 => throw Error("A free xref-stream entry contains an invalid field", offset),
+            1 => throw Error("An in-use xref-stream entry contains an invalid offset or generation", offset),
+            2 => throw Error("A compressed xref-stream entry contains an invalid object-stream field", offset),
+            // PDF reserves additional types for future versions and requires older readers to treat
+            // an entry with an unknown type as a reference to the null object.
+            _ => new PdfCrossReferenceEntry(objectNumber, PdfCrossReferenceEntryType.Null, 0, 0)
+        };
+    }
 
     private static int[] ReadWidths(PdfDictionary dictionary, int offset)
     {
@@ -201,13 +216,19 @@ public static class PdfCrossReferenceReader
             throw Error("A cross-reference /Index array must contain object/count pairs", offset);
 
         var ranges = new List<(int First, int Count)>(array.Count / 2);
+        long previousEnd = -1;
         for (int index = 0; index < array.Count; index += 2)
         {
             int first = ArrayNonNegativeInt(array[index], "/Index object number", offset);
             int count = ArrayNonNegativeInt(array[index + 1], "/Index count", offset);
             if ((long)first + count > size)
                 throw Error("A cross-reference /Index range exceeds /Size", offset);
+            if (first < previousEnd)
+                throw Error(
+                    "Cross-reference /Index ranges must be ordered and nonoverlapping",
+                    offset);
             ranges.Add((first, count));
+            previousEnd = (long)first + count;
         }
         return ranges;
     }
@@ -244,6 +265,9 @@ public static class PdfCrossReferenceReader
                 entry.Type is PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed
                 && entry.ObjectNumber >= size))
             throw Error("Trailer /Size must be greater than every in-use object number", offset);
+        if (entries.Any(entry => entry.Type == PdfCrossReferenceEntryType.Free
+                && entry.Field1 >= size))
+            throw Error("A free cross-reference entry points beyond trailer /Size", offset);
     }
 
     private static void ValidateTrailerOffsets(PdfDictionary trailer, int sourceLength, int offset)

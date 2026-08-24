@@ -5,6 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Writing;
@@ -172,7 +173,8 @@ public static class PdfDetachedSignatureWriter
         if (catalogChanged)
             update.ReplaceObject(tree.CatalogReference.ObjectNumber, catalogReplacement);
         byte[] prepared = update.Build(options.IncrementalWriteOptions);
-        FillSignature(prepared, options.ReservedSignatureSize,
+        FillSignature(prepared, document.Source.Length,
+            signatureReference.ObjectNumber, options.ReservedSignatureSize,
             createDetachedCms, evidenceRequirements, options.SignerCertificate);
         return prepared;
     }
@@ -1233,6 +1235,8 @@ public static class PdfDetachedSignatureWriter
 
     private static void FillSignature(
         byte[] prepared,
+        int sourceLength,
+        int signatureObjectNumber,
         int reservedSize,
         Func<ReadOnlyMemory<byte>, byte[]> createDetachedCms,
         SeedEvidenceRequirements evidenceRequirements,
@@ -1240,11 +1244,35 @@ public static class PdfDetachedSignatureWriter
     {
         byte[] rangeMarker = Encoding.ASCII.GetBytes(
             $"/ByteRange [{RangeSentinel1} {RangeSentinel2} {RangeSentinel3} {RangeSentinel4}]");
-        int rangeMarkerIndex = prepared.AsSpan().IndexOf(rangeMarker);
-        if (rangeMarkerIndex < 0)
+        PdfCrossReferenceTable crossReferences = PdfCrossReferenceTable.Read(prepared);
+        if (!crossReferences.TryGetValue(
+                signatureObjectNumber, out PdfCrossReferenceEntry signatureEntry)
+            || signatureEntry.Type != PdfCrossReferenceEntryType.InUse
+            || signatureEntry.Field2 != 0
+            || signatureEntry.Field1 < sourceLength
+            || signatureEntry.Field1 > int.MaxValue)
+            throw new InvalidOperationException(
+                "The appended signature object has no valid cross-reference entry.");
+        int signatureObjectIndex = checked((int)signatureEntry.Field1);
+        byte[] objectHeader = Encoding.ASCII.GetBytes(
+            $"{signatureObjectNumber} 0 obj\n");
+        if (!prepared.AsSpan(signatureObjectIndex).StartsWith(objectHeader))
+            throw new InvalidOperationException(
+                "The appended signature object header does not match its cross-reference entry.");
+        int relativeObjectEnd = prepared.AsSpan(signatureObjectIndex).IndexOf("\nendobj\n"u8);
+        if (relativeObjectEnd < 0)
+            throw new InvalidOperationException(
+                "The appended signature object has no terminator.");
+        ReadOnlySpan<byte> signatureObject = prepared.AsSpan(
+            signatureObjectIndex, relativeObjectEnd);
+        int relativeRangeIndex = signatureObject.IndexOf(rangeMarker);
+        if (relativeRangeIndex < 0)
             throw new InvalidOperationException("The signature byte-range placeholder was not found.");
+        int rangeMarkerIndex = checked(signatureObjectIndex + relativeRangeIndex);
         ReadOnlySpan<byte> contentsMarker = "/Contents <"u8;
-        int relativeContentsIndex = prepared.AsSpan(rangeMarkerIndex).IndexOf(contentsMarker);
+        int relativeContentsIndex = prepared.AsSpan(
+            rangeMarkerIndex, relativeObjectEnd - relativeRangeIndex)
+            .IndexOf(contentsMarker);
         if (relativeContentsIndex < 0)
             throw new InvalidOperationException("The signature contents placeholder was not found.");
         int contentsValueStart = rangeMarkerIndex + relativeContentsIndex
@@ -1528,12 +1556,8 @@ public static class PdfDetachedSignatureWriter
         return new PdfString(bytes, PdfStringForm.Hexadecimal);
     }
     private static string DecodeString(PdfString value)
-    {
-        ReadOnlySpan<byte> bytes = value.Bytes.Span;
-        return bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
-            ? PdfUnicodeEncoding.DecodeBigEndian(bytes[2..], "A signature text string")
-            : Encoding.Latin1.GetString(bytes);
-    }
+        => PdfUnicodeEncoding.DecodeTextString(
+            value.Bytes.Span, "A signature text string");
     private static string PdfDate(DateTimeOffset value)
     {
         TimeSpan offset = value.Offset;

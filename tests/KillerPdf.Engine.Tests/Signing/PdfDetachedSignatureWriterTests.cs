@@ -169,6 +169,26 @@ public sealed class PdfDetachedSignatureWriterTests
     }
 
     [Fact]
+    public void Sign_DoesNotPatchMatchingByteRangeTextInTheSourceRevision()
+    {
+        PdfDocument initial = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        var seed = new PdfIncrementalUpdateBuilder(initial);
+        seed.AddObject(new PdfString(
+            "/ByteRange [1111111111 2222222222 3333333333 4444444444]"u8,
+            PdfStringForm.Literal));
+        byte[] source = seed.Build();
+
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [0x30, 0x00],
+            new PdfSignatureOptions { ReservedSignatureSize = 16 });
+
+        Assert.True(signed.AsSpan(0, source.Length).SequenceEqual(source));
+        Assert.True(Assert.Single(PdfSignatureReader.Read(
+            PdfDocument.Open(signed))).HasValidByteRange);
+    }
+
+    [Fact]
     public void Sign_PreservesExistingFormFieldsAnnotationsAndFlags()
     {
         byte[] source = new PdfDocumentBuilder()

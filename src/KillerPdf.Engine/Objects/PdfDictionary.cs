@@ -8,9 +8,17 @@ public sealed class PdfDictionary : PdfObject, IReadOnlyDictionary<PdfName, PdfO
 
     public PdfDictionary(IEnumerable<KeyValuePair<PdfName, PdfObject>> entries)
     {
+        ArgumentNullException.ThrowIfNull(entries);
         _entries = new Dictionary<PdfName, PdfObject>();
         foreach ((PdfName key, PdfObject value) in entries)
         {
+            if (key is null)
+                throw new ArgumentException(
+                    "A PDF dictionary cannot contain a null key.", nameof(entries));
+            if (value is null)
+                throw new ArgumentException(
+                    "A PDF dictionary cannot contain a null object reference; use PdfNull.Instance.",
+                    nameof(entries));
             if (!_entries.TryAdd(key, value))
                 throw new ArgumentException($"The dictionary contains the duplicate key {key}.", nameof(entries));
         }

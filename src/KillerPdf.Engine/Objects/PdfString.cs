@@ -13,6 +13,9 @@ public sealed class PdfString : PdfObject
 
     public PdfString(ReadOnlySpan<byte> bytes, PdfStringForm form)
     {
+        if (!Enum.IsDefined(form))
+            throw new ArgumentOutOfRangeException(nameof(form),
+                "The PDF string form is not defined.");
         _bytes = bytes.ToArray();
         Form = form;
     }

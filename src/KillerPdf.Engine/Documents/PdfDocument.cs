@@ -218,6 +218,15 @@ public sealed class PdfDocument
             ObjectHeader header = headers[index];
             if (!objectNumbers.Add(header.ObjectNumber))
                 throw Error($"Object stream contains object {header.ObjectNumber} more than once", EntryOffset(entry));
+            if (!CrossReferences.TryGetValue(header.ObjectNumber,
+                    out PdfCrossReferenceEntry compressedEntry)
+                || compressedEntry.Type != PdfCrossReferenceEntryType.Compressed
+                || compressedEntry.Field1 != streamNumber
+                || compressedEntry.Field2 != index)
+                throw Error(
+                    $"Object stream header entry {index} for object {header.ObjectNumber} " +
+                    "does not match its compressed cross-reference entry",
+                    EntryOffset(entry));
 
             int start = checked(firstObjectOffset + header.RelativeOffset);
             int end = index + 1 < headers.Count

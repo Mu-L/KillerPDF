@@ -149,7 +149,9 @@ public static class PdfRoundTripValidator
                     continue;
                 int generation = entry.Type == PdfCrossReferenceEntryType.InUse
                     ? checked((int)entry.Field2) : 0;
-                result[(entry.ObjectNumber, generation)] = PdfObjectWriter.Write(value);
+                result[(entry.ObjectNumber, generation)] = PdfObjectWriter.Write(
+                    new PdfIndirectObject(
+                        entry.ObjectNumber, generation, value, offset: 0));
             }
             return result;
         }

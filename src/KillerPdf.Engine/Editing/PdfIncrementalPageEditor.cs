@@ -1,4 +1,5 @@
 using System.Text;
+using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Objects;
@@ -493,6 +494,7 @@ public sealed class PdfIncrementalPageEditor
         static void ValidateTransplantedForm(
             PdfDocument document, PdfDictionary form)
         {
+            ValidateAcroFormScalars(document, form, "A source /AcroForm");
             var fieldReferences = new HashSet<(int ObjectNumber, int Generation)>();
             AddFieldNames(document, form, new HashSet<string>(StringComparer.Ordinal),
                 retainedReferences: fieldReferences);
@@ -536,6 +538,8 @@ public sealed class PdfIncrementalPageEditor
             if (!form.TryGetValue(DefaultResourcesName, out PdfObject? resourceValue)) return;
             PdfDictionary resources = ResolveDictionary(
                 document, resourceValue, "An /AcroForm /DR value");
+            ValidateNestedPageResources(document, resources,
+                "An /AcroForm /DR", 0);
             foreach (var category in resources)
             {
                 PdfObject resolvedCategory = category.Value is PdfIndirectReference categoryReference
@@ -625,6 +629,8 @@ public sealed class PdfIncrementalPageEditor
 
         if (targetForm is not null)
         {
+            ValidateAcroFormScalars(_document, targetForm,
+                "The destination /AcroForm");
             var targetFieldReferences =
                 new HashSet<(int ObjectNumber, int Generation)>();
             AddFieldNames(_document, targetForm, fieldNames,
@@ -645,6 +651,8 @@ public sealed class PdfIncrementalPageEditor
                 group, out FormPruningPlan? pruningPlan);
             PdfDictionary form = isPartial ? pruningPlan!.Form : ResolveDictionary(source,
                 group[0].ImportedTree!.Catalog[AcroFormName], "The source /AcroForm");
+            ValidateAcroFormScalars(source, form,
+                "The source /AcroForm");
             var sourceFieldReferences =
                 new HashSet<(int ObjectNumber, int Generation)>();
             AddFieldNames(source, form, fieldNames,
@@ -778,6 +786,8 @@ public sealed class PdfIncrementalPageEditor
         {
             if (!form.TryGetValue(DefaultResourcesName, out PdfObject? value)) return;
             PdfDictionary resources = ResolveDictionary(document, value, "An /AcroForm /DR value");
+            ValidateNestedPageResources(document, resources,
+                "An /AcroForm /DR", 0);
             foreach (var category in resources)
             {
                 PdfObject categoryValue = category.Value is PdfIndirectReference reference
@@ -935,9 +945,23 @@ public sealed class PdfIncrementalPageEditor
                         "The destination name tree contains a null destination value.");
                 return false;
             }
-            if (resolved is PdfArray { Count: > 0 }) return true;
+            if (resolved is PdfArray array)
+            {
+                ValidateExplicitDestination(document, array,
+                    "A destination name-tree value");
+                return true;
+            }
             if (resolved is PdfDictionary dictionary
-                && dictionary.ContainsKey(DestinationName)) return true;
+                && dictionary.TryGetValue(DestinationName, out PdfObject? destination))
+            {
+                PdfArray dictionaryDestination = (destination is PdfIndirectReference destinationReference
+                        ? document.Resolve(destinationReference) : destination) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        "A destination name-tree dictionary /D value is not an array or resolves to null.");
+                ValidateExplicitDestination(document, dictionaryDestination,
+                    "A destination name-tree dictionary /D value");
+                return true;
+            }
             throw new InvalidOperationException(
                 "A destination name-tree value is neither a non-empty destination array nor a destination dictionary.");
         }
@@ -1142,6 +1166,8 @@ public sealed class PdfIncrementalPageEditor
             {
                 PdfDictionary field = value as PdfDictionary
                     ?? throw new InvalidOperationException("An AcroForm field is not a dictionary.");
+                ValidateFormFieldDictionary(document, field,
+                    "An AcroForm field");
                 if (referenceKey.HasValue)
                     retainedReferences?.Add(referenceKey.Value);
                 var path = new List<string>(parentPath);
@@ -1172,6 +1198,95 @@ public sealed class PdfIncrementalPageEditor
                 if (referenceKey.HasValue) active.Remove(referenceKey.Value);
             }
         }
+    }
+
+    private static void ValidateFormFieldDictionary(
+        PdfDocument document, PdfDictionary field, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (field.TryGetValue(FieldTypeName, out PdfObject? fieldType))
+        {
+            string type = (Resolve(fieldType) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /FT value is not a name.");
+            if (type is not ("Btn" or "Tx" or "Ch" or "Sig"))
+                throw new InvalidOperationException(
+                    $"{description} /FT value /{type} is not defined.");
+        }
+        foreach (string key in new[] { "TU", "TM", "DA" })
+            if (field.TryGetValue(Name(key), out PdfObject? text)
+                && Resolve(text) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not a string.");
+        if (field.TryGetValue(Name("Ff"), out PdfObject? flags)
+            && (Resolve(flags) is not PdfInteger flagValue || flagValue.Value < 0))
+            throw new InvalidOperationException(
+                $"{description} /Ff value is not a nonnegative integer.");
+        if (field.TryGetValue(QuaddingName, out PdfObject? quadding)
+            && (Resolve(quadding) is not PdfInteger quaddingValue
+                || quaddingValue.Value is < 0 or > 2))
+            throw new InvalidOperationException(
+                $"{description} /Q value is not an integer from 0 through 2.");
+        if (field.TryGetValue(Name("MaxLen"), out PdfObject? maximumLength)
+            && (Resolve(maximumLength) is not PdfInteger maximum
+                || maximum.Value < 0))
+            throw new InvalidOperationException(
+                $"{description} /MaxLen value is not a nonnegative integer.");
+        if (field.TryGetValue(Name("TI"), out PdfObject? topIndex)
+            && (Resolve(topIndex) is not PdfInteger top || top.Value < 0))
+            throw new InvalidOperationException(
+                $"{description} /TI value is not a nonnegative integer.");
+        if (field.TryGetValue(Name("Opt"), out PdfObject? optionsValue))
+        {
+            PdfArray options = Resolve(optionsValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /Opt value is not an array.");
+            foreach (PdfObject item in options)
+            {
+                PdfObject option = Resolve(item);
+                if (option is PdfString) continue;
+                if (option is not PdfArray pair || pair.Count != 2
+                    || pair.Any(value => Resolve(value) is not PdfString))
+                    throw new InvalidOperationException(
+                        $"{description} /Opt entry is not a string or two-string array.");
+            }
+        }
+        if (field.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+            && Resolve(subtype) is PdfName subtypeName
+            && subtypeName.ValueAsLatin1() == "Widget")
+        {
+            if (!field.TryGetValue(Name("Rect"), out PdfObject? rectangle)
+                || Resolve(rectangle) is not PdfArray box || box.Count != 4
+                || box.Any(item => Resolve(item) is not (PdfInteger or PdfReal)))
+                throw new InvalidOperationException(
+                    $"{description} widget has no four-number /Rect array.");
+        }
+    }
+
+    private static void ValidateAcroFormScalars(
+        PdfDocument document, PdfDictionary form, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (form.TryGetValue(DefaultAppearanceName, out PdfObject? appearance)
+            && Resolve(appearance) is not PdfString)
+            throw new InvalidOperationException(
+                $"{description} /DA value is not a string.");
+        if (form.TryGetValue(NeedAppearancesName, out PdfObject? needsAppearances)
+            && Resolve(needsAppearances) is not PdfBoolean)
+            throw new InvalidOperationException(
+                $"{description} /NeedAppearances value is not boolean.");
+        if (form.TryGetValue(SignatureFlagsName, out PdfObject? signatureFlags)
+            && (Resolve(signatureFlags) is not PdfInteger flags
+                || flags.Value < 0 || (flags.Value & ~3L) != 0))
+            throw new InvalidOperationException(
+                $"{description} /SigFlags value contains undefined bits.");
+        if (form.TryGetValue(QuaddingName, out PdfObject? quadding)
+            && (Resolve(quadding) is not PdfInteger quaddingValue
+                || quaddingValue.Value is < 0 or > 2))
+            throw new InvalidOperationException(
+                $"{description} /Q value is not an integer from 0 through 2.");
     }
 
     private static PdfDictionary TransformFormDictionary(
@@ -1430,9 +1545,23 @@ public sealed class PdfIncrementalPageEditor
                         "The destination catalog /Dests dictionary contains a null value.");
                 return false;
             }
-            if (resolved is PdfArray { Count: > 0 }) return true;
+            if (resolved is PdfArray array)
+            {
+                ValidateExplicitDestination(document, array,
+                    "A legacy named destination");
+                return true;
+            }
             if (resolved is PdfDictionary dictionary
-                && dictionary.ContainsKey(DestinationName)) return true;
+                && dictionary.TryGetValue(DestinationName, out PdfObject? destination))
+            {
+                PdfArray dictionaryDestination = (destination is PdfIndirectReference destinationReference
+                        ? document.Resolve(destinationReference) : destination) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        "A legacy named-destination dictionary /D value is not an array or resolves to null.");
+                ValidateExplicitDestination(document, dictionaryDestination,
+                    "A legacy named-destination dictionary /D value");
+                return true;
+            }
             throw new InvalidOperationException(
                 "A legacy named destination is neither a non-empty destination array nor a destination dictionary.");
         }
@@ -1525,6 +1654,8 @@ public sealed class PdfIncrementalPageEditor
                     if (resolved is not PdfDictionary)
                         throw new InvalidOperationException(
                             "An embedded-files name-tree value is not a file-specification dictionary.");
+                    ValidateFileSpecification(document, entry.Value,
+                        "An embedded-files name-tree value");
                     PdfString key = entry.Key;
                     if (importer is null
                         && !keys.Add(Convert.ToBase64String(key.Bytes.Span)))
@@ -1579,6 +1710,7 @@ public sealed class PdfIncrementalPageEditor
                     if (resolved is not PdfDictionary)
                         throw new InvalidOperationException(
                             "A catalog /AF entry is not a file-specification dictionary.");
+                    ValidateFileSpecification(document, value, "A catalog /AF entry");
                     associated.Add(importer?.Import(value) ?? value);
                 }
             }
@@ -1645,11 +1777,673 @@ public sealed class PdfIncrementalPageEditor
                         && document.Resolve(reference) is PdfNull)
                         throw new InvalidOperationException(
                             $"The {owner} /Names /{category.ValueAsLatin1()} name tree contains a stale value reference.");
+                    ValidateStandardValue(entry.Value, document,
+                        $"The {owner} /Names /{category.ValueAsLatin1()} name-tree value");
                     if (!keys.Add(Convert.ToBase64String(entry.Key.Bytes.Span)))
                         throw new NotSupportedException(
                             $"The /Names /{category.ValueAsLatin1()} name tree contains a duplicate key across merged documents.");
                     entries.Add(new PdfNameTreeEntry(
                         entry.Key, importer?.Import(entry.Value) ?? entry.Value));
+                }
+            }
+
+            void ValidateStandardValue(
+                PdfObject value, PdfDocument document, string description)
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? document.Resolve(reference) : value;
+                string categoryName = category.ValueAsLatin1();
+                if (categoryName == "JavaScript")
+                {
+                    PdfDictionary action = resolved as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} is not a JavaScript action dictionary.");
+                    if (!action.TryGetValue(Name("S"), out PdfObject? subtype)
+                        || Resolve(subtype) is not PdfName subtypeName
+                        || subtypeName.ValueAsLatin1() != "JavaScript")
+                        throw new InvalidOperationException(
+                            $"{description} has no /S /JavaScript value.");
+                    ValidateActionGraph(document, value, description);
+                    return;
+                }
+                if (categoryName == "AP")
+                {
+                    if (value is not PdfIndirectReference || resolved is not PdfStream stream)
+                        throw new InvalidOperationException(
+                            $"{description} is not an indirect appearance stream.");
+                    ValidatePageXObject(document, stream, description);
+                    if (!stream.Dictionary.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+                        || Resolve(subtype) is not PdfName subtypeName
+                        || subtypeName.ValueAsLatin1() != "Form")
+                        throw new InvalidOperationException(
+                            $"{description} is not a Form XObject stream.");
+                    return;
+                }
+                if (categoryName is "Pages" or "Templates")
+                {
+                    if (value is not PdfIndirectReference
+                        || resolved is not PdfDictionary page
+                        || !page.TryGetValue(TypeName, out PdfObject? type)
+                        || Resolve(type) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "Page")
+                        throw new InvalidOperationException(
+                            $"{description} is not an indirect page dictionary.");
+                    return;
+                }
+                if (categoryName is "IDS" or "URLS")
+                {
+                    ValidateWebCaptureContentSet(resolved, document, description);
+                    return;
+                }
+                if (categoryName == "AlternatePresentations")
+                {
+                    ValidateAlternatePresentation(resolved, document, description);
+                    return;
+                }
+                if (categoryName == "Renditions")
+                    ValidateNamedRendition(resolved, document, description);
+                return;
+
+                PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+                    ? document.Resolve(reference) : item;
+            }
+
+            static void ValidateWebCaptureContentSet(
+                PdfObject value, PdfDocument document, string description)
+            {
+                PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+                    ? document.Resolve(reference) : item;
+                PdfDictionary set = value as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} is not a Web Capture content-set dictionary.");
+                if (set.TryGetValue(TypeName, out PdfObject? type)
+                    && (Resolve(type) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "SpiderContentSet"))
+                    throw new InvalidOperationException(
+                        $"{description} has an invalid /Type value.");
+                if (!set.TryGetValue(Name("S"), out PdfObject? subtype)
+                    || Resolve(subtype) is not PdfName subtypeName
+                    || subtypeName.ValueAsLatin1() is not ("SPS" or "SIS"))
+                    throw new InvalidOperationException(
+                        $"{description} has no defined /S content-set subtype.");
+                if (!set.TryGetValue(Name("ID"), out PdfObject? identifier)
+                    || Resolve(identifier) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} has no byte-string /ID value.");
+                if (!set.TryGetValue(Name("O"), out PdfObject? objectsValue)
+                    || Resolve(objectsValue) is not PdfArray objects)
+                    throw new InvalidOperationException(
+                        $"{description} has no /O object array.");
+                foreach (PdfObject item in objects)
+                {
+                    if (item is not PdfIndirectReference reference)
+                        throw new InvalidOperationException(
+                            $"{description} /O entry is not an indirect reference.");
+                    PdfObject member = Resolve(reference);
+                    bool validMember = subtypeName.ValueAsLatin1() == "SPS"
+                        ? member is PdfDictionary page
+                            && page.TryGetValue(TypeName, out PdfObject? pageType)
+                            && Resolve(pageType) is PdfName pageTypeName
+                            && pageTypeName.ValueAsLatin1() == "Page"
+                        : member is PdfStream image
+                            && image.Dictionary.TryGetValue(Name("Subtype"), out PdfObject? imageType)
+                            && Resolve(imageType) is PdfName imageTypeName
+                            && imageTypeName.ValueAsLatin1() == "Image";
+                    if (!validMember)
+                        throw new InvalidOperationException(
+                            $"{description} /O entry is not a valid {subtypeName.ValueAsLatin1()} member.");
+                }
+                if (!set.TryGetValue(Name("SI"), out PdfObject? sourcesValue))
+                    throw new InvalidOperationException(
+                        $"{description} has no /SI source information.");
+                PdfObject sources = Resolve(sourcesValue);
+                if (sources is not PdfDictionary
+                    && (sources is not PdfArray sourceArray
+                        || sourceArray.Count == 0
+                        || sourceArray.Any(item => Resolve(item) is not PdfDictionary)))
+                    throw new InvalidOperationException(
+                        $"{description} /SI value is not a source-information dictionary or nonempty dictionary array.");
+                IEnumerable<PdfDictionary> sourceInformation = sources is PdfDictionary singleSource
+                    ? [singleSource]
+                    : ((PdfArray)sources).Select(item => (PdfDictionary)Resolve(item));
+                foreach (PdfDictionary source in sourceInformation)
+                {
+                    if (!source.TryGetValue(Name("AU"), out PdfObject? aliasesValue))
+                        throw new InvalidOperationException(
+                            $"{description} /SI entry has no /AU URL value.");
+                    PdfObject aliases = Resolve(aliasesValue);
+                    if (aliases is not PdfString)
+                    {
+                        PdfDictionary alias = aliases as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} /SI /AU value is not a string or URL-alias dictionary.");
+                        if (!alias.TryGetValue(Name("U"), out PdfObject? destinationUrl)
+                            || Resolve(destinationUrl) is not PdfString)
+                            throw new InvalidOperationException(
+                                $"{description} /SI /AU dictionary has no /U string.");
+                        if (alias.TryGetValue(Name("C"), out PdfObject? chainsValue))
+                        {
+                            PdfArray chains = Resolve(chainsValue) as PdfArray
+                                ?? throw new InvalidOperationException(
+                                    $"{description} /SI /AU /C value is not an array.");
+                            if (chains.Count == 0 || chains.Any(chainValue =>
+                                Resolve(chainValue) is not PdfArray chain || chain.Count == 0
+                                || chain.Any(url => Resolve(url) is not PdfString)))
+                                throw new InvalidOperationException(
+                                    $"{description} /SI /AU /C value is not a nonempty array of nonempty string arrays.");
+                        }
+                    }
+                    foreach (string key in new[] { "TS", "E" })
+                        if (source.TryGetValue(Name(key), out PdfObject? date))
+                            ValidatePdfDateString(Resolve(date),
+                                $"{description} /SI /{key} value");
+                    if (source.TryGetValue(Name("S"), out PdfObject? submission)
+                        && (subtypeName.ValueAsLatin1() != "SPS"
+                            || Resolve(submission) is not PdfInteger submissionType
+                            || submissionType.Value is < 0 or > 2))
+                        throw new InvalidOperationException(
+                            $"{description} /SI /S value is not a page-set submission code from 0 through 2.");
+                    if (source.TryGetValue(Name("C"), out PdfObject? commandValue))
+                    {
+                        if (subtypeName.ValueAsLatin1() != "SPS"
+                            || commandValue is not PdfIndirectReference
+                            || Resolve(commandValue) is not PdfDictionary command)
+                            throw new InvalidOperationException(
+                                $"{description} /SI /C value is not an indirect page-set command dictionary.");
+                        if (!command.TryGetValue(Name("URL"), out PdfObject? url)
+                            || Resolve(url) is not PdfString)
+                            throw new InvalidOperationException(
+                                $"{description} /SI /C command has no /URL string.");
+                        foreach (string key in new[] { "L", "F" })
+                            if (command.TryGetValue(Name(key), out PdfObject? number)
+                                && Resolve(number) is not PdfInteger)
+                                throw new InvalidOperationException(
+                                    $"{description} /SI /C command /{key} value is not an integer.");
+                        if (command.TryGetValue(Name("P"), out PdfObject? postData)
+                            && Resolve(postData) is not (PdfString or PdfStream))
+                            throw new InvalidOperationException(
+                                $"{description} /SI /C command /P value is not a string or stream.");
+                        foreach (string key in new[] { "CT", "H" })
+                            if (command.TryGetValue(Name(key), out PdfObject? text)
+                                && Resolve(text) is not PdfString)
+                                throw new InvalidOperationException(
+                                    $"{description} /SI /C command /{key} value is not a string.");
+                    }
+                }
+                foreach (string key in new[] { "CT", "T", "TID" })
+                    if (set.TryGetValue(Name(key), out PdfObject? text)
+                        && Resolve(text) is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{description} /{key} value is not a string.");
+                if (set.TryGetValue(Name("TS"), out PdfObject? timestamp))
+                    ValidatePdfDateString(Resolve(timestamp),
+                        $"{description} /TS value");
+                if (subtypeName.ValueAsLatin1() == "SIS")
+                {
+                    if (!set.TryGetValue(Name("R"), out PdfObject? countsValue))
+                        throw new InvalidOperationException(
+                            $"{description} image set has no /R reference count.");
+                    PdfObject counts = Resolve(countsValue);
+                    bool validCounts = counts is PdfInteger count && count.Value >= 0
+                        && objects.Count == 1
+                        || counts is PdfArray countArray
+                        && countArray.Count == objects.Count
+                        && countArray.All(item => Resolve(item) is PdfInteger itemCount
+                            && itemCount.Value >= 0);
+                    if (!validCounts)
+                        throw new InvalidOperationException(
+                            $"{description} image set has invalid /R reference counts.");
+                }
+            }
+
+            static void ValidateAlternatePresentation(
+                PdfObject value, PdfDocument document, string description)
+            {
+                PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+                    ? document.Resolve(reference) : item;
+                PdfDictionary presentation = value as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} is not a slideshow dictionary.");
+                if (!presentation.TryGetValue(TypeName, out PdfObject? type)
+                    || Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "SlideShow")
+                    throw new InvalidOperationException(
+                        $"{description} has no /Type /SlideShow value.");
+                if (!presentation.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+                    || Resolve(subtype) is not PdfName subtypeName
+                    || subtypeName.ValueAsLatin1() != "Embedded")
+                    throw new InvalidOperationException(
+                        $"{description} has no /Subtype /Embedded value.");
+                if (!presentation.TryGetValue(Name("Resources"), out PdfObject? resourcesValue))
+                    throw new InvalidOperationException(
+                        $"{description} has no /Resources name tree.");
+                IReadOnlyList<PdfNameTreeEntry> resources =
+                    PdfNameTree.Read(document, resourcesValue);
+                if (resources.Count == 0)
+                    throw new InvalidOperationException(
+                        $"{description} /Resources name tree is empty.");
+                foreach (PdfNameTreeEntry resource in resources)
+                {
+                    PdfObject resolvedResource = Resolve(resource.Value);
+                    PdfDictionary? resourceDictionary = resolvedResource switch
+                    {
+                        PdfDictionary dictionary => dictionary,
+                        PdfStream stream => stream.Dictionary,
+                        _ => null
+                    };
+                    if (resource.Value is not PdfIndirectReference
+                        || resourceDictionary is null
+                        || !resourceDictionary.TryGetValue(
+                            TypeName, out PdfObject? resourceType)
+                        || Resolve(resourceType!) is not PdfName)
+                        throw new InvalidOperationException(
+                            $"{description} /Resources entry is not an indirect typed object.");
+                }
+                if (!presentation.TryGetValue(Name("StartResource"), out PdfObject? startValue)
+                    || Resolve(startValue) is not PdfString start)
+                    throw new InvalidOperationException(
+                        $"{description} has no byte-string /StartResource value.");
+                if (!resources.Any(resource =>
+                        resource.Key.Bytes.Span.SequenceEqual(start.Bytes.Span)))
+                    throw new InvalidOperationException(
+                        $"{description} /StartResource does not name a resource.");
+            }
+
+            static void ValidateNamedRendition(
+                PdfObject value, PdfDocument document, string description,
+                int depth = 0)
+            {
+                if (depth > 32)
+                    throw new NotSupportedException(
+                        $"{description} selector graph is too deeply nested.");
+                PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+                    ? document.Resolve(reference) : item;
+                PdfDictionary rendition = value as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} is not a rendition dictionary.");
+                if (rendition.TryGetValue(TypeName, out PdfObject? type)
+                    && (Resolve(type) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "Rendition"))
+                    throw new InvalidOperationException(
+                        $"{description} has an invalid /Type value.");
+                if (!rendition.TryGetValue(Name("S"), out PdfObject? subtype)
+                    || Resolve(subtype) is not PdfName subtypeName
+                    || subtypeName.ValueAsLatin1() is not ("MR" or "SR"))
+                    throw new InvalidOperationException(
+                        $"{description} has no defined /S rendition subtype.");
+                if (rendition.TryGetValue(Name("N"), out PdfObject? title)
+                    && Resolve(title) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /N value is not a string.");
+                foreach (string key in new[] { "MH", "BE" })
+                {
+                    if (!rendition.TryGetValue(Name(key), out PdfObject? viabilityValue))
+                        continue;
+                    PdfDictionary viability = Resolve(viabilityValue) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} /{key} value is not a dictionary.");
+                    if (!viability.TryGetValue(Name("C"), out PdfObject? criteriaValue))
+                        continue;
+                    PdfDictionary criteria = Resolve(criteriaValue) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} /{key} /C value is not a media-criteria dictionary.");
+                    if (criteria.TryGetValue(TypeName, out PdfObject? criteriaType)
+                        && (Resolve(criteriaType) is not PdfName criteriaTypeName
+                            || criteriaTypeName.ValueAsLatin1() != "MediaCriteria"))
+                        throw new InvalidOperationException(
+                            $"{description} /{key} /C has an invalid /Type value.");
+                    foreach (string flag in new[] { "A", "C", "O", "S" })
+                        if (criteria.TryGetValue(Name(flag), out PdfObject? flagValue)
+                            && Resolve(flagValue) is not PdfBoolean)
+                            throw new InvalidOperationException(
+                                $"{description} /{key} /C /{flag} value is not boolean.");
+                }
+                if (subtypeName.ValueAsLatin1() == "SR")
+                {
+                    if (!rendition.TryGetValue(Name("R"), out PdfObject? choicesValue)
+                        || Resolve(choicesValue) is not PdfArray choices)
+                        throw new InvalidOperationException(
+                            $"{description} selector rendition has no /R array.");
+                    foreach (PdfObject choice in choices)
+                        ValidateNamedRendition(Resolve(choice), document,
+                            $"{description} /R entry", depth + 1);
+                    return;
+                }
+                bool hasClip = rendition.TryGetValue(Name("C"), out PdfObject? clipValue);
+                bool hasPlayParameters = rendition.TryGetValue(
+                    Name("P"), out PdfObject? playValue);
+                if (!hasClip && !hasPlayParameters)
+                    throw new InvalidOperationException(
+                        $"{description} media rendition has neither /C nor /P dictionary.");
+                if (hasPlayParameters)
+                    ValidatePlayParameters(playValue!);
+                if (rendition.TryGetValue(Name("SP"), out PdfObject? screenValue))
+                    ValidateScreenParameters(screenValue);
+                if (!hasClip) return;
+                PdfDictionary clip = Resolve(clipValue!) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /C value is not a media-clip dictionary.");
+                if (clip.TryGetValue(TypeName, out PdfObject? clipType)
+                    && (Resolve(clipType) is not PdfName clipTypeName
+                        || clipTypeName.ValueAsLatin1() != "MediaClip"))
+                    throw new InvalidOperationException(
+                        $"{description} /C has an invalid /Type value.");
+                if (!clip.TryGetValue(Name("S"), out PdfObject? clipSubtype)
+                    || Resolve(clipSubtype) is not PdfName clipSubtypeName
+                    || clipSubtypeName.ValueAsLatin1() is not ("MCD" or "MCS"))
+                    throw new InvalidOperationException(
+                        $"{description} /C has no defined /S media-clip subtype.");
+                if (clip.TryGetValue(Name("N"), out PdfObject? clipName)
+                    && Resolve(clipName) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /C /N value is not a string.");
+                if (clipSubtypeName.ValueAsLatin1() == "MCD")
+                {
+                    if (!clip.TryGetValue(Name("D"), out PdfObject? data))
+                        throw new InvalidOperationException(
+                            $"{description} /C media-clip data has no file specification or stream /D value.");
+                    PdfObject resolvedData = Resolve(data);
+                    if (resolvedData is PdfStream dataStream)
+                        ValidatePageXObject(document, dataStream,
+                            $"{description} /C /D media XObject");
+                    else if (resolvedData is PdfDictionary)
+                        ValidateFileSpecification(document, data,
+                            $"{description} /C /D file specification");
+                    else
+                        throw new InvalidOperationException(
+                            $"{description} /C media-clip data has no file specification or stream /D value.");
+                    if (clip.TryGetValue(Name("CT"), out PdfObject? contentType)
+                        && Resolve(contentType) is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{description} /C /CT value is not a string.");
+                    if (clip.TryGetValue(Name("P"), out PdfObject? permissions))
+                        ValidateMediaPermissions(permissions,
+                            $"{description} /C /P value");
+                    if (clip.TryGetValue(Name("Alt"), out PdfObject? alternate)
+                        && (Resolve(alternate) is not PdfArray alternateArray
+                            || alternateArray.Count % 2 != 0
+                            || alternateArray.Any(item => Resolve(item) is not PdfString)))
+                        throw new InvalidOperationException(
+                            $"{description} /C /Alt value is not a language and text string-pair array.");
+                }
+                else
+                {
+                    if (!clip.TryGetValue(Name("D"), out PdfObject? parentClip)
+                        || Resolve(parentClip) is not PdfDictionary)
+                        throw new InvalidOperationException(
+                            $"{description} /C media-clip section has no parent clip /D dictionary.");
+                    foreach (string key in new[] { "MH", "BE" })
+                    {
+                        if (!clip.TryGetValue(Name(key), out PdfObject? sectionValue))
+                            continue;
+                        PdfDictionary section = Resolve(sectionValue) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} /C /{key} value is not a dictionary.");
+                        foreach (string offsetKey in new[] { "B", "E" })
+                            if (section.TryGetValue(Name(offsetKey), out PdfObject? offset))
+                                ValidateMediaOffset(offset,
+                                    $"{description} /C /{key} /{offsetKey} value");
+                    }
+                }
+
+                void ValidatePlayParameters(PdfObject value)
+                {
+                    PdfDictionary parameters = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} /P value is not a media-play-parameters dictionary.");
+                    if (parameters.TryGetValue(TypeName, out PdfObject? type)
+                        && (Resolve(type) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "MediaPlayParams"))
+                        throw new InvalidOperationException(
+                            $"{description} /P has an invalid /Type value.");
+                    if (parameters.TryGetValue(Name("PL"), out PdfObject? players))
+                        ValidateMediaPlayers(players,
+                            $"{description} /P /PL value");
+                    foreach (string key in new[] { "MH", "BE" })
+                    {
+                        if (!parameters.TryGetValue(Name(key), out PdfObject? optionsValue))
+                            continue;
+                        PdfDictionary options = Resolve(optionsValue) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} /P /{key} value is not a dictionary.");
+                        if (options.TryGetValue(Name("V"), out PdfObject? volume)
+                            && (Resolve(volume) is not PdfInteger volumeValue
+                                || volumeValue.Value < 0))
+                            throw new InvalidOperationException(
+                                $"{description} /P /{key} /V value is not a nonnegative integer.");
+                        foreach (string flag in new[] { "C", "A" })
+                            if (options.TryGetValue(Name(flag), out PdfObject? flagValue)
+                                && Resolve(flagValue) is not PdfBoolean)
+                                throw new InvalidOperationException(
+                                    $"{description} /P /{key} /{flag} value is not boolean.");
+                        if (options.TryGetValue(Name("F"), out PdfObject? fit)
+                            && (Resolve(fit) is not PdfInteger fitValue
+                                || fitValue.Value is < 0 or > 5))
+                            throw new InvalidOperationException(
+                                $"{description} /P /{key} /F value is not an integer from 0 through 5.");
+                        if (options.TryGetValue(Name("RC"), out PdfObject? repeats)
+                            && (!TryNumber(Resolve(repeats), out double repeatCount)
+                                || !double.IsFinite(repeatCount) || repeatCount < 0))
+                            throw new InvalidOperationException(
+                                $"{description} /P /{key} /RC value is not a nonnegative finite number.");
+                        if (options.TryGetValue(Name("D"), out PdfObject? duration))
+                            ValidateMediaDuration(duration,
+                                $"{description} /P /{key} /D value");
+                    }
+                }
+
+                void ValidateScreenParameters(PdfObject value)
+                {
+                    PdfDictionary parameters = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} /SP value is not a media-screen-parameters dictionary.");
+                    if (parameters.TryGetValue(TypeName, out PdfObject? type)
+                        && (Resolve(type) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "MediaScreenParams"))
+                        throw new InvalidOperationException(
+                            $"{description} /SP has an invalid /Type value.");
+                    foreach (string key in new[] { "MH", "BE" })
+                    {
+                        if (!parameters.TryGetValue(Name(key), out PdfObject? optionsValue))
+                            continue;
+                        PdfDictionary options = Resolve(optionsValue) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} /SP /{key} value is not a dictionary.");
+                        long window = 3;
+                        if (options.TryGetValue(Name("W"), out PdfObject? windowValue))
+                        {
+                            if (Resolve(windowValue) is not PdfInteger windowType
+                                || windowType.Value is < 0 or > 3)
+                                throw new InvalidOperationException(
+                                    $"{description} /SP /{key} /W value is not an integer from 0 through 3.");
+                            window = windowType.Value;
+                        }
+                        if (options.TryGetValue(Name("B"), out PdfObject? background)
+                            && (Resolve(background) is not PdfArray color || color.Count != 3
+                                || color.Any(component =>
+                                    !TryNumber(Resolve(component), out double number)
+                                    || !double.IsFinite(number) || number is < 0 or > 1)))
+                            throw new InvalidOperationException(
+                                $"{description} /SP /{key} /B value is not a valid RGB array.");
+                        if (options.TryGetValue(Name("O"), out PdfObject? opacity)
+                            && (!TryNumber(Resolve(opacity), out double alpha)
+                                || !double.IsFinite(alpha) || alpha is < 0 or > 1))
+                            throw new InvalidOperationException(
+                                $"{description} /SP /{key} /O value is not a number from 0 through 1.");
+                        if (options.TryGetValue(Name("M"), out PdfObject? monitor)
+                            && Resolve(monitor) is not PdfInteger)
+                            throw new InvalidOperationException(
+                                $"{description} /SP /{key} /M value is not an integer.");
+                        if (window == 0 && (!options.TryGetValue(Name("F"), out PdfObject? floating)
+                            || Resolve(floating) is not PdfDictionary))
+                            throw new InvalidOperationException(
+                                $"{description} /SP /{key} floating window has no /F dictionary.");
+                    }
+                }
+
+                void ValidateMediaPlayers(PdfObject value, string valueDescription)
+                {
+                    PdfDictionary players = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{valueDescription} is not a media-players dictionary.");
+                    if (players.TryGetValue(TypeName, out PdfObject? type)
+                        && (Resolve(type) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "MediaPlayers"))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has an invalid /Type value.");
+                    foreach (string key in new[] { "MU", "A", "NU" })
+                    {
+                        if (!players.TryGetValue(Name(key), out PdfObject? listValue))
+                            continue;
+                        PdfArray list = Resolve(listValue) as PdfArray
+                            ?? throw new InvalidOperationException(
+                                $"{valueDescription} /{key} value is not an array.");
+                        foreach (PdfObject entryValue in list)
+                        {
+                            PdfDictionary entry = Resolve(entryValue) as PdfDictionary
+                                ?? throw new InvalidOperationException(
+                                    $"{valueDescription} /{key} entry is not a media-player-info dictionary.");
+                            if (entry.TryGetValue(TypeName, out PdfObject? entryType)
+                                && (Resolve(entryType) is not PdfName entryTypeName
+                                    || entryTypeName.ValueAsLatin1() != "MediaPlayerInfo"))
+                                throw new InvalidOperationException(
+                                    $"{valueDescription} /{key} entry has an invalid /Type value.");
+                            if (!entry.TryGetValue(Name("PID"), out PdfObject? playerId)
+                                || Resolve(playerId) is not PdfString)
+                                throw new InvalidOperationException(
+                                    $"{valueDescription} /{key} entry has no /PID string.");
+                            foreach (string optionKey in new[] { "MH", "BE" })
+                            {
+                                if (!entry.TryGetValue(Name(optionKey), out PdfObject? optionValue))
+                                    continue;
+                                PdfDictionary options = Resolve(optionValue) as PdfDictionary
+                                    ?? throw new InvalidOperationException(
+                                        $"{valueDescription} /{key} entry /{optionKey} value is not a dictionary.");
+                                if (options.TryGetValue(Name("V"), out PdfObject? versions)
+                                    && (Resolve(versions) is not PdfArray versionArray
+                                        || versionArray.Any(item => Resolve(item) is not PdfString)))
+                                    throw new InvalidOperationException(
+                                        $"{valueDescription} /{key} entry /{optionKey} /V value is not a string array.");
+                                if (options.TryGetValue(Name("O"), out PdfObject? systems)
+                                    && (Resolve(systems) is not PdfArray systemArray
+                                        || systemArray.Any(item => Resolve(item) is not PdfName)))
+                                    throw new InvalidOperationException(
+                                        $"{valueDescription} /{key} entry /{optionKey} /O value is not a name array.");
+                            }
+                        }
+                    }
+                }
+
+                void ValidateMediaPermissions(PdfObject value, string valueDescription)
+                {
+                    PdfDictionary permissions = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{valueDescription} is not a media-permissions dictionary.");
+                    if (permissions.TryGetValue(TypeName, out PdfObject? type)
+                        && (Resolve(type) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "MediaPermissions"))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has an invalid /Type value.");
+                    if (permissions.TryGetValue(Name("TF"), out PdfObject? temporaryAccess)
+                        && (Resolve(temporaryAccess) is not PdfName accessName
+                            || accessName.ValueAsLatin1() is not
+                                ("TEMPNEVER" or "TEMPEXTRACT" or "TEMPACCESS" or "TEMPALWAYS")))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} /TF value is not a defined temporary-access name.");
+                }
+
+                static bool TryNumber(PdfObject item, out double number)
+                {
+                    if (item is PdfInteger integer) { number = integer.Value; return true; }
+                    if (item is PdfReal real) { number = real.Value; return true; }
+                    number = 0;
+                    return false;
+                }
+
+                void ValidateMediaDuration(PdfObject value, string valueDescription)
+                {
+                    PdfDictionary duration = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{valueDescription} is not a media-duration dictionary.");
+                    if (duration.TryGetValue(TypeName, out PdfObject? type)
+                        && (Resolve(type) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "MediaDuration"))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has an invalid /Type value.");
+                    if (!duration.TryGetValue(Name("S"), out PdfObject? subtype)
+                        || Resolve(subtype) is not PdfName subtypeName
+                        || subtypeName.ValueAsLatin1() is not ("I" or "F" or "T"))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has no defined /S duration subtype.");
+                    if (subtypeName.ValueAsLatin1() == "T")
+                    {
+                        if (!duration.TryGetValue(Name("T"), out PdfObject? timespan))
+                            throw new InvalidOperationException(
+                                $"{valueDescription} explicit duration has no /T timespan.");
+                        ValidateTimespan(timespan,
+                            $"{valueDescription} /T value", allowNegative: false);
+                    }
+                }
+
+                void ValidateMediaOffset(PdfObject value, string valueDescription)
+                {
+                    PdfDictionary offset = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{valueDescription} is not a media-offset dictionary.");
+                    if (offset.TryGetValue(TypeName, out PdfObject? type)
+                        && (Resolve(type) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "MediaOffset"))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has an invalid /Type value.");
+                    if (!offset.TryGetValue(Name("S"), out PdfObject? subtype)
+                        || Resolve(subtype) is not PdfName subtypeName
+                        || subtypeName.ValueAsLatin1() is not ("T" or "F" or "M"))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has no defined /S offset subtype.");
+                    string subtypeText = subtypeName.ValueAsLatin1();
+                    if (subtypeText == "T")
+                    {
+                        if (!offset.TryGetValue(Name("T"), out PdfObject? timespan))
+                            throw new InvalidOperationException(
+                                $"{valueDescription} has no /T timespan.");
+                        ValidateTimespan(timespan,
+                            $"{valueDescription} /T value", allowNegative: false);
+                    }
+                    else if (subtypeText == "F"
+                        && (!offset.TryGetValue(Name("F"), out PdfObject? frame)
+                            || Resolve(frame) is not PdfInteger frameNumber
+                            || frameNumber.Value < 0))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has no nonnegative /F frame number.");
+                    else if (subtypeText == "M"
+                        && (!offset.TryGetValue(Name("M"), out PdfObject? marker)
+                            || Resolve(marker) is not PdfString))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has no /M marker string.");
+                }
+
+                void ValidateTimespan(
+                    PdfObject value, string valueDescription, bool allowNegative)
+                {
+                    PdfDictionary timespan = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{valueDescription} is not a timespan dictionary.");
+                    if (timespan.TryGetValue(TypeName, out PdfObject? type)
+                        && (Resolve(type) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "Timespan"))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has an invalid /Type value.");
+                    if (!timespan.TryGetValue(Name("S"), out PdfObject? subtype)
+                        || Resolve(subtype) is not PdfName subtypeName
+                        || subtypeName.ValueAsLatin1() != "S")
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has no /S /S value.");
+                    if (!timespan.TryGetValue(Name("V"), out PdfObject? seconds)
+                        || !TryNumber(Resolve(seconds), out double valueSeconds)
+                        || !double.IsFinite(valueSeconds)
+                        || !allowNegative && valueSeconds < 0)
+                        throw new InvalidOperationException(
+                            $"{valueDescription} has no valid finite /V seconds value.");
                 }
             }
         }
@@ -1804,6 +2598,8 @@ public sealed class PdfIncrementalPageEditor
             if (resolvedPageMode is not PdfName)
                 throw new InvalidOperationException(
                     "A source catalog /PageMode value is not a name or resolves to null.");
+            ValidateCatalogPageMode(resolvedPageMode,
+                "A source catalog /PageMode value");
             catalogReplacements[PageModeName] =
                 importers[outlineGroups[0][0]].Import(pageMode);
         }
@@ -1895,6 +2691,13 @@ public sealed class PdfIncrementalPageEditor
                 ValidateValue(Name("C"), value => value is PdfArray array
                     && array.All(component => component is PdfInteger or PdfReal),
                     "a numeric array");
+                if (item.TryGetValue(Name("Dest"), out PdfObject? destination)
+                    && Resolve(destination) is PdfArray destinationArray)
+                    ValidateExplicitDestination(document, destinationArray,
+                        $"A {owner} bookmark /Dest value");
+                if (item.TryGetValue(Name("A"), out PdfObject? action))
+                    ValidateActionGraph(document, action,
+                        $"A {owner} bookmark /A value");
                 VisitList(item, depth + 1);
                 if (identity == OutlineKey(last)) break;
                 current = item.TryGetValue(NextName, out PdfObject? next)
@@ -2018,6 +2821,7 @@ public sealed class PdfIncrementalPageEditor
             ? rewriteState?.Root ?? ResolveDictionary(
                 _document, targetRootValue!, "The destination /StructTreeRoot")
             : Dictionary(("Type", Name("StructTreeRoot")));
+        ValidateStructureRootType(targetRoot, "destination");
         PdfIndirectReference targetRootReference;
         bool targetRootIsNew = false;
         if (targetRootValue is PdfIndirectReference existingReference)
@@ -2093,7 +2897,7 @@ public sealed class PdfIncrementalPageEditor
                 }
                 targetDocument = candidate;
                 if (candidate.TryGetValue(StructureKidsName, out PdfObject? documentKids))
-                    targetDocumentKids.AddRange(StructureKids(
+                    targetDocumentKids.AddRange(StructureElementKids(
                         _document, documentKids, "The destination Document-element kids"));
             }
         }
@@ -2102,6 +2906,8 @@ public sealed class PdfIncrementalPageEditor
             namespaces.AddRange(ReadOptionalDictionaryArray(
                 _document, targetRoot, NamespacesName,
                 "The destination /StructTreeRoot /Namespaces", rejectNull: true));
+        foreach (PdfObject namespaceValue in namespaces)
+            ValidateNamespace(_document, namespaceValue, "destination");
         var roleEntries = targetRoot.TryGetValue(RoleMapName, out PdfObject? targetRoleMap)
             ? ValidateRoleMap(_document, ResolveDictionary(_document, targetRoleMap,
                 "The destination /StructTreeRoot /RoleMap"), "destination").ToList()
@@ -2125,6 +2931,12 @@ public sealed class PdfIncrementalPageEditor
         var pronunciationLexicons = ReadOptionalDictionaryArray(
             _document, targetRoot, PronunciationLexiconName,
             "The destination /StructTreeRoot /PronunciationLexicon", rejectNull: true);
+        foreach (PdfObject file in structureAssociatedFiles)
+            ValidateFileSpecification(
+                _document, file, "A destination /StructTreeRoot /AF entry");
+        foreach (PdfObject file in pronunciationLexicons)
+            ValidateFileSpecification(
+                _document, file, "A destination /StructTreeRoot /PronunciationLexicon entry");
         PdfName[] supportedSourceRootKeys =
         [TypeName, StructureKidsName, ParentTreeName, ParentTreeNextKeyName,
             NamespacesName, RoleMapName, ClassMapName, IdTreeName,
@@ -2148,6 +2960,7 @@ public sealed class PdfIncrementalPageEditor
             PdfDictionary sourceRoot = isPartial
                 ? pruningPlan!.EffectiveRoot
                 : ResolveDictionary(source, sourceRootValue, "The source /StructTreeRoot");
+            ValidateStructureRootType(sourceRoot, "source");
             PdfObjectGraphImporter importer = importers[group[0]];
             if (sourceRootValue is PdfIndirectReference sourceRootReference)
                 importer.SeedReference(sourceRootReference, targetRootReference);
@@ -2308,7 +3121,7 @@ public sealed class PdfIncrementalPageEditor
             {
                 if (sourceDocumentForMerge.TryGetValue(
                         StructureKidsName, out PdfObject? sourceDocumentKids))
-                    targetDocumentKids.AddRange(StructureKids(
+                    targetDocumentKids.AddRange(StructureElementKids(
                         source, sourceDocumentKids, "A source Document-element kids value")
                         .Select(importer.Import));
                 mergedIntoDocument = true;
@@ -2349,6 +3162,12 @@ public sealed class PdfIncrementalPageEditor
                         if (resolved is not PdfDictionary)
                             throw new InvalidOperationException(
                                 $"{description} contains a non-dictionary entry.");
+                        if (name.Equals(NamespacesName))
+                            ValidateNamespace(source, item, "source");
+                        else if (name.Equals(StructureAssociatedFilesName)
+                            || name.Equals(PronunciationLexiconName))
+                            ValidateFileSpecification(source, item,
+                                $"A source /StructTreeRoot /{name.ValueAsLatin1()} entry");
                         destination.Add(importer.Import(item));
                     }
             }
@@ -2403,6 +3222,38 @@ public sealed class PdfIncrementalPageEditor
                 && document.Resolve(reference) is PdfNull)
                 throw new InvalidOperationException(
                     $"The {owner} /StructTreeRoot /{key.ValueAsLatin1()} extension resolves to null.");
+        }
+
+        static void ValidateStructureRootType(PdfDictionary root, string owner)
+        {
+            if (root.TryGetValue(TypeName, out PdfObject? type)
+                && (type is not PdfName name
+                    || name.ValueAsLatin1() != "StructTreeRoot"))
+                throw new InvalidOperationException(
+                    $"The {owner} /StructTreeRoot /Type value is not /StructTreeRoot.");
+        }
+
+        static void ValidateNamespace(
+            PdfDocument document, PdfObject value, string owner)
+        {
+            PdfDictionary dictionary = ResolveDictionary(
+                document, value, $"A {owner} structure namespace");
+            if (!dictionary.TryGetValue(TypeName, out PdfObject? type)
+                || Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Namespace")
+                throw new InvalidOperationException(
+                    $"A {owner} structure namespace has no valid /Type /Namespace entry.");
+            if (!dictionary.TryGetValue(Name("NS"), out PdfObject? namespaceName)
+                || Resolve(namespaceName) is not PdfString)
+                throw new InvalidOperationException(
+                    $"A {owner} structure namespace has no valid /NS string.");
+            if (dictionary.TryGetValue(Name("Schema"), out PdfObject? schema)
+                && Resolve(schema) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"A {owner} structure namespace /Schema value is not a file-specification dictionary or resolves to null.");
+
+            PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+                ? document.Resolve(reference) : item;
         }
 
         static PdfDictionary ValidateRoleMap(
@@ -2474,7 +3325,8 @@ public sealed class PdfIncrementalPageEditor
         {
             PdfDictionary markInfo = ResolveDictionary(
                 document, value, $"The {owner} catalog /MarkInfo value");
-            foreach (PdfName key in new[] { Name("Marked"), Name("Suspects") })
+            foreach (PdfName key in new[]
+                     { Name("Marked"), Name("UserProperties"), Name("Suspects") })
                 if (markInfo.TryGetValue(key, out PdfObject? flag))
                 {
                     PdfObject resolved = flag is PdfIndirectReference reference
@@ -2524,6 +3376,71 @@ public sealed class PdfIncrementalPageEditor
                         || name.ValueAsLatin1() != "StructElem"))
                     throw new InvalidOperationException(
                         $"{description} contains a non-structure-element entry or stale reference.");
+                if (!dictionary.TryGetValue(StructureTypeName, out PdfObject? role)
+                    || role is not PdfName)
+                    throw new InvalidOperationException(
+                        $"{description} contains a structure element without a role name.");
+            }
+            return kids;
+        }
+
+        static IReadOnlyList<PdfObject> StructureElementKids(
+            PdfDocument document, PdfObject value, string description)
+        {
+            IReadOnlyList<PdfObject> kids = StructureKids(document, value, description);
+            foreach (PdfObject kid in kids)
+            {
+                PdfObject resolved = kid is PdfIndirectReference reference
+                    ? document.Resolve(reference) : kid;
+                if (resolved is PdfInteger) continue;
+                if (resolved is not PdfDictionary dictionary)
+                    throw new InvalidOperationException(
+                        $"{description} contains an invalid child or stale reference.");
+                string? typeName = dictionary.TryGetValue(TypeName, out PdfObject? type)
+                    ? (type as PdfName)?.ValueAsLatin1()
+                    : null;
+                if (typeName is null && type is not null)
+                    throw new InvalidOperationException(
+                        $"{description} contains an invalid structure child type.");
+                if (typeName is null or "StructElem")
+                {
+                    if (!dictionary.TryGetValue(StructureTypeName, out PdfObject? role)
+                        || role is not PdfName)
+                        throw new InvalidOperationException(
+                            $"{description} contains a structure element without a role name.");
+                    continue;
+                }
+                if (typeName == "MCR")
+                {
+                    if (!dictionary.TryGetValue(Name("MCID"), out PdfObject? mcid)
+                        || mcid is not PdfInteger)
+                        throw new InvalidOperationException(
+                            $"{description} contains an MCR without an integer /MCID.");
+                    ValidateOptionalPage(dictionary);
+                    continue;
+                }
+                if (typeName == "OBJR")
+                {
+                    if (!dictionary.TryGetValue(Name("Obj"), out PdfObject? objectValue)
+                        || Resolve(objectValue) is not PdfDictionary)
+                        throw new InvalidOperationException(
+                            $"{description} contains an OBJR without a valid /Obj dictionary.");
+                    ValidateOptionalPage(dictionary);
+                    continue;
+                }
+                throw new InvalidOperationException(
+                    $"{description} contains an invalid structure child type.");
+
+                void ValidateOptionalPage(PdfDictionary child)
+                {
+                    if (child.TryGetValue(PageName, out PdfObject? page)
+                        && Resolve(page) is not PdfDictionary)
+                        throw new InvalidOperationException(
+                            $"{description} contains a content reference with an invalid /Pg dictionary.");
+                }
+
+                PdfObject Resolve(PdfObject item) => item is PdfIndirectReference itemReference
+                    ? document.Resolve(itemReference) : item;
             }
             return kids;
         }
@@ -2631,12 +3548,38 @@ public sealed class PdfIncrementalPageEditor
                             $"{description} contains a null value.");
                     continue;
                 }
-                if (resolved is not (PdfArray or PdfDictionary))
+                if (resolved is PdfDictionary dictionary)
+                    ValidateParentStructureElement(dictionary);
+                else if (resolved is PdfArray array)
+                {
+                    foreach (PdfObject item in array)
+                    {
+                        if (item is PdfNull) continue;
+                        PdfObject resolvedItem = item is PdfIndirectReference itemReference
+                            ? document.Resolve(itemReference) : item;
+                        if (resolvedItem is not PdfDictionary itemDictionary)
+                            throw new InvalidOperationException(
+                                $"{description} contains an array entry that is neither an explicit null nor a structure element.");
+                        ValidateParentStructureElement(itemDictionary);
+                    }
+                }
+                else
                     throw new InvalidOperationException(
                         $"{description} contains a value that is neither an array nor a structure-element dictionary.");
                 result.Add(entry);
             }
             return result;
+
+            void ValidateParentStructureElement(PdfDictionary dictionary)
+            {
+                if (dictionary.TryGetValue(TypeName, out PdfObject? type)
+                    && (type is not PdfName typeName
+                        || !typeName.Equals(StructureElementName))
+                    || !dictionary.TryGetValue(StructureTypeName, out PdfObject? role)
+                    || role is not PdfName)
+                    throw new InvalidOperationException(
+                        $"{description} contains a value that is not a structure element with a role name.");
+            }
         }
 
         static IReadOnlyList<PdfNameTreeEntry> ValidateIdTreeEntries(
@@ -2660,9 +3603,14 @@ public sealed class PdfIncrementalPageEditor
                 if (resolved is not PdfDictionary dictionary
                     || dictionary.TryGetValue(TypeName, out PdfObject? type)
                     && (type is not PdfName typeName
-                        || !typeName.Equals(StructureElementName)))
+                        || !typeName.Equals(StructureElementName))
+                    || !dictionary.TryGetValue(StructureTypeName, out PdfObject? role)
+                    || role is not PdfName
+                    || !dictionary.TryGetValue(StructureIdName, out PdfObject? id)
+                    || id is not PdfString identifier
+                    || !identifier.Bytes.Span.SequenceEqual(entry.Key.Bytes.Span))
                     throw new InvalidOperationException(
-                        $"{description} contains a value that is not a structure element.");
+                        $"{description} contains a value that is not a role-bearing structure element with a matching /ID.");
                 result.Add(entry);
             }
             return result;
@@ -2760,9 +3708,15 @@ public sealed class PdfIncrementalPageEditor
                 if (name.Equals(MetadataName) && resolved is not PdfStream)
                     throw new InvalidOperationException(
                         "A source catalog /Metadata value is not a metadata stream.");
+                if (name.Equals(MetadataName))
+                    ValidateMetadataStream(source, value,
+                        "A source catalog /Metadata value");
                 if (name.Equals(ViewerPreferencesName) && resolved is not PdfDictionary)
                     throw new InvalidOperationException(
                         "A source catalog /ViewerPreferences value is not a dictionary.");
+                if (name.Equals(ViewerPreferencesName))
+                    ValidateViewerPreferences(source, value,
+                        "A source catalog /ViewerPreferences value");
                 if (name.Equals(OutputIntentsName))
                 {
                     PdfArray intents = resolved as PdfArray
@@ -2777,6 +3731,8 @@ public sealed class PdfIncrementalPageEditor
                         if (resolvedIntent is not PdfDictionary)
                             throw new InvalidOperationException(
                                 "A source catalog /OutputIntents entry is not a dictionary.");
+                        ValidateOutputIntent(source, intent,
+                            "A source catalog /OutputIntents entry");
                         imported.Add(importer.Import(intent));
                     }
                     if (imported.Count > 0)
@@ -2786,9 +3742,15 @@ public sealed class PdfIncrementalPageEditor
                 if (name.Equals(LanguageName) && resolved is not PdfString)
                     throw new InvalidOperationException(
                         "A source catalog /Lang value is not a string.");
+                if (name.Equals(LanguageName))
+                    ValidateLanguageTag(source, value,
+                        "A source catalog /Lang value");
                 if (name.Equals(Name("Version")) && resolved is not PdfName)
                     throw new InvalidOperationException(
                         "A source catalog /Version value is not a name.");
+                if (name.Equals(Name("Version")))
+                    ValidateCatalogVersion(resolved,
+                        "A source catalog /Version value");
                 catalogReplacements[name] = importer.Import(value);
             }
     }
@@ -2808,11 +3770,13 @@ public sealed class PdfIncrementalPageEditor
             }
         var names = entries.Select(entry => entry.Key).ToHashSet();
         bool importedAny = false;
+        bool encounteredSourceExtensions = false;
         foreach (PageState[] group in importedGroups)
         {
             PdfPageTree tree = group[0].ImportedTree!;
             if (!IsCompleteImport(group, tree)) continue;
             if (!tree.Catalog.TryGetValue(ExtensionsName, out PdfObject? sourceValue)) continue;
+            encounteredSourceExtensions = true;
             PdfDocument source = group[0].ImportedDocument!;
             PdfDictionary extensions = ResolveDictionary(
                 source, sourceValue, "A source catalog /Extensions value");
@@ -2831,6 +3795,13 @@ public sealed class PdfIncrementalPageEditor
         }
         if (importedAny)
             catalogReplacements[ExtensionsName] = new PdfDictionary(entries);
+        else if (encounteredSourceExtensions)
+        {
+            if (entries.Count > 0)
+                catalogReplacements[ExtensionsName] = new PdfDictionary(entries);
+            else
+                catalogReplacements.Remove(ExtensionsName);
+        }
 
         static bool ValidateExtension(
             PdfObject value, PdfDocument document, bool rejectNull)
@@ -2844,10 +3815,25 @@ public sealed class PdfIncrementalPageEditor
                         "The destination catalog /Extensions dictionary contains a null namespace value.");
                 return false;
             }
-            if (resolved is not PdfDictionary)
+            if (resolved is not PdfDictionary dictionary)
                 throw new InvalidOperationException(
                     "A catalog /Extensions namespace value is not a developer-extension dictionary.");
+            if (!dictionary.TryGetValue(Name("BaseVersion"), out PdfObject? baseVersion)
+                || Resolve(baseVersion) is not PdfName)
+                throw new InvalidOperationException(
+                    "A developer-extension dictionary has no valid /BaseVersion name.");
+            if (!dictionary.TryGetValue(Name("ExtensionLevel"), out PdfObject? level)
+                || Resolve(level) is not PdfInteger integer || integer.Value < 0)
+                throw new InvalidOperationException(
+                    "A developer-extension dictionary has no valid nonnegative /ExtensionLevel integer.");
+            if (dictionary.TryGetValue(Name("URL"), out PdfObject? url)
+                && Resolve(url) is not PdfString)
+                throw new InvalidOperationException(
+                    "A developer-extension dictionary /URL value is not a string or resolves to null.");
             return true;
+
+            PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+                ? document.Resolve(reference) : item;
         }
     }
 
@@ -2873,6 +3859,8 @@ public sealed class PdfIncrementalPageEditor
             if (resolvedInformation is not PdfDictionary)
                 throw new InvalidOperationException(
                     "The source trailer /Info value is not a dictionary or resolves to null.");
+            ValidateDocumentInformation(importedDocument, information,
+                "The source trailer /Info value");
             update.SetDocumentInformation(importer.Import(information));
         }
         else
@@ -2913,12 +3901,378 @@ public sealed class PdfIncrementalPageEditor
                 || key.Equals(OptionalContentPropertiesName) || key.Equals(ExtensionsName)
                 || key.Equals(Name("AA")) || key.Equals(Name("URI"))
                 || key.Equals(Name("SpiderInfo")) || key.Equals(Name("PieceInfo"))
-                || key.Equals(Name("Legal")) || key.Equals(Name("Collection")))
+                || key.Equals(Name("Legal")) || key.Equals(Name("Collection"))
+                || key.Equals(Name("DPartRoot")) || key.Equals(Name("DSS")))
                 (valid, expected) = (resolved is PdfDictionary, "a dictionary");
             if (valid == false)
                 throw new InvalidOperationException(
                     $"A source catalog /{key.ValueAsLatin1()} value is not {expected} or resolves to null.");
+            if (key.Equals(OutputIntentsName) && resolved is PdfArray intents)
+                foreach (PdfObject intent in intents)
+                    ValidateOutputIntent(importedDocument, intent,
+                        "A source catalog /OutputIntents entry");
+            if (key.Equals(ViewerPreferencesName))
+                ValidateViewerPreferences(importedDocument, value,
+                    "A source catalog /ViewerPreferences value");
+            if (key.Equals(MetadataName))
+                ValidateMetadataStream(importedDocument, value,
+                    "A source catalog /Metadata value");
+            if (key.Equals(LanguageName))
+                ValidateLanguageTag(importedDocument, value,
+                    "A source catalog /Lang value");
+            if (key.Equals(Name("Version")))
+                ValidateCatalogVersion(resolved,
+                    "A source catalog /Version value");
+            if (key.Equals(PageModeName))
+                ValidateCatalogPageMode(resolved,
+                    "A source catalog /PageMode value");
+            if (key.Equals(Name("PageLayout")))
+                ValidateCatalogPageLayout(resolved,
+                    "A source catalog /PageLayout value");
+            if (key.Equals(Name("URI")))
+                ValidateCatalogUri(importedDocument, value,
+                    "A source catalog /URI value");
+            if (key.Equals(MarkInfoName))
+                ValidateCatalogMarkInfo(importedDocument, value,
+                    "A source catalog /MarkInfo value");
+            if (key.Equals(Name("OpenAction")))
+                ValidateCatalogOpenAction(importedDocument, value,
+                    "A source catalog /OpenAction value");
+            if (key.Equals(Name("AA")))
+                ValidateCatalogAdditionalActions(importedDocument, value,
+                    "A source catalog /AA value");
+            if (key.Equals(Name("Requirements")))
+                ValidateCatalogRequirements(importedDocument, value,
+                    "A source catalog /Requirements value");
+            if (key.Equals(Name("Threads")))
+                ValidateCatalogThreads(importedDocument, value,
+                    "A source catalog /Threads value");
+            if (key.Equals(Name("Collection")))
+                ValidateCatalogCollection(importedDocument, value,
+                    "A source catalog /Collection value");
+            if (key.Equals(Name("PieceInfo")))
+                ValidatePagePieceInfo(importedDocument, value,
+                    "A source catalog /PieceInfo value");
+            if (key.Equals(Name("Legal")))
+                ValidateCatalogLegal(importedDocument, value,
+                    "A source catalog /Legal value");
+            if (key.Equals(Name("SpiderInfo")))
+                ValidateCatalogWebCaptureInformation(importedDocument, value,
+                    "A source catalog /SpiderInfo value");
+            if (key.Equals(Name("DPartRoot")))
+                ValidateCatalogDocumentPartRoot(importedDocument, value,
+                    "A source catalog /DPartRoot value");
+            if (key.Equals(Name("DSS")))
+                ValidateCatalogDocumentSecurityStore(importedDocument, value,
+                    "A source catalog /DSS value");
             return value;
+        }
+    }
+
+    private static void ValidateCatalogDocumentSecurityStore(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary store = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} is not a dictionary or resolves to null.");
+        ValidateOptionalType(store, "DSS", description);
+
+        HashSet<(int ObjectNumber, int Generation)> certificates = ValidateStreamArray(
+            store, "Certs", description, requireNonempty: false);
+        HashSet<(int ObjectNumber, int Generation)> revocations = ValidateStreamArray(
+            store, "CRLs", description, requireNonempty: false);
+        HashSet<(int ObjectNumber, int Generation)> responses = ValidateStreamArray(
+            store, "OCSPs", description, requireNonempty: false);
+        if (!store.TryGetValue(Name("VRI"), out PdfObject? vriValue)) return;
+        PdfDictionary registrations = Resolve(vriValue) as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} /VRI value is not a dictionary.");
+        foreach (KeyValuePair<PdfName, PdfObject> registration in registrations)
+        {
+            string digest = registration.Key.ValueAsLatin1();
+            if (digest.Length != 40 || digest.Any(character =>
+                    character is not (>= '0' and <= '9')
+                        and not (>= 'A' and <= 'F')))
+                throw new InvalidOperationException(
+                    $"{description} /VRI key /{digest} is not an uppercase SHA-1 hexadecimal digest.");
+            PdfDictionary vri = Resolve(registration.Value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /VRI /{digest} value is not a dictionary.");
+            ValidateOptionalType(vri, "VRI", $"{description} /VRI /{digest} value");
+            ValidateVriArray(vri, "Cert", certificates, digest);
+            ValidateVriArray(vri, "CRL", revocations, digest);
+            ValidateVriArray(vri, "OCSP", responses, digest);
+            bool hasCreationTime = vri.TryGetValue(Name("TU"), out PdfObject? creationTime);
+            bool hasTimestamp = vri.TryGetValue(Name("TS"), out PdfObject? timestamp);
+            if (hasCreationTime && hasTimestamp)
+                throw new InvalidOperationException(
+                    $"{description} /VRI /{digest} value contains both /TU and /TS.");
+            if (hasCreationTime)
+                ValidatePdfDateString(Resolve(creationTime!),
+                    $"{description} /VRI /{digest} /TU value");
+            if (hasTimestamp && Resolve(timestamp!) is not PdfStream)
+                throw new InvalidOperationException(
+                    $"{description} /VRI /{digest} /TS value is not a stream.");
+        }
+
+        void ValidateOptionalType(
+            PdfDictionary dictionary, string expected, string valueDescription)
+        {
+            if (dictionary.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != expected))
+                throw new InvalidOperationException(
+                    $"{valueDescription} has an invalid /Type value.");
+        }
+
+        HashSet<(int ObjectNumber, int Generation)> ValidateStreamArray(
+            PdfDictionary dictionary, string key, string valueDescription,
+            bool requireNonempty)
+        {
+            var references = new HashSet<(int ObjectNumber, int Generation)>();
+            if (!dictionary.TryGetValue(Name(key), out PdfObject? arrayValue))
+                return references;
+            PdfArray array = Resolve(arrayValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{valueDescription} /{key} value is not an array.");
+            if (requireNonempty && array.Count == 0)
+                throw new InvalidOperationException(
+                    $"{valueDescription} /{key} value is empty.");
+            foreach (PdfObject item in array)
+            {
+                if (item is not PdfIndirectReference reference
+                    || Resolve(reference) is not PdfStream)
+                    throw new InvalidOperationException(
+                        $"{valueDescription} /{key} entry is not an indirect stream reference.");
+                references.Add((reference.ObjectNumber, reference.Generation));
+            }
+            return references;
+        }
+
+        void ValidateVriArray(
+            PdfDictionary dictionary, string key,
+            IReadOnlySet<(int ObjectNumber, int Generation)> pool, string digest)
+        {
+            HashSet<(int ObjectNumber, int Generation)> references = ValidateStreamArray(
+                dictionary, key, $"{description} /VRI /{digest} value",
+                requireNonempty: true);
+            if (references.Any(reference => !pool.Contains(reference)))
+                throw new InvalidOperationException(
+                    $"{description} /VRI /{digest} /{key} entry is absent from its DSS validation-data array.");
+        }
+    }
+
+    private static void ValidateCatalogDocumentPartRoot(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (value is not PdfIndirectReference rootReference)
+            throw new InvalidOperationException(
+                $"{description} is not an indirect reference.");
+        PdfDictionary root = Resolve(rootReference) as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} does not resolve to a dictionary.");
+        if (!root.TryGetValue(TypeName, out PdfObject? rootType)
+            || Resolve(rootType) is not PdfName rootTypeName
+            || rootTypeName.ValueAsLatin1() != "DPartRootNode")
+            throw new InvalidOperationException(
+                $"{description} has no /Type /DPartRootNode entry.");
+        if (root.TryGetValue(Name("RecordLevel"), out PdfObject? recordLevel)
+            && (Resolve(recordLevel) is not PdfInteger level || level.Value < 0))
+            throw new InvalidOperationException(
+                $"{description} /RecordLevel value is not a nonnegative integer.");
+        if (root.TryGetValue(Name("NodeNameList"), out PdfObject? names)
+            && (Resolve(names) is not PdfArray nameArray
+                || nameArray.Any(item => Resolve(item) is not PdfString)))
+            throw new InvalidOperationException(
+                $"{description} /NodeNameList value is not a string array.");
+
+        var visited = new HashSet<PdfIndirectReference> { rootReference };
+        ValidateNode(root, rootReference, null, description, depth: 0);
+
+        void ValidateNode(PdfDictionary node, PdfIndirectReference nodeReference,
+            PdfIndirectReference? expectedParent, string nodeDescription, int depth)
+        {
+            if (depth > 64)
+                throw new NotSupportedException(
+                    "An imported document-part hierarchy is too deeply nested.");
+            if (expectedParent is not null)
+            {
+                if (!node.TryGetValue(TypeName, out PdfObject? type)
+                    || Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "DPart")
+                    throw new InvalidOperationException(
+                        $"{nodeDescription} has no /Type /DPart entry.");
+                if (!node.TryGetValue(Name("Parent"), out PdfObject? parent)
+                    || parent is not PdfIndirectReference parentReference
+                    || !parentReference.Equals(expectedParent))
+                    throw new InvalidOperationException(
+                        $"{nodeDescription} has no reciprocal indirect /Parent reference.");
+            }
+            if (node.ContainsKey(Name("Metadata")))
+                throw new InvalidOperationException(
+                    $"{nodeDescription} contains the prohibited /Metadata entry.");
+            if (node.TryGetValue(Name("DPM"), out PdfObject? metadata))
+                ValidateDocumentPartMetadata(Resolve(metadata),
+                    $"{nodeDescription} /DPM value", depth: 0);
+            if (node.TryGetValue(Name("AF"), out PdfObject? associatedFiles))
+            {
+                PdfArray files = Resolve(associatedFiles) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{nodeDescription} /AF value is not an array.");
+                foreach (PdfObject file in files)
+                    ValidateFileSpecification(document, file,
+                        $"{nodeDescription} /AF entry");
+            }
+
+            bool hasStart = node.TryGetValue(Name("Start"), out PdfObject? start);
+            bool hasChildren = node.TryGetValue(Name("DParts"), out PdfObject? childrenValue);
+            if (hasStart && hasChildren)
+                throw new InvalidOperationException(
+                    $"{nodeDescription} contains both /Start and /DParts entries.");
+            if (hasStart)
+            {
+                ValidatePageReference(start!, $"{nodeDescription} /Start value");
+                if (node.TryGetValue(Name("End"), out PdfObject? end))
+                    ValidatePageReference(end, $"{nodeDescription} /End value");
+            }
+            else if (node.ContainsKey(Name("End")))
+                throw new InvalidOperationException(
+                    $"{nodeDescription} has an /End value without /Start.");
+            if (!hasChildren) return;
+
+            PdfArray childGroups = Resolve(childrenValue!) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{nodeDescription} /DParts value is not an array.");
+            foreach (PdfObject groupValue in childGroups)
+            {
+                PdfArray group = Resolve(groupValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{nodeDescription} /DParts entry is not an array.");
+                if (group.Count == 0)
+                    throw new InvalidOperationException(
+                        $"{nodeDescription} /DParts contains an empty array.");
+                foreach (PdfObject childValue in group)
+                {
+                    if (childValue is not PdfIndirectReference childReference)
+                        throw new InvalidOperationException(
+                            $"{nodeDescription} /DParts child is not an indirect reference.");
+                    if (!visited.Add(childReference))
+                        throw new InvalidOperationException(
+                            "An imported document-part hierarchy contains a cycle or reused node.");
+                    PdfDictionary child = Resolve(childReference) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{nodeDescription} /DParts child does not resolve to a dictionary.");
+                    ValidateNode(child, childReference, nodeReference,
+                        $"{nodeDescription} /DParts child", depth + 1);
+                }
+            }
+        }
+
+        void ValidatePageReference(PdfObject pageValue, string valueDescription)
+        {
+            if (pageValue is not PdfIndirectReference
+                || Resolve(pageValue) is not PdfDictionary page
+                || !page.TryGetValue(TypeName, out PdfObject? type)
+                || Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Page")
+                throw new InvalidOperationException(
+                    $"{valueDescription} is not an indirect page reference.");
+        }
+
+        void ValidateDocumentPartMetadata(
+            PdfObject metadata, string valueDescription, int depth)
+        {
+            if (depth > 32)
+                throw new NotSupportedException(
+                    "An imported document-part metadata graph is too deeply nested.");
+            if (metadata is PdfDictionary dictionary)
+            {
+                foreach (KeyValuePair<PdfName, PdfObject> entry in dictionary)
+                    ValidateDocumentPartMetadata(Resolve(entry.Value),
+                        $"{valueDescription} /{entry.Key.ValueAsLatin1()} value", depth + 1);
+                return;
+            }
+            if (metadata is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                    ValidateDocumentPartMetadata(Resolve(item),
+                        $"{valueDescription} array entry", depth + 1);
+                return;
+            }
+            if (metadata is not (PdfString or PdfName or PdfBoolean or PdfInteger or PdfReal))
+                throw new InvalidOperationException(
+                    $"{valueDescription} has a prohibited PDF object type.");
+        }
+    }
+
+    private static void ValidateCatalogWebCaptureInformation(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary information = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} is not a dictionary or resolves to null.");
+        if (!information.TryGetValue(Name("V"), out PdfObject? version)
+            || Resolve(version) is not PdfReal versionNumber
+            || versionNumber.Value != 1.0)
+            throw new InvalidOperationException(
+                $"{description} has no real /V value of 1.0.");
+        if (!information.TryGetValue(Name("C"), out PdfObject? commandsValue)) return;
+        PdfArray commands = Resolve(commandsValue) as PdfArray
+            ?? throw new InvalidOperationException(
+                $"{description} /C value is not an array.");
+        foreach (PdfObject item in commands)
+        {
+            if (item is not PdfIndirectReference commandReference
+                || Resolve(commandReference) is not PdfDictionary command)
+                throw new InvalidOperationException(
+                    $"{description} /C entry is not an indirect command dictionary.");
+            if (!command.TryGetValue(Name("URL"), out PdfObject? url)
+                || Resolve(url) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /C command has no /URL string.");
+            if (command.TryGetValue(Name("L"), out PdfObject? levels)
+                && (Resolve(levels) is not PdfInteger level || level.Value < 0))
+                throw new InvalidOperationException(
+                    $"{description} /C command /L value is not a nonnegative integer.");
+            if (command.TryGetValue(Name("F"), out PdfObject? flags)
+                && (Resolve(flags) is not PdfInteger flag
+                    || flag.Value is < 0 or > 7))
+                throw new InvalidOperationException(
+                    $"{description} /C command /F value uses undefined Web Capture flags.");
+            if (command.TryGetValue(Name("P"), out PdfObject? postData)
+                && Resolve(postData) is not (PdfString or PdfStream))
+                throw new InvalidOperationException(
+                    $"{description} /C command /P value is not a string or stream.");
+            foreach (string key in new[] { "CT", "H" })
+                if (command.TryGetValue(Name(key), out PdfObject? text)
+                    && Resolve(text) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /C command /{key} value is not a string.");
+            if (command.TryGetValue(Name("S"), out PdfObject? settingsValue))
+            {
+                PdfDictionary settings = Resolve(settingsValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /C command /S value is not a dictionary.");
+                if (settings.TryGetValue(Name("G"), out PdfObject? globalSettings)
+                    && Resolve(globalSettings) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{description} /C command /S /G value is not a dictionary.");
+                if (settings.TryGetValue(Name("C"), out PdfObject? enginesValue))
+                {
+                    PdfDictionary engines = Resolve(enginesValue) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} /C command /S /C value is not a dictionary.");
+                    if (engines.Any(engine => Resolve(engine.Value) is not PdfDictionary))
+                        throw new InvalidOperationException(
+                            $"{description} /C command /S /C entry is not a dictionary.");
+                }
+            }
         }
     }
 
@@ -3172,6 +4526,41 @@ public sealed class PdfIncrementalPageEditor
             && !selectedGroups.ContainsKey(layeredGroups[0]))
         {
             PageState[] group = layeredGroups[0];
+            PdfDocument source = group[0].ImportedDocument!;
+            PdfDictionary sourceProperties = ResolveDictionary(source,
+                group[0].ImportedTree!.Catalog[OptionalContentPropertiesName],
+                "A source /OCProperties");
+            ValidateOptionalContentGroups(source, sourceProperties,
+                "A source /OCProperties /OCGs");
+            HashSet<(int ObjectNumber, int Generation)> registeredGroups = ResolveArray(
+                    source, sourceProperties[Name("OCGs")],
+                    "A source /OCProperties /OCGs")
+                .Select(item => ReferenceIdentity(AssertReference(
+                    item, "A source /OCProperties /OCGs entry"))).ToHashSet();
+            PdfDictionary sourceDefault = ResolveDictionary(source,
+                sourceProperties[Name("D")],
+                "A source optional-content default configuration");
+            ValidateOptionalContentConfiguration(source, sourceDefault,
+                "A source optional-content default configuration");
+            OptionalContentBaseState(sourceDefault);
+            OptionalContentReferenceSet(source, sourceDefault, "ON", registeredGroups);
+            OptionalContentReferenceSet(source, sourceDefault, "OFF", registeredGroups);
+            ValidateOptionalContentConfigurationCollections(
+                source, sourceDefault, registeredGroups,
+                "A source optional-content default configuration");
+            if (sourceProperties.TryGetValue(Name("Configs"), out PdfObject? sourceConfigs))
+                foreach (PdfObject configuration in ResolveArray(source, sourceConfigs,
+                             "A source /OCProperties /Configs"))
+                {
+                    PdfDictionary dictionary = ResolveDictionary(source, configuration,
+                        "A source /OCProperties /Configs entry");
+                    ValidateOptionalContentConfiguration(source, dictionary,
+                        "A source /OCProperties /Configs entry");
+                    OptionalContentBaseState(dictionary);
+                    ValidateOptionalContentConfigurationCollections(
+                        source, dictionary, registeredGroups,
+                        "A source /OCProperties /Configs entry");
+                }
             catalogReplacements[OptionalContentPropertiesName] =
                 importers[group[0]].Import(
                     group[0].ImportedTree!.Catalog[OptionalContentPropertiesName]);
@@ -3185,16 +4574,29 @@ public sealed class PdfIncrementalPageEditor
             ? ResolveArray(_document, targetProperties[Name("OCGs")],
                 "The destination /OCProperties /OCGs").ToList()
             : [];
+        if (targetHasProperties)
+            ValidateOptionalContentGroups(_document, targetProperties,
+                "The destination /OCProperties /OCGs");
         if (groups.Select(item => ReferenceIdentity(AssertReference(
                     item, "A destination /OCProperties /OCGs entry")))
                 .Distinct().Count() != groups.Count)
             throw new InvalidOperationException(
                 "The destination /OCProperties /OCGs array contains a duplicate group reference.");
+        HashSet<(int ObjectNumber, int Generation)> targetGroupReferences = groups
+            .Select(item => ReferenceIdentity(AssertReference(
+                item, "A destination /OCProperties /OCGs entry"))).ToHashSet();
         PdfDictionary targetDefault = targetHasProperties
             ? ResolveDictionary(_document, targetProperties[Name("D")],
                 "The destination optional-content default configuration")
             : Dictionary(("Name", new PdfString("Default"u8, PdfStringForm.Literal)),
                 ("BaseState", Name("ON")));
+        ValidateOptionalContentConfiguration(_document, targetDefault,
+            "The destination optional-content default configuration");
+        OptionalContentReferenceSet(_document, targetDefault, "ON", targetGroupReferences);
+        OptionalContentReferenceSet(_document, targetDefault, "OFF", targetGroupReferences);
+        ValidateOptionalContentConfigurationCollections(
+            _document, targetDefault, targetGroupReferences,
+            "The destination optional-content default configuration");
         var defaultArrays = new Dictionary<PdfName, List<PdfObject>>();
         foreach (string key in new[] { "Order", "ON", "OFF", "Locked", "RBGroups", "AS" })
         {
@@ -3206,6 +4608,17 @@ public sealed class PdfIncrementalPageEditor
         var configurations = targetProperties.TryGetValue(Name("Configs"), out PdfObject? targetConfigs)
             ? ResolveArray(_document, targetConfigs, "The destination /OCProperties /Configs").ToList()
             : [];
+        foreach (PdfObject configuration in configurations)
+        {
+            PdfDictionary dictionary = ResolveDictionary(_document, configuration,
+                "The destination /OCProperties /Configs entry");
+            ValidateOptionalContentConfiguration(_document, dictionary,
+                "The destination /OCProperties /Configs entry");
+            OptionalContentBaseState(dictionary);
+            ValidateOptionalContentConfigurationCollections(
+                _document, dictionary, targetGroupReferences,
+                "The destination /OCProperties /Configs entry");
+        }
         string targetBaseState = OptionalContentBaseState(targetDefault);
 
         foreach (PageState[] group in layeredGroups)
@@ -3216,6 +4629,8 @@ public sealed class PdfIncrementalPageEditor
                 group[0].ImportedTree!.Catalog[OptionalContentPropertiesName],
                 "A source /OCProperties");
             PdfArray allSourceGroups = ResolveArray(source, sourceProperties[Name("OCGs")],
+                "A source /OCProperties /OCGs");
+            ValidateOptionalContentGroups(source, sourceProperties,
                 "A source /OCProperties /OCGs");
             (int ObjectNumber, int Generation)[] sourceGroupIdentities =
                 allSourceGroups.Select(item =>
@@ -3241,9 +4656,17 @@ public sealed class PdfIncrementalPageEditor
             groups.AddRange(sourceGroups.Select(importer.Import));
             PdfDictionary sourceDefault = ResolveDictionary(source, sourceProperties[Name("D")],
                 "A source optional-content default configuration");
+            ValidateOptionalContentConfiguration(source, sourceDefault,
+                "A source optional-content default configuration");
             string sourceBaseState = OptionalContentBaseState(sourceDefault);
-            var sourceOn = OptionalContentReferenceSet(source, sourceDefault, "ON");
-            var sourceOff = OptionalContentReferenceSet(source, sourceDefault, "OFF");
+            var sourceOn = OptionalContentReferenceSet(
+                source, sourceDefault, "ON", allSourceGroupReferences);
+            var sourceOff = OptionalContentReferenceSet(
+                source, sourceDefault, "OFF", allSourceGroupReferences);
+            ValidateOptionalContentConfigurationCollections(
+                source, sourceDefault, allSourceGroupReferences,
+                "A source optional-content default configuration",
+                selectedGroups.ContainsKey(group));
             foreach (PdfObject sourceGroup in sourceGroups)
             {
                 if (sourceGroup is not PdfIndirectReference sourceReference)
@@ -3275,6 +4698,15 @@ public sealed class PdfIncrementalPageEditor
                 foreach (PdfObject configuration in ResolveArray(
                              source, sourceConfigs, "A source /OCProperties /Configs"))
                 {
+                    PdfDictionary configurationDictionary = ResolveDictionary(source,
+                        configuration, "A source /OCProperties /Configs entry");
+                    ValidateOptionalContentConfiguration(source, configurationDictionary,
+                        "A source /OCProperties /Configs entry");
+                    OptionalContentBaseState(configurationDictionary);
+                    ValidateOptionalContentConfigurationCollections(
+                        source, configurationDictionary, allSourceGroupReferences,
+                        "A source /OCProperties /Configs entry",
+                        selectedGroups.ContainsKey(group));
                     PdfObject? pruned = PruneConfigurationValue(configuration);
                     if (pruned is not null) configurations.Add(importer.Import(pruned));
                 }
@@ -3344,15 +4776,24 @@ public sealed class PdfIncrementalPageEditor
         }
 
         static HashSet<(int ObjectNumber, int Generation)> OptionalContentReferenceSet(
-            PdfDocument document, PdfDictionary configuration, string key)
+            PdfDocument document, PdfDictionary configuration, string key,
+            IReadOnlySet<(int ObjectNumber, int Generation)> registeredGroups)
         {
             PdfName name = Name(key);
             if (!configuration.TryGetValue(name, out PdfObject? value)) return [];
-            return ResolveArray(document, value, $"An optional-content /{key} array")
+            (int ObjectNumber, int Generation)[] references = ResolveArray(
+                    document, value, $"An optional-content /{key} array")
                 .Select(item => item as PdfIndirectReference
                     ?? throw new InvalidOperationException(
                         $"An optional-content /{key} entry is not an indirect reference."))
-                .Select(ReferenceIdentity).ToHashSet();
+                .Select(ReferenceIdentity).ToArray();
+            if (references.Distinct().Count() != references.Length)
+                throw new InvalidOperationException(
+                    $"An optional-content /{key} array contains a duplicate group reference.");
+            if (references.Any(reference => !registeredGroups.Contains(reference)))
+                throw new InvalidOperationException(
+                    $"An optional-content /{key} entry is absent from /OCGs.");
+            return references.ToHashSet();
         }
 
         static (int ObjectNumber, int Generation) ReferenceIdentity(
@@ -3361,6 +4802,175 @@ public sealed class PdfIncrementalPageEditor
         static PdfIndirectReference AssertReference(PdfObject value, string description) =>
             value as PdfIndirectReference
             ?? throw new InvalidOperationException($"{description} is not an indirect reference.");
+
+        static void ValidateOptionalContentGroups(
+            PdfDocument document, PdfDictionary properties, string description)
+        {
+            PdfArray registeredGroups = ResolveArray(
+                document, properties[Name("OCGs")], description);
+            foreach (PdfObject value in registeredGroups)
+            {
+                PdfIndirectReference reference = AssertReference(value, $"{description} entry");
+                PdfDictionary group = ResolveDictionary(document, reference,
+                    $"{description} entry");
+                if (group.TryGetValue(Name("Type"), out PdfObject? type))
+                {
+                    if (type is not PdfName typeName)
+                        throw new InvalidOperationException(
+                            $"{description} entry /Type is not a name.");
+                    if (typeName.ValueAsLatin1() != "OCG")
+                        throw new InvalidOperationException(
+                            $"{description} entry /Type is not /OCG.");
+                }
+                if (!group.TryGetValue(Name("Name"), out PdfObject? groupName)
+                    || groupName is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} entry /Name is not a string.");
+                if (group.TryGetValue(Name("Usage"), out PdfObject? usage))
+                    ValidateOptionalContentUsage(document, usage,
+                        $"{description} entry /Usage");
+                if (!group.TryGetValue(Name("Intent"), out PdfObject? intent)) continue;
+                PdfObject resolvedIntent = intent is PdfIndirectReference intentReference
+                    ? document.Resolve(intentReference) : intent;
+                if (resolvedIntent is PdfName) continue;
+                if (resolvedIntent is not PdfArray intents
+                    || intents.Any(item => item is not PdfName))
+                    throw new InvalidOperationException(
+                        $"{description} entry /Intent is not a name or an array of names.");
+            }
+        }
+
+        static void ValidateOptionalContentConfiguration(
+            PdfDocument document, PdfDictionary configuration, string description)
+        {
+            foreach (string key in new[] { "Name", "Creator" })
+                if (configuration.TryGetValue(Name(key), out PdfObject? value)
+                    && value is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /{key} is not a string.");
+            if (configuration.TryGetValue(Name("ListMode"), out PdfObject? listMode))
+            {
+                string mode = (listMode as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /ListMode is not a name.");
+                if (mode is not ("AllPages" or "VisiblePages"))
+                    throw new InvalidOperationException(
+                        $"{description} /ListMode /{mode} is not defined.");
+            }
+            if (!configuration.TryGetValue(Name("Intent"), out PdfObject? intent)) return;
+            PdfObject resolvedIntent = intent is PdfIndirectReference reference
+                ? document.Resolve(reference) : intent;
+            if (resolvedIntent is PdfName) return;
+            if (resolvedIntent is not PdfArray intents
+                || intents.Any(item => item is not PdfName))
+                throw new InvalidOperationException(
+                    $"{description} /Intent is not a name or an array of names.");
+        }
+
+        static void ValidateOptionalContentConfigurationCollections(
+            PdfDocument document, PdfDictionary configuration,
+            IReadOnlySet<(int ObjectNumber, int Generation)> registeredGroups,
+            string description, bool allowStaleOrderReferences = false)
+        {
+            ValidateReferenceArray("Locked");
+            if (configuration.TryGetValue(Name("RBGroups"), out PdfObject? radioGroups))
+            {
+                PdfArray arrays = ResolveArray(document, radioGroups,
+                    $"{description} /RBGroups");
+                foreach (PdfObject value in arrays)
+                {
+                    PdfArray group = ResolveArray(document, value,
+                        $"{description} /RBGroups entry");
+                    ValidateReferences(group, $"{description} /RBGroups entry");
+                }
+            }
+            if (configuration.TryGetValue(Name("Order"), out PdfObject? order))
+                ValidateOrderArray(ResolveArray(document, order,
+                    $"{description} /Order"), $"{description} /Order", 0);
+            if (configuration.TryGetValue(Name("AS"), out PdfObject? applications))
+            {
+                PdfArray array = ResolveArray(document, applications,
+                    $"{description} /AS");
+                foreach (PdfObject value in array)
+                {
+                    PdfDictionary application = ResolveDictionary(document, value,
+                        $"{description} /AS entry");
+                    if (!application.TryGetValue(Name("Event"), out PdfObject? eventValue)
+                        || eventValue is not PdfName eventName
+                        || eventName.ValueAsLatin1() is not ("View" or "Print" or "Export"))
+                        throw new InvalidOperationException(
+                            $"{description} /AS entry has an invalid /Event.");
+                    if (!application.TryGetValue(Name("Category"), out PdfObject? categories))
+                        throw new InvalidOperationException(
+                            $"{description} /AS entry has no /Category array.");
+                    PdfArray categoryArray = ResolveArray(document, categories,
+                        $"{description} /AS entry /Category");
+                    if (categoryArray.Count == 0 || categoryArray.Any(item => item is not PdfName))
+                        throw new InvalidOperationException(
+                            $"{description} /AS entry /Category is not a nonempty name array.");
+                    if (application.TryGetValue(Name("OCGs"), out PdfObject? groups))
+                        ValidateReferences(ResolveArray(document, groups,
+                            $"{description} /AS entry /OCGs"),
+                            $"{description} /AS entry /OCGs");
+                }
+            }
+            return;
+
+            void ValidateReferenceArray(string key)
+            {
+                if (configuration.TryGetValue(Name(key), out PdfObject? value))
+                    ValidateReferences(ResolveArray(document, value,
+                        $"{description} /{key}"), $"{description} /{key}");
+            }
+
+            void ValidateReferences(PdfArray values, string valueDescription)
+            {
+                var seen = new HashSet<(int ObjectNumber, int Generation)>();
+                foreach (PdfObject value in values)
+                {
+                    PdfIndirectReference reference = AssertReference(
+                        value, $"{valueDescription} entry");
+                    var identity = ReferenceIdentity(reference);
+                    if (!registeredGroups.Contains(identity))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} entry is absent from /OCGs.");
+                    if (!seen.Add(identity))
+                        throw new InvalidOperationException(
+                            $"{valueDescription} contains a duplicate group reference.");
+                }
+            }
+
+            void ValidateOrderArray(PdfArray values, string valueDescription, int depth)
+            {
+                if (depth > 256)
+                    throw new NotSupportedException(
+                        "An optional-content order array is too deeply nested.");
+                for (int index = 0; index < values.Count; index++)
+                {
+                    PdfObject value = values[index];
+                    if (value is PdfIndirectReference reference)
+                    {
+                        if (!registeredGroups.Contains(ReferenceIdentity(reference)))
+                        {
+                            if (allowStaleOrderReferences
+                                && document.Resolve(reference) is PdfNull)
+                                continue;
+                            throw new InvalidOperationException(
+                                $"{valueDescription} entry is absent from /OCGs.");
+                        }
+                        continue;
+                    }
+                    if (value is PdfString && index == 0) continue;
+                    if (value is PdfArray nested)
+                    {
+                        ValidateOrderArray(nested, $"{valueDescription} nested array", depth + 1);
+                        continue;
+                    }
+                    throw new InvalidOperationException(
+                        $"{valueDescription} entry is not a group reference or a nested order array.");
+                }
+            }
+        }
     }
 
     private static bool DestinationsStayWithinImportedPages(
@@ -3556,6 +5166,1450 @@ public sealed class PdfIncrementalPageEditor
             ?? throw new InvalidOperationException($"{description} is not an array.");
     }
 
+    private static void ValidatePdfDateString(PdfObject value, string description)
+    {
+        if (value is not PdfString date)
+            throw new InvalidOperationException($"{description} is not a string.");
+        if (!PdfDateStringValidator.IsValid(date))
+            throw new InvalidOperationException($"{description} is not a valid PDF date string.");
+    }
+
+    private static void ValidateFileSpecification(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary dictionary = ResolveDictionary(document, value, description);
+        if (dictionary.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Filespec"))
+            throw new InvalidOperationException(
+                $"{description} has an invalid /Type value.");
+        bool hasName = false;
+        foreach (PdfName key in new[] { Name("F"), Name("UF") })
+            if (dictionary.TryGetValue(key, out PdfObject? name))
+            {
+                if (Resolve(name) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /{key.ValueAsLatin1()} value is not a string.");
+                hasName = true;
+            }
+        if (!hasName)
+            throw new InvalidOperationException(
+                $"{description} has neither an /F nor /UF file name.");
+        if (dictionary.TryGetValue(Name("EF"), out PdfObject? embeddedFiles))
+        {
+            PdfDictionary embeddedFileDictionary = Resolve(embeddedFiles) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /EF value is not a dictionary or resolves to null.");
+            foreach (var entry in embeddedFileDictionary)
+            {
+                if (Resolve(entry.Value) is not PdfStream stream)
+                    throw new InvalidOperationException(
+                        $"{description} /EF /{entry.Key.ValueAsLatin1()} value is not an embedded-file stream or resolves to null.");
+                ValidateEmbeddedFileStream(
+                    stream, $"{description} /EF /{entry.Key.ValueAsLatin1()} stream");
+            }
+        }
+        if (dictionary.TryGetValue(Name("Desc"), out PdfObject? descriptionValue)
+            && Resolve(descriptionValue) is not PdfString)
+            throw new InvalidOperationException(
+                $"{description} /Desc value is not a string or resolves to null.");
+        if (dictionary.TryGetValue(Name("AFRelationship"), out PdfObject? relationship)
+            && Resolve(relationship) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} /AFRelationship value is not a name or resolves to null.");
+        if (dictionary.TryGetValue(Name("FS"), out PdfObject? fileSystem)
+            && Resolve(fileSystem) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} /FS value is not a name or resolves to null.");
+        foreach (PdfName key in new[] { Name("RF"), Name("CI") })
+            if (dictionary.TryGetValue(key, out PdfObject? supplemental)
+                && Resolve(supplemental) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"{description} /{key.ValueAsLatin1()} value is not a dictionary or resolves to null.");
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+
+        void ValidateEmbeddedFileStream(PdfStream stream, string streamDescription)
+        {
+            PdfDictionary streamDictionary = stream.Dictionary;
+            if (streamDictionary.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "EmbeddedFile"))
+                throw new InvalidOperationException(
+                    $"{streamDescription} has an invalid /Type value.");
+            if (streamDictionary.TryGetValue(Name("Subtype"), out PdfObject? subtype))
+            {
+                if (Resolve(subtype) is not PdfName subtypeName)
+                    throw new InvalidOperationException(
+                        $"{streamDescription} /Subtype value is not a name.");
+                string mimeType = subtypeName.ValueAsLatin1();
+                int separator = mimeType.IndexOf('/');
+                if (separator <= 0 || separator != mimeType.LastIndexOf('/')
+                    || separator == mimeType.Length - 1
+                    || !IsMimeToken(mimeType.AsSpan(0, separator))
+                    || !IsMimeToken(mimeType.AsSpan(separator + 1)))
+                    throw new InvalidOperationException(
+                        $"{streamDescription} /Subtype is not a valid MIME type name.");
+            }
+            if (!streamDictionary.TryGetValue(Name("Params"), out PdfObject? parameters)) return;
+            PdfDictionary parameterDictionary = Resolve(parameters) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{streamDescription} /Params value is not a dictionary.");
+            if (parameterDictionary.TryGetValue(Name("Size"), out PdfObject? size)
+                && (Resolve(size) is not PdfInteger integer || integer.Value < 0))
+                throw new InvalidOperationException(
+                    $"{streamDescription} /Params /Size value is not a nonnegative integer.");
+            foreach (PdfName key in new[] { Name("CreationDate"), Name("ModDate"), Name("CheckSum") })
+                if (parameterDictionary.TryGetValue(key, out PdfObject? parameter)
+                    && Resolve(parameter) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{streamDescription} /Params /{key.ValueAsLatin1()} value is not a string.");
+            foreach (PdfName key in new[] { Name("CreationDate"), Name("ModDate") })
+                if (parameterDictionary.TryGetValue(key, out PdfObject? parameter))
+                    ValidatePdfDateString(Resolve(parameter),
+                        $"{streamDescription} /Params /{key.ValueAsLatin1()} value");
+            if (parameterDictionary.TryGetValue(Name("CheckSum"), out PdfObject? checksum)
+                && (Resolve(checksum) is not PdfString checksumString
+                    || checksumString.Bytes.Length != 16))
+                throw new InvalidOperationException(
+                    $"{streamDescription} /Params /CheckSum is not a 16-byte string.");
+        }
+
+        static bool IsMimeToken(ReadOnlySpan<char> value)
+        {
+            foreach (char character in value)
+                if (character is not (>= 'A' and <= 'Z'
+                    or >= 'a' and <= 'z' or >= '0' and <= '9'
+                    or '!' or '#' or '$' or '%' or '&' or '\'' or '*'
+                    or '+' or '-' or '.' or '^' or '_' or '`' or '|' or '~'))
+                    return false;
+            return true;
+        }
+    }
+
+    private static void ValidateOutputIntent(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary dictionary = ResolveDictionary(document, value, description);
+        if (dictionary.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "OutputIntent"))
+            throw new InvalidOperationException(
+                $"{description} has an invalid /Type value.");
+        if (!dictionary.TryGetValue(Name("S"), out PdfObject? subtype)
+            || Resolve(subtype) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} has no valid /S name.");
+        foreach (PdfName key in new[]
+                 {
+                     Name("OutputCondition"), Name("OutputConditionIdentifier"),
+                     Name("RegistryName"), Name("Info")
+                 })
+            if (dictionary.TryGetValue(key, out PdfObject? text)
+                && Resolve(text) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /{key.ValueAsLatin1()} value is not a string or resolves to null.");
+        if (dictionary.TryGetValue(Name("DestOutputProfile"), out PdfObject? profile))
+        {
+            PdfStream stream = Resolve(profile) as PdfStream
+                ?? throw new InvalidOperationException(
+                    $"{description} /DestOutputProfile value is not a stream or resolves to null.");
+            PdfDictionary profileDictionary = stream.Dictionary;
+            if (!profileDictionary.TryGetValue(Name("N"), out PdfObject? components)
+                || Resolve(components) is not PdfInteger componentCount
+                || componentCount.Value is not (1 or 3 or 4))
+                throw new InvalidOperationException(
+                    $"{description} /DestOutputProfile has no valid /N component count.");
+            if (profileDictionary.TryGetValue(Name("Alternate"), out PdfObject? alternate)
+                && Resolve(alternate) is not (PdfName or PdfArray))
+                throw new InvalidOperationException(
+                    $"{description} /DestOutputProfile /Alternate is not a color-space name or array.");
+            if (profileDictionary.TryGetValue(Name("Range"), out PdfObject? range))
+            {
+                PdfArray values = Resolve(range) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DestOutputProfile /Range is not an array.");
+                if (values.Count != componentCount.Value * 2
+                    || values.Any(item => Resolve(item) is not (PdfInteger or PdfReal)))
+                    throw new InvalidOperationException(
+                        $"{description} /DestOutputProfile /Range does not contain two numbers per component.");
+                for (int index = 0; index < values.Count; index += 2)
+                    if (Number(Resolve(values[index])) > Number(Resolve(values[index + 1])))
+                        throw new InvalidOperationException(
+                            $"{description} /DestOutputProfile /Range contains reversed bounds.");
+            }
+        }
+        if (dictionary.TryGetValue(Name("DestOutputProfileRef"), out PdfObject? profileReference))
+        {
+            if (dictionary.ContainsKey(Name("DestOutputProfile")))
+                throw new InvalidOperationException(
+                    $"{description} contains both /DestOutputProfile and /DestOutputProfileRef.");
+            PdfDictionary reference = Resolve(profileReference) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /DestOutputProfileRef value is not a dictionary.");
+            if (!reference.TryGetValue(Name("CheckSum"), out PdfObject? checksum)
+                || Resolve(checksum) is not PdfString checksumString
+                || checksumString.Bytes.Length != 16)
+                throw new InvalidOperationException(
+                    $"{description} /DestOutputProfileRef has no 16-byte /CheckSum string.");
+            foreach (string key in new[] { "ICCVersion", "ProfileCS", "ProfileName" })
+                if (!reference.TryGetValue(Name(key), out PdfObject? text)
+                    || Resolve(text) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /DestOutputProfileRef has no /{key} string.");
+            if (!reference.TryGetValue(Name("URLs"), out PdfObject? urlsValue)
+                || Resolve(urlsValue) is not PdfArray urls || urls.Count == 0)
+                throw new InvalidOperationException(
+                    $"{description} /DestOutputProfileRef has no nonempty /URLs array.");
+            foreach (PdfObject urlValue in urls)
+            {
+                PdfDictionary url = Resolve(urlValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DestOutputProfileRef /URLs entry is not a file specification dictionary.");
+                if (!url.TryGetValue(Name("FS"), out PdfObject? fileSystem)
+                    || Resolve(fileSystem) is not PdfName fileSystemName
+                    || fileSystemName.ValueAsLatin1() != "URL")
+                    throw new InvalidOperationException(
+                        $"{description} /DestOutputProfileRef /URLs entry has no /FS /URL value.");
+                if (!url.TryGetValue(Name("F"), out PdfObject? address)
+                    || Resolve(address) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /DestOutputProfileRef /URLs entry has no /F string.");
+            }
+            if (reference.TryGetValue(Name("ColorantTable"), out PdfObject? colorants)
+                && Resolve(colorants) is not PdfArray)
+                throw new InvalidOperationException(
+                    $"{description} /DestOutputProfileRef /ColorantTable value is not an array.");
+        }
+        PdfDictionary? solidities = null;
+        if (dictionary.TryGetValue(Name("MixingHints"), out PdfObject? hintsValue))
+        {
+            PdfDictionary hints = Resolve(hintsValue) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /MixingHints value is not a dictionary.");
+            if (hints.ContainsKey(Name("DotGain")))
+                throw new InvalidOperationException(
+                    $"{description} /MixingHints contains the prohibited /DotGain entry.");
+            if (hints.TryGetValue(Name("PrintingOrder"), out PdfObject? orderValue))
+            {
+                PdfArray order = Resolve(orderValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /MixingHints /PrintingOrder value is not an array.");
+                if (order.Any(item => Resolve(item) is not PdfName))
+                    throw new InvalidOperationException(
+                        $"{description} /MixingHints /PrintingOrder contains a non-name entry.");
+            }
+            if (hints.TryGetValue(Name("Solidities"), out PdfObject? solidityValue))
+            {
+                solidities = Resolve(solidityValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /MixingHints /Solidities value is not a dictionary.");
+                foreach (KeyValuePair<PdfName, PdfObject> entry in solidities)
+                    if (!TryNumber(Resolve(entry.Value), out double solidity)
+                        || !double.IsFinite(solidity) || solidity is < 0 or > 1)
+                        throw new InvalidOperationException(
+                            $"{description} /MixingHints /Solidities /{entry.Key.ValueAsLatin1()} value is not a number from 0 through 1.");
+            }
+        }
+        if (dictionary.TryGetValue(Name("SpectralData"), out PdfObject? spectralValue))
+        {
+            PdfDictionary spectral = Resolve(spectralValue) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /SpectralData value is not a dictionary.");
+            foreach (KeyValuePair<PdfName, PdfObject> entry in spectral)
+            {
+                if (Resolve(entry.Value) is not PdfStream)
+                    throw new InvalidOperationException(
+                        $"{description} /SpectralData /{entry.Key.ValueAsLatin1()} value is not a stream.");
+                if (solidities?.ContainsKey(entry.Key) == true)
+                    throw new InvalidOperationException(
+                        $"{description} defines /{entry.Key.ValueAsLatin1()} in both /Solidities and /SpectralData.");
+            }
+        }
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        static bool TryNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+        static double Number(PdfObject item) => item switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => throw new InvalidOperationException("An ICC range entry is not numeric.")
+        };
+    }
+
+    private static void ValidateViewerPreferences(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary dictionary = ResolveDictionary(document, value, description);
+        foreach (PdfName key in new[]
+                 {
+                     Name("HideToolbar"), Name("HideMenubar"), Name("HideWindowUI"),
+                     Name("FitWindow"), Name("CenterWindow"), Name("DisplayDocTitle"),
+                     Name("PickTrayByPDFSize")
+                 })
+            ValidateOptional(key, item => item is PdfBoolean, "a boolean");
+        foreach (PdfName key in new[]
+                 {
+                     Name("NonFullScreenPageMode"), Name("Direction"),
+                     Name("ViewArea"), Name("ViewClip"), Name("PrintArea"),
+                     Name("PrintClip"), Name("PrintScaling"), Name("Duplex")
+                 })
+            ValidateOptional(key, item => item is PdfName, "a name");
+        ValidateDefinedName("NonFullScreenPageMode",
+            "UseNone", "UseOutlines", "UseThumbs", "UseOC");
+        ValidateDefinedName("Direction", "L2R", "R2L");
+        foreach (string key in new[] { "ViewArea", "ViewClip", "PrintArea", "PrintClip" })
+            ValidateDefinedName(key,
+                "MediaBox", "CropBox", "BleedBox", "TrimBox", "ArtBox");
+        ValidateDefinedName("PrintScaling", "None", "AppDefault");
+        ValidateDefinedName("Duplex",
+            "Simplex", "DuplexFlipShortEdge", "DuplexFlipLongEdge");
+        if (dictionary.TryGetValue(Name("PrintPageRange"), out PdfObject? ranges))
+        {
+            PdfArray array = Resolve(ranges) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /PrintPageRange value is not an array.");
+            if (array.Count % 2 != 0 || array.Any(item =>
+                    Resolve(item) is not PdfInteger integer || integer.Value < 0))
+                throw new InvalidOperationException(
+                    $"{description} /PrintPageRange is not an even array of nonnegative integers.");
+            for (int index = 0; index < array.Count; index += 2)
+                if (((PdfInteger)Resolve(array[index])).Value
+                    > ((PdfInteger)Resolve(array[index + 1])).Value)
+                    throw new InvalidOperationException(
+                        $"{description} /PrintPageRange contains a reversed page range.");
+        }
+        if (dictionary.TryGetValue(Name("NumCopies"), out PdfObject? copies)
+            && (Resolve(copies) is not PdfInteger integer || integer.Value < 1))
+            throw new InvalidOperationException(
+                $"{description} /NumCopies value is not a positive integer.");
+        if (dictionary.TryGetValue(Name("Enforce"), out PdfObject? enforce))
+        {
+            PdfArray array = Resolve(enforce) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /Enforce value is not an array.");
+            if (array.Any(item => Resolve(item) is not PdfName))
+                throw new InvalidOperationException(
+                    $"{description} /Enforce array contains a non-name entry.");
+        }
+
+        void ValidateOptional(
+            PdfName key, Func<PdfObject, bool> validator, string expected)
+        {
+            if (dictionary.TryGetValue(key, out PdfObject? item)
+                && !validator(Resolve(item)))
+                throw new InvalidOperationException(
+                    $"{description} /{key.ValueAsLatin1()} value is not {expected} or resolves to null.");
+        }
+
+        void ValidateDefinedName(string key, params string[] defined)
+        {
+            PdfName name = Name(key);
+            if (!dictionary.TryGetValue(name, out PdfObject? value)) return;
+            string actual = ((PdfName)Resolve(value)).ValueAsLatin1();
+            if (!defined.Contains(actual, StringComparer.Ordinal))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value /{actual} is not defined.");
+        }
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+    }
+
+    private static void ValidateMetadataStream(
+        PdfDocument document, PdfObject value, string description)
+    {
+        if (value is not PdfIndirectReference reference)
+            throw new InvalidOperationException(
+                $"{description} is not an indirect stream reference.");
+        PdfObject resolved = document.Resolve(reference);
+        PdfStream stream = resolved as PdfStream
+            ?? throw new InvalidOperationException(
+                $"{description} is not a stream or resolves to null.");
+        if (stream.Dictionary.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Metadata"))
+            throw new InvalidOperationException(
+                $"{description} has an invalid /Type value.");
+        if (stream.Dictionary.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+            && (Resolve(subtype) is not PdfName subtypeName
+                || subtypeName.ValueAsLatin1() != "XML"))
+            throw new InvalidOperationException(
+                $"{description} has an invalid /Subtype value.");
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference itemReference
+            ? document.Resolve(itemReference) : item;
+    }
+
+    private static void ValidateLanguageTag(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
+        PdfString text = resolved as PdfString
+            ?? throw new InvalidOperationException(
+                $"{description} is not a string or resolves to null.");
+        string language = PdfUnicodeEncoding.DecodeTextString(
+            text.Bytes.Span, description);
+        if (!PdfLanguageTag.IsValid(language))
+            throw new InvalidOperationException(
+                $"{description} is not a valid BCP 47 language tag.");
+    }
+
+    private static void ValidateCatalogVersion(PdfObject value, string description)
+    {
+        PdfName version = value as PdfName
+            ?? throw new InvalidOperationException($"{description} is not a name.");
+        string text = version.ValueAsLatin1();
+        if (text.Length != 3 || text[1] != '.'
+            || text[0] is < '0' or > '9' || text[2] is < '0' or > '9')
+            throw new InvalidOperationException(
+                $"{description} is not a PDF version name.");
+        int major = text[0] - '0';
+        int minor = text[2] - '0';
+        if (!PdfVersion.IsDefined(major, minor))
+            throw new InvalidOperationException(
+                $"{description} declares undefined PDF {major}.{minor}.");
+    }
+
+    private static void ValidateCatalogPageMode(PdfObject value, string description)
+    {
+        string mode = (value as PdfName)?.ValueAsLatin1()
+            ?? throw new InvalidOperationException($"{description} is not a name.");
+        if (mode is not ("UseNone" or "UseOutlines" or "UseThumbs"
+            or "FullScreen" or "UseOC" or "UseAttachments"))
+            throw new InvalidOperationException(
+                $"{description} /{mode} is not defined.");
+    }
+
+    private static void ValidateCatalogPageLayout(PdfObject value, string description)
+    {
+        string layout = (value as PdfName)?.ValueAsLatin1()
+            ?? throw new InvalidOperationException($"{description} is not a name.");
+        if (layout is not ("SinglePage" or "OneColumn" or "TwoColumnLeft"
+            or "TwoColumnRight" or "TwoPageLeft" or "TwoPageRight"))
+            throw new InvalidOperationException(
+                $"{description} /{layout} is not defined.");
+    }
+
+    private static void ValidateCatalogUri(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary uri = ResolveDictionary(document, value, description);
+        if (uri.TryGetValue(Name("Base"), out PdfObject? baseValue)
+            && Resolve(baseValue) is not PdfString)
+            throw new InvalidOperationException(
+                $"{description} /Base is not a string or resolves to null.");
+        return;
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+    }
+
+    private static void ValidateCatalogMarkInfo(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary markInfo = ResolveDictionary(document, value, description);
+        foreach (string key in new[] { "Marked", "UserProperties", "Suspects" })
+            if (markInfo.TryGetValue(Name(key), out PdfObject? flag)
+                && Resolve(flag) is not PdfBoolean)
+                throw new InvalidOperationException(
+                    $"{description} /{key} is not a boolean or resolves to null.");
+        return;
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+    }
+
+    private static void ValidateCatalogOpenAction(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject resolved = Resolve(value);
+        if (resolved is PdfArray destination)
+        {
+            if (destination.Count == 0)
+                throw new InvalidOperationException(
+                    $"{description} is an empty destination array.");
+            PdfObject pageValue = Resolve(destination[0]);
+            if (pageValue is not PdfDictionary page
+                || !page.TryGetValue(TypeName, out PdfObject? pageType)
+                || Resolve(pageType) is not PdfName pageTypeName
+                || pageTypeName.ValueAsLatin1() != "Page")
+                throw new InvalidOperationException(
+                    $"{description} destination does not begin with a page reference.");
+            ValidateExplicitDestination(document, destination,
+                $"{description} destination");
+            return;
+        }
+        if (resolved is not PdfDictionary)
+            throw new InvalidOperationException(
+                $"{description} is not a destination array or action dictionary.");
+        ValidateActionGraph(document, value, description);
+        return;
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+
+    }
+
+    private static void ValidateExplicitDestination(
+        PdfDocument document, PdfArray destination, string description) =>
+        ValidateDestination(document, destination, description, "Page", "page");
+
+    private static void ValidateStructureDestination(
+        PdfDocument document, PdfArray destination, string description) =>
+        ValidateDestination(document, destination, description, "StructElem", "structure-element");
+
+    private static void ValidateDestination(
+        PdfDocument document, PdfArray destination, string description,
+        string requiredType, string targetDescription)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (destination.Count < 2)
+            throw new InvalidOperationException($"{description} is empty or incomplete.");
+        if (destination[0] is not PdfIndirectReference
+            || Resolve(destination[0]) is not PdfDictionary target
+            || !target.TryGetValue(TypeName, out PdfObject? targetType)
+            || Resolve(targetType) is not PdfName targetTypeName
+            || targetTypeName.ValueAsLatin1() != requiredType)
+            throw new InvalidOperationException(
+                $"{description} does not begin with an indirect {targetDescription} reference.");
+        if (Resolve(destination[1]) is not PdfName modeName)
+            throw new InvalidOperationException(
+                $"{description} has no valid fit-mode name.");
+        string mode = modeName.ValueAsLatin1();
+        int expectedCount = mode switch
+        {
+            "XYZ" => 5,
+            "Fit" or "FitB" => 2,
+            "FitH" or "FitV" or "FitBH" or "FitBV" => 3,
+            "FitR" => 6,
+            _ => throw new InvalidOperationException(
+                $"{description} fit mode /{mode} is not defined.")
+        };
+        if (destination.Count != expectedCount)
+            throw new InvalidOperationException(
+                $"{description} /{mode} has an invalid operand count.");
+        for (int index = 2; index < destination.Count; index++)
+        {
+            PdfObject operand = Resolve(destination[index]);
+            bool required = mode == "FitR";
+            if (operand is PdfNull && !required) continue;
+            if (operand is not (PdfInteger or PdfReal))
+                throw new InvalidOperationException(
+                    $"{description} /{mode} contains a nonnumeric operand.");
+        }
+        if (mode == "XYZ" && NumericValue(Resolve(destination[4])) is double zoom
+            && zoom < 0)
+            throw new InvalidOperationException(
+                $"{description} /XYZ has a negative zoom value.");
+
+        static double? NumericValue(PdfObject item) => item switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => null
+        };
+    }
+
+    private static void ValidateDocumentInformation(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary information = ResolveDictionary(document, value, description);
+        foreach (string key in new[]
+                 {
+                     "Title", "Author", "Subject", "Keywords", "Creator", "Producer",
+                     "CreationDate", "ModDate"
+                 })
+            if (information.TryGetValue(Name(key), out PdfObject? text)
+                && Resolve(text) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /{key} is not a string or resolves to null.");
+        foreach (string key in new[] { "CreationDate", "ModDate" })
+            if (information.TryGetValue(Name(key), out PdfObject? date))
+                ValidatePdfDateString(Resolve(date),
+                    $"{description} /{key}");
+        if (information.TryGetValue(Name("Trapped"), out PdfObject? trapped))
+        {
+            string state = (Resolve(trapped) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /Trapped is not a name or resolves to null.");
+            if (state is not ("True" or "False" or "Unknown"))
+                throw new InvalidOperationException(
+                    $"{description} /Trapped /{state} is not defined.");
+        }
+        return;
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+    }
+
+    private static void ValidateCatalogAdditionalActions(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary actions = ResolveDictionary(document, value, description);
+        foreach (var entry in actions)
+            ValidateActionGraph(document, entry.Value,
+                $"{description} /{entry.Key.ValueAsLatin1()} entry");
+    }
+
+    private static void ValidateCatalogRequirements(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfArray requirements = ResolveArray(document, value, description);
+        foreach (PdfObject item in requirements)
+        {
+            PdfDictionary requirement = ResolveDictionary(
+                document, item, $"{description} entry");
+            PdfObject Resolve(PdfObject entry) => entry is PdfIndirectReference reference
+                ? document.Resolve(reference) : entry;
+            if (requirement.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "Requirement"))
+                throw new InvalidOperationException(
+                    $"{description} entry has an invalid /Type value.");
+            if (!requirement.TryGetValue(Name("S"), out PdfObject? subtype)
+                || Resolve(subtype) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} entry has no /S name.");
+            if (requirement.TryGetValue(Name("Penalty"), out PdfObject? penalty)
+                && (Resolve(penalty) is not PdfInteger penaltyInteger
+                    || penaltyInteger.Value is < 0 or > 100))
+                throw new InvalidOperationException(
+                    $"{description} entry /Penalty value is not an integer from 0 through 100.");
+            if (requirement.TryGetValue(Name("V"), out PdfObject? version)
+                && Resolve(version) is not (PdfName or PdfDictionary))
+                throw new InvalidOperationException(
+                    $"{description} entry /V value is not a name or developer-extension dictionary.");
+            if (requirement.TryGetValue(Name("DigSig"), out PdfObject? signature)
+                && Resolve(signature) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"{description} entry /DigSig value is not a signature dictionary.");
+            if (requirement.TryGetValue(Name("Encrypt"), out PdfObject? encryption)
+                && Resolve(encryption) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"{description} entry /Encrypt value is not an encryption dictionary.");
+            if (requirement.TryGetValue(Name("RH"), out PdfObject? handlers))
+            {
+                PdfArray handlerArray = Resolve(handlers) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} entry /RH value is not an array.");
+                if (handlerArray.Any(handler => Resolve(handler) is not PdfDictionary))
+                    throw new InvalidOperationException(
+                        $"{description} entry /RH contains a non-dictionary handler.");
+                foreach (PdfObject handlerValue in handlerArray)
+                {
+                    PdfDictionary handler = (PdfDictionary)Resolve(handlerValue);
+                    if (handler.TryGetValue(TypeName, out PdfObject? handlerType)
+                        && (Resolve(handlerType) is not PdfName handlerTypeName
+                            || handlerTypeName.ValueAsLatin1() != "ReqHandler"))
+                        throw new InvalidOperationException(
+                            $"{description} entry /RH handler has an invalid /Type value.");
+                    if (!handler.TryGetValue(Name("S"), out PdfObject? handlerSubtype)
+                        || Resolve(handlerSubtype) is not PdfName handlerSubtypeName)
+                        throw new InvalidOperationException(
+                            $"{description} entry /RH handler has no /S name.");
+                    string handlerSubtypeValue = handlerSubtypeName.ValueAsLatin1();
+                    bool hasScript = handler.TryGetValue(
+                        Name("Script"), out PdfObject? script);
+                    if (hasScript && handlerSubtypeValue == "NoOp")
+                        throw new InvalidOperationException(
+                            $"{description} entry /RH /NoOp handler has a /Script value.");
+                    if (hasScript && handlerSubtypeValue == "JS"
+                        && Resolve(script!) is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{description} entry /RH /JS handler /Script value is not a string.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateCatalogThreads(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfArray threads = ResolveArray(document, value, description);
+        foreach (PdfObject item in threads)
+        {
+            if (item is not PdfIndirectReference threadReference)
+                throw new InvalidOperationException(
+                    $"{description} entry is not an indirect thread reference.");
+            PdfDictionary thread = ResolveDictionary(document, item,
+                $"{description} entry");
+            PdfObject Resolve(PdfObject entry) => entry is PdfIndirectReference reference
+                ? document.Resolve(reference) : entry;
+            if (thread.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "Thread"))
+                throw new InvalidOperationException(
+                    $"{description} entry has an invalid /Type value.");
+            if (!thread.TryGetValue(Name("F"), out PdfObject? firstBead))
+                throw new InvalidOperationException(
+                    $"{description} entry has no /F bead.");
+            ValidatePageBeads(document, new PdfArray([firstBead]),
+                $"{description} entry /F value", threadReference);
+            if (thread.TryGetValue(Name("I"), out PdfObject? information))
+            {
+                PdfDictionary info = Resolve(information) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} entry /I value is not a dictionary.");
+                foreach (string key in new[]
+                         { "Title", "Author", "Subject", "Keywords", "Creator" })
+                    if (info.TryGetValue(Name(key), out PdfObject? text)
+                        && Resolve(text) is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{description} entry /I /{key} value is not a string.");
+                foreach (string key in new[] { "CreationDate", "ModDate" })
+                    if (info.TryGetValue(Name(key), out PdfObject? date))
+                        ValidatePdfDateString(Resolve(date),
+                            $"{description} entry /I /{key} value");
+            }
+        }
+    }
+
+    private static void ValidateCatalogCollection(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary collection = ResolveDictionary(document, value, description);
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (collection.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Collection"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        if (collection.TryGetValue(Name("View"), out PdfObject? view))
+        {
+            string viewName = (Resolve(view) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException($"{description} /View is not a name.");
+            if (viewName is not ("D" or "T" or "H" or "C"))
+                throw new InvalidOperationException(
+                    $"{description} /View value /{viewName} is not defined.");
+        }
+        if (collection.TryGetValue(Name("D"), out PdfObject? initialDocument)
+            && Resolve(initialDocument) is not PdfString)
+            throw new InvalidOperationException($"{description} /D value is not a string.");
+        foreach (string key in new[] { "Schema", "Navigator", "Colors", "Sort", "Split" })
+            if (collection.TryGetValue(Name(key), out PdfObject? dictionary)
+                && Resolve(dictionary) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not a dictionary.");
+        if (collection.TryGetValue(Name("Schema"), out PdfObject? schemaValue))
+        {
+            PdfDictionary schema = (PdfDictionary)Resolve(schemaValue);
+            ValidateOptionalType(schema, "CollectionSchema", $"{description} /Schema");
+            foreach (var entry in schema.Where(entry => !entry.Key.Equals(TypeName)))
+            {
+                PdfDictionary field = Resolve(entry.Value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Schema /{entry.Key.ValueAsLatin1()} entry is not a dictionary.");
+                string subtype = field.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+                    ? (Resolve(subtypeValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} /Schema /{entry.Key.ValueAsLatin1()} /Subtype is not a name.")
+                    : throw new InvalidOperationException(
+                        $"{description} /Schema /{entry.Key.ValueAsLatin1()} has no /Subtype name.");
+                if (subtype is not ("S" or "D" or "N" or "F" or "Desc"
+                    or "ModDate" or "CreationDate" or "Size"))
+                    throw new InvalidOperationException(
+                        $"{description} /Schema /{entry.Key.ValueAsLatin1()} /Subtype /{subtype} is not defined.");
+                if (!field.TryGetValue(Name("N"), out PdfObject? fieldName)
+                    || Resolve(fieldName) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /Schema /{entry.Key.ValueAsLatin1()} has no /N string.");
+                if (field.TryGetValue(Name("O"), out PdfObject? order)
+                    && Resolve(order) is not PdfInteger)
+                    throw new InvalidOperationException(
+                        $"{description} /Schema /{entry.Key.ValueAsLatin1()} /O is not an integer.");
+                foreach (string key in new[] { "V", "E" })
+                    if (field.TryGetValue(Name(key), out PdfObject? flag)
+                        && Resolve(flag) is not PdfBoolean)
+                        throw new InvalidOperationException(
+                            $"{description} /Schema /{entry.Key.ValueAsLatin1()} /{key} is not boolean.");
+            }
+        }
+        if (collection.TryGetValue(Name("Sort"), out PdfObject? sortValue))
+        {
+            PdfDictionary sort = (PdfDictionary)Resolve(sortValue);
+            ValidateOptionalType(sort, "CollectionSort", $"{description} /Sort");
+            if (!sort.TryGetValue(Name("S"), out PdfObject? keysValue))
+                throw new InvalidOperationException(
+                    $"{description} /Sort has no /S key.");
+            PdfObject resolvedKeys = Resolve(keysValue);
+            int keyCount;
+            if (resolvedKeys is PdfName) keyCount = 1;
+            else if (resolvedKeys is PdfArray keys && keys.Count > 0
+                && keys.All(item => Resolve(item) is PdfName)) keyCount = keys.Count;
+            else throw new InvalidOperationException(
+                $"{description} /Sort /S is not a name or nonempty name array.");
+            if (sort.TryGetValue(Name("A"), out PdfObject? directionsValue))
+            {
+                PdfObject directions = Resolve(directionsValue);
+                if (directions is PdfBoolean) { }
+                else if (directions is not PdfArray directionArray
+                    || directionArray.Count != keyCount
+                    || directionArray.Any(item => Resolve(item) is not PdfBoolean))
+                    throw new InvalidOperationException(
+                        $"{description} /Sort /A does not match its sort keys.");
+            }
+        }
+        if (collection.TryGetValue(Name("Colors"), out PdfObject? colorsValue))
+        {
+            PdfDictionary colors = (PdfDictionary)Resolve(colorsValue);
+            ValidateOptionalType(colors, "CollectionColors", $"{description} /Colors");
+            foreach (string key in new[]
+                     { "Background", "CardBackground", "CardBorder", "PrimaryText", "SecondaryText" })
+                if (colors.TryGetValue(Name(key), out PdfObject? colorValue)
+                    && (Resolve(colorValue) is not PdfArray color || color.Count != 3
+                        || color.Any(component => !TryNumber(Resolve(component), out double number)
+                            || !double.IsFinite(number) || number is < 0 or > 1)))
+                    throw new InvalidOperationException(
+                        $"{description} /Colors /{key} value is not a valid RGB array.");
+        }
+        if (collection.TryGetValue(Name("Split"), out PdfObject? splitValue))
+        {
+            PdfDictionary split = (PdfDictionary)Resolve(splitValue);
+            ValidateOptionalType(split, "CollectionSplit", $"{description} /Split");
+            if (split.TryGetValue(Name("Direction"), out PdfObject? direction)
+                && (Resolve(direction) is not PdfName directionName
+                    || directionName.ValueAsLatin1() is not ("H" or "V" or "N")))
+                throw new InvalidOperationException(
+                    $"{description} /Split /Direction value is not defined.");
+            if (split.TryGetValue(Name("Position"), out PdfObject? position)
+                && (!TryNumber(Resolve(position), out double percentage)
+                    || !double.IsFinite(percentage) || percentage is < 0 or > 100))
+                throw new InvalidOperationException(
+                    $"{description} /Split /Position value is not a number from 0 through 100.");
+        }
+        if (collection.TryGetValue(Name("Navigator"), out PdfObject? navigatorValue))
+        {
+            PdfDictionary navigator = (PdfDictionary)Resolve(navigatorValue);
+            ValidateOptionalType(navigator, "Navigator", $"{description} /Navigator");
+            if (navigator.TryGetValue(Name("Layout"), out PdfObject? layout)
+                && Resolve(layout) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} /Navigator /Layout value is not a name.");
+        }
+        if (collection.TryGetValue(Name("Folders"), out PdfObject? foldersValue))
+            ValidateFolderTree(foldersValue);
+
+        void ValidateFolderTree(PdfObject rootValue)
+        {
+            if (rootValue is not PdfIndirectReference rootReference)
+                throw new InvalidOperationException(
+                    $"{description} /Folders value is not an indirect folder reference.");
+            var visited = new HashSet<PdfIndirectReference>();
+            var identifiers = new HashSet<long>();
+            ValidateFolder(rootReference, null,
+                $"{description} /Folders root", isRoot: true, depth: 0);
+
+            void ValidateFolder(PdfIndirectReference reference,
+                PdfIndirectReference? expectedParent, string folderDescription,
+                bool isRoot, int depth)
+            {
+                if (depth > 64)
+                    throw new NotSupportedException(
+                        "A collection folder hierarchy is too deeply nested.");
+                if (!visited.Add(reference))
+                    throw new InvalidOperationException(
+                        "A collection folder hierarchy contains a cycle or reused folder.");
+                PdfDictionary folder = Resolve(reference) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{folderDescription} does not resolve to a dictionary.");
+                ValidateOptionalType(folder, "Folder", folderDescription);
+                if (!folder.TryGetValue(Name("ID"), out PdfObject? identifier)
+                    || Resolve(identifier) is not PdfInteger identifierValue
+                    || identifierValue.Value < 0)
+                    throw new InvalidOperationException(
+                        $"{folderDescription} has no nonnegative /ID integer.");
+                if (!identifiers.Add(identifierValue.Value))
+                    throw new InvalidOperationException(
+                        $"{folderDescription} reuses folder /ID {identifierValue.Value}.");
+                if (!folder.TryGetValue(Name("Name"), out PdfObject? folderName)
+                    || Resolve(folderName) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{folderDescription} has no /Name string.");
+                if (isRoot)
+                {
+                    if (folder.ContainsKey(Name("Parent")) || folder.ContainsKey(Name("Next")))
+                        throw new InvalidOperationException(
+                            $"{folderDescription} contains a root-prohibited /Parent or /Next entry.");
+                }
+                else if (!folder.TryGetValue(Name("Parent"), out PdfObject? parent)
+                    || parent is not PdfIndirectReference parentReference
+                    || !parentReference.Equals(expectedParent))
+                    throw new InvalidOperationException(
+                        $"{folderDescription} has no reciprocal indirect /Parent reference.");
+                if (folder.TryGetValue(Name("CI"), out PdfObject? collectionItem)
+                    && Resolve(collectionItem) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{folderDescription} /CI value is not a dictionary.");
+                if (folder.TryGetValue(Name("Desc"), out PdfObject? folderDescriptionValue)
+                    && Resolve(folderDescriptionValue) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{folderDescription} /Desc value is not a string.");
+                foreach (string dateKey in new[] { "CreationDate", "ModDate" })
+                    if (folder.TryGetValue(Name(dateKey), out PdfObject? date))
+                        ValidatePdfDateString(Resolve(date),
+                            $"{folderDescription} /{dateKey} value");
+                if (folder.TryGetValue(Name("Thumb"), out PdfObject? thumbnail))
+                    ValidatePageThumbnail(document, thumbnail,
+                        $"{folderDescription} /Thumb value");
+                if (!isRoot && folder.ContainsKey(Name("Free")))
+                    throw new InvalidOperationException(
+                        $"{folderDescription} contains a non-root /Free entry.");
+                if (folder.TryGetValue(Name("Free"), out PdfObject? freeValue))
+                {
+                    PdfArray free = Resolve(freeValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{folderDescription} /Free value is not an array.");
+                    if (free.Count % 2 != 0 || free.Any(item =>
+                            Resolve(item) is not PdfInteger freeId || freeId.Value < 0))
+                        throw new InvalidOperationException(
+                            $"{folderDescription} /Free is not an even array of nonnegative integers.");
+                    for (int index = 0; index < free.Count; index += 2)
+                        if (((PdfInteger)Resolve(free[index])).Value
+                            > ((PdfInteger)Resolve(free[index + 1])).Value)
+                            throw new InvalidOperationException(
+                                $"{folderDescription} /Free contains a reversed range.");
+                }
+                if (folder.TryGetValue(Name("Child"), out PdfObject? child))
+                {
+                    if (child is not PdfIndirectReference childReference)
+                        throw new InvalidOperationException(
+                            $"{folderDescription} /Child value is not an indirect reference.");
+                    ValidateFolder(childReference, reference,
+                        $"{folderDescription} /Child", isRoot: false, depth + 1);
+                }
+                if (!isRoot && folder.TryGetValue(Name("Next"), out PdfObject? next))
+                {
+                    if (next is not PdfIndirectReference nextReference)
+                        throw new InvalidOperationException(
+                            $"{folderDescription} /Next value is not an indirect reference.");
+                    ValidateFolder(nextReference, expectedParent,
+                        $"{folderDescription} /Next", isRoot: false, depth + 1);
+                }
+            }
+        }
+
+        void ValidateOptionalType(
+            PdfDictionary dictionary, string expectedType, string valueDescription)
+        {
+            if (dictionary.TryGetValue(TypeName, out PdfObject? dictionaryType)
+                && (Resolve(dictionaryType) is not PdfName dictionaryTypeName
+                    || dictionaryTypeName.ValueAsLatin1() != expectedType))
+                throw new InvalidOperationException(
+                    $"{valueDescription} has an invalid /Type value.");
+        }
+
+        static bool TryNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidateCatalogLegal(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary legal = ResolveDictionary(document, value, description);
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (legal.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Legal"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        if (legal.TryGetValue(Name("Attestation"), out PdfObject? attestation)
+            && Resolve(attestation) is not PdfString)
+            throw new InvalidOperationException(
+                $"{description} /Attestation value is not a string.");
+        if (legal.TryGetValue(Name("LastModified"), out PdfObject? modified))
+            ValidatePdfDateString(Resolve(modified),
+                $"{description} /LastModified value");
+        foreach (string key in new[]
+                 {
+                     "JavaScriptActions", "LaunchActions", "URIActions", "MovieActions",
+                     "SoundActions", "HideAnnotationActions", "GoToRemoteActions",
+                     "AlternateImages", "ExternalStreams", "TrueTypeFonts",
+                     "ExternalRefXobjects", "ExternalOPIdicts", "NonEmbeddedFonts",
+                     "DevDepGS_OP", "DevDepGS_HT", "DevDepGS_TR", "DevDepGS_UCR",
+                     "DevDepGS_BG", "DevDepGS_FL", "Annotations", "OptionalContent"
+                 })
+            if (legal.TryGetValue(Name(key), out PdfObject? declaration))
+            {
+                string state = (Resolve(declaration) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{key} value is not a name.");
+                if (state is not ("True" or "False" or "Unknown"))
+                    throw new InvalidOperationException(
+                        $"{description} /{key} value /{state} is not defined.");
+            }
+    }
+
+    private static void ValidateActionGraph(
+        PdfDocument document, PdfObject value, string description)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        ValidateAction(value, description, 0);
+
+        void ValidateAction(PdfObject actionValue, string actionDescription, int depth)
+        {
+            if (depth > 256)
+                throw new NotSupportedException("An action graph is too deeply nested.");
+            if (actionValue is PdfIndirectReference reference
+                && !visited.Add((reference.ObjectNumber, reference.Generation)))
+                throw new InvalidOperationException("An action graph contains a cycle or reused action.");
+            PdfDictionary action = Resolve(actionValue) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{actionDescription} is not an action dictionary or resolves to null.");
+            if (action.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "Action"))
+                throw new InvalidOperationException(
+                    $"{actionDescription} has an invalid /Type value.");
+            if (!action.TryGetValue(Name("S"), out PdfObject? subtype)
+                || Resolve(subtype) is not PdfName subtypeName)
+                throw new InvalidOperationException(
+                    $"{actionDescription} has no valid /S name.");
+            ValidateSubtype(action, subtypeName.ValueAsLatin1(), actionDescription);
+            if (!action.TryGetValue(Name("Next"), out PdfObject? next)) return;
+            PdfObject resolvedNext = Resolve(next);
+            if (resolvedNext is PdfDictionary)
+            {
+                ValidateAction(next, $"{actionDescription} /Next", depth + 1);
+                return;
+            }
+            PdfArray nextActions = resolvedNext as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{actionDescription} /Next is not an action dictionary or array.");
+            foreach (PdfObject nextAction in nextActions)
+                ValidateAction(nextAction, $"{actionDescription} /Next entry", depth + 1);
+        }
+
+        void ValidateSubtype(
+            PdfDictionary action, string subtype, string actionDescription)
+        {
+            if (subtype == "GoTo")
+            {
+                if (!action.TryGetValue(DestinationName, out PdfObject? destination))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoTo action has no /D destination.");
+                PdfObject resolvedDestination = Resolve(destination);
+                if (resolvedDestination is PdfArray array)
+                    ValidateExplicitDestination(document, array,
+                        $"{actionDescription} /GoTo /D value");
+                else if (resolvedDestination is not (PdfName or PdfString))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoTo /D value is not an explicit or named destination.");
+                if (action.TryGetValue(Name("SD"), out PdfObject? structureDestination))
+                {
+                    PdfArray structureArray = Resolve(structureDestination) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{actionDescription} /GoTo /SD value is not an array.");
+                    ValidateStructureDestination(document, structureArray,
+                        $"{actionDescription} /GoTo /SD value");
+                }
+                return;
+            }
+            if (subtype == "GoToDp")
+            {
+                if (!action.TryGetValue(Name("Dp"), out PdfObject? documentPart)
+                    || documentPart is not PdfIndirectReference
+                    || Resolve(documentPart) is not PdfDictionary part
+                    || !part.TryGetValue(TypeName, out PdfObject? partType)
+                    || Resolve(partType) is not PdfName partTypeName
+                    || partTypeName.ValueAsLatin1() != "DPart")
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoToDp action has no indirect typed /Dp document part.");
+                return;
+            }
+            if (subtype == "URI")
+            {
+                if (!action.TryGetValue(Name("URI"), out PdfObject? uri)
+                    || Resolve(uri) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /URI action has no valid /URI string.");
+                if (action.TryGetValue(Name("IsMap"), out PdfObject? isMap)
+                    && Resolve(isMap) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /URI action /IsMap value is not a boolean.");
+                return;
+            }
+            if (subtype is "GoToR" or "Launch" or "SubmitForm" or "ImportData")
+            {
+                if (!action.TryGetValue(Name("F"), out PdfObject? file))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /{subtype} action has no /F file specification.");
+                PdfObject resolvedFile = Resolve(file);
+                if (resolvedFile is PdfDictionary)
+                    ValidateFileSpecification(document, file,
+                        $"{actionDescription} /{subtype} /F value");
+                else if (resolvedFile is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /{subtype} /F value is not a string or file-specification dictionary.");
+                if (subtype == "GoToR")
+                {
+                    if (!action.TryGetValue(DestinationName, out PdfObject? destination))
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /GoToR action has no /D destination.");
+                    PdfObject resolvedDestination = Resolve(destination);
+                    if (resolvedDestination is PdfArray remoteArray && remoteArray.Count == 0
+                        || resolvedDestination is not (PdfArray or PdfName or PdfString))
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /GoToR /D value is not a nonempty explicit or named destination.");
+                    if (action.TryGetValue(Name("NewWindow"), out PdfObject? newWindow)
+                        && Resolve(newWindow) is not PdfBoolean)
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /GoToR /NewWindow value is not boolean.");
+                }
+                if (subtype == "Launch")
+                {
+                    if (action.TryGetValue(Name("NewWindow"), out PdfObject? newWindow)
+                        && Resolve(newWindow) is not PdfBoolean)
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /Launch /NewWindow value is not boolean.");
+                    if (action.TryGetValue(Name("Win"), out PdfObject? windowsValue))
+                    {
+                        PdfDictionary windows = Resolve(windowsValue) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{actionDescription} /Launch /Win value is not a dictionary.");
+                        if (!windows.TryGetValue(Name("F"), out PdfObject? windowsFile)
+                            || Resolve(windowsFile) is not PdfString)
+                            throw new InvalidOperationException(
+                                $"{actionDescription} /Launch /Win has no /F string.");
+                        foreach (string key in new[] { "D", "O", "P" })
+                            if (windows.TryGetValue(Name(key), out PdfObject? parameter)
+                                && Resolve(parameter) is not PdfString)
+                                throw new InvalidOperationException(
+                                    $"{actionDescription} /Launch /Win /{key} value is not a string.");
+                    }
+                    foreach (string key in new[] { "Mac", "Unix" })
+                        if (action.TryGetValue(Name(key), out PdfObject? platform)
+                            && Resolve(platform) is not PdfDictionary)
+                            throw new InvalidOperationException(
+                                $"{actionDescription} /Launch /{key} value is not a dictionary.");
+                }
+                ValidateFormActionOptions(action, subtype, actionDescription);
+                return;
+            }
+            if (subtype == "ResetForm")
+            {
+                ValidateFormActionOptions(action, subtype, actionDescription);
+                return;
+            }
+            if (subtype == "Hide")
+            {
+                if (!action.TryGetValue(Name("T"), out PdfObject? target)
+                    || Resolve(target) is not (PdfDictionary or PdfString or PdfArray))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Hide action has no valid /T target.");
+                if (action.TryGetValue(Name("H"), out PdfObject? hide)
+                    && Resolve(hide) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Hide /H value is not boolean.");
+                return;
+            }
+            if (subtype == "Sound")
+            {
+                if (!action.TryGetValue(Name("Sound"), out PdfObject? sound)
+                    || Resolve(sound) is not PdfStream)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Sound action has no /Sound stream.");
+                if (action.TryGetValue(Name("Volume"), out PdfObject? volume)
+                    && (!TryActionNumber(Resolve(volume), out double volumeValue)
+                        || !double.IsFinite(volumeValue) || volumeValue is < -1 or > 1))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Sound /Volume value is not a number from -1 through 1.");
+                foreach (string key in new[] { "Synchronous", "Repeat", "Mix" })
+                    if (action.TryGetValue(Name(key), out PdfObject? option)
+                        && Resolve(option) is not PdfBoolean)
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /Sound /{key} value is not boolean.");
+                return;
+            }
+            if (subtype == "Movie")
+            {
+                bool hasTitle = action.TryGetValue(Name("T"), out PdfObject? target);
+                bool hasAnnotation = action.TryGetValue(
+                    Name("Annotation"), out PdfObject? annotation);
+                if (!hasTitle && !hasAnnotation)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Movie action has neither /T nor /Annotation target.");
+                if (hasTitle && Resolve(target!) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Movie /T value is not a string.");
+                if (hasAnnotation)
+                {
+                    PdfDictionary annotationDictionary = Resolve(annotation!) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{actionDescription} /Movie /Annotation value is not a dictionary.");
+                    if (!annotationDictionary.TryGetValue(Name("Subtype"), out PdfObject? annotationSubtype)
+                        || Resolve(annotationSubtype) is not PdfName annotationSubtypeName
+                        || annotationSubtypeName.ValueAsLatin1() != "Movie")
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /Movie /Annotation target is not a Movie annotation.");
+                }
+                if (action.TryGetValue(Name("Operation"), out PdfObject? operation))
+                {
+                    string operationName = (Resolve(operation) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{actionDescription} /Movie /Operation value is not a name.");
+                    if (operationName is not ("Play" or "Stop" or "Pause" or "Resume"))
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /Movie /Operation value /{operationName} is not defined.");
+                }
+                return;
+            }
+            if (subtype == "Trans")
+            {
+                if (action.TryGetValue(Name("Trans"), out PdfObject? transition))
+                    ValidatePageTransition(document, transition,
+                        $"{actionDescription} /Trans action /Trans value");
+                return;
+            }
+            if (subtype == "Thread")
+            {
+                if (!action.TryGetValue(DestinationName, out PdfObject? thread)
+                    || Resolve(thread) is not (PdfDictionary or PdfInteger or PdfString))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Thread action has no valid /D thread.");
+                if (action.TryGetValue(Name("B"), out PdfObject? bead)
+                    && Resolve(bead) is not (PdfDictionary or PdfInteger or PdfString))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Thread /B value is not a bead dictionary, number, or string.");
+                if (action.TryGetValue(Name("F"), out PdfObject? threadFile))
+                {
+                    PdfObject resolvedThreadFile = Resolve(threadFile);
+                    if (resolvedThreadFile is PdfDictionary)
+                        ValidateFileSpecification(document, threadFile,
+                            $"{actionDescription} /Thread /F value");
+                    else if (resolvedThreadFile is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /Thread /F value is not a string or file-specification dictionary.");
+                }
+                return;
+            }
+            if (subtype == "GoToE")
+            {
+                if (!action.TryGetValue(DestinationName, out PdfObject? destination))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoToE action has no /D destination.");
+                PdfObject resolvedDestination = Resolve(destination);
+                if (resolvedDestination is PdfArray embeddedArray && embeddedArray.Count == 0
+                    || resolvedDestination is not (PdfArray or PdfName or PdfString))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoToE /D value is not a nonempty explicit or named destination.");
+                if (action.TryGetValue(Name("T"), out PdfObject? target))
+                    ValidateEmbeddedTarget(target,
+                        $"{actionDescription} /GoToE /T value", 0);
+                if (action.TryGetValue(Name("NewWindow"), out PdfObject? newWindow)
+                    && Resolve(newWindow) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoToE /NewWindow value is not boolean.");
+                return;
+            }
+            if (subtype == "Rendition")
+            {
+                if (!action.TryGetValue(Name("OP"), out PdfObject? operation)
+                    || Resolve(operation) is not PdfInteger operationValue
+                    || operationValue.Value is < 0 or > 4)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Rendition action has no /OP integer from 0 through 4.");
+                if (!action.TryGetValue(Name("AN"), out PdfObject? annotation)
+                    || Resolve(annotation) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Rendition action has no /AN annotation dictionary.");
+                if (action.TryGetValue(Name("R"), out PdfObject? rendition)
+                    && Resolve(rendition) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Rendition /R value is not a rendition dictionary.");
+                if (action.TryGetValue(Name("JS"), out PdfObject? renditionScript)
+                    && Resolve(renditionScript) is not (PdfString or PdfStream))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Rendition /JS value is not a string or stream.");
+                return;
+            }
+            if (subtype == "GoTo3DView")
+            {
+                if (!action.TryGetValue(Name("TA"), out PdfObject? targetAnnotation)
+                    || Resolve(targetAnnotation) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoTo3DView action has no /TA annotation dictionary.");
+                if (!action.TryGetValue(Name("V"), out PdfObject? view)
+                    || Resolve(view) is not (PdfDictionary or PdfName or PdfString))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /GoTo3DView action has no valid /V view.");
+                return;
+            }
+            if (subtype == "RichMediaExecute")
+            {
+                if (!action.TryGetValue(Name("TA"), out PdfObject? targetAnnotation)
+                    || targetAnnotation is not PdfIndirectReference
+                    || Resolve(targetAnnotation) is not PdfDictionary target
+                    || !target.TryGetValue(Name("Subtype"), out PdfObject? targetSubtype)
+                    || Resolve(targetSubtype) is not PdfName targetSubtypeName
+                    || targetSubtypeName.ValueAsLatin1() != "RichMedia")
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /RichMediaExecute action has no indirect RichMedia /TA annotation.");
+                if (action.TryGetValue(Name("TI"), out PdfObject? targetInstance)
+                    && (targetInstance is not PdfIndirectReference
+                        || Resolve(targetInstance) is not PdfDictionary instance
+                        || !instance.TryGetValue(TypeName, out PdfObject? instanceType)
+                        || Resolve(instanceType) is not PdfName instanceTypeName
+                        || instanceTypeName.ValueAsLatin1() != "RichMediaInstance"))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /RichMediaExecute /TI value is not an indirect RichMediaInstance dictionary.");
+                if (!action.TryGetValue(Name("CMD"), out PdfObject? commandValue)
+                    || Resolve(commandValue) is not PdfDictionary command)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /RichMediaExecute action has no /CMD dictionary.");
+                if (command.TryGetValue(TypeName, out PdfObject? commandType)
+                    && (Resolve(commandType) is not PdfName commandTypeName
+                        || commandTypeName.ValueAsLatin1() != "RichMediaCommand"))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /RichMediaExecute /CMD has an invalid /Type value.");
+                if (!command.TryGetValue(Name("C"), out PdfObject? commandName)
+                    || Resolve(commandName) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /RichMediaExecute /CMD has no /C string.");
+                if (command.TryGetValue(Name("A"), out PdfObject? arguments))
+                {
+                    PdfObject resolvedArguments = Resolve(arguments);
+                    IEnumerable<PdfObject> values = resolvedArguments is PdfArray argumentArray
+                        ? argumentArray.Select(Resolve) : [resolvedArguments];
+                    if (values.Any(argument => argument is not
+                        (PdfString or PdfInteger or PdfReal or PdfBoolean)))
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /RichMediaExecute /CMD /A contains an invalid argument type.");
+                }
+                return;
+            }
+            if (subtype == "SetOCGState")
+            {
+                if (!action.TryGetValue(Name("State"), out PdfObject? state)
+                    || Resolve(state) is not PdfArray stateArray || stateArray.Count == 0)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /SetOCGState action has no nonempty /State array.");
+                bool hasOperator = false;
+                bool hasGroup = false;
+                foreach (PdfObject stateItem in stateArray)
+                {
+                    PdfObject resolvedStateItem = Resolve(stateItem);
+                    if (resolvedStateItem is PdfName operation)
+                    {
+                        if (operation.ValueAsLatin1() is not ("ON" or "OFF" or "Toggle"))
+                            throw new InvalidOperationException(
+                                $"{actionDescription} /SetOCGState /State operator /{operation.ValueAsLatin1()} is not defined.");
+                        hasOperator = true;
+                        continue;
+                    }
+                    if (!hasOperator || resolvedStateItem is not PdfDictionary group
+                        || !group.TryGetValue(TypeName, out PdfObject? groupType)
+                        || Resolve(groupType) is not PdfName groupTypeName
+                        || groupTypeName.ValueAsLatin1() != "OCG")
+                        throw new InvalidOperationException(
+                            $"{actionDescription} /SetOCGState /State operand is not an OCG following a state operator.");
+                    hasGroup = true;
+                }
+                if (!hasGroup)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /SetOCGState /State contains no OCG operand.");
+                if (action.TryGetValue(Name("PreserveRB"), out PdfObject? preserve)
+                    && Resolve(preserve) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /SetOCGState /PreserveRB value is not boolean.");
+                return;
+            }
+            if (subtype == "Named")
+            {
+                if (!action.TryGetValue(Name("N"), out PdfObject? named)
+                    || Resolve(named) is not PdfName namedName)
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Named action has no valid /N name.");
+                if (namedName.ValueAsLatin1() is not
+                    ("NextPage" or "PrevPage" or "FirstPage" or "LastPage"))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /Named /N value /{namedName.ValueAsLatin1()} is not defined.");
+                return;
+            }
+            if (subtype == "JavaScript")
+            {
+                if (!action.TryGetValue(Name("JS"), out PdfObject? script)
+                    || Resolve(script) is not (PdfString or PdfStream))
+                    throw new InvalidOperationException(
+                        $"{actionDescription} /JavaScript action has no valid /JS string or stream.");
+                return;
+            }
+            throw new InvalidOperationException(
+                $"{actionDescription} has undefined action subtype /{subtype}.");
+
+            void ValidateEmbeddedTarget(
+                PdfObject targetValue, string targetDescription, int depth)
+            {
+                if (depth > 32)
+                    throw new NotSupportedException(
+                        "An embedded go-to target graph is too deeply nested.");
+                PdfDictionary target = Resolve(targetValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{targetDescription} is not a target dictionary.");
+                if (!target.TryGetValue(Name("R"), out PdfObject? relationship)
+                    || Resolve(relationship) is not PdfName relationshipName
+                    || relationshipName.ValueAsLatin1() is not ("P" or "C"))
+                    throw new InvalidOperationException(
+                        $"{targetDescription} has no defined /R relationship.");
+                if (relationshipName.ValueAsLatin1() == "C"
+                    && (!target.TryGetValue(Name("N"), out PdfObject? childName)
+                        || Resolve(childName) is not PdfString))
+                    throw new InvalidOperationException(
+                        $"{targetDescription} child relationship has no /N string.");
+                if (target.TryGetValue(Name("P"), out PdfObject? page)
+                    && Resolve(page) is not (PdfInteger or PdfString))
+                    throw new InvalidOperationException(
+                        $"{targetDescription} /P value is not an integer or string.");
+                if (target.TryGetValue(Name("A"), out PdfObject? annotation)
+                    && Resolve(annotation) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{targetDescription} /A value is not a string.");
+                if (target.TryGetValue(Name("T"), out PdfObject? nested))
+                    ValidateEmbeddedTarget(nested,
+                        $"{targetDescription} /T value", depth + 1);
+            }
+
+            void ValidateFormActionOptions(
+                PdfDictionary formAction, string actionType, string formActionDescription)
+            {
+                if (formAction.TryGetValue(Name("Fields"), out PdfObject? fields)
+                    && Resolve(fields) is not PdfArray)
+                    throw new InvalidOperationException(
+                        $"{formActionDescription} /{actionType} /Fields value is not an array.");
+                if (formAction.TryGetValue(Name("Flags"), out PdfObject? actionFlags)
+                    && Resolve(actionFlags) is not PdfInteger)
+                    throw new InvalidOperationException(
+                        $"{formActionDescription} /{actionType} /Flags value is not an integer.");
+            }
+
+            static bool TryActionNumber(PdfObject item, out double number)
+            {
+                if (item is PdfInteger integer) { number = integer.Value; return true; }
+                if (item is PdfReal real) { number = real.Value; return true; }
+                number = 0;
+                return false;
+            }
+        }
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+    }
+
     private static void BuildImportedPage(
         PdfIncrementalUpdateBuilder update,
         PageState state,
@@ -3619,74 +6673,210 @@ public sealed class PdfIncrementalPageEditor
                     $"An imported page /{name.ValueAsLatin1()} value has an invalid type or resolves to null.");
             if (name.Equals(Name("Resources")))
                 ValidatePageResources((PdfDictionary)resolved, document);
+            else if (name.Equals(RotateName))
+            {
+                long rotation = ((PdfInteger)resolved).Value;
+                if (rotation is < int.MinValue or > int.MaxValue || rotation % 90 != 0)
+                    throw new InvalidOperationException(
+                        "An imported page /Rotate value is not a supported multiple of 90 degrees.");
+            }
+            else
+                ValidatePageRectangle(document, value,
+                    $"An imported page /{name.ValueAsLatin1()} value");
             return value;
         }
 
         static void ValidatePageResources(PdfDictionary resources, PdfDocument document)
-        {
-            foreach (var category in resources)
-            {
-                PdfObject resolvedCategory = category.Value is PdfIndirectReference categoryReference
-                    ? document.Resolve(categoryReference) : category.Value;
-                if (category.Key.Equals(Name("ProcSet")))
-                {
-                    if (resolvedCategory is not PdfArray procedureSets
-                        || procedureSets.Any(item => item is not PdfName))
-                        throw new InvalidOperationException(
-                            "An imported page /Resources /ProcSet value is not an array of names.");
-                    continue;
-                }
-                if (resolvedCategory is not PdfDictionary entries)
-                    throw new InvalidOperationException(
-                        $"An imported page /Resources /{category.Key.ValueAsLatin1()} category is not a dictionary.");
-                foreach (var entry in entries)
-                {
-                    PdfObject resolvedEntry = entry.Value is PdfIndirectReference entryReference
-                        ? document.Resolve(entryReference) : entry.Value;
-                    if (resolvedEntry is PdfNull)
-                        throw new InvalidOperationException(
-                            $"An imported page /Resources /{category.Key.ValueAsLatin1()} entry resolves to null.");
-                }
-            }
-        }
-
-        PdfObject ImportTypedPageValue(
-            PdfName key, PdfObject value, Func<PdfObject, bool> validator,
-            string expectedType)
-        {
-            PdfObject resolved = value is PdfIndirectReference reference
-                ? state.ImportedDocument!.Resolve(reference) : value;
-            if (!validator(resolved))
-                throw new InvalidOperationException(
-                    $"An imported page /{key.ValueAsLatin1()} value is not {expectedType} or resolves to null.");
-            return importer.Import(value);
-        }
+            => ValidateNestedPageResources(
+                document, resources, "An imported page /Resources", 0);
 
         PdfObject ImportStandardPageValue(PdfName key, PdfObject value)
         {
-            if (key.Equals(MetadataName) || key.Equals(Name("Thumb")))
-                return ImportTypedPageValue(
-                    key, value, item => item is PdfStream, "a stream");
+            if (key.Equals(Name("BleedBox")) || key.Equals(Name("TrimBox"))
+                || key.Equals(Name("ArtBox")))
+            {
+                ValidatePageRectangle(state.ImportedDocument!, value,
+                    $"An imported page /{key.ValueAsLatin1()} value");
+                return importer.Import(value);
+            }
+            if (key.Equals(MetadataName))
+            {
+                ValidateMetadataStream(state.ImportedDocument!, value,
+                    "An imported page /Metadata value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("Thumb")))
+            {
+                ValidatePageThumbnail(state.ImportedDocument!, value,
+                    "An imported page /Thumb value");
+                return importer.Import(value);
+            }
             if (key.Equals(Name("B")))
-                return ImportTypedPageValue(
-                    key, value, item => item is PdfArray, "an array");
+            {
+                ValidatePageBeads(state.ImportedDocument!, value,
+                    "An imported page /B value");
+                return importer.Import(value);
+            }
             if (key.Equals(Name("Dur")) || key.Equals(Name("UserUnit")))
-                return ImportTypedPageValue(
-                    key, value, item => item is PdfInteger or PdfReal, "a number");
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? state.ImportedDocument!.Resolve(reference) : value;
+                double number = resolved switch
+                {
+                    PdfInteger integer => integer.Value,
+                    PdfReal real => real.Value,
+                    _ => throw new InvalidOperationException(
+                        $"An imported page /{key.ValueAsLatin1()} value is not a number or resolves to null.")
+                };
+                if (!double.IsFinite(number))
+                    throw new InvalidOperationException(
+                        $"An imported page /{key.ValueAsLatin1()} value is not finite.");
+                if (key.Equals(Name("Dur")) && number < 0)
+                    throw new InvalidOperationException(
+                        "An imported page /Dur value is negative.");
+                if (key.Equals(Name("UserUnit")) && number is <= 0 or > 75_000)
+                    throw new InvalidOperationException(
+                        "An imported page /UserUnit value is outside the supported range.");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("PZ")))
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? state.ImportedDocument!.Resolve(reference) : value;
+                double zoom = resolved switch
+                {
+                    PdfInteger integer => integer.Value,
+                    PdfReal real => real.Value,
+                    _ => throw new InvalidOperationException(
+                        "An imported page /PZ value is not a number or resolves to null.")
+                };
+                if (!double.IsFinite(zoom) || zoom <= 0)
+                    throw new InvalidOperationException(
+                        "An imported page /PZ value is not a positive finite number.");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("ID")))
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? state.ImportedDocument!.Resolve(reference) : value;
+                if (resolved is not PdfString)
+                    throw new InvalidOperationException(
+                        "An imported page /ID value is not a byte string or resolves to null.");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("TemplateInstantiated")))
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? state.ImportedDocument!.Resolve(reference) : value;
+                if (resolved is not PdfName)
+                    throw new InvalidOperationException(
+                        "An imported page /TemplateInstantiated value is not a name or resolves to null.");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("BoxColorInfo")))
+            {
+                ValidatePageBoxColorInfo(state.ImportedDocument!, value,
+                    "An imported page /BoxColorInfo value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("Group")))
+            {
+                ValidatePageGroupAttributes(state.ImportedDocument!, value,
+                    "An imported page /Group value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("DPart")))
+            {
+                if (value is not PdfIndirectReference reference
+                    || state.ImportedDocument!.Resolve(reference) is not PdfDictionary part)
+                    throw new InvalidOperationException(
+                        "An imported page /DPart value is not an indirect document-part dictionary.");
+                if (!part.TryGetValue(TypeName, out PdfObject? type)
+                    || (type is PdfIndirectReference typeReference
+                            ? state.ImportedDocument.Resolve(typeReference) : type)
+                        is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "DPart")
+                    throw new InvalidOperationException(
+                        "An imported page /DPart value has no /Type /DPart entry.");
+                if (!state.ImportedWholeDocument)
+                    throw new NotSupportedException(
+                        "Pages with document-part membership require a complete-document import.");
+                return importer.Import(value);
+            }
             if (key.Equals(StructParentsName))
-                return ImportTypedPageValue(
-                    key, value, item => item is PdfInteger, "an integer");
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? state.ImportedDocument!.Resolve(reference) : value;
+                if (resolved is not PdfInteger integer || integer.Value < 0)
+                    throw new InvalidOperationException(
+                        "An imported page /StructParents value is not a nonnegative integer.");
+                return importer.Import(value);
+            }
             if (key.Equals(Name("Tabs")))
-                return ImportTypedPageValue(
-                    key, value, item => item is PdfName, "a name");
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? state.ImportedDocument!.Resolve(reference) : value;
+                string tabs = (resolved as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        "An imported page /Tabs value is not a name or resolves to null.");
+                if (tabs is not ("R" or "C" or "S" or "A" or "W"))
+                    throw new InvalidOperationException(
+                        $"An imported page /Tabs value /{tabs} is not defined.");
+                return importer.Import(value);
+            }
             if (key.Equals(Name("LastModified")))
-                return ImportTypedPageValue(
-                    key, value, item => item is PdfString, "a string");
-            if (key.Equals(Name("Trans")) || key.Equals(Name("AA"))
-                || key.Equals(Name("PieceInfo")) || key.Equals(Name("SeparationInfo"))
-                || key.Equals(Name("VP")))
-                return ImportTypedPageValue(
-                    key, value, item => item is PdfDictionary, "a dictionary");
+            {
+                PdfObject resolved = value is PdfIndirectReference reference
+                    ? state.ImportedDocument!.Resolve(reference) : value;
+                ValidatePdfDateString(resolved,
+                    "An imported page /LastModified value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("AA")))
+            {
+                ValidateCatalogAdditionalActions(state.ImportedDocument!, value,
+                    "An imported page /AA value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("Trans")))
+            {
+                ValidatePageTransition(state.ImportedDocument!, value,
+                    "An imported page /Trans value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("PresSteps")))
+            {
+                ValidatePageNavigationNode(state.ImportedDocument!, value,
+                    "An imported page /PresSteps value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("VP")))
+            {
+                ValidatePageViewports(state.ImportedDocument!, value,
+                    "An imported page /VP value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("PieceInfo")))
+            {
+                ValidatePagePieceInfo(state.ImportedDocument!, value,
+                    "An imported page /PieceInfo value");
+                return importer.Import(value);
+            }
+            if (key.Equals(Name("SeparationInfo")))
+            {
+                ValidatePageSeparationInfo(state.ImportedDocument!, value,
+                    "An imported page /SeparationInfo value");
+                return importer.Import(value);
+            }
+            if (key.Equals(OutputIntentsName))
+            {
+                PdfArray intents = ResolveArray(state.ImportedDocument!, value,
+                    "An imported page /OutputIntents value");
+                foreach (PdfObject intent in intents)
+                    ValidateOutputIntent(state.ImportedDocument!, intent,
+                        "An imported page /OutputIntents entry");
+                return importer.Import(value);
+            }
             return importer.Import(value);
         }
 
@@ -3718,6 +6908,15 @@ public sealed class PdfIncrementalPageEditor
             PdfArray annotations = ResolveArray(
                 document, value, arrayDescription);
             var retained = new List<PdfObject>(annotations.Count);
+            var annotationIdentities = new HashSet<(int ObjectNumber, int Generation)>();
+            var annotationNames = new HashSet<string>(StringComparer.Ordinal);
+            if (key.Equals(AnnotsName))
+                foreach (PdfIndirectReference annotationReference in
+                    annotations.OfType<PdfIndirectReference>())
+                    if (!annotationIdentities.Add((annotationReference.ObjectNumber,
+                        annotationReference.Generation)))
+                        throw new InvalidOperationException(
+                            "An imported page /Annots array contains a duplicate annotation reference.");
             foreach (PdfObject annotation in annotations)
             {
                 PdfObject resolved = annotation is PdfIndirectReference reference
@@ -3725,12 +6924,5339 @@ public sealed class PdfIncrementalPageEditor
                 if (resolved is PdfNull) continue;
                 if (resolved is not PdfDictionary)
                     throw new InvalidOperationException(entryError);
+                if (key.Equals(AssociatedFilesName))
+                    ValidateFileSpecification(document, annotation,
+                        "An imported page /AF entry");
+                if (key.Equals(AnnotsName))
+                    ValidateImportedAnnotationActions(document, annotation, source.Reference,
+                        annotationIdentities, annotationNames,
+                        "An imported page /Annots entry");
                 retained.Add(importer.Import(annotation));
             }
             return retained.Count == 0 ? null
                 : new KeyValuePair<PdfName, PdfObject>(
                     key, new PdfArray(retained));
         }
+    }
+
+    private static void ValidatePageRectangle(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfArray box = Resolve(value) as PdfArray
+            ?? throw new InvalidOperationException(
+                $"{description} is not a four-number rectangle.");
+        if (box.Count != 4 || box.Any(item => Resolve(item) switch
+            {
+                PdfInteger => false,
+                PdfReal real => !double.IsFinite(real.Value),
+                _ => true
+            }))
+            throw new InvalidOperationException(
+                $"{description} is not a four-number rectangle.");
+        double left = RectangleNumber(Resolve(box[0]));
+        double bottom = RectangleNumber(Resolve(box[1]));
+        double right = RectangleNumber(Resolve(box[2]));
+        double top = RectangleNumber(Resolve(box[3]));
+        if (left == right || bottom == top)
+            throw new InvalidOperationException(
+                $"{description} is a collapsed rectangle.");
+
+        static double RectangleNumber(PdfObject item) => item switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => double.NaN
+        };
+    }
+
+    private static void ValidatePageBoxColorInfo(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary boxColors = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} is not a dictionary or resolves to null.");
+        foreach (var entry in boxColors)
+        {
+            string boxName = entry.Key.ValueAsLatin1();
+            if (boxName is not ("CropBox" or "BleedBox" or "TrimBox" or "ArtBox"))
+                continue;
+            PdfDictionary style = Resolve(entry.Value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /{boxName} value is not a box-style dictionary.");
+            if (style.TryGetValue(Name("C"), out PdfObject? colorValue))
+            {
+                PdfArray color = Resolve(colorValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{boxName} /C value is not a three-number array.");
+                if (color.Count != 3 || color.Any(component =>
+                    !TryFiniteNumber(Resolve(component), out double number)
+                    || number is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} /{boxName} /C value is not a valid RGB color array.");
+            }
+            if (style.TryGetValue(Name("W"), out PdfObject? widthValue)
+                && (!TryFiniteNumber(Resolve(widthValue), out double width) || width < 0))
+                throw new InvalidOperationException(
+                    $"{description} /{boxName} /W value is not a nonnegative finite number.");
+            if (style.TryGetValue(Name("S"), out PdfObject? styleValue))
+            {
+                string lineStyle = (Resolve(styleValue) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{boxName} /S value is not a name.");
+                if (lineStyle is not ("S" or "D"))
+                    throw new InvalidOperationException(
+                        $"{description} /{boxName} /S value /{lineStyle} is not defined.");
+            }
+            if (style.TryGetValue(Name("D"), out PdfObject? dashValue))
+            {
+                PdfArray dash = Resolve(dashValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{boxName} /D value is not a dash array.");
+                bool hasPositive = false;
+                foreach (PdfObject item in dash)
+                {
+                    if (!TryFiniteNumber(Resolve(item), out double number) || number < 0)
+                        throw new InvalidOperationException(
+                            $"{description} /{boxName} /D value is not a valid dash array.");
+                    hasPositive |= number > 0;
+                }
+                if (dash.Count == 0 || !hasPositive)
+                    throw new InvalidOperationException(
+                        $"{description} /{boxName} /D value is not a valid dash array.");
+            }
+        }
+
+        static bool TryFiniteNumber(PdfObject item, out double number)
+        {
+            number = item switch
+            {
+                PdfInteger integer => integer.Value,
+                PdfReal real => real.Value,
+                _ => double.NaN
+            };
+            return double.IsFinite(number);
+        }
+    }
+
+    private static void ValidatePageGroupAttributes(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary group = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} is not a dictionary or resolves to null.");
+        if (group.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Group"))
+            throw new InvalidOperationException(
+                $"{description} has an invalid /Type value.");
+        if (!group.TryGetValue(Name("S"), out PdfObject? subtype)
+            || Resolve(subtype) is not PdfName subtypeName
+            || subtypeName.ValueAsLatin1() != "Transparency")
+            throw new InvalidOperationException(
+                $"{description} has no /S /Transparency value.");
+        if (group.TryGetValue(Name("CS"), out PdfObject? colorSpace))
+            ValidatePageBlendingColorSpace(document, colorSpace,
+                $"{description} /CS value");
+        foreach (string key in new[] { "I", "K" })
+            if (group.TryGetValue(Name(key), out PdfObject? flag)
+                && Resolve(flag) is not PdfBoolean)
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not boolean.");
+    }
+
+    private static void ValidatePageBlendingColorSpace(
+        PdfDocument document, PdfObject value, string description)
+    {
+        ValidatePageColorSpace(document, value, description);
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
+        string? family = resolved switch
+        {
+            PdfName name => name.ValueAsLatin1(),
+            PdfArray array when array.Count > 0
+                && Resolve(array[0]) is PdfName name => name.ValueAsLatin1(),
+            _ => null
+        };
+        if (family is "Lab" or "Pattern" or "Indexed" or "Separation" or "DeviceN")
+            throw new InvalidOperationException(
+                $"{description} uses a color-space family prohibited for transparency blending.");
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference itemReference
+            ? document.Resolve(itemReference) : item;
+    }
+
+    private static void ValidateNestedPageResources(
+        PdfDocument document, PdfDictionary resources, string description, int depth)
+    {
+        if (depth > 32)
+            throw new NotSupportedException("An imported resource graph is too deeply nested.");
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        foreach (var category in resources)
+        {
+            PdfObject resolvedCategory = Resolve(category.Value);
+            string categoryName = category.Key.ValueAsLatin1();
+            if (categoryName == "ProcSet")
+            {
+                if (resolvedCategory is not PdfArray procedureSets
+                    || procedureSets.Any(item => Resolve(item) is not PdfName))
+                    throw new InvalidOperationException(
+                        $"{description} /ProcSet value is not an array of names.");
+                foreach (PdfObject item in procedureSets)
+                {
+                    string procedureSet = ((PdfName)Resolve(item)).ValueAsLatin1();
+                    if (procedureSet is not ("PDF" or "Text" or "ImageB" or "ImageC" or "ImageI"))
+                        throw new InvalidOperationException(
+                            $"{description} /ProcSet name /{procedureSet} is not defined.");
+                }
+                continue;
+            }
+            PdfDictionary entries = resolvedCategory as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /{categoryName} category is not a dictionary.");
+            foreach (var entry in entries)
+            {
+                PdfObject resolvedEntry = Resolve(entry.Value);
+                string entryDescription =
+                    $"{description} /{categoryName} /{entry.Key.ValueAsLatin1()} entry";
+                if (resolvedEntry is PdfNull)
+                    throw new InvalidOperationException(
+                        $"{entryDescription} resource resolves to null.");
+                switch (categoryName)
+                {
+                    case "XObject" when resolvedEntry is PdfStream xObject:
+                        ValidatePageXObject(document, xObject, entryDescription, depth + 1);
+                        break;
+                    case "Font" when resolvedEntry is PdfDictionary font:
+                        ValidatePageFontResource(document, font, entryDescription);
+                        break;
+                    case "ExtGState" when resolvedEntry is PdfDictionary graphicsState:
+                        ValidatePageGraphicsState(document, graphicsState, entryDescription);
+                        break;
+                    case "Shading" when resolvedEntry is PdfDictionary or PdfStream:
+                        ValidatePageShading(document, resolvedEntry, entryDescription);
+                        break;
+                    case "Pattern" when resolvedEntry is PdfDictionary or PdfStream:
+                        ValidatePagePattern(document, resolvedEntry, entryDescription, depth + 1);
+                        break;
+                    case "ColorSpace" when resolvedEntry is PdfName or PdfArray:
+                        ValidatePageColorSpaceResource(
+                            document, resolvedEntry, entryDescription);
+                        break;
+                    case "Properties" when resolvedEntry is PdfDictionary property:
+                        ValidatePageProperty(document, property, entryDescription);
+                        break;
+                    case "XObject" or "Font" or "ExtGState" or "Shading" or "Pattern"
+                        or "ColorSpace" or "Properties":
+                        throw new InvalidOperationException(
+                            $"{entryDescription} has an invalid object type.");
+                }
+            }
+        }
+    }
+
+    private static void ValidatePageColorSpaceResource(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
+        if (resolved is PdfName name
+            && name.ValueAsLatin1() is not (
+                "DeviceGray" or "DeviceRGB" or "DeviceCMYK" or "Pattern"))
+            throw new InvalidOperationException(
+                $"{description} name /{name.ValueAsLatin1()} is not a direct color space.");
+        ValidatePageColorSpace(document, value, description);
+    }
+
+    private static void ValidatePageColorSpace(
+        PdfDocument document, PdfObject value, string description, int depth = 0)
+    {
+        if (depth > 32)
+            throw new NotSupportedException("An imported color space is too deeply nested.");
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
+        if (resolved is PdfName) return;
+        PdfArray colorSpace = resolved as PdfArray
+            ?? throw new InvalidOperationException(
+                $"{description} is not a name or array.");
+        if (colorSpace.Count == 0 || Resolve(colorSpace[0]) is not PdfName familyName)
+            throw new InvalidOperationException(
+                $"{description} has no color-space family name.");
+        string family = familyName.ValueAsLatin1();
+        if (family is "CalGray" or "CalRGB" or "Lab")
+        {
+            RequireCount(2);
+            PdfDictionary parameters = Resolve(colorSpace[1]) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} parameter is not a dictionary.");
+            ValidateCalibratedParameters(parameters, family);
+            return;
+        }
+        if (family == "ICCBased")
+        {
+            RequireCount(2);
+            PdfStream profile = Resolve(colorSpace[1]) as PdfStream
+                ?? throw new InvalidOperationException(
+                    $"{description} /ICCBased profile is not a stream.");
+            if (!profile.Dictionary.TryGetValue(Name("N"), out PdfObject? components)
+                || Resolve(components) is not PdfInteger count
+                || count.Value is not (1 or 3 or 4))
+                throw new InvalidOperationException(
+                    $"{description} /ICCBased profile has no valid /N value.");
+            if (profile.Dictionary.TryGetValue(Name("Alternate"), out PdfObject? alternate))
+                ValidatePageColorSpace(document, alternate,
+                    $"{description} /ICCBased profile /Alternate", depth + 1);
+            if (profile.Dictionary.TryGetValue(Name("Range"), out PdfObject? rangeValue))
+            {
+                PdfArray range = Resolve(rangeValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /ICCBased profile /Range is not an array.");
+                if (range.Count != count.Value * 2
+                    || range.Any(item => !TryColorNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} /ICCBased profile /Range has an invalid component count or value.");
+                for (int index = 0; index < range.Count; index += 2)
+                    if (ColorNumber(range[index]) > ColorNumber(range[index + 1]))
+                        throw new InvalidOperationException(
+                            $"{description} /ICCBased profile /Range bounds are not ordered.");
+            }
+            if (profile.Dictionary.TryGetValue(MetadataName, out PdfObject? metadata)
+                && Resolve(metadata) is not PdfStream)
+                throw new InvalidOperationException(
+                    $"{description} /ICCBased profile /Metadata is not a stream.");
+            return;
+        }
+        if (family == "Indexed")
+        {
+            RequireCount(4);
+            ValidateProcessColorSpace(colorSpace[1], "Indexed base");
+            if (Resolve(colorSpace[2]) is not PdfInteger highValue
+                || highValue.Value is < 0 or > 255)
+                throw new InvalidOperationException(
+                    $"{description} /Indexed high value is not from 0 through 255.");
+            PdfObject lookup = Resolve(colorSpace[3]);
+            if (lookup is not (PdfString or PdfStream))
+                throw new InvalidOperationException(
+                    $"{description} /Indexed lookup is not a string or stream.");
+            int? baseComponents = PageColorComponentCount(document, colorSpace[1]);
+            if (baseComponents.HasValue)
+            {
+                int expectedLength = checked(
+                    ((int)highValue.Value + 1) * baseComponents.Value);
+                int actualLength;
+                if (lookup is PdfString lookupString)
+                    actualLength = lookupString.Bytes.Length;
+                else
+                {
+                    try
+                    {
+                        actualLength = PdfStreamDecoder.Decode(
+                            (PdfStream)lookup, expectedLength + 1).Length;
+                    }
+                    catch (PdfFilterException exception)
+                    {
+                        throw new InvalidOperationException(
+                            $"{description} /Indexed lookup stream cannot be decoded within its expected size.",
+                            exception);
+                    }
+                }
+                if (actualLength != expectedLength)
+                    throw new InvalidOperationException(
+                        $"{description} /Indexed lookup length does not match its palette size.");
+            }
+            return;
+        }
+        if (family == "Pattern")
+        {
+            if (colorSpace.Count is not (1 or 2))
+                throw new InvalidOperationException(
+                    $"{description} /Pattern color space has an invalid element count.");
+            if (colorSpace.Count == 2)
+                ValidateProcessColorSpace(colorSpace[1], "Pattern base");
+            return;
+        }
+        if (family == "Separation")
+        {
+            RequireCount(4);
+            if (Resolve(colorSpace[1]) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} /Separation colorant is not a name.");
+            ValidateProcessColorSpace(colorSpace[2], "Separation alternate");
+            RequireFunction(3, "Separation");
+            return;
+        }
+        if (family == "DeviceN")
+        {
+            if (colorSpace.Count is not (4 or 5))
+                throw new InvalidOperationException(
+                    $"{description} /DeviceN color space has an invalid element count.");
+            PdfArray names = Resolve(colorSpace[1]) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /DeviceN colorants are not an array.");
+            if (names.Count == 0 || names.Any(item => Resolve(item) is not PdfName))
+                throw new InvalidOperationException(
+                    $"{description} /DeviceN colorants are not a nonempty name array.");
+            string[] deviceColorants = names.Select(item =>
+                ((PdfName)Resolve(item)).ValueAsLatin1()).ToArray();
+            if (deviceColorants.Contains("All", StringComparer.Ordinal))
+                throw new InvalidOperationException(
+                    $"{description} /DeviceN colorants contain the prohibited /All name.");
+            if (deviceColorants.Where(name => name != "None")
+                .Distinct(StringComparer.Ordinal).Count()
+                != deviceColorants.Count(name => name != "None"))
+                throw new InvalidOperationException(
+                    $"{description} /DeviceN colorants contain duplicate names.");
+            ValidateProcessColorSpace(colorSpace[2], "DeviceN alternate");
+            RequireFunction(3, "DeviceN");
+            if (colorSpace.Count == 5)
+                ValidateDeviceNAttributes(
+                    Resolve(colorSpace[4]) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} DeviceN attributes is not a dictionary."),
+                    names);
+            return;
+        }
+        throw new InvalidOperationException(
+            $"{description} color-space family /{family} is not defined.");
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        void RequireCount(int count)
+        {
+            if (colorSpace.Count != count)
+                throw new InvalidOperationException(
+                    $"{description} /{family} color space has an invalid element count.");
+        }
+        void ValidateProcessColorSpace(PdfObject item, string context)
+        {
+            ValidatePageColorSpace(document, item,
+                $"{description} /{context}", depth + 1);
+            PdfObject processSpace = Resolve(item);
+            string? processFamily = processSpace switch
+            {
+                PdfName name => name.ValueAsLatin1(),
+                PdfArray array when array.Count > 0
+                    && Resolve(array[0]) is PdfName name => name.ValueAsLatin1(),
+                _ => null
+            };
+            if (processFamily is "Pattern" or "Indexed" or "Separation" or "DeviceN")
+                throw new InvalidOperationException(
+                    $"{description} /{context} is not a device or CIE-based color space.");
+        }
+        void ValidateCalibratedParameters(PdfDictionary parameters, string calibratedFamily)
+        {
+            PdfArray whitePoint = RequireParameterArray("WhitePoint", 3, required: true)!;
+            if (whitePoint.Any(item => ColorNumber(item) <= 0)
+                || ColorNumber(whitePoint[1]) != 1)
+                throw new InvalidOperationException(
+                    $"{description} /{calibratedFamily} /WhitePoint is not positive with a unit Y component.");
+            PdfArray? blackPoint = RequireParameterArray("BlackPoint", 3, required: false);
+            if (blackPoint is not null && blackPoint.Any(item => ColorNumber(item) < 0))
+                throw new InvalidOperationException(
+                    $"{description} /{calibratedFamily} /BlackPoint components are negative.");
+            if (calibratedFamily == "CalGray")
+            {
+                if (parameters.TryGetValue(Name("Gamma"), out PdfObject? gamma)
+                    && (!TryColorNumber(Resolve(gamma), out double gammaValue)
+                        || !double.IsFinite(gammaValue) || gammaValue <= 0))
+                    throw new InvalidOperationException(
+                        $"{description} /CalGray /Gamma value is not positive.");
+                return;
+            }
+            if (calibratedFamily == "CalRGB")
+            {
+                PdfArray? gamma = RequireParameterArray("Gamma", 3, required: false);
+                if (gamma is not null && gamma.Any(item => ColorNumber(item) <= 0))
+                    throw new InvalidOperationException(
+                        $"{description} /CalRGB /Gamma components are not positive.");
+                RequireParameterArray("Matrix", 9, required: false);
+                return;
+            }
+            PdfArray? range = RequireParameterArray("Range", 4, required: false);
+            if (range is not null
+                && (ColorNumber(range[0]) > ColorNumber(range[1])
+                    || ColorNumber(range[2]) > ColorNumber(range[3])))
+                throw new InvalidOperationException(
+                    $"{description} /Lab /Range bounds are not ordered.");
+
+            PdfArray? RequireParameterArray(string key, int count, bool required)
+            {
+                if (!parameters.TryGetValue(Name(key), out PdfObject? item))
+                {
+                    if (required)
+                        throw new InvalidOperationException(
+                            $"{description} /{calibratedFamily} has no /{key} array.");
+                    return null;
+                }
+                PdfArray array = Resolve(item) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{calibratedFamily} /{key} is not an array.");
+                if (array.Count != count
+                    || array.Any(component => !TryColorNumber(Resolve(component), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} /{calibratedFamily} /{key} is not a {count}-number array.");
+                return array;
+            }
+        }
+        void ValidateDeviceNAttributes(PdfDictionary attributes, PdfArray colorantNames)
+        {
+            var definedColorants = colorantNames
+                .Select(item => ((PdfName)Resolve(item)).ValueAsLatin1())
+                .ToHashSet(StringComparer.Ordinal);
+            if (attributes.TryGetValue(Name("Subtype"), out PdfObject? subtype))
+            {
+                string subtypeName = (Resolve(subtype) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Subtype is not a name.");
+                if (subtypeName != "NChannel")
+                    throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Subtype /{subtypeName} is not defined.");
+                if (colorantNames.Any(item => Resolve(item) is PdfName colorant
+                    && colorant.ValueAsLatin1() == "None"))
+                    throw new InvalidOperationException(
+                        $"{description} NChannel colorants contain the prohibited /None name.");
+            }
+            if (attributes.TryGetValue(Name("Colorants"), out PdfObject? colorantsValue))
+            {
+                PdfDictionary colorants = Resolve(colorantsValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Colorants is not a dictionary.");
+                foreach (var entry in colorants)
+                {
+                    if (!definedColorants.Contains(entry.Key.ValueAsLatin1()))
+                        throw new InvalidOperationException(
+                            $"{description} /DeviceN attributes /Colorants contains an unregistered colorant.");
+                    PdfObject colorant = Resolve(entry.Value);
+                    if (colorant is not PdfArray separation || separation.Count == 0
+                        || Resolve(separation[0]) is not PdfName family
+                        || family.ValueAsLatin1() != "Separation")
+                        throw new InvalidOperationException(
+                            $"{description} /DeviceN attributes /Colorants entry is not a Separation color space.");
+                    ValidatePageColorSpace(document, entry.Value,
+                        $"{description} /DeviceN attributes /Colorants /{entry.Key.ValueAsLatin1()}",
+                        depth + 1);
+                }
+            }
+            if (attributes.TryGetValue(Name("Process"), out PdfObject? processValue))
+            {
+                PdfDictionary process = Resolve(processValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Process is not a dictionary.");
+                if (!process.TryGetValue(Name("ColorSpace"), out PdfObject? processColorSpace))
+                    throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Process has no /ColorSpace.");
+                ValidatePageColorSpace(document, processColorSpace,
+                    $"{description} /DeviceN attributes /Process /ColorSpace", depth + 1);
+                if (!process.TryGetValue(Name("Components"), out PdfObject? componentsValue)
+                    || Resolve(componentsValue) is not PdfArray components || components.Count == 0
+                    || components.Any(item => Resolve(item) is not PdfName))
+                    throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Process has no nonempty name /Components array.");
+                string[] processComponents = components.Select(item =>
+                    ((PdfName)Resolve(item)).ValueAsLatin1()).ToArray();
+                if (processComponents.Distinct(StringComparer.Ordinal).Count()
+                        != processComponents.Length
+                    || processComponents.Any(component =>
+                        !definedColorants.Contains(component)))
+                    throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Process contains duplicate or unregistered components.");
+                int? componentCount = PageColorComponentCount(document, processColorSpace);
+                if (componentCount.HasValue && components.Count != componentCount.Value)
+                    throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /Process component count does not match its color space.");
+            }
+            if (!attributes.TryGetValue(Name("MixingHints"), out PdfObject? hintsValue)) return;
+            PdfDictionary hints = Resolve(hintsValue) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /DeviceN attributes /MixingHints is not a dictionary.");
+            if (hints.TryGetValue(Name("PrintingOrder"), out PdfObject? orderValue))
+            {
+                PdfArray order = Resolve(orderValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /MixingHints /PrintingOrder is not an array.");
+                if (order.Count == 0 || order.Any(item => Resolve(item) is not PdfName name
+                    || !definedColorants.Contains(name.ValueAsLatin1())))
+                    throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /MixingHints /PrintingOrder contains invalid colorants.");
+            }
+            if (hints.TryGetValue(Name("Solidities"), out PdfObject? soliditiesValue))
+            {
+                PdfDictionary solidities = Resolve(soliditiesValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /MixingHints /Solidities is not a dictionary.");
+                foreach (var entry in solidities)
+                    if (!definedColorants.Contains(entry.Key.ValueAsLatin1())
+                        || !TryColorNumber(Resolve(entry.Value), out double solidity)
+                        || !double.IsFinite(solidity) || solidity is < 0 or > 1)
+                        throw new InvalidOperationException(
+                            $"{description} /DeviceN attributes /MixingHints /Solidities entry is invalid.");
+            }
+            if (hints.TryGetValue(Name("DotGain"), out PdfObject? dotGainValue))
+            {
+                PdfDictionary dotGain = Resolve(dotGainValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /DeviceN attributes /MixingHints /DotGain is not a dictionary.");
+                foreach (var entry in dotGain)
+                {
+                    if (!definedColorants.Contains(entry.Key.ValueAsLatin1()))
+                        throw new InvalidOperationException(
+                            $"{description} /DeviceN attributes /MixingHints /DotGain contains an unregistered colorant.");
+                    ValidatePageFunction(document, entry.Value,
+                        $"{description} /DeviceN attributes /MixingHints /DotGain /{entry.Key.ValueAsLatin1()}",
+                        depth + 1);
+                }
+            }
+        }
+        void RequireFunction(int index, string itemDescription)
+        {
+            int expectedInputs = family == "DeviceN"
+                ? ((PdfArray)Resolve(colorSpace[1])).Count : 1;
+            int? expectedOutputs = PageColorComponentCount(document, colorSpace[2]);
+            ValidatePageFunction(document, colorSpace[index],
+                $"{description} /{itemDescription} tint function", depth + 1,
+                expectedInputCount: expectedInputs,
+                expectedOutputCount: expectedOutputs);
+        }
+        double ColorNumber(PdfObject item)
+        {
+            TryColorNumber(Resolve(item), out double number);
+            return number;
+        }
+        static bool TryColorNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidatePageFunction(
+        PdfDocument document, PdfObject value, string description, int depth = 0,
+        int? expectedInputCount = null, int? expectedOutputCount = null)
+    {
+        if (depth > 32)
+            throw new NotSupportedException("An imported function graph is too deeply nested.");
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfObject resolved = Resolve(value);
+        PdfDictionary function = resolved switch
+        {
+            PdfDictionary dictionary => dictionary,
+            PdfStream stream => stream.Dictionary,
+            _ => throw new InvalidOperationException($"{description} has an invalid object type.")
+        };
+        if (!function.TryGetValue(Name("FunctionType"), out PdfObject? typeValue)
+            || Resolve(typeValue) is not PdfInteger type
+            || type.Value is not (0 or 2 or 3 or 4))
+            throw new InvalidOperationException(
+                $"{description} has no defined /FunctionType integer.");
+        PdfArray domain = RequireNumberArray("Domain", required: true)!;
+        if (domain.Count == 0 || domain.Count % 2 != 0)
+            throw new InvalidOperationException(
+                $"{description} /Domain is not a nonempty sequence of input bounds.");
+        ValidateOrderedPairs(domain, "Domain");
+        if (expectedInputCount.HasValue
+            && domain.Count != expectedInputCount.Value * 2)
+            throw new InvalidOperationException(
+                $"{description} input dimension does not match its caller.");
+        PdfArray? range = RequireNumberArray("Range", required: type.Value is 0 or 4);
+        if (range is not null && (range.Count == 0 || range.Count % 2 != 0))
+            throw new InvalidOperationException(
+                $"{description} /Range is not a nonempty sequence of output bounds.");
+        if (range is not null) ValidateOrderedPairs(range, "Range");
+        if (expectedOutputCount.HasValue && range is not null
+            && range.Count != expectedOutputCount.Value * 2)
+            throw new InvalidOperationException(
+                $"{description} output dimension does not match its caller.");
+        if (type.Value == 0)
+        {
+            if (resolved is not PdfStream)
+                throw new InvalidOperationException($"{description} sampled function is not a stream.");
+            if (!function.TryGetValue(Name("Size"), out PdfObject? sizeValue)
+                || Resolve(sizeValue) is not PdfArray sizes || sizes.Count == 0
+                || sizes.Any(item => Resolve(item) is not PdfInteger size || size.Value < 1))
+                throw new InvalidOperationException($"{description} has no positive-integer /Size array.");
+            if (sizes.Count != domain.Count / 2)
+                throw new InvalidOperationException(
+                    $"{description} /Size count does not match its input dimension.");
+            if (!function.TryGetValue(Name("BitsPerSample"), out PdfObject? bitsValue)
+                || Resolve(bitsValue) is not PdfInteger bits
+                || bits.Value is not (1 or 2 or 4 or 8 or 12 or 16 or 24 or 32))
+                throw new InvalidOperationException($"{description} has no defined /BitsPerSample value.");
+            if (function.TryGetValue(Name("Order"), out PdfObject? orderValue)
+                && (Resolve(orderValue) is not PdfInteger order
+                    || order.Value is not (1 or 3)))
+                throw new InvalidOperationException($"{description} /Order value is not 1 or 3.");
+            PdfArray? encode = RequireNumberArray("Encode", required: false);
+            PdfArray? decode = RequireNumberArray("Decode", required: false);
+            if (encode is not null && encode.Count != domain.Count
+                || decode is not null && decode.Count != range!.Count)
+                throw new InvalidOperationException(
+                    $"{description} sampled-function encode or decode count is invalid.");
+        }
+        else if (type.Value == 2)
+        {
+            if (domain.Count != 2)
+                throw new InvalidOperationException(
+                    $"{description} exponential function does not have one input domain.");
+            if (!function.TryGetValue(Name("N"), out PdfObject? exponent)
+                || !TryFunctionNumber(Resolve(exponent), out double exponentValue)
+                || !double.IsFinite(exponentValue) || exponentValue <= 0)
+                throw new InvalidOperationException($"{description} has no positive /N exponent.");
+            PdfArray? initial = RequireNumberArray("C0", required: false);
+            PdfArray? final = RequireNumberArray("C1", required: false);
+            if (initial is not null && final is not null && initial.Count != final.Count
+                || range is not null && (initial?.Count ?? final?.Count ?? 1) != range.Count / 2)
+                throw new InvalidOperationException(
+                    $"{description} exponential-function output dimensions are inconsistent.");
+            if (expectedOutputCount.HasValue
+                && (initial?.Count ?? final?.Count ?? 1) != expectedOutputCount.Value)
+                throw new InvalidOperationException(
+                    $"{description} output dimension does not match its caller.");
+        }
+        else if (type.Value == 3)
+        {
+            if (domain.Count != 2)
+                throw new InvalidOperationException(
+                    $"{description} stitching function does not have one input domain.");
+            if (!function.TryGetValue(Name("Functions"), out PdfObject? functionsValue)
+                || Resolve(functionsValue) is not PdfArray functions || functions.Count == 0)
+                throw new InvalidOperationException($"{description} has no nonempty /Functions array.");
+            foreach (PdfObject item in functions)
+                ValidatePageFunction(document, item,
+                    $"{description} /Functions entry", depth + 1,
+                    expectedInputCount: 1,
+                    expectedOutputCount: expectedOutputCount);
+            PdfArray bounds = RequireNumberArray("Bounds", required: true)!;
+            PdfArray encode = RequireNumberArray("Encode", required: true)!;
+            if (bounds.Count != functions.Count - 1 || encode.Count != functions.Count * 2)
+                throw new InvalidOperationException(
+                    $"{description} stitching-function bounds or encode count is invalid.");
+            double lower = Number(domain[0]);
+            double upper = Number(domain[1]);
+            double previous = lower;
+            foreach (PdfObject bound in bounds)
+            {
+                double current = Number(bound);
+                if (current <= previous || current >= upper)
+                    throw new InvalidOperationException(
+                        $"{description} /Bounds values are not strictly ordered within /Domain.");
+                previous = current;
+            }
+        }
+        else if (resolved is not PdfStream)
+            throw new InvalidOperationException($"{description} PostScript calculator function is not a stream.");
+
+        PdfArray? RequireNumberArray(string key, bool required)
+        {
+            if (!function.TryGetValue(Name(key), out PdfObject? item))
+            {
+                if (required)
+                    throw new InvalidOperationException($"{description} has no /{key} array.");
+                return null;
+            }
+            PdfArray array = Resolve(item) as PdfArray
+                ?? throw new InvalidOperationException($"{description} /{key} value is not an array.");
+            if (array.Any(entry => !TryFunctionNumber(Resolve(entry), out double number)
+                || !double.IsFinite(number)))
+                throw new InvalidOperationException($"{description} /{key} value is not a numeric array.");
+            return array;
+        }
+        void ValidateOrderedPairs(PdfArray array, string key)
+        {
+            for (int index = 0; index < array.Count; index += 2)
+                if (Number(array[index]) >= Number(array[index + 1]))
+                    throw new InvalidOperationException(
+                        $"{description} /{key} bounds are not strictly increasing pairs.");
+        }
+        double Number(PdfObject item)
+        {
+            TryFunctionNumber(Resolve(item), out double number);
+            return number;
+        }
+        static bool TryFunctionNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static int? PageColorComponentCount(
+        PdfDocument document, PdfObject value)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfObject resolved = Resolve(value);
+        if (resolved is PdfName name)
+            return name.ValueAsLatin1() switch
+            {
+                "DeviceGray" => 1,
+                "DeviceRGB" => 3,
+                "DeviceCMYK" => 4,
+                _ => null
+            };
+        if (resolved is not PdfArray colorSpace || colorSpace.Count == 0
+            || Resolve(colorSpace[0]) is not PdfName familyName) return null;
+        return familyName.ValueAsLatin1() switch
+        {
+            "CalGray" or "Indexed" or "Separation" => 1,
+            "CalRGB" or "Lab" => 3,
+            "ICCBased" when colorSpace.Count > 1
+                && Resolve(colorSpace[1]) is PdfStream profile
+                && profile.Dictionary.TryGetValue(Name("N"), out PdfObject? components)
+                && Resolve(components) is PdfInteger count
+                && count.Value is >= 1 and <= int.MaxValue => (int)count.Value,
+            "DeviceN" when colorSpace.Count > 1
+                && Resolve(colorSpace[1]) is PdfArray names => names.Count,
+            "Pattern" when colorSpace.Count > 1 =>
+                PageColorComponentCount(document, colorSpace[1]),
+            _ => null
+        };
+    }
+
+    private static void ValidatePageBeads(
+        PdfDocument document, PdfObject value, string description,
+        PdfIndirectReference? expectedThread = null)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfArray beads = Resolve(value) as PdfArray
+            ?? throw new InvalidOperationException($"{description} is not an array.");
+        if (beads.Count == 0)
+            throw new InvalidOperationException($"{description} array is empty.");
+        var validated = new HashSet<(int ObjectNumber, int Generation)>();
+        foreach (PdfObject item in beads)
+        {
+            PdfIndirectReference start = item as PdfIndirectReference
+                ?? throw new InvalidOperationException(
+                    $"{description} entry is not an indirect bead reference.");
+            ValidateRing(start);
+        }
+        return;
+
+        void ValidateRing(PdfIndirectReference start)
+        {
+            if (validated.Contains(Identity(start))) return;
+            var seen = new HashSet<(int ObjectNumber, int Generation)>();
+            PdfIndirectReference current = start;
+            (int ObjectNumber, int Generation)? threadIdentity = expectedThread is null
+                ? null : Identity(expectedThread);
+            for (int count = 0; count < 100_000; count++)
+            {
+                var currentIdentity = Identity(current);
+                if (!seen.Add(currentIdentity))
+                {
+                    if (currentIdentity == Identity(start))
+                    {
+                        validated.UnionWith(seen);
+                        return;
+                    }
+                    throw new InvalidOperationException(
+                        $"{description} bead ring enters a cycle that does not return to its first bead.");
+                }
+                PdfDictionary bead = Resolve(current) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} entry is not a dictionary or resolves to null.");
+            if (bead.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "Bead"))
+                throw new InvalidOperationException($"{description} entry has an invalid /Type value.");
+                PdfIndirectReference thread = RequireReference(bead, "T", "thread");
+                if (Resolve(thread) is not PdfDictionary threadDictionary
+                    || threadDictionary.TryGetValue(TypeName, out PdfObject? threadType)
+                        && (Resolve(threadType) is not PdfName threadTypeName
+                            || threadTypeName.ValueAsLatin1() != "Thread"))
+                    throw new InvalidOperationException(
+                        $"{description} entry has no valid /T thread dictionary.");
+                threadIdentity ??= Identity(thread);
+                if (Identity(thread) != threadIdentity.Value)
+                    throw new InvalidOperationException(
+                        $"{description} bead ring refers to multiple thread dictionaries.");
+                PdfIndirectReference next = RequireReference(bead, "N", "next bead");
+                PdfIndirectReference previous = RequireReference(bead, "V", "previous bead");
+                PdfIndirectReference page = RequireReference(bead, "P", "page");
+                if (Resolve(page) is not PdfDictionary pageDictionary
+                    || !pageDictionary.TryGetValue(TypeName, out PdfObject? pageType)
+                    || Resolve(pageType) is not PdfName pageTypeName
+                    || pageTypeName.ValueAsLatin1() != "Page")
+                    throw new InvalidOperationException(
+                        $"{description} entry has no valid /P page dictionary.");
+                PdfDictionary nextBead = Resolve(next) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} entry has no valid /N bead dictionary.");
+                PdfDictionary previousBead = Resolve(previous) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} entry has no valid /V bead dictionary.");
+                if (!References(nextBead, "V", current)
+                    || !References(previousBead, "N", current))
+                    throw new InvalidOperationException(
+                        $"{description} bead ring has inconsistent /N and /V links.");
+            if (!bead.TryGetValue(Name("R"), out PdfObject? rectangle)
+                || Resolve(rectangle) is not PdfArray box || box.Count != 4
+                || box.Any(coordinate => Resolve(coordinate) switch
+                {
+                    PdfInteger => false,
+                    PdfReal real => !double.IsFinite(real.Value),
+                    _ => true
+                }))
+                throw new InvalidOperationException($"{description} entry has no four-number /R rectangle.");
+                current = next;
+            }
+            throw new NotSupportedException(
+                $"{description} bead ring exceeds the supported traversal limit.");
+        }
+
+        PdfIndirectReference RequireReference(
+            PdfDictionary dictionary, string key, string target)
+        {
+            if (!dictionary.TryGetValue(Name(key), out PdfObject? value)
+                || value is not PdfIndirectReference reference)
+                throw new InvalidOperationException(
+                    $"{description} entry has no indirect /{key} {target} reference.");
+            return reference;
+        }
+
+        bool References(
+            PdfDictionary dictionary, string key, PdfIndirectReference expected) =>
+            dictionary.TryGetValue(Name(key), out PdfObject? value)
+            && value is PdfIndirectReference reference
+            && Identity(reference) == Identity(expected);
+
+        static (int ObjectNumber, int Generation) Identity(
+            PdfIndirectReference reference) =>
+            (reference.ObjectNumber, reference.Generation);
+    }
+
+    private static void ValidatePagePieceInfo(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary pieceInfo = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException($"{description} is not a dictionary.");
+        foreach (var entry in pieceInfo)
+        {
+            PdfDictionary applicationData = Resolve(entry.Value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /{entry.Key.ValueAsLatin1()} entry is not a dictionary or resolves to null.");
+            if (!applicationData.TryGetValue(Name("LastModified"), out PdfObject? modified)
+                || Resolve(modified) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /{entry.Key.ValueAsLatin1()} entry has no string /LastModified value.");
+            ValidatePdfDateString(Resolve(modified),
+                $"{description} /{entry.Key.ValueAsLatin1()} entry /LastModified value");
+        }
+    }
+
+    private static void ValidatePageSeparationInfo(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary separation = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException($"{description} is not a dictionary.");
+        if (!separation.TryGetValue(Name("Pages"), out PdfObject? pagesValue)
+            || Resolve(pagesValue) is not PdfArray pages || pages.Count == 0)
+            throw new InvalidOperationException(
+                $"{description} has no nonempty /Pages array.");
+        foreach (PdfObject pageValue in pages)
+        {
+            if (pageValue is not PdfIndirectReference pageReference
+                || Resolve(pageReference) is not PdfDictionary page
+                || !page.TryGetValue(TypeName, out PdfObject? pageType)
+                || Resolve(pageType) is not PdfName pageTypeName
+                || pageTypeName.ValueAsLatin1() != "Page")
+                throw new InvalidOperationException(
+                    $"{description} /Pages entry is not an indirect page dictionary.");
+        }
+        if (!separation.TryGetValue(Name("DeviceColorant"), out PdfObject? colorant)
+            || Resolve(colorant) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} has no name /DeviceColorant value.");
+        if (!separation.TryGetValue(Name("ColorSpace"), out PdfObject? colorSpace))
+            throw new InvalidOperationException(
+                $"{description} has no /ColorSpace value.");
+        ValidatePageColorSpace(document, colorSpace,
+            $"{description} /ColorSpace");
+        PdfObject resolvedColorSpace = Resolve(colorSpace);
+        if (resolvedColorSpace is not PdfArray colorSpaceArray
+            || colorSpaceArray.Count < 2
+            || Resolve(colorSpaceArray[0]) is not PdfName colorSpaceFamily
+            || colorSpaceFamily.ValueAsLatin1() is not ("Separation" or "DeviceN"))
+            throw new InvalidOperationException(
+                $"{description} /ColorSpace is not a Separation or DeviceN color space.");
+        PdfName deviceColorant = (PdfName)Resolve(colorant);
+        bool containsColorant = colorSpaceFamily.ValueAsLatin1() == "Separation"
+            ? Resolve(colorSpaceArray[1]) is PdfName separationName
+                && separationName.Equals(deviceColorant)
+            : Resolve(colorSpaceArray[1]) is PdfArray colorantNames
+                && colorantNames.Any(item => Resolve(item) is PdfName name
+                    && name.Equals(deviceColorant));
+        if (!containsColorant)
+            throw new InvalidOperationException(
+                $"{description} /DeviceColorant is not present in /ColorSpace.");
+    }
+
+    private static void ValidatePageProperty(
+        PdfDocument document, PdfDictionary property, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (!property.TryGetValue(TypeName, out PdfObject? typeValue)) return;
+        string type = (Resolve(typeValue) as PdfName)?.ValueAsLatin1()
+            ?? throw new InvalidOperationException($"{description} /Type is not a name.");
+        if (type == "OCG")
+        {
+            if (!property.TryGetValue(Name("Name"), out PdfObject? name)
+                || Resolve(name) is not PdfString)
+                throw new InvalidOperationException($"{description} OCG has no string /Name.");
+            if (property.TryGetValue(Name("Intent"), out PdfObject? intent))
+                ValidateNameOrNameArray(intent, "Intent");
+            if (property.TryGetValue(Name("Usage"), out PdfObject? usage)
+                )
+                ValidateOptionalContentUsage(document, usage,
+                    $"{description} OCG /Usage");
+            return;
+        }
+        if (type != "OCMD")
+            throw new InvalidOperationException($"{description} has an undefined /Type /{type}.");
+        if (property.TryGetValue(Name("OCGs"), out PdfObject? groups))
+        {
+            PdfObject resolvedGroups = Resolve(groups);
+            if (resolvedGroups is PdfDictionary group)
+                RequireOcg(group, $"{description} OCMD /OCGs value");
+            else if (resolvedGroups is PdfArray groupArray)
+            {
+                if (groupArray.Count == 0)
+                    throw new InvalidOperationException($"{description} OCMD /OCGs array is empty.");
+                foreach (PdfObject item in groupArray)
+                    RequireOcg(Resolve(item) as PdfDictionary
+                        ?? throw new InvalidOperationException($"{description} OCMD /OCGs entry is not a dictionary."),
+                        $"{description} OCMD /OCGs entry");
+            }
+            else throw new InvalidOperationException($"{description} OCMD /OCGs is not a dictionary or array.");
+        }
+        if (property.TryGetValue(Name("P"), out PdfObject? policy))
+        {
+            string policyName = (Resolve(policy) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException($"{description} OCMD /P is not a name.");
+            if (policyName is not ("AllOn" or "AnyOn" or "AnyOff" or "AllOff"))
+                throw new InvalidOperationException($"{description} OCMD /P value /{policyName} is not defined.");
+        }
+        if (property.TryGetValue(Name("VE"), out PdfObject? expression))
+            ValidateExpression(expression, 0);
+
+        void ValidateNameOrNameArray(PdfObject value, string key)
+        {
+            PdfObject resolved = Resolve(value);
+            if (resolved is PdfName) return;
+            if (resolved is not PdfArray names || names.Count == 0
+                || names.Any(item => Resolve(item) is not PdfName))
+                throw new InvalidOperationException($"{description} /{key} is not a name or nonempty name array.");
+        }
+        void RequireOcg(PdfDictionary group, string groupDescription)
+        {
+            if (!group.TryGetValue(TypeName, out PdfObject? groupType)
+                || Resolve(groupType) is not PdfName groupTypeName
+                || groupTypeName.ValueAsLatin1() != "OCG")
+                throw new InvalidOperationException($"{groupDescription} is not an /OCG dictionary.");
+        }
+        void ValidateExpression(PdfObject value, int depth)
+        {
+            if (depth > 32)
+                throw new NotSupportedException($"{description} OCMD visibility expression is too deeply nested.");
+            PdfArray expression = Resolve(value) as PdfArray
+                ?? throw new InvalidOperationException($"{description} OCMD /VE is not an array.");
+            if (expression.Count < 2 || Resolve(expression[0]) is not PdfName operationName)
+                throw new InvalidOperationException($"{description} OCMD /VE has no operator and operands.");
+            string operation = operationName.ValueAsLatin1();
+            if (operation is not ("And" or "Or" or "Not")
+                || operation == "Not" && expression.Count != 2)
+                throw new InvalidOperationException($"{description} OCMD /VE operator or operand count is invalid.");
+            for (int index = 1; index < expression.Count; index++)
+            {
+                PdfObject operand = Resolve(expression[index]);
+                if (operand is PdfArray nested) ValidateExpression(nested, depth + 1);
+                else RequireOcg(operand as PdfDictionary
+                    ?? throw new InvalidOperationException($"{description} OCMD /VE operand is not an OCG or expression."),
+                    $"{description} OCMD /VE operand");
+            }
+        }
+    }
+
+    private static void ValidateOptionalContentUsage(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary usage = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException($"{description} is not a dictionary.");
+        foreach (var entry in usage)
+        {
+            string category = entry.Key.ValueAsLatin1();
+            PdfDictionary criteria = Resolve(entry.Value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /{category} entry is not a dictionary.");
+            switch (category)
+            {
+                case "CreatorInfo":
+                    RequireString(criteria, "Creator", category);
+                    RequireName(criteria, "Subtype", category);
+                    break;
+                case "Language":
+                    RequireString(criteria, "Lang", category);
+                    ValidateOnOff(criteria, "Preferred", category);
+                    break;
+                case "Export":
+                    ValidateOnOff(criteria, "ExportState", category, required: true);
+                    break;
+                case "Print":
+                    RequireName(criteria, "Subtype", category);
+                    ValidateOnOff(criteria, "PrintState", category, required: true);
+                    break;
+                case "View":
+                    ValidateOnOff(criteria, "ViewState", category, required: true);
+                    break;
+                case "Zoom":
+                    ValidateOptionalNumber(criteria, "min", category);
+                    ValidateOptionalNumber(criteria, "max", category);
+                    if (TryGetNumber(criteria, "min", out double minimum)
+                        && TryGetNumber(criteria, "max", out double maximum)
+                        && minimum > maximum)
+                        throw new InvalidOperationException(
+                            $"{description} /Zoom minimum exceeds its maximum.");
+                    break;
+                case "User":
+                    string userType = RequireName(criteria, "Type", category);
+                    if (userType is not ("Ind" or "Ttl" or "Org"))
+                        throw new InvalidOperationException(
+                            $"{description} /User /Type value /{userType} is not defined.");
+                    if (!criteria.TryGetValue(Name("Name"), out PdfObject? userNames))
+                        throw new InvalidOperationException(
+                            $"{description} /User has no /Name value.");
+                    PdfObject resolvedNames = Resolve(userNames);
+                    if (resolvedNames is not PdfString
+                        && (resolvedNames is not PdfArray names || names.Count == 0
+                            || names.Any(item => Resolve(item) is not PdfString)))
+                        throw new InvalidOperationException(
+                            $"{description} /User /Name is not a string or nonempty string array.");
+                    break;
+                case "PageElement":
+                    RequireName(criteria, "Subtype", category);
+                    break;
+            }
+        }
+
+        string RequireName(PdfDictionary dictionary, string key, string category)
+        {
+            if (!dictionary.TryGetValue(Name(key), out PdfObject? item)
+                || Resolve(item) is not PdfName name)
+                throw new InvalidOperationException(
+                    $"{description} /{category} has no name /{key} value.");
+            return name.ValueAsLatin1();
+        }
+        void RequireString(PdfDictionary dictionary, string key, string category)
+        {
+            if (!dictionary.TryGetValue(Name(key), out PdfObject? item)
+                || Resolve(item) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /{category} has no string /{key} value.");
+        }
+        void ValidateOnOff(
+            PdfDictionary dictionary, string key, string category, bool required = false)
+        {
+            if (!dictionary.TryGetValue(Name(key), out PdfObject? item))
+            {
+                if (required)
+                    throw new InvalidOperationException(
+                        $"{description} /{category} has no /{key} value.");
+                return;
+            }
+            string state = (Resolve(item) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /{category} /{key} value is not a name.");
+            if (state is not ("ON" or "OFF"))
+                throw new InvalidOperationException(
+                    $"{description} /{category} /{key} value /{state} is not defined.");
+        }
+        void ValidateOptionalNumber(PdfDictionary dictionary, string key, string category)
+        {
+            if (dictionary.TryGetValue(Name(key), out PdfObject? item)
+                && (!TryUsageNumber(Resolve(item), out double number)
+                    || !double.IsFinite(number)))
+                throw new InvalidOperationException(
+                    $"{description} /{category} /{key} value is not a finite number.");
+        }
+        bool TryGetNumber(PdfDictionary dictionary, string key, out double number)
+        {
+            if (dictionary.TryGetValue(Name(key), out PdfObject? item))
+                return TryUsageNumber(Resolve(item), out number);
+            number = 0;
+            return false;
+        }
+        static bool TryUsageNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidatePagePattern(
+        PdfDocument document, PdfObject value, string description, int depth = 0)
+    {
+        if (depth > 32)
+            throw new NotSupportedException("An imported pattern graph is too deeply nested.");
+        PdfDictionary pattern = value switch
+        {
+            PdfDictionary dictionary => dictionary,
+            PdfStream stream => stream.Dictionary,
+            _ => throw new InvalidOperationException($"{description} has an invalid object type.")
+        };
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (pattern.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Pattern"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        if (!pattern.TryGetValue(Name("PatternType"), out PdfObject? patternTypeValue)
+            || Resolve(patternTypeValue) is not PdfInteger patternType
+            || patternType.Value is not (1 or 2))
+            throw new InvalidOperationException(
+                $"{description} has no defined /PatternType integer.");
+        if (pattern.TryGetValue(Name("Matrix"), out PdfObject? matrix))
+            ValidateNumberArray(matrix, "Matrix", 6);
+        if (patternType.Value == 1)
+        {
+            if (value is not PdfStream)
+                throw new InvalidOperationException(
+                    $"{description} tiling pattern is not a stream.");
+            ValidateInteger("PaintType", 1, 2);
+            ValidateInteger("TilingType", 1, 3);
+            if (!pattern.TryGetValue(Name("BBox"), out PdfObject? bounds))
+                throw new InvalidOperationException($"{description} has no /BBox array.");
+            ValidateNumberArray(bounds, "BBox", 4);
+            foreach (string key in new[] { "XStep", "YStep" })
+                if (!pattern.TryGetValue(Name(key), out PdfObject? step)
+                    || !TryNumber(Resolve(step), out double number)
+                    || !double.IsFinite(number) || number == 0)
+                    throw new InvalidOperationException(
+                        $"{description} has no valid nonzero /{key} value.");
+            if (!pattern.TryGetValue(Name("Resources"), out PdfObject? resources)
+                || Resolve(resources) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"{description} has no /Resources dictionary.");
+            ValidateNestedPageResources(document,
+                (PdfDictionary)Resolve(resources),
+                $"{description} /Resources", depth + 1);
+            return;
+        }
+        if (value is not PdfDictionary)
+            throw new InvalidOperationException(
+                $"{description} shading pattern is not a dictionary.");
+        if (!pattern.TryGetValue(Name("Shading"), out PdfObject? shading))
+            throw new InvalidOperationException($"{description} has no /Shading value.");
+        PdfObject resolvedShading = Resolve(shading);
+        ValidatePageShading(document, resolvedShading, $"{description} /Shading value");
+        if (pattern.TryGetValue(Name("ExtGState"), out PdfObject? graphicsState))
+        {
+            PdfDictionary state = Resolve(graphicsState) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /ExtGState value is not a dictionary.");
+            ValidatePageGraphicsState(document, state,
+                $"{description} /ExtGState value");
+        }
+        return;
+
+        void ValidateInteger(string key, long minimum, long maximum)
+        {
+            if (!pattern.TryGetValue(Name(key), out PdfObject? item)
+                || Resolve(item) is not PdfInteger integer
+                || integer.Value < minimum || integer.Value > maximum)
+                throw new InvalidOperationException(
+                    $"{description} has no defined /{key} integer.");
+        }
+
+        void ValidateNumberArray(PdfObject item, string key, int count)
+        {
+            if (Resolve(item) is not PdfArray array || array.Count != count
+                || array.Any(entry => !TryNumber(
+                    Resolve(entry), out double number) || !double.IsFinite(number)))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not a {count}-number array.");
+        }
+
+        static bool TryNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidatePageShading(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary shading = value switch
+        {
+            PdfDictionary dictionary => dictionary,
+            PdfStream stream => stream.Dictionary,
+            _ => throw new InvalidOperationException($"{description} has an invalid object type.")
+        };
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (!shading.TryGetValue(Name("ShadingType"), out PdfObject? type)
+            || Resolve(type) is not PdfInteger shadingType
+            || shadingType.Value is < 1 or > 7)
+            throw new InvalidOperationException(
+                $"{description} has no defined /ShadingType integer.");
+        if (!shading.TryGetValue(Name("ColorSpace"), out PdfObject? colorSpace))
+            throw new InvalidOperationException(
+                $"{description} has no valid /ColorSpace value.");
+        ValidatePageColorSpace(document, colorSpace,
+            $"{description} /ColorSpace value");
+        int? colorComponentCount = PageColorComponentCount(document, colorSpace);
+        if (shading.TryGetValue(Name("Background"), out PdfObject? background))
+        {
+            PdfArray backgroundArray = Resolve(background) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /Background value is not a numeric array.");
+            if (backgroundArray.Any(item => !TryShadingNumber(
+                    Resolve(item), out double number) || !double.IsFinite(number)))
+                throw new InvalidOperationException(
+                    $"{description} /Background value is not a numeric array.");
+            if (colorComponentCount.HasValue
+                && backgroundArray.Count != colorComponentCount.Value)
+                throw new InvalidOperationException(
+                    $"{description} /Background count does not match its color space.");
+        }
+        if (shading.TryGetValue(Name("BBox"), out PdfObject? bounds))
+            ValidateNumberArray(bounds, "BBox", 4);
+        if (shading.TryGetValue(Name("AntiAlias"), out PdfObject? antialias)
+            && Resolve(antialias) is not PdfBoolean)
+            throw new InvalidOperationException(
+                $"{description} /AntiAlias value is not a boolean.");
+        if (shadingType.Value is 1 or 2 or 3)
+        {
+            if (!shading.TryGetValue(Name("Function"), out PdfObject? functionValue))
+                throw new InvalidOperationException(
+                    $"{description} has no /Function value.");
+            PdfObject resolvedFunction = Resolve(functionValue);
+            if (resolvedFunction is PdfArray functions)
+            {
+                if (functions.Count == 0)
+                    throw new InvalidOperationException(
+                        $"{description} /Function array is empty.");
+                if (colorComponentCount.HasValue
+                    && functions.Count != colorComponentCount.Value)
+                    throw new InvalidOperationException(
+                        $"{description} /Function count does not match its color space.");
+                foreach (PdfObject function in functions)
+                    ValidatePageFunction(document, function,
+                        $"{description} /Function entry", expectedInputCount:
+                        shadingType.Value == 1 ? 2 : 1,
+                        expectedOutputCount: 1);
+            }
+            else ValidatePageFunction(document, functionValue,
+                $"{description} /Function value", expectedInputCount:
+                shadingType.Value == 1 ? 2 : 1,
+                expectedOutputCount: colorComponentCount);
+        }
+        if (shadingType.Value == 1)
+        {
+            if (!shading.TryGetValue(Name("Domain"), out PdfObject? domain))
+                throw new InvalidOperationException(
+                    $"{description} function-based shading has no /Domain array.");
+            ValidateNumberArray(domain, "Domain", 4);
+            if (shading.TryGetValue(Name("Matrix"), out PdfObject? matrix))
+                ValidateNumberArray(matrix, "Matrix", 6);
+        }
+        if (shadingType.Value is 2 or 3)
+        {
+            if (!shading.TryGetValue(Name("Coords"), out PdfObject? coordinates))
+                throw new InvalidOperationException(
+                    $"{description} has no /Coords array.");
+            ValidateNumberArray(coordinates, "Coords", shadingType.Value == 2 ? 4 : 6);
+            PdfArray coordinateArray = (PdfArray)Resolve(coordinates);
+            if (shadingType.Value == 3
+                && (ShadingNumber(coordinateArray[2]) < 0
+                    || ShadingNumber(coordinateArray[5]) < 0))
+                throw new InvalidOperationException(
+                    $"{description} radial shading has a negative radius.");
+            if (shading.TryGetValue(Name("Domain"), out PdfObject? domain))
+            {
+                ValidateNumberArray(domain, "Domain", 2);
+                PdfArray domainArray = (PdfArray)Resolve(domain);
+                if (ShadingNumber(domainArray[0]) > ShadingNumber(domainArray[1]))
+                    throw new InvalidOperationException(
+                        $"{description} /Domain bounds are reversed.");
+            }
+            if (shading.TryGetValue(Name("Extend"), out PdfObject? extension))
+            {
+                PdfArray array = Resolve(extension) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Extend value is not an array.");
+                if (array.Count != 2 || array.Any(item => Resolve(item) is not PdfBoolean))
+                    throw new InvalidOperationException(
+                        $"{description} /Extend value is not a two-boolean array.");
+            }
+        }
+        if (shadingType.Value is >= 4 and <= 7)
+        {
+            if (value is not PdfStream)
+                throw new InvalidOperationException(
+                    $"{description} mesh shading is not a stream.");
+            ValidateBits("BitsPerCoordinate", 1, 2, 4, 8, 12, 16, 24, 32);
+            ValidateBits("BitsPerComponent", 1, 2, 4, 8, 12, 16);
+            if (shadingType.Value != 5)
+                ValidateBits("BitsPerFlag", 2, 4, 8);
+            if (!shading.TryGetValue(Name("Decode"), out PdfObject? decode))
+                throw new InvalidOperationException(
+                    $"{description} mesh shading has no /Decode array.");
+            PdfArray decodeArray = Resolve(decode) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /Decode value is not an array.");
+            if (decodeArray.Count < 4 || decodeArray.Count % 2 != 0
+                || decodeArray.Any(item => !TryShadingNumber(Resolve(item), out double number)
+                    || !double.IsFinite(number)))
+                throw new InvalidOperationException(
+                    $"{description} /Decode is not an even numeric array with coordinate bounds.");
+            bool hasMeshFunction = shading.ContainsKey(Name("Function"));
+            if (colorComponentCount.HasValue)
+            {
+                int expectedDecodeCount = 4 + 2
+                    * (hasMeshFunction ? 1 : colorComponentCount.Value);
+                if (decodeArray.Count != expectedDecodeCount)
+                    throw new InvalidOperationException(
+                        $"{description} /Decode count does not match its color data.");
+            }
+            for (int index = 0; index < decodeArray.Count; index += 2)
+                if (ShadingNumber(decodeArray[index]) > ShadingNumber(decodeArray[index + 1]))
+                    throw new InvalidOperationException(
+                        $"{description} /Decode contains reversed bounds.");
+            if (shadingType.Value == 5
+                && (!shading.TryGetValue(Name("VerticesPerRow"), out PdfObject? vertices)
+                    || Resolve(vertices) is not PdfInteger vertexCount
+                    || vertexCount.Value < 2))
+                throw new InvalidOperationException(
+                    $"{description} lattice mesh has no /VerticesPerRow integer of at least 2.");
+            if (shading.TryGetValue(Name("Function"), out PdfObject? meshFunction))
+            {
+                PdfObject resolvedMeshFunction = Resolve(meshFunction);
+                if (resolvedMeshFunction is PdfArray meshFunctions)
+                {
+                    if (meshFunctions.Count == 0)
+                        throw new InvalidOperationException(
+                            $"{description} /Function array is empty.");
+                    if (colorComponentCount.HasValue
+                        && meshFunctions.Count != colorComponentCount.Value)
+                        throw new InvalidOperationException(
+                            $"{description} /Function count does not match its color space.");
+                    foreach (PdfObject function in meshFunctions)
+                        ValidatePageFunction(document, function,
+                            $"{description} /Function entry",
+                            expectedInputCount: 1, expectedOutputCount: 1);
+                }
+                else ValidatePageFunction(document, meshFunction,
+                    $"{description} /Function value", expectedInputCount: 1,
+                    expectedOutputCount: colorComponentCount);
+            }
+        }
+        return;
+
+        void ValidateBits(string key, params long[] allowed)
+        {
+            if (!shading.TryGetValue(Name(key), out PdfObject? bitValue)
+                || Resolve(bitValue) is not PdfInteger bits
+                || !allowed.Contains(bits.Value))
+                throw new InvalidOperationException(
+                    $"{description} has no supported /{key} value.");
+        }
+
+        void ValidateNumberArray(PdfObject item, string key, long count)
+        {
+            if (Resolve(item) is not PdfArray array || array.Count != count
+                || array.Any(entry => !TryShadingNumber(Resolve(entry), out double number)
+                    || !double.IsFinite(number)))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not a {count}-number array.");
+        }
+        static bool TryShadingNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+        double ShadingNumber(PdfObject item)
+        {
+            TryShadingNumber(Resolve(item), out double number);
+            return number;
+        }
+    }
+
+    private static void ValidatePageGraphicsState(
+        PdfDocument document, PdfDictionary state, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (state.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "ExtGState"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        foreach (string key in new[] { "LW", "ML" })
+            if (state.TryGetValue(Name(key), out PdfObject? value)
+                && (!TryNumber(Resolve(value), out double number)
+                    || !double.IsFinite(number)
+                    || key == "LW" && number < 0 || key == "ML" && number < 1))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is outside its defined range.");
+        foreach (string key in new[] { "LC", "LJ" })
+            if (state.TryGetValue(Name(key), out PdfObject? value)
+                && (Resolve(value) is not PdfInteger integer
+                    || integer.Value is < 0 or > 2))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not an integer from 0 through 2.");
+        foreach (string key in new[] { "CA", "ca" })
+            if (state.TryGetValue(Name(key), out PdfObject? value)
+                && (!TryNumber(Resolve(value), out double opacity)
+                    || !double.IsFinite(opacity)
+                    || opacity is < 0 or > 1))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is outside 0 through 1.");
+        foreach (string key in new[] { "OP", "op", "AIS", "TK" })
+            if (state.TryGetValue(Name(key), out PdfObject? value)
+                && Resolve(value) is not PdfBoolean)
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not a boolean.");
+        if (state.TryGetValue(Name("SA"), out PdfObject? strokeAdjustment)
+            && Resolve(strokeAdjustment) is not PdfBoolean)
+            throw new InvalidOperationException(
+                $"{description} /SA value is not boolean.");
+        foreach (string key in new[] { "FL", "SM" })
+            if (state.TryGetValue(Name(key), out PdfObject? value)
+                && (!TryNumber(Resolve(value), out double number)
+                    || !double.IsFinite(number)
+                    || key == "FL" && number is < 0 or > 100
+                    || key == "SM" && number is < 0 or > 1))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is outside its defined range.");
+        if (state.TryGetValue(Name("OPM"), out PdfObject? overprintMode)
+            && (Resolve(overprintMode) is not PdfInteger mode
+                || mode.Value is not (0 or 1)))
+            throw new InvalidOperationException(
+                $"{description} /OPM value is not 0 or 1.");
+        if (state.TryGetValue(Name("RI"), out PdfObject? renderingIntent))
+        {
+            string intent = (Resolve(renderingIntent) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /RI value is not a name.");
+            if (intent is not ("AbsoluteColorimetric" or "RelativeColorimetric"
+                or "Saturation" or "Perceptual"))
+                throw new InvalidOperationException(
+                    $"{description} /RI value /{intent} is not defined.");
+        }
+        if (state.TryGetValue(Name("BM"), out PdfObject? blendMode))
+        {
+            PdfObject resolved = Resolve(blendMode);
+            if (resolved is not PdfName
+                && (resolved is not PdfArray modes
+                    || modes.Count == 0 || modes.Any(item => Resolve(item) is not PdfName)))
+                throw new InvalidOperationException(
+                    $"{description} /BM value is not a name or nonempty name array.");
+            IEnumerable<PdfName> names = resolved is PdfName single
+                ? [single] : ((PdfArray)resolved).Select(item => (PdfName)Resolve(item));
+            foreach (PdfName name in names)
+                if (name.ValueAsLatin1() is not ("Normal" or "Compatible" or "Multiply"
+                    or "Screen" or "Overlay" or "Darken" or "Lighten" or "ColorDodge"
+                    or "ColorBurn" or "HardLight" or "SoftLight" or "Difference"
+                    or "Exclusion" or "Hue" or "Saturation" or "Color" or "Luminosity"))
+                    throw new InvalidOperationException(
+                        $"{description} /BM name /{name.ValueAsLatin1()} is not defined.");
+        }
+        if (state.TryGetValue(Name("D"), out PdfObject? dashValue))
+        {
+            PdfArray dashPattern = Resolve(dashValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /D value is not an array.");
+            if (dashPattern.Count != 2
+                || Resolve(dashPattern[0]) is not PdfArray dashArray
+                || dashArray.Any(item => !TryNumber(Resolve(item), out double number)
+                    || !double.IsFinite(number) || number < 0)
+                || dashArray.Count > 0 && dashArray.All(item => Number(Resolve(item)) == 0)
+                || !TryNumber(Resolve(dashPattern[1]), out double phase)
+                || !double.IsFinite(phase) || phase < 0)
+                throw new InvalidOperationException(
+                    $"{description} /D value is not a valid dash pattern.");
+        }
+        if (state.TryGetValue(Name("Font"), out PdfObject? fontValue))
+        {
+            PdfArray font = Resolve(fontValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /Font value is not an array.");
+            if (font.Count != 2 || Resolve(font[0]) is not PdfDictionary
+                || !TryNumber(Resolve(font[1]), out double fontSize)
+                || !double.IsFinite(fontSize))
+                throw new InvalidOperationException(
+                    $"{description} /Font value is not a font dictionary and size pair.");
+        }
+        foreach (string key in new[] { "BG", "BG2", "UCR", "UCR2" })
+            if (state.TryGetValue(Name(key), out PdfObject? function))
+                ValidateFunctionOrDefault(function, key, allowArray: false);
+        foreach (string key in new[] { "TR", "TR2" })
+            if (state.TryGetValue(Name(key), out PdfObject? function))
+                ValidateFunctionOrDefault(function, key, allowArray: true);
+        if (state.TryGetValue(Name("HT"), out PdfObject? halftone))
+        {
+            PdfObject resolvedHalftone = Resolve(halftone);
+            if (resolvedHalftone is PdfName halftoneName)
+            {
+                if (halftoneName.ValueAsLatin1() != "Default")
+                    throw new InvalidOperationException(
+                        $"{description} /HT name is not /Default.");
+            }
+            else
+                ValidateHalftone(halftone, 0, new HashSet<(int, int)>());
+        }
+        if (state.TryGetValue(Name("HTP"), out PdfObject? halftonePhase)
+            && (Resolve(halftonePhase) is not PdfArray phaseArray
+                || phaseArray.Count != 2
+                || phaseArray.Any(item => Resolve(item) is not PdfInteger)))
+            throw new InvalidOperationException(
+                $"{description} /HTP value is not a two-integer array.");
+        if (state.TryGetValue(Name("SMask"), out PdfObject? softMask))
+        {
+            PdfObject resolved = Resolve(softMask);
+            if (resolved is not PdfDictionary
+                && (resolved is not PdfName name || name.ValueAsLatin1() != "None"))
+                throw new InvalidOperationException(
+                    $"{description} /SMask value is not /None or a dictionary.");
+            if (resolved is PdfDictionary mask)
+            {
+                if (!mask.TryGetValue(Name("S"), out PdfObject? subtype)
+                    || Resolve(subtype) is not PdfName subtypeName
+                    || subtypeName.ValueAsLatin1() is not ("Alpha" or "Luminosity"))
+                    throw new InvalidOperationException(
+                        $"{description} /SMask dictionary has no valid /S value.");
+                if (!mask.TryGetValue(Name("G"), out PdfObject? group)
+                    || Resolve(group) is not PdfStream groupStream)
+                    throw new InvalidOperationException(
+                        $"{description} /SMask dictionary has no transparency-group stream.");
+                ValidatePageXObject(document, groupStream,
+                    $"{description} /SMask /G value");
+                if (mask.TryGetValue(Name("BC"), out PdfObject? backdrop))
+                {
+                    PdfArray backdropArray = Resolve(backdrop) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /SMask /BC value is not a numeric array.");
+                    if (backdropArray.Any(item => !TryNumber(
+                            Resolve(item), out double component)
+                            || !double.IsFinite(component)))
+                        throw new InvalidOperationException(
+                            $"{description} /SMask /BC value is not a numeric array.");
+                    if (groupStream.Dictionary.TryGetValue(
+                            Name("Group"), out PdfObject? groupAttributes)
+                        && Resolve(groupAttributes) is PdfDictionary groupDictionary
+                        && groupDictionary.TryGetValue(Name("CS"), out PdfObject? groupColorSpace))
+                    {
+                        int? componentCount = PageColorComponentCount(document, groupColorSpace);
+                        if (componentCount.HasValue
+                            && backdropArray.Count != componentCount.Value)
+                            throw new InvalidOperationException(
+                                $"{description} /SMask /BC count does not match its blending color space.");
+                    }
+                }
+                if (mask.TryGetValue(Name("TR"), out PdfObject? transfer))
+                {
+                    PdfObject resolvedTransfer = Resolve(transfer);
+                    if (resolvedTransfer is PdfName transferName)
+                    {
+                        if (transferName.ValueAsLatin1() != "Identity")
+                            throw new InvalidOperationException(
+                                $"{description} /SMask /TR name is not /Identity.");
+                    }
+                    else
+                        ValidatePageFunction(document, transfer,
+                            $"{description} /SMask /TR function");
+                }
+            }
+        }
+        return;
+
+        void ValidateHalftone(
+            PdfObject value, int depth, HashSet<(int, int)> active)
+        {
+            if (depth > 32)
+                throw new NotSupportedException(
+                    "An imported halftone graph is too deeply nested.");
+            (int, int)? identity = null;
+            if (value is PdfIndirectReference reference)
+            {
+                identity = (reference.ObjectNumber, reference.Generation);
+                if (!active.Add(identity.Value))
+                    throw new InvalidOperationException(
+                        $"{description} /HT graph contains a cycle.");
+            }
+            PdfObject resolved = Resolve(value);
+            PdfDictionary dictionary = resolved switch
+            {
+                PdfStream stream => stream.Dictionary,
+                PdfDictionary item => item,
+                _ => throw new InvalidOperationException(
+                    $"{description} /HT value is not /Default or a halftone dictionary or stream.")
+            };
+            if (dictionary.TryGetValue(TypeName, out PdfObject? halftoneTypeName)
+                && (Resolve(halftoneTypeName) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "Halftone"))
+                throw new InvalidOperationException(
+                    $"{description} /HT dictionary has an invalid /Type value.");
+            if (!dictionary.TryGetValue(Name("HalftoneType"), out PdfObject? typeValue)
+                || Resolve(typeValue) is not PdfInteger type
+                || type.Value is not (1 or 5 or 6 or 10 or 16))
+                throw new InvalidOperationException(
+                    $"{description} /HT dictionary has no defined /HalftoneType integer.");
+            if (type.Value is 6 or 10 or 16 && resolved is not PdfStream)
+                throw new InvalidOperationException(
+                    $"{description} type {type.Value} halftone is not a stream.");
+            if (type.Value is 1 or 5 && resolved is PdfStream)
+                throw new InvalidOperationException(
+                    $"{description} type {type.Value} halftone is not a dictionary.");
+            if (type.Value == 1)
+            {
+                if (!dictionary.TryGetValue(Name("Frequency"), out PdfObject? frequency)
+                    || !TryNumber(Resolve(frequency), out double frequencyValue)
+                    || !double.IsFinite(frequencyValue) || frequencyValue <= 0)
+                    throw new InvalidOperationException(
+                        $"{description} type 1 halftone has no positive finite /Frequency.");
+                if (!dictionary.TryGetValue(Name("Angle"), out PdfObject? angle)
+                    || !TryNumber(Resolve(angle), out double angleValue)
+                    || !double.IsFinite(angleValue))
+                    throw new InvalidOperationException(
+                        $"{description} type 1 halftone has no finite /Angle.");
+                if (!dictionary.TryGetValue(Name("SpotFunction"), out PdfObject? spot))
+                    throw new InvalidOperationException(
+                        $"{description} type 1 halftone has no /SpotFunction.");
+                if (Resolve(spot) is not PdfName)
+                    ValidatePageFunction(document, spot,
+                        $"{description} /HT /SpotFunction");
+            }
+            else if (type.Value == 5)
+            {
+                if (!dictionary.ContainsKey(Name("Default")))
+                    throw new InvalidOperationException(
+                        $"{description} type 5 halftone has no /Default entry.");
+                foreach (var entry in dictionary)
+                {
+                    if (entry.Key.Equals(TypeName)
+                        || entry.Key.Equals(Name("HalftoneType"))
+                        || entry.Key.Equals(Name("HalftoneName"))) continue;
+                    ValidateHalftone(entry.Value, depth + 1, active);
+                }
+            }
+            else
+            {
+                foreach (string key in new[] { "Width", "Height" })
+                    if (!dictionary.TryGetValue(Name(key), out PdfObject? dimension)
+                        || Resolve(dimension) is not PdfInteger size || size.Value <= 0)
+                        throw new InvalidOperationException(
+                            $"{description} type {type.Value} halftone has no positive /{key} integer.");
+            }
+            if (dictionary.TryGetValue(Name("HalftoneName"), out PdfObject? halftoneName)
+                && Resolve(halftoneName) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /HT /HalftoneName value is not a string.");
+            if (dictionary.TryGetValue(Name("TransferFunction"), out PdfObject? transferFunction))
+                ValidateFunctionOrDefault(
+                    transferFunction, "HT /TransferFunction", allowArray: false);
+            if (identity.HasValue) active.Remove(identity.Value);
+        }
+
+        void ValidateFunctionOrDefault(PdfObject value, string key, bool allowArray)
+        {
+            PdfObject resolved = Resolve(value);
+            if (resolved is PdfName name)
+            {
+                if (name.ValueAsLatin1() is not ("Identity" or "Default"))
+                    throw new InvalidOperationException(
+                        $"{description} /{key} name /{name.ValueAsLatin1()} is not defined.");
+                return;
+            }
+            if (allowArray && resolved is PdfArray functions)
+            {
+                if (functions.Count != 4)
+                    throw new InvalidOperationException(
+                        $"{description} /{key} transfer-function array does not contain four entries.");
+                foreach (PdfObject function in functions)
+                    ValidatePageFunction(document, function,
+                        $"{description} /{key} function");
+                return;
+            }
+            ValidatePageFunction(document, value,
+                $"{description} /{key} function");
+        }
+
+        static bool TryNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+
+        static double Number(PdfObject item) => item switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => double.NaN
+        };
+    }
+
+    private static void ValidatePageFontResource(
+        PdfDocument document, PdfDictionary font, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (font.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Font"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        string subtype = font.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+            ? (Resolve(subtypeValue) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /Subtype value is not a name.")
+            : throw new InvalidOperationException($"{description} has no /Subtype value.");
+        if (subtype is not ("Type0" or "Type1" or "MMType1" or "Type3"
+            or "TrueType" or "CIDFontType0" or "CIDFontType2"))
+            throw new InvalidOperationException(
+                $"{description} /Subtype /{subtype} is not defined.");
+        if (font.TryGetValue(Name("BaseFont"), out PdfObject? baseFont)
+            && Resolve(baseFont) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} /BaseFont value is not a name.");
+        if (subtype != "Type3"
+            && (!font.TryGetValue(Name("BaseFont"), out baseFont)
+                || Resolve(baseFont) is not PdfName))
+            throw new InvalidOperationException(
+                $"{description} has no /BaseFont name.");
+        if (font.TryGetValue(Name("Encoding"), out PdfObject? encoding)
+            && Resolve(encoding) is not (PdfName or PdfDictionary or PdfStream))
+            throw new InvalidOperationException(
+                $"{description} /Encoding value has an invalid object type.");
+        if (font.TryGetValue(Name("Encoding"), out encoding)
+            && Resolve(encoding) is PdfDictionary encodingDictionary)
+            ValidateFontEncoding(encodingDictionary);
+        if (font.TryGetValue(Name("ToUnicode"), out PdfObject? toUnicode)
+            && Resolve(toUnicode) is not PdfStream)
+            throw new InvalidOperationException(
+                $"{description} /ToUnicode value is not a stream or resolves to null.");
+        if (font.TryGetValue(Name("FontDescriptor"), out PdfObject? descriptorValue))
+            ValidateFontDescriptor(descriptorValue,
+                $"{description} /FontDescriptor value");
+        ValidateSimpleWidths();
+        if (subtype == "Type0")
+        {
+            if (!font.TryGetValue(Name("Encoding"), out PdfObject? compositeEncoding)
+                || Resolve(compositeEncoding) is not (PdfName or PdfStream))
+                throw new InvalidOperationException(
+                    $"{description} has no CMap /Encoding name or stream.");
+            if (!font.TryGetValue(Name("DescendantFonts"), out PdfObject? descendants)
+                || Resolve(descendants) is not PdfArray descendantArray
+                || descendantArray.Count != 1
+                || Resolve(descendantArray[0]) is not PdfDictionary descendant)
+                throw new InvalidOperationException(
+                    $"{description} has no sole descendant font dictionary.");
+            string descendantSubtype = descendant.TryGetValue(
+                    Name("Subtype"), out PdfObject? descendantSubtypeValue)
+                ? (Resolve(descendantSubtypeValue) as PdfName)?.ValueAsLatin1() ?? ""
+                : "";
+            if (descendantSubtype is not ("CIDFontType0" or "CIDFontType2"))
+                throw new InvalidOperationException(
+                    $"{description} descendant has no valid CID-font subtype.");
+            ValidatePageFontResource(document, descendant,
+                $"{description} descendant");
+        }
+        if (subtype is "CIDFontType0" or "CIDFontType2")
+        {
+            if (!font.TryGetValue(Name("CIDSystemInfo"), out PdfObject? systemInfoValue)
+                || Resolve(systemInfoValue) is not PdfDictionary systemInfo)
+                throw new InvalidOperationException(
+                    $"{description} has no /CIDSystemInfo dictionary.");
+            foreach (string key in new[] { "Registry", "Ordering" })
+                if (!systemInfo.TryGetValue(Name(key), out PdfObject? text)
+                    || Resolve(text) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /CIDSystemInfo has no string /{key} value.");
+            if (!systemInfo.TryGetValue(Name("Supplement"), out PdfObject? supplement)
+                || Resolve(supplement) is not PdfInteger supplementValue
+                || supplementValue.Value < 0)
+                throw new InvalidOperationException(
+                    $"{description} /CIDSystemInfo has no nonnegative /Supplement integer.");
+            ValidateCidWidths();
+            ValidateCidVerticalWidths();
+            if (subtype == "CIDFontType2"
+                && font.TryGetValue(Name("CIDToGIDMap"), out PdfObject? cidToGid))
+            {
+                PdfObject map = Resolve(cidToGid);
+                if (map is PdfName mapName)
+                {
+                    if (mapName.ValueAsLatin1() != "Identity")
+                        throw new InvalidOperationException(
+                            $"{description} /CIDToGIDMap name is not /Identity.");
+                }
+                else if (map is not PdfStream)
+                    throw new InvalidOperationException(
+                        $"{description} /CIDToGIDMap value is not /Identity or a stream.");
+            }
+        }
+        if (subtype != "Type3") return;
+        if (!font.TryGetValue(Name("Encoding"), out PdfObject? type3Encoding)
+            || Resolve(type3Encoding) is not (PdfName or PdfDictionary))
+            throw new InvalidOperationException(
+                $"{description} has no valid /Encoding value.");
+        if (!font.ContainsKey(Name("FirstChar"))
+            || !font.ContainsKey(Name("LastChar"))
+            || !font.ContainsKey(Name("Widths")))
+            throw new InvalidOperationException(
+                $"{description} has no complete character-width range.");
+        ValidateNumberArray("FontBBox", 4);
+        ValidateNumberArray("FontMatrix", 6);
+        if (!font.TryGetValue(Name("CharProcs"), out PdfObject? characterProcedures)
+            || Resolve(characterProcedures) is not PdfDictionary characterProcedureDictionary)
+            throw new InvalidOperationException(
+                $"{description} has no /CharProcs dictionary.");
+        foreach (var procedure in characterProcedureDictionary)
+            if (Resolve(procedure.Value) is not PdfStream)
+                throw new InvalidOperationException(
+                    $"{description} /CharProcs /{procedure.Key.ValueAsLatin1()} value is not a stream.");
+        if (font.TryGetValue(Name("Resources"), out PdfObject? type3Resources)
+            && Resolve(type3Resources) is not PdfDictionary)
+            throw new InvalidOperationException(
+                $"{description} /Resources value is not a dictionary.");
+        return;
+
+        void ValidateNumberArray(string key, int count)
+        {
+            if (!font.TryGetValue(Name(key), out PdfObject? value)
+                || Resolve(value) is not PdfArray array || array.Count != count
+                || array.Any(item => !TryFontNumber(
+                    Resolve(item), out double number) || !double.IsFinite(number)))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not a {count}-number array.");
+        }
+        void ValidateSimpleWidths()
+        {
+            bool hasFirst = font.TryGetValue(Name("FirstChar"), out PdfObject? firstValue);
+            bool hasLast = font.TryGetValue(Name("LastChar"), out PdfObject? lastValue);
+            bool hasWidths = font.TryGetValue(Name("Widths"), out PdfObject? widthsValue);
+            if (!hasFirst && !hasLast && !hasWidths) return;
+            if (!hasFirst || Resolve(firstValue!) is not PdfInteger first
+                || first.Value is < 0 or > 255
+                || !hasLast || Resolve(lastValue!) is not PdfInteger last
+                || last.Value < first.Value || last.Value > 255
+                || !hasWidths || Resolve(widthsValue!) is not PdfArray widths
+                || widths.Count != last.Value - first.Value + 1
+                || widths.Any(item => !TryFontNumber(Resolve(item), out double width)
+                    || !double.IsFinite(width)))
+                throw new InvalidOperationException(
+                    $"{description} has inconsistent /FirstChar, /LastChar, or /Widths values.");
+        }
+        void ValidateCidWidths()
+        {
+            if (font.TryGetValue(Name("DW"), out PdfObject? defaultWidth)
+                && (!TryFontNumber(Resolve(defaultWidth), out double width)
+                    || !double.IsFinite(width)))
+                throw new InvalidOperationException(
+                    $"{description} /DW value is not a finite number.");
+            if (!font.TryGetValue(Name("W"), out PdfObject? widthsValue)) return;
+            PdfArray widths = Resolve(widthsValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /W value is not an array.");
+            int index = 0;
+            while (index < widths.Count)
+            {
+                if (Resolve(widths[index++]) is not PdfInteger first
+                    || first.Value is < 0 or > 65535 || index >= widths.Count)
+                    throw new InvalidOperationException(
+                        $"{description} /W value has an invalid CID range.");
+                PdfObject next = Resolve(widths[index++]);
+                if (next is PdfArray individualWidths)
+                {
+                    if (individualWidths.Count == 0
+                        || individualWidths.Any(item =>
+                            !TryFontNumber(Resolve(item), out double width)
+                            || !double.IsFinite(width)))
+                        throw new InvalidOperationException(
+                            $"{description} /W value has an invalid width array.");
+                    if (first.Value + individualWidths.Count - 1 > 65535)
+                        throw new InvalidOperationException(
+                            $"{description} /W value has an invalid CID range.");
+                    continue;
+                }
+                if (next is not PdfInteger last || last.Value < first.Value
+                    || last.Value > 65535 || index >= widths.Count
+                    || !TryFontNumber(Resolve(widths[index++]), out double rangeWidth)
+                    || !double.IsFinite(rangeWidth))
+                    throw new InvalidOperationException(
+                        $"{description} /W value has an invalid CID range or width.");
+            }
+        }
+        void ValidateCidVerticalWidths()
+        {
+            if (font.TryGetValue(Name("DW2"), out PdfObject? defaultMetrics))
+            {
+                if (Resolve(defaultMetrics) is not PdfArray defaults
+                    || defaults.Count != 2
+                    || defaults.Any(item =>
+                        !TryFontNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} /DW2 value is not a two-number array.");
+            }
+            if (!font.TryGetValue(Name("W2"), out PdfObject? metricsValue)) return;
+            PdfArray metrics = Resolve(metricsValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /W2 value is not an array.");
+            int index = 0;
+            while (index < metrics.Count)
+            {
+                if (Resolve(metrics[index++]) is not PdfInteger first
+                    || first.Value is < 0 or > 65535 || index >= metrics.Count)
+                    throw new InvalidOperationException(
+                        $"{description} /W2 value has an invalid CID range.");
+                PdfObject next = Resolve(metrics[index++]);
+                if (next is PdfArray individualMetrics)
+                {
+                    if (individualMetrics.Count == 0 || individualMetrics.Count % 3 != 0
+                        || individualMetrics.Any(item =>
+                            !TryFontNumber(Resolve(item), out double number)
+                            || !double.IsFinite(number))
+                        || first.Value + individualMetrics.Count / 3 - 1 > 65535)
+                        throw new InvalidOperationException(
+                            $"{description} /W2 value has an invalid vertical-metrics array.");
+                    continue;
+                }
+                if (next is not PdfInteger last || last.Value < first.Value
+                    || last.Value > 65535 || index + 2 >= metrics.Count)
+                    throw new InvalidOperationException(
+                        $"{description} /W2 value has an invalid CID range.");
+                for (int metric = 0; metric < 3; metric++)
+                    if (!TryFontNumber(Resolve(metrics[index++]), out double number)
+                        || !double.IsFinite(number))
+                        throw new InvalidOperationException(
+                            $"{description} /W2 value has an invalid vertical metric.");
+            }
+        }
+        void ValidateFontDescriptor(PdfObject value, string descriptorDescription)
+        {
+            PdfDictionary descriptor = Resolve(value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{descriptorDescription} is not a dictionary.");
+            if (descriptor.TryGetValue(TypeName, out PdfObject? descriptorType)
+                && (Resolve(descriptorType) is not PdfName descriptorTypeName
+                    || descriptorTypeName.ValueAsLatin1() != "FontDescriptor"))
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} has an invalid /Type value.");
+            if (!descriptor.TryGetValue(Name("FontName"), out PdfObject? fontName)
+                || Resolve(fontName) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} has no /FontName name.");
+            if (!descriptor.TryGetValue(Name("Flags"), out PdfObject? flags)
+                || Resolve(flags) is not PdfInteger flagValue || flagValue.Value < 0)
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} has no nonnegative /Flags integer.");
+            if (!descriptor.TryGetValue(Name("FontBBox"), out PdfObject? boundingBox)
+                || Resolve(boundingBox) is not PdfArray boundingBoxArray
+                || boundingBoxArray.Count != 4
+                || boundingBoxArray.Any(item =>
+                    !TryFontNumber(Resolve(item), out double coordinate)
+                    || !double.IsFinite(coordinate)))
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} has no four-number /FontBBox array.");
+            foreach (string key in new[]
+                { "ItalicAngle", "Ascent", "Descent", "CapHeight", "StemV" })
+                if (!descriptor.TryGetValue(Name(key), out PdfObject? metric)
+                    || !TryFontNumber(Resolve(metric), out double number)
+                    || !double.IsFinite(number))
+                    throw new InvalidOperationException(
+                        $"{descriptorDescription} has no finite /{key} number.");
+            foreach (string key in new[]
+                { "AvgWidth", "MaxWidth", "MissingWidth", "Leading", "StemH", "XHeight" })
+                if (descriptor.TryGetValue(Name(key), out PdfObject? metric)
+                    && (!TryFontNumber(Resolve(metric), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{descriptorDescription} /{key} value is not a finite number.");
+            if (descriptor.TryGetValue(Name("CharSet"), out PdfObject? characterSet)
+                && Resolve(characterSet) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} /CharSet value is not a string.");
+            if (descriptor.TryGetValue(Name("Style"), out PdfObject? style)
+                && Resolve(style) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} /Style value is not a dictionary.");
+            if (descriptor.TryGetValue(Name("Lang"), out PdfObject? language)
+                && Resolve(language) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} /Lang value is not a string.");
+            int embeddedPrograms = 0;
+            foreach (string key in new[] { "FontFile", "FontFile2", "FontFile3" })
+                if (descriptor.TryGetValue(Name(key), out PdfObject? fontFile))
+                {
+                    embeddedPrograms++;
+                    if (Resolve(fontFile) is not PdfStream)
+                        throw new InvalidOperationException(
+                            $"{descriptorDescription} /{key} value is not a stream.");
+                }
+            if (embeddedPrograms > 1)
+                throw new InvalidOperationException(
+                    $"{descriptorDescription} contains multiple embedded font programs.");
+        }
+        static bool TryFontNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+        void ValidateFontEncoding(PdfDictionary encodingDictionary)
+        {
+            if (encodingDictionary.TryGetValue(TypeName, out PdfObject? encodingType)
+                && (Resolve(encodingType) is not PdfName encodingTypeName
+                    || encodingTypeName.ValueAsLatin1() != "Encoding"))
+                throw new InvalidOperationException(
+                    $"{description} /Encoding dictionary has an invalid /Type value.");
+            if (encodingDictionary.TryGetValue(Name("BaseEncoding"), out PdfObject? baseEncoding))
+            {
+                string baseName = (Resolve(baseEncoding) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Encoding /BaseEncoding value is not a name.");
+                if (baseName is not ("MacRomanEncoding" or "MacExpertEncoding"
+                    or "WinAnsiEncoding" or "StandardEncoding"))
+                    throw new InvalidOperationException(
+                        $"{description} /Encoding /BaseEncoding /{baseName} is not defined.");
+            }
+            if (!encodingDictionary.TryGetValue(Name("Differences"), out PdfObject? differencesValue))
+                return;
+            PdfArray differences = Resolve(differencesValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /Encoding /Differences value is not an array.");
+            int nextCode = -1;
+            foreach (PdfObject item in differences)
+            {
+                PdfObject difference = Resolve(item);
+                if (difference is PdfInteger code)
+                {
+                    if (code.Value is < 0 or > 255)
+                        throw new InvalidOperationException(
+                            $"{description} /Encoding /Differences character code is outside 0 through 255.");
+                    nextCode = (int)code.Value;
+                    continue;
+                }
+                if (difference is not PdfName || nextCode is < 0 or > 255)
+                    throw new InvalidOperationException(
+                        $"{description} /Encoding /Differences glyph name has no valid preceding code.");
+                nextCode++;
+            }
+        }
+    }
+
+    private static void ValidatePageXObject(
+        PdfDocument document, PdfStream stream, string description, int depth = 0)
+    {
+        if (depth > 32)
+            throw new NotSupportedException("An imported XObject graph is too deeply nested.");
+        PdfDictionary dictionary = stream.Dictionary;
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (dictionary.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "XObject"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        string subtype = dictionary.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+            ? (Resolve(subtypeValue) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /Subtype value is not a name.")
+            : throw new InvalidOperationException($"{description} has no /Subtype value.");
+        if (dictionary.TryGetValue(Name("OPI"), out PdfObject? opiValue))
+            ValidateOpiVersionDictionary(document, opiValue,
+                $"{description} /OPI value");
+        bool postScript = subtype == "PS";
+        if (subtype == "Form"
+            && dictionary.TryGetValue(Name("Subtype2"), out PdfObject? secondarySubtype))
+        {
+            if (Resolve(secondarySubtype) is not PdfName secondarySubtypeName
+                || secondarySubtypeName.ValueAsLatin1() != "PS")
+                throw new InvalidOperationException(
+                    $"{description} /Subtype2 value is not /PS.");
+            postScript = true;
+        }
+        if (postScript)
+        {
+            if (dictionary.TryGetValue(Name("Level1"), out PdfObject? levelOne)
+                && (levelOne is not PdfIndirectReference levelOneReference
+                    || document.Resolve(levelOneReference) is not PdfStream))
+                throw new InvalidOperationException(
+                    $"{description} /Level1 value is not an indirect stream reference.");
+            return;
+        }
+        if (subtype == "Image")
+        {
+            if (dictionary.TryGetValue(Name("Name"), out PdfObject? imageName)
+                && Resolve(imageName) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} /Name value is not a name.");
+            foreach (string key in new[] { "Width", "Height" })
+                if (!dictionary.TryGetValue(Name(key), out PdfObject? dimension)
+                    || Resolve(dimension) is not PdfInteger integer || integer.Value < 1)
+                    throw new InvalidOperationException(
+                        $"{description} has no positive /{key} integer.");
+            bool imageMask = false;
+            if (dictionary.TryGetValue(Name("ImageMask"), out PdfObject? imageMaskValue))
+            {
+                if (Resolve(imageMaskValue) is not PdfBoolean maskBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} /ImageMask value is not a boolean.");
+                imageMask = maskBoolean.Value;
+            }
+            if (dictionary.TryGetValue(Name("BitsPerComponent"), out PdfObject? bits)
+                && (Resolve(bits) is not PdfInteger bitCount
+                    || bitCount.Value is not (1 or 2 or 4 or 8 or 16)))
+                throw new InvalidOperationException(
+                    $"{description} /BitsPerComponent value is not supported.");
+            if (imageMask && dictionary.ContainsKey(Name("ColorSpace")))
+                throw new InvalidOperationException(
+                    $"{description} image mask must not define /ColorSpace.");
+            if (imageMask && dictionary.TryGetValue(Name("BitsPerComponent"), out bits)
+                && Resolve(bits) is PdfInteger maskBits && maskBits.Value != 1)
+                throw new InvalidOperationException(
+                    $"{description} image mask /BitsPerComponent is not 1.");
+            if (dictionary.TryGetValue(Name("ColorSpace"), out PdfObject? colorSpace))
+                ValidatePageColorSpace(document, colorSpace,
+                    $"{description} /ColorSpace");
+            int? imageComponentCount = imageMask ? 1
+                : dictionary.TryGetValue(Name("ColorSpace"), out PdfObject? imageColorSpace)
+                    ? PageColorComponentCount(document, imageColorSpace) : null;
+            foreach (string key in new[] { "Interpolate" })
+                if (dictionary.TryGetValue(Name(key), out PdfObject? booleanValue)
+                    && Resolve(booleanValue) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} /{key} value is not boolean.");
+            if (dictionary.TryGetValue(Name("Intent"), out PdfObject? intentValue))
+            {
+                string intent = (Resolve(intentValue) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Intent value is not a name.");
+                if (intent is not ("AbsoluteColorimetric" or "RelativeColorimetric"
+                    or "Saturation" or "Perceptual"))
+                    throw new InvalidOperationException(
+                        $"{description} /Intent value /{intent} is not defined.");
+            }
+            if (dictionary.TryGetValue(Name("Decode"), out PdfObject? decode))
+            {
+                PdfArray decodeArray = Resolve(decode) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Decode value is not an array.");
+                if (decodeArray.Count == 0 || decodeArray.Count % 2 != 0
+                    || decodeArray.Any(item => !TryImageNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} /Decode is not a nonempty even numeric array.");
+                if (imageComponentCount.HasValue
+                    && decodeArray.Count != imageComponentCount.Value * 2)
+                    throw new InvalidOperationException(
+                        $"{description} /Decode count does not match its color components.");
+            }
+            if (dictionary.TryGetValue(Name("Mask"), out PdfObject? maskValue))
+            {
+                PdfObject resolvedMask = Resolve(maskValue);
+                if (resolvedMask is PdfStream maskStream)
+                {
+                    ValidatePageXObject(document, maskStream,
+                        $"{description} /Mask value", depth + 1);
+                    if (!maskStream.Dictionary.TryGetValue(Name("ImageMask"), out PdfObject? explicitMask)
+                        || Resolve(explicitMask) is not PdfBoolean explicitMaskValue
+                        || !explicitMaskValue.Value)
+                        throw new InvalidOperationException(
+                            $"{description} /Mask stream is not an image mask.");
+                }
+                else
+                {
+                    PdfArray maskArray = resolvedMask as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /Mask value is not an image stream or color-key array.");
+                    if (maskArray.Count == 0 || maskArray.Count % 2 != 0
+                        || maskArray.Any(item => Resolve(item) is not PdfInteger))
+                        throw new InvalidOperationException(
+                            $"{description} /Mask value is not an image stream or integer color-key array.");
+                    if (imageComponentCount.HasValue
+                        && maskArray.Count != imageComponentCount.Value * 2)
+                        throw new InvalidOperationException(
+                            $"{description} /Mask color-key count does not match its color components.");
+                    long? maximumSample = dictionary.TryGetValue(
+                            Name("BitsPerComponent"), out PdfObject? maskBitsValue)
+                        && Resolve(maskBitsValue) is PdfInteger sampleBits
+                        ? (1L << (int)sampleBits.Value) - 1 : null;
+                    for (int index = 0; index < maskArray.Count; index += 2)
+                    {
+                        long lower = ((PdfInteger)Resolve(maskArray[index])).Value;
+                        long upper = ((PdfInteger)Resolve(maskArray[index + 1])).Value;
+                        if (lower < 0 || lower > upper
+                            || maximumSample.HasValue && upper > maximumSample.Value)
+                            throw new InvalidOperationException(
+                                $"{description} /Mask color-key bounds are invalid.");
+                    }
+                }
+            }
+            if (dictionary.TryGetValue(Name("SMask"), out PdfObject? softMask))
+            {
+                if (dictionary.ContainsKey(Name("Mask")))
+                    throw new InvalidOperationException(
+                        $"{description} defines both /Mask and /SMask.");
+                PdfStream maskStream = Resolve(softMask) as PdfStream
+                    ?? throw new InvalidOperationException(
+                        $"{description} /SMask value is not an image stream.");
+                ValidatePageXObject(document, maskStream,
+                    $"{description} /SMask value", depth + 1);
+                if (maskStream.Dictionary.TryGetValue(Name("Subtype"), out PdfObject? maskSubtype)
+                    && (Resolve(maskSubtype) is not PdfName maskSubtypeName
+                        || maskSubtypeName.ValueAsLatin1() != "Image"))
+                    throw new InvalidOperationException(
+                        $"{description} /SMask value is not an image XObject.");
+                if (maskStream.Dictionary.TryGetValue(Name("ImageMask"), out PdfObject? softImageMask)
+                    && Resolve(softImageMask) is PdfBoolean softImageMaskValue
+                    && softImageMaskValue.Value)
+                    throw new InvalidOperationException(
+                        $"{description} /SMask value is an explicit image mask.");
+                foreach (string key in new[] { "Width", "Height" })
+                    if (((PdfInteger)Resolve(maskStream.Dictionary[Name(key)])).Value
+                        != ((PdfInteger)Resolve(dictionary[Name(key)])).Value)
+                        throw new InvalidOperationException(
+                            $"{description} /SMask dimensions do not match the image.");
+                if (!maskStream.Dictionary.TryGetValue(
+                        Name("ColorSpace"), out PdfObject? softColorSpace)
+                    || Resolve(softColorSpace) is not PdfName softColorName
+                    || softColorName.ValueAsLatin1() != "DeviceGray")
+                    throw new InvalidOperationException(
+                        $"{description} /SMask has no /DeviceGray color space.");
+            }
+            if (dictionary.TryGetValue(Name("SMaskInData"), out PdfObject? maskInData)
+                && (Resolve(maskInData) is not PdfInteger maskMode
+                    || maskMode.Value is < 0 or > 2))
+                throw new InvalidOperationException(
+                    $"{description} /SMaskInData value is not an integer from 0 through 2.");
+            if (dictionary.TryGetValue(Name("StructParent"), out PdfObject? parent)
+                && (Resolve(parent) is not PdfInteger parentKey || parentKey.Value < 0))
+                throw new InvalidOperationException(
+                    $"{description} /StructParent value is not a nonnegative integer.");
+            ValidateXObjectAuxiliaryEntries(document, dictionary, description);
+            if (dictionary.TryGetValue(Name("ID"), out PdfObject? imageIdentifier)
+                && Resolve(imageIdentifier) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /ID value is not a byte string.");
+            if (dictionary.TryGetValue(Name("Alternates"), out PdfObject? alternatesValue))
+            {
+                PdfArray alternates = Resolve(alternatesValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Alternates value is not an array.");
+                if (alternates.Count == 0)
+                    throw new InvalidOperationException(
+                        $"{description} /Alternates array is empty.");
+                foreach (PdfObject alternateValue in alternates)
+                {
+                    PdfDictionary alternate = Resolve(alternateValue) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} /Alternates contains a non-dictionary entry.");
+                    if (!alternate.TryGetValue(Name("Image"), out PdfObject? alternateImage)
+                        || Resolve(alternateImage) is not PdfStream alternateStream)
+                        throw new InvalidOperationException(
+                            $"{description} alternate image has no /Image stream.");
+                    ValidatePageXObject(document, alternateStream,
+                        $"{description} alternate /Image value", depth + 1);
+                    if (alternate.TryGetValue(Name("DefaultForPrinting"), out PdfObject? printing)
+                        && Resolve(printing) is not PdfBoolean)
+                        throw new InvalidOperationException(
+                            $"{description} alternate /DefaultForPrinting value is not a boolean.");
+                    if (alternate.TryGetValue(Name("OC"), out PdfObject? alternateOptionalContent))
+                    {
+                        PdfDictionary property = Resolve(alternateOptionalContent) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} alternate /OC value is not a dictionary.");
+                        ValidatePageProperty(document, property,
+                            $"{description} alternate /OC value");
+                    }
+                }
+            }
+            return;
+        }
+        if (subtype == "Form")
+        {
+            if (dictionary.TryGetValue(Name("FormType"), out PdfObject? formType)
+                && (Resolve(formType) is not PdfInteger formTypeValue
+                    || formTypeValue.Value != 1))
+                throw new InvalidOperationException(
+                    $"{description} /FormType value is not 1.");
+            if (!dictionary.TryGetValue(Name("BBox"), out PdfObject? bounds)
+                || Resolve(bounds) is not PdfArray boundingBox
+                || boundingBox.Count != 4
+                || boundingBox.Any(item => !TryImageNumber(
+                    Resolve(item), out double coordinate) || !double.IsFinite(coordinate)))
+                throw new InvalidOperationException(
+                    $"{description} has no four-number /BBox array.");
+            if (dictionary.TryGetValue(Name("Matrix"), out PdfObject? matrix)
+                && (Resolve(matrix) is not PdfArray matrixArray
+                    || matrixArray.Count != 6
+                    || matrixArray.Any(item => !TryImageNumber(
+                        Resolve(item), out double number) || !double.IsFinite(number))))
+                throw new InvalidOperationException(
+                    $"{description} /Matrix value is not a six-number array.");
+            foreach (string key in new[] { "Resources", "Group" })
+                if (dictionary.TryGetValue(Name(key), out PdfObject? nested)
+                    && Resolve(nested) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{description} /{key} value is not a dictionary.");
+            if (dictionary.TryGetValue(Name("Resources"), out PdfObject? formResources))
+                ValidateNestedPageResources(document,
+                    (PdfDictionary)Resolve(formResources),
+                    $"{description} /Resources", depth + 1);
+            if (dictionary.TryGetValue(Name("Group"), out PdfObject? groupValue))
+                ValidatePageGroupAttributes(document, groupValue,
+                    $"{description} /Group");
+            foreach (string key in new[] { "StructParent", "StructParents" })
+                if (dictionary.TryGetValue(Name(key), out PdfObject? parent)
+                    && (Resolve(parent) is not PdfInteger parentKey || parentKey.Value < 0))
+                    throw new InvalidOperationException(
+                        $"{description} /{key} value is not a nonnegative integer.");
+            if (dictionary.TryGetValue(MetadataName, out PdfObject? metadata))
+                ValidateMetadataStream(document, metadata,
+                    $"{description} /Metadata value");
+            if (dictionary.TryGetValue(Name("PieceInfo"), out PdfObject? pieceInfo))
+                ValidatePagePieceInfo(document, pieceInfo,
+                    $"{description} /PieceInfo value");
+            if (dictionary.TryGetValue(Name("LastModified"), out PdfObject? lastModified))
+                ValidatePdfDateString(Resolve(lastModified),
+                    $"{description} /LastModified value");
+            if (dictionary.TryGetValue(Name("Name"), out PdfObject? formName)
+                && Resolve(formName) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} /Name value is not a name.");
+            ValidateXObjectAuxiliaryEntries(document, dictionary, description);
+            if (dictionary.TryGetValue(Name("Ref"), out PdfObject? referenceValue))
+            {
+                PdfDictionary reference = Resolve(referenceValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Ref value is not a dictionary.");
+                if (!reference.TryGetValue(Name("F"), out PdfObject? file))
+                    throw new InvalidOperationException(
+                        $"{description} /Ref dictionary has no /F file specification.");
+                if (Resolve(file) is not PdfString)
+                    ValidateFileSpecification(document, file,
+                        $"{description} /Ref /F value");
+                if (!reference.TryGetValue(Name("Page"), out PdfObject? page))
+                    throw new InvalidOperationException(
+                        $"{description} /Ref dictionary has no /Page value.");
+                PdfObject resolvedPage = Resolve(page);
+                if (resolvedPage is PdfInteger pageIndex)
+                {
+                    if (pageIndex.Value < 0)
+                        throw new InvalidOperationException(
+                            $"{description} /Ref /Page index is negative.");
+                }
+                else if (resolvedPage is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /Ref /Page value is not an integer or text string.");
+                if (reference.TryGetValue(Name("ID"), out PdfObject? identifierValue))
+                {
+                    PdfArray identifier = Resolve(identifierValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /Ref /ID value is not an array.");
+                    if (identifier.Count != 2
+                        || identifier.Any(item => Resolve(item) is not PdfString))
+                        throw new InvalidOperationException(
+                            $"{description} /Ref /ID value is not two byte strings.");
+                }
+            }
+            if (dictionary.TryGetValue(Name("OC"), out PdfObject? optionalContent))
+            {
+                PdfDictionary property = Resolve(optionalContent) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /OC value is not a dictionary.");
+                if (!property.ContainsKey(TypeName))
+                    throw new InvalidOperationException(
+                        $"{description} /OC value has no /Type name.");
+                ValidatePageProperty(document, property,
+                    $"{description} /OC value");
+            }
+            return;
+        }
+        throw new InvalidOperationException(
+            $"{description} /Subtype /{subtype} is not defined.");
+
+        static bool TryImageNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidateXObjectAuxiliaryEntries(
+        PdfDocument document, PdfDictionary dictionary, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (dictionary.TryGetValue(MetadataName, out PdfObject? metadata))
+            ValidateMetadataStream(document, metadata,
+                $"{description} /Metadata value");
+        if (dictionary.TryGetValue(Name("OC"), out PdfObject? optionalContent))
+        {
+            PdfDictionary property = Resolve(optionalContent) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /OC value is not a dictionary.");
+            if (!property.ContainsKey(TypeName))
+                throw new InvalidOperationException(
+                    $"{description} /OC value has no /Type name.");
+            ValidatePageProperty(document, property,
+                $"{description} /OC value");
+        }
+        if (dictionary.TryGetValue(AssociatedFilesName, out PdfObject? associatedFiles))
+            foreach (PdfObject file in ResolveArray(document, associatedFiles,
+                         $"{description} /AF value"))
+                ValidateFileSpecification(document, file,
+                    $"{description} /AF entry");
+        PdfDictionary? measure = null;
+        if (dictionary.TryGetValue(Name("Measure"), out PdfObject? measureValue))
+        {
+            ValidateViewportMeasure(document, measureValue,
+                $"{description} /Measure value");
+            measure = Resolve(measureValue) as PdfDictionary;
+        }
+        if (!dictionary.TryGetValue(Name("PtData"), out PdfObject? pointDataValue)) return;
+        if (measure is null
+            || !measure.TryGetValue(Name("Subtype"), out PdfObject? measureSubtype)
+            || Resolve(measureSubtype) is not PdfName measureSubtypeName
+            || measureSubtypeName.ValueAsLatin1() != "GEO")
+            throw new InvalidOperationException(
+                $"{description} /PtData requires a geospatial /Measure dictionary.");
+        ValidatePointDataCollection(document, pointDataValue,
+            $"{description} /PtData");
+    }
+
+    private static void ValidatePointDataCollection(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfObject resolved = Resolve(value);
+        if (resolved is PdfArray array)
+        {
+            if (array.Count == 0)
+                throw new InvalidOperationException(
+                    $"{description} collection is empty.");
+            foreach (PdfObject item in array)
+                ValidatePointData(Resolve(item));
+        }
+        else
+            ValidatePointData(resolved);
+
+        void ValidatePointData(PdfObject item)
+        {
+            PdfDictionary pointData = item as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} contains a non-dictionary entry.");
+            if (!pointData.TryGetValue(TypeName, out PdfObject? type)
+                || Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "PtData")
+                throw new InvalidOperationException(
+                    $"{description} dictionary has no /Type /PtData value.");
+            if (!pointData.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+                || Resolve(subtype) is not PdfName subtypeName
+                || subtypeName.ValueAsLatin1() != "Cloud")
+                throw new InvalidOperationException(
+                    $"{description} dictionary has no /Subtype /Cloud value.");
+            if (!pointData.TryGetValue(Name("Names"), out PdfObject? namesValue)
+                || Resolve(namesValue) is not PdfArray names || names.Count == 0
+                || names.Any(name => Resolve(name) is not PdfName))
+                throw new InvalidOperationException(
+                    $"{description} dictionary has no nonempty name-only /Names array.");
+            string[] columnNames = names.Select(name =>
+                ((PdfName)Resolve(name)).ValueAsLatin1()).ToArray();
+            if (columnNames.Distinct(StringComparer.Ordinal).Count() != columnNames.Length)
+                throw new InvalidOperationException(
+                    $"{description} /Names array contains duplicate column names.");
+            if (!pointData.TryGetValue(Name("XPTS"), out PdfObject? pointsValue)
+                || Resolve(pointsValue) is not PdfArray points)
+                throw new InvalidOperationException(
+                    $"{description} dictionary has no /XPTS array.");
+            foreach (PdfObject tupleValue in points)
+            {
+                PdfArray tuple = Resolve(tupleValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /XPTS contains a non-array tuple.");
+                if (tuple.Count != names.Count)
+                    throw new InvalidOperationException(
+                        $"{description} /XPTS tuple does not match /Names.");
+                for (int index = 0; index < names.Count; index++)
+                {
+                    string name = columnNames[index];
+                    PdfObject tupleItem = Resolve(tuple[index]);
+                    if (name is "LAT" or "LON" or "ALT"
+                        && (!TryPointNumber(tupleItem, out double coordinate)
+                            || !double.IsFinite(coordinate)))
+                        throw new InvalidOperationException(
+                            $"{description} /XPTS /{name} value is not finite numeric data.");
+                }
+            }
+        }
+
+        static bool TryPointNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidateOpiVersionDictionary(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary versions = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException(
+                $"{description} is not a dictionary.");
+        if (versions.Count == 0)
+            throw new InvalidOperationException(
+                $"{description} contains no OPI version entries.");
+        foreach (var entry in versions)
+        {
+            string versionName = entry.Key.ValueAsLatin1();
+            double requiredVersion = versionName switch
+            {
+                "1.3" => 1.3,
+                "2.0" => 2.0,
+                _ => throw new InvalidOperationException(
+                    $"{description} contains undefined version /{versionName}.")
+            };
+            PdfDictionary opi = Resolve(entry.Value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /{versionName} value is not a dictionary.");
+            if (opi.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "OPI"))
+                throw new InvalidOperationException(
+                    $"{description} /{versionName} dictionary has an invalid /Type value.");
+            if (!opi.TryGetValue(Name("Version"), out PdfObject? version)
+                || !TryOpiNumber(Resolve(version), out double actualVersion)
+                || actualVersion != requiredVersion)
+                throw new InvalidOperationException(
+                    $"{description} /{versionName} dictionary has no matching numeric /Version.");
+            if (!opi.TryGetValue(Name("F"), out PdfObject? file))
+                throw new InvalidOperationException(
+                    $"{description} /{versionName} dictionary has no /F file specification.");
+            if (Resolve(file) is not PdfString)
+                ValidateFileSpecification(document, file,
+                    $"{description} /{versionName} /F value");
+            if (opi.TryGetValue(Name("MainImage"), out PdfObject? mainImage)
+                && Resolve(mainImage) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /{versionName} /MainImage value is not a byte string.");
+            ValidateDimensions("Size", requiredVersion == 1.3);
+            ValidateRectangle("CropRect", requiredVersion == 1.3, integersOnly: requiredVersion == 1.3);
+            ValidateRectangle("CropFixed", required: false, integersOnly: false);
+            foreach (string key in new[] { "Overprint", "Transparency" })
+                if (opi.TryGetValue(Name(key), out PdfObject? flag)
+                    && Resolve(flag) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} /{versionName} /{key} value is not a boolean.");
+            if (requiredVersion == 1.3)
+            {
+                foreach (string key in new[] { "ID", "Comments" })
+                    if (opi.TryGetValue(Name(key), out PdfObject? text)
+                        && Resolve(text) is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{description} /1.3 /{key} value is not a string.");
+                if (opi.TryGetValue(Name("Tint"), out PdfObject? tint)
+                    && (!TryOpiNumber(Resolve(tint), out double tintValue)
+                        || !double.IsFinite(tintValue) || tintValue is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} /1.3 /Tint value is outside 0 through 1.");
+                if (opi.TryGetValue(Name("Color"), out PdfObject? colorValue))
+                {
+                    PdfArray color = Resolve(colorValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /1.3 /Color value is not an array.");
+                    if (color.Count != 5 || Resolve(color[4]) is not PdfString
+                        || color.Take(4).Any(item =>
+                            !TryOpiNumber(Resolve(item), out double component)
+                            || !double.IsFinite(component) || component is < 0 or > 1))
+                        throw new InvalidOperationException(
+                            $"{description} /1.3 /Color value is not four unit components and a byte string.");
+                }
+                if (!opi.TryGetValue(Name("Position"), out PdfObject? positionValue)
+                    || Resolve(positionValue) is not PdfArray position
+                    || position.Count != 8
+                    || position.Any(item => !TryOpiNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} /1.3 dictionary has no eight-number /Position array.");
+                double[] coordinates = position
+                    .Select(item => OpiNumber(Resolve(item))).ToArray();
+                if (!NearlyEqual(coordinates[2] - coordinates[0],
+                        coordinates[4] - coordinates[6])
+                    || !NearlyEqual(coordinates[3] - coordinates[1],
+                        coordinates[5] - coordinates[7]))
+                    throw new InvalidOperationException(
+                        $"{description} /1.3 /Position coordinates do not define a parallelogram.");
+                if (opi.TryGetValue(Name("Resolution"), out PdfObject? resolutionValue))
+                {
+                    PdfArray resolution = Resolve(resolutionValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /1.3 /Resolution value is not an array.");
+                    if (resolution.Count != 2 || resolution.Any(item =>
+                            !TryOpiNumber(Resolve(item), out double number)
+                            || !double.IsFinite(number) || number <= 0))
+                        throw new InvalidOperationException(
+                            $"{description} /1.3 /Resolution value is not two positive numbers.");
+                }
+                if (opi.TryGetValue(Name("ColorType"), out PdfObject? colorTypeValue))
+                {
+                    string colorType = (Resolve(colorTypeValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} /1.3 /ColorType value is not a name.");
+                    if (colorType is not ("Process" or "Spot" or "Separation"))
+                        throw new InvalidOperationException(
+                            $"{description} /1.3 /ColorType /{colorType} is not defined.");
+                }
+                int? imageBits = null;
+                if (opi.TryGetValue(Name("ImageType"), out PdfObject? imageTypeValue))
+                {
+                    PdfArray imageType = Resolve(imageTypeValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /1.3 /ImageType value is not an array.");
+                    if (imageType.Count != 2
+                        || Resolve(imageType[0]) is not PdfInteger samples
+                        || samples.Value <= 0
+                        || Resolve(imageType[1]) is not PdfInteger bits
+                        || bits.Value is < 1 or > 16)
+                        throw new InvalidOperationException(
+                            $"{description} /1.3 /ImageType value is not two valid integers.");
+                    imageBits = (int)bits.Value;
+                }
+                if (opi.TryGetValue(Name("GrayMap"), out PdfObject? grayMapValue))
+                {
+                    PdfArray grayMap = Resolve(grayMapValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /1.3 /GrayMap value is not an array.");
+                    if (!imageBits.HasValue || grayMap.Count != 1 << imageBits.Value
+                        || grayMap.Any(item => Resolve(item) is not PdfInteger sample
+                            || sample.Value is < 0 or > 65535))
+                        throw new InvalidOperationException(
+                            $"{description} /1.3 /GrayMap does not match /ImageType bit depth.");
+                }
+                ValidateOpiTags(opi, versionName, allowStringArrays: false);
+            }
+            else
+            {
+                bool hasSize = opi.ContainsKey(Name("Size"));
+                bool hasCrop = opi.ContainsKey(Name("CropRect"));
+                if (hasSize != hasCrop)
+                    throw new InvalidOperationException(
+                        $"{description} /2.0 dictionary must define /Size and /CropRect together.");
+                if (hasSize)
+                {
+                    PdfArray size = (PdfArray)Resolve(opi[Name("Size")]);
+                    PdfArray crop = (PdfArray)Resolve(opi[Name("CropRect")]);
+                    double width = OpiNumber(Resolve(size[0]));
+                    double height = OpiNumber(Resolve(size[1]));
+                    double left = OpiNumber(Resolve(crop[0]));
+                    double top = OpiNumber(Resolve(crop[1]));
+                    double right = OpiNumber(Resolve(crop[2]));
+                    double bottom = OpiNumber(Resolve(crop[3]));
+                    if (left < 0 || top < 0 || left >= right || top >= bottom
+                        || right > width || bottom > height)
+                        throw new InvalidOperationException(
+                            $"{description} /2.0 /CropRect lies outside /Size.");
+                }
+                if (opi.TryGetValue(Name("IncludedImageDimensions"),
+                        out PdfObject? includedDimensions))
+                {
+                    PdfArray included = Resolve(includedDimensions) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /2.0 /IncludedImageDimensions value is not an array.");
+                    if (included.Count != 2 || included.Any(item =>
+                            Resolve(item) is not PdfInteger dimension || dimension.Value <= 0))
+                        throw new InvalidOperationException(
+                            $"{description} /2.0 /IncludedImageDimensions value is not two positive integers.");
+                }
+                if (opi.TryGetValue(Name("IncludedImageQuality"), out PdfObject? quality)
+                    && (!TryOpiNumber(Resolve(quality), out double qualityValue)
+                        || qualityValue is not (1 or 2 or 3)))
+                    throw new InvalidOperationException(
+                        $"{description} /2.0 /IncludedImageQuality value is not 1, 2, or 3.");
+                if (opi.TryGetValue(Name("Inks"), out PdfObject? inksValue))
+                    ValidateOpiInks(Resolve(inksValue));
+                ValidateOpiTags(opi, versionName, allowStringArrays: true);
+            }
+
+            void ValidateDimensions(string key, bool required)
+            {
+                if (!opi.TryGetValue(Name(key), out PdfObject? dimensionsValue))
+                {
+                    if (required)
+                        throw new InvalidOperationException(
+                            $"{description} /{versionName} dictionary has no /{key} array.");
+                    return;
+                }
+                PdfArray dimensions = Resolve(dimensionsValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{versionName} /{key} value is not an array.");
+                if (dimensions.Count != 2
+                    || dimensions.Any(item => !TryOpiNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number) || number <= 0)
+                    || required && dimensions.Any(item => Resolve(item) is not PdfInteger))
+                    throw new InvalidOperationException(
+                        $"{description} /{versionName} /{key} value is not two positive dimensions.");
+            }
+            void ValidateRectangle(string key, bool required, bool integersOnly)
+            {
+                if (!opi.TryGetValue(Name(key), out PdfObject? rectangleValue))
+                {
+                    if (required)
+                        throw new InvalidOperationException(
+                            $"{description} /{versionName} dictionary has no /{key} array.");
+                    return;
+                }
+                PdfArray rectangle = Resolve(rectangleValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{versionName} /{key} value is not an array.");
+                if (rectangle.Count != 4
+                    || rectangle.Any(item => !TryOpiNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number))
+                    || integersOnly && rectangle.Any(item => Resolve(item) is not PdfInteger))
+                    throw new InvalidOperationException(
+                        $"{description} /{versionName} /{key} value is not a four-number rectangle.");
+            }
+        }
+
+        static bool TryOpiNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+        static double OpiNumber(PdfObject item) => item switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => throw new InvalidOperationException("Validated OPI number changed type.")
+        };
+        void ValidateOpiInks(PdfObject inks)
+        {
+            if (inks is PdfName inksName)
+            {
+                string name = inksName.ValueAsLatin1();
+                if (name is "full_color" or "registration") return;
+            }
+            else if (inks is PdfArray array && array.Count >= 3
+                && Resolve(array[0]) is PdfName mode
+                && mode.ValueAsLatin1() == "monochrome"
+                && (array.Count - 1) % 2 == 0)
+            {
+                for (int index = 1; index < array.Count; index += 2)
+                    if (Resolve(array[index]) is not PdfString
+                        || !TryOpiNumber(Resolve(array[index + 1]), out double tint)
+                        || !double.IsFinite(tint) || tint is < 0 or > 1)
+                        throw new InvalidOperationException(
+                            $"{description} /2.0 /Inks contains an invalid colorant pair.");
+                return;
+            }
+            throw new InvalidOperationException(
+                $"{description} /2.0 /Inks value is not a defined name or monochrome array.");
+        }
+        void ValidateOpiTags(
+            PdfDictionary opi, string versionName, bool allowStringArrays)
+        {
+            if (!opi.TryGetValue(Name("Tags"), out PdfObject? tagsValue)) return;
+            PdfArray tags = Resolve(tagsValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /{versionName} /Tags value is not an array.");
+            if (tags.Count % 2 != 0)
+                throw new InvalidOperationException(
+                    $"{description} /{versionName} /Tags value does not contain pairs.");
+            for (int index = 0; index < tags.Count; index += 2)
+            {
+                if (Resolve(tags[index]) is not PdfInteger)
+                    throw new InvalidOperationException(
+                        $"{description} /{versionName} /Tags contains a non-integer tag number.");
+                PdfObject tagText = Resolve(tags[index + 1]);
+                if (tagText is PdfString) continue;
+                if (allowStringArrays && tagText is PdfArray strings
+                    && strings.All(item => Resolve(item) is PdfString)) continue;
+                throw new InvalidOperationException(
+                    $"{description} /{versionName} /Tags contains invalid tag text.");
+            }
+        }
+        static bool NearlyEqual(double left, double right)
+        {
+            double scale = Math.Max(1, Math.Max(Math.Abs(left), Math.Abs(right)));
+            return Math.Abs(left - right) <= scale * 1e-9;
+        }
+    }
+
+    private static void ValidateImportedAnnotationActions(
+        PdfDocument document, PdfObject value, PdfIndirectReference expectedPage,
+        IReadOnlySet<(int ObjectNumber, int Generation)> pageAnnotationIdentities,
+        ISet<string> pageAnnotationNames,
+        string description)
+    {
+        PdfDictionary annotation = ResolveDictionary(document, value, description);
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (annotation.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Annot"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        if (!annotation.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+            || Resolve(subtype) is not PdfName subtypeName)
+            throw new InvalidOperationException($"{description} has no valid /Subtype name.");
+        string annotationSubtype = subtypeName.ValueAsLatin1();
+        if (!annotation.TryGetValue(Name("Rect"), out PdfObject? rectangle)
+            || Resolve(rectangle) is not PdfArray rectangleArray
+            || rectangleArray.Count != 4
+            || rectangleArray.Any(item => !TryNumber(Resolve(item), out double coordinate)
+                || !double.IsFinite(coordinate)))
+            throw new InvalidOperationException(
+                $"{description} has no four-number /Rect array.");
+        foreach (string key in new[] { "Contents", "NM", "M", "T", "Subj" })
+            if (annotation.TryGetValue(Name(key), out PdfObject? text))
+            {
+                PdfString textString = Resolve(text) as PdfString
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{key} value is not a string or resolves to null.");
+                if (key != "M")
+                    DecodeAnnotationText(textString, $"{description} /{key} value");
+            }
+        if (annotation.TryGetValue(Name("NM"), out PdfObject? annotationName))
+        {
+            string decodedName = DecodeAnnotationText(
+                (PdfString)Resolve(annotationName), $"{description} /NM value");
+            if (!pageAnnotationNames.Add(decodedName))
+                throw new InvalidOperationException(
+                    $"{description} /NM value is not unique on the imported page.");
+        }
+        if (annotation.TryGetValue(Name("Lang"), out PdfObject? language))
+            ValidateLanguageTag(document, language,
+                $"{description} /Lang value");
+        if (annotation.TryGetValue(Name("RC"), out PdfObject? richText)
+            && Resolve(richText) is not (PdfString or PdfStream))
+            throw new InvalidOperationException(
+                $"{description} /RC value is not a string or stream.");
+        if (annotation.TryGetValue(Name("IRT"), out PdfObject? replyTarget))
+        {
+            if (replyTarget is not PdfIndirectReference replyReference
+                || Resolve(replyTarget) is not PdfDictionary replyAnnotation)
+                throw new InvalidOperationException(
+                    $"{description} /IRT value is not an indirect annotation dictionary.");
+            if (!pageAnnotationIdentities.Contains((replyReference.ObjectNumber,
+                    replyReference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} /IRT target is not registered on the imported page.");
+            if (replyAnnotation.TryGetValue(TypeName, out PdfObject? replyTargetType)
+                && (Resolve(replyTargetType) is not PdfName replyTypeName
+                    || replyTypeName.ValueAsLatin1() != "Annot")
+                || !replyAnnotation.TryGetValue(Name("Subtype"), out PdfObject? replySubtype)
+                || Resolve(replySubtype) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} /IRT target is not a typed annotation dictionary.");
+        }
+        if (annotation.TryGetValue(Name("RT"), out PdfObject? replyType))
+        {
+            string replyName = (Resolve(replyType) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /RT value is not a name.");
+            if (replyName is not ("R" or "Group"))
+                throw new InvalidOperationException(
+                    $"{description} /RT value /{replyName} is not defined.");
+        }
+        if (annotation.TryGetValue(Name("Popup"), out PdfObject? popup))
+        {
+            if (popup is not PdfIndirectReference popupReference
+                || Resolve(popup) is not PdfDictionary popupDictionary)
+                throw new InvalidOperationException(
+                    $"{description} /Popup value is not an indirect annotation dictionary.");
+            if (!pageAnnotationIdentities.Contains((popupReference.ObjectNumber,
+                    popupReference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} /Popup target is not registered on the imported page.");
+            if (!popupDictionary.TryGetValue(Name("Subtype"), out PdfObject? popupSubtype)
+                || Resolve(popupSubtype) is not PdfName popupSubtypeName
+                || popupSubtypeName.ValueAsLatin1() != "Popup")
+                throw new InvalidOperationException(
+                    $"{description} /Popup target has no /Subtype /Popup value.");
+            if (value is not PdfIndirectReference annotationReference
+                || !popupDictionary.TryGetValue(Name("Parent"), out PdfObject? popupParent)
+                || popupParent is not PdfIndirectReference parentReference
+                || parentReference.ObjectNumber != annotationReference.ObjectNumber
+                || parentReference.Generation != annotationReference.Generation)
+                throw new InvalidOperationException(
+                    $"{description} /Popup target does not link back through /Parent.");
+        }
+        if (annotation.TryGetValue(Name("IT"), out PdfObject? intent)
+            && Resolve(intent) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} /IT value is not a name.");
+        if (annotation.TryGetValue(Name("ExData"), out PdfObject? externalData))
+        {
+            PdfDictionary externalDictionary = Resolve(externalData) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /ExData value is not a dictionary.");
+            if (!externalDictionary.TryGetValue(TypeName, out PdfObject? externalType)
+                || Resolve(externalType) is not PdfName externalTypeName
+                || externalTypeName.ValueAsLatin1() != "ExData")
+                throw new InvalidOperationException(
+                    $"{description} /ExData dictionary has no /Type /ExData value.");
+            string externalSubtype = externalDictionary.TryGetValue(
+                    Name("Subtype"), out PdfObject? externalSubtypeValue)
+                ? (Resolve(externalSubtypeValue) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /ExData /Subtype value is not a name.")
+                : throw new InvalidOperationException(
+                    $"{description} /ExData dictionary has no /Subtype name.");
+            if (externalSubtype == "Markup3D")
+            {
+                if (!externalDictionary.TryGetValue(Name("3DA"), out PdfObject? target)
+                    || Resolve(target) is not (PdfDictionary or PdfString))
+                    throw new InvalidOperationException(
+                        $"{description} Markup3D /ExData has no valid /3DA target.");
+                if (!externalDictionary.TryGetValue(Name("3DV"), out PdfObject? view)
+                    || Resolve(view) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{description} Markup3D /ExData has no /3DV dictionary.");
+                if (externalDictionary.TryGetValue(Name("MD5"), out PdfObject? checksum)
+                    && (Resolve(checksum) is not PdfString checksumString
+                        || checksumString.Bytes.Length != 16))
+                    throw new InvalidOperationException(
+                        $"{description} Markup3D /ExData /MD5 value is not a 16-byte string.");
+            }
+            else if (externalSubtype == "3DM")
+            {
+                if (annotationSubtype != "Projection")
+                    throw new InvalidOperationException(
+                        $"{description} /ExData /Subtype /3DM is only defined for projection annotations.");
+                if (!externalDictionary.TryGetValue(Name("M3DREF"), out PdfObject? measurement)
+                    || measurement is not PdfIndirectReference
+                    || Resolve(measurement) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{description} projection /ExData has no indirect /M3DREF dictionary.");
+            }
+            else
+                throw new InvalidOperationException(
+                    $"{description} /ExData /Subtype /{externalSubtype} is not defined.");
+        }
+        if (annotation.TryGetValue(Name("OC"), out PdfObject? optionalContent))
+        {
+            PdfDictionary membership = Resolve(optionalContent) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /OC value is not an optional-content dictionary.");
+            ValidatePageProperty(document, membership,
+                $"{description} /OC value");
+        }
+        bool hasState = annotation.TryGetValue(
+            Name("State"), out PdfObject? annotationStateValue);
+        bool hasStateModel = annotation.TryGetValue(
+            Name("StateModel"), out PdfObject? stateModelValue);
+        if (hasState || hasStateModel)
+        {
+            if (annotationSubtype != "Text")
+                throw new InvalidOperationException(
+                    $"{description} /State and /StateModel are only defined for text annotations.");
+            if (!hasState || Resolve(annotationStateValue!) is not PdfString stateString
+                || !hasStateModel || Resolve(stateModelValue!) is not PdfString modelString)
+                throw new InvalidOperationException(
+                    $"{description} /State and /StateModel values must both be text strings.");
+            string model = DecodeAnnotationText(modelString,
+                $"{description} /StateModel value");
+            string state = DecodeAnnotationText(stateString,
+                $"{description} /State value");
+            bool validState = model switch
+            {
+                "Marked" => state is "Marked" or "Unmarked",
+                "Review" => state is "Accepted" or "Rejected" or "Cancelled"
+                    or "Completed" or "None",
+                _ => false
+            };
+            if (!validState)
+                throw new InvalidOperationException(
+                    $"{description} /State /{state} is not defined for /StateModel /{model}.");
+        }
+        if (annotation.TryGetValue(Name("M"), out PdfObject? modified))
+            ValidatePdfDateString(Resolve(modified),
+                $"{description} /M value");
+        if (annotation.TryGetValue(Name("CreationDate"), out PdfObject? created))
+            ValidatePdfDateString(Resolve(created),
+                $"{description} /CreationDate value");
+        if (annotation.TryGetValue(Name("F"), out PdfObject? flags)
+            && (Resolve(flags) is not PdfInteger flagValue || flagValue.Value < 0))
+            throw new InvalidOperationException(
+                $"{description} /F value is not a nonnegative integer or resolves to null.");
+        if (annotation.TryGetValue(Name("CA"), out PdfObject? opacity)
+            && (!TryNumber(Resolve(opacity), out double opacityValue)
+                || !double.IsFinite(opacityValue) || opacityValue is < 0 or > 1))
+            throw new InvalidOperationException(
+                $"{description} /CA value is not a number from 0 through 1.");
+        if (annotation.TryGetValue(Name("QuadPoints"), out PdfObject? quadrilaterals))
+        {
+            PdfArray points = Resolve(quadrilaterals) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /QuadPoints value is not an array.");
+            if (points.Count == 0 || points.Count % 8 != 0
+                || points.Any(item => !TryNumber(Resolve(item), out double coordinate)
+                    || !double.IsFinite(coordinate)))
+                throw new InvalidOperationException(
+                    $"{description} /QuadPoints is not a nonempty sequence of numeric quadrilaterals.");
+        }
+        if (annotation.TryGetValue(Name("C"), out PdfObject? color))
+        {
+            PdfArray components = Resolve(color) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /C value is not an array or resolves to null.");
+            if (components.Count is not (0 or 1 or 3 or 4)
+                || components.Any(item => !TryNumber(Resolve(item), out double component)
+                    || !double.IsFinite(component) || component is < 0 or > 1))
+                throw new InvalidOperationException(
+                    $"{description} /C value is not a valid annotation color array.");
+        }
+        if (annotation.TryGetValue(Name("Border"), out PdfObject? border))
+        {
+            PdfArray values = Resolve(border) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /Border value is not an array or resolves to null.");
+            if (values.Count is not (3 or 4)
+                || Enumerable.Range(0, 3).Any(index =>
+                    !TryNumber(Resolve(values[index]), out double number)
+                    || !double.IsFinite(number) || number < 0))
+                throw new InvalidOperationException(
+                    $"{description} /Border value has invalid radii or width.");
+            if (values.Count == 4)
+            {
+                PdfArray dash = Resolve(values[3]) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Border dash value is not an array.");
+                if (dash.Any(item => !TryNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number) || number < 0)
+                    || dash.Count > 0 && dash.All(item => Number(Resolve(item)) == 0))
+                    throw new InvalidOperationException(
+                        $"{description} /Border dash array is invalid.");
+            }
+        }
+        if (annotation.TryGetValue(Name("BS"), out PdfObject? borderStyle))
+        {
+            PdfDictionary style = Resolve(borderStyle) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /BS value is not a dictionary or resolves to null.");
+            if (style.TryGetValue(TypeName, out PdfObject? borderType)
+                && (Resolve(borderType) is not PdfName borderTypeName
+                    || borderTypeName.ValueAsLatin1() != "Border"))
+                throw new InvalidOperationException(
+                    $"{description} /BS dictionary has an invalid /Type value.");
+            if (style.TryGetValue(Name("W"), out PdfObject? width)
+                && (!TryNumber(Resolve(width), out double numericWidth)
+                    || !double.IsFinite(numericWidth) || numericWidth < 0))
+                throw new InvalidOperationException(
+                    $"{description} /BS /W value is not a nonnegative number.");
+            if (style.TryGetValue(Name("S"), out PdfObject? styleValue))
+            {
+                string styleName = (Resolve(styleValue) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /BS /S value is not a name.");
+                if (styleName is not ("S" or "D" or "B" or "I" or "U"))
+                    throw new InvalidOperationException(
+                        $"{description} /BS /S value /{styleName} is not defined.");
+                }
+        }
+        if (annotation.TryGetValue(Name("BE"), out PdfObject? borderEffectValue))
+        {
+            PdfDictionary borderEffect = Resolve(borderEffectValue) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /BE value is not a dictionary.");
+            if (borderEffect.TryGetValue(Name("S"), out PdfObject? effectStyle))
+            {
+                string effectName = (Resolve(effectStyle) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /BE /S value is not a name.");
+                if (effectName is not ("S" or "C"))
+                    throw new InvalidOperationException(
+                        $"{description} /BE /S value /{effectName} is not defined.");
+            }
+            if (borderEffect.TryGetValue(Name("I"), out PdfObject? intensity)
+                && (!TryNumber(Resolve(intensity), out double intensityValue)
+                    || !double.IsFinite(intensityValue) || intensityValue is < 0 or > 2))
+                throw new InvalidOperationException(
+                    $"{description} /BE /I value is outside 0 through 2.");
+        }
+        if (annotation.TryGetValue(Name("IC"), out PdfObject? interiorColorValue))
+        {
+            PdfArray interiorColor = Resolve(interiorColorValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /IC value is not an array.");
+            if (interiorColor.Count is not (0 or 1 or 3 or 4)
+                || interiorColor.Any(item => !TryNumber(Resolve(item), out double component)
+                    || !double.IsFinite(component) || component is < 0 or > 1))
+                throw new InvalidOperationException(
+                    $"{description} /IC value is not a valid color array.");
+        }
+        if (annotation.TryGetValue(Name("MK"), out PdfObject? appearanceCharacteristics))
+        {
+            PdfDictionary characteristics = Resolve(appearanceCharacteristics) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /MK value is not a dictionary.");
+            if (characteristics.TryGetValue(Name("R"), out PdfObject? rotation)
+                && (Resolve(rotation) is not PdfInteger rotationValue
+                    || rotationValue.Value % 90 != 0))
+                throw new InvalidOperationException(
+                    $"{description} /MK /R value is not a multiple of 90.");
+            foreach (string key in new[] { "BC", "BG" })
+                if (characteristics.TryGetValue(Name(key), out PdfObject? colorValue))
+                {
+                    PdfArray appearanceColor = Resolve(colorValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /MK /{key} value is not an array.");
+                    if (appearanceColor.Count is not (0 or 1 or 3 or 4)
+                        || appearanceColor.Any(item => !TryNumber(Resolve(item), out double component)
+                            || !double.IsFinite(component) || component is < 0 or > 1))
+                        throw new InvalidOperationException(
+                            $"{description} /MK /{key} value is not a valid color array.");
+                }
+            foreach (string key in new[] { "CA", "RC", "AC" })
+                if (characteristics.TryGetValue(Name(key), out PdfObject? caption)
+                    && Resolve(caption) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /MK /{key} value is not a string.");
+            foreach (string key in new[] { "I", "RI", "IX" })
+                if (characteristics.TryGetValue(Name(key), out PdfObject? icon)
+                    && Resolve(icon) is not PdfStream)
+                    throw new InvalidOperationException(
+                        $"{description} /MK /{key} value is not an icon stream.");
+            if (characteristics.TryGetValue(Name("IF"), out PdfObject? iconFit))
+            {
+                PdfDictionary fit = Resolve(iconFit) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /MK /IF value is not a dictionary.");
+                if (fit.TryGetValue(Name("SW"), out PdfObject? scaleWhenValue))
+                {
+                    string scaleWhen = (Resolve(scaleWhenValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} /MK /IF /SW value is not a name.");
+                    if (scaleWhen is not ("A" or "B" or "S" or "N"))
+                        throw new InvalidOperationException(
+                            $"{description} /MK /IF /SW value /{scaleWhen} is not defined.");
+                }
+                if (fit.TryGetValue(Name("S"), out PdfObject? scaleTypeValue))
+                {
+                    string scaleType = (Resolve(scaleTypeValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} /MK /IF /S value is not a name.");
+                    if (scaleType is not ("A" or "P"))
+                        throw new InvalidOperationException(
+                            $"{description} /MK /IF /S value /{scaleType} is not defined.");
+                }
+                if (fit.TryGetValue(Name("A"), out PdfObject? alignmentValue))
+                {
+                    PdfArray alignment = Resolve(alignmentValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} /MK /IF /A value is not an array.");
+                    if (alignment.Count != 2
+                        || alignment.Any(item => !TryNumber(Resolve(item), out double fraction)
+                            || !double.IsFinite(fraction) || fraction is < 0 or > 1))
+                        throw new InvalidOperationException(
+                            $"{description} /MK /IF /A value is not two numbers from 0 through 1.");
+                }
+                if (fit.TryGetValue(Name("FB"), out PdfObject? fitBounds)
+                    && Resolve(fitBounds) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} /MK /IF /FB value is not a boolean.");
+            }
+            if (characteristics.TryGetValue(Name("TP"), out PdfObject? textPosition)
+                && (Resolve(textPosition) is not PdfInteger position
+                    || position.Value is < 0 or > 6))
+                throw new InvalidOperationException(
+                    $"{description} /MK /TP value is not an integer from 0 through 6.");
+        }
+        if (annotation.TryGetValue(Name("StructParent"), out PdfObject? structureParent)
+            && (Resolve(structureParent) is not PdfInteger parentKey || parentKey.Value < 0))
+            throw new InvalidOperationException(
+                $"{description} /StructParent value is not a nonnegative integer.");
+        if (annotation.TryGetValue(Name("P"), out PdfObject? pageValue))
+        {
+            if (pageValue is not PdfIndirectReference pageReference
+                || pageReference.ObjectNumber != expectedPage.ObjectNumber
+                || pageReference.Generation != expectedPage.Generation)
+                throw new InvalidOperationException(
+                    $"{description} /P value identifies a different page.");
+            PdfDictionary page = Resolve(pageReference) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /P value is not a page dictionary or resolves to null.");
+            if (!page.TryGetValue(TypeName, out PdfObject? pageType)
+                || Resolve(pageType) is not PdfName pageTypeName
+                || pageTypeName.ValueAsLatin1() != "Page")
+                throw new InvalidOperationException(
+                    $"{description} /P value is not a page dictionary.");
+        }
+        PdfName? appearanceState = null;
+        if (annotation.TryGetValue(Name("AS"), out PdfObject? stateValue))
+            appearanceState = Resolve(stateValue) as PdfName
+                ?? throw new InvalidOperationException(
+                    $"{description} /AS value is not a name or resolves to null.");
+        if (annotation.TryGetValue(Name("AP"), out PdfObject? appearances))
+        {
+            PdfDictionary appearanceDictionary = Resolve(appearances) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /AP value is not a dictionary or resolves to null.");
+            if (!appearanceDictionary.ContainsKey(Name("N")))
+                throw new InvalidOperationException(
+                    $"{description} /AP dictionary has no normal /N appearance.");
+            foreach (string key in new[] { "N", "R", "D" })
+            {
+                if (!appearanceDictionary.TryGetValue(Name(key), out PdfObject? appearance))
+                    continue;
+                PdfObject resolvedAppearance = Resolve(appearance);
+                if (resolvedAppearance is PdfStream stream)
+                {
+                    if (annotationSubtype == "TrapNet" && key == "N")
+                        throw new InvalidOperationException(
+                            $"{description} trap-network /AP /N value is not an appearance-state dictionary.");
+                    ValidateAnnotationAppearanceStream(document, stream,
+                        $"{description} /AP /{key} appearance", false,
+                        annotationSubtype == "PrinterMark");
+                    continue;
+                }
+                PdfDictionary states = resolvedAppearance as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /AP /{key} value is not an appearance stream or state dictionary.");
+                if (states.Count == 0)
+                    throw new InvalidOperationException(
+                        $"{description} /AP /{key} state dictionary is empty.");
+                foreach (var entry in states)
+                    if (Resolve(entry.Value) is not PdfStream stateStream)
+                        throw new InvalidOperationException(
+                            $"{description} /AP /{key} /{entry.Key.ValueAsLatin1()} value is not an appearance stream.");
+                    else
+                        ValidateAnnotationAppearanceStream(document, stateStream,
+                            $"{description} /AP /{key} /{entry.Key.ValueAsLatin1()} appearance",
+                            annotationSubtype == "TrapNet" && key == "N",
+                            annotationSubtype == "PrinterMark");
+                if (key == "N" && appearanceState is not null
+                    && !states.ContainsKey(appearanceState))
+                    throw new InvalidOperationException(
+                        $"{description} /AS state has no matching normal appearance.");
+            }
+        }
+        if (annotationSubtype == "Link"
+            && annotation.TryGetValue(Name("H"), out PdfObject? highlight))
+        {
+            string mode = (Resolve(highlight) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} link /H value is not a name.");
+            if (mode is not ("N" or "I" or "O" or "P"))
+                throw new InvalidOperationException(
+                    $"{description} link /H value /{mode} is not defined.");
+        }
+        if (annotationSubtype == "Link")
+        {
+            if (annotation.ContainsKey(Name("A")) && annotation.ContainsKey(Name("Dest")))
+                throw new InvalidOperationException(
+                    $"{description} link annotation contains both /A and /Dest.");
+            if (annotation.TryGetValue(Name("PA"), out PdfObject? previousAction))
+                ValidateActionGraph(document, previousAction,
+                    $"{description} link /PA value");
+        }
+        if (annotationSubtype == "Text"
+            && annotation.TryGetValue(Name("Open"), out PdfObject? open)
+            && Resolve(open) is not PdfBoolean)
+            throw new InvalidOperationException(
+                $"{description} text annotation /Open value is not boolean.");
+        if (annotationSubtype == "Text"
+            && annotation.TryGetValue(Name("Name"), out PdfObject? textIcon)
+            && Resolve(textIcon) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} text annotation /Name value is not a name.");
+        if (annotationSubtype is "Highlight" or "Underline" or "Squiggly" or "StrikeOut")
+        {
+            if (!annotation.ContainsKey(Name("QuadPoints")))
+                throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} annotation has no /QuadPoints array.");
+        }
+        if (annotationSubtype == "FreeText")
+        {
+            if (!annotation.TryGetValue(Name("DA"), out PdfObject? defaultAppearance)
+                || Resolve(defaultAppearance) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} free-text annotation has no /DA string.");
+            if (annotation.TryGetValue(Name("Q"), out PdfObject? quadding)
+                && (Resolve(quadding) is not PdfInteger quaddingValue
+                    || quaddingValue.Value is < 0 or > 2))
+                throw new InvalidOperationException(
+                    $"{description} free-text /Q value is not an integer from 0 through 2.");
+            if (annotation.TryGetValue(Name("CL"), out PdfObject? callout))
+            {
+                PdfArray calloutLine = RequireNumericArray(callout, "CL");
+                if (calloutLine.Count is not (4 or 6))
+                    throw new InvalidOperationException(
+                        $"{description} free-text /CL array does not contain two or three points.");
+            }
+            if (annotation.TryGetValue(Name("DS"), out PdfObject? defaultStyle)
+                && Resolve(defaultStyle) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} free-text /DS value is not a string.");
+            if (annotation.TryGetValue(Name("LE"), out PdfObject? lineEnding))
+            {
+                string endingName = (Resolve(lineEnding) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} free-text /LE value is not a name.");
+                if (endingName is not ("Square" or "Circle" or "Diamond"
+                    or "OpenArrow" or "ClosedArrow" or "None" or "Butt"
+                    or "ROpenArrow" or "RClosedArrow" or "Slash"))
+                    throw new InvalidOperationException(
+                        $"{description} free-text /LE value /{endingName} is not defined.");
+            }
+            if (annotation.TryGetValue(Name("IT"), out PdfObject? freeTextIntent))
+            {
+                string freeTextIntentName = (Resolve(freeTextIntent) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} free-text /IT value is not a name.");
+                if (freeTextIntentName is not ("FreeText" or "FreeTextCallout" or "FreeTextTypeWriter"))
+                    throw new InvalidOperationException(
+                        $"{description} free-text /IT /{freeTextIntentName} is not defined.");
+                if (freeTextIntentName == "FreeTextCallout" && !annotation.ContainsKey(Name("CL")))
+                    throw new InvalidOperationException(
+                        $"{description} free-text callout has no /CL array.");
+            }
+        }
+        if (annotationSubtype == "Line")
+        {
+            if (!annotation.TryGetValue(Name("L"), out PdfObject? line))
+                throw new InvalidOperationException(
+                    $"{description} line annotation has no /L array.");
+            if (RequireNumericArray(line, "L").Count != 4)
+                throw new InvalidOperationException(
+                    $"{description} line /L array does not contain two points.");
+        }
+        if (annotationSubtype is "Polygon" or "PolyLine")
+        {
+            if (!annotation.TryGetValue(Name("Vertices"), out PdfObject? vertices))
+                throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} annotation has no /Vertices array.");
+            PdfArray points = RequireNumericArray(vertices, "Vertices");
+            int minimum = annotationSubtype == "Polygon" ? 6 : 4;
+            if (points.Count < minimum || points.Count % 2 != 0)
+                throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} /Vertices array has invalid point geometry.");
+        }
+        if (annotationSubtype is "Line" or "PolyLine"
+            && annotation.TryGetValue(Name("LE"), out PdfObject? lineEndings))
+        {
+            PdfArray endings = Resolve(lineEndings) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} /LE value is not an array.");
+            if (endings.Count != 2)
+                throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} /LE value does not contain two names.");
+            foreach (PdfObject ending in endings)
+            {
+                string endingName = (Resolve(ending) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} {annotationSubtype} /LE entry is not a name.");
+                if (endingName is not ("Square" or "Circle" or "Diamond"
+                    or "OpenArrow" or "ClosedArrow" or "None" or "Butt"
+                    or "ROpenArrow" or "RClosedArrow" or "Slash"))
+                    throw new InvalidOperationException(
+                        $"{description} {annotationSubtype} /LE value /{endingName} is not defined.");
+            }
+        }
+        if (annotationSubtype == "Line")
+        {
+            if (annotation.TryGetValue(Name("Cap"), out PdfObject? caption)
+                && Resolve(caption) is not PdfBoolean)
+                throw new InvalidOperationException(
+                    $"{description} line /Cap value is not a boolean.");
+            if (annotation.TryGetValue(Name("CP"), out PdfObject? captionPosition))
+            {
+                string position = (Resolve(captionPosition) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} line /CP value is not a name.");
+                if (position is not ("Inline" or "Top"))
+                    throw new InvalidOperationException(
+                        $"{description} line /CP value /{position} is not defined.");
+            }
+            if (annotation.TryGetValue(Name("CO"), out PdfObject? captionOffset)
+                && RequireNumericArray(captionOffset, "CO").Count != 2)
+                throw new InvalidOperationException(
+                    $"{description} line /CO value does not contain two numbers.");
+            if (annotation.TryGetValue(Name("Measure"), out PdfObject? lineMeasure))
+                ValidateViewportMeasure(document, lineMeasure,
+                    $"{description} line /Measure value");
+            if (annotation.TryGetValue(Name("LL"), out PdfObject? leaderLine)
+                && (!TryNumber(Resolve(leaderLine), out double leaderLineValue)
+                    || !double.IsFinite(leaderLineValue)))
+                throw new InvalidOperationException(
+                    $"{description} line /LL value is not a finite number.");
+            foreach (string key in new[] { "LLE", "LLO" })
+                if (annotation.TryGetValue(Name(key), out PdfObject? length)
+                    && (!TryNumber(Resolve(length), out double lengthValue)
+                        || !double.IsFinite(lengthValue) || lengthValue < 0))
+                    throw new InvalidOperationException(
+                        $"{description} line /{key} value is not a nonnegative finite number.");
+        }
+        if (annotationSubtype == "Ink")
+        {
+            if (!annotation.TryGetValue(Name("InkList"), out PdfObject? inkListValue)
+                || Resolve(inkListValue) is not PdfArray inkList || inkList.Count == 0)
+                throw new InvalidOperationException(
+                    $"{description} ink annotation has no nonempty /InkList array.");
+            foreach (PdfObject stroke in inkList)
+            {
+                PdfArray strokePoints = RequireNumericArray(stroke, "InkList entry");
+                if (strokePoints.Count < 4 || strokePoints.Count % 2 != 0)
+                    throw new InvalidOperationException(
+                        $"{description} /InkList entry has invalid point geometry.");
+            }
+        }
+        if (annotationSubtype == "Popup")
+        {
+            if (!annotation.TryGetValue(Name("Parent"), out PdfObject? popupParent)
+                || popupParent is not PdfIndirectReference popupParentReference
+                || Resolve(popupParent) is not PdfDictionary parentDictionary)
+                throw new InvalidOperationException(
+                    $"{description} popup annotation has no indirect /Parent dictionary.");
+            if (!pageAnnotationIdentities.Contains((popupParentReference.ObjectNumber,
+                    popupParentReference.Generation)))
+                throw new InvalidOperationException(
+                    $"{description} popup /Parent is not registered on the imported page.");
+            if (!parentDictionary.TryGetValue(Name("Subtype"), out PdfObject? parentSubtype)
+                || Resolve(parentSubtype) is not PdfName parentSubtypeName
+                || parentSubtypeName.ValueAsLatin1() is "Popup" or "Link" or "Movie"
+                    or "Widget" or "PrinterMark" or "TrapNet")
+                throw new InvalidOperationException(
+                    $"{description} popup /Parent is not a markup annotation.");
+            if (value is not PdfIndirectReference popupReference
+                || !parentDictionary.TryGetValue(Name("Popup"), out PdfObject? parentPopup)
+                || parentPopup is not PdfIndirectReference parentPopupReference
+                || parentPopupReference.ObjectNumber != popupReference.ObjectNumber
+                || parentPopupReference.Generation != popupReference.Generation)
+                throw new InvalidOperationException(
+                    $"{description} popup /Parent does not link back through /Popup.");
+            if (annotation.TryGetValue(Name("Open"), out PdfObject? popupOpen)
+                && Resolve(popupOpen) is not PdfBoolean)
+                throw new InvalidOperationException(
+                    $"{description} popup /Open value is not boolean.");
+        }
+        if (annotationSubtype is "Stamp" or "FileAttachment"
+            && annotation.TryGetValue(Name("Name"), out PdfObject? iconName)
+            && Resolve(iconName) is not PdfName)
+            throw new InvalidOperationException(
+                $"{description} {annotationSubtype} /Name value is not a name.");
+        if (annotationSubtype == "FileAttachment")
+        {
+            if (!annotation.TryGetValue(Name("FS"), out PdfObject? fileSpecification))
+                throw new InvalidOperationException(
+                    $"{description} file-attachment annotation has no /FS value.");
+            ValidateFileSpecification(document, fileSpecification,
+                $"{description} file-attachment /FS value");
+        }
+        if (annotationSubtype == "Sound")
+        {
+            if (!annotation.TryGetValue(Name("Sound"), out PdfObject? soundValue)
+                || Resolve(soundValue) is not PdfStream soundStream)
+                throw new InvalidOperationException(
+                    $"{description} sound annotation has no sound stream.");
+            PdfDictionary sound = soundStream.Dictionary;
+            if (sound.TryGetValue(TypeName, out PdfObject? soundType)
+                && (Resolve(soundType) is not PdfName soundTypeName
+                    || soundTypeName.ValueAsLatin1() != "Sound"))
+                throw new InvalidOperationException(
+                    $"{description} sound stream has an invalid /Type value.");
+            bool externalSound = sound.TryGetValue(Name("F"), out PdfObject? soundFile);
+            if (externalSound)
+                ValidateFileSpecification(document, soundFile!,
+                    $"{description} sound /F value");
+            if (!externalSound && (!sound.TryGetValue(Name("R"), out PdfObject? samplingRate)
+                || !TryNumber(Resolve(samplingRate), out double rate)
+                || !double.IsFinite(rate) || rate <= 0))
+                throw new InvalidOperationException(
+                    $"{description} inline sound has no positive finite /R value.");
+            if (externalSound && sound.TryGetValue(Name("R"), out PdfObject? externalRate)
+                && (!TryNumber(Resolve(externalRate), out double externalSampleRate)
+                    || !double.IsFinite(externalSampleRate) || externalSampleRate <= 0))
+                throw new InvalidOperationException(
+                    $"{description} sound /R value is not a positive finite number.");
+            if (sound.TryGetValue(Name("C"), out PdfObject? channels)
+                && (Resolve(channels) is not PdfInteger channelCount
+                    || channelCount.Value < 1))
+                throw new InvalidOperationException(
+                    $"{description} sound /C value is not a positive integer.");
+            if (sound.TryGetValue(Name("B"), out PdfObject? bits)
+                && (Resolve(bits) is not PdfInteger bitCount
+                    || bitCount.Value is not (8 or 16)))
+                throw new InvalidOperationException(
+                    $"{description} sound /B value is not 8 or 16.");
+            if (sound.TryGetValue(Name("E"), out PdfObject? encodingValue))
+            {
+                string encodingName = (Resolve(encodingValue) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} sound /E value is not a name.");
+                if (encodingName is not ("Raw" or "Signed" or "muLaw" or "ALaw"))
+                    throw new InvalidOperationException(
+                        $"{description} sound /E value /{encodingName} is not defined.");
+            }
+        }
+        if (annotationSubtype == "Redact")
+        {
+            foreach (string key in new[] { "OverlayText", "DA" })
+                if (annotation.TryGetValue(Name(key), out PdfObject? text)
+                    && Resolve(text) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} redaction /{key} value is not a string.");
+            if (annotation.ContainsKey(Name("OverlayText"))
+                && !annotation.ContainsKey(Name("RO"))
+                && (!annotation.TryGetValue(Name("DA"), out PdfObject? overlayAppearance)
+                    || Resolve(overlayAppearance) is not PdfString))
+                throw new InvalidOperationException(
+                    $"{description} redaction with /OverlayText has no /DA string.");
+            if (annotation.TryGetValue(Name("Repeat"), out PdfObject? repeat)
+                && Resolve(repeat) is not PdfBoolean)
+                throw new InvalidOperationException(
+                    $"{description} redaction /Repeat value is not a boolean.");
+            if (annotation.TryGetValue(Name("Q"), out PdfObject? quadding)
+                && (Resolve(quadding) is not PdfInteger quaddingValue
+                    || quaddingValue.Value is < 0 or > 2))
+                throw new InvalidOperationException(
+                    $"{description} redaction /Q value is not an integer from 0 through 2.");
+        }
+        if (annotationSubtype == "Movie")
+        {
+            if (!annotation.TryGetValue(Name("Movie"), out PdfObject? movieValue)
+                || Resolve(movieValue) is not PdfDictionary movie)
+                throw new InvalidOperationException(
+                    $"{description} movie annotation has no /Movie dictionary.");
+            if (!movie.TryGetValue(Name("F"), out PdfObject? movieFile))
+                throw new InvalidOperationException(
+                    $"{description} movie dictionary has no /F file specification.");
+            PdfObject resolvedMovieFile = Resolve(movieFile);
+            if (resolvedMovieFile is PdfDictionary)
+                ValidateFileSpecification(document, movieFile,
+                    $"{description} movie /F value");
+            else if (resolvedMovieFile is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} movie /F value is not a file specification or string.");
+            if (movie.TryGetValue(Name("T"), out PdfObject? title)
+                && Resolve(title) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} movie /T value is not a string.");
+            if (movie.TryGetValue(Name("Aspect"), out PdfObject? aspect))
+            {
+                PdfArray dimensions = Resolve(aspect) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} movie /Aspect value is not an array.");
+                if (dimensions.Count != 2
+                    || dimensions.Any(item => !TryNumber(Resolve(item), out double dimension)
+                        || !double.IsFinite(dimension) || dimension <= 0))
+                    throw new InvalidOperationException(
+                        $"{description} movie /Aspect value is not two positive numbers.");
+            }
+            if (movie.TryGetValue(Name("Rotate"), out PdfObject? rotation)
+                && (Resolve(rotation) is not PdfInteger rotationValue
+                    || rotationValue.Value % 90 != 0))
+                throw new InvalidOperationException(
+                    $"{description} movie /Rotate value is not a multiple of 90.");
+            if (movie.TryGetValue(Name("Poster"), out PdfObject? poster))
+            {
+                PdfObject resolvedPoster = Resolve(poster);
+                if (resolvedPoster is PdfStream posterStream)
+                {
+                    if (!posterStream.Dictionary.TryGetValue(
+                            Name("Subtype"), out PdfObject? posterSubtype)
+                        || Resolve(posterSubtype) is not PdfName posterSubtypeName
+                        || posterSubtypeName.ValueAsLatin1() != "Image")
+                        throw new InvalidOperationException(
+                            $"{description} movie /Poster stream is not an image XObject.");
+                    ValidatePageXObject(document, posterStream,
+                        $"{description} movie /Poster image");
+                }
+                else if (resolvedPoster is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} movie /Poster value is not a boolean or stream.");
+            }
+        }
+        if (annotationSubtype == "3D")
+        {
+            if (!annotation.TryGetValue(Name("3DD"), out PdfObject? data))
+                throw new InvalidOperationException(
+                    $"{description} 3D annotation has no /3DD stream or dictionary.");
+            PdfObject resolvedData = Resolve(data);
+            if (resolvedData is PdfStream threeDimensionalStream)
+                ValidateThreeDimensionalStream(threeDimensionalStream);
+            else if (resolvedData is PdfDictionary referenceDictionary)
+            {
+                if (referenceDictionary.TryGetValue(TypeName, out PdfObject? referenceType)
+                    && (Resolve(referenceType) is not PdfName referenceTypeName
+                        || referenceTypeName.ValueAsLatin1() != "3DRef"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D reference dictionary has an invalid /Type value.");
+                if (!referenceDictionary.TryGetValue(Name("3DD"), out PdfObject? referencedData)
+                    || referencedData is not PdfIndirectReference
+                    || Resolve(referencedData) is not PdfStream referencedStream)
+                    throw new InvalidOperationException(
+                        $"{description} 3D reference dictionary has no indirect /3DD stream.");
+                ValidateThreeDimensionalStream(referencedStream);
+            }
+            else
+                throw new InvalidOperationException(
+                    $"{description} 3D annotation has no /3DD stream or dictionary.");
+            if (annotation.TryGetValue(Name("3DI"), out PdfObject? interactive)
+                && Resolve(interactive) is not PdfBoolean)
+                throw new InvalidOperationException(
+                    $"{description} 3D /3DI value is not a boolean.");
+            if (annotation.TryGetValue(Name("3DA"), out PdfObject? activation))
+            {
+                PdfDictionary activationDictionary = Resolve(activation) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D /3DA value is not a dictionary.");
+                ValidateDefinedName("A", "PO", "PV", "XA");
+                ValidateDefinedName("AIS", "I", "L");
+                ValidateDefinedName("D", "PC", "PI", "XD");
+                ValidateDefinedName("DIS", "U", "I", "L");
+                foreach (string key in new[] { "TB", "NP" })
+                    if (activationDictionary.TryGetValue(Name(key), out PdfObject? flag)
+                        && Resolve(flag) is not PdfBoolean)
+                        throw new InvalidOperationException(
+                            $"{description} 3D activation /{key} value is not boolean.");
+
+                void ValidateDefinedName(string key, params string[] definedValues)
+                {
+                    if (!activationDictionary.TryGetValue(Name(key), out PdfObject? value)) return;
+                    string name = (Resolve(value) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D activation /{key} value is not a name.");
+                    if (!definedValues.Contains(name, StringComparer.Ordinal))
+                        throw new InvalidOperationException(
+                            $"{description} 3D activation /{key} /{name} is not defined.");
+                }
+            }
+            if (annotation.TryGetValue(Name("3DV"), out PdfObject? defaultView))
+                ValidateDefaultView(defaultView, "3D /3DV");
+            if (annotation.TryGetValue(Name("3DB"), out PdfObject? activationBounds))
+            {
+                PdfArray bounds = Resolve(activationBounds) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D /3DB value is not an array.");
+                if (bounds.Count != 4
+                    || bounds.Any(item => !TryNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} 3D /3DB value is not four finite numbers.");
+            }
+
+            void ValidateThreeDimensionalStream(PdfStream stream)
+            {
+                PdfDictionary streamDictionary = stream.Dictionary;
+                if (streamDictionary.TryGetValue(TypeName, out PdfObject? streamType)
+                    && (Resolve(streamType) is not PdfName streamTypeName
+                        || streamTypeName.ValueAsLatin1() != "3D"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D stream has an invalid /Type value.");
+                string streamSubtype = streamDictionary.TryGetValue(
+                        Name("Subtype"), out PdfObject? streamSubtypeValue)
+                    ? (Resolve(streamSubtypeValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D stream /Subtype value is not a name.")
+                    : throw new InvalidOperationException(
+                        $"{description} 3D stream has no /Subtype name.");
+                if (streamSubtype is not ("U3D" or "PRC"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D stream /Subtype /{streamSubtype} is not defined.");
+                if (streamDictionary.TryGetValue(Name("OnInstantiate"), out PdfObject? script)
+                    && Resolve(script) is not PdfStream)
+                    throw new InvalidOperationException(
+                        $"{description} 3D stream /OnInstantiate value is not a stream.");
+                if (streamDictionary.TryGetValue(Name("Resources"), out PdfObject? resourcesValue))
+                {
+                    if (Resolve(resourcesValue) is not PdfDictionary)
+                        throw new InvalidOperationException(
+                            $"{description} 3D stream /Resources value is not a name-tree dictionary.");
+                    try
+                    {
+                        _ = PdfNameTree.Read(document, resourcesValue);
+                    }
+                    catch (Exception exception) when (exception is InvalidOperationException
+                        or NotSupportedException)
+                    {
+                        throw new InvalidOperationException(
+                            $"{description} 3D stream /Resources name tree is malformed.", exception);
+                    }
+                }
+                int? viewCount = null;
+                if (streamDictionary.TryGetValue(Name("VA"), out PdfObject? viewsValue))
+                {
+                    PdfArray views = Resolve(viewsValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D stream /VA value is not an array.");
+                    viewCount = views.Count;
+                    foreach (PdfObject view in views) ValidateThreeDimensionalView(view);
+                }
+                if (streamDictionary.TryGetValue(Name("DV"), out PdfObject? defaultView))
+                    ValidateDefaultView(defaultView, "3D stream /DV", viewCount);
+                if (streamDictionary.TryGetValue(Name("AN"), out PdfObject? animationValue))
+                {
+                    PdfDictionary animation = Resolve(animationValue) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D stream /AN value is not a dictionary.");
+                    if (animation.TryGetValue(TypeName, out PdfObject? animationType)
+                        && (Resolve(animationType) is not PdfName animationTypeName
+                            || animationTypeName.ValueAsLatin1() != "3DAnimationStyle"))
+                        throw new InvalidOperationException(
+                            $"{description} 3D animation style has an invalid /Type value.");
+                    if (animation.TryGetValue(Name("Subtype"), out PdfObject? animationSubtype)
+                        && Resolve(animationSubtype) is not PdfName)
+                        throw new InvalidOperationException(
+                            $"{description} 3D animation style /Subtype value is not a name.");
+                    if (animation.TryGetValue(Name("PC"), out PdfObject? playCount)
+                        && Resolve(playCount) is not PdfInteger)
+                        throw new InvalidOperationException(
+                            $"{description} 3D animation style /PC value is not an integer.");
+                    if (animation.TryGetValue(Name("TM"), out PdfObject? multiplier)
+                        && (!TryNumber(Resolve(multiplier), out double timeMultiplier)
+                            || !double.IsFinite(timeMultiplier) || timeMultiplier <= 0))
+                        throw new InvalidOperationException(
+                            $"{description} 3D animation style /TM value is not a positive finite number.");
+                }
+            }
+
+            void ValidateDefaultView(PdfObject value, string key, int? viewCount = null)
+            {
+                PdfObject resolved = Resolve(value);
+                if (resolved is PdfDictionary) { ValidateThreeDimensionalView(value); return; }
+                if (resolved is PdfString) return;
+                if (resolved is PdfInteger index && index.Value >= 0
+                    && (viewCount is null || index.Value < viewCount.Value)) return;
+                if (resolved is PdfName selector && selector.ValueAsLatin1() is "F" or "L") return;
+                throw new InvalidOperationException(
+                    $"{description} {key} value is not a defined view selector.");
+            }
+
+            void ValidateThreeDimensionalView(PdfObject value)
+            {
+                PdfDictionary view = Resolve(value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D view value is not a dictionary.");
+                if (view.TryGetValue(TypeName, out PdfObject? viewType)
+                    && (Resolve(viewType) is not PdfName viewTypeName
+                        || viewTypeName.ValueAsLatin1() != "3DView"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D view has an invalid /Type value.");
+                if (!view.TryGetValue(Name("XN"), out PdfObject? externalName)
+                    || Resolve(externalName) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} 3D view has no /XN string.");
+                if (view.TryGetValue(Name("IN"), out PdfObject? internalName)
+                    && Resolve(internalName) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} 3D view /IN value is not a string.");
+                string? matrixSource = view.TryGetValue(Name("MS"), out PdfObject? sourceValue)
+                    ? (Resolve(sourceValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D view /MS value is not a name.")
+                    : null;
+                if (matrixSource is not null and not ("M" or "U3D"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D view /MS /{matrixSource} is not defined.");
+                if (matrixSource == "M")
+                {
+                    if (!view.TryGetValue(Name("C2W"), out PdfObject? matrixValue)
+                        || Resolve(matrixValue) is not PdfArray matrix || matrix.Count != 12
+                        || matrix.Any(item => !TryNumber(Resolve(item), out double number)
+                            || !double.IsFinite(number)))
+                        throw new InvalidOperationException(
+                            $"{description} 3D view has no valid 12-number /C2W matrix.");
+                }
+                if (matrixSource == "U3D")
+                {
+                    if (!view.TryGetValue(Name("U3DPath"), out PdfObject? pathValue))
+                        throw new InvalidOperationException(
+                            $"{description} 3D view has no /U3DPath value.");
+                    PdfObject path = Resolve(pathValue);
+                    if (path is not PdfString
+                        && (path is not PdfArray paths || paths.Count == 0
+                            || paths.Any(item => Resolve(item) is not PdfString)))
+                        throw new InvalidOperationException(
+                            $"{description} 3D view /U3DPath value is not a string or nonempty string array.");
+                }
+                if (view.TryGetValue(Name("CO"), out PdfObject? orbitValue)
+                    && (!TryNumber(Resolve(orbitValue), out double orbit)
+                        || !double.IsFinite(orbit)))
+                    throw new InvalidOperationException(
+                        $"{description} 3D view /CO value is not a finite number.");
+                if (view.TryGetValue(Name("P"), out PdfObject? projectionValue))
+                    ValidateProjection(projectionValue);
+                if (view.TryGetValue(Name("BG"), out PdfObject? backgroundValue))
+                    ValidateBackground(backgroundValue);
+                if (view.TryGetValue(Name("RM"), out PdfObject? renderModeValue))
+                    ValidateRenderMode(renderModeValue);
+                if (view.TryGetValue(Name("LS"), out PdfObject? lightingValue))
+                    ValidateLighting(lightingValue);
+                if (view.TryGetValue(Name("SA"), out PdfObject? sectionsValue))
+                {
+                    PdfArray sections = Resolve(sectionsValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D view /SA value is not an array.");
+                    foreach (PdfObject section in sections) ValidateCrossSection(section);
+                }
+                if (view.TryGetValue(Name("NA"), out PdfObject? nodesValue))
+                {
+                    PdfArray nodes = Resolve(nodesValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D view /NA value is not an array.");
+                    foreach (PdfObject node in nodes) ValidateNode(node);
+                }
+            }
+
+            void ValidateProjection(PdfObject value)
+            {
+                PdfDictionary projection = Resolve(value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D projection value is not a dictionary.");
+                string subtype = projection.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+                    ? (Resolve(subtypeValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D projection /Subtype value is not a name.")
+                    : throw new InvalidOperationException(
+                        $"{description} 3D projection has no /Subtype name.");
+                if (subtype is not ("O" or "P"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D projection /Subtype /{subtype} is not defined.");
+                string clipping = projection.TryGetValue(Name("CS"), out PdfObject? clippingValue)
+                    ? (Resolve(clippingValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} 3D projection /CS value is not a name.")
+                    : "ANF";
+                if (clipping is not ("XNF" or "ANF"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D projection /CS /{clipping} is not defined.");
+                foreach (string key in new[] { "F", "N", "FOV", "OS" })
+                    if (projection.TryGetValue(Name(key), out PdfObject? numberValue)
+                        && (!TryNumber(Resolve(numberValue), out double number)
+                            || !double.IsFinite(number)))
+                        throw new InvalidOperationException(
+                            $"{description} 3D projection /{key} value is not a finite number.");
+                if (subtype == "P")
+                {
+                    if (!projection.TryGetValue(Name("N"), out PdfObject? nearValue)
+                        || !TryNumber(Resolve(nearValue), out double near)
+                        || !double.IsFinite(near) || near <= 0)
+                        throw new InvalidOperationException(
+                            $"{description} perspective projection has no positive /N value.");
+                    if (!projection.TryGetValue(Name("FOV"), out PdfObject? fieldValue)
+                        || !TryNumber(Resolve(fieldValue), out double field)
+                        || !double.IsFinite(field) || field is < 0 or > 180)
+                        throw new InvalidOperationException(
+                            $"{description} perspective projection has no /FOV value from 0 through 180.");
+                }
+                else if (projection.TryGetValue(Name("N"), out PdfObject? nearValue)
+                    && TryNumber(Resolve(nearValue), out double near) && near < 0)
+                    throw new InvalidOperationException(
+                        $"{description} orthographic projection /N value is negative.");
+                foreach (string key in new[] { "PS", "OB" })
+                    if (projection.TryGetValue(Name(key), out PdfObject? selectorValue))
+                    {
+                        PdfObject selector = Resolve(selectorValue);
+                        if (key == "PS" && TryNumber(selector, out double scale) && scale > 0) continue;
+                        if (selector is PdfName name
+                            && name.ValueAsLatin1() is "W" or "H" or "Min" or "Max"
+                                or "Absolute") continue;
+                        throw new InvalidOperationException(
+                            $"{description} 3D projection /{key} value is not defined.");
+                    }
+                if (projection.TryGetValue(Name("OS"), out PdfObject? scaleValue)
+                    && TryNumber(Resolve(scaleValue), out double scaleFactor) && scaleFactor <= 0)
+                    throw new InvalidOperationException(
+                        $"{description} 3D projection /OS value is not positive.");
+            }
+
+            void ValidateBackground(PdfObject value)
+            {
+                PdfDictionary background = Resolve(value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D background value is not a dictionary.");
+                if (background.TryGetValue(TypeName, out PdfObject? backgroundType)
+                    && (Resolve(backgroundType) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "3DBG"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D background has an invalid /Type value.");
+                if (background.TryGetValue(Name("Subtype"), out PdfObject? backgroundSubtype)
+                    && (Resolve(backgroundSubtype) is not PdfName subtypeName
+                        || subtypeName.ValueAsLatin1() != "SC"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D background has an invalid /Subtype value.");
+                if (background.TryGetValue(Name("CS"), out PdfObject? colorSpace)
+                    && (Resolve(colorSpace) is not PdfName spaceName
+                        || spaceName.ValueAsLatin1() != "DeviceRGB"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D background has an unsupported /CS value.");
+                if (background.TryGetValue(Name("C"), out PdfObject? colorValue)
+                    && (Resolve(colorValue) is not PdfArray color || color.Count != 3
+                        || color.Any(item => !TryNumber(Resolve(item), out double component)
+                            || !double.IsFinite(component) || component is < 0 or > 1)))
+                    throw new InvalidOperationException(
+                        $"{description} 3D background /C value is not an RGB triplet.");
+                if (background.TryGetValue(Name("EA"), out PdfObject? entireAnnotation)
+                    && Resolve(entireAnnotation) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} 3D background /EA value is not boolean.");
+            }
+
+            void ValidateRenderMode(PdfObject value)
+            {
+                PdfDictionary renderMode = Resolve(value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D render mode value is not a dictionary.");
+                if (renderMode.TryGetValue(TypeName, out PdfObject? renderType)
+                    && (Resolve(renderType) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "3DRenderMode"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D render mode has an invalid /Type value.");
+                if (!renderMode.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+                    || Resolve(subtypeValue) is not PdfName)
+                    throw new InvalidOperationException(
+                        $"{description} 3D render mode has no /Subtype name.");
+                if (renderMode.TryGetValue(Name("AC"), out PdfObject? auxiliaryValue))
+                    ValidateRgbColor(auxiliaryValue, "AC", includeColorSpace: true);
+                if (renderMode.TryGetValue(Name("FC"), out PdfObject? faceValue))
+                {
+                    PdfObject face = Resolve(faceValue);
+                    if (face is PdfName faceName && faceName.ValueAsLatin1() == "BG") { }
+                    else ValidateRgbColor(face, "FC", includeColorSpace: true);
+                }
+                if (renderMode.TryGetValue(Name("O"), out PdfObject? opacityValue)
+                    && (!TryNumber(Resolve(opacityValue), out double opacity)
+                        || !double.IsFinite(opacity) || opacity is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} 3D render mode /O value is outside 0 through 1.");
+                if (renderMode.TryGetValue(Name("CV"), out PdfObject? creaseValue)
+                    && (!TryNumber(Resolve(creaseValue), out double crease)
+                        || !double.IsFinite(crease)))
+                    throw new InvalidOperationException(
+                        $"{description} 3D render mode /CV value is not finite.");
+            }
+
+            void ValidateLighting(PdfObject value)
+            {
+                PdfDictionary lighting = Resolve(value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D lighting scheme value is not a dictionary.");
+                if (lighting.TryGetValue(TypeName, out PdfObject? lightingType)
+                    && (Resolve(lightingType) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "3DLightingScheme"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D lighting scheme has an invalid /Type value.");
+                if (!lighting.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+                    || Resolve(subtypeValue) is not PdfName)
+                    throw new InvalidOperationException(
+                        $"{description} 3D lighting scheme has no /Subtype name.");
+            }
+
+            void ValidateCrossSection(PdfObject value)
+            {
+                PdfDictionary section = Resolve(value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D cross section value is not a dictionary.");
+                if (section.TryGetValue(TypeName, out PdfObject? sectionType)
+                    && (Resolve(sectionType) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "3DCrossSection"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D cross section has an invalid /Type value.");
+                if (section.TryGetValue(Name("C"), out PdfObject? centerValue))
+                    ValidateFiniteArray(centerValue, 3, "3D cross section /C");
+                if (!section.TryGetValue(Name("O"), out PdfObject? orientationValue)
+                    || Resolve(orientationValue) is not PdfArray orientation
+                    || orientation.Count != 3
+                    || orientation.Count(item => Resolve(item) is PdfNull) != 1
+                    || orientation.Any(item => Resolve(item) is not PdfNull
+                        && (!TryNumber(Resolve(item), out double angle) || !double.IsFinite(angle))))
+                    throw new InvalidOperationException(
+                        $"{description} 3D cross section has no valid /O orientation.");
+                if (section.TryGetValue(Name("PO"), out PdfObject? planeOpacity)
+                    && (!TryNumber(Resolve(planeOpacity), out double opacity)
+                        || !double.IsFinite(opacity) || opacity is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} 3D cross section /PO value is outside 0 through 1.");
+                foreach (string key in new[] { "PC", "IC" })
+                    if (section.TryGetValue(Name(key), out PdfObject? color))
+                        ValidateRgbColor(color, key, includeColorSpace: true);
+                if (section.TryGetValue(Name("IV"), out PdfObject? intersectionVisible)
+                    && Resolve(intersectionVisible) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} 3D cross section /IV value is not boolean.");
+            }
+
+            void ValidateNode(PdfObject value)
+            {
+                PdfDictionary node = Resolve(value) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D node value is not a dictionary.");
+                if (node.TryGetValue(TypeName, out PdfObject? nodeType)
+                    && (Resolve(nodeType) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "3DNode"))
+                    throw new InvalidOperationException(
+                        $"{description} 3D node has an invalid /Type value.");
+                if (!node.TryGetValue(Name("N"), out PdfObject? nodeName)
+                    || Resolve(nodeName) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} 3D node has no /N string.");
+                if (node.TryGetValue(Name("O"), out PdfObject? nodeOpacity)
+                    && (!TryNumber(Resolve(nodeOpacity), out double opacity)
+                        || !double.IsFinite(opacity) || opacity is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} 3D node /O value is outside 0 through 1.");
+                if (node.TryGetValue(Name("V"), out PdfObject? visible)
+                    && Resolve(visible) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} 3D node /V value is not boolean.");
+                if (node.TryGetValue(Name("M"), out PdfObject? matrix))
+                    ValidateFiniteArray(matrix, 12, "3D node /M");
+            }
+
+            void ValidateFiniteArray(PdfObject value, int count, string key)
+            {
+                if (Resolve(value) is not PdfArray array || array.Count != count
+                    || array.Any(item => !TryNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} {key} value is not a {count}-number array.");
+            }
+
+            void ValidateRgbColor(PdfObject value, string key, bool includeColorSpace)
+            {
+                PdfArray color = Resolve(value) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} 3D render mode /{key} value is not an array.");
+                int componentStart = includeColorSpace ? 1 : 0;
+                if (color.Count != componentStart + 3
+                    || includeColorSpace && (Resolve(color[0]) is not PdfName colorSpace
+                        || colorSpace.ValueAsLatin1() != "DeviceRGB")
+                    || color.Skip(componentStart).Any(item =>
+                        !TryNumber(Resolve(item), out double component)
+                        || !double.IsFinite(component) || component is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} 3D render mode /{key} value is not a DeviceRGB color.");
+            }
+        }
+        if (annotationSubtype == "RichMedia")
+        {
+            if (!annotation.TryGetValue(Name("RichMediaContent"), out PdfObject? content)
+                || Resolve(content) is not PdfDictionary contentDictionary)
+                throw new InvalidOperationException(
+                    $"{description} rich-media annotation has no /RichMediaContent dictionary.");
+            if (contentDictionary.TryGetValue(TypeName, out PdfObject? contentType)
+                && (Resolve(contentType) is not PdfName contentTypeName
+                    || contentTypeName.ValueAsLatin1() != "RichMediaContent"))
+                throw new InvalidOperationException(
+                    $"{description} rich-media content has an invalid /Type value.");
+            var registeredAssets = new HashSet<(int ObjectNumber, int Generation)>();
+            var registeredConfigurations = new HashSet<(int ObjectNumber, int Generation)>();
+            var registeredViews = new HashSet<(int ObjectNumber, int Generation)>();
+            if (contentDictionary.TryGetValue(Name("Assets"), out PdfObject? assets))
+            {
+                if (Resolve(assets) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{description} rich-media /RichMediaContent /Assets value is not a name-tree dictionary.");
+                foreach (PdfNameTreeEntry entry in PdfNameTree.Read(document, assets))
+                {
+                    if (entry.Value is not PdfIndirectReference assetReference)
+                        throw new InvalidOperationException(
+                            $"{description} rich-media /Assets entry is not an indirect file specification.");
+                    ValidateFileSpecification(document, assetReference,
+                        $"{description} rich-media /Assets entry");
+                    registeredAssets.Add((assetReference.ObjectNumber, assetReference.Generation));
+                }
+            }
+            foreach (string key in new[] { "Configurations", "Views" })
+                if (contentDictionary.TryGetValue(Name(key), out PdfObject? values))
+                {
+                    PdfArray richMediaArray = Resolve(values) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} rich-media /RichMediaContent /{key} value is not an array.");
+                    foreach (PdfObject item in richMediaArray)
+                    {
+                        if (item is not PdfIndirectReference reference
+                            || Resolve(item) is not PdfDictionary dictionary)
+                            throw new InvalidOperationException(
+                                $"{description} rich-media /RichMediaContent /{key} contains a non-indirect dictionary entry.");
+                        var identity = (reference.ObjectNumber, reference.Generation);
+                        if (key == "Configurations") registeredConfigurations.Add(identity);
+                        else
+                        {
+                            registeredViews.Add(identity);
+                            if (dictionary.TryGetValue(TypeName, out PdfObject? viewType)
+                                && (Resolve(viewType) is not PdfName viewTypeName
+                                    || viewTypeName.ValueAsLatin1() != "3DView"))
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media view has an invalid /Type value.");
+                            if (!dictionary.TryGetValue(Name("XN"), out PdfObject? viewName)
+                                || Resolve(viewName) is not PdfString)
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media view has no /XN string.");
+                        }
+                    }
+                }
+            if (contentDictionary.TryGetValue(
+                    Name("Configurations"), out PdfObject? configurationsValue))
+            {
+                PdfArray configurations = (PdfArray)Resolve(configurationsValue);
+                foreach (PdfObject configurationValue in configurations)
+                {
+                    if (configurationValue is not PdfIndirectReference)
+                        throw new InvalidOperationException(
+                            $"{description} rich-media configuration is not indirect.");
+                    PdfDictionary configuration = (PdfDictionary)Resolve(configurationValue);
+                    if (configuration.TryGetValue(TypeName, out PdfObject? configurationType)
+                        && (Resolve(configurationType) is not PdfName configurationTypeName
+                            || configurationTypeName.ValueAsLatin1() != "RichMediaConfiguration"))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media configuration has an invalid /Type value.");
+                    string mediaSubtype = configuration.TryGetValue(
+                            Name("Subtype"), out PdfObject? mediaSubtypeValue)
+                        ? (Resolve(mediaSubtypeValue) as PdfName)?.ValueAsLatin1()
+                            ?? throw new InvalidOperationException(
+                                $"{description} rich-media configuration /Subtype value is not a name.")
+                        : throw new InvalidOperationException(
+                            $"{description} rich-media configuration has no /Subtype name.");
+                    if (mediaSubtype is not ("3D" or "Flash" or "Sound" or "Video"))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media configuration /Subtype /{mediaSubtype} is not defined.");
+                    if (!configuration.TryGetValue(Name("Instances"), out PdfObject? instancesValue))
+                        continue;
+                    PdfArray instances = Resolve(instancesValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"{description} rich-media configuration /Instances value is not an array.");
+                    foreach (PdfObject instanceValue in instances)
+                    {
+                        if (instanceValue is not PdfIndirectReference)
+                            throw new InvalidOperationException(
+                                $"{description} rich-media instance is not indirect.");
+                        PdfDictionary instance = Resolve(instanceValue) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} rich-media configuration /Instances contains a non-dictionary entry.");
+                        if (instance.TryGetValue(TypeName, out PdfObject? instanceType)
+                            && (Resolve(instanceType) is not PdfName instanceTypeName
+                                || instanceTypeName.ValueAsLatin1() != "RichMediaInstance"))
+                            throw new InvalidOperationException(
+                                $"{description} rich-media instance has an invalid /Type value.");
+                        string instanceSubtype = instance.TryGetValue(
+                                Name("Subtype"), out PdfObject? instanceSubtypeValue)
+                            ? (Resolve(instanceSubtypeValue) as PdfName)?.ValueAsLatin1()
+                                ?? throw new InvalidOperationException(
+                                    $"{description} rich-media instance /Subtype value is not a name.")
+                            : throw new InvalidOperationException(
+                                $"{description} rich-media instance has no /Subtype name.");
+                        if (instanceSubtype is not ("3D" or "Flash" or "Sound" or "Video"))
+                            throw new InvalidOperationException(
+                                $"{description} rich-media instance /Subtype /{instanceSubtype} is not defined.");
+                        if (instanceSubtype != mediaSubtype)
+                            throw new InvalidOperationException(
+                                $"{description} rich-media instance /Subtype /{instanceSubtype} does not match its configuration /Subtype /{mediaSubtype}.");
+                        if (instance.TryGetValue(Name("Params"), out PdfObject? parameters))
+                        {
+                            PdfDictionary parameterDictionary = Resolve(parameters) as PdfDictionary
+                                ?? throw new InvalidOperationException(
+                                    $"{description} rich-media instance /Params value is not a dictionary.");
+                            if (instanceSubtype != "Flash")
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media instance /Params is only defined for /Flash.");
+                            ValidateRichMediaParameters(parameterDictionary);
+                        }
+                        if (!instance.TryGetValue(Name("Asset"), out PdfObject? asset)
+                            || asset is not PdfIndirectReference assetReference)
+                            throw new InvalidOperationException(
+                                $"{description} rich-media instance has no indirect /Asset file specification.");
+                        ValidateFileSpecification(document, assetReference,
+                            $"{description} rich-media instance /Asset value");
+                        if (!registeredAssets.Contains(
+                                (assetReference.ObjectNumber, assetReference.Generation)))
+                            throw new InvalidOperationException(
+                                $"{description} rich-media instance /Asset is not registered in /Assets.");
+                    }
+                }
+            }
+
+            void ValidateRichMediaParameters(PdfDictionary parameters)
+            {
+                if (parameters.TryGetValue(TypeName, out PdfObject? parameterType)
+                    && (Resolve(parameterType) is not PdfName typeName
+                        || typeName.ValueAsLatin1() != "RichMediaParams"))
+                    throw new InvalidOperationException(
+                        $"{description} rich-media parameters have an invalid /Type value.");
+                foreach (string key in new[] { "FlashVars", "Settings" })
+                    if (parameters.TryGetValue(Name(key), out PdfObject? textValue)
+                        && Resolve(textValue) is not (PdfString or PdfStream))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media parameters /{key} value is not a string or stream.");
+                string binding = parameters.TryGetValue(Name("Binding"), out PdfObject? bindingValue)
+                    ? (Resolve(bindingValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} rich-media parameters /Binding value is not a name.")
+                    : "None";
+                if (binding is not ("None" or "Foreground" or "Background" or "Material"))
+                    throw new InvalidOperationException(
+                        $"{description} rich-media parameters /Binding /{binding} is not defined.");
+                bool hasMaterialName = parameters.TryGetValue(
+                    Name("BindingMaterialName"), out PdfObject? materialName);
+                if (binding == "Material" && (!hasMaterialName || Resolve(materialName!) is not PdfString))
+                    throw new InvalidOperationException(
+                        $"{description} rich-media material binding has no /BindingMaterialName string.");
+                if (hasMaterialName && Resolve(materialName!) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} rich-media /BindingMaterialName value is not a string.");
+                if (!parameters.TryGetValue(Name("CuePoints"), out PdfObject? cuePointsValue)) return;
+                PdfArray cuePoints = Resolve(cuePointsValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} rich-media /CuePoints value is not an array.");
+                foreach (PdfObject cueValue in cuePoints)
+                {
+                    PdfDictionary cue = Resolve(cueValue) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} rich-media /CuePoints contains a non-dictionary entry.");
+                    if (cue.TryGetValue(TypeName, out PdfObject? cueType)
+                        && (Resolve(cueType) is not PdfName cueTypeName
+                            || cueTypeName.ValueAsLatin1() != "CuePoint"))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media cue point has an invalid /Type value.");
+                    string cueSubtype = cue.TryGetValue(Name("Subtype"), out PdfObject? cueSubtypeValue)
+                        ? (Resolve(cueSubtypeValue) as PdfName)?.ValueAsLatin1()
+                            ?? throw new InvalidOperationException(
+                                $"{description} rich-media cue point /Subtype value is not a name.")
+                        : "Navigation";
+                    if (cueSubtype is not ("Navigation" or "Event"))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media cue point /Subtype /{cueSubtype} is not defined.");
+                    if (!cue.TryGetValue(Name("Name"), out PdfObject? cueName)
+                        || Resolve(cueName) is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{description} rich-media cue point has no /Name string.");
+                    if (!cue.TryGetValue(Name("Time"), out PdfObject? timeValue)
+                        || !TryNumber(Resolve(timeValue), out double time)
+                        || !double.IsFinite(time) || time < 0)
+                        throw new InvalidOperationException(
+                            $"{description} rich-media cue point has no nonnegative finite /Time value.");
+                    if (cueSubtype == "Event")
+                    {
+                        if (!cue.TryGetValue(Name("A"), out PdfObject? cueAction))
+                            throw new InvalidOperationException(
+                                $"{description} rich-media event cue point has no /A action.");
+                        ValidateActionGraph(document, cueAction,
+                            $"{description} rich-media cue point /A value");
+                    }
+                }
+            }
+            if (annotation.TryGetValue(Name("RichMediaSettings"), out PdfObject? settings))
+            {
+                PdfDictionary settingsDictionary = Resolve(settings) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} rich-media /RichMediaSettings value is not a dictionary.");
+                if (settingsDictionary.TryGetValue(TypeName, out PdfObject? settingsType)
+                    && (Resolve(settingsType) is not PdfName settingsTypeName
+                        || settingsTypeName.ValueAsLatin1() != "RichMediaSettings"))
+                    throw new InvalidOperationException(
+                        $"{description} rich-media settings has an invalid /Type value.");
+                foreach (string key in new[] { "Activation", "Deactivation" })
+                    if (settingsDictionary.TryGetValue(Name(key), out PdfObject? setting))
+                    {
+                        PdfDictionary settingDictionary = Resolve(setting) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} rich-media /RichMediaSettings /{key} value is not a dictionary.");
+                        string expectedType = key == "Activation"
+                            ? "RichMediaActivation" : "RichMediaDeactivation";
+                        if (settingDictionary.TryGetValue(TypeName, out PdfObject? settingType)
+                            && (Resolve(settingType) is not PdfName settingTypeName
+                                || settingTypeName.ValueAsLatin1() != expectedType))
+                            throw new InvalidOperationException(
+                                $"{description} rich-media /{key} has an invalid /Type value.");
+                        if (settingDictionary.TryGetValue(
+                                Name("Condition"), out PdfObject? conditionValue))
+                        {
+                            string condition = (Resolve(conditionValue) as PdfName)?.ValueAsLatin1()
+                                ?? throw new InvalidOperationException(
+                                    $"{description} rich-media /RichMediaSettings /{key} /Condition value is not a name.");
+                            bool defined = key == "Activation"
+                                ? condition is "XA" or "PO" or "PV"
+                                : condition is "XD" or "PC" or "PI";
+                            if (!defined)
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media /RichMediaSettings /{key} /Condition /{condition} is not defined.");
+                        }
+                        if (key == "Activation"
+                            && settingDictionary.TryGetValue(
+                                Name("Animation"), out PdfObject? animationValue))
+                        {
+                            PdfDictionary animation = Resolve(animationValue) as PdfDictionary
+                                ?? throw new InvalidOperationException(
+                                    $"{description} rich-media /Animation value is not a dictionary.");
+                            if (animation.TryGetValue(TypeName, out PdfObject? animationType)
+                                && (Resolve(animationType) is not PdfName animationTypeName
+                                    || animationTypeName.ValueAsLatin1() != "RichMediaAnimation"))
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media animation has an invalid /Type value.");
+                            if (animation.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+                                && Resolve(subtypeValue) is not PdfName)
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media animation /Subtype value is not a name.");
+                            if (animation.TryGetValue(Name("PlayCount"), out PdfObject? playCount)
+                                && Resolve(playCount) is not PdfInteger)
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media animation /PlayCount value is not an integer.");
+                            if (animation.TryGetValue(Name("Speed"), out PdfObject? speedValue)
+                                && (!TryNumber(Resolve(speedValue), out double speed)
+                                    || !double.IsFinite(speed) || speed <= 0))
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media animation /Speed value is not a positive finite number.");
+                        }
+                        if (key == "Activation"
+                            && settingDictionary.TryGetValue(
+                                Name("Presentation"), out PdfObject? presentationValue))
+                            ValidateRichMediaPresentation(presentationValue);
+                        if (key == "Activation")
+                        {
+                            ValidateRegisteredReference("Configuration", registeredConfigurations);
+                            ValidateRegisteredReference("View", registeredViews);
+                            if (settingDictionary.TryGetValue(Name("Scripts"), out PdfObject? scriptsValue))
+                            {
+                                PdfArray scripts = Resolve(scriptsValue) as PdfArray
+                                    ?? throw new InvalidOperationException(
+                                        $"{description} rich-media activation /Scripts value is not an array.");
+                                foreach (PdfObject script in scripts)
+                                    if (script is not PdfIndirectReference scriptReference
+                                        || !registeredAssets.Contains(
+                                            (scriptReference.ObjectNumber, scriptReference.Generation)))
+                                        throw new InvalidOperationException(
+                                            $"{description} rich-media activation /Scripts contains an unregistered asset.");
+                            }
+                        }
+
+                        void ValidateRegisteredReference(
+                            string referenceKey,
+                            HashSet<(int ObjectNumber, int Generation)> registered)
+                        {
+                            if (!settingDictionary.TryGetValue(
+                                    Name(referenceKey), out PdfObject? referenceValue)) return;
+                            if (referenceValue is not PdfIndirectReference reference
+                                || !registered.Contains(
+                                    (reference.ObjectNumber, reference.Generation)))
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media activation /{referenceKey} is not registered in content.");
+                        }
+                    }
+
+                void ValidateRichMediaPresentation(PdfObject value)
+                {
+                    PdfDictionary presentation = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} rich-media presentation value is not a dictionary.");
+                    if (presentation.TryGetValue(TypeName, out PdfObject? presentationType)
+                        && (Resolve(presentationType) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "RichMediaPresentation"))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media presentation has an invalid /Type value.");
+                    string style = presentation.TryGetValue(Name("Style"), out PdfObject? styleValue)
+                        ? (Resolve(styleValue) as PdfName)?.ValueAsLatin1()
+                            ?? throw new InvalidOperationException(
+                                $"{description} rich-media presentation /Style value is not a name.")
+                        : "Embedded";
+                    if (style is not ("Embedded" or "Windowed"))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media presentation /Style /{style} is not defined.");
+                    foreach (string flagKey in new[]
+                        { "Transparent", "NavigationPane", "Toolbar", "PassContextClick" })
+                        if (presentation.TryGetValue(Name(flagKey), out PdfObject? flag)
+                            && Resolve(flag) is not PdfBoolean)
+                            throw new InvalidOperationException(
+                                $"{description} rich-media presentation /{flagKey} value is not boolean.");
+                    bool hasWindow = presentation.TryGetValue(
+                        Name("Window"), out PdfObject? windowValue);
+                    if (style == "Windowed" && !hasWindow)
+                        throw new InvalidOperationException(
+                            $"{description} windowed rich-media presentation has no /Window dictionary.");
+                    if (hasWindow) ValidateRichMediaWindow(windowValue!);
+                }
+
+                void ValidateRichMediaWindow(PdfObject value)
+                {
+                    PdfDictionary window = Resolve(value) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} rich-media window value is not a dictionary.");
+                    if (window.TryGetValue(TypeName, out PdfObject? windowType)
+                        && (Resolve(windowType) is not PdfName typeName
+                            || typeName.ValueAsLatin1() != "RichMediaWindow"))
+                        throw new InvalidOperationException(
+                            $"{description} rich-media window has an invalid /Type value.");
+                    foreach (string dimensionKey in new[] { "Width", "Height" })
+                    {
+                        if (!window.TryGetValue(Name(dimensionKey), out PdfObject? dimensionValue))
+                            throw new InvalidOperationException(
+                                $"{description} rich-media window has no /{dimensionKey} dictionary.");
+                        PdfDictionary dimension = Resolve(dimensionValue) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} rich-media window /{dimensionKey} value is not a dictionary.");
+                        var dimensions = new Dictionary<string, double>();
+                        foreach (string boundKey in new[] { "Default", "Min", "Max" })
+                        {
+                            if (!dimension.TryGetValue(Name(boundKey), out PdfObject? boundValue)
+                                || !TryNumber(Resolve(boundValue), out double bound)
+                                || !double.IsFinite(bound) || bound <= 0)
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media window /{dimensionKey} has no positive /{boundKey} value.");
+                            dimensions[boundKey] = bound;
+                        }
+                        if (dimensions["Min"] > dimensions["Default"]
+                            || dimensions["Default"] > dimensions["Max"])
+                            throw new InvalidOperationException(
+                                $"{description} rich-media window /{dimensionKey} bounds are not ordered.");
+                    }
+                    if (window.TryGetValue(Name("Position"), out PdfObject? positionValue))
+                    {
+                        PdfDictionary position = Resolve(positionValue) as PdfDictionary
+                            ?? throw new InvalidOperationException(
+                                $"{description} rich-media window /Position value is not a dictionary.");
+                        if (position.TryGetValue(TypeName, out PdfObject? positionType)
+                            && (Resolve(positionType) is not PdfName positionTypeName
+                                || positionTypeName.ValueAsLatin1() != "RichMediaPosition"))
+                            throw new InvalidOperationException(
+                                $"{description} rich-media position has an invalid /Type value.");
+                        foreach (string alignKey in new[] { "HAlign", "VAlign" })
+                            if (position.TryGetValue(Name(alignKey), out PdfObject? alignValue))
+                            {
+                                string alignment = (Resolve(alignValue) as PdfName)?.ValueAsLatin1()
+                                    ?? throw new InvalidOperationException(
+                                        $"{description} rich-media position /{alignKey} value is not a name.");
+                                if (alignment is not ("Near" or "Center" or "Far"))
+                                    throw new InvalidOperationException(
+                                        $"{description} rich-media position /{alignKey} /{alignment} is not defined.");
+                            }
+                        foreach (string offsetKey in new[] { "HOffset", "VOffset" })
+                            if (position.TryGetValue(Name(offsetKey), out PdfObject? offsetValue)
+                                && (!TryNumber(Resolve(offsetValue), out double offset)
+                                    || !double.IsFinite(offset)))
+                                throw new InvalidOperationException(
+                                    $"{description} rich-media position /{offsetKey} value is not finite.");
+                    }
+                }
+            }
+        }
+        if (annotationSubtype == "Caret"
+            && annotation.TryGetValue(Name("Sy"), out PdfObject? symbol))
+        {
+            string symbolName = (Resolve(symbol) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} caret /Sy value is not a name.");
+            if (symbolName is not ("P" or "None"))
+                throw new InvalidOperationException(
+                    $"{description} caret /Sy value /{symbolName} is not defined.");
+        }
+        if (annotationSubtype is "Caret" or "Square" or "Circle" or "FreeText"
+            && annotation.TryGetValue(Name("RD"), out PdfObject? rectangleDifferences))
+        {
+            PdfArray differences = Resolve(rectangleDifferences) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} /RD value is not an array.");
+            if (differences.Count != 4
+                || differences.Any(item => !TryNumber(Resolve(item), out double difference)
+                    || !double.IsFinite(difference) || difference < 0))
+                throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} /RD value is not four nonnegative numbers.");
+            double annotationWidth = Math.Abs(
+                Number(Resolve(rectangleArray[2])) - Number(Resolve(rectangleArray[0])));
+            double annotationHeight = Math.Abs(
+                Number(Resolve(rectangleArray[3])) - Number(Resolve(rectangleArray[1])));
+            double left = Number(Resolve(differences[0]));
+            double top = Number(Resolve(differences[1]));
+            double right = Number(Resolve(differences[2]));
+            double bottom = Number(Resolve(differences[3]));
+            if (left + right > annotationWidth || top + bottom > annotationHeight)
+                throw new InvalidOperationException(
+                    $"{description} {annotationSubtype} /RD value collapses its annotation rectangle.");
+        }
+        if (annotationSubtype == "Watermark"
+            && annotation.TryGetValue(Name("FixedPrint"), out PdfObject? fixedPrintValue))
+        {
+            PdfDictionary fixedPrint = Resolve(fixedPrintValue) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} watermark /FixedPrint value is not a dictionary.");
+            if (fixedPrint.TryGetValue(TypeName, out PdfObject? fixedPrintType)
+                && (Resolve(fixedPrintType) is not PdfName fixedPrintTypeName
+                    || fixedPrintTypeName.ValueAsLatin1() != "FixedPrint"))
+                throw new InvalidOperationException(
+                    $"{description} watermark /FixedPrint dictionary has an invalid /Type value.");
+            if (fixedPrint.TryGetValue(Name("Matrix"), out PdfObject? matrixValue))
+            {
+                PdfArray matrix = Resolve(matrixValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} watermark /FixedPrint /Matrix value is not an array.");
+                if (matrix.Count != 6
+                    || matrix.Any(item => !TryNumber(Resolve(item), out double number)
+                        || !double.IsFinite(number)))
+                    throw new InvalidOperationException(
+                        $"{description} watermark /FixedPrint /Matrix value is not six finite numbers.");
+            }
+            foreach (string key in new[] { "H", "V" })
+                if (fixedPrint.TryGetValue(Name(key), out PdfObject? position)
+                    && (!TryNumber(Resolve(position), out double fraction)
+                        || !double.IsFinite(fraction) || fraction is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} watermark /FixedPrint /{key} value is outside 0 through 1.");
+        }
+        if (annotationSubtype == "Projection"
+            && annotation.TryGetValue(Name("Measure"), out PdfObject? projectionMeasure))
+            ValidateViewportMeasure(document, projectionMeasure,
+                $"{description} projection /Measure value");
+        if (annotationSubtype is "PrinterMark" or "TrapNet"
+            && !annotation.ContainsKey(Name("AP")))
+            throw new InvalidOperationException(
+                $"{description} {annotationSubtype} annotation has no /AP appearance dictionary.");
+        if (annotationSubtype == "PrinterMark")
+        {
+            if (annotation.TryGetValue(Name("MN"), out PdfObject? markName)
+                && Resolve(markName) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} printer-mark /MN value is not a name.");
+            if (!annotation.TryGetValue(Name("F"), out PdfObject? markFlags)
+                || Resolve(markFlags) is not PdfInteger markFlagValue
+                || markFlagValue.Value != 68)
+                throw new InvalidOperationException(
+                    $"{description} printer-mark /F value does not contain only Print and ReadOnly flags.");
+            if (!annotation.TryGetValue(Name("AP"), out PdfObject? markAppearanceValue))
+                throw new InvalidOperationException(
+                    $"{description} PrinterMark annotation has no /AP appearance dictionary.");
+            PdfDictionary markAppearances = Resolve(markAppearanceValue) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} printer-mark /AP value is not a dictionary.");
+            if (!markAppearances.TryGetValue(Name("N"), out PdfObject? normalMarkValue))
+                throw new InvalidOperationException(
+                    $"{description} printer-mark /AP dictionary has no normal /N appearance.");
+            PdfObject normalMarkAppearance = Resolve(normalMarkValue);
+            if (normalMarkAppearance is PdfDictionary markStates
+                && markStates.Count > 1
+                && (!annotation.TryGetValue(Name("AS"), out PdfObject? markState)
+                    || Resolve(markState) is not PdfName))
+                throw new InvalidOperationException(
+                    $"{description} printer-mark annotation with multiple appearances has no /AS name.");
+        }
+        if (annotationSubtype == "TrapNet")
+        {
+            if (!annotation.TryGetValue(Name("AS"), out PdfObject? trapState)
+                || Resolve(trapState) is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} trap-network annotation has no /AS appearance-state name.");
+            if (!annotation.TryGetValue(Name("F"), out PdfObject? trapFlags)
+                || Resolve(trapFlags) is not PdfInteger trapFlagValue
+                || trapFlagValue.Value != 68)
+                throw new InvalidOperationException(
+                    $"{description} trap-network /F value does not contain only Print and ReadOnly flags.");
+            bool hasLastModified = annotation.TryGetValue(
+                Name("LastModified"), out PdfObject? trapModified);
+            bool hasVersion = annotation.TryGetValue(
+                Name("Version"), out PdfObject? trapVersion);
+            bool hasAnnotationStates = annotation.TryGetValue(
+                Name("AnnotStates"), out PdfObject? trapStates);
+            if (hasLastModified == (hasVersion || hasAnnotationStates)
+                || hasVersion != hasAnnotationStates)
+                throw new InvalidOperationException(
+                    $"{description} trap-network annotation requires either /LastModified or both /Version and /AnnotStates.");
+            if (hasLastModified)
+                ValidatePdfDateString(Resolve(trapModified!),
+                    $"{description} trap-network /LastModified value");
+            if (hasVersion && Resolve(trapVersion!) is not PdfArray)
+                throw new InvalidOperationException(
+                    $"{description} trap-network /Version value is not an array.");
+            if (hasAnnotationStates)
+            {
+                PdfArray states = Resolve(trapStates!) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} trap-network /AnnotStates value is not an array.");
+                if (states.Any(item => Resolve(item) is not PdfName))
+                    throw new InvalidOperationException(
+                        $"{description} trap-network /AnnotStates contains a non-name entry.");
+            }
+            if (annotation.TryGetValue(Name("FontFauxing"), out PdfObject? fauxingValue))
+            {
+                PdfArray fauxing = Resolve(fauxingValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} trap-network /FontFauxing value is not an array.");
+                foreach (PdfObject fontValue in fauxing)
+                {
+                    PdfDictionary font = Resolve(fontValue) as PdfDictionary
+                        ?? throw new InvalidOperationException(
+                            $"{description} trap-network /FontFauxing contains a non-font dictionary entry.");
+                    ValidatePageFontResource(document, font,
+                        $"{description} trap-network /FontFauxing entry");
+                }
+            }
+        }
+        if (annotation.TryGetValue(AssociatedFilesName, out PdfObject? associatedFiles))
+            foreach (PdfObject file in ResolveArray(document, associatedFiles,
+                         $"{description} /AF value"))
+                ValidateFileSpecification(document, file,
+                    $"{description} /AF entry");
+        if (annotation.TryGetValue(Name("A"), out PdfObject? action))
+        {
+            if (annotationSubtype == "Movie")
+                ValidateMovieActivation(action);
+            else
+                ValidateActionGraph(document, action, $"{description} /A value");
+        }
+        if (annotation.TryGetValue(Name("AA"), out PdfObject? additionalActions))
+            ValidateCatalogAdditionalActions(document, additionalActions,
+                $"{description} /AA value");
+        if (!annotation.TryGetValue(Name("Dest"), out PdfObject? destination)) return;
+        PdfObject resolved = Resolve(destination);
+        if (resolved is PdfArray array)
+            ValidateExplicitDestination(document, array,
+                $"{description} /Dest value");
+        else if (resolved is not (PdfName or PdfString))
+            throw new InvalidOperationException(
+                $"{description} /Dest value is not an explicit or named destination.");
+
+        void ValidateMovieActivation(PdfObject value)
+        {
+            PdfDictionary activation = Resolve(value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} movie /A value is not an activation dictionary.");
+            foreach (string key in new[] { "Start", "Duration" })
+                if (activation.TryGetValue(Name(key), out PdfObject? timeValue))
+                    ValidateMovieTime(timeValue, key);
+            if (activation.TryGetValue(Name("Rate"), out PdfObject? rateValue)
+                && (!TryNumber(Resolve(rateValue), out double rate)
+                    || !double.IsFinite(rate) || rate == 0))
+                throw new InvalidOperationException(
+                    $"{description} movie /A /Rate value is not a finite nonzero number.");
+            if (activation.TryGetValue(Name("Volume"), out PdfObject? volumeValue)
+                && (!TryNumber(Resolve(volumeValue), out double volume)
+                    || !double.IsFinite(volume) || volume is < -1 or > 1))
+                throw new InvalidOperationException(
+                    $"{description} movie /A /Volume value is outside -1 through 1.");
+            foreach (string key in new[] { "ShowControls", "Synchronous" })
+                if (activation.TryGetValue(Name(key), out PdfObject? flag)
+                    && Resolve(flag) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} movie /A /{key} value is not a boolean.");
+            if (activation.TryGetValue(Name("Mode"), out PdfObject? modeValue))
+            {
+                string mode = (Resolve(modeValue) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} movie /A /Mode value is not a name.");
+                if (mode is not ("Once" or "Open" or "Repeat" or "Palindrome"))
+                    throw new InvalidOperationException(
+                        $"{description} movie /A /Mode value /{mode} is not defined.");
+            }
+            if (activation.TryGetValue(Name("FWScale"), out PdfObject? scaleValue))
+            {
+                PdfArray scale = Resolve(scaleValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} movie /A /FWScale value is not an array.");
+                if (scale.Count != 2
+                    || scale.Any(item => Resolve(item) is not PdfInteger integer
+                        || integer.Value <= 0))
+                    throw new InvalidOperationException(
+                        $"{description} movie /A /FWScale value is not two positive integers.");
+            }
+            if (activation.TryGetValue(Name("FWPosition"), out PdfObject? positionValue))
+            {
+                PdfArray position = Resolve(positionValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"{description} movie /A /FWPosition value is not an array.");
+                if (position.Count != 2
+                    || position.Any(item => !TryNumber(Resolve(item), out double coordinate)
+                        || !double.IsFinite(coordinate) || coordinate is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"{description} movie /A /FWPosition value is not two numbers from 0 through 1.");
+            }
+
+            void ValidateMovieTime(PdfObject timeValue, string key)
+            {
+                PdfObject time = Resolve(timeValue);
+                if (time is PdfArray pair)
+                {
+                    if (pair.Count != 2
+                        || Resolve(pair[1]) is not PdfInteger scale || scale.Value <= 0
+                        || !ValidTimeValue(Resolve(pair[0])))
+                        throw new InvalidOperationException(
+                            $"{description} movie /A /{key} value has invalid time and scale operands.");
+                    return;
+                }
+                if (!ValidTimeValue(time))
+                    throw new InvalidOperationException(
+                        $"{description} movie /A /{key} value is not a nonnegative integer or 8-byte time string.");
+            }
+
+            static bool ValidTimeValue(PdfObject value) => value switch
+            {
+                PdfInteger integer => integer.Value >= 0,
+                PdfString text => text.Bytes.Length == 8
+                    && (text.Bytes.Span[0] & 0x80) == 0,
+                _ => false
+            };
+        }
+
+        static bool TryNumber(PdfObject item, out double value)
+        {
+            if (item is PdfInteger integer) { value = integer.Value; return true; }
+            if (item is PdfReal real) { value = real.Value; return true; }
+            value = 0;
+            return false;
+        }
+
+        static string DecodeAnnotationText(PdfString value, string description)
+        {
+            return PdfUnicodeEncoding.DecodeTextString(
+                value.Bytes.Span, description);
+        }
+
+        static double Number(PdfObject item) => item switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => double.NaN
+        };
+        PdfArray RequireNumericArray(PdfObject value, string key)
+        {
+            PdfArray array = Resolve(value) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /{key} value is not an array.");
+            if (array.Any(item => !TryNumber(Resolve(item), out double number)
+                || !double.IsFinite(number)))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value is not a numeric array.");
+            return array;
+        }
+    }
+
+    private static void ValidatePageNavigationNode(
+        PdfDocument document, PdfObject value, string description)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        Validate(value, description, 0);
+
+        void Validate(PdfObject nodeValue, string nodeDescription, int depth)
+        {
+            if (depth > 64)
+                throw new NotSupportedException(
+                    "An imported page navigation graph is too deeply nested.");
+            if (nodeValue is PdfIndirectReference reference
+                && !visited.Add((reference.ObjectNumber, reference.Generation)))
+                return;
+            PdfObject resolved = nodeValue is PdfIndirectReference nodeReference
+                ? document.Resolve(nodeReference) : nodeValue;
+            PdfDictionary node = resolved as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{nodeDescription} is not a navigation-node dictionary.");
+            if (!node.TryGetValue(TypeName, out PdfObject? typeValue)
+                || Resolve(typeValue) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "NavNode")
+                throw new InvalidOperationException(
+                    $"{nodeDescription} has no /Type /NavNode value.");
+            if (node.TryGetValue(Name("Dur"), out PdfObject? duration))
+            {
+                PdfObject resolvedDuration = Resolve(duration);
+                double number = resolvedDuration switch
+                {
+                    PdfInteger integer => integer.Value,
+                    PdfReal real => real.Value,
+                    _ => double.NaN
+                };
+                if (!double.IsFinite(number) || number < 0)
+                    throw new InvalidOperationException(
+                        $"{nodeDescription} /Dur value is not a nonnegative finite number.");
+            }
+            foreach (string key in new[] { "NA", "PA" })
+                if (node.TryGetValue(Name(key), out PdfObject? action))
+                    ValidateActionGraph(document, action,
+                        $"{nodeDescription} /{key} value");
+            foreach (string key in new[] { "Next", "Prev" })
+                if (node.TryGetValue(Name(key), out PdfObject? adjacent))
+                    Validate(adjacent, $"{nodeDescription} /{key} value", depth + 1);
+        }
+
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+    }
+
+    private static void ValidatePageTransition(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfDictionary transition = ResolveDictionary(document, value, description);
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (transition.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Trans"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        if (transition.TryGetValue(Name("S"), out PdfObject? style))
+        {
+            string styleName = (Resolve(style) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException($"{description} /S value is not a name.");
+            if (styleName is not ("Split" or "Blinds" or "Box" or "Wipe"
+                or "Dissolve" or "Glitter" or "R" or "Fly" or "Push"
+                or "Cover" or "Uncover" or "Fade"))
+                throw new InvalidOperationException(
+                    $"{description} /S value /{styleName} is not defined.");
+        }
+        if (transition.TryGetValue(Name("D"), out PdfObject? duration)
+            && (!TryNumber(Resolve(duration), out double seconds)
+                || !double.IsFinite(seconds) || seconds <= 0))
+            throw new InvalidOperationException(
+                $"{description} /D value is not a positive number.");
+        ValidateName("Dm", "H", "V");
+        ValidateName("M", "I", "O");
+        if (transition.TryGetValue(Name("Di"), out PdfObject? direction))
+        {
+            PdfObject resolvedDirection = Resolve(direction);
+            bool valid = resolvedDirection is PdfName directionName
+                && directionName.ValueAsLatin1() == "None"
+                || resolvedDirection is PdfInteger integer
+                && integer.Value is 0 or 90 or 180 or 270;
+            if (!valid)
+                throw new InvalidOperationException(
+                    $"{description} /Di value is not a defined direction.");
+        }
+        if (transition.TryGetValue(Name("SS"), out PdfObject? scale)
+            && (!TryNumber(Resolve(scale), out double scaleValue)
+                || !double.IsFinite(scaleValue) || scaleValue is < 0 or > 1))
+            throw new InvalidOperationException(
+                $"{description} /SS value is outside 0 through 1.");
+        if (transition.TryGetValue(Name("B"), out PdfObject? background)
+            && Resolve(background) is not PdfBoolean)
+            throw new InvalidOperationException(
+                $"{description} /B value is not a boolean.");
+        return;
+
+        void ValidateName(string key, params string[] defined)
+        {
+            if (!transition.TryGetValue(Name(key), out PdfObject? item)) return;
+            string actual = (Resolve(item) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException(
+                    $"{description} /{key} value is not a name.");
+            if (!defined.Contains(actual, StringComparer.Ordinal))
+                throw new InvalidOperationException(
+                    $"{description} /{key} value /{actual} is not defined.");
+        }
+
+        static bool TryNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidatePageThumbnail(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject resolved = value is PdfIndirectReference reference
+            ? document.Resolve(reference) : value;
+        PdfStream stream = resolved as PdfStream
+            ?? throw new InvalidOperationException(
+                $"{description} is not a stream or resolves to null.");
+        PdfDictionary dictionary = stream.Dictionary;
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (!dictionary.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+            || Resolve(subtype) is not PdfName subtypeName
+            || subtypeName.ValueAsLatin1() != "Image")
+            throw new InvalidOperationException(
+                $"{description} has no valid /Subtype /Image value.");
+        ValidatePageXObject(document, stream, description);
+    }
+
+    private static void ValidatePageViewports(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfArray viewports = ResolveArray(document, value, description);
+        if (viewports.Count == 0)
+            throw new InvalidOperationException(
+                $"{description} array is empty.");
+        foreach (PdfObject item in viewports)
+        {
+            PdfDictionary viewport = ResolveDictionary(
+                document, item, $"{description} entry");
+            PdfObject Resolve(PdfObject entry) => entry is PdfIndirectReference reference
+                ? document.Resolve(reference) : entry;
+            if (viewport.TryGetValue(TypeName, out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "Viewport"))
+                throw new InvalidOperationException(
+                    $"{description} entry has an invalid /Type value.");
+            if (!viewport.TryGetValue(Name("BBox"), out PdfObject? bounds)
+                || Resolve(bounds) is not PdfArray boundingBox
+                || boundingBox.Count != 4
+                || boundingBox.Any(entry => !TryViewportNumber(
+                    Resolve(entry), out double coordinate) || !double.IsFinite(coordinate)))
+                throw new InvalidOperationException(
+                    $"{description} entry has no four-number /BBox array.");
+            double width = Math.Abs(Number(Resolve(boundingBox[2]))
+                - Number(Resolve(boundingBox[0])));
+            double height = Math.Abs(Number(Resolve(boundingBox[3]))
+                - Number(Resolve(boundingBox[1])));
+            if (width == 0 || height == 0)
+                throw new InvalidOperationException(
+                    $"{description} entry /BBox rectangle is collapsed.");
+            if (viewport.TryGetValue(Name("Name"), out PdfObject? name)
+                && Resolve(name) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} entry /Name value is not a string.");
+            if (viewport.TryGetValue(Name("Measure"), out PdfObject? measureDictionaryValue)
+                && Resolve(measureDictionaryValue) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    $"{description} entry /Measure value is not a dictionary.");
+            if (viewport.TryGetValue(Name("Measure"), out PdfObject? measure))
+                ValidateViewportMeasure(document, measure,
+                    $"{description} entry /Measure value");
+            if (viewport.TryGetValue(Name("PtData"), out PdfObject? pointData))
+            {
+                if (!viewport.TryGetValue(Name("Measure"), out PdfObject? pointMeasure)
+                    || Resolve(pointMeasure) is not PdfDictionary measureDictionary
+                    || !measureDictionary.TryGetValue(
+                        Name("Subtype"), out PdfObject? measureSubtype)
+                    || Resolve(measureSubtype) is not PdfName measureSubtypeName
+                    || measureSubtypeName.ValueAsLatin1() != "GEO")
+                    throw new InvalidOperationException(
+                        $"{description} entry /PtData requires a geospatial /Measure dictionary.");
+                ValidatePointDataCollection(document, pointData,
+                    $"{description} entry /PtData");
+            }
+        }
+
+        static bool TryViewportNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+
+        static double Number(PdfObject item) => item switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => double.NaN
+        };
+    }
+
+    private static void ValidateViewportMeasure(
+        PdfDocument document, PdfObject value, string description)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        PdfDictionary measure = Resolve(value) as PdfDictionary
+            ?? throw new InvalidOperationException($"{description} is not a dictionary.");
+        if (measure.TryGetValue(TypeName, out PdfObject? type)
+            && (Resolve(type) is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Measure"))
+            throw new InvalidOperationException($"{description} has an invalid /Type value.");
+        string subtype = measure.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+            ? (Resolve(subtypeValue) as PdfName)?.ValueAsLatin1()
+                ?? throw new InvalidOperationException($"{description} /Subtype is not a name.")
+            : throw new InvalidOperationException($"{description} has no /Subtype name.");
+        if (subtype == "RL")
+        {
+            if (!measure.TryGetValue(Name("R"), out PdfObject? ratio)
+                || Resolve(ratio) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} rectilinear measure has no /R string.");
+            foreach (string key in new[] { "X", "Y" })
+                ValidateNumberFormats(key, required: true);
+            foreach (string key in new[] { "D", "A", "T" })
+                ValidateNumberFormats(key, required: false);
+            if (measure.TryGetValue(Name("CYX"), out PdfObject? conversion)
+                && (!TryMeasureNumber(Resolve(conversion), out double number)
+                    || !double.IsFinite(number) || number <= 0))
+                throw new InvalidOperationException(
+                    $"{description} /CYX value is not a positive finite number.");
+            return;
+        }
+        if (subtype != "GEO")
+            throw new InvalidOperationException(
+                $"{description} /Subtype /{subtype} is not defined.");
+        PdfArray? bounds = measure.TryGetValue(Name("Bounds"), out PdfObject? boundsValue)
+            ? RequireNumericArray(boundsValue, "Bounds") : null;
+        if (bounds is not null && (bounds.Count < 4 || bounds.Count % 2 != 0))
+            throw new InvalidOperationException(
+                $"{description} /Bounds array has invalid point geometry.");
+        if (!measure.TryGetValue(Name("GPTS"), out PdfObject? globalPoints))
+            throw new InvalidOperationException($"{description} has no /GPTS array.");
+        PdfArray gpts = RequireNumericArray(globalPoints, "GPTS");
+        if (gpts.Count < 4 || gpts.Count % 2 != 0)
+            throw new InvalidOperationException(
+                $"{description} /GPTS array has invalid point geometry.");
+        if (!measure.TryGetValue(Name("LPTS"), out PdfObject? localPoints))
+            throw new InvalidOperationException($"{description} has no /LPTS array.");
+        PdfArray lpts = RequireNumericArray(localPoints, "LPTS");
+        if (lpts.Count != gpts.Count)
+            throw new InvalidOperationException(
+                $"{description} /LPTS count does not match /GPTS.");
+        if (lpts.Any(item =>
+                TryMeasureNumber(Resolve(item), out double coordinate)
+                && coordinate is < 0 or > 1))
+            throw new InvalidOperationException(
+                $"{description} /LPTS contains a coordinate outside the unit square.");
+        if (!measure.TryGetValue(Name("GCS"), out PdfObject? geographicSystem))
+            throw new InvalidOperationException($"{description} has no /GCS dictionary.");
+        ValidateCoordinateSystem(geographicSystem, "GCS");
+        if (measure.TryGetValue(Name("DCS"), out PdfObject? displaySystem))
+            ValidateCoordinateSystem(displaySystem, "DCS");
+        if (measure.TryGetValue(Name("PDU"), out PdfObject? unitsValue))
+        {
+            PdfArray units = Resolve(unitsValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /PDU value is not an array.");
+            string[] names = units.Select(item =>
+                    (Resolve(item) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /PDU contains a non-name entry."))
+                .ToArray();
+            if (names.Length != 3
+                || names[0] is not ("M" or "KM" or "FT" or "USFT" or "MI" or "NM")
+                || names[1] is not ("SQM" or "HA" or "SQKM" or "SQFT" or "A" or "SQMI")
+                || names[2] is not ("DEG" or "GRD"))
+                throw new InvalidOperationException(
+                    $"{description} /PDU value does not contain defined linear, area, and angular units.");
+        }
+        if (measure.TryGetValue(Name("PCSM"), out PdfObject? matrixValue))
+        {
+            PdfArray matrix = RequireNumericArray(matrixValue, "PCSM");
+            if (matrix.Count != 12)
+                throw new InvalidOperationException(
+                    $"{description} /PCSM value is not a 12-number matrix.");
+        }
+
+        void ValidateCoordinateSystem(PdfObject value, string key)
+        {
+            PdfDictionary coordinateSystem = Resolve(value) as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"{description} /{key} value is not a dictionary.");
+            string coordinateType = coordinateSystem.TryGetValue(
+                    TypeName, out PdfObject? coordinateTypeValue)
+                ? (Resolve(coordinateTypeValue) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{key} /Type value is not a name.")
+                : throw new InvalidOperationException(
+                    $"{description} /{key} dictionary has no /Type name.");
+            if (coordinateType is not ("GEOGCS" or "PROJCS"))
+                throw new InvalidOperationException(
+                    $"{description} /{key} /Type /{coordinateType} is not defined.");
+            bool hasEpsg = coordinateSystem.TryGetValue(
+                Name("EPSG"), out PdfObject? epsgValue);
+            bool hasWkt = coordinateSystem.TryGetValue(
+                Name("WKT"), out PdfObject? wktValue);
+            if (!hasEpsg && !hasWkt)
+                throw new InvalidOperationException(
+                    $"{description} /{key} dictionary has neither /EPSG nor /WKT.");
+            if (hasEpsg && (Resolve(epsgValue!) is not PdfInteger epsg || epsg.Value <= 0))
+                throw new InvalidOperationException(
+                    $"{description} /{key} /EPSG value is not a positive integer.");
+            if (hasWkt)
+            {
+                PdfString wkt = Resolve(wktValue!) as PdfString
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{key} /WKT value is not a string.");
+                if (wkt.Bytes.Span.IndexOfAnyInRange((byte)0x80, byte.MaxValue) >= 0)
+                    throw new InvalidOperationException(
+                        $"{description} /{key} /WKT value is not ASCII.");
+            }
+        }
+
+        void ValidateNumberFormats(string key, bool required)
+        {
+            if (!measure.TryGetValue(Name(key), out PdfObject? formatsValue))
+            {
+                if (required)
+                    throw new InvalidOperationException($"{description} has no /{key} array.");
+                return;
+            }
+            PdfArray formats = Resolve(formatsValue) as PdfArray
+                ?? throw new InvalidOperationException($"{description} /{key} is not an array.");
+            if (formats.Count == 0)
+                throw new InvalidOperationException($"{description} /{key} array is empty.");
+            for (int index = 0; index < formats.Count; index++)
+            {
+                PdfObject item = formats[index];
+                PdfDictionary format = Resolve(item) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /{key} entry is not a number-format dictionary.");
+                if (!format.TryGetValue(Name("U"), out PdfObject? units)
+                    || Resolve(units) is not PdfString)
+                    throw new InvalidOperationException(
+                        $"{description} /{key} number format has no /U string.");
+                if (!format.TryGetValue(Name("C"), out PdfObject? conversion)
+                    || !TryMeasureNumber(Resolve(conversion), out double factor)
+                    || !double.IsFinite(factor))
+                    throw new InvalidOperationException(
+                        $"{description} /{key} number format has no finite /C value.");
+                if (format.TryGetValue(TypeName, out PdfObject? formatType)
+                    && (Resolve(formatType) is not PdfName formatTypeName
+                        || formatTypeName.ValueAsLatin1() != "NumberFormat"))
+                    throw new InvalidOperationException(
+                        $"{description} /{key} number format has an invalid /Type value.");
+                string fractionStyle = "D";
+                if (format.TryGetValue(Name("F"), out PdfObject? fractionValue))
+                {
+                    fractionStyle = (Resolve(fractionValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} /{key} number format /F value is not a name.");
+                    if (fractionStyle is not ("D" or "F" or "R" or "T"))
+                        throw new InvalidOperationException(
+                            $"{description} /{key} number format /F /{fractionStyle} is not defined.");
+                }
+                if (format.TryGetValue(Name("D"), out PdfObject? denominatorValue))
+                {
+                    if (Resolve(denominatorValue) is not PdfInteger denominator
+                        || denominator.Value <= 0
+                        || (fractionStyle == "D" && denominator.Value % 10 != 0))
+                        throw new InvalidOperationException(
+                            $"{description} /{key} number format has an invalid /D value.");
+                }
+                if (format.TryGetValue(Name("FD"), out PdfObject? fixedDenominator)
+                    && Resolve(fixedDenominator) is not PdfBoolean)
+                    throw new InvalidOperationException(
+                        $"{description} /{key} number format /FD value is not boolean.");
+                foreach (string stringKey in new[] { "RT", "RD", "PS", "SS" })
+                {
+                    if (format.TryGetValue(Name(stringKey), out PdfObject? stringValue)
+                        && Resolve(stringValue) is not PdfString)
+                        throw new InvalidOperationException(
+                            $"{description} /{key} number format /{stringKey} value is not a string.");
+                }
+                if (format.TryGetValue(Name("O"), out PdfObject? orderValue))
+                {
+                    string order = (Resolve(orderValue) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"{description} /{key} number format /O value is not a name.");
+                    if (order is not ("S" or "P"))
+                        throw new InvalidOperationException(
+                            $"{description} /{key} number format /O /{order} is not defined.");
+                }
+                if (index != formats.Count - 1
+                    && new[] { "F", "D", "FD" }.Any(entry => format.ContainsKey(Name(entry))))
+                    throw new InvalidOperationException(
+                        $"{description} /{key} number format uses fractional display entries before the last array element.");
+            }
+        }
+        PdfArray RequireNumericArray(PdfObject item, string key)
+        {
+            PdfArray array = Resolve(item) as PdfArray
+                ?? throw new InvalidOperationException($"{description} /{key} is not an array.");
+            if (array.Any(entry => !TryMeasureNumber(Resolve(entry), out double number)
+                || !double.IsFinite(number)))
+                throw new InvalidOperationException($"{description} /{key} is not a numeric array.");
+            return array;
+        }
+        static bool TryMeasureNumber(PdfObject item, out double number)
+        {
+            if (item is PdfInteger integer) { number = integer.Value; return true; }
+            if (item is PdfReal real) { number = real.Value; return true; }
+            number = 0;
+            return false;
+        }
+    }
+
+    private static void ValidateAnnotationAppearanceStream(
+        PdfDocument document, PdfStream stream, string description,
+        bool trapNetwork, bool printerMark)
+    {
+        PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+            ? document.Resolve(reference) : item;
+        if (!stream.Dictionary.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+            || Resolve(subtype) is not PdfName subtypeName
+            || subtypeName.ValueAsLatin1() != "Form")
+            throw new InvalidOperationException(
+                $"{description} has no valid /Subtype /Form value.");
+        ValidatePageXObject(document, stream, description);
+        if (printerMark)
+        {
+            if (stream.Dictionary.TryGetValue(Name("MarkStyle"), out PdfObject? markStyle)
+                && Resolve(markStyle) is not PdfString)
+                throw new InvalidOperationException(
+                    $"{description} /MarkStyle value is not a text string.");
+            if (stream.Dictionary.TryGetValue(Name("Colorants"), out PdfObject? colorantsValue))
+            {
+                PdfDictionary colorants = Resolve(colorantsValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"{description} /Colorants value is not a dictionary.");
+                foreach (var colorant in colorants)
+                {
+                    PdfObject colorSpaceValue = Resolve(colorant.Value);
+                    if (colorSpaceValue is not PdfArray colorSpace
+                        || colorSpace.Count < 2
+                        || Resolve(colorSpace[0]) is not PdfName family
+                        || family.ValueAsLatin1() != "Separation"
+                        || Resolve(colorSpace[1]) is not PdfName colorantName
+                        || !colorantName.Equals(colorant.Key))
+                        throw new InvalidOperationException(
+                            $"{description} /Colorants /{colorant.Key.ValueAsLatin1()} value is not a matching Separation color space.");
+                    ValidatePageColorSpace(document, colorSpaceValue,
+                        $"{description} /Colorants /{colorant.Key.ValueAsLatin1()} value");
+                }
+            }
+        }
+        if (!trapNetwork) return;
+        if (!stream.Dictionary.TryGetValue(Name("PCM"), out PdfObject? processModel)
+            || Resolve(processModel) is not PdfName processModelName)
+            throw new InvalidOperationException(
+                $"{description} has no /PCM process-color-model name.");
+        string processModelValue = processModelName.ValueAsLatin1();
+        if (processModelValue is not ("DeviceGray" or "DeviceRGB" or "DeviceCMYK"
+            or "DeviceCMY" or "DeviceRGBK" or "DeviceN"))
+            throw new InvalidOperationException(
+                $"{description} /PCM value /{processModelValue} is not defined.");
+        if (stream.Dictionary.TryGetValue(
+                Name("SeparationColorNames"), out PdfObject? colorNamesValue))
+        {
+            PdfArray colorNames = Resolve(colorNamesValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /SeparationColorNames value is not an array.");
+            if (colorNames.Any(item => Resolve(item) is not PdfName))
+                throw new InvalidOperationException(
+                    $"{description} /SeparationColorNames contains a non-name entry.");
+        }
+        if (stream.Dictionary.TryGetValue(Name("TrapRegions"), out PdfObject? regionsValue))
+        {
+            PdfArray regions = Resolve(regionsValue) as PdfArray
+                ?? throw new InvalidOperationException(
+                    $"{description} /TrapRegions value is not an array.");
+            foreach (PdfObject regionValue in regions)
+            {
+                if (regionValue is not PdfIndirectReference regionReference
+                    || document.Resolve(regionReference) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"{description} /TrapRegions contains a non-indirect dictionary entry.");
+            }
+        }
+        if (stream.Dictionary.TryGetValue(Name("TrapStyles"), out PdfObject? styles)
+            && Resolve(styles) is not PdfString)
+            throw new InvalidOperationException(
+                $"{description} /TrapStyles value is not a text string.");
     }
 
     private static int CurrentRotation(PageState state)

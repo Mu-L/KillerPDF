@@ -14,6 +14,84 @@ namespace KillerPdf.Engine.Tests.Signing;
 public sealed class PdfSignatureReaderTests
 {
     [Fact]
+    public void Read_DecodesPdf20Utf8SignatureFieldNames()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40)
+            .Build());
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(source.Resolve(
+            Assert.IsType<PdfIndirectReference>(source.Trailer[new PdfName("Root"u8)])));
+        PdfObject formValue = catalog[new PdfName("AcroForm"u8)];
+        PdfDictionary form = Assert.IsType<PdfDictionary>(
+            formValue is PdfIndirectReference formReference
+                ? source.Resolve(formReference) : formValue);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(form[new PdfName("Fields"u8)])[0]);
+        PdfDictionary field = Assert.IsType<PdfDictionary>(source.Resolve(fieldReference));
+        byte[] utf8Name = [0xEF, 0xBB, 0xBF, .. "approval"u8.ToArray()];
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(fieldReference.ObjectNumber, new PdfDictionary(field
+                .Where(entry => !entry.Key.Equals(new PdfName("T"u8)))
+                .Append(new KeyValuePair<PdfName, PdfObject>(new PdfName("T"u8),
+                    new PdfString(utf8Name, PdfStringForm.Hexadecimal)))))
+            .Build());
+
+        PdfSignatureInfo signature = Assert.Single(PdfSignatureReader.Read(reopened));
+
+        Assert.Equal("approval", signature.FieldName);
+    }
+
+    [Fact]
+    public void Read_DecodesPdfDocEncodingSignatureFieldNames()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40)
+            .Build());
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(source.Resolve(
+            Assert.IsType<PdfIndirectReference>(source.Trailer[Name("Root")])));
+        PdfObject formValue = catalog[Name("AcroForm")];
+        PdfDictionary form = formValue is PdfIndirectReference formReference
+            ? Assert.IsType<PdfDictionary>(source.Resolve(formReference))
+            : Assert.IsType<PdfDictionary>(formValue);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfDictionary field = Assert.IsType<PdfDictionary>(source.Resolve(fieldReference));
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(fieldReference.ObjectNumber, new PdfDictionary(field
+                .Where(entry => !entry.Key.Equals(Name("T")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("T"),
+                    new PdfString([0x80, 0xA0], PdfStringForm.Literal)))))
+            .Build());
+
+        PdfSignatureInfo signature = Assert.Single(PdfSignatureReader.Read(reopened));
+
+        Assert.Equal("•€", signature.FieldName);
+    }
+
+    [Fact]
+    public void Read_UsesRootInheritedFromAnOlderTrailerRevision()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40)
+            .Build());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.AddObject(new PdfInteger(1));
+        string revision = Encoding.Latin1.GetString(update.Build());
+        Match root = Regex.Matches(revision, @"/Root \d+ \d+ R").Last();
+        revision = revision.Remove(root.Index, root.Length)
+            .Insert(root.Index, new string(' ', root.Length));
+
+        PdfSignatureInfo signature = Assert.Single(PdfSignatureReader.Read(
+            PdfDocument.Open(Encoding.Latin1.GetBytes(revision))));
+
+        Assert.Equal("approval", signature.FieldName);
+        Assert.False(signature.IsSigned);
+    }
+
+    [Fact]
     public void Read_ReportsUnsignedAndCertificationSignaturesAndExtractsSignedContent()
     {
         byte[] source = new PdfDocumentBuilder()

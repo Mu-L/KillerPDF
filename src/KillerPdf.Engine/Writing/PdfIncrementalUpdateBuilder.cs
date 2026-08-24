@@ -5,6 +5,7 @@ using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Syntax;
 using System.Security.Cryptography;
 using System.IO.Compression;
+using System.Text;
 
 namespace KillerPdf.Engine.Writing;
 
@@ -165,8 +166,9 @@ public sealed class PdfIncrementalUpdateBuilder
         if (options.CompressObjectStreams && !options.UseObjectStreams)
             throw new InvalidOperationException(
                 "Object-stream compression requires object streams to be enabled.");
+        PdfVersion effectiveVersion = EffectiveVersion();
         if (options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream
-            && EffectiveVersion().CompareTo(new PdfVersion(1, 5)) < 0)
+            && effectiveVersion.CompareTo(new PdfVersion(1, 5)) < 0)
             throw new InvalidOperationException(
                 "Cross-reference streams require PDF 1.5 or later.");
         int[] unassigned = _reserved.Where(number => !_objects.ContainsKey(number)).Order().ToArray();
@@ -175,10 +177,12 @@ public sealed class PdfIncrementalUpdateBuilder
                 $"Reserved object {unassigned[0]} has not been assigned a value.");
         if (_objects.Count == 0 && _freed.Count == 0)
             throw new InvalidOperationException("An incremental update must contain at least one object.");
+        ValidateStandardTrailerState();
         if (_freed.Keys.Any(number => IsInheritedTrailerReference(RootName, number)
                 || IsInheritedTrailerReference(EncryptName, number)))
             throw new InvalidOperationException(
                 "The document catalog or encryption dictionary cannot be freed.");
+        ValidateApplicationTrailerGraphs();
 
         using var output = new MemoryStream();
         output.Write(_document.Source.Span);
@@ -249,8 +253,7 @@ public sealed class PdfIncrementalUpdateBuilder
 
             output.Write("trailer\n"u8);
             PdfObjectWriter.Write(output, BuildTrailer(
-                revisionIdentifier, _nextObjectNumber,
-                stripCrossReferenceStreamNames: _document.CrossReferences.Sections[0].IsStream));
+                revisionIdentifier, _nextObjectNumber));
             output.WriteByte((byte)'\n');
         }
         output.Write("startxref\n"u8);
@@ -294,7 +297,7 @@ public sealed class PdfIncrementalUpdateBuilder
         PdfArray indexRanges = BuildIndexRanges(numbers);
         byte[] encoded = compress ? Compress(rows) : rows;
         var entries = BuildTrailer(
-            revisionIdentifier, size, stripCrossReferenceStreamNames: true).ToList();
+            revisionIdentifier, size).ToList();
         entries.Add(new(TypeName, XRefName));
         entries.Add(new(WName, new PdfArray([
             new PdfInteger(1), new PdfInteger(4), new PdfInteger(4)])));
@@ -422,17 +425,16 @@ public sealed class PdfIncrementalUpdateBuilder
         return output.ToArray();
     }
 
-    private PdfDictionary BuildTrailer(
-        byte[] revisionIdentifier, int size, bool stripCrossReferenceStreamNames)
+    private PdfDictionary BuildTrailer(byte[] revisionIdentifier, int size)
     {
         var entries = new List<KeyValuePair<PdfName, PdfObject>>();
-        foreach ((PdfName name, PdfObject value) in _document.Trailer)
+        foreach ((PdfName name, PdfObject value) in _document.CrossReferences.MergedTrailer)
         {
             if (name.Equals(SizeName) || name.Equals(PrevName) || name.Equals(XRefStmName)
                 || name.Equals(IdName) || name.Equals(DocChecksumName)
                 || _documentInformationSpecified && name.Equals(InfoName))
                 continue;
-            if (stripCrossReferenceStreamNames && XrefStreamOnlyNames.Contains(name))
+            if (XrefStreamOnlyNames.Contains(name))
                 continue;
             entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
         }
@@ -501,7 +503,12 @@ public sealed class PdfIncrementalUpdateBuilder
         if (root is not PdfDictionary catalog
             || !catalog.TryGetValue(VersionName, out PdfObject catalogVersionValue))
             return version;
-        if (catalogVersionValue is not PdfName catalogVersion)
+        PdfObject resolvedCatalogVersion = catalogVersionValue is PdfIndirectReference versionReference
+            ? _objects.TryGetValue(versionReference.ObjectNumber, out PendingObject? versionPending)
+                && versionPending.Generation == versionReference.Generation
+                    ? versionPending.Value : _document.Resolve(versionReference)
+            : catalogVersionValue;
+        if (resolvedCatalogVersion is not PdfName catalogVersion)
             throw new InvalidOperationException("The catalog /Version value is not a name.");
         string text = catalogVersion.ValueAsLatin1();
         if (text.Length != 3 || text[1] != '.'
@@ -514,6 +521,208 @@ public sealed class PdfIncrementalUpdateBuilder
                 $"The catalog /Version PDF {major}.{minor} is not defined.");
         PdfVersion declared = new(major, minor);
         return declared.CompareTo(version) > 0 ? declared : version;
+    }
+
+    private void ValidateApplicationTrailerGraphs()
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        foreach ((PdfName name, PdfObject value) in _document.CrossReferences.MergedTrailer)
+        {
+            if (name.Equals(SizeName) || name.Equals(PrevName) || name.Equals(XRefStmName)
+                || name.Equals(IdName) || name.Equals(DocChecksumName)
+                || name.Equals(RootName) || name.Equals(InfoName) || name.Equals(EncryptName)
+                || XrefStreamOnlyNames.Contains(name))
+                continue;
+            Validate(value, $"Trailer /{name.ValueAsLatin1()} value", 0);
+        }
+
+        void Validate(PdfObject value, string description, int depth)
+        {
+            if (depth > 64)
+                throw new NotSupportedException(
+                    "An application trailer graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                if (!IsLive(reference))
+                    throw new InvalidOperationException(
+                        $"{description} contains a stale indirect reference.");
+                if (!visited.Add((reference.ObjectNumber, reference.Generation))) return;
+                PdfObject resolved = _objects.TryGetValue(reference.ObjectNumber,
+                        out PendingObject? pending)
+                    && pending.Generation == reference.Generation
+                        ? pending.Value : _document.Resolve(reference);
+                Validate(resolved, description, depth + 1);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                    Validate(item, description, depth + 1);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary directDictionary => directDictionary,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (var entry in dictionary)
+                Validate(entry.Value, description, depth + 1);
+        }
+
+        bool IsLive(PdfIndirectReference reference)
+        {
+            if (_freed.ContainsKey(reference.ObjectNumber)) return false;
+            if (_objects.TryGetValue(reference.ObjectNumber, out PendingObject? pending))
+                return pending.Generation == reference.Generation;
+            if (!_document.CrossReferences.TryGetValue(
+                    reference.ObjectNumber, out PdfCrossReferenceEntry entry))
+                return false;
+            return entry.Type switch
+            {
+                PdfCrossReferenceEntryType.InUse => entry.Field2 == reference.Generation,
+                PdfCrossReferenceEntryType.Compressed => reference.Generation == 0,
+                _ => false
+            };
+        }
+    }
+
+    private void ValidateStandardTrailerState()
+    {
+        if (!_document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject root)
+            || root is not PdfIndirectReference rootReference
+            || !IsLive(rootReference)
+            || ResolveCurrent(rootReference) is not PdfDictionary catalog
+            || !catalog.TryGetValue(TypeName, out PdfObject catalogType)
+            || (catalogType is PdfIndirectReference catalogTypeReference
+                    ? ResolveCurrent(catalogTypeReference) : catalogType) is not PdfName catalogTypeName
+            || catalogTypeName.ValueAsLatin1() != "Catalog")
+            throw new InvalidOperationException(
+                "An incremental update requires trailer /Root to reference a live catalog dictionary.");
+
+        PdfObject? information = _documentInformationSpecified
+            ? _documentInformation
+            : _document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject inheritedInfo)
+                ? inheritedInfo : null;
+        if (information is not null
+            && (information is not PdfIndirectReference informationReference
+                || !IsLive(informationReference)
+                || ResolveCurrent(informationReference) is not PdfDictionary))
+            throw new InvalidOperationException(
+                "An incremental update requires trailer /Info to reference a live dictionary.");
+        if (information is PdfIndirectReference liveInformation
+            && ResolveCurrent(liveInformation) is PdfDictionary informationDictionary)
+        {
+            if (_documentInformationSpecified)
+                ValidateDocumentInformation(informationDictionary, value =>
+                    value is PdfIndirectReference reference
+                        ? ResolveCurrent(reference) : value);
+            ValidateInformationGraph(informationDictionary, 0,
+                new HashSet<(int ObjectNumber, int Generation)>());
+        }
+
+        bool hasIdentifiers = _document.CrossReferences.TryGetTrailerValue(
+            IdName, out PdfObject identifiers);
+        if (hasIdentifiers
+            && (identifiers is not PdfArray identifierArray
+                || identifierArray.Count != 2
+                || identifierArray.Any(item => item is not PdfString)))
+            throw new InvalidOperationException(
+                "An incremental update requires trailer /ID to be an array of two strings.");
+        if (_document.IsEncrypted && !hasIdentifiers)
+            throw new InvalidOperationException(
+                "An encrypted incremental update requires trailer /ID document identifiers.");
+
+        if (_document.CrossReferences.TryGetTrailerValue(
+                EncryptName, out PdfObject encryption)
+            && (encryption is not PdfIndirectReference encryptionReference
+                || !IsLive(encryptionReference)
+                || ResolveCurrent(encryptionReference) is not PdfDictionary))
+            throw new InvalidOperationException(
+                "An incremental update requires trailer /Encrypt to reference a live dictionary.");
+
+        PdfObject ResolveCurrent(PdfIndirectReference reference) =>
+            _objects.TryGetValue(reference.ObjectNumber, out PendingObject? pending)
+            && pending.Generation == reference.Generation
+                ? pending.Value : _document.Resolve(reference);
+
+        bool IsLive(PdfIndirectReference reference)
+        {
+            if (_freed.ContainsKey(reference.ObjectNumber)) return false;
+            if (_objects.TryGetValue(reference.ObjectNumber, out PendingObject? pending))
+                return pending.Generation == reference.Generation;
+            if (!_document.CrossReferences.TryGetValue(
+                    reference.ObjectNumber, out PdfCrossReferenceEntry entry))
+                return false;
+            return entry.Type switch
+            {
+                PdfCrossReferenceEntryType.InUse => entry.Field2 == reference.Generation,
+                PdfCrossReferenceEntryType.Compressed => reference.Generation == 0,
+                _ => false
+            };
+        }
+
+        void ValidateInformationGraph(PdfObject value, int depth,
+            HashSet<(int ObjectNumber, int Generation)> visited)
+        {
+            if (depth > 64)
+                throw new NotSupportedException(
+                    "The document-information graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                if (!IsLive(reference))
+                    throw new InvalidOperationException(
+                        "Trailer /Info value contains a stale indirect reference.");
+                if (!visited.Add((reference.ObjectNumber, reference.Generation))) return;
+                ValidateInformationGraph(ResolveCurrent(reference), depth + 1, visited);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                    ValidateInformationGraph(item, depth + 1, visited);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary directDictionary => directDictionary,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (var entry in dictionary)
+                ValidateInformationGraph(entry.Value, depth + 1, visited);
+        }
+    }
+
+    private static void ValidateDocumentInformation(
+        PdfDictionary information, Func<PdfObject, PdfObject> resolve)
+    {
+        foreach (string key in new[]
+            { "Title", "Author", "Subject", "Keywords", "Creator", "Producer",
+              "CreationDate", "ModDate" })
+            if (information.TryGetValue(new PdfName(Encoding.ASCII.GetBytes(key)),
+                    out PdfObject value)
+                && resolve(value) is not PdfString)
+                throw new InvalidOperationException(
+                    $"Trailer /Info /{key} value is not a string.");
+        foreach (string key in new[] { "CreationDate", "ModDate" })
+        {
+            PdfName name = new(Encoding.ASCII.GetBytes(key));
+            if (information.TryGetValue(name, out PdfObject value)
+                && resolve(value) is PdfString date && !PdfDateStringValidator.IsValid(date))
+                throw new InvalidOperationException(
+                    $"Trailer /Info /{key} value is not a valid PDF date string.");
+        }
+        PdfName trappedName = new("Trapped"u8);
+        if (!information.TryGetValue(trappedName, out PdfObject trapped)) return;
+        string state = (resolve(trapped) as PdfName)?.ValueAsLatin1()
+            ?? throw new InvalidOperationException(
+                "Trailer /Info /Trapped value is not a name.");
+        if (state is not ("True" or "False" or "Unknown"))
+            throw new InvalidOperationException(
+                $"Trailer /Info /Trapped value /{state} is not defined.");
     }
 
     private static int InitialSize(PdfDocument document)

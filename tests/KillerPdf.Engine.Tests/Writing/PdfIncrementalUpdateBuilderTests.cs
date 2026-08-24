@@ -99,6 +99,297 @@ public sealed class PdfIncrementalUpdateBuilderTests
     }
 
     [Fact]
+    public void Writers_PreserveApplicationTrailerStateInheritedFromOlderRevisions()
+    {
+        PdfDocument source = PdfDocument.Open(SourceWithInheritedTrailerState());
+        Assert.False(source.Trailer.ContainsKey(Name("PrivateState")));
+        Assert.True(source.CrossReferences.MergedTrailer.ContainsKey(Name("PrivateState")));
+
+        PdfDocument incrementallyUpdated = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(source)
+                .ReplaceObject(2, new PdfInteger(8))
+                .Build());
+        PdfDocument fullyRewritten = PdfDocument.Open(PdfDocumentWriter.Write(source));
+
+        Assert.True(incrementallyUpdated.Trailer.ContainsKey(Name("PrivateState")));
+        Assert.True(fullyRewritten.Trailer.ContainsKey(Name("PrivateState")));
+        foreach (string structuralName in new[]
+            { "Type", "W", "Index", "Length", "Filter" })
+        {
+            Assert.False(incrementallyUpdated.Trailer.ContainsKey(Name(structuralName)));
+            Assert.False(fullyRewritten.Trailer.ContainsKey(Name(structuralName)));
+        }
+
+        PdfDocument staleInherited = PdfDocument.Open(
+            SourceWithInheritedTrailerState("[2 1 R]"));
+        InvalidOperationException incrementalError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalUpdateBuilder(staleInherited)
+                .ReplaceObject(2, new PdfInteger(8))
+                .Build());
+        InvalidOperationException rewriteError = Assert.Throws<InvalidOperationException>(() =>
+            PdfDocumentWriter.Write(staleInherited));
+        Assert.Contains("Trailer /PrivateState value contains a stale indirect reference",
+            incrementalError.Message, StringComparison.Ordinal);
+        Assert.Contains("Trailer /PrivateState value contains a stale indirect reference",
+            rewriteError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Writers_UseNewestApplicationTrailerValueAcrossRevisions()
+    {
+        PdfDocument source = PdfDocument.Open(SourceWithInheritedTrailerState(
+            "<< /Enabled false >>", "<< /Enabled true >>"));
+        PdfDictionary mergedState = Assert.IsType<PdfDictionary>(
+            source.CrossReferences.MergedTrailer[Name("PrivateState")]);
+        Assert.True(Assert.IsType<PdfBoolean>(mergedState[Name("Enabled")]).Value);
+
+        PdfDocument incrementallyUpdated = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(source)
+                .ReplaceObject(2, new PdfInteger(8))
+                .Build());
+        PdfDocument fullyRewritten = PdfDocument.Open(PdfDocumentWriter.Write(source));
+
+        Assert.True(Assert.IsType<PdfBoolean>(Assert.IsType<PdfDictionary>(
+            incrementallyUpdated.Trailer[Name("PrivateState")])[Name("Enabled")]).Value);
+        Assert.True(Assert.IsType<PdfBoolean>(Assert.IsType<PdfDictionary>(
+            fullyRewritten.Trailer[Name("PrivateState")])[Name("Enabled")]).Value);
+    }
+
+    [Fact]
+    public void Build_RejectsStaleApplicationTrailerReferences()
+    {
+        PdfDocument source = PdfDocument.Open(SourceWithTrailerState("[1 1 R]"));
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.AddObject(new PdfInteger(1));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => update.Build());
+
+        Assert.Contains("Trailer /PrivateState value contains a stale indirect reference",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsStaleCatalogRoot()
+    {
+        string sourceText = Encoding.ASCII.GetString(SourceWithTrailerState())
+            .Replace("/Root 1 0 R", "/Root 1 1 R", StringComparison.Ordinal);
+        var update = new PdfIncrementalUpdateBuilder(
+            PdfDocument.Open(Encoding.ASCII.GetBytes(sourceText)));
+        update.AddObject(new PdfInteger(1));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => update.Build());
+
+        Assert.Contains("trailer /Root to reference a live catalog dictionary",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedInheritedDocumentIdentifiers()
+    {
+        string sourceText = Encoding.ASCII.GetString(SourceWithTrailerState())
+            .Replace("/DocChecksum", "/ID [<01>] /DocChecksum",
+                StringComparison.Ordinal);
+        var update = new PdfIncrementalUpdateBuilder(
+            PdfDocument.Open(Encoding.ASCII.GetBytes(sourceText)));
+        update.AddObject(new PdfInteger(1));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => update.Build());
+
+        Assert.Contains("trailer /ID to be an array of two strings",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_ResolvesIndirectCatalogVersionNames()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(source.Resolve(catalogReference));
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference catalogType = update.AddObject(Name("Catalog"));
+        PdfIndirectReference version = update.AddObject(Name("2.0"));
+        update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+            .Where(entry => !entry.Key.Equals(Name("Type")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Type"), catalogType))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Version"), version))));
+
+        PdfDocument reopened = PdfDocument.Open(update.Build(
+            new PdfIncrementalUpdateWriteOptions
+            {
+                CrossReferenceFormat = PdfCrossReferenceFormat.Stream
+            }));
+
+        Assert.True(reopened.CrossReferences.Sections[0].IsStream);
+    }
+
+    [Fact]
+    public void Build_ValidatesCatalogVersionForClassicTables()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(source.Resolve(catalogReference));
+        var update = new PdfIncrementalUpdateBuilder(source);
+        update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Version"), Name("Future")))));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => update.Build());
+
+        Assert.Contains("catalog /Version value is not a PDF version",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsInvalidReplacementDocumentInformationFields()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference information = update.AddObject(new PdfDictionary([
+            new(Name("Title"), new PdfInteger(17))
+        ]));
+        update.SetDocumentInformation(information);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => update.Build());
+
+        Assert.Contains("Trailer /Info /Title value is not a string",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_PreservesMalformedInheritedDocumentInformationDuringUnrelatedUpdate()
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int catalogOffset = source.Length;
+        source.Append("1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        int informationOffset = source.Length;
+        source.Append("2 0 obj\n<< /Title 7 /ModDate (not-a-date) >>\nendobj\n");
+        int xrefOffset = source.Length;
+        source.Append("xref\n0 3\n0000000000 65535 f\n");
+        source.Append($"{catalogOffset:0000000000} 00000 n\n");
+        source.Append($"{informationOffset:0000000000} 00000 n\n");
+        source.Append("trailer\n<< /Size 3 /Root 1 0 R /Info 2 0 R >>\n");
+        source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        PdfDocument document = PdfDocument.Open(
+            Encoding.ASCII.GetBytes(source.ToString()));
+
+        var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference marker = update.AddObject(new PdfInteger(1));
+        PdfDocument reopened = PdfDocument.Open(update.Build());
+
+        Assert.Equal(1, Assert.IsType<PdfInteger>(reopened.Resolve(marker)).Value);
+        PdfIndirectReference informationReference = Assert.IsType<PdfIndirectReference>(
+            reopened.Trailer[Name("Info")]);
+        PdfDictionary information = Assert.IsType<PdfDictionary>(
+            reopened.Resolve(informationReference));
+        Assert.Equal(7, Assert.IsType<PdfInteger>(information[Name("Title")]).Value);
+    }
+
+    [Theory]
+    [InlineData("D:20251301000000Z")]
+    [InlineData("D:2026Z")]
+    [InlineData("D:20260824120000+0700")]
+    public void Build_RejectsInvalidReplacementDocumentInformationDates(string date)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference information = update.AddObject(new PdfDictionary([
+            new(Name("ModDate"), new PdfString(
+                Encoding.ASCII.GetBytes(date), PdfStringForm.Literal))
+        ]));
+        update.SetDocumentInformation(information);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => update.Build());
+
+        Assert.Contains("Trailer /Info /ModDate value is not a valid PDF date string",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("D:2026")]
+    [InlineData("D:202608")]
+    [InlineData("D:20260824")]
+    [InlineData("D:2026082412")]
+    [InlineData("D:202608241234")]
+    [InlineData("D:20240229123456")]
+    [InlineData("D:20260824123456Z")]
+    [InlineData("D:20260824123456-07'00'")]
+    [InlineData("D:20260824123456+05'30")]
+    public void Build_AcceptsValidReplacementDocumentInformationDates(string date)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference information = update.AddObject(new PdfDictionary([
+            new(Name("ModDate"), new PdfString(
+                Encoding.ASCII.GetBytes(date), PdfStringForm.Literal))
+        ]));
+
+        PdfDocument reopened = PdfDocument.Open(
+            update.SetDocumentInformation(information).Build());
+
+        Assert.IsType<PdfDictionary>(reopened.Resolve(information));
+    }
+
+    [Fact]
+    public void Build_ResolvesIndirectReplacementDocumentInformationFields()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference title = update.AddObject(
+            new PdfString("Indirect title"u8, PdfStringForm.Literal));
+        PdfIndirectReference information = update.AddObject(new PdfDictionary([
+            new(Name("Title"), title)
+        ]));
+
+        PdfDocument reopened = PdfDocument.Open(
+            update.SetDocumentInformation(information).Build());
+
+        PdfDictionary rewrittenInformation = Assert.IsType<PdfDictionary>(
+            reopened.Resolve(information));
+        Assert.Equal("Indirect title", DecodeLatin1(Assert.IsType<PdfString>(
+            reopened.Resolve(Assert.IsType<PdfIndirectReference>(
+                rewrittenInformation[Name("Title")])))));
+    }
+
+    [Fact]
+    public void Build_RejectsStaleCustomReplacementDocumentInformationGraphs()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference information = update.AddObject(new PdfDictionary([
+            new(Name("Private"), new PdfArray([
+                new PdfIndirectReference(999, 0)
+            ]))
+        ]));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            update.SetDocumentInformation(information).Build());
+
+        Assert.Contains("Trailer /Info value contains a stale indirect reference",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ReplacingAnObject_PreservesItsCurrentGeneration()
     {
         byte[] source = SourceWithGenerationTwo();
@@ -214,19 +505,17 @@ public sealed class PdfIncrementalUpdateBuilderTests
     }
 
     [Fact]
-    public void FreeObject_DoesNotRemoveAStaleInformationRegistrationByNumberAlone()
+    public void FreeObject_RejectsAStaleInheritedInformationRegistration()
     {
         PdfDocument source = PdfDocument.Open(SourceWithStaleInformationReference());
 
-        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
-            .FreeObject(2)
-            .Build());
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalUpdateBuilder(source)
+                .FreeObject(2)
+                .Build());
 
-        PdfIndirectReference information = Assert.IsType<PdfIndirectReference>(
-            reopened.Trailer[Name("Info")]);
-        Assert.Equal(2, information.ObjectNumber);
-        Assert.Equal(1, information.Generation);
-        Assert.Equal(PdfCrossReferenceEntryType.Free, reopened.CrossReferences[2].Type);
+        Assert.Contains("trailer /Info to reference a live dictionary",
+            error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -566,7 +855,8 @@ public sealed class PdfIncrementalUpdateBuilderTests
         return Encoding.ASCII.GetBytes(source.ToString());
     }
 
-    private static byte[] SourceWithTrailerState()
+    private static byte[] SourceWithTrailerState(
+        string privateState = "<< /Enabled true >>")
     {
         var source = new StringBuilder("%PDF-2.0\n");
         int catalogOffset = source.Length;
@@ -575,8 +865,35 @@ public sealed class PdfIncrementalUpdateBuilderTests
         source.Append("xref\n0 2\n0000000000 65535 f \n");
         source.Append($"{catalogOffset:0000000000} 00000 n \n");
         source.Append("trailer\n<< /Size 2 /Root 1 0 R " +
-            "/PrivateState << /Enabled true >> /DocChecksum <01020304> >>\n");
+            $"/PrivateState {privateState} /DocChecksum <01020304> >>\n");
         source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(source.ToString());
+    }
+
+    private static byte[] SourceWithInheritedTrailerState(
+        string privateState = "<< /Enabled true >>",
+        string? latestPrivateState = null)
+    {
+        var source = new StringBuilder("%PDF-2.0\n");
+        int catalogOffset = source.Length;
+        source.Append("1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        int firstXrefOffset = source.Length;
+        source.Append("xref\n0 2\n0000000000 65535 f \n");
+        source.Append($"{catalogOffset:0000000000} 00000 n \n");
+        source.Append("trailer\n<< /Size 2 /Root 1 0 R " +
+            $"/PrivateState {privateState} /Type /XRef /W [1 2 1] " +
+            "/Index [0 2] /Length 9 /Filter /FlateDecode >>\n");
+        source.Append($"startxref\n{firstXrefOffset}\n%%EOF\n");
+        int valueOffset = source.Length;
+        source.Append("2 0 obj\n7\nendobj\n");
+        int latestXrefOffset = source.Length;
+        source.Append("xref\n2 1\n");
+        source.Append($"{valueOffset:0000000000} 00000 n \n");
+        source.Append($"trailer\n<< /Size 3 /Root 1 0 R /Prev {firstXrefOffset}");
+        if (latestPrivateState is not null)
+            source.Append($" /PrivateState {latestPrivateState}");
+        source.Append(" >>\n");
+        source.Append($"startxref\n{latestXrefOffset}\n%%EOF\n");
         return Encoding.ASCII.GetBytes(source.ToString());
     }
 
@@ -599,8 +916,9 @@ public sealed class PdfIncrementalUpdateBuilderTests
 
     private static byte[] ObjectStreamPdf()
     {
-        byte[] header = "1 0 2 6 "u8.ToArray();
-        byte[] body = "(root)<< /Answer 42 >>"u8.ToArray();
+        byte[] catalog = "<< /Type /Catalog >>"u8.ToArray();
+        byte[] header = Encoding.ASCII.GetBytes($"1 0 2 {catalog.Length} ");
+        byte[] body = [.. catalog, .. "<< /Answer 42 >>"u8.ToArray()];
         byte[] objectStreamData = [.. header, .. body];
         using var output = new MemoryStream();
         WriteAscii(output, "%PDF-2.0\n");

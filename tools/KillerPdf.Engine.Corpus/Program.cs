@@ -1893,8 +1893,10 @@ if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
     int unsupported = 0;
     int empty = 0;
     int malformed = 0;
+    int rejected = 0;
     int importFailed = 0;
     var unsupportedReasons = new Dictionary<string, int>(StringComparer.Ordinal);
+    var rejectedReasons = new Dictionary<string, int>(StringComparer.Ordinal);
     foreach (string file in importFiles)
     {
         PdfDocument source;
@@ -1933,6 +1935,13 @@ if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
             Console.WriteLine($"SOURCE {file}: {exception.GetType().Name}: {exception.Message}");
             continue;
         }
+        catch (InvalidOperationException exception)
+        {
+            rejected++;
+            rejectedReasons[exception.Message] =
+                rejectedReasons.GetValueOrDefault(exception.Message) + 1;
+            continue;
+        }
         catch (Exception exception)
         {
             importFailed++;
@@ -1955,10 +1964,14 @@ if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
     Console.WriteLine(
         $"Selected-page corpus: {importFiles.Length:N0} files, {imported:N0} imported, " +
         $"{unsupported:N0} intentionally unsupported, {empty:N0} empty, " +
-        $"{malformed:N0} malformed or credential-protected sources, {importFailed:N0} unexpected failures.");
+        $"{malformed:N0} malformed or credential-protected sources, " +
+        $"{rejected:N0} rejected by import validation, {importFailed:N0} unexpected failures.");
     foreach (var reason in unsupportedReasons.OrderByDescending(entry => entry.Value)
                  .ThenBy(entry => entry.Key, StringComparer.Ordinal))
         Console.WriteLine($"  {reason.Value:N0} x {reason.Key}");
+    foreach (var reason in rejectedReasons.OrderByDescending(entry => entry.Value)
+                 .ThenBy(entry => entry.Key, StringComparer.Ordinal))
+        Console.WriteLine($"  {reason.Value:N0} rejected x {reason.Key}");
     return importFailed == 0 ? 0 : 1;
 }
 

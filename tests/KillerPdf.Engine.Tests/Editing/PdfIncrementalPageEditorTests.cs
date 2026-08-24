@@ -477,8 +477,1781 @@ public sealed class PdfIncrementalPageEditorTests
                 .AddImportedPage(source, 0)
                 .Build());
 
-        Assert.Contains("/Resources /XObject entry resolves to null",
+        Assert.Contains("/Resources /XObject /Im1 entry resource resolves to null",
             error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMistypedImportedPageResourceEntries()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Subtype"), Name("Image"))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /XObject /Bad entry has an invalid object type",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageXObjects()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference malformedXObject = update.AddObject(new PdfStream(
+            new PdfDictionary([new(Name("Type"), Name("XObject"))]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Bad"), malformedXObject)
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /XObject /Bad entry has no /Subtype value",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsImportedImageColorKeyWithWrongComponentCount()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference image = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Image")),
+                new(Name("Width"), new PdfInteger(1)),
+                new(Name("Height"), new PdfInteger(1)),
+                new(Name("ColorSpace"), Name("DeviceRGB")),
+                new(Name("BitsPerComponent"), new PdfInteger(8)),
+                new(Name("Mask"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(255)
+                ]))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([new(Name("Bad"), image)]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Mask color-key count does not match its color components",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("1.3", 2.0, false, false, "has no matching numeric /Version")]
+    [InlineData("1.3", 1.3, false, false, "has no /F file specification")]
+    [InlineData("1.3", 1.3, true, true, "has no eight-number /Position array")]
+    [InlineData("2.0", 2.0, true, true, "must define /Size and /CropRect together")]
+    [InlineData("1.3", 1.3, true, true, null)]
+    [InlineData("2.0", 2.0, true, true, null)]
+    public void Build_ValidatesImportedOpiDictionary(
+        string versionName, double declaredVersion, bool addFile,
+        bool addSize, string? expectedMessage)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        var opiEntries = new List<KeyValuePair<PdfName, PdfObject>>
+        {
+            new(Name("Type"), Name("OPI")),
+            new(Name("Version"), declaredVersion == Math.Truncate(declaredVersion)
+                ? new PdfInteger((long)declaredVersion)
+                : new PdfReal(declaredVersion))
+        };
+        if (addFile)
+            opiEntries.Add(new(Name("F"),
+                new PdfString("original.tif"u8, PdfStringForm.Literal)));
+        if (addSize)
+        {
+            opiEntries.Add(new(Name("Size"), new PdfArray([
+                new PdfInteger(10), new PdfInteger(10)
+            ])));
+            if (versionName == "1.3")
+                opiEntries.Add(new(Name("CropRect"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])));
+            if (expectedMessage is null && versionName == "1.3")
+                opiEntries.Add(new(Name("Position"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(0), new PdfInteger(10),
+                    new PdfInteger(10), new PdfInteger(10),
+                    new PdfInteger(10), new PdfInteger(0)
+                ])));
+            if (expectedMessage is null && versionName == "2.0")
+                opiEntries.Add(new(Name("CropRect"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])));
+        }
+        PdfIndirectReference image = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Image")),
+                new(Name("Width"), new PdfInteger(10)),
+                new(Name("Height"), new PdfInteger(10)),
+                new(Name("ColorSpace"), Name("DeviceRGB")),
+                new(Name("BitsPerComponent"), new PdfInteger(8)),
+                new(Name("OPI"), new PdfDictionary([
+                    new(Name(versionName), new PdfDictionary(opiEntries))
+                ]))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Bad"), image)
+            ]))
+        ]);
+        update.ReplaceObject(references[0].ObjectNumber,
+            new PdfDictionary(pages[0]
+                .Where(entry => !entry.Key.Equals(Name("Resources")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources))));
+        source = PdfDocument.Open(update.Build());
+
+        var editor = new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0);
+        if (expectedMessage is null)
+        {
+            _ = editor.Build();
+            return;
+        }
+        InvalidOperationException error =
+            Assert.Throws<InvalidOperationException>(() => editor.Build());
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Build_ValidatesImportedReferenceXObject(bool valid)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var referenceEntries = new List<KeyValuePair<PdfName, PdfObject>>
+        {
+            new(Name("Page"), new PdfInteger(0))
+        };
+        if (valid)
+        {
+            referenceEntries.Add(new(Name("F"),
+                new PdfString("external.pdf"u8, PdfStringForm.Literal)));
+            referenceEntries.Add(new(Name("ID"), new PdfArray([
+                new PdfString("permanent"u8, PdfStringForm.Hexadecimal),
+                new PdfString("revision"u8, PdfStringForm.Hexadecimal)
+            ])));
+        }
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference form = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Form")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new(Name("Ref"), new PdfDictionary(referenceEntries))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Reference"), form)
+            ]))
+        ]);
+        update.ReplaceObject(references[0].ObjectNumber,
+            new PdfDictionary(pages[0]
+                .Where(entry => !entry.Key.Equals(Name("Resources")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources))));
+        source = PdfDocument.Open(update.Build());
+        var editor = new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0);
+
+        if (valid)
+        {
+            _ = editor.Build();
+            return;
+        }
+        InvalidOperationException error =
+            Assert.Throws<InvalidOperationException>(() => editor.Build());
+        Assert.Contains("/Ref dictionary has no /F file specification",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Metadata", "/Metadata value is not an indirect stream reference")]
+    [InlineData("PtData", "/PtData requires a geospatial /Measure dictionary")]
+    [InlineData("Alternates", "alternate image has no /Image stream")]
+    [InlineData("EmptyAlternates", "/Alternates array is empty")]
+    [InlineData("Name", "/Name value is not a name")]
+    [InlineData("FormType", "/FormType value is not 1")]
+    public void Build_RejectsMalformedImportedXObjectAuxiliaryGraph(
+        string key, string expectedMessage)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        string actualKey = key == "EmptyAlternates" ? "Alternates" : key;
+        PdfObject malformedValue = key switch
+        {
+            "Metadata" => new PdfInteger(1),
+            "Name" => new PdfInteger(1),
+            "FormType" => new PdfInteger(2),
+            "PtData" => new PdfDictionary([
+                new(Name("Type"), Name("PtData")),
+                new(Name("Subtype"), Name("Cloud")),
+                new(Name("Names"), new PdfArray([Name("LAT")])),
+                new(Name("XPTS"), new PdfArray([
+                    new PdfArray([new PdfInteger(1)])
+                ]))
+            ]),
+            "EmptyAlternates" => new PdfArray([]),
+            _ => new PdfArray([new PdfDictionary([])])
+        };
+        var update = new PdfIncrementalUpdateBuilder(source);
+        var xObjectEntries = new List<KeyValuePair<PdfName, PdfObject>>
+        {
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name(key == "FormType" ? "Form" : "Image")),
+                new(Name(actualKey), malformedValue)
+        };
+        if (key == "FormType")
+            xObjectEntries.Add(new(Name("BBox"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])));
+        else
+            xObjectEntries.AddRange([
+                new(Name("Width"), new PdfInteger(10)),
+                new(Name("Height"), new PdfInteger(10)),
+                new(Name("ColorSpace"), Name("DeviceRGB")),
+                new(Name("BitsPerComponent"), new PdfInteger(8))
+            ]);
+        PdfIndirectReference image = update.AddObject(new PdfStream(
+            new PdfDictionary(xObjectEntries), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Bad"), image)
+            ]))
+        ]);
+        update.ReplaceObject(references[0].ObjectNumber,
+            new PdfDictionary(pages[0]
+                .Where(entry => !entry.Key.Equals(Name("Resources")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources))));
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0).Build());
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Build_ValidatesImportedPostScriptXObjectFallback(
+        bool valid, bool legacySubtype)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfObject fallback = valid
+            ? update.AddObject(new PdfStream(new PdfDictionary([]), []))
+            : new PdfInteger(1);
+        PdfIndirectReference postScript = update.AddObject(new PdfStream(
+            new PdfDictionary(new[]
+            {
+                new KeyValuePair<PdfName, PdfObject>(Name("Type"), Name("XObject")),
+                new KeyValuePair<PdfName, PdfObject>(
+                    Name("Subtype"), Name(legacySubtype ? "Form" : "PS")),
+                new KeyValuePair<PdfName, PdfObject>(Name("Level1"), fallback)
+            }.Concat(legacySubtype
+                ? [new KeyValuePair<PdfName, PdfObject>(Name("Subtype2"), Name("PS"))]
+                : [])), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("PostScript"), postScript)
+            ]))
+        ]);
+        update.ReplaceObject(references[0].ObjectNumber,
+            new PdfDictionary(pages[0]
+                .Where(entry => !entry.Key.Equals(Name("Resources")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources))));
+        source = PdfDocument.Open(update.Build());
+        var editor = new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0);
+
+        if (valid)
+        {
+            _ = editor.Build();
+            return;
+        }
+        InvalidOperationException error =
+            Assert.Throws<InvalidOperationException>(() => editor.Build());
+        Assert.Contains("/Level1 value is not an indirect stream reference",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedImageOptions()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference image = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Image")),
+                new(Name("Width"), new PdfInteger(10)),
+                new(Name("Height"), new PdfInteger(10)),
+                new(Name("ColorSpace"), Name("DeviceRGB")),
+                new(Name("BitsPerComponent"), new PdfInteger(8)),
+                new(Name("Decode"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(1)
+                ]))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Bad"), image)
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /XObject /Bad entry /Decode count does not match its color components",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false, 9, "/SMask dimensions do not match the image")]
+    [InlineData(true, 10, "/SMask has no /DeviceGray color space")]
+    public void Build_RejectsMalformedImportedImageSoftMasks(
+        bool omitColorSpace, int maskWidth, string expectedMessage)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        var softMaskEntries = new List<KeyValuePair<PdfName, PdfObject>>([
+            new(Name("Type"), Name("XObject")),
+            new(Name("Subtype"), Name("Image")),
+            new(Name("Width"), new PdfInteger(maskWidth)),
+            new(Name("Height"), new PdfInteger(10)),
+            new(Name("BitsPerComponent"), new PdfInteger(8))
+        ]);
+        if (!omitColorSpace)
+            softMaskEntries.Add(new(Name("ColorSpace"), Name("DeviceGray")));
+        PdfIndirectReference softMask = update.AddObject(new PdfStream(
+            new PdfDictionary(softMaskEntries), []));
+        PdfIndirectReference image = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Image")),
+                new(Name("Width"), new PdfInteger(10)),
+                new(Name("Height"), new PdfInteger(10)),
+                new(Name("ColorSpace"), Name("DeviceRGB")),
+                new(Name("BitsPerComponent"), new PdfInteger(8)),
+                new(Name("SMask"), softMask)
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Bad"), image)
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedFormGroups()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference form = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Form")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new(Name("Group"), new PdfDictionary([
+                    new(Name("Type"), Name("Group"))
+                ]))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Bad"), form)
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /XObject /Bad entry /Group has no /S /Transparency value",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedNestedFormResources()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference form = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Form")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new(Name("Resources"), new PdfDictionary([
+                    new(Name("Font"), new PdfDictionary([
+                        new(Name("Broken"), new PdfInteger(7))
+                    ]))
+                ]))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("XObject"), new PdfDictionary([
+                new(Name("Form"), form)
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /XObject /Form entry /Resources /Font /Broken entry has an invalid object type",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false, "/Resources /Font /Bad entry has no /Subtype value")]
+    [InlineData(true, "/Resources /Font /Bad entry has no /BaseFont name")]
+    public void Build_RejectsMalformedImportedPageFonts(
+        bool includeSubtype, string expectedMessage)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Font"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary(includeSubtype
+                    ? [new(Name("Type"), Name("Font")),
+                        new(Name("Subtype"), Name("Type1"))]
+                    : [new(Name("Type"), Name("Font"))]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedFontWidths()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Font"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("Font")),
+                    new(Name("Subtype"), Name("Type1")),
+                    new(Name("BaseFont"), Name("Helvetica")),
+                    new(Name("FirstChar"), new PdfInteger(32)),
+                    new(Name("LastChar"), new PdfInteger(33)),
+                    new(Name("Widths"), new PdfArray([new PdfInteger(500)]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("has inconsistent /FirstChar, /LastChar, or /Widths values",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedFontEncodingDifferences()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Font"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("Font")),
+                    new(Name("Subtype"), Name("Type1")),
+                    new(Name("BaseFont"), Name("Helvetica")),
+                    new(Name("Encoding"), new PdfDictionary([
+                        new(Name("Type"), Name("Encoding")),
+                        new(Name("Differences"), new PdfArray([Name("A")]))
+                    ]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Encoding /Differences glyph name has no valid preceding code",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsIncompleteImportedFontDescriptors()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Font"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("Font")),
+                    new(Name("Subtype"), Name("Type1")),
+                    new(Name("BaseFont"), Name("Example")),
+                    new(Name("FontDescriptor"), new PdfDictionary([
+                        new(Name("Type"), Name("FontDescriptor")),
+                        new(Name("FontName"), Name("Example")),
+                        new(Name("Flags"), new PdfInteger(32))
+                    ]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/FontDescriptor value has no four-number /FontBBox array",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsIncompleteImportedType3Fonts()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Font"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("Font")),
+                    new(Name("Subtype"), Name("Type3")),
+                    new(Name("Encoding"), Name("WinAnsiEncoding")),
+                    new(Name("FontBBox"), new PdfArray([
+                        new PdfInteger(0), new PdfInteger(0),
+                        new PdfInteger(500), new PdfInteger(700)
+                    ])),
+                    new(Name("FontMatrix"), new PdfArray([
+                        new PdfReal(0.001), new PdfInteger(0), new PdfInteger(0),
+                        new PdfReal(0.001), new PdfInteger(0), new PdfInteger(0)
+                    ])),
+                    new(Name("CharProcs"), new PdfDictionary([]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("has no complete character-width range",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("W", "range or width")]
+    [InlineData("W2", "vertical-metrics array")]
+    [InlineData("CIDToGIDMap", "name is not /Identity")]
+    public void Build_RejectsMalformedImportedCidFontMetrics(
+        string key, string expectedMessage)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Font"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("Font")),
+                    new(Name("Subtype"), Name("CIDFontType2")),
+                    new(Name("BaseFont"), Name("Example")),
+                    new(Name("CIDSystemInfo"), new PdfDictionary([
+                        new(Name("Registry"), new PdfString("Adobe"u8, PdfStringForm.Literal)),
+                        new(Name("Ordering"), new PdfString("Identity"u8, PdfStringForm.Literal)),
+                        new(Name("Supplement"), new PdfInteger(0))
+                    ])),
+                    new(Name(key), key switch
+                    {
+                        "W" => new PdfArray([
+                            new PdfInteger(1), new PdfInteger(3)
+                        ]),
+                        "W2" => new PdfArray([
+                            new PdfInteger(1), new PdfArray([
+                                new PdfInteger(100), new PdfInteger(0)
+                            ])
+                        ]),
+                        _ => Name("Unexpected")
+                    })
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageGraphicsStates()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ExtGState"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("ExtGState")),
+                    new(Name("CA"), new PdfReal(1.5))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /ExtGState /Bad entry /CA value is outside 0 through 1",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsImportedHalftoneWithoutDefinedType()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ExtGState"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("ExtGState")),
+                    new(Name("HT"), new PdfDictionary([]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/HT dictionary has no defined /HalftoneType integer",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_AllowsSharedImportedTypeFiveSubHalftone()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference componentHalftone = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Halftone")),
+            new(Name("HalftoneType"), new PdfInteger(1)),
+            new(Name("Frequency"), new PdfInteger(60)),
+            new(Name("Angle"), new PdfInteger(45)),
+            new(Name("SpotFunction"), Name("SimpleDot"))
+        ]));
+        var resources = new PdfDictionary([
+            new(Name("ExtGState"), new PdfDictionary([
+                new(Name("Good"), new PdfDictionary([
+                    new(Name("Type"), Name("ExtGState")),
+                    new(Name("HT"), new PdfDictionary([
+                        new(Name("Type"), Name("Halftone")),
+                        new(Name("HalftoneType"), new PdfInteger(5)),
+                        new(Name("Default"), componentHalftone),
+                        new(Name("Cyan"), componentHalftone)
+                    ]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary page = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, page);
+        source = PdfDocument.Open(update.Build());
+
+        _ = new PdfIncrementalPageEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0)
+            .Build();
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedGraphicsStateTransferFunctions()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ExtGState"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("ExtGState")),
+                    new(Name("TR2"), Name("Unexpected"))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /ExtGState /Bad entry /TR2 name /Unexpected is not defined",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageShadings()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Shading"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("ShadingType"), new PdfInteger(9)),
+                    new(Name("ColorSpace"), Name("DeviceRGB"))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /Shading /Bad entry has no defined /ShadingType integer",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsUndefinedNameValuedColorSpaceResource()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), Name("Unexpected"))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/ColorSpace /Bad entry name /Unexpected is not a direct color space",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsImportedShadingBackgroundWithWrongComponentCount()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Shading"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("ShadingType"), new PdfInteger(2)),
+                    new(Name("ColorSpace"), Name("DeviceRGB")),
+                    new(Name("Background"), new PdfArray([new PdfInteger(1)]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Background count does not match its color space",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedMeshShadings()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference shading = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("ShadingType"), new PdfInteger(4)),
+                new(Name("ColorSpace"), Name("DeviceRGB"))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("Shading"), new PdfDictionary([
+                new(Name("Bad"), shading)
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /Shading /Bad entry has no supported /BitsPerCoordinate value",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPagePatterns()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Pattern"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("Pattern")),
+                    new(Name("PatternType"), new PdfInteger(9))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /Pattern /Bad entry has no defined /PatternType integer",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedNestedPatternResources()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference pattern = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("Pattern")),
+                new(Name("PatternType"), new PdfInteger(1)),
+                new(Name("PaintType"), new PdfInteger(1)),
+                new(Name("TilingType"), new PdfInteger(1)),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new(Name("XStep"), new PdfInteger(10)),
+                new(Name("YStep"), new PdfInteger(10)),
+                new(Name("Resources"), new PdfDictionary([
+                    new(Name("ColorSpace"), new PdfDictionary([
+                        new(Name("Broken"), new PdfInteger(1))
+                    ]))
+                ]))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("Pattern"), new PdfDictionary([
+                new(Name("Tile"), pattern)
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /Pattern /Tile entry /Resources /ColorSpace /Broken entry has an invalid object type",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageColorSpaces()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([Name("CalRGB")]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /ColorSpace /Bad entry /CalRGB color space has an invalid element count",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsSpecialColorSpaceAsUncoloredPatternBase()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([
+                    Name("Pattern"), new PdfArray([Name("Pattern")])
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Pattern base is not a device or CIE-based color space",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false, "/Separation tint function has no positive /N exponent")]
+    [InlineData(true, "/Separation tint function input dimension does not match its caller")]
+    public void Build_RejectsMalformedImportedPageColorFunctions(
+        bool mismatchedDomain, string expectedMessage)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var tintFunction = new PdfDictionary([
+            new(Name("FunctionType"), new PdfInteger(2)),
+            new(Name("Domain"), mismatchedDomain
+                ? new PdfArray([
+                    new PdfInteger(0), new PdfInteger(1),
+                    new PdfInteger(0), new PdfInteger(1)
+                ])
+                : new PdfArray([new PdfInteger(0), new PdfInteger(1)])),
+            new(Name("N"), new PdfInteger(0))
+        ]);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([
+                    Name("Separation"), Name("Spot"), Name("DeviceCMYK"), tintFunction
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedIccColorSpaces()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference profile = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("N"), new PdfInteger(3)),
+                new(Name("Range"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(1)
+                ]))
+            ]), []));
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([Name("ICCBased"), profile]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        update.ReplaceObject(references[0].ObjectNumber, invalidPage);
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/ICCBased profile /Range has an invalid component count or value",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedCalibratedColorSpaces()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([
+                    Name("CalRGB"), new PdfDictionary([])
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/CalRGB has no /WhitePoint array",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedIndexedLookupLengths()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([
+                    Name("Indexed"), Name("DeviceRGB"), new PdfInteger(1),
+                    new PdfString([0, 0, 0], PdfStringForm.Hexadecimal)
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Indexed lookup length does not match its palette size",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedDeviceNAttributes()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var tint = new PdfDictionary([
+            new(Name("FunctionType"), new PdfInteger(2)),
+            new(Name("Domain"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(1)
+            ])),
+            new(Name("C0"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(0), new PdfInteger(0)
+            ])),
+            new(Name("C1"), new PdfArray([
+                new PdfInteger(1), new PdfInteger(0),
+                new PdfInteger(0), new PdfInteger(0)
+            ])),
+            new(Name("N"), new PdfInteger(1))
+        ]);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([
+                    Name("DeviceN"), new PdfArray([Name("Cyan")]),
+                    Name("DeviceCMYK"), tint,
+                    new PdfDictionary([
+                        new(Name("Subtype"), Name("Wrong"))
+                    ])
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/DeviceN attributes /Subtype /Wrong is not defined",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsDuplicateImportedDeviceNColorants()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var tint = new PdfDictionary([
+            new(Name("FunctionType"), new PdfInteger(2)),
+            new(Name("Domain"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(1)
+            ])),
+            new(Name("C0"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(0), new PdfInteger(0)
+            ])),
+            new(Name("C1"), new PdfArray([
+                new PdfInteger(1), new PdfInteger(0),
+                new PdfInteger(0), new PdfInteger(0)
+            ])),
+            new(Name("N"), new PdfInteger(1))
+        ]);
+        var resources = new PdfDictionary([
+            new(Name("ColorSpace"), new PdfDictionary([
+                new(Name("Bad"), new PdfArray([
+                    Name("DeviceN"), new PdfArray([Name("Cyan"), Name("Cyan")]),
+                    Name("DeviceCMYK"), tint
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/DeviceN colorants contain duplicate names",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageProperties()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Properties"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("OCMD")),
+                    new(Name("P"), Name("Sometimes"))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Resources /Properties /Bad entry OCMD /P value /Sometimes is not defined",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedOptionalContentUsage()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var resources = new PdfDictionary([
+            new(Name("Properties"), new PdfDictionary([
+                new(Name("Bad"), new PdfDictionary([
+                    new(Name("Type"), Name("OCG")),
+                    new(Name("Name"), new PdfString("Layer"u8, PdfStringForm.Literal)),
+                    new(Name("Usage"), new PdfDictionary([
+                        new(Name("View"), new PdfDictionary([
+                            new(Name("ViewState"), Name("Maybe"))
+                        ]))
+                    ]))
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("Resources")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Resources"), resources)));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/Usage /View /ViewState value /Maybe is not defined",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageBoxes()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0]
+            .Where(entry => !entry.Key.Equals(Name("MediaBox")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("MediaBox"),
+                new PdfArray([new PdfInteger(0), new PdfInteger(0), new PdfInteger(200)]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/MediaBox value is not a four-number rectangle",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageProductionBoxes()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("ArtBox"),
+                new PdfArray([new PdfInteger(0), new PdfInteger(0)]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/ArtBox value is not a four-number rectangle",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDocument collapsedSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] collapsedReferences, PdfDictionary[] collapsedPages) =
+            FlatPages(collapsedSource);
+        PdfDictionary collapsedPage = new(collapsedPages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("ArtBox"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(0), new PdfInteger(10)
+            ]))));
+        collapsedSource = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(collapsedSource)
+                .ReplaceObject(collapsedReferences[0].ObjectNumber, collapsedPage)
+                .Build());
+        InvalidOperationException collapsedError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(collapsedSource, 0)
+                .Build());
+        Assert.Contains("/ArtBox value is a collapsed rectangle",
+            collapsedError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageBeads()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("B"),
+                new PdfArray([new PdfInteger(1)]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/B value entry is not an indirect bead reference",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDocument emptyBeadsSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] emptyBeadPages, PdfDictionary[] emptyBeadDictionaries) =
+            FlatPages(emptyBeadsSource);
+        PdfDictionary emptyBeadPage = new(emptyBeadDictionaries[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("B"), new PdfArray([]))));
+        emptyBeadsSource = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(emptyBeadsSource)
+                .ReplaceObject(emptyBeadPages[0].ObjectNumber, emptyBeadPage)
+                .Build());
+        InvalidOperationException emptyBeadsError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(emptyBeadsSource, 0)
+                    .Build());
+        Assert.Contains("/B value array is empty",
+            emptyBeadsError.Message, StringComparison.Ordinal);
+
+        PdfDocument linkedSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] linkedPages, PdfDictionary[] linkedPageDictionaries) =
+            FlatPages(linkedSource);
+        var linkedUpdate = new PdfIncrementalUpdateBuilder(linkedSource);
+        int nextObjectNumber = checked((int)Assert.IsType<PdfInteger>(
+            linkedSource.Trailer[Name("Size")]).Value);
+        var thread = new PdfIndirectReference(nextObjectNumber, 0);
+        var first = new PdfIndirectReference(nextObjectNumber + 1, 0);
+        var second = new PdfIndirectReference(nextObjectNumber + 2, 0);
+        PdfArray rectangle = new([
+            new PdfInteger(0), new PdfInteger(0),
+            new PdfInteger(10), new PdfInteger(10)
+        ]);
+        linkedUpdate.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Thread")),
+            new(Name("F"), first)
+        ]));
+        linkedUpdate.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Bead")),
+            new(Name("T"), thread), new(Name("N"), second),
+            new(Name("V"), second), new(Name("P"), linkedPages[0]),
+            new(Name("R"), rectangle)
+        ]));
+        linkedUpdate.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Bead")),
+            new(Name("T"), thread), new(Name("N"), first),
+            new(Name("V"), second), new(Name("P"), linkedPages[0]),
+            new(Name("R"), rectangle)
+        ]));
+        linkedUpdate.ReplaceObject(linkedPages[0].ObjectNumber,
+            new PdfDictionary(linkedPageDictionaries[0].Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("B"),
+                    new PdfArray([first])))));
+        linkedSource = PdfDocument.Open(linkedUpdate.Build());
+
+        InvalidOperationException linkageError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(linkedSource, 0)
+                .Build());
+        Assert.Contains("bead ring has inconsistent /N and /V links",
+            linkageError.Message, StringComparison.Ordinal);
+
+        var validRingUpdate = new PdfIncrementalUpdateBuilder(linkedSource);
+        validRingUpdate.ReplaceObject(second.ObjectNumber, new PdfDictionary([
+            new(Name("Type"), Name("Bead")),
+            new(Name("T"), thread), new(Name("N"), first),
+            new(Name("V"), first), new(Name("P"), linkedPages[0]),
+            new(Name("R"), rectangle)
+        ]));
+        validRingUpdate.ReplaceObject(linkedPages[0].ObjectNumber,
+            new PdfDictionary(linkedPageDictionaries[0].Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("B"),
+                    new PdfArray([first, second])))));
+        PdfDocument validRingSource = PdfDocument.Open(validRingUpdate.Build());
+        _ = new PdfIncrementalPageEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().Build()))
+            .AddImportedPage(validRingSource, 0)
+            .Build();
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPagePieceInfo()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("PieceInfo"),
+                new PdfDictionary([
+                    new(Name("App"), new PdfDictionary([]))
+                ]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/PieceInfo value /App entry has no string /LastModified value",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageOutputIntents()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("OutputIntents"),
+                new PdfArray([new PdfDictionary([
+                    new(Name("Type"), Name("OutputIntent"))
+                ])]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("page /OutputIntents entry has no valid /S name",
+            error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("D:20251301000000Z")]
+    [InlineData("D:2026Z")]
+    [InlineData("D:20260824120000+0700")]
+    public void Build_RejectsMalformedImportedPdfDates(string date)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("LastModified"),
+                new PdfString(Encoding.ASCII.GetBytes(date), PdfStringForm.Literal))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/LastModified value is not a valid PDF date string",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPageSeparationInfo()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        PdfDocument original = source;
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("SeparationInfo"),
+                new PdfDictionary([]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/SeparationInfo value has no nonempty /Pages array",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDictionary directPageSeparation = new([
+            new(Name("Pages"), new PdfArray([pages[0]])),
+            new(Name("DeviceColorant"), Name("Cyan")),
+            new(Name("ColorSpace"), Name("DeviceCMYK"))
+        ]);
+        PdfDictionary directPageValue = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(
+                Name("SeparationInfo"), directPageSeparation)));
+        PdfDocument directPageSource = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(original)
+                .ReplaceObject(references[0].ObjectNumber, directPageValue)
+                .Build());
+        InvalidOperationException directPageError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(directPageSource, 0)
+                    .Build());
+        Assert.Contains("/SeparationInfo value /Pages entry is not an indirect page dictionary",
+            directPageError.Message, StringComparison.Ordinal);
+
+        PdfDictionary deviceColorSpaceSeparation = new([
+            new(Name("Pages"), new PdfArray([references[0]])),
+            new(Name("DeviceColorant"), Name("Cyan")),
+            new(Name("ColorSpace"), Name("DeviceCMYK"))
+        ]);
+        PdfDictionary deviceColorSpacePage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(
+                Name("SeparationInfo"), deviceColorSpaceSeparation)));
+        PdfDocument deviceColorSpaceSource = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(original)
+                .ReplaceObject(references[0].ObjectNumber, deviceColorSpacePage)
+                .Build());
+        InvalidOperationException deviceColorSpaceError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(deviceColorSpaceSource, 0)
+                    .Build());
+        Assert.Contains("/ColorSpace is not a Separation or DeviceN color space",
+            deviceColorSpaceError.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -503,6 +2276,1871 @@ public sealed class PdfIncrementalPageEditorTests
 
         Assert.Contains("/Metadata value is not a stream or resolves to null",
             error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsInvalidImportedPageMetadataAndThumbnails()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(original);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        PdfDocument invalidMetadata = WithStream("Metadata", new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("Wrong")),
+                new(Name("Subtype"), Name("XML"))
+            ]), "<x:xmpmeta/>"u8));
+        InvalidOperationException metadataError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidMetadata, 0)
+                .Build());
+        Assert.Contains("page /Metadata value has an invalid /Type value",
+            metadataError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidThumbnail = WithStream("Thumb", new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Width"), new PdfInteger(10)),
+                new(Name("Height"), new PdfInteger(10))
+            ]), []));
+        InvalidOperationException thumbnailError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidThumbnail, 0)
+                .Build());
+        Assert.Contains("/Thumb value has no valid /Subtype /Image value",
+            thumbnailError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithStream(string key, PdfStream stream)
+        {
+            var update = new PdfIncrementalUpdateBuilder(original);
+            PdfIndirectReference streamReference = update.AddObject(stream);
+            PdfName name = Name(key);
+            PdfDictionary page = new(pages[0]
+                .Where(entry => !entry.Key.Equals(name))
+                .Append(new KeyValuePair<PdfName, PdfObject>(name, streamReference)));
+            update.ReplaceObject(references[0].ObjectNumber, page);
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
+    public void Build_RejectsInvalidImportedPageAdditionalActions()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("AA"), new PdfDictionary([
+                new(Name("O"), new PdfDictionary([
+                    new(Name("Type"), Name("Action"))
+                ]))
+            ]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("imported page /AA value /O entry has no valid /S name",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsDuplicateImportedPageAnnotationReferences()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference annotation = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0])
+        ]));
+        PdfDocument malformed = PdfDocument.Open(update
+            .ReplaceObject(references[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([annotation, annotation])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(malformed, 0)
+                .Build());
+
+        Assert.Contains("/Annots array contains a duplicate annotation reference",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsImportedAnnotationOwnedByAnotherPage()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference annotation = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[1])
+        ]));
+        PdfDocument malformed = PdfDocument.Open(update
+            .ReplaceObject(references[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([annotation])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(malformed, 0)
+                .Build());
+
+        Assert.Contains("/P value identifies a different page",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsImportedPopupWithMismatchedParent()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference otherMarkup = update.ReserveObject();
+        PdfIndirectReference popup = update.ReserveObject();
+        PdfIndirectReference markup = update.ReserveObject();
+        PdfDictionary Rectangle() => new([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0])
+        ]);
+        update.SetObject(otherMarkup, Rectangle());
+        update.SetObject(popup, new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Popup")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0]),
+            new(Name("Parent"), otherMarkup)
+        ]));
+        update.SetObject(markup, new PdfDictionary(Rectangle().Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Popup"), popup))));
+        PdfDocument malformed = PdfDocument.Open(update
+            .ReplaceObject(references[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([markup, popup, otherMarkup])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(malformed, 0)
+                .Build());
+
+        Assert.Contains("/Popup target does not link back through /Parent",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsImportedPopupWhoseParentDoesNotLinkBack()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference markup = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0])
+        ]));
+        PdfIndirectReference popup = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Popup")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0]),
+            new(Name("Parent"), markup)
+        ]));
+        PdfDocument malformed = PdfDocument.Open(update
+            .ReplaceObject(references[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([popup, markup])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(malformed, 0)
+                .Build());
+
+        Assert.Contains("popup /Parent does not link back through /Popup",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsImportedReplyTargetNotRegisteredOnPage()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference target = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[1])
+        ]));
+        PdfIndirectReference reply = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0]),
+            new(Name("IRT"), target)
+        ]));
+        PdfDocument malformed = PdfDocument.Open(update
+            .ReplaceObject(references[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([reply])))))
+            .ReplaceObject(references[1].ObjectNumber,
+                new PdfDictionary(pages[1].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([target])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(malformed, 0)
+                .Build());
+
+        Assert.Contains("/IRT target is not registered on the imported page",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsDuplicateImportedAnnotationNames()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfDictionary Annotation() => new([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0]),
+            new(Name("NM"), new PdfString("duplicate"u8, PdfStringForm.Literal))
+        ]);
+        PdfIndirectReference first = update.AddObject(Annotation());
+        PdfIndirectReference second = update.AddObject(Annotation());
+        PdfDocument malformed = PdfDocument.Open(update
+            .ReplaceObject(references[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([first, second])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(malformed, 0)
+                .Build());
+
+        Assert.Contains("/NM value is not unique on the imported page",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedAnnotationText()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference annotation = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), references[0]),
+            new(Name("Contents"), new PdfString(
+                new byte[] { 0xFE, 0xFF, 0xD8, 0x00 }, PdfStringForm.Hexadecimal))
+        ]));
+        PdfDocument malformed = PdfDocument.Open(update
+            .ReplaceObject(references[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([annotation])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(malformed, 0)
+                .Build());
+
+        Assert.Contains("/Contents value contains malformed UTF-16BE text",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsInvalidImportedAnnotationActionsAndDestinations()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(original);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        PdfDocument invalidAction = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Link")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("A"), new PdfDictionary([
+                new(Name("Type"), Name("Action"))
+            ]))
+        ]));
+        InvalidOperationException actionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidAction, 0)
+                .Build());
+        Assert.Contains("/Annots entry /A value has no valid /S name",
+            actionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidDestination = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Link")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("Dest"), new PdfArray([
+                references[0], Name("FitR"), new PdfInteger(0)
+            ]))
+        ]));
+        InvalidOperationException destinationError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidDestination, 0)
+                .Build());
+        Assert.Contains("/Annots entry /Dest value /FitR has an invalid operand count",
+            destinationError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidRectangle = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0), new PdfInteger(10)
+            ]))
+        ]));
+        InvalidOperationException rectangleError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidRectangle, 0)
+                .Build());
+        Assert.Contains("/Annots entry has no four-number /Rect array",
+            rectangleError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidAppearance = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("AP"), new PdfDictionary([
+                new(Name("N"), new PdfInteger(17))
+            ]))
+        ]));
+        InvalidOperationException appearanceError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidAppearance, 0)
+                .Build());
+        Assert.Contains("/AP /N value is not an appearance stream or state dictionary",
+            appearanceError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidColor = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("C"), new PdfArray([
+                new PdfReal(1.5), new PdfInteger(0), new PdfInteger(0)
+            ]))
+        ]));
+        InvalidOperationException colorError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidColor, 0)
+                .Build());
+        Assert.Contains("/C value is not a valid annotation color array",
+            colorError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidHighlight = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Link")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("H"), Name("Blink"))
+        ]));
+        InvalidOperationException highlightError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidHighlight, 0)
+                .Build());
+        Assert.Contains("link /H value /Blink is not defined",
+            highlightError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidRemoteAction = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Link")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("A"), new PdfDictionary([
+                new(Name("Type"), Name("Action")),
+                new(Name("S"), Name("GoToR")),
+                new(Name("D"), new PdfString("Chapter"u8, PdfStringForm.Literal))
+            ]))
+        ]));
+        InvalidOperationException remoteActionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidRemoteAction, 0)
+                .Build());
+        Assert.Contains("/GoToR action has no /F file specification",
+            remoteActionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidLayerAction = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Link")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("A"), new PdfDictionary([
+                new(Name("Type"), Name("Action")),
+                new(Name("S"), Name("SetOCGState")),
+                new(Name("State"), new PdfArray([new PdfInteger(1)]))
+            ]))
+        ]));
+        InvalidOperationException layerActionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidLayerAction, 0)
+                .Build());
+        Assert.Contains("/State operand is not an OCG following a state operator",
+            layerActionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidThreeDimensionalAction = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Link")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("A"), new PdfDictionary([
+                new(Name("Type"), Name("Action")),
+                new(Name("S"), Name("GoTo3DView")),
+                new(Name("V"), Name("Next"))
+            ]))
+        ]));
+        InvalidOperationException threeDimensionalActionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidThreeDimensionalAction, 0)
+                .Build());
+        Assert.Contains("/GoTo3DView action has no /TA annotation dictionary",
+            threeDimensionalActionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidSoundAction = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Link")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("A"), new PdfDictionary([
+                new(Name("Type"), Name("Action")),
+                new(Name("S"), Name("Sound"))
+            ]))
+        ]));
+        InvalidOperationException soundActionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidSoundAction, 0)
+                .Build());
+        Assert.Contains("/Sound action has no /Sound stream",
+            soundActionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidFlags = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("F"), new PdfInteger(-1))
+        ]));
+        InvalidOperationException flagError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidFlags, 0)
+                .Build());
+        Assert.Contains("/F value is not a nonnegative integer",
+            flagError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidLanguage = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("Lang"), new PdfString("not_valid"u8, PdfStringForm.Literal))
+        ]));
+        InvalidOperationException languageError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidLanguage, 0)
+                .Build());
+        Assert.Contains("/Lang value is not a valid BCP 47 language tag",
+            languageError.Message, StringComparison.Ordinal);
+
+        PdfDocument directReply = WithAnnotation(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("IRT"), new PdfDictionary([
+                new(Name("Type"), Name("Annot")),
+                new(Name("Subtype"), Name("Text"))
+            ]))
+        ]));
+        InvalidOperationException replyError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(directReply, 0)
+                .Build());
+        Assert.Contains("/IRT value is not an indirect annotation dictionary",
+            replyError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithAnnotation(PdfDictionary annotation)
+        {
+            PdfDictionary page = new(pages[0]
+                .Where(entry => !entry.Key.Equals(Name("Annots")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("Annots"), new PdfArray([annotation]))));
+            return PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+                .ReplaceObject(references[0].ObjectNumber, page)
+                .Build());
+        }
+    }
+
+    [Fact]
+    public void Build_RejectsInvalidImportedAnnotationAppearanceStreams()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference invalidAppearance = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Form"))
+            ]), []));
+        var annotation = new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("AP"), new PdfDictionary([
+                new(Name("N"), invalidAppearance)
+            ]))
+        ]);
+        update.ReplaceObject(references[0].ObjectNumber, new PdfDictionary(pages[0]
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("Annots"), new PdfArray([annotation])))));
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/AP /N appearance has no four-number /BBox array",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedAnnotationAppearanceResources()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference appearance = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Form")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new(Name("Resources"), new PdfDictionary([
+                    new(Name("ExtGState"), new PdfDictionary([
+                        new(Name("Broken"), new PdfInteger(1))
+                    ]))
+                ]))
+            ]), []));
+        var annotation = new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("AP"), new PdfDictionary([
+                new(Name("N"), appearance)
+            ]))
+        ]);
+        update.ReplaceObject(references[0].ObjectNumber, new PdfDictionary(pages[0]
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("Annots"), new PdfArray([annotation])))));
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("/AP /N appearance /Resources /ExtGState /Broken entry has an invalid object type",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Line", "line annotation has no /L array")]
+    [InlineData("LinkTargets", "link annotation contains both /A and /Dest")]
+    [InlineData("Sound", "sound annotation has no sound stream")]
+    [InlineData("SoundDictionary", "sound annotation has no sound stream")]
+    [InlineData("SoundType", "sound stream has an invalid /Type value")]
+    [InlineData("SoundRate", "inline sound has no positive finite /R value")]
+    [InlineData("Redact", "redaction /Repeat value is not a boolean")]
+    [InlineData("RedactOverlay", "redaction with /OverlayText has no /DA string")]
+    [InlineData("Movie", "movie annotation has no /Movie dictionary")]
+    [InlineData("3D", "3D annotation has no /3DD stream or dictionary")]
+    [InlineData("RichMedia", "rich-media annotation has no /RichMediaContent dictionary")]
+    [InlineData("Caret", "caret /Sy value /Unexpected is not defined")]
+    [InlineData("Square", "Square /RD value is not four nonnegative numbers")]
+    [InlineData("SquareBounds", "Square /RD value collapses its annotation rectangle")]
+    [InlineData("Watermark", "watermark /FixedPrint value is not a dictionary")]
+    [InlineData("Projection", "projection /Measure value is not a dictionary")]
+    [InlineData("PrinterMark", "PrinterMark annotation has no /AP appearance dictionary")]
+    [InlineData("TrapNet", "TrapNet annotation has no /AP appearance dictionary")]
+    [InlineData("PolyLine", "PolyLine /LE value /Unexpected is not defined")]
+    [InlineData("Text", "/RT value /Unexpected is not defined")]
+    [InlineData("TextIcon", "text annotation /Name value is not a name")]
+    [InlineData("Circle", "/ExData value is not a dictionary")]
+    [InlineData("MovieActivation", "movie /A value is not an activation dictionary")]
+    [InlineData("MovieFile", "movie dictionary has no /F file specification")]
+    [InlineData("MoviePoster", "movie /Poster stream is not an image XObject")]
+    [InlineData("MovieWindow", "movie /A /FWScale value is not two positive integers")]
+    [InlineData("MovieTime", "movie /A /Start value is not a nonnegative integer or 8-byte time string")]
+    [InlineData("Screen", "/MK /R value is not a multiple of 90")]
+    [InlineData("SquareBorderEffect", "/BE /S value /Unexpected is not defined")]
+    [InlineData("TextState", "/State /Unexpected is not defined for /StateModel /Review")]
+    [InlineData("LineMeasure", "line /Measure value is not a dictionary")]
+    [InlineData("FreeTextStyle", "free-text /DS value is not a string")]
+    [InlineData("FreeTextIntent", "free-text /IT /Unexpected is not defined")]
+    [InlineData("3DBounds", "3D /3DB value is not four finite numbers")]
+    [InlineData("RichMediaAssets", "/RichMediaContent /Assets value is not a name-tree dictionary")]
+    [InlineData("RichMediaSettings", "/RichMediaSettings /Activation value is not a dictionary")]
+    [InlineData("RichMediaCondition", "/Activation /Condition /Unexpected is not defined")]
+    [InlineData("RichMediaConfiguration", "configuration /Subtype /Unexpected is not defined")]
+    [InlineData("RichMediaInstance", "rich-media instance is not indirect")]
+    [InlineData("RichMediaInstanceSubtype", "does not match its configuration /Subtype /Video")]
+    [InlineData("RichMediaAnimation", "rich-media animation /Speed value is not a positive finite number")]
+    [InlineData("RichMediaPresentation", "rich-media presentation /Style /Overlay is not defined")]
+    [InlineData("RichMediaWindowed", "windowed rich-media presentation has no /Window dictionary")]
+    [InlineData("RichMediaParams", "rich-media parameters /Binding /Overlay is not defined")]
+    [InlineData("Markup3DData", "Markup3D /ExData has no valid /3DA target")]
+    [InlineData("3DSubtype", "3D stream /Subtype /Unexpected is not defined")]
+    [InlineData("3DActivation", "3D activation /AIS /Unexpected is not defined")]
+    [InlineData("3DScript", "3D stream /OnInstantiate value is not a stream")]
+    [InlineData("3DView", "3D view has no /XN string")]
+    [InlineData("3DDefaultView", "3D stream /DV value is not a defined view selector")]
+    [InlineData("3DAnimation", "3D animation style /TM value is not a positive finite number")]
+    [InlineData("3DProjection", "perspective projection has no /FOV value from 0 through 180")]
+    [InlineData("3DBackground", "3D background /C value is not an RGB triplet")]
+    [InlineData("3DU3DPathBackground", "3D background /C value is not an RGB triplet")]
+    [InlineData("3DRenderMode", "3D render mode /O value is outside 0 through 1")]
+    [InlineData("3DLighting", "3D lighting scheme has no /Subtype name")]
+    [InlineData("3DCrossSection", "3D cross section has no valid /O orientation")]
+    [InlineData("3DNode", "3D node has no /N string")]
+    [InlineData("3DResources", "3D stream /Resources value is not a name-tree dictionary")]
+    [InlineData("TextOptionalContent", "/OC value is not an optional-content dictionary")]
+    [InlineData("Popup", "popup annotation has no indirect /Parent dictionary")]
+    public void Build_RejectsMalformedImportedAnnotationSubtypeData(
+        string subtype, string expectedMessage)
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var pageUpdate = new PdfIncrementalUpdateBuilder(source);
+        var annotationEntries = new List<KeyValuePair<PdfName, PdfObject>>([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name(subtype switch
+            {
+                "MovieActivation" or "MovieFile" or "MoviePoster" or "MovieWindow"
+                    or "MovieTime" => "Movie",
+                "SoundDictionary" or "SoundType" or "SoundRate" => "Sound",
+                "SquareBorderEffect" => "Square",
+                "SquareBounds" => "Square",
+                "RedactOverlay" => "Redact",
+                "LinkTargets" => "Link",
+                "TextState" => "Text",
+                "TextIcon" => "Text",
+                "TextOptionalContent" => "Text",
+                "LineMeasure" => "Line",
+                "FreeTextStyle" or "FreeTextIntent" => "FreeText",
+                "3DBounds" or "3DSubtype" or "3DActivation" or "3DScript" or "3DView"
+                    or "3DDefaultView"
+                    or "3DAnimation" or "3DProjection" or "3DBackground"
+                    or "3DU3DPathBackground"
+                    or "3DRenderMode" or "3DLighting" or "3DCrossSection" or "3DNode"
+                    or "3DResources" => "3D",
+                "RichMediaAssets" or "RichMediaSettings" or "RichMediaCondition"
+                    or "RichMediaConfiguration" or "RichMediaInstance"
+                    or "RichMediaInstanceSubtype"
+                    or "RichMediaAnimation" or "RichMediaPresentation"
+                    or "RichMediaWindowed"
+                    or "RichMediaParams" => "RichMedia",
+                "Markup3DData" => "Circle",
+                _ => subtype
+            })),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ]))
+        ]);
+        if (subtype == "Redact")
+            annotationEntries.Add(new(Name("Repeat"), new PdfInteger(1)));
+        if (subtype == "RedactOverlay")
+            annotationEntries.Add(new(Name("OverlayText"),
+                new PdfString("Removed"u8, PdfStringForm.Literal)));
+        if (subtype == "LinkTargets")
+        {
+            annotationEntries.Add(new(Name("A"), new PdfDictionary([
+                new(Name("S"), Name("URI")),
+                new(Name("URI"), new PdfString("https://example.com"u8,
+                    PdfStringForm.Literal))
+            ])));
+            annotationEntries.Add(new(Name("Dest"), Name("Target")));
+        }
+        if (subtype == "Caret")
+            annotationEntries.Add(new(Name("Sy"), Name("Unexpected")));
+        if (subtype == "Square")
+            annotationEntries.Add(new(Name("RD"), new PdfArray([
+                new PdfInteger(1), new PdfInteger(1), new PdfInteger(1)
+            ])));
+        if (subtype == "SquareBounds")
+            annotationEntries.Add(new(Name("RD"), new PdfArray([
+                new PdfInteger(6), new PdfInteger(0),
+                new PdfInteger(5), new PdfInteger(0)
+            ])));
+        if (subtype == "Watermark")
+            annotationEntries.Add(new(Name("FixedPrint"), new PdfInteger(1)));
+        if (subtype == "Projection")
+            annotationEntries.Add(new(Name("Measure"), new PdfInteger(1)));
+        if (subtype == "PolyLine")
+        {
+            annotationEntries.Add(new(Name("Vertices"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])));
+            annotationEntries.Add(new(Name("LE"), new PdfArray([
+                Name("None"), Name("Unexpected")
+            ])));
+        }
+        if (subtype == "Text")
+            annotationEntries.Add(new(Name("RT"), Name("Unexpected")));
+        if (subtype == "TextIcon")
+            annotationEntries.Add(new(Name("Name"), new PdfInteger(1)));
+        if (subtype == "Circle")
+            annotationEntries.Add(new(Name("ExData"), new PdfInteger(1)));
+        if (subtype == "Markup3DData")
+            annotationEntries.Add(new(Name("ExData"), new PdfDictionary([
+                new(Name("Type"), Name("ExData")),
+                new(Name("Subtype"), Name("Markup3D")),
+                new(Name("3DV"), new PdfDictionary([]))
+            ])));
+        if (subtype == "MovieActivation")
+        {
+            annotationEntries.Add(new(Name("Movie"), new PdfDictionary([
+                new(Name("F"), new PdfString("movie.mp4"u8, PdfStringForm.Literal))
+            ])));
+            annotationEntries.Add(new(Name("A"), new PdfInteger(1)));
+        }
+        if (subtype == "MovieWindow")
+        {
+            annotationEntries.Add(new(Name("Movie"), new PdfDictionary([
+                new(Name("F"), new PdfString("movie.mp4"u8, PdfStringForm.Literal))
+            ])));
+            annotationEntries.Add(new(Name("A"), new PdfDictionary([
+                new(Name("FWScale"), new PdfArray([
+                    new PdfInteger(1), new PdfInteger(0)
+                ]))
+            ])));
+        }
+        if (subtype == "MovieTime")
+        {
+            annotationEntries.Add(new(Name("Movie"), new PdfDictionary([
+                new(Name("F"), new PdfString("movie.mp4"u8, PdfStringForm.Literal))
+            ])));
+            annotationEntries.Add(new(Name("A"), new PdfDictionary([
+                new(Name("Start"), new PdfInteger(-1))
+            ])));
+        }
+        if (subtype == "MovieFile")
+            annotationEntries.Add(new(Name("Movie"), new PdfDictionary([])));
+        if (subtype == "MoviePoster")
+            annotationEntries.Add(new(Name("Movie"), new PdfDictionary([
+                new(Name("F"), new PdfString("movie.mp4"u8, PdfStringForm.Literal)),
+                new(Name("Poster"), pageUpdate.AddObject(
+                    new PdfStream(new PdfDictionary([]), [])))
+            ])));
+        if (subtype == "SoundDictionary")
+            annotationEntries.Add(new(Name("Sound"), new PdfDictionary([])));
+        if (subtype == "SoundType")
+            annotationEntries.Add(new(Name("Sound"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("Unexpected"))
+                ]), []))));
+        if (subtype == "SoundRate")
+            annotationEntries.Add(new(Name("Sound"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("Sound"))
+                ]), []))));
+        if (subtype == "Screen")
+            annotationEntries.Add(new(Name("MK"), new PdfDictionary([
+                new(Name("R"), new PdfInteger(45))
+            ])));
+        if (subtype == "SquareBorderEffect")
+            annotationEntries.Add(new(Name("BE"), new PdfDictionary([
+                new(Name("S"), Name("Unexpected"))
+            ])));
+        if (subtype == "TextState")
+        {
+            annotationEntries.Add(new(Name("StateModel"),
+                new PdfString("Review"u8, PdfStringForm.Literal)));
+            annotationEntries.Add(new(Name("State"),
+                new PdfString("Unexpected"u8, PdfStringForm.Literal)));
+        }
+        if (subtype == "TextOptionalContent")
+            annotationEntries.Add(new(Name("OC"), new PdfInteger(1)));
+        if (subtype == "LineMeasure")
+        {
+            annotationEntries.Add(new(Name("L"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])));
+            annotationEntries.Add(new(Name("Measure"), new PdfInteger(1)));
+        }
+        if (subtype == "FreeTextStyle")
+        {
+            annotationEntries.Add(new(Name("DA"), new PdfString(
+                "/Helv 12 Tf"u8, PdfStringForm.Literal)));
+            annotationEntries.Add(new(Name("DS"), new PdfInteger(1)));
+        }
+        if (subtype == "FreeTextIntent")
+        {
+            annotationEntries.Add(new(Name("DA"), new PdfString(
+                "/Helv 12 Tf"u8, PdfStringForm.Literal)));
+            annotationEntries.Add(new(Name("IT"), Name("Unexpected")));
+        }
+        if (subtype == "3DBounds")
+        {
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D"))
+                ]), []))));
+            annotationEntries.Add(new(Name("3DB"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0), new PdfInteger(10)
+            ])));
+        }
+        if (subtype == "3DSubtype")
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("Unexpected"))
+                ]), []))));
+        if (subtype == "3DActivation")
+        {
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D"))
+                ]), []))));
+            annotationEntries.Add(new(Name("3DA"), new PdfDictionary([
+                new(Name("AIS"), Name("Unexpected"))
+            ])));
+        }
+        if (subtype == "3DScript")
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D")),
+                    new(Name("OnInstantiate"), new PdfInteger(1))
+                ]), []))));
+        if (subtype == "3DView")
+        {
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D"))
+                ]), []))));
+            annotationEntries.Add(new(Name("3DV"), new PdfDictionary([
+                new(Name("Type"), Name("3DView"))
+            ])));
+        }
+        if (subtype == "3DDefaultView")
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D")),
+                    new(Name("VA"), new PdfArray([new PdfDictionary([
+                        new(Name("Type"), Name("3DView")),
+                        new(Name("XN"), new PdfString("View"u8, PdfStringForm.Literal))
+                    ])])),
+                    new(Name("DV"), new PdfInteger(2))
+                ]), []))));
+        if (subtype == "3DAnimation")
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D")),
+                    new(Name("AN"), new PdfDictionary([
+                        new(Name("Type"), Name("3DAnimationStyle")),
+                        new(Name("Subtype"), Name("Linear")),
+                        new(Name("TM"), new PdfInteger(0))
+                    ]))
+                ]), []))));
+        if (subtype == "3DResources")
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D")),
+                    new(Name("Resources"), new PdfInteger(1))
+                ]), []))));
+        if (subtype is "3DProjection" or "3DBackground" or "3DU3DPathBackground"
+            or "3DRenderMode" or "3DLighting"
+            or "3DCrossSection" or "3DNode")
+        {
+            var viewEntries = new List<KeyValuePair<PdfName, PdfObject>>([
+                new(Name("Type"), Name("3DView")),
+                new(Name("XN"), new PdfString("View"u8, PdfStringForm.Literal))
+            ]);
+            if (subtype == "3DU3DPathBackground")
+            {
+                viewEntries.Add(new(Name("MS"), Name("U3D")));
+                viewEntries.Add(new(Name("U3DPath"), new PdfString(
+                    "Node"u8, PdfStringForm.Literal)));
+                viewEntries.Add(new(Name("BG"), new PdfDictionary([
+                    new(Name("C"), new PdfArray([
+                        new PdfInteger(1), new PdfInteger(1)
+                    ]))
+                ])));
+            }
+            else if (subtype == "3DProjection")
+                viewEntries.Add(new(Name("P"), new PdfDictionary([
+                    new(Name("Subtype"), Name("P")),
+                    new(Name("N"), new PdfInteger(1))
+                ])));
+            else
+            if (subtype == "3DBackground")
+                viewEntries.Add(new(Name("BG"), new PdfDictionary([
+                    new(Name("C"), new PdfArray([
+                        new PdfInteger(1), new PdfInteger(1)
+                    ]))
+                ])));
+            else if (subtype == "3DRenderMode")
+                viewEntries.Add(new(Name("RM"), new PdfDictionary([
+                    new(Name("Subtype"), Name("Solid")),
+                    new(Name("O"), new PdfInteger(2))
+                ])));
+            else if (subtype == "3DLighting")
+                viewEntries.Add(new(Name("LS"), new PdfDictionary([
+                    new(Name("Type"), Name("3DLightingScheme"))
+                ])));
+            else if (subtype == "3DCrossSection")
+                viewEntries.Add(new(Name("SA"), new PdfArray([
+                    new PdfDictionary([
+                        new(Name("O"), new PdfArray([
+                            new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)
+                        ]))
+                    ])
+                ])));
+            else
+                viewEntries.Add(new(Name("NA"), new PdfArray([
+                    new PdfDictionary([new(Name("Type"), Name("3DNode"))])
+                ])));
+            annotationEntries.Add(new(Name("3DD"), pageUpdate.AddObject(
+                new PdfStream(new PdfDictionary([
+                    new(Name("Type"), Name("3D")),
+                    new(Name("Subtype"), Name("U3D")),
+                    new(Name("VA"), new PdfArray([new PdfDictionary(viewEntries)]))
+                ]), []))));
+        }
+        if (subtype == "RichMediaAssets")
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([
+                new(Name("Assets"), new PdfInteger(1))
+            ])));
+        if (subtype == "RichMediaSettings")
+        {
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([])));
+            annotationEntries.Add(new(Name("RichMediaSettings"), new PdfDictionary([
+                new(Name("Activation"), new PdfInteger(1))
+            ])));
+        }
+        if (subtype == "RichMediaCondition")
+        {
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([])));
+            annotationEntries.Add(new(Name("RichMediaSettings"), new PdfDictionary([
+                new(Name("Activation"), new PdfDictionary([
+                    new(Name("Condition"), Name("Unexpected"))
+                ]))
+            ])));
+        }
+        if (subtype == "RichMediaConfiguration")
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([
+                new(Name("Configurations"), new PdfArray([
+                    pageUpdate.AddObject(new PdfDictionary([
+                        new(Name("Subtype"), Name("Unexpected"))
+                    ]))
+                ]))
+            ])));
+        if (subtype == "RichMediaInstance")
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([
+                new(Name("Configurations"), new PdfArray([
+                    pageUpdate.AddObject(new PdfDictionary([
+                        new(Name("Subtype"), Name("Video")),
+                        new(Name("Instances"), new PdfArray([
+                            new PdfDictionary([])
+                        ]))
+                    ]))
+                ]))
+            ])));
+        if (subtype == "RichMediaInstanceSubtype")
+        {
+            PdfIndirectReference asset = pageUpdate.AddObject(new PdfDictionary([
+                new(Name("Type"), Name("Filespec")),
+                new(Name("F"), new PdfString("movie.mp4"u8, PdfStringForm.Literal))
+            ]));
+            PdfIndirectReference instance = pageUpdate.AddObject(new PdfDictionary([
+                new(Name("Subtype"), Name("Sound")),
+                new(Name("Asset"), asset)
+            ]));
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([
+                new(Name("Assets"), new PdfDictionary([
+                    new(Name("Names"), new PdfArray([
+                        new PdfString("movie.mp4"u8, PdfStringForm.Literal), asset
+                    ]))
+                ])),
+                new(Name("Configurations"), new PdfArray([
+                    pageUpdate.AddObject(new PdfDictionary([
+                        new(Name("Subtype"), Name("Video")),
+                        new(Name("Instances"), new PdfArray([instance]))
+                    ]))
+                ]))
+            ])));
+        }
+        if (subtype == "RichMediaAnimation")
+        {
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([])));
+            annotationEntries.Add(new(Name("RichMediaSettings"), new PdfDictionary([
+                new(Name("Activation"), new PdfDictionary([
+                    new(Name("Animation"), new PdfDictionary([
+                        new(Name("Type"), Name("RichMediaAnimation")),
+                        new(Name("Speed"), new PdfInteger(0))
+                    ]))
+                ]))
+            ])));
+        }
+        if (subtype == "RichMediaPresentation")
+        {
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([])));
+            annotationEntries.Add(new(Name("RichMediaSettings"), new PdfDictionary([
+                new(Name("Activation"), new PdfDictionary([
+                    new(Name("Presentation"), new PdfDictionary([
+                        new(Name("Style"), Name("Overlay"))
+                    ]))
+                ]))
+            ])));
+        }
+        if (subtype == "RichMediaWindowed")
+        {
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([])));
+            annotationEntries.Add(new(Name("RichMediaSettings"), new PdfDictionary([
+                new(Name("Activation"), new PdfDictionary([
+                    new(Name("Presentation"), new PdfDictionary([
+                        new(Name("Style"), Name("Windowed"))
+                    ]))
+                ]))
+            ])));
+        }
+        if (subtype == "RichMediaParams")
+        {
+            PdfIndirectReference embedded = pageUpdate.AddObject(new PdfStream(
+                new PdfDictionary([
+                    new(Name("Type"), Name("EmbeddedFile")),
+                    new(Name("Subtype"), Name("application/x-shockwave-flash"))
+                ]), []));
+            PdfIndirectReference asset = pageUpdate.AddObject(new PdfDictionary([
+                new(Name("Type"), Name("Filespec")),
+                new(Name("F"), new PdfString("movie.swf"u8, PdfStringForm.Literal)),
+                new(Name("EF"), new PdfDictionary([new(Name("F"), embedded)]))
+            ]));
+            PdfIndirectReference instance = pageUpdate.AddObject(new PdfDictionary([
+                new(Name("Type"), Name("RichMediaInstance")),
+                new(Name("Subtype"), Name("Flash")),
+                new(Name("Asset"), asset),
+                new(Name("Params"), new PdfDictionary([
+                    new(Name("Binding"), Name("Overlay"))
+                ]))
+            ]));
+            PdfIndirectReference configuration = pageUpdate.AddObject(new PdfDictionary([
+                new(Name("Type"), Name("RichMediaConfiguration")),
+                new(Name("Subtype"), Name("Flash")),
+                new(Name("Instances"), new PdfArray([instance]))
+            ]));
+            annotationEntries.Add(new(Name("RichMediaContent"), new PdfDictionary([
+                new(Name("Assets"), new PdfDictionary([
+                    new(Name("Names"), new PdfArray([
+                        new PdfString("movie.swf"u8, PdfStringForm.Literal), asset
+                    ]))
+                ])),
+                new(Name("Configurations"), new PdfArray([configuration]))
+            ])));
+        }
+        var annotation = new PdfDictionary(annotationEntries);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                new PdfArray([annotation]))));
+        source = PdfDocument.Open(pageUpdate
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedPrepressAnnotations()
+    {
+        PdfDocument printerMark = WithAnnotation("PrinterMark", []);
+        InvalidOperationException printerMarkError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(printerMark, 0).Build());
+        Assert.Contains("printer-mark /F value does not contain only Print and ReadOnly flags",
+            printerMarkError.Message, StringComparison.Ordinal);
+
+        PdfDocument malformedPrinterMark = WithAnnotation("PrinterMark", [
+            new(Name("F"), new PdfInteger(68)),
+            new(Name("MN"), new PdfInteger(1))
+        ]);
+        InvalidOperationException markNameError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(malformedPrinterMark, 0).Build());
+        Assert.Contains("printer-mark /MN value is not a name",
+            markNameError.Message, StringComparison.Ordinal);
+
+        PdfDocument malformedMarkForm = WithAnnotation("PrinterMark", [
+            new(Name("F"), new PdfInteger(68))
+        ], [
+            new(Name("MarkStyle"), new PdfInteger(1))
+        ]);
+        InvalidOperationException markStyleError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(malformedMarkForm, 0).Build());
+        Assert.Contains("/MarkStyle value is not a text string",
+            markStyleError.Message, StringComparison.Ordinal);
+
+        PdfDocument trapNetwork = WithAnnotation("TrapNet", [
+            new(Name("AS"), Name("Normal")),
+            new(Name("F"), new PdfInteger(68))
+        ]);
+        InvalidOperationException trapNetworkError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(trapNetwork, 0).Build());
+        Assert.Contains("requires either /LastModified or both /Version and /AnnotStates",
+            trapNetworkError.Message, StringComparison.Ordinal);
+
+        KeyValuePair<PdfName, PdfObject>[] validTrapEntries = [
+            new(Name("AS"), Name("Normal")),
+            new(Name("F"), new PdfInteger(68)),
+            new(Name("LastModified"), new PdfString(
+                "D:20260824120000-07'00'"u8, PdfStringForm.Literal))
+        ];
+        PdfDocument directTrapAppearance = WithAnnotation(
+            "TrapNet", validTrapEntries, directTrapAppearance: true);
+        InvalidOperationException directTrapError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(directTrapAppearance, 0).Build());
+        Assert.Contains("/AP /N value is not an appearance-state dictionary",
+            directTrapError.Message, StringComparison.Ordinal);
+
+        PdfDocument missingProcessModel = WithAnnotation(
+            "TrapNet", validTrapEntries, omitTrapProcessModel: true);
+        InvalidOperationException processModelError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(missingProcessModel, 0).Build());
+        Assert.Contains("has no /PCM process-color-model name",
+            processModelError.Message, StringComparison.Ordinal);
+
+        PdfDocument malformedTrapStyles = WithAnnotation(
+            "TrapNet", validTrapEntries, [
+                new(Name("TrapStyles"), new PdfInteger(1))
+            ]);
+        InvalidOperationException trapStylesError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(malformedTrapStyles, 0).Build());
+        Assert.Contains("/TrapStyles value is not a text string",
+            trapStylesError.Message, StringComparison.Ordinal);
+
+        PdfDocument validPrinterMark = WithAnnotation("PrinterMark", [
+            new(Name("MN"), Name("Registration")),
+            new(Name("F"), new PdfInteger(68))
+        ]);
+        _ = new PdfIncrementalPageEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().Build()))
+            .AddImportedPage(validPrinterMark, 0).Build();
+
+        PdfDocument datedTrapNetwork = WithAnnotation("TrapNet", [
+            new(Name("AS"), Name("Normal")),
+            new(Name("F"), new PdfInteger(68)),
+            new(Name("LastModified"), new PdfString(
+                "D:20260824120000-07'00'"u8, PdfStringForm.Literal))
+        ]);
+        _ = new PdfIncrementalPageEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().Build()))
+            .AddImportedPage(datedTrapNetwork, 0).Build();
+
+        PdfDocument versionedTrapNetwork = WithAnnotation("TrapNet", [
+            new(Name("AS"), Name("Normal")),
+            new(Name("F"), new PdfInteger(68)),
+            new(Name("Version"), new PdfArray([])),
+            new(Name("AnnotStates"), new PdfArray([Name("Normal")]))
+        ]);
+        _ = new PdfIncrementalPageEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().Build()))
+            .AddImportedPage(versionedTrapNetwork, 0).Build();
+
+        PdfDocument WithAnnotation(
+            string annotationSubtype,
+            IEnumerable<KeyValuePair<PdfName, PdfObject>> extraEntries,
+            IEnumerable<KeyValuePair<PdfName, PdfObject>>? appearanceExtraEntries = null,
+            bool omitTrapProcessModel = false,
+            bool directTrapAppearance = false)
+        {
+            PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+                .AddBlankPage(200, 300).Build());
+            (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) =
+                FlatPages(source);
+            var update = new PdfIncrementalUpdateBuilder(source);
+            var appearanceEntries = new List<KeyValuePair<PdfName, PdfObject>>
+            {
+                    new(Name("Type"), Name("XObject")),
+                    new(Name("Subtype"), Name("Form")),
+                    new(Name("BBox"), new PdfArray([
+                        new PdfInteger(0), new PdfInteger(0),
+                        new PdfInteger(10), new PdfInteger(10)
+                    ]))
+            };
+            if (annotationSubtype == "TrapNet" && !omitTrapProcessModel)
+                appearanceEntries.Add(new(Name("PCM"), Name("DeviceCMYK")));
+            if (appearanceExtraEntries is not null)
+                appearanceEntries.AddRange(appearanceExtraEntries);
+            PdfIndirectReference appearance = update.AddObject(new PdfStream(
+                new PdfDictionary(appearanceEntries), []));
+            PdfObject normalAppearance = annotationSubtype == "TrapNet"
+                && !directTrapAppearance
+                ? new PdfDictionary([new(Name("Normal"), appearance)])
+                : appearance;
+            var annotation = new PdfDictionary(new[]
+            {
+                new KeyValuePair<PdfName, PdfObject>(Name("Type"), Name("Annot")),
+                new KeyValuePair<PdfName, PdfObject>(
+                    Name("Subtype"), Name(annotationSubtype)),
+                new KeyValuePair<PdfName, PdfObject>(Name("Rect"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new KeyValuePair<PdfName, PdfObject>(Name("AP"), new PdfDictionary([
+                    new(Name("N"), normalAppearance)
+                ]))
+            }.Concat(extraEntries));
+            update.ReplaceObject(pageReferences[0].ObjectNumber,
+                new PdfDictionary(pages[0].Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([annotation])))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
+    public void Build_ImportsMovieAnnotationActivationDictionary()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var annotation = new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Movie")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("Movie"), new PdfDictionary([
+                new(Name("F"), new PdfString("movie.mp4"u8, PdfStringForm.Literal))
+            ])),
+            new(Name("A"), new PdfDictionary([
+                new(Name("Mode"), Name("Once")),
+                new(Name("Rate"), new PdfInteger(1)),
+                new(Name("Volume"), new PdfInteger(0)),
+                new(Name("ShowControls"), new PdfBoolean(true))
+            ]))
+        ]);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, new PdfDictionary(pages[0].Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([annotation])))))
+            .Build());
+
+        byte[] output = new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(source, 0)
+            .Build();
+
+        (_, PdfIndirectReference[] outputPages, _) = FlatPages(PdfDocument.Open(output));
+        Assert.Single(outputPages);
+    }
+
+    [Fact]
+    public void Build_RejectsInvalidImportedPagePresentationValues()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(original);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        PdfDocument invalidTransition = WithPageValue("Trans", new PdfDictionary([
+            new(Name("Type"), Name("Trans")),
+            new(Name("S"), Name("Teleport"))
+        ]));
+        InvalidOperationException transitionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidTransition, 0)
+                .Build());
+        Assert.Contains("/Trans value /S value /Teleport is not defined",
+            transitionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidUserUnit = WithPageValue("UserUnit", new PdfInteger(0));
+        InvalidOperationException userUnitError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidUserUnit, 0)
+                .Build());
+        Assert.Contains("/UserUnit value is outside the supported range",
+            userUnitError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidViewport = WithPageValue("VP", new PdfArray([
+            new PdfDictionary([
+                new(Name("Type"), Name("Viewport")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0), new PdfInteger(10)
+                ]))
+            ])
+        ]));
+        InvalidOperationException viewportError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(invalidViewport, 0)
+                .Build());
+        Assert.Contains("/VP value entry has no four-number /BBox array",
+            viewportError.Message, StringComparison.Ordinal);
+
+        PdfDocument emptyViewports = WithPageValue("VP", new PdfArray([]));
+        InvalidOperationException emptyViewportsError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedPage(emptyViewports, 0)
+                    .Build());
+        Assert.Contains("/VP value array is empty",
+            emptyViewportsError.Message, StringComparison.Ordinal);
+
+        PdfDocument collapsedViewport = WithPageValue("VP", new PdfArray([
+            new PdfDictionary([
+                new(Name("Type"), Name("Viewport")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(0), new PdfInteger(10)
+                ]))
+            ])
+        ]));
+        InvalidOperationException collapsedViewportError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedPage(collapsedViewport, 0)
+                    .Build());
+        Assert.Contains("/VP value entry /BBox rectangle is collapsed",
+            collapsedViewportError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidPresentationSteps = WithPageValue(
+            "PresSteps", new PdfInteger(1));
+        InvalidOperationException presentationStepsError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedPage(invalidPresentationSteps, 0)
+                    .Build());
+        Assert.Contains("/PresSteps value is not a navigation-node dictionary",
+            presentationStepsError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException zoomError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(WithPageValue("PZ", new PdfInteger(0)), 0)
+                .Build());
+        Assert.Contains("/PZ value is not a positive finite number",
+            zoomError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException identifierError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(WithPageValue("ID", new PdfInteger(17)), 0)
+                .Build());
+        Assert.Contains("/ID value is not a byte string",
+            identifierError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException templateError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(WithPageValue("TemplateInstantiated", new PdfInteger(1)), 0)
+                .Build());
+        Assert.Contains("/TemplateInstantiated value is not a name",
+            templateError.Message, StringComparison.Ordinal);
+
+        var invalidBoxColors = new PdfDictionary([
+            new(Name("TrimBox"), new PdfDictionary([
+                new(Name("C"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0), new PdfInteger(2)
+                ]))
+            ]))
+        ]);
+        InvalidOperationException boxColorError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(WithPageValue("BoxColorInfo", invalidBoxColors), 0)
+                .Build());
+        Assert.Contains("/BoxColorInfo value /TrimBox /C value is not a valid RGB color array",
+            boxColorError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException groupError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(WithPageValue("Group", new PdfDictionary([
+                    new(Name("Type"), Name("Group"))
+                ])), 0)
+                .Build());
+        Assert.Contains("/Group value has no /S /Transparency value",
+            groupError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException groupColorSpaceError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedPage(WithPageValue("Group", new PdfDictionary([
+                        new(Name("Type"), Name("Group")),
+                        new(Name("S"), Name("Transparency")),
+                        new(Name("CS"), new PdfArray([
+                            Name("Lab"), new PdfDictionary([
+                                new(Name("WhitePoint"), new PdfArray([
+                                    new PdfInteger(1), new PdfInteger(1), new PdfInteger(1)
+                                ]))
+                            ])
+                        ]))
+                    ])), 0)
+                    .Build());
+        Assert.Contains("prohibited for transparency blending",
+            groupColorSpaceError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException documentPartError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedPage(WithPageValue("DPart", new PdfDictionary([
+                        new(Name("Type"), Name("DPart"))
+                    ])), 0)
+                    .Build());
+        Assert.Contains("/DPart value is not an indirect document-part dictionary",
+            documentPartError.Message, StringComparison.Ordinal);
+
+        NotSupportedException partialDocumentPartError = Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(WithIndirectPageValue("DPart", new PdfDictionary([
+                    new(Name("Type"), Name("DPart"))
+                ])), 0)
+                .Build());
+        Assert.Contains("document-part membership require a complete-document import",
+            partialDocumentPartError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithPageValue(string key, PdfObject value)
+        {
+            PdfName name = Name(key);
+            PdfDictionary page = new(pages[0]
+                .Where(entry => !entry.Key.Equals(name))
+                .Append(new KeyValuePair<PdfName, PdfObject>(name, value)));
+            return PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+                .ReplaceObject(references[0].ObjectNumber, page)
+                .Build());
+        }
+
+        PdfDocument WithIndirectPageValue(string key, PdfObject value)
+        {
+            PdfName name = Name(key);
+            var update = new PdfIncrementalUpdateBuilder(original);
+            PdfIndirectReference valueReference = update.AddObject(value);
+            PdfDictionary page = new(pages[0]
+                .Where(entry => !entry.Key.Equals(name))
+                .Append(new KeyValuePair<PdfName, PdfObject>(name, valueReference)));
+            update.ReplaceObject(references[0].ObjectNumber, page);
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedViewportMeasures()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        PdfDocument original = source;
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        var viewport = new PdfDictionary([
+            new(Name("Type"), Name("Viewport")),
+            new(Name("BBox"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(100), new PdfInteger(100)
+            ])),
+            new(Name("Measure"), new PdfDictionary([
+                new(Name("Type"), Name("Measure")),
+                new(Name("Subtype"), Name("RL"))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("VP"),
+                new PdfArray([viewport]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0)
+                .Build());
+
+        Assert.Contains("rectilinear measure has no /R string",
+            error.Message, StringComparison.Ordinal);
+
+        PdfArray points = new([
+            new PdfInteger(0), new PdfInteger(0),
+            new PdfInteger(1), new PdfInteger(1)
+        ]);
+        PdfDictionary invalidCoordinateSystem = GeospatialViewport(
+            new PdfDictionary([new(Name("Type"), Name("GEOGCS"))]));
+        InvalidOperationException coordinateError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(WithViewport(invalidCoordinateSystem), 0).Build());
+        Assert.Contains("/GCS dictionary has neither /EPSG nor /WKT",
+            coordinateError.Message, StringComparison.Ordinal);
+
+        PdfDictionary missingLocalPoints = GeospatialViewport(new PdfDictionary([
+            new(Name("Type"), Name("GEOGCS")),
+            new(Name("EPSG"), new PdfInteger(4326))
+        ]), includeLocalPoints: false);
+        InvalidOperationException localPointsError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(WithViewport(missingLocalPoints), 0).Build());
+        Assert.Contains("has no /LPTS array",
+            localPointsError.Message, StringComparison.Ordinal);
+
+        PdfDictionary outOfBoundsLocalPoints = GeospatialViewport(new PdfDictionary([
+            new(Name("Type"), Name("GEOGCS")),
+            new(Name("EPSG"), new PdfInteger(4326))
+        ]), localPoints: new PdfArray([
+            new PdfInteger(0), new PdfInteger(0),
+            new PdfInteger(2), new PdfInteger(1)
+        ]));
+        InvalidOperationException localBoundsError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(WithViewport(outOfBoundsLocalPoints), 0).Build());
+        Assert.Contains("/LPTS contains a coordinate outside the unit square",
+            localBoundsError.Message, StringComparison.Ordinal);
+
+        PdfDictionary validCoordinateSystem = GeospatialViewport(new PdfDictionary([
+            new(Name("Type"), Name("GEOGCS")),
+            new(Name("EPSG"), new PdfInteger(4326))
+        ]));
+        _ = new PdfIncrementalPageEditor(
+                PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(WithViewport(validCoordinateSystem), 0).Build();
+
+        PdfDictionary GeospatialViewport(
+            PdfDictionary coordinateSystem, bool includeLocalPoints = true,
+            PdfArray? localPoints = null)
+        {
+            var measureEntries = new List<KeyValuePair<PdfName, PdfObject>>([
+                new(Name("Type"), Name("Measure")),
+                new(Name("Subtype"), Name("GEO")),
+                new(Name("GCS"), coordinateSystem),
+                new(Name("GPTS"), points)
+            ]);
+            if (includeLocalPoints)
+                measureEntries.Add(new(Name("LPTS"), localPoints ?? points));
+            return new PdfDictionary([
+                new(Name("Type"), Name("Viewport")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(100), new PdfInteger(100)
+                ])),
+                new(Name("Measure"), new PdfDictionary(measureEntries))
+            ]);
+        }
+
+        PdfDocument WithViewport(PdfDictionary value)
+        {
+            PdfDictionary page = new(pages[0].Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("VP"),
+                    new PdfArray([value]))));
+            return PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+                .ReplaceObject(references[0].ObjectNumber, page)
+                .Build());
+        }
+    }
+
+    [Fact]
+    public void Build_ValidatesImportedViewportNumberFormats()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(original);
+        var malformed = new (PdfDictionary Format, string Message)[]
+        {
+            (Format(new KeyValuePair<PdfName, PdfObject>(Name("Type"), Name("MeasureFormat"))), "invalid /Type"),
+            (Format(new KeyValuePair<PdfName, PdfObject>(Name("F"), Name("E"))), "/F /E is not defined"),
+            (Format(new KeyValuePair<PdfName, PdfObject>(Name("D"), new PdfInteger(16))), "invalid /D"),
+            (Format(new KeyValuePair<PdfName, PdfObject>(Name("FD"), new PdfInteger(1))), "/FD value is not boolean"),
+            (Format(new KeyValuePair<PdfName, PdfObject>(Name("RT"), Name("comma"))), "/RT value is not a string"),
+            (Format(new KeyValuePair<PdfName, PdfObject>(Name("O"), Name("Before"))), "/O /Before is not defined")
+        };
+
+        foreach ((PdfDictionary format, string message) in malformed)
+        {
+            InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(WithFormats(new PdfArray([format])), 0)
+                    .Build());
+            Assert.Contains(message, error.Message, StringComparison.Ordinal);
+        }
+
+        PdfDictionary feet = Format();
+        PdfDictionary inches = Format(
+            new(Name("Type"), Name("NumberFormat")),
+            new(Name("F"), Name("F")),
+            new(Name("D"), new PdfInteger(16)),
+            new(Name("FD"), new PdfBoolean(true)),
+            new(Name("RT"), new PdfString(","u8, PdfStringForm.Literal)),
+            new(Name("RD"), new PdfString("."u8, PdfStringForm.Literal)),
+            new(Name("PS"), new PdfString(" "u8, PdfStringForm.Literal)),
+            new(Name("SS"), new PdfString(""u8, PdfStringForm.Literal)),
+            new(Name("O"), Name("S")));
+        _ = new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+            .AddImportedPage(WithFormats(new PdfArray([feet, inches])), 0)
+            .Build();
+
+        PdfDictionary Format(params KeyValuePair<PdfName, PdfObject>[] additions) =>
+            new(new[]
+            {
+                new KeyValuePair<PdfName, PdfObject>(Name("U"), new PdfString("ft"u8, PdfStringForm.Literal)),
+                new KeyValuePair<PdfName, PdfObject>(Name("C"), new PdfInteger(1))
+            }.Concat(additions));
+
+        PdfDocument WithFormats(PdfArray formats)
+        {
+            var viewport = new PdfDictionary([
+                new(Name("Type"), Name("Viewport")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(100), new PdfInteger(100)
+                ])),
+                new(Name("Measure"), new PdfDictionary([
+                    new(Name("Type"), Name("Measure")),
+                    new(Name("Subtype"), Name("RL")),
+                    new(Name("R"), new PdfString("1 in = 1 ft"u8, PdfStringForm.Literal)),
+                    new(Name("X"), formats),
+                    new(Name("Y"), formats)
+                ]))
+            ]);
+            PdfDictionary page = new(pages[0].Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("VP"),
+                    new PdfArray([viewport]))));
+            return PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+                .ReplaceObject(references[0].ObjectNumber, page)
+                .Build());
+        }
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedImportedViewportPointData()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        (_, PdfIndirectReference[] references, PdfDictionary[] pages) = FlatPages(source);
+        PdfArray square = new([
+            new PdfInteger(0), new PdfInteger(0),
+            new PdfInteger(1), new PdfInteger(1)
+        ]);
+        var viewport = new PdfDictionary([
+            new(Name("Type"), Name("Viewport")),
+            new(Name("BBox"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(100), new PdfInteger(100)
+            ])),
+            new(Name("Measure"), new PdfDictionary([
+                new(Name("Type"), Name("Measure")),
+                new(Name("Subtype"), Name("GEO")),
+                new(Name("Bounds"), square),
+                new(Name("GCS"), new PdfDictionary([
+                    new(Name("Type"), Name("GEOGCS")),
+                    new(Name("EPSG"), new PdfInteger(4326))
+                ])),
+                new(Name("GPTS"), square),
+                new(Name("LPTS"), square)
+            ])),
+            new(Name("PtData"), new PdfDictionary([
+                new(Name("Type"), Name("PtData")),
+                new(Name("Subtype"), Name("Cloud")),
+                new(Name("Names"), new PdfArray([Name("LAT"), Name("LON")])),
+                new(Name("XPTS"), new PdfArray([
+                    new PdfArray([new PdfInteger(1)])
+                ]))
+            ]))
+        ]);
+        PdfDictionary invalidPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("VP"),
+                new PdfArray([viewport]))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(references[0].ObjectNumber, invalidPage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0).Build());
+        Assert.Contains("/PtData /XPTS tuple does not match /Names",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDictionary emptyCollectionViewport = new(viewport
+            .Where(entry => !entry.Key.Equals(Name("PtData")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("PtData"), new PdfArray([]))));
+        PdfDictionary emptyCollectionPage = new(pages[0].Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("VP"),
+                new PdfArray([emptyCollectionViewport]))));
+        PdfDocument emptyCollectionSource = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(PdfDocument.Open(
+                    new PdfDocumentBuilder().AddBlankPage(200, 300).Build()))
+                .ReplaceObject(references[0].ObjectNumber, emptyCollectionPage)
+                .Build());
+        InvalidOperationException emptyCollectionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedPage(emptyCollectionSource, 0).Build());
+        Assert.Contains("/PtData collection is empty",
+            emptyCollectionError.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -533,17 +4171,406 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void CompleteDocumentImports_RejectUndefinedPageModeAndLayout()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(original, catalogReference);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        InvalidOperationException modeError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithCatalogValue("PageMode", Name("Continuous")))
+                .Build());
+        Assert.Contains("/PageMode value /Continuous is not defined", modeError.Message,
+            StringComparison.Ordinal);
+
+        InvalidOperationException layoutError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithCatalogValue("PageLayout", Name("Book")))
+                .Build());
+        Assert.Contains("/PageLayout value /Book is not defined", layoutError.Message,
+            StringComparison.Ordinal);
+
+        InvalidOperationException documentPartRootError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithCatalogValue("DPartRoot", new PdfDictionary([
+                        new(Name("Type"), Name("DPartRoot"))
+                    ])))
+                    .Build());
+        Assert.Contains("/DPartRoot value is not an indirect reference",
+            documentPartRootError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException documentPartRootTypeError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithIndirectCatalogValue("DPartRoot",
+                        new PdfDictionary([
+                            new(Name("Type"), Name("DPartRoot"))
+                        ])))
+                    .Build());
+        Assert.Contains("has no /Type /DPartRootNode entry",
+            documentPartRootTypeError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException documentPartNodeNamesError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithIndirectCatalogValue("DPartRoot",
+                        new PdfDictionary([
+                            new(Name("Type"), Name("DPartRootNode")),
+                            new(Name("NodeNameList"), new PdfArray([
+                                new PdfInteger(1)
+                            ]))
+                        ])))
+                    .Build());
+        Assert.Contains("/NodeNameList value is not a string array",
+            documentPartNodeNamesError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithCatalogValue(string key, PdfObject value)
+        {
+            PdfName name = Name(key);
+            var update = new PdfIncrementalUpdateBuilder(original);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(name))
+                .Append(new KeyValuePair<PdfName, PdfObject>(name, value))));
+            return PdfDocument.Open(update.Build());
+        }
+
+        PdfDocument WithIndirectCatalogValue(string key, PdfObject value)
+        {
+            PdfName name = Name(key);
+            var update = new PdfIncrementalUpdateBuilder(original);
+            PdfIndirectReference valueReference = update.AddObject(value);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(name))
+                .Append(new KeyValuePair<PdfName, PdfObject>(name, valueReference))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectInvalidWebCaptureInformation()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(original, catalogReference);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        PdfDocument invalidVersion = WithSpiderInfo(new PdfDictionary([
+            new(Name("V"), new PdfInteger(1))
+        ]));
+        InvalidOperationException versionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(invalidVersion)
+                .Build());
+        Assert.Contains("/SpiderInfo value has no real /V value of 1.0",
+            versionError.Message, StringComparison.Ordinal);
+
+        PdfDocument directCommand = WithSpiderInfo(new PdfDictionary([
+            new(Name("V"), new PdfReal(1.0)),
+            new(Name("C"), new PdfArray([
+                new PdfDictionary([
+                    new(Name("URL"), new PdfString(
+                        "https://example.test"u8, PdfStringForm.Literal))
+                ])
+            ]))
+        ]));
+        InvalidOperationException commandError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(directCommand)
+                .Build());
+        Assert.Contains("/SpiderInfo value /C entry is not an indirect command dictionary",
+            commandError.Message, StringComparison.Ordinal);
+
+        var flagUpdate = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference invalidFlagCommand = flagUpdate.AddObject(new PdfDictionary([
+            new(Name("URL"), new PdfString(
+                "https://example.test"u8, PdfStringForm.Literal)),
+            new(Name("F"), new PdfInteger(8))
+        ]));
+        flagUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(Name("SpiderInfo")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("SpiderInfo"),
+                    new PdfDictionary([
+                        new(Name("V"), new PdfReal(1.0)),
+                        new(Name("C"), new PdfArray([invalidFlagCommand]))
+                    ])))));
+        PdfDocument invalidFlags = PdfDocument.Open(flagUpdate.Build());
+        InvalidOperationException flagError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(invalidFlags)
+                .Build());
+        Assert.Contains("/F value uses undefined Web Capture flags",
+            flagError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithSpiderInfo(PdfDictionary information)
+        {
+            var update = new PdfIncrementalUpdateBuilder(original);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(Name("SpiderInfo")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("SpiderInfo"), information))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectInvalidUriAndMarkInfoDictionaries()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(original, catalogReference);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        InvalidOperationException uriError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithCatalogValue("URI", new PdfDictionary([
+                    new(Name("Base"), new PdfInteger(17))
+                ])))
+                .Build());
+        Assert.Contains("/URI value /Base is not a string", uriError.Message,
+            StringComparison.Ordinal);
+
+        InvalidOperationException markInfoError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithCatalogValue("MarkInfo", new PdfDictionary([
+                    new(Name("UserProperties"), Name("Yes"))
+                ])))
+                .Build());
+        Assert.Contains("/MarkInfo value /UserProperties is not a boolean",
+            markInfoError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithCatalogValue(string key, PdfObject value)
+        {
+            PdfName name = Name(key);
+            var update = new PdfIncrementalUpdateBuilder(original);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(name))
+                .Append(new KeyValuePair<PdfName, PdfObject>(name, value))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectInvalidOpenActions()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(original, catalogReference);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        InvalidOperationException destinationError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithOpenAction(new PdfArray([])))
+                .Build());
+        Assert.Contains("empty destination array", destinationError.Message,
+            StringComparison.Ordinal);
+
+        PdfIndirectReference pageReference = FlatPages(original).References[0];
+        InvalidOperationException operandError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithOpenAction(new PdfArray([
+                    pageReference, Name("FitR"), new PdfInteger(0)
+                ])))
+                .Build());
+        Assert.Contains("destination /FitR has an invalid operand count",
+            operandError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException actionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                    new(Name("Type"), Name("Action"))
+                ])))
+                .Build());
+        Assert.Contains("has no valid /S name", actionError.Message,
+            StringComparison.Ordinal);
+
+        InvalidOperationException uriActionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                    new(Name("S"), Name("URI"))
+                ])))
+                .Build());
+        Assert.Contains("/URI action has no valid /URI string",
+            uriActionError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException goToActionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                    new(Name("S"), Name("GoTo")),
+                    new(Name("D"), new PdfArray([pageReference, Name("FitV")]))
+                ])))
+                .Build());
+        Assert.Contains("/GoTo /D value /FitV has an invalid operand count",
+            goToActionError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException structureDestinationError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                        new(Name("S"), Name("GoTo")),
+                        new(Name("D"), new PdfArray([pageReference, Name("Fit")])),
+                        new(Name("SD"), new PdfInteger(7))
+                    ])))
+                    .Build());
+        Assert.Contains("/GoTo /SD value is not an array",
+            structureDestinationError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException undefinedActionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                        new(Name("S"), Name("Teleport"))
+                    ])))
+                    .Build());
+        Assert.Contains("undefined action subtype /Teleport",
+            undefinedActionError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException documentPartActionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                        new(Name("S"), Name("GoToDp")),
+                        new(Name("Dp"), new PdfDictionary([
+                            new(Name("Type"), Name("DPart"))
+                        ]))
+                    ])))
+                    .Build());
+        Assert.Contains("/GoToDp action has no indirect typed /Dp document part",
+            documentPartActionError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException launchActionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                        new(Name("S"), Name("Launch")),
+                        new(Name("F"), new PdfString("tool.exe"u8, PdfStringForm.Literal)),
+                        new(Name("Win"), new PdfDictionary([
+                            new(Name("F"), new PdfInteger(7))
+                        ]))
+                    ])))
+                    .Build());
+        Assert.Contains("/Launch /Win has no /F string",
+            launchActionError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException embeddedTargetError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                        new(Name("S"), Name("GoToE")),
+                        new(Name("D"), new PdfString("chapter"u8, PdfStringForm.Literal)),
+                        new(Name("T"), new PdfDictionary([
+                            new(Name("R"), Name("Sibling"))
+                        ]))
+                    ])))
+                    .Build());
+        Assert.Contains("/GoToE /T value has no defined /R relationship",
+            embeddedTargetError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException namedActionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithOpenAction(new PdfDictionary([
+                        new(Name("S"), Name("Named")),
+                        new(Name("N"), Name("DeleteEverything"))
+                    ])))
+                    .Build());
+        Assert.Contains("/Named /N value /DeleteEverything is not defined",
+            namedActionError.Message, StringComparison.Ordinal);
+
+        InvalidOperationException richMediaCommandError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(WithInvalidRichMediaCommand())
+                    .Build());
+        Assert.Contains("/RichMediaExecute /CMD has no /C string",
+            richMediaCommandError.Message, StringComparison.Ordinal);
+
+        var invalidAdditionalActions = new PdfDictionary([
+            new(Name("WC"), new PdfDictionary([
+                new(Name("Type"), Name("Action"))
+            ]))
+        ]);
+        var additionalActionsUpdate = new PdfIncrementalUpdateBuilder(original);
+        additionalActionsUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("AA"), invalidAdditionalActions))));
+        PdfDocument invalidAdditionalActionsDocument = PdfDocument.Open(
+            additionalActionsUpdate.Build());
+        InvalidOperationException additionalActionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(empty)
+                    .AddImportedDocument(invalidAdditionalActionsDocument)
+                    .Build());
+        Assert.Contains("/AA value /WC entry has no valid /S name",
+            additionalActionError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithOpenAction(PdfObject value)
+        {
+            var update = new PdfIncrementalUpdateBuilder(original);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(Name("OpenAction")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("OpenAction"), value))));
+            return PdfDocument.Open(update.Build());
+        }
+
+        PdfDocument WithInvalidRichMediaCommand()
+        {
+            var update = new PdfIncrementalUpdateBuilder(original);
+            PdfIndirectReference annotation = update.AddObject(new PdfDictionary([
+                new(Name("Type"), Name("Annot")),
+                new(Name("Subtype"), Name("RichMedia"))
+            ]));
+            var action = new PdfDictionary([
+                new(Name("S"), Name("RichMediaExecute")),
+                new(Name("TA"), annotation),
+                new(Name("CMD"), new PdfDictionary([
+                    new(Name("Type"), Name("RichMediaCommand")),
+                    new(Name("C"), Name("play"))
+                ]))
+            ]);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(Name("OpenAction")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("OpenAction"), action))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
     public void CompleteDocumentImports_RejectStaleDocumentInformation()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage(200, 300)
             .Build());
-        (_, PdfIndirectReference[] pages, PdfDictionary[] pageDictionaries) = FlatPages(source);
-        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
-            .ReplaceObject(pages[0].ObjectNumber, pageDictionaries[0])
-            .SetDocumentInformation(new PdfIndirectReference(
-                pages[0].ObjectNumber, pages[0].Generation + 1))
-            .Build());
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference information = update.AddObject(new PdfDictionary([
+            new(Name("Title"), new PdfString("stale"u8, PdfStringForm.Literal))
+        ]));
+        string updatedText = Encoding.Latin1.GetString(
+            update.SetDocumentInformation(information).Build());
+        updatedText = updatedText.Replace(
+            $"/Info {information.ObjectNumber} 0 R",
+            $"/Info {information.ObjectNumber} 1 R",
+            StringComparison.Ordinal);
+        source = PdfDocument.Open(Encoding.Latin1.GetBytes(updatedText));
 
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
             new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
@@ -552,6 +4579,47 @@ public sealed class PdfIncrementalPageEditorTests
 
         Assert.Contains("trailer /Info value is not a dictionary or resolves to null",
             error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectInvalidStandardDocumentInformation()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(200, 300)
+            .Build());
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        PdfDocument invalidTitle = WithInformation(new PdfDictionary([
+            new(Name("Title"), new PdfString("17"u8, PdfStringForm.Literal))
+        ]), "/Title (17)", "/Title  17 ");
+        InvalidOperationException titleError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(invalidTitle)
+                .Build());
+        Assert.Contains("/Info value /Title is not a string", titleError.Message,
+            StringComparison.Ordinal);
+
+        PdfDocument invalidTrapped = WithInformation(new PdfDictionary([
+            new(Name("Trapped"), Name("Unknown"))
+        ]), "/Trapped /Unknown", "/Trapped /Maybe  ");
+        InvalidOperationException trappedError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(invalidTrapped)
+                .Build());
+        Assert.Contains("/Info value /Trapped /Maybe is not defined", trappedError.Message,
+            StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithInformation(
+            PdfDictionary information, string validSyntax, string invalidSyntax)
+        {
+            var update = new PdfIncrementalUpdateBuilder(original);
+            PdfIndirectReference reference = update.AddObject(information);
+            update.SetDocumentInformation(reference);
+            string sourceText = Encoding.Latin1.GetString(update.Build())
+                .Replace(validSyntax, invalidSyntax, StringComparison.Ordinal);
+            return PdfDocument.Open(Encoding.Latin1.GetBytes(sourceText));
+        }
     }
 
     [Fact]
@@ -1031,6 +5099,603 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void CompleteDocumentImports_RejectInvalidOutputIntents()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfDocument source = original;
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        PdfDictionary invalidIntent = new([
+            new(Name("Type"), Name("OutputIntent")),
+            new(Name("S"), new PdfInteger(7))
+        ]);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("OutputIntents"),
+                    new PdfArray([invalidIntent])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("/OutputIntents entry has no valid /S name",
+            error.Message, StringComparison.Ordinal);
+
+        var profileUpdate = new PdfIncrementalUpdateBuilder(original);
+        PdfIndirectReference invalidProfile = profileUpdate.AddObject(new PdfStream(
+            new PdfDictionary([]), BuildRgbProfile()));
+        var profileIntent = new PdfDictionary([
+            new(Name("Type"), Name("OutputIntent")),
+            new(Name("S"), Name("GTS_PDFA1")),
+            new(Name("DestOutputProfile"), invalidProfile)
+        ]);
+        profileUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("OutputIntents"), new PdfArray([profileIntent])))));
+        PdfDocument invalidProfileDocument = PdfDocument.Open(profileUpdate.Build());
+        InvalidOperationException profileError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(invalidProfileDocument).Build());
+
+        Assert.Contains("/DestOutputProfile has no valid /N component count",
+            profileError.Message, StringComparison.Ordinal);
+
+        var referenceUpdate = new PdfIncrementalUpdateBuilder(original);
+        var referencedIntent = new PdfDictionary([
+            new(Name("Type"), Name("OutputIntent")),
+            new(Name("S"), Name("GTS_PDFX")),
+            new(Name("DestOutputProfileRef"), new PdfDictionary([
+                new(Name("CheckSum"), new PdfString([1, 2, 3], PdfStringForm.Hexadecimal)),
+                new(Name("ICCVersion"), new PdfString("4.3"u8, PdfStringForm.Literal)),
+                new(Name("ProfileCS"), new PdfString("RGB"u8, PdfStringForm.Literal)),
+                new(Name("ProfileName"), new PdfString("Test"u8, PdfStringForm.Literal)),
+                new(Name("URLs"), new PdfArray([
+                    new PdfDictionary([
+                        new(Name("FS"), Name("URL")),
+                        new(Name("F"), new PdfString(
+                            "https://example.test/profile.icc"u8, PdfStringForm.Literal))
+                    ])
+                ]))
+            ]))
+        ]);
+        referenceUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("OutputIntents"), new PdfArray([referencedIntent])))));
+        PdfDocument invalidReferenceDocument = PdfDocument.Open(referenceUpdate.Build());
+        InvalidOperationException referenceError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(invalidReferenceDocument).Build());
+
+        Assert.Contains("/DestOutputProfileRef has no 16-byte /CheckSum string",
+            referenceError.Message, StringComparison.Ordinal);
+
+        var mixingUpdate = new PdfIncrementalUpdateBuilder(original);
+        var invalidMixingIntent = new PdfDictionary([
+            new(Name("Type"), Name("OutputIntent")),
+            new(Name("S"), Name("GTS_PDFX")),
+            new(Name("MixingHints"), new PdfDictionary([
+                new(Name("DotGain"), new PdfDictionary([]))
+            ]))
+        ]);
+        mixingUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("OutputIntents"), new PdfArray([invalidMixingIntent])))));
+        PdfDocument invalidMixingDocument = PdfDocument.Open(mixingUpdate.Build());
+        InvalidOperationException mixingError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(invalidMixingDocument).Build());
+
+        Assert.Contains("/MixingHints contains the prohibited /DotGain entry",
+            mixingError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectInvalidViewerPreferences()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfDocument source = original;
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        PdfDictionary invalidPreferences = new([
+            new(Name("HideToolbar"), new PdfInteger(1))
+        ]);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("ViewerPreferences"),
+                    invalidPreferences))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("/HideToolbar value is not a boolean",
+            error.Message, StringComparison.Ordinal);
+
+        var invalidDirectionUpdate = new PdfIncrementalUpdateBuilder(original);
+        invalidDirectionUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("ViewerPreferences"), new PdfDictionary([
+                    new(Name("Direction"), Name("TopToBottom"))
+                ])))));
+        PdfDocument invalidDirection = PdfDocument.Open(invalidDirectionUpdate.Build());
+        InvalidOperationException directionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(invalidDirection).Build());
+
+        Assert.Contains("/Direction value /TopToBottom is not defined",
+            directionError.Message, StringComparison.Ordinal);
+
+        var reversedRangeUpdate = new PdfIncrementalUpdateBuilder(original);
+        reversedRangeUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog.Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("ViewerPreferences"), new PdfDictionary([
+                    new(Name("PrintPageRange"), new PdfArray([
+                        new PdfInteger(4), new PdfInteger(2)
+                    ]))
+                ])))));
+        PdfDocument reversedRange = PdfDocument.Open(reversedRangeUpdate.Build());
+        InvalidOperationException rangeError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(reversedRange).Build());
+
+        Assert.Contains("/PrintPageRange contains a reversed page range",
+            rangeError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectMalformedFormFieldTypes()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfDocument source = original;
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        var field = new PdfDictionary([
+            new(Name("T"), new PdfString("Broken"u8, PdfStringForm.Literal)),
+            new(Name("FT"), Name("Unknown"))
+        ]);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("AcroForm"),
+                        new PdfDictionary([
+                            new(Name("Fields"), new PdfArray([field]))
+                        ])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("An AcroForm field /FT value /Unknown is not defined",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDocument resourceSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage().Build());
+        PdfIndirectReference resourceCatalogReference = Assert.IsType<PdfIndirectReference>(
+            resourceSource.Trailer[Name("Root")]);
+        PdfDictionary resourceCatalog = ResolveDictionary(
+            resourceSource, resourceCatalogReference);
+        resourceSource = PdfDocument.Open(new PdfIncrementalUpdateBuilder(resourceSource)
+            .ReplaceObject(resourceCatalogReference.ObjectNumber,
+                new PdfDictionary(resourceCatalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("AcroForm"),
+                        new PdfDictionary([
+                            new(Name("Fields"), new PdfArray([])),
+                            new(Name("DR"), new PdfDictionary([
+                                new(Name("ExtGState"), new PdfDictionary([
+                                    new(Name("Broken"), new PdfInteger(1))
+                                ]))
+                            ]))
+                        ])))))
+            .Build());
+        InvalidOperationException resourceError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(resourceSource).Build());
+        Assert.Contains("/AcroForm /DR /ExtGState /Broken entry has an invalid object type",
+            resourceError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectMalformedCatalogRequirements()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Requirements"),
+                        new PdfArray([new PdfInteger(1)])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("catalog /Requirements value entry is not a dictionary",
+            error.Message, StringComparison.OrdinalIgnoreCase);
+
+        PdfDocument handlerSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference handlerCatalogReference = Assert.IsType<PdfIndirectReference>(
+            handlerSource.Trailer[Name("Root")]);
+        PdfDictionary handlerCatalog = ResolveDictionary(
+            handlerSource, handlerCatalogReference);
+        var invalidRequirement = new PdfDictionary([
+            new(Name("Type"), Name("Requirement")),
+            new(Name("S"), Name("CustomRequirement")),
+            new(Name("RH"), new PdfArray([
+                new PdfDictionary([
+                    new(Name("Type"), Name("ReqHandler")),
+                    new(Name("S"), new PdfInteger(1))
+                ])
+            ]))
+        ]);
+        handlerSource = PdfDocument.Open(new PdfIncrementalUpdateBuilder(handlerSource)
+            .ReplaceObject(handlerCatalogReference.ObjectNumber,
+                new PdfDictionary(handlerCatalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Requirements"),
+                        new PdfArray([invalidRequirement])))))
+            .Build());
+
+        InvalidOperationException handlerError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(handlerSource).Build());
+        Assert.Contains("/RH handler has no /S name",
+            handlerError.Message, StringComparison.Ordinal);
+
+        PdfDocument penaltySource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference penaltyCatalogReference = Assert.IsType<PdfIndirectReference>(
+            penaltySource.Trailer[Name("Root")]);
+        PdfDictionary penaltyCatalog = ResolveDictionary(
+            penaltySource, penaltyCatalogReference);
+        penaltySource = PdfDocument.Open(new PdfIncrementalUpdateBuilder(penaltySource)
+            .ReplaceObject(penaltyCatalogReference.ObjectNumber,
+                new PdfDictionary(penaltyCatalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Requirements"),
+                        new PdfArray([new PdfDictionary([
+                            new(Name("S"), Name("CustomRequirement")),
+                            new(Name("Penalty"), new PdfInteger(101))
+                        ])])))))
+            .Build());
+
+        InvalidOperationException penaltyError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(penaltySource).Build());
+        Assert.Contains("/Penalty value is not an integer from 0 through 100",
+            penaltyError.Message, StringComparison.Ordinal);
+
+        PdfDocument versionSource = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference versionCatalogReference = Assert.IsType<PdfIndirectReference>(
+            versionSource.Trailer[Name("Root")]);
+        PdfDictionary versionCatalog = ResolveDictionary(versionSource, versionCatalogReference);
+        versionSource = PdfDocument.Open(new PdfIncrementalUpdateBuilder(versionSource)
+            .ReplaceObject(versionCatalogReference.ObjectNumber,
+                new PdfDictionary(versionCatalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Requirements"),
+                        new PdfArray([new PdfDictionary([
+                            new(Name("S"), Name("U3D")),
+                            new(Name("V"), new PdfString(
+                                "1"u8, PdfStringForm.Literal))
+                        ])])))))
+            .Build());
+
+        InvalidOperationException versionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(versionSource).Build());
+        Assert.Contains("/V value is not a name or developer-extension dictionary",
+            versionError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectMalformedDocumentSecurityStores()
+    {
+        PdfDocument directStreamSource = WithDss((_, _) => new PdfDictionary([
+            new(Name("Type"), Name("DSS")),
+            new(Name("Certs"), new PdfArray([new PdfInteger(1)]))
+        ]));
+        InvalidOperationException directStreamError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedDocument(directStreamSource).Build());
+        Assert.Contains("/DSS value /Certs entry is not an indirect stream reference",
+            directStreamError.Message, StringComparison.Ordinal);
+
+        PdfDocument unregisteredVriSource = WithDss((update, _) =>
+        {
+            PdfIndirectReference certificate = update.AddObject(
+                new PdfStream(new PdfDictionary([]), [1]));
+            PdfIndirectReference unregisteredCertificate = update.AddObject(
+                new PdfStream(new PdfDictionary([]), [2]));
+            return new PdfDictionary([
+                new(Name("Certs"), new PdfArray([certificate])),
+                new(Name("VRI"), new PdfDictionary([
+                    new(Name("0123456789ABCDEF0123456789ABCDEF01234567"),
+                        new PdfDictionary([
+                            new(Name("Type"), Name("VRI")),
+                            new(Name("Cert"), new PdfArray([unregisteredCertificate]))
+                        ]))
+                ]))
+            ]);
+        });
+        InvalidOperationException registrationError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(PdfDocument.Open(
+                        new PdfDocumentBuilder().Build()))
+                    .AddImportedDocument(unregisteredVriSource).Build());
+        Assert.Contains("/Cert entry is absent from its DSS validation-data array",
+            registrationError.Message, StringComparison.Ordinal);
+
+        PdfDocument validSource = WithDss((update, _) =>
+        {
+            PdfIndirectReference certificate = update.AddObject(
+                new PdfStream(new PdfDictionary([]), [1, 2, 3]));
+            return new PdfDictionary([
+                new(Name("Type"), Name("DSS")),
+                new(Name("Certs"), new PdfArray([certificate])),
+                new(Name("VRI"), new PdfDictionary([
+                    new(Name("0123456789ABCDEF0123456789ABCDEF01234567"),
+                        new PdfDictionary([
+                            new(Name("Type"), Name("VRI")),
+                            new(Name("Cert"), new PdfArray([certificate])),
+                            new(Name("TU"), new PdfString(
+                                "D:20260824120000-07'00'"u8,
+                                PdfStringForm.Literal))
+                        ]))
+                ]))
+            ]);
+        });
+        PdfDocument imported = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(
+                    new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(validSource).Build());
+        Assert.True(ResolveDictionary(imported,
+            imported.Trailer[Name("Root")]).ContainsKey(Name("DSS")));
+
+        static PdfDocument WithDss(
+            Func<PdfIncrementalUpdateBuilder, PdfDocument, PdfDictionary> createDss)
+        {
+            PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+                .AddBlankPage().Build());
+            var update = new PdfIncrementalUpdateBuilder(document);
+            PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+                document.Trailer[Name("Root")]);
+            PdfDictionary catalog = ResolveDictionary(document, catalogReference);
+            update.ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("DSS"),
+                        createDss(update, document)))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectMalformedLegalAttestations()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Legal"),
+                        new PdfDictionary([
+                            new(Name("Type"), Name("Legal")),
+                            new(Name("JavaScriptActions"), Name("Maybe"))
+                        ])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("/Legal value /JavaScriptActions value /Maybe is not defined",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectMalformedCollectionSchemas()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfDocument source = original;
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Collection"),
+                        new PdfDictionary([
+                            new(Name("Type"), Name("Collection")),
+                            new(Name("Schema"), new PdfDictionary([
+                                new(Name("Column"), new PdfDictionary([
+                                    new(Name("Subtype"), Name("S"))
+                                ]))
+                            ]))
+                        ])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("/Collection value /Schema /Column has no /N string",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidColors = PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+            .ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Collection"),
+                        new PdfDictionary([
+                            new(Name("Type"), Name("Collection")),
+                            new(Name("Colors"), new PdfDictionary([
+                                new(Name("Type"), Name("CollectionColors")),
+                                new(Name("PrimaryText"), new PdfArray([
+                                    new PdfInteger(0), new PdfInteger(0), new PdfInteger(2)
+                                ]))
+                            ]))
+                        ])))))
+            .Build());
+        InvalidOperationException colorError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(invalidColors).Build());
+        Assert.Contains("/Collection value /Colors /PrimaryText value is not a valid RGB array",
+            colorError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidFolders = PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+            .ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Collection"),
+                        new PdfDictionary([
+                            new(Name("Type"), Name("Collection")),
+                            new(Name("Folders"), new PdfDictionary([
+                                new(Name("Type"), Name("Folder")),
+                                new(Name("ID"), new PdfInteger(0)),
+                                new(Name("Name"), new PdfString("Root"u8, PdfStringForm.Literal))
+                            ]))
+                        ])))))
+            .Build());
+        InvalidOperationException folderError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(invalidFolders).Build());
+        Assert.Contains("/Collection value /Folders value is not an indirect folder reference",
+            folderError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectInvalidMetadataStreams()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference invalidMetadata = update.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("Wrong")),
+                new(Name("Subtype"), Name("XML"))
+            ]), "<x:xmpmeta/>"u8));
+        update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Metadata"), invalidMetadata))));
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("catalog /Metadata value has an invalid /Type value",
+            error.Message, StringComparison.Ordinal);
+
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectInvalidLanguageTags()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfDocument original = source;
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Lang"),
+                    new PdfString("not_valid"u8, PdfStringForm.Literal)))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("not a valid BCP 47 language tag",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDictionary originalCatalog = ResolveDictionary(original,
+            Assert.IsType<PdfIndirectReference>(original.Trailer[Name("Root")]));
+        byte[] utf8Language = [0xEF, 0xBB, 0xBF, .. "en-US"u8.ToArray()];
+        PdfDocument validUtf8 = PdfDocument.Open(new PdfIncrementalUpdateBuilder(original)
+            .ReplaceObject(catalogReference.ObjectNumber,
+                new PdfDictionary(originalCatalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Lang"),
+                        new PdfString(utf8Language, PdfStringForm.Hexadecimal)))))
+            .Build());
+
+        _ = new PdfIncrementalPageEditor(PdfDocument.Open(
+                new PdfDocumentBuilder().Build()))
+            .AddImportedDocument(validUtf8)
+            .Build();
+
+        PdfDocument malformedUtf8 = PdfDocument.Open(
+            new PdfIncrementalUpdateBuilder(original)
+                .ReplaceObject(catalogReference.ObjectNumber,
+                    new PdfDictionary(originalCatalog.Append(
+                        new KeyValuePair<PdfName, PdfObject>(Name("Lang"),
+                            new PdfString([0xEF, 0xBB, 0xBF, 0xC3, 0x28],
+                                PdfStringForm.Hexadecimal)))))
+                .Build());
+        InvalidOperationException malformedError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(
+                    new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(malformedUtf8)
+                .Build());
+        Assert.Contains("contains malformed UTF-8 text",
+            malformedError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CompleteDocumentImports_RejectUndefinedCatalogVersions()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            source.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(source, catalogReference);
+        byte[] validVersion = new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Version"), Name("2.0")))))
+            .Build();
+        string invalidVersion = Encoding.Latin1.GetString(validVersion)
+            .Replace("/Version /2.0", "/Version /3.0", StringComparison.Ordinal);
+        source = PdfDocument.Open(Encoding.Latin1.GetBytes(invalidVersion));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("declares undefined PDF 3.0",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TaggedCompleteImport_RemapCatalogExtensionStructureRootBackReference()
     {
         PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
@@ -1380,7 +6045,11 @@ public sealed class PdfIncrementalPageEditorTests
             Assert.IsType<PdfArray>(top[Name("K")])[0]);
         PdfString retainedId = new("retained"u8, PdfStringForm.Literal);
         PdfString staleId = new("stale"u8, PdfStringForm.Literal);
+        PdfDictionary figure = ResolveDictionary(source, figureReference);
         var update = new PdfIncrementalUpdateBuilder(source);
+        update.ReplaceObject(figureReference.ObjectNumber, new PdfDictionary(figure
+            .Where(entry => !entry.Key.Equals(Name("ID")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("ID"), retainedId))));
         update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root.Append(
             new KeyValuePair<PdfName, PdfObject>(Name("IDTree"),
                 new PdfDictionary([new(Name("Names"), new PdfArray([
@@ -1442,6 +6111,39 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void TaggedDocumentMerges_RejectMismatchedIdTreeValues()
+    {
+        PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        var update = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference invalidElement = update.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("StructElem")),
+            new(Name("S"), Name("P")),
+            new(Name("ID"), new PdfString("actual"u8, PdfStringForm.Literal))
+        ]));
+        PdfDictionary idTree = new([
+            new(Name("Names"), new PdfArray([
+                new PdfString("registered"u8, PdfStringForm.Literal),
+                invalidElement
+            ]))
+        ]);
+        update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root
+            .Where(entry => !entry.Key.Equals(Name("IDTree")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("IDTree"), idTree))));
+        source = PdfDocument.Open(update.Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(BuildTaggedDocument()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("role-bearing structure element with a matching /ID",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TaggedImports_MergeStructureRootAssociatedFilesAndLexicons()
     {
         PdfDocument target = AddRootArrays(PdfDocument.Open(BuildTaggedDocument()), "target");
@@ -1456,7 +6158,16 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Equal(2, Assert.IsType<PdfArray>(
             root[Name("PronunciationLexicon")]).Count);
 
-        static PdfDocument AddRootArrays(PdfDocument document, string label)
+        PdfDocument invalid = AddRootArrays(
+            PdfDocument.Open(BuildTaggedDocument()), "invalid", "Wrong");
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalid).Build());
+        Assert.Contains("has an invalid /Type value", error.Message,
+            StringComparison.Ordinal);
+
+        static PdfDocument AddRootArrays(
+            PdfDocument document, string label, string type = "Filespec")
         {
             PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
             PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
@@ -1464,7 +6175,7 @@ public sealed class PdfIncrementalPageEditorTests
             PdfDictionary root = ResolveDictionary(document, rootReference);
             var update = new PdfIncrementalUpdateBuilder(document);
             PdfIndirectReference value = update.AddObject(new PdfDictionary([
-                new(Name("Type"), Name("Filespec")),
+                new(Name("Type"), Name(type)),
                 new(Name("F"), new PdfString(Encoding.ASCII.GetBytes(label), PdfStringForm.Literal))
             ]));
             update.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root
@@ -1974,6 +6685,160 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void LayeredDocumentMerges_RejectInvalidGroupRegistrations()
+    {
+        PdfDocument original = PdfDocument.Open(BuildLayeredDocument());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(original, catalogReference);
+        PdfDictionary properties = DictionaryValue(original, catalog[Name("OCProperties")]);
+        PdfIndirectReference groupReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(properties[Name("OCGs")])));
+        PdfDictionary group = ResolveDictionary(original, groupReference);
+
+        var invalidTypeUpdate = new PdfIncrementalUpdateBuilder(original);
+        invalidTypeUpdate.ReplaceObject(groupReference.ObjectNumber, new PdfDictionary(group
+            .Where(entry => !entry.Key.Equals(Name("Type")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Type"), Name("Pages")))));
+        PdfDocument invalidType = PdfDocument.Open(invalidTypeUpdate.Build());
+        PdfDocument occupied = PdfDocument.Open(BuildLayeredDocument());
+
+        InvalidOperationException typeError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(invalidType)
+                .Build());
+        Assert.Contains("/Type is not /OCG", typeError.Message,
+            StringComparison.Ordinal);
+
+        PdfIndirectReference staleGroup = new(
+            groupReference.ObjectNumber, groupReference.Generation + 1);
+        PdfDictionary staleProperties = new(properties
+            .Where(entry => !entry.Key.Equals(Name("OCGs")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("OCGs"), new PdfArray([staleGroup]))));
+        var staleUpdate = new PdfIncrementalUpdateBuilder(original);
+        staleUpdate.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+            .Where(entry => !entry.Key.Equals(Name("OCProperties")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("OCProperties"), staleProperties))));
+        PdfDocument stale = PdfDocument.Open(staleUpdate.Build());
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(stale)
+                .Build());
+
+        PdfDictionary configuration = DictionaryValue(original, properties[Name("D")]);
+        PdfDictionary invalidConfiguration = new(configuration
+            .Where(entry => !entry.Key.Equals(Name("ListMode")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("ListMode"), Name("SometimesVisible"))));
+        PdfDictionary invalidConfigurationProperties = new(properties
+            .Where(entry => !entry.Key.Equals(Name("D")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("D"), invalidConfiguration)));
+        var invalidConfigurationUpdate = new PdfIncrementalUpdateBuilder(original);
+        invalidConfigurationUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(Name("OCProperties")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("OCProperties"), invalidConfigurationProperties))));
+        PdfDocument invalidListMode = PdfDocument.Open(invalidConfigurationUpdate.Build());
+
+        InvalidOperationException listModeError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(invalidListMode)
+                .Build());
+        Assert.Contains("/ListMode /SometimesVisible is not defined", listModeError.Message,
+            StringComparison.Ordinal);
+        Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(
+                    PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(invalidListMode)
+                .Build());
+
+        PdfDictionary unregisteredConfiguration = new(configuration
+            .Where(entry => !entry.Key.Equals(Name("ON")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("ON"), new PdfArray([staleGroup]))));
+        PdfDictionary unregisteredProperties = new(properties
+            .Where(entry => !entry.Key.Equals(Name("D")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("D"), unregisteredConfiguration)));
+        var unregisteredUpdate = new PdfIncrementalUpdateBuilder(original);
+        unregisteredUpdate.ReplaceObject(catalogReference.ObjectNumber,
+            new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(Name("OCProperties")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("OCProperties"), unregisteredProperties))));
+        PdfDocument unregistered = PdfDocument.Open(unregisteredUpdate.Build());
+
+        InvalidOperationException unregisteredError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(unregistered)
+                .Build());
+        Assert.Contains("/ON entry is absent from /OCGs", unregisteredError.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LayeredDocumentMerges_RejectInvalidConfigurationCollections()
+    {
+        PdfDocument original = PdfDocument.Open(BuildLayeredDocument());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(original, catalogReference);
+        PdfDictionary properties = DictionaryValue(original, catalog[Name("OCProperties")]);
+        PdfDictionary configuration = DictionaryValue(original, properties[Name("D")]);
+        PdfIndirectReference groupReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(properties[Name("OCGs")])));
+        PdfIndirectReference staleGroup = new(
+            groupReference.ObjectNumber, groupReference.Generation + 1);
+        PdfDocument occupied = PdfDocument.Open(BuildLayeredDocument());
+
+        PdfDocument invalidLocked = WithDefault(new PdfDictionary(configuration
+            .Where(entry => !entry.Key.Equals(Name("Locked")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("Locked"), new PdfArray([staleGroup])))));
+        InvalidOperationException lockedError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(invalidLocked)
+                .Build());
+        Assert.Contains("/Locked entry is absent from /OCGs", lockedError.Message,
+            StringComparison.Ordinal);
+
+        var invalidApplication = new PdfDictionary([
+            new(Name("Event"), Name("Sometimes")),
+            new(Name("Category"), new PdfArray([Name("View")])),
+            new(Name("OCGs"), new PdfArray([groupReference]))
+        ]);
+        PdfDocument invalidAs = WithDefault(new PdfDictionary(configuration
+            .Where(entry => !entry.Key.Equals(Name("AS")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("AS"), new PdfArray([invalidApplication])))));
+        InvalidOperationException asError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(occupied)
+                .AddImportedDocument(invalidAs)
+                .Build());
+        Assert.Contains("/AS entry has an invalid /Event", asError.Message,
+            StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithDefault(PdfDictionary replacement)
+        {
+            PdfDictionary replacementProperties = new(properties
+                .Where(entry => !entry.Key.Equals(Name("D")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("D"), replacement)));
+            var update = new PdfIncrementalUpdateBuilder(original);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(Name("OCProperties")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("OCProperties"), replacementProperties))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
     public void LayeredDocuments_ImportSelectedLayerAcrossDistinctEncryptionKeys()
     {
         var firstLayer = new PdfOptionalContentGroup("Encrypted omitted layer");
@@ -2388,6 +7253,89 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void SelectedPageImports_RejectInvalidAssociatedFileSpecifications()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (_, PdfIndirectReference[] pageReferences, PdfDictionary[] pages) = FlatPages(source);
+        PdfDictionary invalidFile = new([
+            new(Name("Type"), Name("Wrong")),
+            new(Name("F"), new PdfString("invalid.txt"u8, PdfStringForm.Literal))
+        ]);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(pageReferences[0].ObjectNumber, new PdfDictionary(
+                pages[0].Append(new KeyValuePair<PdfName, PdfObject>(Name("AF"),
+                    new PdfArray([invalidFile])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(source, 0).Build());
+
+        Assert.Contains("imported page /AF entry has an invalid /Type value",
+            error.Message, StringComparison.Ordinal);
+
+        PdfDocument embeddedSource = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        (_, PdfIndirectReference[] embeddedReferences,
+            PdfDictionary[] embeddedPages) = FlatPages(embeddedSource);
+        var embeddedUpdate = new PdfIncrementalUpdateBuilder(embeddedSource);
+        PdfIndirectReference invalidStream = embeddedUpdate.AddObject(
+            new PdfStream(new PdfDictionary([
+                new(Name("Type"), Name("Wrong"))
+            ]), []));
+        PdfDictionary invalidEmbeddedFile = new([
+            new(Name("Type"), Name("Filespec")),
+            new(Name("F"), new PdfString("invalid.txt"u8, PdfStringForm.Literal)),
+            new(Name("EF"), new PdfDictionary([
+                new(Name("F"), invalidStream)
+            ]))
+        ]);
+        embeddedUpdate.ReplaceObject(embeddedReferences[0].ObjectNumber,
+            new PdfDictionary(embeddedPages[0].Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("AF"),
+                    new PdfArray([invalidEmbeddedFile])))));
+        PdfDocument invalidEmbeddedSource = PdfDocument.Open(embeddedUpdate.Build());
+        InvalidOperationException embeddedError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(invalidEmbeddedSource, 0).Build());
+        Assert.Contains("/EF /F stream has an invalid /Type value",
+            embeddedError.Message, StringComparison.Ordinal);
+
+        PdfDocument checksumSource = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        (_, PdfIndirectReference[] checksumReferences,
+            PdfDictionary[] checksumPages) = FlatPages(checksumSource);
+        var checksumUpdate = new PdfIncrementalUpdateBuilder(checksumSource);
+        PdfIndirectReference checksumStream = checksumUpdate.AddObject(
+            new PdfStream(new PdfDictionary([
+                new(Name("Type"), Name("EmbeddedFile")),
+                new(Name("Subtype"), Name("application/octet-stream")),
+                new(Name("Params"), new PdfDictionary([
+                    new(Name("CheckSum"), new PdfString([1], PdfStringForm.Hexadecimal))
+                ]))
+            ]), []));
+        PdfDictionary checksumFile = new([
+            new(Name("Type"), Name("Filespec")),
+            new(Name("F"), new PdfString("invalid.txt"u8, PdfStringForm.Literal)),
+            new(Name("EF"), new PdfDictionary([
+                new(Name("F"), checksumStream)
+            ]))
+        ]);
+        checksumUpdate.ReplaceObject(checksumReferences[0].ObjectNumber,
+            new PdfDictionary(checksumPages[0].Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("AF"),
+                    new PdfArray([checksumFile])))));
+        PdfDocument invalidChecksumSource = PdfDocument.Open(checksumUpdate.Build());
+        InvalidOperationException checksumError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(new PdfDocumentBuilder().Build()))
+                .AddImportedPage(invalidChecksumSource, 0).Build());
+        Assert.Contains("/Params /CheckSum is not a 16-byte string",
+            checksumError.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CompleteDocumentImports_RemoveStaleCatalogAssociatedFiles()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -2520,6 +7468,58 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void CompleteDocumentImports_RejectMalformedNamedDestinations()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            original.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(original, catalogReference);
+        PdfIndirectReference page = FlatPages(original).References[0];
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+
+        PdfDocument invalidLegacy = WithCatalogEntry("Dests", new PdfDictionary([
+            new(Name("bad"), new PdfArray([
+                page, Name("FitR"), new PdfInteger(0)
+            ]))
+        ]));
+        InvalidOperationException legacyError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(invalidLegacy)
+                .Build());
+        Assert.Contains("legacy named destination /FitR has an invalid operand count",
+            legacyError.Message, StringComparison.Ordinal);
+
+        PdfDictionary destinationTree = new([
+            new(Name("Names"), new PdfArray([
+                new PdfString("bad"u8, PdfStringForm.Literal),
+                new PdfArray([page, Name("Somewhere")])
+            ]))
+        ]);
+        PdfDocument invalidTree = WithCatalogEntry("Names", new PdfDictionary([
+            new(Name("Dests"), destinationTree)
+        ]));
+        InvalidOperationException treeError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(empty)
+                .AddImportedDocument(invalidTree)
+                .Build());
+        Assert.Contains("fit mode /Somewhere is not defined", treeError.Message,
+            StringComparison.Ordinal);
+        return;
+
+        PdfDocument WithCatalogEntry(string key, PdfObject value)
+        {
+            PdfName name = Name(key);
+            var update = new PdfIncrementalUpdateBuilder(original);
+            update.ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                .Where(entry => !entry.Key.Equals(name))
+                .Append(new KeyValuePair<PdfName, PdfObject>(name, value))));
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
     public void TaggedDocumentMerges_RemoveStaleStructureRootCollections()
     {
         PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
@@ -2641,6 +7641,79 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void TaggedDocumentMerges_RejectInvalidDocumentElementKids()
+    {
+        PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfDictionary root = ResolveDictionary(source, catalog[Name("StructTreeRoot")]);
+        PdfIndirectReference documentReference = Assert.IsType<PdfIndirectReference>(
+            Assert.IsType<PdfArray>(root[Name("K")])[0]);
+        PdfDictionary documentElement = ResolveDictionary(source, documentReference);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(documentReference.ObjectNumber, new PdfDictionary(documentElement
+                .Where(entry => !entry.Key.Equals(Name("K")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("K"),
+                    new PdfDictionary([])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(BuildTaggedDocument()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("Document-element kids value contains a structure element without a role",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TaggedDocumentMerges_RejectInvalidStructureRootType()
+    {
+        PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root
+                .Where(entry => !entry.Key.Equals(Name("Type")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Type"), Name("Wrong")))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(BuildTaggedDocument()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("source /StructTreeRoot /Type value is not /StructTreeRoot",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TaggedDocumentMerges_RejectInvalidStructureNamespaces()
+    {
+        PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        PdfDictionary invalidNamespace = new([
+            new(Name("Type"), Name("Namespace")),
+            new(Name("NS"), new PdfInteger(7))
+        ]);
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root
+                .Where(entry => !entry.Key.Equals(Name("Namespaces")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("Namespaces"),
+                    new PdfArray([invalidNamespace])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(BuildTaggedDocument()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("source structure namespace has no valid /NS string",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TaggedDocumentMerges_RejectStaleRequiredParentTreeValues()
     {
         PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
@@ -2678,6 +7751,45 @@ public sealed class PdfIncrementalPageEditorTests
 
         Assert.Contains("missing from the source ParentTree", error.Message,
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TaggedDocumentMerges_RejectStaleParentTreeArrayEntries()
+    {
+        PdfDocument source = PdfDocument.Open(BuildTaggedDocument());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        PdfDictionary parentTree = DictionaryValue(source, root[Name("ParentTree")]);
+        PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
+        PdfObject mappingValue = numbers[1] is PdfIndirectReference mappingReference
+            ? source.Resolve(mappingReference) : numbers[1];
+        PdfArray mapping = Assert.IsType<PdfArray>(mappingValue);
+        (_, PdfIndirectReference[] pages, _) = FlatPages(source);
+        PdfArray staleMapping = new([
+            new PdfIndirectReference(
+                pages[0].ObjectNumber, pages[0].Generation + 1),
+            .. mapping.Skip(1)
+        ]);
+        var rewrittenNumbers = new List<PdfObject>(numbers) { [1] = staleMapping };
+        PdfDictionary staleParentTree = new(parentTree
+            .Where(entry => !entry.Key.Equals(Name("Nums")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Nums"),
+                new PdfArray(rewrittenNumbers))));
+        source = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(root
+                .Where(entry => !entry.Key.Equals(Name("ParentTree")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(
+                    Name("ParentTree"), staleParentTree))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(BuildTaggedDocument()))
+                .AddImportedDocument(source).Build());
+
+        Assert.Contains("array entry that is neither an explicit null nor a structure element",
+            error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -3372,6 +8484,53 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void CompleteOutlineImports_RejectMalformedDestinationsAndActions()
+    {
+        PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBookmark("Source", 0)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(original, original.Trailer[Name("Root")]);
+        PdfDictionary root = DictionaryValue(original, catalog[Name("Outlines")]);
+        PdfIndirectReference itemReference = Assert.IsType<PdfIndirectReference>(
+            root[Name("First")]);
+        PdfDictionary item = ResolveDictionary(original, itemReference);
+        PdfIndirectReference page = FlatPages(original).References[0];
+        PdfDocument target = PdfDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+
+        PdfDocument invalidDestination = ReplaceItem(new PdfDictionary(item
+            .Where(entry => !entry.Key.Equals(Name("Dest")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("Dest"),
+                new PdfArray([page, Name("FitH")])))));
+        InvalidOperationException destinationError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidDestination)
+                .Build());
+        Assert.Contains("bookmark /Dest value /FitH has an invalid operand count",
+            destinationError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidAction = ReplaceItem(new PdfDictionary(item
+            .Where(entry => !entry.Key.Equals(Name("Dest")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(Name("A"),
+                new PdfDictionary([new(Name("Type"), Name("Action"))])))));
+        InvalidOperationException actionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidAction)
+                .Build());
+        Assert.Contains("bookmark /A value has no valid /S name",
+            actionError.Message, StringComparison.Ordinal);
+        return;
+
+        PdfDocument ReplaceItem(PdfDictionary replacement)
+        {
+            var update = new PdfIncrementalUpdateBuilder(original);
+            update.ReplaceObject(itemReference.ObjectNumber, replacement);
+            return PdfDocument.Open(update.Build());
+        }
+    }
+
+    [Fact]
     public void CompleteOutlineImports_RejectStaleChildLists()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -3634,8 +8793,8 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Equal(["source", "target"], Enumerable.Range(0, values.Count / 2)
             .Select(index => DecodeUnicode(Assert.IsType<PdfString>(values[index * 2]))));
         Assert.Equal(["source script", "target script"],
-            Enumerable.Range(0, values.Count / 2).Select(index => DecodeUnicode(
-                Assert.IsType<PdfString>(Resolved(merged, values[index * 2 + 1])))));
+            Enumerable.Range(0, values.Count / 2).Select(index => ScriptText(
+                merged, values[index * 2 + 1])));
         byte[] partialBytes = new PdfIncrementalPageEditor(target)
             .AddImportedPage(source, 0).Build();
         PdfDocument partial = PdfDocument.Open(partialBytes);
@@ -3652,6 +8811,174 @@ public sealed class PdfIncrementalPageEditorTests
             "JavaScript", "target", "other script");
         Assert.Throws<NotSupportedException>(() => new PdfIncrementalPageEditor(target)
             .AddImportedDocument(collision).Build());
+
+        PdfDocument invalidScript = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "JavaScript", "invalid", "bare script", validJavaScript: false);
+        InvalidOperationException scriptError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidScript).Build());
+        Assert.Contains("/Names /JavaScript name-tree value is not a JavaScript action dictionary",
+            scriptError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidContentSet = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "IDS", "identifier", "not a content set");
+        InvalidOperationException contentSetError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidContentSet).Build());
+        Assert.Contains("/Names /IDS name-tree value is not a Web Capture content-set dictionary",
+            contentSetError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidPresentation = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "AlternatePresentations", "show", "not a slideshow");
+        InvalidOperationException presentationError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(target)
+                    .AddImportedDocument(invalidPresentation).Build());
+        Assert.Contains("/Names /AlternatePresentations name-tree value is not a slideshow dictionary",
+            presentationError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidRendition = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "Renditions", "media", "not a rendition");
+        InvalidOperationException renditionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidRendition).Build());
+        Assert.Contains("/Names /Renditions name-tree value is not a rendition dictionary",
+            renditionError.Message, StringComparison.Ordinal);
+
+        PdfDocument incompleteRendition = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "Renditions", "incomplete", "unused", rawValue: new PdfDictionary([
+                new(Name("Type"), Name("Rendition")),
+                new(Name("S"), Name("MR"))
+            ]));
+        InvalidOperationException incompleteRenditionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(target)
+                    .AddImportedDocument(incompleteRendition).Build());
+        Assert.Contains("media rendition has neither /C nor /P dictionary",
+            incompleteRenditionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidPlayParameters = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "Renditions", "bad volume", "unused", rawValue: new PdfDictionary([
+                new(Name("Type"), Name("Rendition")),
+                new(Name("S"), Name("MR")),
+                new(Name("P"), new PdfDictionary([
+                    new(Name("Type"), Name("MediaPlayParams")),
+                    new(Name("MH"), new PdfDictionary([
+                        new(Name("V"), new PdfInteger(-1))
+                    ]))
+                ]))
+            ]));
+        InvalidOperationException playError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidPlayParameters).Build());
+        Assert.Contains("/P /MH /V value is not a nonnegative integer",
+            playError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidDuration = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "Renditions", "negative duration", "unused", rawValue: new PdfDictionary([
+                new(Name("Type"), Name("Rendition")),
+                new(Name("S"), Name("MR")),
+                new(Name("P"), new PdfDictionary([
+                    new(Name("MH"), new PdfDictionary([
+                        new(Name("D"), new PdfDictionary([
+                            new(Name("Type"), Name("MediaDuration")),
+                            new(Name("S"), Name("T")),
+                            new(Name("T"), new PdfDictionary([
+                                new(Name("Type"), Name("Timespan")),
+                                new(Name("S"), Name("S")),
+                                new(Name("V"), new PdfInteger(-1))
+                            ]))
+                        ]))
+                    ]))
+                ]))
+            ]));
+        InvalidOperationException durationError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidDuration).Build());
+        Assert.Contains("has no valid finite /V seconds value",
+            durationError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidPlayer = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "Renditions", "missing player ID", "unused", rawValue: new PdfDictionary([
+                new(Name("Type"), Name("Rendition")),
+                new(Name("S"), Name("MR")),
+                new(Name("P"), new PdfDictionary([
+                    new(Name("PL"), new PdfDictionary([
+                        new(Name("Type"), Name("MediaPlayers")),
+                        new(Name("MU"), new PdfArray([
+                            new PdfDictionary([
+                                new(Name("Type"), Name("MediaPlayerInfo"))
+                            ])
+                        ]))
+                    ]))
+                ]))
+            ]));
+        InvalidOperationException playerError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidPlayer).Build());
+        Assert.Contains("/PL value /MU entry has no /PID string",
+            playerError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidPermission = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "Renditions", "invalid permission", "unused", rawValue: new PdfDictionary([
+                new(Name("Type"), Name("Rendition")),
+                new(Name("S"), Name("MR")),
+                new(Name("C"), new PdfDictionary([
+                    new(Name("Type"), Name("MediaClip")),
+                    new(Name("S"), Name("MCD")),
+                    new(Name("D"), new PdfDictionary([
+                        new(Name("F"), new PdfString("clip.mov"u8, PdfStringForm.Literal))
+                    ])),
+                    new(Name("P"), new PdfDictionary([
+                        new(Name("Type"), Name("MediaPermissions")),
+                        new(Name("TF"), Name("FOREVER"))
+                    ]))
+                ]))
+            ]));
+        InvalidOperationException permissionError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalidPermission).Build());
+        Assert.Contains("/C /P value /TF value is not a defined temporary-access name",
+            permissionError.Message, StringComparison.Ordinal);
+
+        PdfDocument invalidAlternateDescription = WithNameTree(
+            new PdfDocumentBuilder().AddBlankPage().Build(),
+            "Renditions", "invalid alternate description", "unused", rawValue: new PdfDictionary([
+                new(Name("Type"), Name("Rendition")),
+                new(Name("S"), Name("MR")),
+                new(Name("C"), new PdfDictionary([
+                    new(Name("Type"), Name("MediaClip")),
+                    new(Name("S"), Name("MCD")),
+                    new(Name("D"), new PdfDictionary([
+                        new(Name("F"), new PdfString("clip.mov"u8, PdfStringForm.Literal))
+                    ])),
+                    new(Name("Alt"), new PdfArray([
+                        new PdfString("en-US"u8, PdfStringForm.Literal)
+                    ]))
+                ]))
+            ]));
+        InvalidOperationException alternateDescriptionError =
+            Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalPageEditor(target)
+                    .AddImportedDocument(invalidAlternateDescription).Build());
+        Assert.Contains("/C /Alt value is not a language and text string-pair array",
+            alternateDescriptionError.Message, StringComparison.Ordinal);
+
+        PdfDocument missingSourceUrl = WithContentSetMissingSourceUrl();
+        InvalidOperationException sourceUrlError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(missingSourceUrl).Build());
+        Assert.Contains("/Names /IDS name-tree value /SI entry has no /AU URL value",
+            sourceUrlError.Message, StringComparison.Ordinal);
 
         PdfIndirectReference sourceCatalogReference = Assert.IsType<PdfIndirectReference>(
             source.Trailer[Name("Root")]);
@@ -3685,12 +9012,19 @@ public sealed class PdfIncrementalPageEditorTests
             staleError.Message, StringComparison.Ordinal);
 
         static PdfDocument WithNameTree(
-            byte[] bytes, string category, string key, string value)
+            byte[] bytes, string category, string key, string value,
+            bool validJavaScript = true, PdfObject? rawValue = null)
         {
             PdfDocument document = PdfDocument.Open(bytes);
             var update = new PdfIncrementalUpdateBuilder(document);
             PdfIndirectReference valueReference = update.AddObject(
-                Unicode(value));
+                rawValue ?? (category == "JavaScript" && validJavaScript
+                    ? new PdfDictionary([
+                        new(Name("Type"), Name("Action")),
+                        new(Name("S"), Name("JavaScript")),
+                        new(Name("JS"), Unicode(value))
+                    ])
+                    : Unicode(value)));
             PdfDictionary catalog = ResolveDictionary(
                 document, document.Trailer[Name("Root")]);
             PdfDictionary replacement = new(catalog
@@ -3710,8 +9044,41 @@ public sealed class PdfIncrementalPageEditorTests
             return PdfDocument.Open(update.Build());
         }
 
-        static PdfObject Resolved(PdfDocument document, PdfObject value) =>
-            value is PdfIndirectReference reference ? document.Resolve(reference) : value;
+        static PdfDocument WithContentSetMissingSourceUrl()
+        {
+            PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+                .AddBlankPage().Build());
+            (_, PdfIndirectReference[] pages, _) = FlatPages(document);
+            var update = new PdfIncrementalUpdateBuilder(document);
+            PdfIndirectReference contentSet = update.AddObject(new PdfDictionary([
+                new(Name("Type"), Name("SpiderContentSet")),
+                new(Name("S"), Name("SPS")),
+                new(Name("ID"), new PdfString("id"u8, PdfStringForm.Hexadecimal)),
+                new(Name("O"), new PdfArray([pages[0]])),
+                new(Name("SI"), new PdfDictionary([]))
+            ]));
+            PdfDictionary catalog = ResolveDictionary(
+                document, document.Trailer[Name("Root")]);
+            update.ReplaceObject(
+                Assert.IsType<PdfIndirectReference>(
+                    document.Trailer[Name("Root")]).ObjectNumber,
+                new PdfDictionary(catalog.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Names"),
+                        new PdfDictionary([
+                            new(Name("IDS"), new PdfDictionary([
+                                new(Name("Names"), new PdfArray([
+                                    Unicode("id"), contentSet
+                                ]))
+                            ]))
+                        ])))));
+            return PdfDocument.Open(update.Build());
+        }
+
+        static string ScriptText(PdfDocument document, PdfObject value)
+        {
+            PdfDictionary action = ResolveDictionary(document, value);
+            return DecodeUnicode(Assert.IsType<PdfString>(action[Name("JS")]));
+        }
 
         static PdfString Unicode(string value) => new(
             [0xFE, 0xFF, .. Encoding.BigEndianUnicode.GetBytes(value)],
@@ -3748,12 +9115,31 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<NotSupportedException>(() => new PdfIncrementalPageEditor(target)
             .AddImportedDocument(collision).Build());
 
-        static PdfDocument WithExtension(byte[] bytes, string name, int level)
+        PdfDocument invalid = WithExtension(
+            new PdfDocumentBuilder().AddBlankPage().Build(), "BAD", 1, valid: false);
+        InvalidOperationException invalidError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalPageEditor(target)
+                .AddImportedDocument(invalid).Build());
+        Assert.Contains("no valid /BaseVersion name", invalidError.Message,
+            StringComparison.Ordinal);
+
+        PdfDocument nullOnly = WithNullExtension(
+            new PdfDocumentBuilder().AddBlankPage().Build());
+        PdfDocument nullOnlyMerged = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(
+                    new PdfDocumentBuilder().Build()))
+                .AddImportedDocument(nullOnly).Build());
+        PdfDictionary nullOnlyCatalog = ResolveDictionary(
+            nullOnlyMerged, nullOnlyMerged.Trailer[Name("Root")]);
+        Assert.False(nullOnlyCatalog.ContainsKey(Name("Extensions")));
+
+        static PdfDocument WithExtension(
+            byte[] bytes, string name, int level, bool valid = true)
         {
             PdfDocument document = PdfDocument.Open(bytes);
             var update = new PdfIncrementalUpdateBuilder(document);
             PdfIndirectReference extension = update.AddObject(new PdfDictionary([
-                new(Name("BaseVersion"), Name("2.0")),
+                new(Name("BaseVersion"), valid ? Name("2.0") : new PdfInteger(2)),
                 new(Name("ExtensionLevel"), new PdfInteger(level))
             ]));
             PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
@@ -3764,6 +9150,19 @@ public sealed class PdfIncrementalPageEditorTests
                 .Append(new KeyValuePair<PdfName, PdfObject>(Name("Extensions"),
                     new PdfDictionary([new(Name(name), extension)])))));
             return PdfDocument.Open(update.Build());
+        }
+
+        static PdfDocument WithNullExtension(byte[] bytes)
+        {
+            PdfDocument document = PdfDocument.Open(bytes);
+            PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+                document.Trailer[Name("Root")]);
+            PdfDictionary catalog = ResolveDictionary(document, catalogReference);
+            return PdfDocument.Open(new PdfIncrementalUpdateBuilder(document)
+                .ReplaceObject(catalogReference.ObjectNumber, new PdfDictionary(catalog
+                    .Append(new KeyValuePair<PdfName, PdfObject>(Name("Extensions"),
+                        new PdfDictionary([new(Name("NULL"), PdfNull.Instance)])))))
+                .Build());
         }
     }
 

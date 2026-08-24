@@ -266,8 +266,25 @@ public sealed class PdfIncrementalAnnotationEditor
         }
 
         foreach (IGrouping<int, AllocatedAnnotation> group in allocated.GroupBy(item => item.Definition.PageIndex))
-            AppendPageAnnotations(update, _pages[group.Key], group.Select(item => item.AnnotationReference));
+            AppendPageAnnotations(update, _pages[group.Key], group.Select(item =>
+                (item.AnnotationReference, AllocatedAnnotationName(item))));
         return update.Build(options);
+    }
+
+    private static string AllocatedAnnotationName(AllocatedAnnotation item)
+    {
+        string kind = item.Definition switch
+        {
+            PendingTextNote => "Note",
+            PendingTextMarkup markup => markup.Type.ToString(),
+            PendingFreeText => "FreeText",
+            PendingLine => "Line",
+            PendingShape shape => shape.Type.ToString(),
+            PendingInk => "Ink",
+            PendingImageStamp => "Image",
+            _ => throw new InvalidOperationException("Unknown annotation definition.")
+        };
+        return $"KillerPDF-{kind}-{item.AnnotationReference.ObjectNumber}";
     }
 
     private IReadOnlyDictionary<int, long> PrepareTaggedAnnotationStructure(
@@ -277,6 +294,15 @@ public sealed class PdfIncrementalAnnotationEditor
             return new Dictionary<int, long>();
         PdfDictionary root = ResolveDictionary(rootValue,
             "The document structure-tree root is not a dictionary.");
+        if (!root.TryGetValue(Name("Type"), out PdfObject? rootType))
+            throw new InvalidOperationException(
+                "The document structure-tree root has no /Type /StructTreeRoot value.");
+        PdfObject resolvedRootType = rootType is PdfIndirectReference rootTypeReference
+            ? _document.Resolve(rootTypeReference) : rootType;
+        if (resolvedRootType is not PdfName rootTypeName
+            || rootTypeName.ValueAsLatin1() != "StructTreeRoot")
+            throw new InvalidOperationException(
+                "The document structure-tree root has an invalid /Type value.");
         PdfIndirectReference rootReference;
         if (rootValue is PdfIndirectReference indirectRoot)
             rootReference = indirectRoot;
@@ -305,8 +331,12 @@ public sealed class PdfIncrementalAnnotationEditor
         if (existingEntries.Any(entry => entry.Key < 0))
             throw new InvalidOperationException(
                 "The structure-tree ParentTree contains a negative key.");
+        foreach (PdfNumberTreeEntry entry in existingEntries)
+            ValidateParentTreeValue(entry.Value,
+                $"The structure-tree ParentTree value for key {entry.Key}");
         long nextKey = root.TryGetValue(ParentTreeNextKeyName, out PdfObject? nextValue)
-            ? (nextValue as PdfInteger)?.Value
+            ? ((nextValue is PdfIndirectReference nextReference
+                    ? _document.Resolve(nextReference) : nextValue) as PdfInteger)?.Value
                 ?? throw new InvalidOperationException(
                     "The structure-tree /ParentTreeNextKey is not an integer.")
             : existingEntries.Count == 0 ? 0 : checked(existingEntries.Max(entry => entry.Key) + 1);
@@ -367,10 +397,23 @@ public sealed class PdfIncrementalAnnotationEditor
         if (documentEntries.TryGetValue(StructureKidsName, out PdfObject? existingKids))
         {
             PdfObject resolvedKids = existingKids is PdfIndirectReference arrayReference
-                && _document.Resolve(arrayReference) is PdfArray indirectArray
-                    ? indirectArray : existingKids;
-            if (resolvedKids is PdfArray array) kids.AddRange(array);
-            else kids.Add(existingKids);
+                ? _document.Resolve(arrayReference) : existingKids;
+            if (resolvedKids is PdfNull)
+                throw new InvalidOperationException(
+                    "The document structure element /K value contains a stale indirect reference.");
+            if (resolvedKids is PdfArray array)
+            {
+                foreach (PdfObject kid in array)
+                {
+                    ValidateDocumentKid(kid);
+                    kids.Add(kid);
+                }
+            }
+            else
+            {
+                ValidateDocumentKid(existingKids);
+                kids.Add(existingKids);
+            }
         }
         kids.AddRange(newStructureReferences);
         documentEntries[StructureKidsName] = kids.Count == 1
@@ -381,6 +424,70 @@ public sealed class PdfIncrementalAnnotationEditor
             update.ReplaceObject(documentElementReference.ObjectNumber,
                 new PdfDictionary(documentEntries));
         return keys;
+
+        void ValidateDocumentKid(PdfObject kid)
+        {
+            PdfObject resolved = kid is PdfIndirectReference reference
+                ? _document.Resolve(reference) : kid;
+            if (resolved is PdfInteger mcid && mcid.Value >= 0) return;
+            if (resolved is PdfDictionary dictionary)
+            {
+                if (dictionary.TryGetValue(Name("S"), out PdfObject? role))
+                {
+                    PdfObject resolvedRole = role is PdfIndirectReference roleReference
+                        ? _document.Resolve(roleReference) : role;
+                    if (resolvedRole is PdfName) return;
+                }
+                if (dictionary.TryGetValue(Name("MCID"), out PdfObject? markedContent))
+                {
+                    PdfObject resolvedMcid = markedContent is PdfIndirectReference mcidReference
+                        ? _document.Resolve(mcidReference) : markedContent;
+                    if (resolvedMcid is PdfInteger dictionaryMcid
+                        && dictionaryMcid.Value >= 0) return;
+                }
+                if (dictionary.TryGetValue(Name("Obj"), out PdfObject? referencedObject)
+                    && referencedObject is PdfIndirectReference objectReference
+                    && _document.Resolve(objectReference) is PdfDictionary)
+                    return;
+            }
+            throw new InvalidOperationException(
+                "The document structure element /K value contains an invalid child.");
+        }
+
+        void ValidateParentTreeValue(PdfObject value, string description)
+        {
+            PdfObject resolved = value is PdfIndirectReference reference
+                ? _document.Resolve(reference) : value;
+            if (resolved is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                {
+                    if (item is PdfNull) continue;
+                    if (item is not PdfIndirectReference itemReference
+                        || _document.Resolve(itemReference) is not PdfDictionary element)
+                        throw new InvalidOperationException(
+                            $"{description} array contains a non-structure-element entry.");
+                    ValidateStructureElement(element, description);
+                }
+                return;
+            }
+            if (resolved is not PdfDictionary dictionary)
+                throw new InvalidOperationException(
+                    $"{description} is not a structure element or array.");
+            ValidateStructureElement(dictionary, description);
+        }
+
+        void ValidateStructureElement(PdfDictionary element, string description)
+        {
+            if (!element.TryGetValue(Name("S"), out PdfObject? role))
+                throw new InvalidOperationException(
+                    $"{description} structure element has no /S role name.");
+            PdfObject resolvedRole = role is PdfIndirectReference reference
+                ? _document.Resolve(reference) : role;
+            if (resolvedRole is not PdfName)
+                throw new InvalidOperationException(
+                    $"{description} structure element /S value is not a name.");
+        }
     }
 
     private PdfIndirectReference? FindStructureRootParentReference(PdfDictionary root)
@@ -424,9 +531,25 @@ public sealed class PdfIncrementalAnnotationEditor
             PdfObject kid = kids[index];
             PdfDictionary dictionary = ResolveDictionary(kid,
                 "A top-level structure element is not a dictionary.");
-            if (kid is PdfIndirectReference reference) fallback ??= reference;
-            if (dictionary.TryGetValue(Name("S"), out PdfObject? type)
-                && type is PdfName name && name.ValueAsLatin1() == "Document")
+            if (kid is PdfIndirectReference reference)
+            {
+                fallback ??= reference;
+                if (!dictionary.TryGetValue(Name("P"), out PdfObject? parent)
+                    || parent is not PdfIndirectReference parentReference
+                    || parentReference.ObjectNumber != rootReference.ObjectNumber
+                    || parentReference.Generation != rootReference.Generation)
+                    throw new InvalidOperationException(
+                        "A top-level structure element has no reciprocal /P link to the structure-tree root.");
+            }
+            if (!dictionary.TryGetValue(Name("S"), out PdfObject? type))
+                throw new InvalidOperationException(
+                    "A top-level structure element has no /S role name.");
+            PdfObject resolvedType = type is PdfIndirectReference typeReference
+                ? _document.Resolve(typeReference) : type;
+            PdfName name = resolvedType as PdfName
+                ?? throw new InvalidOperationException(
+                    "A top-level structure element /S value is not a name.");
+            if (name.ValueAsLatin1() == "Document")
                 return Target(kid, dictionary, index);
         }
         if (fallback is not null)
@@ -512,25 +635,48 @@ public sealed class PdfIncrementalAnnotationEditor
             ? _document.Resolve(arrayReference) : value;
         PdfArray namespaces = resolved as PdfArray
             ?? throw new InvalidOperationException("The structure-tree /Namespaces value is not an array.");
-        foreach (PdfIndirectReference reference in namespaces.OfType<PdfIndirectReference>())
+        PdfIndirectReference? result = null;
+        foreach (PdfObject namespaceValue in namespaces)
         {
+            PdfIndirectReference reference = namespaceValue as PdfIndirectReference
+                ?? throw new InvalidOperationException(
+                    "A structure namespace is not an indirect reference.");
             PdfDictionary definition = ResolveDictionary(reference,
                 "A structure namespace is not a dictionary.");
-            if (definition.TryGetValue(Name("NS"), out PdfObject? uri)
-                && uri is PdfString text
-                && DecodePdfString(text) == "http://iso.org/pdf2/ssn")
-                return reference;
+            if (!definition.TryGetValue(Name("Type"), out PdfObject? type))
+                throw new InvalidOperationException(
+                    "A structure namespace has no /Type /Namespace value.");
+            PdfObject resolvedType = type is PdfIndirectReference typeReference
+                ? _document.Resolve(typeReference) : type;
+            if (resolvedType is not PdfName typeName
+                || typeName.ValueAsLatin1() != "Namespace")
+                throw new InvalidOperationException(
+                    "A structure namespace has an invalid /Type value.");
+            if (!definition.TryGetValue(Name("NS"), out PdfObject? uri))
+                throw new InvalidOperationException(
+                    "A structure namespace has no /NS string.");
+            PdfObject resolvedUri = uri is PdfIndirectReference uriReference
+                ? _document.Resolve(uriReference) : uri;
+            PdfString text = resolvedUri as PdfString
+                ?? throw new InvalidOperationException(
+                    "A structure namespace /NS value is not a string.");
+            if (definition.TryGetValue(Name("Schema"), out PdfObject? schema)
+                && (schema is PdfIndirectReference schemaReference
+                        ? _document.Resolve(schemaReference) : schema) is not PdfDictionary)
+                throw new InvalidOperationException(
+                    "A structure namespace /Schema value is not a dictionary.");
+            if (DecodePdfString(text) != "http://iso.org/pdf2/ssn") continue;
+            if (result is not null)
+                throw new InvalidOperationException(
+                    "The structure-tree /Namespaces array contains duplicate PDF 2.0 namespaces.");
+            result = reference;
         }
-        return null;
+        return result;
     }
 
     private static string DecodePdfString(PdfString value)
-    {
-        ReadOnlySpan<byte> bytes = value.Bytes.Span;
-        return bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
-            ? PdfUnicodeEncoding.DecodeBigEndian(bytes[2..], "A structure namespace URI")
-            : Encoding.Latin1.GetString(bytes);
-    }
+        => PdfUnicodeEncoding.DecodeTextString(
+            value.Bytes.Span, "A structure namespace URI");
 
     private PdfDictionary ResolveDictionary(PdfObject value, string message) =>
         (value is PdfIndirectReference reference ? _document.Resolve(reference) : value)
@@ -614,9 +760,12 @@ public sealed class PdfIncrementalAnnotationEditor
 
     private void AppendPageAnnotations(
         PdfIncrementalUpdateBuilder update, PdfPageTreeEntry page,
-        IEnumerable<PdfIndirectReference> additions)
+        IEnumerable<(PdfIndirectReference Reference, string Name)> additions)
     {
+        var pending = additions.ToArray();
         var values = new List<PdfObject>();
+        var annotationIdentities = new HashSet<(int ObjectNumber, int Generation)>();
+        var annotationNames = new HashSet<string>(StringComparer.Ordinal);
         if (page.Dictionary.TryGetValue(AnnotsName, out PdfObject existing))
         {
             PdfArray array;
@@ -624,20 +773,402 @@ public sealed class PdfIncrementalAnnotationEditor
             {
                 array = _document.Resolve(reference) as PdfArray
                     ?? throw new InvalidOperationException($"Page {page.Index + 1} /Annots reference is not an array.");
+                PrepareExistingAnnotations(array);
+                foreach (PdfObject annotation in array)
+                    ValidateExistingAnnotation(annotation);
                 values.AddRange(array);
-                values.AddRange(additions);
-                update.ReplaceObject(reference.ObjectNumber, new PdfArray(values));
+                AddPendingAnnotations();
+                PdfIndirectReference replacementArray = update.AddObject(
+                    new PdfArray(values));
+                PdfDictionary replacementPage = new(page.Dictionary
+                    .Where(entry => !entry.Key.Equals(AnnotsName))
+                    .Append(new KeyValuePair<PdfName, PdfObject>(
+                        AnnotsName, replacementArray)));
+                update.ReplaceObject(page.Reference.ObjectNumber, replacementPage);
                 return;
             }
             array = existing as PdfArray
                 ?? throw new InvalidOperationException($"Page {page.Index + 1} /Annots value is not an array.");
+            PrepareExistingAnnotations(array);
+            foreach (PdfObject annotation in array)
+                ValidateExistingAnnotation(annotation);
             values.AddRange(array);
         }
-        values.AddRange(additions);
+        AddPendingAnnotations();
         var replacement = new PdfDictionary(page.Dictionary
             .Where(entry => !entry.Key.Equals(AnnotsName))
             .Append(new KeyValuePair<PdfName, PdfObject>(AnnotsName, new PdfArray(values))));
         update.ReplaceObject(page.Reference.ObjectNumber, replacement);
+
+        void AddPendingAnnotations()
+        {
+            foreach ((PdfIndirectReference reference, string name) in pending)
+            {
+                if (!annotationNames.Add(name))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} already contains annotation /NM value '{name}'.");
+                values.Add(reference);
+            }
+        }
+
+        void PrepareExistingAnnotations(PdfArray annotations)
+        {
+            foreach (PdfObject annotation in annotations)
+            {
+                if (annotation is not PdfIndirectReference reference)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} /Annots contains a direct annotation entry.");
+                if (!annotationIdentities.Add((reference.ObjectNumber, reference.Generation)))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} /Annots contains a duplicate annotation reference.");
+            }
+        }
+
+        void ValidateExistingAnnotation(PdfObject value)
+        {
+            PdfIndirectReference reference = (PdfIndirectReference)value;
+            PdfObject resolved = _document.Resolve(reference);
+            PdfDictionary annotation = resolved as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    $"Page {page.Index + 1} /Annots contains a stale or non-dictionary entry.");
+            PdfObject Resolve(PdfObject item) => item is PdfIndirectReference reference
+                ? _document.Resolve(reference) : item;
+            if (annotation.TryGetValue(Name("Type"), out PdfObject? type)
+                && (Resolve(type) is not PdfName typeName
+                    || typeName.ValueAsLatin1() != "Annot"))
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} /Annots contains an entry with an invalid /Type value.");
+            if (!annotation.TryGetValue(Name("Subtype"), out PdfObject? subtype)
+                || Resolve(subtype) is not PdfName)
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} /Annots contains an entry without a /Subtype name.");
+            if (!annotation.TryGetValue(Name("Rect"), out PdfObject? rectangle)
+                || Resolve(rectangle) is not PdfArray coordinates
+                || coordinates.Count != 4
+                || coordinates.Any(item => Resolve(item) is not (PdfInteger or PdfReal)))
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} /Annots contains an entry without a four-number /Rect array.");
+            if (annotation.TryGetValue(Name("P"), out PdfObject? owner)
+                && (owner is not PdfIndirectReference ownerReference
+                    || ownerReference.ObjectNumber != page.Reference.ObjectNumber
+                    || ownerReference.Generation != page.Reference.Generation))
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} /Annots contains an entry whose /P value identifies another page.");
+            if (annotation.TryGetValue(Name("NM"), out PdfObject? nameValue))
+            {
+                PdfString name = Resolve(nameValue) as PdfString
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} /Annots contains an entry whose /NM value is not a string.");
+                string decoded = PdfUnicodeEncoding.DecodeTextString(name.Bytes.Span,
+                    $"Page {page.Index + 1} annotation /NM value");
+                if (!annotationNames.Add(decoded))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} /Annots contains duplicate /NM values.");
+            }
+            foreach (string key in new[] { "Contents", "T", "Subj" })
+            {
+                if (!annotation.TryGetValue(Name(key), out PdfObject? textValue)) continue;
+                PdfString text = Resolve(textValue) as PdfString
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /{key} value is not a string.");
+                PdfUnicodeEncoding.DecodeTextString(text.Bytes.Span,
+                    $"Page {page.Index + 1} annotation /{key} value");
+            }
+            if (annotation.TryGetValue(Name("Lang"), out PdfObject? languageValue))
+            {
+                PdfString language = Resolve(languageValue) as PdfString
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /Lang value is not a string.");
+                string tag = PdfUnicodeEncoding.DecodeTextString(language.Bytes.Span,
+                    $"Page {page.Index + 1} annotation /Lang value");
+                if (!PdfLanguageTag.IsValid(tag))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /Lang value is not a valid BCP 47 language tag.");
+            }
+            if (annotation.TryGetValue(Name("RC"), out PdfObject? richText)
+                && Resolve(richText) is not (PdfString or PdfStream))
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} annotation /RC value is not a string or stream.");
+            if (annotation.TryGetValue(Name("IT"), out PdfObject? intent)
+                && Resolve(intent) is not PdfName)
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} annotation /IT value is not a name.");
+            if (annotation.TryGetValue(Name("IRT"), out PdfObject? replyValue))
+            {
+                if (replyValue is not PdfIndirectReference replyReference
+                    || Resolve(replyValue) is not PdfDictionary reply
+                    || !reply.TryGetValue(Name("Subtype"), out PdfObject? replySubtype)
+                    || Resolve(replySubtype) is not PdfName)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /IRT value is not an indirect typed annotation dictionary.");
+                if (!annotationIdentities.Contains((replyReference.ObjectNumber,
+                        replyReference.Generation)))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /IRT target is not registered on the page.");
+            }
+            if (annotation.TryGetValue(Name("RT"), out PdfObject? replyType))
+            {
+                string replyName = (Resolve(replyType) as PdfName)?.ValueAsLatin1()
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /RT value is not a name.");
+                if (replyName is not ("R" or "Group"))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /RT value /{replyName} is not defined.");
+            }
+            bool hasState = annotation.TryGetValue(
+                Name("State"), out PdfObject? annotationStateValue);
+            bool hasStateModel = annotation.TryGetValue(
+                Name("StateModel"), out PdfObject? stateModelValue);
+            if (hasState || hasStateModel)
+            {
+                if (((PdfName)Resolve(subtype)).ValueAsLatin1() != "Text")
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation state is only defined for text annotations.");
+                if (!hasState || Resolve(annotationStateValue!) is not PdfString stateString
+                    || !hasStateModel || Resolve(stateModelValue!) is not PdfString modelString)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /State and /StateModel must both be strings.");
+                string stateModel = PdfUnicodeEncoding.DecodeTextString(modelString.Bytes.Span,
+                    $"Page {page.Index + 1} annotation /StateModel value");
+                string state = PdfUnicodeEncoding.DecodeTextString(stateString.Bytes.Span,
+                    $"Page {page.Index + 1} annotation /State value");
+                bool validState = stateModel switch
+                {
+                    "Marked" => state is "Marked" or "Unmarked",
+                    "Review" => state is "Accepted" or "Rejected" or "Cancelled"
+                        or "Completed" or "None",
+                    _ => false
+                };
+                if (!validState)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /State /{state} is not defined for /StateModel /{stateModel}.");
+            }
+            if (annotation.TryGetValue(Name("Popup"), out PdfObject? popupValue))
+            {
+                if (popupValue is not PdfIndirectReference popupReference
+                    || Resolve(popupValue) is not PdfDictionary popup
+                    || !popup.TryGetValue(Name("Subtype"), out PdfObject? popupSubtype)
+                    || Resolve(popupSubtype) is not PdfName popupSubtypeName
+                    || popupSubtypeName.ValueAsLatin1() != "Popup")
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /Popup value is not an indirect popup annotation.");
+                if (!annotationIdentities.Contains((popupReference.ObjectNumber,
+                        popupReference.Generation)))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /Popup target is not registered on the page.");
+                if (!popup.TryGetValue(Name("Parent"), out PdfObject? popupParent)
+                    || popupParent is not PdfIndirectReference popupParentReference
+                    || popupParentReference.ObjectNumber != reference.ObjectNumber
+                    || popupParentReference.Generation != reference.Generation)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /Popup target does not link back through /Parent.");
+            }
+            string retainedSubtype = ((PdfName)Resolve(subtype)).ValueAsLatin1();
+            if (retainedSubtype == "Popup")
+            {
+                if (!annotation.TryGetValue(Name("Parent"), out PdfObject? parentValue)
+                    || parentValue is not PdfIndirectReference parentReference
+                    || Resolve(parentValue) is not PdfDictionary parent)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} popup annotation has no indirect /Parent dictionary.");
+                if (!annotationIdentities.Contains((parentReference.ObjectNumber,
+                        parentReference.Generation)))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} popup /Parent is not registered on the page.");
+                if (!parent.TryGetValue(Name("Popup"), out PdfObject? parentPopup)
+                    || parentPopup is not PdfIndirectReference parentPopupReference
+                    || parentPopupReference.ObjectNumber != reference.ObjectNumber
+                    || parentPopupReference.Generation != reference.Generation)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} popup /Parent does not link back through /Popup.");
+            }
+            foreach (string key in new[] { "M", "CreationDate" })
+            {
+                if (!annotation.TryGetValue(Name(key), out PdfObject? dateValue)) continue;
+                if (Resolve(dateValue) is not PdfString date
+                    || !PdfDateStringValidator.IsValid(date))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /{key} value is not a valid PDF date.");
+            }
+            if (annotation.TryGetValue(Name("F"), out PdfObject? flags)
+                && (Resolve(flags) is not PdfInteger flagValue || flagValue.Value < 0))
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} annotation /F value is not a nonnegative integer.");
+            if (annotation.TryGetValue(Name("CA"), out PdfObject? opacity))
+            {
+                double opacityValue = Resolve(opacity) switch
+                {
+                    PdfInteger integer => integer.Value,
+                    PdfReal real => real.Value,
+                    _ => double.NaN
+                };
+                if (!double.IsFinite(opacityValue) || opacityValue is < 0 or > 1)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /CA value is not a number from 0 through 1.");
+            }
+            if (annotation.TryGetValue(Name("C"), out PdfObject? colorValue))
+            {
+                PdfArray color = Resolve(colorValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /C value is not an array.");
+                if (color.Count is not (0 or 1 or 3 or 4)
+                    || color.Any(item => !TryFiniteNumber(Resolve(item), out double component)
+                        || component is < 0 or > 1))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /C value is not a valid color array.");
+            }
+            if (annotation.TryGetValue(Name("Border"), out PdfObject? borderValue))
+            {
+                PdfArray border = Resolve(borderValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /Border value is not an array.");
+                if (border.Count is not (3 or 4)
+                    || Enumerable.Range(0, 3).Any(index =>
+                        !TryFiniteNumber(Resolve(border[index]), out double number)
+                        || number < 0))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /Border value has invalid radii or width.");
+                if (border.Count == 4)
+                {
+                    PdfArray dash = Resolve(border[3]) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"Page {page.Index + 1} annotation /Border dash value is not an array.");
+                    if (dash.Any(item => !TryFiniteNumber(Resolve(item), out double number)
+                            || number < 0)
+                        || dash.Count > 0 && dash.All(item =>
+                            TryFiniteNumber(Resolve(item), out double number) && number == 0))
+                        throw new InvalidOperationException(
+                            $"Page {page.Index + 1} annotation /Border dash array is invalid.");
+                }
+            }
+            if (annotation.TryGetValue(Name("BS"), out PdfObject? borderStyleValue))
+            {
+                PdfDictionary borderStyle = Resolve(borderStyleValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /BS value is not a dictionary.");
+                if (borderStyle.TryGetValue(Name("W"), out PdfObject? width)
+                    && (!TryFiniteNumber(Resolve(width), out double widthValue)
+                        || widthValue < 0))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /BS /W value is not nonnegative.");
+                if (borderStyle.TryGetValue(Name("S"), out PdfObject? style))
+                {
+                    string styleName = (Resolve(style) as PdfName)?.ValueAsLatin1()
+                        ?? throw new InvalidOperationException(
+                            $"Page {page.Index + 1} annotation /BS /S value is not a name.");
+                    if (styleName is not ("S" or "D" or "B" or "I" or "U"))
+                        throw new InvalidOperationException(
+                            $"Page {page.Index + 1} annotation /BS /S value /{styleName} is not defined.");
+                }
+                if (borderStyle.TryGetValue(Name("D"), out PdfObject? dashValue))
+                {
+                    PdfArray dash = Resolve(dashValue) as PdfArray
+                        ?? throw new InvalidOperationException(
+                            $"Page {page.Index + 1} annotation /BS /D value is not an array.");
+                    if (dash.Any(item => !TryFiniteNumber(Resolve(item), out double number)
+                            || number < 0)
+                        || dash.Count > 0 && dash.All(item =>
+                            TryFiniteNumber(Resolve(item), out double number) && number == 0))
+                        throw new InvalidOperationException(
+                            $"Page {page.Index + 1} annotation /BS /D dash array is invalid.");
+                }
+            }
+            if (annotation.TryGetValue(Name("QuadPoints"), out PdfObject? quadrilateralValue))
+            {
+                PdfArray points = Resolve(quadrilateralValue) as PdfArray
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /QuadPoints value is not an array.");
+                if (points.Count == 0 || points.Count % 8 != 0
+                    || points.Any(item => !TryFiniteNumber(Resolve(item), out _)))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /QuadPoints value is not a nonempty sequence of numeric quadrilaterals.");
+            }
+            if (annotation.TryGetValue(Name("StructParent"), out PdfObject? structureParent)
+                && (Resolve(structureParent) is not PdfInteger parentKey
+                    || parentKey.Value < 0))
+                throw new InvalidOperationException(
+                    $"Page {page.Index + 1} annotation /StructParent value is not a nonnegative integer.");
+            PdfName? appearanceState = null;
+            if (annotation.TryGetValue(Name("AS"), out PdfObject? stateValue))
+                appearanceState = Resolve(stateValue) as PdfName
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /AS value is not a name.");
+            if (annotation.TryGetValue(Name("AP"), out PdfObject? appearanceValue))
+            {
+                PdfDictionary appearances = Resolve(appearanceValue) as PdfDictionary
+                    ?? throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /AP value is not a dictionary.");
+                if (!appearances.TryGetValue(Name("N"), out PdfObject? normalValue))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /AP dictionary has no normal /N appearance.");
+                ValidateAppearance(normalValue, "normal /N");
+                foreach (string key in new[] { "R", "D" })
+                    if (appearances.TryGetValue(Name(key), out PdfObject? optionalAppearance))
+                        ValidateAppearance(optionalAppearance, $"/{key}");
+                if (appearanceState is not null
+                    && Resolve(normalValue) is PdfDictionary normalStates
+                    && !normalStates.ContainsKey(appearanceState))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation /AS value has no matching normal appearance state.");
+            }
+
+            void ValidateAppearance(PdfObject appearance, string description)
+            {
+                PdfObject resolvedAppearance = Resolve(appearance);
+                if (resolvedAppearance is PdfStream stream)
+                {
+                    ValidateAppearanceStream(stream, description);
+                    return;
+                }
+                if (resolvedAppearance is not PdfDictionary states || states.Count == 0
+                    || states.Any(entry => Resolve(entry.Value) is not PdfStream))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation {description} appearance is not a stream or nonempty state dictionary of streams.");
+                foreach (var entry in states)
+                    ValidateAppearanceStream((PdfStream)Resolve(entry.Value),
+                        $"{description} /{entry.Key.ValueAsLatin1()}");
+            }
+
+            void ValidateAppearanceStream(PdfStream stream, string description)
+            {
+                PdfDictionary dictionary = stream.Dictionary;
+                if (dictionary.TryGetValue(Name("Type"), out PdfObject? appearanceType)
+                    && (Resolve(appearanceType) is not PdfName appearanceTypeName
+                        || appearanceTypeName.ValueAsLatin1() != "XObject"))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation {description} appearance has an invalid /Type value.");
+                if (!dictionary.TryGetValue(Name("Subtype"), out PdfObject? appearanceSubtype)
+                    || Resolve(appearanceSubtype) is not PdfName appearanceSubtypeName
+                    || appearanceSubtypeName.ValueAsLatin1() != "Form")
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation {description} appearance has no /Subtype /Form value.");
+                if (!dictionary.TryGetValue(Name("BBox"), out PdfObject? boundsValue)
+                    || Resolve(boundsValue) is not PdfArray bounds || bounds.Count != 4
+                    || bounds.Any(item => !TryFiniteNumber(Resolve(item), out _)))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation {description} appearance has no finite four-number /BBox.");
+                if (dictionary.TryGetValue(Name("Matrix"), out PdfObject? matrixValue)
+                    && (Resolve(matrixValue) is not PdfArray matrix || matrix.Count != 6
+                        || matrix.Any(item => !TryFiniteNumber(Resolve(item), out _))))
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation {description} appearance has no finite six-number /Matrix.");
+                if (dictionary.TryGetValue(Name("Resources"), out PdfObject? resources)
+                    && Resolve(resources) is not PdfDictionary)
+                    throw new InvalidOperationException(
+                        $"Page {page.Index + 1} annotation {description} appearance /Resources value is not a dictionary.");
+            }
+
+            static bool TryFiniteNumber(PdfObject item, out double number)
+            {
+                number = item switch
+                {
+                    PdfInteger integer => integer.Value,
+                    PdfReal real => real.Value,
+                    _ => double.NaN
+                };
+                return double.IsFinite(number);
+            }
+        }
     }
 
     private static PdfDictionary TextNoteDictionary(

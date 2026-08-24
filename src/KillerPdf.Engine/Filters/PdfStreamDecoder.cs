@@ -50,7 +50,9 @@ public static class PdfStreamDecoder
             // security handler. It must still obey the same expansion boundary as
             // every decoding filter, including when it is the only filter.
             EnsureWithinLimit(current.Length, maximumDecodedBytes);
-            current = ReversePredictor(current, parameters[i], maximumDecodedBytes);
+            if (filter is "FlateDecode" or "Fl" or "LZWDecode" or "LZW")
+                current = ReversePredictor(
+                    current, parameters[i], maximumDecodedBytes);
         }
 
         return current;

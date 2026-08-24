@@ -59,7 +59,8 @@ public sealed class PdfDocumentTests
 
         PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() => document.Resolve(1));
 
-        Assert.Contains("names object 2, not 1", error.Message, StringComparison.Ordinal);
+        Assert.Contains("does not match its compressed cross-reference entry",
+            error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -70,6 +71,19 @@ public sealed class PdfDocumentTests
         PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() => document.Resolve(1));
 
         Assert.Contains("more entries", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Resolve_RejectsUnregisteredObjectStreamHeaderEntries()
+    {
+        PdfDocument document = PdfDocument.Open(ObjectStreamPdf(
+            header: "1 0 2 7 3 23 ", objectCount: 3,
+            body: "(hello)<< /Answer 42 >>null"));
+
+        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() => document.Resolve(1));
+
+        Assert.Contains("header entry 2 for object 3 does not match",
+            error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -104,10 +118,11 @@ public sealed class PdfDocumentTests
     private static byte[] ObjectStreamPdf(
         int firstCompressedIndex = 0,
         string header = "1 0 2 7 ",
-        int objectCount = 2)
+        int objectCount = 2,
+        string body = "(hello)<< /Answer 42 >>")
     {
-        byte[] body = "(hello)<< /Answer 42 >>"u8.ToArray();
-        byte[] objectStreamData = [.. Encoding.ASCII.GetBytes(header), .. body];
+        byte[] objectStreamData = [
+            .. Encoding.ASCII.GetBytes(header), .. Encoding.ASCII.GetBytes(body)];
         using var output = new MemoryStream();
         WriteAscii(output, "%PDF-2.0\n");
         int objectStreamOffset = checked((int)output.Position);

@@ -55,6 +55,28 @@ public sealed class PdfObjectWriterTests
     }
 
     [Fact]
+    public void PdfString_RejectsUndefinedLexicalForms()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfString("text"u8, (PdfStringForm)17));
+    }
+
+    [Fact]
+    public void Containers_RejectNullObjectReferences()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new PdfArray(new PdfObject[] { PdfNull.Instance, null! }));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfDictionary([
+                new KeyValuePair<PdfName, PdfObject>(Name("Value"), null!)
+            ]));
+        Assert.Throws<ArgumentException>(() =>
+            new PdfDictionary([
+                new KeyValuePair<PdfName, PdfObject>(null!, PdfNull.Instance)
+            ]));
+    }
+
+    [Fact]
     public void Write_SortsDictionaryNamesByTheirDecodedBytes()
     {
         var dictionary = new PdfDictionary([
@@ -110,6 +132,22 @@ public sealed class PdfObjectWriterTests
     }
 
     [Fact]
+    public void Write_RejectsDirectAndNestedStreams()
+    {
+        var stream = new PdfStream(new PdfDictionary([]), []);
+
+        InvalidOperationException direct = Assert.Throws<InvalidOperationException>(
+            () => PdfObjectWriter.Write(stream));
+        InvalidOperationException nested = Assert.Throws<InvalidOperationException>(
+            () => PdfObjectWriter.Write(new PdfArray([stream])));
+
+        Assert.Contains("streams must be written as indirect objects",
+            direct.Message, StringComparison.Ordinal);
+        Assert.Contains("streams must be written as indirect objects",
+            nested.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Write_ProducesIdenticalBytesForEquivalentDictionaryInsertionOrders()
     {
         var first = new PdfDictionary([
@@ -132,6 +170,28 @@ public sealed class PdfObjectWriterTests
             value = new PdfArray([value]);
 
         Assert.Throws<InvalidOperationException>(() => PdfObjectWriter.Write(value));
+    }
+
+    [Fact]
+    public void Write_RejectsReservedObjectZeroReference()
+    {
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => PdfObjectWriter.Write(new PdfIndirectReference(0, 0)));
+
+        Assert.Contains("object number zero is reserved", error.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_RejectsReservedObjectZeroDeclaration()
+    {
+        var value = new PdfIndirectObject(0, 65_535, PdfNull.Instance, 0);
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => PdfObjectWriter.Write(value));
+
+        Assert.Contains("object number zero is reserved", error.Message,
+            StringComparison.Ordinal);
     }
 
     private static PdfObject Parse(byte[] source) => new PdfObjectParser(source).ParseSingleObject();

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO.Compression;
+using System.Text;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Objects;
@@ -73,6 +74,45 @@ public static class PdfDocumentWriter
                 || !permissions.AllowDocumentModification))
             throw new InvalidOperationException(
                 "The PDF user password does not permit a full document rewrite.");
+        if (!document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject root))
+            throw new InvalidOperationException("A full rewrite requires a trailer /Root reference.");
+        if (root is not PdfIndirectReference rootReference)
+            throw new InvalidOperationException(
+                "A full rewrite requires trailer /Root to be an indirect reference.");
+        if (document.Resolve(rootReference) is not PdfDictionary rootCatalog
+            || !rootCatalog.TryGetValue(TypeName, out PdfObject rootType)
+            || (rootType is PdfIndirectReference rootTypeReference
+                    ? document.Resolve(rootTypeReference) : rootType) is not PdfName rootTypeName
+            || rootTypeName.ValueAsLatin1() != "Catalog")
+            throw new InvalidOperationException(
+                "A full rewrite requires trailer /Root to resolve to a catalog dictionary.");
+        if (options.MetadataPolicy == PdfMetadataPolicy.Preserve
+            && document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject info))
+        {
+            if (info is not PdfIndirectReference infoReference)
+                throw new InvalidOperationException(
+                    "A full rewrite requires trailer /Info to be an indirect reference.");
+            if (document.Resolve(infoReference) is not PdfDictionary informationDictionary)
+                throw new InvalidOperationException(
+                    "A full rewrite requires trailer /Info to resolve to a dictionary.");
+            ValidateDocumentInformation(informationDictionary,
+                value => value is PdfIndirectReference reference
+                    ? document.Resolve(reference) : value);
+            ValidateDocumentInformationGraph(document, informationDictionary);
+        }
+        bool preservesIdentifiers = options.PreserveDocumentIdentifiers || document.IsEncrypted;
+        bool hasIdentifiers = document.CrossReferences.TryGetTrailerValue(
+            IdName, out PdfObject identifiers);
+        if (preservesIdentifiers && hasIdentifiers
+            && (identifiers is not PdfArray identifierArray
+                || identifierArray.Count != 2
+                || identifierArray.Any(item => item is not PdfString)))
+            throw new InvalidOperationException(
+                "A full rewrite requires trailer /ID to be an array of two strings.");
+        if (document.IsEncrypted && !hasIdentifiers)
+            throw new InvalidOperationException(
+                "An encrypted full rewrite requires trailer /ID document identifiers.");
+        ValidateApplicationTrailerGraphs(document);
         if (!options.AllowSignatureInvalidation)
         {
             bool hasCertification =
@@ -82,10 +122,7 @@ public static class PdfDocumentWriter
                 throw new InvalidOperationException(
                     "A full rewrite invalidates existing signatures. Set AllowSignatureInvalidation explicitly to proceed.");
         }
-        if (!document.CrossReferences.TryGetTrailerValue(RootName, out PdfObject root))
-            throw new InvalidOperationException("A full rewrite requires a trailer /Root reference.");
-        PdfVersion effectiveOutputVersion = options.CrossReferenceFormat == PdfCrossReferenceFormat.Stream
-            ? EffectiveVersion(document, root, outputVersion) : outputVersion;
+        PdfVersion effectiveOutputVersion = EffectiveVersion(document, root, outputVersion);
         if (options.UseObjectStreams && options.CrossReferenceFormat != PdfCrossReferenceFormat.Stream)
             throw new InvalidOperationException("Object streams require the cross-reference-stream format.");
         if (options.CompressStructuralStreams
@@ -96,6 +133,9 @@ public static class PdfDocumentWriter
         List<WritableObject> objects = ReadCurrentObjects(document);
         root = RemoveCatalogMetadata(document, root, objects, options.MetadataPolicy);
         RemoveDocumentInformationObject(document, root, objects, options.MetadataPolicy);
+        ValidateCatalogGraph(root, objects);
+        ValidateOutputTrailerGraphs(document, objects, options);
+        ValidateWritableObjectGraphs(objects);
         int maximumObjectNumber = Math.Max(
             Math.Max(
                 objects.Select(item => item.ObjectNumber).DefaultIfEmpty(0).Max(),
@@ -356,7 +396,7 @@ public static class PdfDocumentWriter
             return;
         if (objects.Any(item => (item.ObjectNumber, item.Generation) != infoIdentity
                 && ReferencesObject(item.Value, infoIdentity))
-            || document.Trailer.Any(entry => !entry.Key.Equals(InfoName)
+            || document.CrossReferences.MergedTrailer.Any(entry => !entry.Key.Equals(InfoName)
                 && ReferencesObject(entry.Value, infoIdentity)))
             throw new NotSupportedException(
                 "The document information object is shared outside trailer /Info and cannot be removed safely.");
@@ -392,7 +432,7 @@ public static class PdfDocumentWriter
                         || (item.ObjectNumber, item.Generation) !=
                             (catalogReference.ObjectNumber, catalogReference.Generation))
                     && ReferencesObject(item.Value, metadataIdentity))
-                || document.Trailer.Any(entry => !entry.Key.Equals(RootName)
+                || document.CrossReferences.MergedTrailer.Any(entry => !entry.Key.Equals(RootName)
                     && ReferencesObject(entry.Value, metadataIdentity)))
                 throw new NotSupportedException(
                     "The catalog metadata object is shared and cannot be removed safely.");
@@ -443,7 +483,9 @@ public static class PdfDocumentWriter
         if (root is not PdfDictionary catalog
             || !catalog.TryGetValue(VersionName, out PdfObject versionValue))
             return headerVersion;
-        if (versionValue is not PdfName versionName)
+        PdfObject resolvedVersion = versionValue is PdfIndirectReference versionReference
+            ? document.Resolve(versionReference) : versionValue;
+        if (resolvedVersion is not PdfName versionName)
             throw new InvalidOperationException("The catalog /Version value is not a name.");
         string text = versionName.ValueAsLatin1();
         if (text.Length != 3 || text[1] != '.'
@@ -469,7 +511,7 @@ public static class PdfDocumentWriter
             new(SizeName, new PdfInteger(size)),
             new(RootName, root)
         };
-        foreach ((PdfName name, PdfObject value) in document.Trailer)
+        foreach ((PdfName name, PdfObject value) in document.CrossReferences.MergedTrailer)
             if (!StructuralTrailerNames.Contains(name))
                 entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
         if (options.MetadataPolicy == PdfMetadataPolicy.Preserve)
@@ -492,6 +534,275 @@ public static class PdfDocumentWriter
     {
         if (document.CrossReferences.TryGetTrailerValue(name, out PdfObject value))
             entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
+    }
+
+    private static void ValidateApplicationTrailerGraphs(PdfDocument document)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        foreach ((PdfName name, PdfObject value) in document.CrossReferences.MergedTrailer)
+            if (!StructuralTrailerNames.Contains(name))
+                Validate(value, $"Trailer /{name.ValueAsLatin1()} value", 0,
+                    maximumDepth: 64);
+
+        void Validate(
+            PdfObject value, string description, int depth, int maximumDepth)
+        {
+            if (depth > maximumDepth)
+                throw new NotSupportedException(
+                    "A preserved trailer graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                if (!IsLive(reference))
+                    throw new InvalidOperationException(
+                        $"{description} contains a stale indirect reference.");
+                if (!visited.Add((reference.ObjectNumber, reference.Generation))) return;
+                Validate(document.Resolve(reference), description, depth + 1,
+                    maximumDepth);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                    Validate(item, description, depth + 1, maximumDepth);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary directDictionary => directDictionary,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (var entry in dictionary)
+                Validate(entry.Value, description, depth + 1, maximumDepth);
+        }
+
+        bool IsLive(PdfIndirectReference reference)
+        {
+            if (!document.CrossReferences.TryGetValue(
+                    reference.ObjectNumber, out PdfCrossReferenceEntry entry))
+                return false;
+            return entry.Type switch
+            {
+                PdfCrossReferenceEntryType.InUse => entry.Field2 == reference.Generation,
+                PdfCrossReferenceEntryType.Compressed => reference.Generation == 0,
+                _ => false
+            };
+        }
+    }
+
+    private static void ValidateCatalogGraph(
+        PdfObject root, IReadOnlyList<WritableObject> objects)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        Dictionary<(int ObjectNumber, int Generation), PdfObject> currentObjects =
+            objects.ToDictionary(
+                item => (item.ObjectNumber, item.Generation), item => item.Value);
+        Validate(root, 0);
+
+        void Validate(PdfObject value, int depth)
+        {
+            if (depth > 256)
+                throw new NotSupportedException(
+                    "The preserved catalog graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                if (!IsLive(reference))
+                    throw new InvalidOperationException(
+                        "Trailer /Root value contains a stale indirect reference.");
+                if (!visited.Add((reference.ObjectNumber, reference.Generation))) return;
+                Validate(currentObjects[(reference.ObjectNumber, reference.Generation)],
+                    depth + 1);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                    Validate(item, depth + 1);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary directDictionary => directDictionary,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (KeyValuePair<PdfName, PdfObject> entry in dictionary)
+                Validate(entry.Value, depth + 1);
+        }
+
+        bool IsLive(PdfIndirectReference reference)
+            => currentObjects.ContainsKey(
+                (reference.ObjectNumber, reference.Generation));
+    }
+
+    private static void ValidateOutputTrailerGraphs(
+        PdfDocument document, IReadOnlyList<WritableObject> objects,
+        PdfDocumentWriteOptions options)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        Dictionary<(int ObjectNumber, int Generation), PdfObject> currentObjects =
+            objects.ToDictionary(
+                item => (item.ObjectNumber, item.Generation), item => item.Value);
+        foreach ((PdfName name, PdfObject value) in document.CrossReferences.MergedTrailer)
+            if (!StructuralTrailerNames.Contains(name))
+                Validate(value, $"Trailer /{name.ValueAsLatin1()} value", 0);
+        if (options.MetadataPolicy == PdfMetadataPolicy.Preserve
+            && document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject info))
+            Validate(info, "Trailer /Info value", 0);
+        if (document.IsEncrypted
+            && document.CrossReferences.TryGetTrailerValue(
+                EncryptName, out PdfObject encryption))
+            Validate(encryption, "Trailer /Encrypt value", 0);
+
+        void Validate(PdfObject value, string description, int depth)
+        {
+            if (depth > 64)
+                throw new NotSupportedException(
+                    "A preserved trailer graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                var identity = (reference.ObjectNumber, reference.Generation);
+                if (!currentObjects.TryGetValue(identity, out PdfObject? resolved))
+                    throw new InvalidOperationException(
+                        $"{description} contains a reference to an object omitted from the full rewrite.");
+                if (!visited.Add(identity)) return;
+                Validate(resolved, description, depth + 1);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                    Validate(item, description, depth + 1);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary directDictionary => directDictionary,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (var entry in dictionary)
+                Validate(entry.Value, description, depth + 1);
+        }
+    }
+
+    private static void ValidateWritableObjectGraphs(
+        IReadOnlyList<WritableObject> objects)
+    {
+        Dictionary<(int ObjectNumber, int Generation), PdfObject> currentObjects =
+            objects.ToDictionary(
+                item => (item.ObjectNumber, item.Generation), item => item.Value);
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        foreach (WritableObject item in objects)
+            Validate(item.Value,
+                $"Object {item.ObjectNumber} {item.Generation}", 0);
+
+        void Validate(PdfObject value, string description, int depth)
+        {
+            if (depth > 256)
+                throw new NotSupportedException(
+                    "A writable object graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                var identity = (reference.ObjectNumber, reference.Generation);
+                if (!currentObjects.TryGetValue(identity, out PdfObject? resolved))
+                    throw new InvalidOperationException(
+                        $"{description} contains a reference to an object omitted from the full rewrite.");
+                if (!visited.Add(identity)) return;
+                Validate(resolved, description, depth + 1);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array)
+                    Validate(item, description, depth + 1);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary directDictionary => directDictionary,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (var entry in dictionary)
+                Validate(entry.Value, description, depth + 1);
+        }
+    }
+
+    private static void ValidateDocumentInformation(
+        PdfDictionary information, Func<PdfObject, PdfObject> resolve)
+    {
+        foreach (string key in new[]
+            { "Title", "Author", "Subject", "Keywords", "Creator", "Producer",
+              "CreationDate", "ModDate" })
+            if (information.TryGetValue(new PdfName(Encoding.ASCII.GetBytes(key)),
+                    out PdfObject value)
+                && resolve(value) is not PdfString)
+                throw new InvalidOperationException(
+                    $"Trailer /Info /{key} value is not a string.");
+        foreach (string key in new[] { "CreationDate", "ModDate" })
+        {
+            PdfName name = new(Encoding.ASCII.GetBytes(key));
+            if (information.TryGetValue(name, out PdfObject value)
+                && resolve(value) is PdfString date && !PdfDateStringValidator.IsValid(date))
+                throw new InvalidOperationException(
+                    $"Trailer /Info /{key} value is not a valid PDF date string.");
+        }
+        PdfName trappedName = new("Trapped"u8);
+        if (!information.TryGetValue(trappedName, out PdfObject trapped)) return;
+        string state = (resolve(trapped) as PdfName)?.ValueAsLatin1()
+            ?? throw new InvalidOperationException(
+                "Trailer /Info /Trapped value is not a name.");
+        if (state is not ("True" or "False" or "Unknown"))
+            throw new InvalidOperationException(
+                $"Trailer /Info /Trapped value /{state} is not defined.");
+    }
+
+    private static void ValidateDocumentInformationGraph(
+        PdfDocument document, PdfDictionary information)
+    {
+        var visited = new HashSet<(int ObjectNumber, int Generation)>();
+        Validate(information, 0);
+
+        void Validate(PdfObject value, int depth)
+        {
+            if (depth > 64)
+                throw new NotSupportedException(
+                    "The preserved document-information graph is too deeply nested.");
+            if (value is PdfIndirectReference reference)
+            {
+                if (!document.CrossReferences.TryGetValue(reference.ObjectNumber,
+                        out PdfCrossReferenceEntry entry)
+                    || entry.Type == PdfCrossReferenceEntryType.InUse
+                        && entry.Field2 != reference.Generation
+                    || entry.Type == PdfCrossReferenceEntryType.Compressed
+                        && reference.Generation != 0
+                    || entry.Type is not (PdfCrossReferenceEntryType.InUse
+                        or PdfCrossReferenceEntryType.Compressed))
+                    throw new InvalidOperationException(
+                        "Trailer /Info value contains a stale indirect reference.");
+                if (!visited.Add((reference.ObjectNumber, reference.Generation))) return;
+                Validate(document.Resolve(reference), depth + 1);
+                return;
+            }
+            if (value is PdfArray array)
+            {
+                foreach (PdfObject item in array) Validate(item, depth + 1);
+                return;
+            }
+            PdfDictionary? dictionary = value switch
+            {
+                PdfDictionary directDictionary => directDictionary,
+                PdfStream stream => stream.Dictionary,
+                _ => null
+            };
+            if (dictionary is null) return;
+            foreach (var entry in dictionary) Validate(entry.Value, depth + 1);
+        }
     }
 
     private static void WriteAscii(Stream output, string value)

@@ -66,6 +66,57 @@ public sealed class PdfIncrementalAnnotationEditorTests
             new PdfIncrementalAnnotationEditor(malformed)
                 .AddTextNote(0, 20, 20, "Cannot allocate")
                 .Build());
+
+        var scalarSetup = new PdfIncrementalUpdateBuilder(source);
+        var scalarRootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        scalarRootEntries[Name("ParentTree")] = new PdfDictionary([
+            new(Name("Nums"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(17)
+            ]))
+        ]);
+        scalarSetup.ReplaceObject(rootReference.ObjectNumber,
+            new PdfDictionary(scalarRootEntries));
+        PdfDocument scalarValue = PdfDocument.Open(scalarSetup.Build());
+        InvalidOperationException scalarError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(scalarValue)
+                .AddTextNote(0, 20, 20, "Cannot retain scalar mapping")
+                .Build());
+        Assert.Contains("is not a structure element or array",
+            scalarError.Message, StringComparison.Ordinal);
+
+        PdfObject documentValue = root[Name("K")];
+        if (documentValue is PdfArray documentArray)
+            documentValue = documentArray[0];
+        PdfIndirectReference documentReference = Assert.IsType<PdfIndirectReference>(
+            documentValue);
+        PdfDictionary documentElement = ResolveDictionary(source, documentReference);
+        var staleKidsEntries = documentElement.ToDictionary(
+            entry => entry.Key, entry => entry.Value);
+        staleKidsEntries[Name("K")] = new PdfIndirectReference(999, 0);
+        PdfDocument staleKids = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(documentReference.ObjectNumber,
+                new PdfDictionary(staleKidsEntries))
+            .Build());
+        InvalidOperationException staleKidsError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(staleKids)
+                .AddTextNote(0, 20, 20, "Cannot retain stale child")
+                .Build());
+        Assert.Contains("/K value contains a stale indirect reference",
+            staleKidsError.Message, StringComparison.Ordinal);
+
+        var emptyKidEntries = documentElement.ToDictionary(
+            entry => entry.Key, entry => entry.Value);
+        emptyKidEntries[Name("K")] = new PdfDictionary([]);
+        PdfDocument emptyKid = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(documentReference.ObjectNumber,
+                new PdfDictionary(emptyKidEntries))
+            .Build());
+        InvalidOperationException emptyKidError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(emptyKid)
+                .AddTextNote(0, 20, 20, "Cannot retain empty child")
+                .Build());
+        Assert.Contains("/K value contains an invalid child",
+            emptyKidError.Message, StringComparison.Ordinal);
     }
 
 
@@ -199,6 +250,16 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDictionary initialRoot = ResolveDictionary(initial, initialRootReference);
         PdfArray initialNamespaces = Assert.IsType<PdfArray>(initialRoot[Name("Namespaces")]);
         var setup = new PdfIncrementalUpdateBuilder(initial);
+        PdfIndirectReference pdf2NamespaceReference = Assert.IsType<PdfIndirectReference>(
+            initialNamespaces[0]);
+        PdfDictionary pdf2Namespace = ResolveDictionary(initial, pdf2NamespaceReference);
+        PdfIndirectReference indirectPdf2Uri = setup.AddObject(new PdfString(
+            [0xEF, 0xBB, 0xBF, .. "http://iso.org/pdf2/ssn"u8.ToArray()],
+            PdfStringForm.Hexadecimal));
+        setup.ReplaceObject(pdf2NamespaceReference.ObjectNumber,
+            new PdfDictionary(pdf2Namespace
+                .Where(entry => !entry.Key.Equals(Name("NS")))
+                .Append(new KeyValuePair<PdfName, PdfObject>(Name("NS"), indirectPdf2Uri))));
         PdfIndirectReference customNamespace = setup.AddObject(new PdfDictionary([
             new(Name("Type"), Name("Namespace")),
             new(Name("NS"), new PdfString(
@@ -209,7 +270,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfIndirectReference namespaceArray = setup.AddObject(new PdfArray(
             [customNamespace, .. initialNamespaces]));
         alteredRoot[Name("Namespaces")] = namespaceArray;
-        alteredRoot[Name("ParentTreeNextKey")] = new PdfInteger(0);
+        alteredRoot[Name("ParentTreeNextKey")] = setup.AddObject(new PdfInteger(0));
         setup.ReplaceObject(initialRootReference.ObjectNumber, new PdfDictionary(alteredRoot));
         source = setup.Build();
         byte[] output = new PdfIncrementalAnnotationEditor(
@@ -233,9 +294,129 @@ public sealed class PdfIncrementalAnnotationEditorTests
             Assert.IsType<PdfName>(ResolveDictionary(document, value)[Name("S")]).ValueAsLatin1()));
         PdfDictionary appendedElement = ResolveDictionary(document, numbers[3]);
         PdfDictionary selectedNamespace = ResolveDictionary(document, appendedElement[Name("NS")]);
-        Assert.Equal("http://iso.org/pdf2/ssn", Encoding.Latin1.GetString(
-            Assert.IsType<PdfString>(selectedNamespace[Name("NS")]).Bytes.Span));
+        PdfString selectedUri = Assert.IsType<PdfString>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(selectedNamespace[Name("NS")])));
+        Assert.True(selectedUri.Bytes.Span.StartsWith(
+            new byte[] { 0xEF, 0xBB, 0xBF }));
+        Assert.Equal("http://iso.org/pdf2/ssn", Encoding.UTF8.GetString(
+            selectedUri.Bytes.Span[3..]));
         Assert.True(output.AsSpan(0, source.Length).SequenceEqual(source));
+    }
+
+    [Fact]
+    public void Build_RejectsDirectStructureNamespaceEntries()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Malformed namespace",
+                Language = "en-US"
+            })
+            .EnablePdfUa2Conformance()
+            .AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(source, rootReference);
+        var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        rootEntries[Name("Namespaces")] = new PdfArray([new PdfDictionary([
+            new(Name("Type"), Name("Namespace")),
+            new(Name("NS"), new PdfString(
+                "http://iso.org/pdf2/ssn"u8, PdfStringForm.Literal))
+        ])]);
+        PdfDocument malformed = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(rootEntries))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "Accessible note")
+                .Build());
+
+        Assert.Contains("structure namespace is not an indirect reference",
+            error.Message, StringComparison.Ordinal);
+
+        PdfArray originalNamespaces = Assert.IsType<PdfArray>(root[Name("Namespaces")]);
+        PdfIndirectReference namespaceReference = Assert.IsType<PdfIndirectReference>(
+            originalNamespaces[0]);
+        PdfDocument untyped = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(namespaceReference.ObjectNumber, new PdfDictionary([
+                new(Name("NS"), new PdfString(
+                    "http://iso.org/pdf2/ssn"u8, PdfStringForm.Literal))
+            ]))
+            .Build());
+        InvalidOperationException typeError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(untyped)
+                .AddTextNote(0, 20, 20, "Accessible note")
+                .Build());
+        Assert.Contains("structure namespace has no /Type /Namespace value",
+            typeError.Message, StringComparison.Ordinal);
+
+        var duplicateSetup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference duplicateNamespace = duplicateSetup.AddObject(
+            ResolveDictionary(source, namespaceReference));
+        var duplicateRoot = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        duplicateRoot[Name("Namespaces")] = new PdfArray([
+            namespaceReference, duplicateNamespace
+        ]);
+        duplicateSetup.ReplaceObject(rootReference.ObjectNumber,
+            new PdfDictionary(duplicateRoot));
+        PdfDocument duplicated = PdfDocument.Open(duplicateSetup.Build());
+        InvalidOperationException duplicateError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(duplicated)
+                .AddTextNote(0, 20, 20, "Accessible note")
+                .Build());
+        Assert.Contains("contains duplicate PDF 2.0 namespaces",
+            duplicateError.Message, StringComparison.Ordinal);
+
+        PdfObject topLevelValue = root[Name("K")];
+        if (topLevelValue is PdfArray topLevelArray)
+            topLevelValue = topLevelArray[0];
+        PdfIndirectReference topLevelReference = Assert.IsType<PdfIndirectReference>(
+            topLevelValue);
+        PdfDictionary topLevel = ResolveDictionary(source, topLevelReference);
+        PdfDocument mistypedRole = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(topLevelReference.ObjectNumber,
+                new PdfDictionary(topLevel
+                    .Where(entry => !entry.Key.Equals(Name("S")))
+                    .Append(new KeyValuePair<PdfName, PdfObject>(
+                        Name("S"), new PdfInteger(17)))))
+            .Build());
+        InvalidOperationException roleError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(mistypedRole)
+                .AddTextNote(0, 20, 20, "Accessible note")
+                .Build());
+        Assert.Contains("top-level structure element /S value is not a name",
+            roleError.Message, StringComparison.Ordinal);
+
+        PdfDocument wrongParent = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(topLevelReference.ObjectNumber,
+                new PdfDictionary(topLevel
+                    .Where(entry => !entry.Key.Equals(Name("P")))
+                    .Append(new KeyValuePair<PdfName, PdfObject>(
+                        Name("P"), topLevelReference))))
+            .Build());
+        InvalidOperationException parentError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(wrongParent)
+                .AddTextNote(0, 20, 20, "Accessible note")
+                .Build());
+        Assert.Contains("no reciprocal /P link to the structure-tree root",
+            parentError.Message, StringComparison.Ordinal);
+
+        var mistypedRootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        mistypedRootEntries[Name("Type")] = Name("Unexpected");
+        PdfDocument mistypedRoot = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(rootReference.ObjectNumber,
+                new PdfDictionary(mistypedRootEntries))
+            .Build());
+        InvalidOperationException rootTypeError = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(mistypedRoot)
+                .AddTextNote(0, 20, 20, "Accessible note")
+                .Build());
+        Assert.Contains("structure-tree root has an invalid /Type value",
+            rootTypeError.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -247,6 +428,504 @@ public sealed class PdfIncrementalAnnotationEditorTests
             .AddTextNote(0, 10, 10, "bad\uD800text");
 
         Assert.Throws<ArgumentException>(() => editor.Build());
+    }
+
+    [Fact]
+    public void Build_RejectsStaleExistingPageAnnotations()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        PdfDictionary stalePage = new(page.Page.Append(
+            new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                new PdfArray([new PdfIndirectReference(999, 0)]))));
+        PdfDocument malformed = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(page.Reference.ObjectNumber, stalePage)
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("/Annots contains a stale or non-dictionary entry",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsDirectExistingPageAnnotations()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var annotation = new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ]))
+        ]);
+        PdfDocument malformed = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([annotation])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("/Annots contains a direct annotation entry",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsDuplicateExistingPageAnnotationReferences()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference annotation = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference)
+        ]));
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([annotation, annotation])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("/Annots contains a duplicate annotation reference",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsDuplicateExistingPageAnnotationNames()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfDictionary Annotation() => new([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("NM"), new PdfString("duplicate"u8, PdfStringForm.Literal))
+        ]);
+        PdfIndirectReference first = setup.AddObject(Annotation());
+        PdfIndirectReference second = setup.AddObject(Annotation());
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([first, second])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("/Annots contains duplicate /NM values",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsGeneratedAnnotationNameCollision()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference existing = setup.ReserveObject();
+        string collidingName = $"KillerPDF-Note-{existing.ObjectNumber + 1}";
+        setup.SetObject(existing, new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("NM"), new PdfString(
+                Encoding.Latin1.GetBytes(collidingName), PdfStringForm.Literal))
+        ]));
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([existing])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains($"already contains annotation /NM value '{collidingName}'",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedExistingAnnotationText()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference existing = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("Contents"), new PdfString(
+                new byte[] { 0xEF, 0xBB, 0xBF, 0xC3, 0x28 },
+                PdfStringForm.Hexadecimal))
+        ]));
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([existing])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("annotation /Contents value contains malformed UTF-8 text",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedExistingAnnotationCommonFields()
+    {
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("M"),
+                new PdfString("D:20250230"u8, PdfStringForm.Literal)),
+            "annotation /M value is not a valid PDF date");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("F"),
+                new PdfInteger(-1)),
+            "annotation /F value is not a nonnegative integer");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("CA"),
+                new PdfReal(1.1)),
+            "annotation /CA value is not a number from 0 through 1");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("C"),
+                new PdfArray([new PdfReal(1.1)])),
+            "annotation /C value is not a valid color array");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("Border"),
+                new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0), new PdfInteger(-1)
+                ])),
+            "annotation /Border value has invalid radii or width");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("BS"),
+                new PdfDictionary([new(Name("S"), Name("Unexpected"))])),
+            "annotation /BS /S value /Unexpected is not defined");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("QuadPoints"),
+                new PdfArray([new PdfInteger(0), new PdfInteger(0)])),
+            "annotation /QuadPoints value is not a nonempty sequence");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("Lang"),
+                new PdfString("not_valid"u8, PdfStringForm.Literal)),
+            "annotation /Lang value is not a valid BCP 47 language tag");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("RT"),
+                Name("Unexpected")),
+            "annotation /RT value /Unexpected is not defined");
+        AssertInvalid(new KeyValuePair<PdfName, PdfObject>(Name("State"),
+                new PdfString("Unexpected"u8, PdfStringForm.Literal)),
+            "annotation /State and /StateModel must both be strings");
+
+        static void AssertInvalid(
+            KeyValuePair<PdfName, PdfObject> malformedEntry, string expectedMessage)
+        {
+            PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+                .AddBlankPage()
+                .Build());
+            (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+            var setup = new PdfIncrementalUpdateBuilder(source);
+            PdfIndirectReference existing = setup.AddObject(new PdfDictionary(new[]
+            {
+                new KeyValuePair<PdfName, PdfObject>(Name("Type"), Name("Annot")),
+                new KeyValuePair<PdfName, PdfObject>(Name("Subtype"), Name("Text")),
+                new KeyValuePair<PdfName, PdfObject>(Name("Rect"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new KeyValuePair<PdfName, PdfObject>(Name("P"), page.Reference),
+                malformedEntry
+            }));
+            PdfDocument malformed = PdfDocument.Open(setup
+                .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([existing])))))
+                .Build());
+
+            InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+                new PdfIncrementalAnnotationEditor(malformed)
+                    .AddTextNote(0, 20, 20, "New note")
+                    .Build());
+            Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Build_RejectsExistingReplyTargetNotRegisteredOnPage()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference target = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text"))
+        ]));
+        PdfIndirectReference reply = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("IRT"), target)
+        ]));
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([reply])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("annotation /IRT target is not registered on the page",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsExistingPopupWithMismatchedParent()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference other = setup.ReserveObject();
+        PdfIndirectReference popup = setup.ReserveObject();
+        PdfIndirectReference markup = setup.ReserveObject();
+        PdfDictionary Markup(PdfObject? popupValue = null)
+        {
+            var entries = new List<KeyValuePair<PdfName, PdfObject>>
+            {
+                new(Name("Type"), Name("Annot")),
+                new(Name("Subtype"), Name("Text")),
+                new(Name("Rect"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ])),
+                new(Name("P"), page.Reference)
+            };
+            if (popupValue is not null)
+                entries.Add(new KeyValuePair<PdfName, PdfObject>(Name("Popup"), popupValue));
+            return new PdfDictionary(entries);
+        }
+        setup.SetObject(other, Markup());
+        setup.SetObject(popup, new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Popup")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("Parent"), other)
+        ]));
+        setup.SetObject(markup, Markup(popup));
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([markup, popup, other])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("annotation /Popup target does not link back through /Parent",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedExistingAnnotationAppearanceState()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference appearance = setup.AddObject(new PdfStream(
+            new PdfDictionary([
+                new(Name("Type"), Name("XObject")),
+                new(Name("Subtype"), Name("Form")),
+                new(Name("BBox"), new PdfArray([
+                    new PdfInteger(0), new PdfInteger(0),
+                    new PdfInteger(10), new PdfInteger(10)
+                ]))
+            ]), []));
+        PdfIndirectReference existing = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("AS"), Name("Off")),
+            new(Name("AP"), new PdfDictionary([
+                new(Name("N"), new PdfDictionary([
+                    new(Name("On"), appearance)
+                ]))
+            ]))
+        ]));
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([existing])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("/AS value has no matching normal appearance state",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsMalformedExistingAnnotationAppearanceStream()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .Build());
+        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference appearance = setup.AddObject(new PdfStream(
+            new PdfDictionary([]), []));
+        PdfIndirectReference existing = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), page.Reference),
+            new(Name("AP"), new PdfDictionary([new(Name("N"), appearance)]))
+        ]));
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                    new PdfArray([existing])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("appearance has no /Subtype /Form value",
+            error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_DetachesSharedPageAnnotationArraysBeforeAppending()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBlankPage()
+            .Build());
+        IReadOnlyList<(PdfIndirectReference Reference, PdfDictionary Page)> pages = Pages(source);
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference sharedAnnotations = setup.AddObject(new PdfArray([]));
+        foreach ((PdfIndirectReference reference, PdfDictionary page) in pages)
+            setup.ReplaceObject(reference.ObjectNumber, new PdfDictionary(page.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("Annots"), sharedAnnotations))));
+        PdfDocument shared = PdfDocument.Open(setup.Build());
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalAnnotationEditor(shared)
+            .AddTextNote(0, 20, 20, "Page one only")
+            .Build());
+        IReadOnlyList<(PdfIndirectReference Reference, PdfDictionary Page)> reopenedPages =
+            Pages(reopened);
+        PdfIndirectReference firstArrayReference = Assert.IsType<PdfIndirectReference>(
+            reopenedPages[0].Page[Name("Annots")]);
+        PdfIndirectReference secondArrayReference = Assert.IsType<PdfIndirectReference>(
+            reopenedPages[1].Page[Name("Annots")]);
+
+        Assert.NotEqual(firstArrayReference.ObjectNumber, secondArrayReference.ObjectNumber);
+        Assert.Single(Assert.IsType<PdfArray>(reopened.Resolve(firstArrayReference)));
+        Assert.Empty(Assert.IsType<PdfArray>(reopened.Resolve(secondArrayReference)));
+    }
+
+    [Fact]
+    public void Build_RejectsExistingAnnotationOwnedByAnotherPage()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBlankPage()
+            .Build());
+        IReadOnlyList<(PdfIndirectReference Reference, PdfDictionary Page)> pages = Pages(source);
+        var annotation = new PdfDictionary([
+            new(Name("Type"), Name("Annot")),
+            new(Name("Subtype"), Name("Text")),
+            new(Name("Rect"), new PdfArray([
+                new PdfInteger(0), new PdfInteger(0),
+                new PdfInteger(10), new PdfInteger(10)
+            ])),
+            new(Name("P"), pages[1].Reference)
+        ]);
+        var setup = new PdfIncrementalUpdateBuilder(source);
+        PdfIndirectReference annotationReference = setup.AddObject(annotation);
+        PdfDocument malformed = PdfDocument.Open(setup
+            .ReplaceObject(pages[0].Reference.ObjectNumber,
+                new PdfDictionary(pages[0].Page.Append(
+                    new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
+                        new PdfArray([annotationReference])))))
+            .Build());
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            new PdfIncrementalAnnotationEditor(malformed)
+                .AddTextNote(0, 20, 20, "New note")
+                .Build());
+
+        Assert.Contains("/P value identifies another page",
+            error.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -367,7 +1046,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
     }
 
     [Fact]
-    public void Build_RevisesAnExistingIndirectAnnotationArray()
+    public void Build_DetachesAnExistingIndirectAnnotationArray()
     {
         byte[] initial = new PdfDocumentBuilder().AddBlankPage().Build();
         PdfDocument firstDocument = PdfDocument.Open(initial);
@@ -386,7 +1065,8 @@ public sealed class PdfIncrementalAnnotationEditorTests
             reopenedPage[Name("Annots")]);
         PdfArray annotations = Assert.IsType<PdfArray>(reopened.Resolve(reopenedArrayReference));
 
-        Assert.Equal(arrayReference.ObjectNumber, reopenedArrayReference.ObjectNumber);
+        Assert.NotEqual(arrayReference.ObjectNumber, reopenedArrayReference.ObjectNumber);
+        Assert.Empty(Assert.IsType<PdfArray>(reopened.Resolve(arrayReference)));
         Assert.Single(annotations);
         Assert.Equal(3, reopened.CrossReferences.Sections.Count);
     }

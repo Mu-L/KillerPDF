@@ -36,6 +36,26 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
             ? [revision.Primary] : new[] { revision.Primary, revision.Hybrid });
 
     public PdfDictionary LatestTrailer => _revisions[0].Primary.Trailer;
+    /// <summary>
+    /// Returns the effective trailer dictionary across the revision chain, choosing the newest
+    /// occurrence of each key while retaining extension-defined entries from older revisions.
+    /// </summary>
+    public PdfDictionary MergedTrailer
+    {
+        get
+        {
+            var entries = new Dictionary<PdfName, PdfObject>();
+            foreach (Revision revision in _revisions)
+            {
+                foreach (var entry in revision.Primary.Trailer)
+                    entries.TryAdd(entry.Key, entry.Value);
+                if (revision.Hybrid is not null)
+                    foreach (var entry in revision.Hybrid.Trailer)
+                        entries.TryAdd(entry.Key, entry.Value);
+            }
+            return new PdfDictionary(entries);
+        }
+    }
 
     public int Count => _entries.Count;
     public IEnumerable<int> Keys => _entries.Keys;
@@ -67,6 +87,10 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                 hybrid = PdfCrossReferenceReader.ReadSection(source, hybridOffset);
                 if (!hybrid.IsStream)
                     throw new PdfSyntaxException("Trailer /XRefStm must point to a cross-reference stream", (int)hybridOffset);
+                if (hybrid.PreviousOffset.HasValue)
+                    throw new PdfSyntaxException(
+                        "A hybrid cross-reference stream cannot contain /Prev",
+                        (int)hybridOffset);
             }
 
             revisions.Add(new Revision(primary, hybrid));
@@ -82,8 +106,32 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                 AddNewest(entries, revision.Hybrid.Values);
             AddNewest(entries, revision.Primary.Values);
         }
+        ValidateFreeList(entries, startXref.Offset);
 
         return new PdfCrossReferenceTable(header, startXref, revisions, entries);
+    }
+
+    private static void ValidateFreeList(
+        IReadOnlyDictionary<int, PdfCrossReferenceEntry> entries, long offset)
+    {
+        if (!entries.TryGetValue(0, out PdfCrossReferenceEntry zero)
+            || zero.Type != PdfCrossReferenceEntryType.Free)
+            return;
+        int next = checked((int)zero.Field1);
+        var visited = new HashSet<int> { 0 };
+        while (next != 0)
+        {
+            if (!visited.Add(next))
+                throw new PdfSyntaxException(
+                    "The cross-reference free-list chain contains a cycle",
+                    ClampOffset(offset));
+            if (!entries.TryGetValue(next, out PdfCrossReferenceEntry entry)
+                || entry.Type != PdfCrossReferenceEntryType.Free)
+                throw new PdfSyntaxException(
+                    $"The cross-reference free-list points to active or missing object {next}",
+                    ClampOffset(offset));
+            next = checked((int)entry.Field1);
+        }
     }
 
     public bool TryGetTrailerValue(PdfName name, out PdfObject value)
@@ -117,4 +165,11 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     private sealed record Revision(
         PdfCrossReferenceSection Primary,
         PdfCrossReferenceSection? Hybrid);
+
+    private static int ClampOffset(long offset) => offset switch
+    {
+        < 0 => 0,
+        > int.MaxValue => int.MaxValue,
+        _ => (int)offset
+    };
 }

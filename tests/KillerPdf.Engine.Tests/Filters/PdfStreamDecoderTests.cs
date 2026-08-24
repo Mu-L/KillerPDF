@@ -86,6 +86,20 @@ public sealed class PdfStreamDecoderTests
     }
 
     [Fact]
+    public void Decode_DoesNotApplyPredictorsToFiltersThatDoNotDefineThem()
+    {
+        var parameters = new PdfDictionary([
+            Pair("Predictor", new PdfInteger(2)),
+            Pair("Columns", new PdfInteger(3))
+        ]);
+        PdfStream stream = Stream("010101>"u8.ToArray(),
+            Pair("Filter", Name("ASCIIHexDecode")),
+            Pair("DecodeParms", parameters));
+
+        Assert.Equal(new byte[] { 1, 1, 1 }, PdfStreamDecoder.Decode(stream));
+    }
+
+    [Fact]
     public void Decode_ReversesPngUpPrediction()
     {
         byte[] predicted = [2, 10, 20, 30, 2, 5, 5, 5];
