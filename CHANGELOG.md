@@ -22,6 +22,7 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 - Multi-filter decoding bounds intermediate stages by their existing encoded footprint while applying the configured ceiling exactly to final output, allowing legal ASCII-wrapped compressed streams without permitting intermediate expansion beyond source storage.
 - Final `startxref` declarations reject offsets at or after their own marker, requiring the final cross-reference target to precede the declaration physically.
 - Final `startxref` markers and offsets require PDF whitespace token boundaries, rejecting embedded marker substrings and concatenated offsets or end markers.
+- Final `startxref` parsing treats comments as PDF trivia around the numeric offset while retaining strict token boundaries and rejecting any data after the final `%%EOF` marker.
 - Revision-chain parsing requires trailer `/Size` to remain nondecreasing across incremental revisions and requires hybrid companion streams to agree with their primary trailer, preserving the document's object-number high-water mark.
 - Cross-reference history enforces legal generation transitions: active updates retain their generation, deletion advances it, and free-object reuse retains the free generation, preventing stale or invented identities from replacing current objects.
 - Classic and stream cross-reference entries reject generation 65,535 for in-use objects because that terminal generation is permanently retired.

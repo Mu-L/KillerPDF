@@ -18,6 +18,17 @@ public sealed class PdfStartXrefTests
         Assert.Equal(source.LastIndexOf("startxref", StringComparison.Ordinal), result.MarkerOffset);
     }
 
+    [Fact]
+    public void Find_TreatsCommentsAsTriviaAroundOffset()
+    {
+        string source = "x\nstartxref\n% pointer follows\n1 % offset complete\n%%EOF\n";
+
+        PdfStartXref result = PdfStartXref.Find(
+            Encoding.ASCII.GetBytes(source));
+
+        Assert.Equal(1, result.Offset);
+    }
+
     [Theory]
     [InlineData("no marker")]
     [InlineData("startxref\n\n%%EOF")]

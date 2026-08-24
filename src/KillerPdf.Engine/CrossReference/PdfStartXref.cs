@@ -21,7 +21,7 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
         if (position >= source.Length || !IsWhitespace(source[position]))
             throw new PdfSyntaxException(
                 "The startxref marker is not followed by whitespace", position);
-        SkipWhitespace(source, ref position);
+        SkipTrivia(source, ref position, stopAtEndMarker: false);
         int numberOffset = position;
         long offset = 0;
         while (position < source.Length && source[position] is >= (byte)'0' and <= (byte)'9')
@@ -48,7 +48,7 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
         if (position >= source.Length || !IsWhitespace(source[position]))
             throw new PdfSyntaxException(
                 "The startxref offset is not followed by whitespace", position);
-        SkipWhitespace(source, ref position);
+        SkipTrivia(source, ref position, stopAtEndMarker: true);
         if (!source[position..].StartsWith(EndMarker))
             throw new PdfSyntaxException("The startxref declaration is not followed by %%EOF", position);
         position += EndMarker.Length;
@@ -63,6 +63,22 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
     {
         while (position < source.Length && IsWhitespace(source[position]))
             position++;
+    }
+
+    private static void SkipTrivia(
+        ReadOnlySpan<byte> source, ref int position, bool stopAtEndMarker)
+    {
+        while (true)
+        {
+            SkipWhitespace(source, ref position);
+            if (position >= source.Length
+                || (stopAtEndMarker && source[position..].StartsWith(EndMarker))
+                || source[position] != (byte)'%')
+                return;
+            while (position < source.Length
+                && source[position] is not ((byte)'\r') and not ((byte)'\n'))
+                position++;
+        }
     }
 
     private static bool IsWhitespace(byte value) =>
