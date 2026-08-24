@@ -45,19 +45,32 @@ public sealed class TrueTypeFont
             ItalicAngle = S32(post, 4) / 65536d;
     }
 
+    /// <summary>Gets the font's PostScript name.</summary>
     public string PostScriptName { get; }
+    /// <summary>Gets the number of font design units per em.</summary>
     public int UnitsPerEm { get; }
+    /// <summary>Gets the number of glyphs declared by the font.</summary>
     public int GlyphCount { get; }
+    /// <summary>Gets the horizontal-layout ascender in font design units.</summary>
     public int Ascender { get; }
+    /// <summary>Gets the horizontal-layout descender in font design units.</summary>
     public int Descender { get; }
+    /// <summary>Gets the global glyph bounding box in font design units.</summary>
     public TrueTypeBounds Bounds { get; }
+    /// <summary>Gets the raw OS/2 embedding-permission flags.</summary>
     public ushort EmbeddingFlags { get; }
+    /// <summary>Gets the italic angle in counterclockwise degrees from vertical.</summary>
     public double ItalicAngle { get; }
+    /// <summary>Gets whether the font permits embedding.</summary>
     public bool EmbeddingAllowed => (EmbeddingFlags & 0x0202) == 0;
+    /// <summary>Gets whether the font permits subset embedding.</summary>
     public bool SubsettingAllowed => (EmbeddingFlags & 0x0100) == 0;
+    /// <summary>Gets whether the OpenType font uses CFF or CFF2 outlines.</summary>
     public bool HasCffOutlines { get; }
+    /// <summary>Gets the validated original OpenType font bytes.</summary>
     public ReadOnlyMemory<byte> FontData => _data;
 
+    /// <summary>Loads and validates an OpenType font with TrueType or CFF outlines.</summary>
     public static TrueTypeFont Load(ReadOnlyMemory<byte> source)
     {
         byte[] data = source.ToArray();
@@ -89,6 +102,7 @@ public sealed class TrueTypeFont
         return new TrueTypeFont(data, tables, hasCffOutlines);
     }
 
+    /// <summary>Maps a valid Unicode scalar to a glyph identifier, or zero when unmapped.</summary>
     public ushort GetGlyphId(int unicodeScalar)
     {
         if (!Rune.IsValid(unicodeScalar))
@@ -126,6 +140,7 @@ public sealed class TrueTypeFont
         return result;
     }
 
+    /// <summary>Gets a glyph advance width normalized to 1,000 PDF text units.</summary>
     public int GetPdfAdvanceWidth(ushort glyphId)
     {
         if (glyphId >= _advanceWidths.Length)
@@ -771,5 +786,10 @@ public sealed class TrueTypeFont
     }
 }
 
+/// <summary>A font-wide glyph bounding box expressed in design units.</summary>
+/// <param name="XMin">The minimum horizontal coordinate.</param>
+/// <param name="YMin">The minimum vertical coordinate.</param>
+/// <param name="XMax">The maximum horizontal coordinate.</param>
+/// <param name="YMax">The maximum vertical coordinate.</param>
 public readonly record struct TrueTypeBounds(int XMin, int YMin, int XMax, int YMax);
 internal readonly record struct FontGlyphMapping(ushort Glyph, string UnicodeSequence);

@@ -1,5 +1,6 @@
 namespace KillerPdf.Engine.Authoring;
 
+/// <summary>Base type for calibrated grayscale and RGB color spaces.</summary>
 public abstract class PdfCalibratedColorSpace
 {
     private protected PdfCalibratedColorSpace(
@@ -20,16 +21,24 @@ public abstract class PdfCalibratedColorSpace
     }
 
     internal int ComponentCount { get; }
+    /// <summary>Gets the white-point X tristimulus value.</summary>
     public double WhiteX { get; }
+    /// <summary>Gets the normalized white-point Y tristimulus value.</summary>
     public double WhiteY { get; }
+    /// <summary>Gets the white-point Z tristimulus value.</summary>
     public double WhiteZ { get; }
+    /// <summary>Gets the black-point X tristimulus value.</summary>
     public double BlackX { get; }
+    /// <summary>Gets the black-point Y tristimulus value.</summary>
     public double BlackY { get; }
+    /// <summary>Gets the black-point Z tristimulus value.</summary>
     public double BlackZ { get; }
 }
 
+/// <summary>A calibrated one-component grayscale color space.</summary>
 public sealed class PdfCalGrayColorSpace : PdfCalibratedColorSpace
 {
+    /// <summary>Creates a calibrated grayscale space from white point, black point, and gamma.</summary>
     public PdfCalGrayColorSpace(
         double whiteX = 0.9642, double whiteY = 1, double whiteZ = 0.8249,
         double blackX = 0, double blackY = 0, double blackZ = 0,
@@ -40,14 +49,17 @@ public sealed class PdfCalGrayColorSpace : PdfCalibratedColorSpace
             throw new ArgumentOutOfRangeException(nameof(gamma));
         Gamma = gamma;
     }
+    /// <summary>Gets the positive gray-component gamma value.</summary>
     public double Gamma { get; }
 }
 
+/// <summary>A calibrated three-component RGB color space.</summary>
 public sealed class PdfCalRgbColorSpace : PdfCalibratedColorSpace
 {
     private readonly double[] _gamma;
     private readonly double[] _matrix;
 
+    /// <summary>Creates a calibrated RGB space from white point, black point, gamma, and matrix.</summary>
     public PdfCalRgbColorSpace(
         double whiteX = 0.9642, double whiteY = 1, double whiteZ = 0.8249,
         double blackX = 0, double blackY = 0, double blackZ = 0,
@@ -71,6 +83,8 @@ public sealed class PdfCalRgbColorSpace : PdfCalibratedColorSpace
         _matrix = matrix.ToArray();
     }
 
+    /// <summary>Gets the three positive component gamma values.</summary>
     public IReadOnlyList<double> Gamma => _gamma;
+    /// <summary>Gets the finite invertible three-by-three calibration matrix.</summary>
     public IReadOnlyList<double> Matrix => _matrix;
 }

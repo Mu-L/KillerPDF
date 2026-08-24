@@ -61,14 +61,22 @@ public abstract class PdfShading
         Background = background;
     }
 
+    /// <summary>Gets the strictly ordered color stops from zero through one.</summary>
     public IReadOnlyList<PdfGradientStop> Stops => _stops;
+    /// <summary>Gets the device color space shared by every gradient stop.</summary>
     public PdfGradientColorSpace ColorSpace => _stops[0].ColorSpace;
+    /// <summary>Gets whether the start color extends beyond the gradient domain.</summary>
     public bool ExtendStart { get; }
+    /// <summary>Gets whether the end color extends beyond the gradient domain.</summary>
     public bool ExtendEnd { get; }
+    /// <summary>Gets the optional rectangular evaluation boundary.</summary>
     public PdfShadingBounds? Bounds { get; }
+    /// <summary>Gets whether the viewer should antialias the shading.</summary>
     public bool AntiAlias { get; }
+    /// <summary>Gets the optional background color outside the shading geometry.</summary>
     public PdfGradientBackground? Background { get; }
 
+    /// <summary>Validates and returns a finite shading coordinate.</summary>
     protected static double Coordinate(double value, string name)
     {
         if (!double.IsFinite(value))
@@ -77,8 +85,10 @@ public abstract class PdfShading
     }
 }
 
+/// <summary>A linear gradient defined by a start point and an end point.</summary>
 public sealed class PdfAxialGradient : PdfShading
 {
+    /// <summary>Creates an axial gradient with ordered device-color stops.</summary>
     public PdfAxialGradient(
         double startX, double startY, double endX, double endY,
         IEnumerable<PdfGradientStop> stops,
@@ -95,14 +105,20 @@ public sealed class PdfAxialGradient : PdfShading
             throw new ArgumentException("An axial gradient requires two different points.");
     }
 
+    /// <summary>Gets the horizontal coordinate of the start point.</summary>
     public double StartX { get; }
+    /// <summary>Gets the vertical coordinate of the start point.</summary>
     public double StartY { get; }
+    /// <summary>Gets the horizontal coordinate of the end point.</summary>
     public double EndX { get; }
+    /// <summary>Gets the vertical coordinate of the end point.</summary>
     public double EndY { get; }
 }
 
+/// <summary>A radial gradient interpolated between two circles.</summary>
 public sealed class PdfRadialGradient : PdfShading
 {
+    /// <summary>Creates a radial gradient with ordered device-color stops.</summary>
     public PdfRadialGradient(
         double startX, double startY, double startRadius,
         double endX, double endY, double endRadius,
@@ -122,11 +138,17 @@ public sealed class PdfRadialGradient : PdfShading
             throw new ArgumentException("A radial gradient requires different circles.");
     }
 
+    /// <summary>Gets the horizontal coordinate of the start circle.</summary>
     public double StartX { get; }
+    /// <summary>Gets the vertical coordinate of the start circle.</summary>
     public double StartY { get; }
+    /// <summary>Gets the nonnegative radius of the start circle.</summary>
     public double StartRadius { get; }
+    /// <summary>Gets the horizontal coordinate of the end circle.</summary>
     public double EndX { get; }
+    /// <summary>Gets the vertical coordinate of the end circle.</summary>
     public double EndY { get; }
+    /// <summary>Gets the nonnegative radius of the end circle.</summary>
     public double EndRadius { get; }
 
     private static double Radius(double value, string name)
@@ -141,6 +163,7 @@ public sealed class PdfRadialGradient : PdfShading
 /// <summary>An optional rectangular boundary for evaluating a shading.</summary>
 public readonly record struct PdfShadingBounds
 {
+    /// <summary>Creates a finite rectangular boundary with positive width and height.</summary>
     public PdfShadingBounds(double minimumX, double minimumY, double maximumX, double maximumY)
     {
         if (!double.IsFinite(minimumX)) throw new ArgumentOutOfRangeException(nameof(minimumX));
@@ -155,8 +178,12 @@ public readonly record struct PdfShadingBounds
         MaximumY = maximumY;
     }
 
+    /// <summary>Gets the minimum horizontal coordinate.</summary>
     public double MinimumX { get; }
+    /// <summary>Gets the minimum vertical coordinate.</summary>
     public double MinimumY { get; }
+    /// <summary>Gets the maximum horizontal coordinate.</summary>
     public double MaximumX { get; }
+    /// <summary>Gets the maximum vertical coordinate.</summary>
     public double MaximumY { get; }
 }

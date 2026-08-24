@@ -8,6 +8,7 @@ namespace KillerPdf.Engine.Authoring;
 /// </summary>
 public sealed class PdfFormXObject
 {
+    /// <summary>Creates reusable form content with optional transparency-group semantics.</summary>
     public PdfFormXObject(
         double width, double height, PdfContentStreamBuilder content,
         bool isolatedTransparencyGroup = false, bool knockoutTransparencyGroup = false,
@@ -45,10 +46,15 @@ public sealed class PdfFormXObject
         TransparencyGroupColorSpace = transparencyGroupColorSpace;
     }
 
+    /// <summary>Gets the form bounding-box width.</summary>
     public double Width { get; }
+    /// <summary>Gets the form bounding-box height.</summary>
     public double Height { get; }
+    /// <summary>Gets whether compositing begins against a transparent backdrop.</summary>
     public bool IsolatedTransparencyGroup { get; }
+    /// <summary>Gets whether group elements knock out earlier group elements.</summary>
     public bool KnockoutTransparencyGroup { get; }
+    /// <summary>Gets the transparency-group blending color space.</summary>
     public PdfTransparencyGroupColorSpace TransparencyGroupColorSpace { get; }
 
     internal byte[] Content { get; }
@@ -75,9 +81,13 @@ public sealed class PdfFormXObject
     }
 }
 
+/// <summary>Device color spaces available for transparency-group compositing.</summary>
 public enum PdfTransparencyGroupColorSpace
 {
+    /// <summary>Device grayscale.</summary>
     Gray,
+    /// <summary>Device RGB.</summary>
     Rgb,
+    /// <summary>Device CMYK.</summary>
     Cmyk
 }

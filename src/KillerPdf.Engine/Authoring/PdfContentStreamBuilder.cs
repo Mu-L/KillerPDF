@@ -101,6 +101,7 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Ends the innermost marked-content or optional-content sequence.</summary>
     public PdfContentStreamBuilder EndMarkedContent()
     {
         if (_markedContentStack.Count == 0)
@@ -110,6 +111,7 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Saves the current graphics state on the content-stream stack.</summary>
     public PdfContentStreamBuilder SaveState()
     {
         WriteOperator("q"u8);
@@ -117,6 +119,7 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Restores the most recently saved graphics state.</summary>
     public PdfContentStreamBuilder RestoreState()
     {
         if (_savedStateDepth == 0)
@@ -126,9 +129,11 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Concatenates a six-value affine matrix with the current transformation matrix.</summary>
     public PdfContentStreamBuilder Transform(double a, double b, double c, double d, double e, double f) =>
         Operator("cm"u8, a, b, c, d, e, f);
 
+    /// <summary>Sets the stroked path width in user-space units.</summary>
     public PdfContentStreamBuilder SetLineWidth(double width)
     {
         if (!double.IsFinite(width) || width < 0)
@@ -136,18 +141,21 @@ public sealed class PdfContentStreamBuilder
         return Operator("w"u8, width);
     }
 
+    /// <summary>Sets the shape used at the ends of open stroked paths.</summary>
     public PdfContentStreamBuilder SetLineCap(PdfLineCap cap)
     {
         if (!Enum.IsDefined(cap)) throw new ArgumentOutOfRangeException(nameof(cap));
         return Operator("J"u8, (int)cap);
     }
 
+    /// <summary>Sets the shape used where stroked path segments meet.</summary>
     public PdfContentStreamBuilder SetLineJoin(PdfLineJoin join)
     {
         if (!Enum.IsDefined(join)) throw new ArgumentOutOfRangeException(nameof(join));
         return Operator("j"u8, (int)join);
     }
 
+    /// <summary>Sets the maximum miter-to-line-width ratio for mitered joins.</summary>
     public PdfContentStreamBuilder SetMiterLimit(double limit)
     {
         if (!double.IsFinite(limit) || limit < 1)
@@ -215,12 +223,15 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Sets equal nonstroking and stroking opacity values.</summary>
     public PdfContentStreamBuilder SetOpacity(double opacity) =>
         SetGraphicsState(new PdfGraphicsState(opacity, opacity));
 
+    /// <summary>Sets independent nonstroking and stroking opacity values.</summary>
     public PdfContentStreamBuilder SetOpacity(double fillOpacity, double strokeOpacity) =>
         SetGraphicsState(new PdfGraphicsState(fillOpacity, strokeOpacity));
 
+    /// <summary>Sets the transparency blend mode for subsequent painting operations.</summary>
     public PdfContentStreamBuilder SetBlendMode(PdfBlendMode blendMode) =>
         SetGraphicsState(new PdfGraphicsState(blendMode: blendMode));
 
@@ -567,8 +578,11 @@ public sealed class PdfContentStreamBuilder
         return resource;
     }
 
+    /// <summary>Begins a new path subpath at the specified point.</summary>
     public PdfContentStreamBuilder MoveTo(double x, double y) => Operator("m"u8, x, y);
+    /// <summary>Adds a straight segment from the current point.</summary>
     public PdfContentStreamBuilder LineTo(double x, double y) => Operator("l"u8, x, y);
+    /// <summary>Adds a cubic Bézier segment using two control points and a final point.</summary>
     public PdfContentStreamBuilder CurveTo(
         double x1, double y1, double x2, double y2, double x3, double y3) =>
         Operator("c"u8, x1, y1, x2, y2, x3, y3);
@@ -578,6 +592,7 @@ public sealed class PdfContentStreamBuilder
     /// <summary>Appends a cubic Bézier whose second control point is the final point.</summary>
     public PdfContentStreamBuilder CurveToFinalControl(double x1, double y1, double x3, double y3) =>
         Operator("y"u8, x1, y1, x3, y3);
+    /// <summary>Adds a closed rectangular subpath.</summary>
     public PdfContentStreamBuilder Rectangle(double x, double y, double width, double height) =>
         Operator("re"u8, x, y, width, height);
 
@@ -642,22 +657,34 @@ public sealed class PdfContentStreamBuilder
             .CurveTo(x, y + radius - control, x + radius - control, y, x + radius, y)
             .ClosePath();
     }
+    /// <summary>Closes the current path subpath.</summary>
     public PdfContentStreamBuilder ClosePath() => NoOperand("h"u8);
+    /// <summary>Strokes the current path using the nonzero winding rule.</summary>
     public PdfContentStreamBuilder Stroke() => PaintingOperator("S"u8);
+    /// <summary>Closes and strokes the current path.</summary>
     public PdfContentStreamBuilder CloseAndStroke() => PaintingOperator("s"u8);
+    /// <summary>Fills the current path using the nonzero winding rule.</summary>
     public PdfContentStreamBuilder Fill() => PaintingOperator("f"u8);
+    /// <summary>Fills the current path using the even-odd rule.</summary>
     public PdfContentStreamBuilder FillEvenOdd() => PaintingOperator("f*"u8);
+    /// <summary>Fills and strokes the current path using the nonzero winding rule.</summary>
     public PdfContentStreamBuilder FillAndStroke() => PaintingOperator("B"u8);
+    /// <summary>Fills and strokes the current path using the even-odd rule.</summary>
     public PdfContentStreamBuilder FillAndStrokeEvenOdd() => PaintingOperator("B*"u8);
+    /// <summary>Closes, fills, and strokes the current path using the nonzero winding rule.</summary>
     public PdfContentStreamBuilder CloseFillAndStroke() => PaintingOperator("b"u8);
+    /// <summary>Closes, fills, and strokes the current path using the even-odd rule.</summary>
     public PdfContentStreamBuilder CloseFillAndStrokeEvenOdd() => PaintingOperator("b*"u8);
+    /// <summary>Ends the current path without painting it.</summary>
     public PdfContentStreamBuilder EndPath() => NoOperand("n"u8);
+    /// <summary>Intersects the clipping path using the nonzero winding rule.</summary>
     public PdfContentStreamBuilder Clip()
     {
         WriteOperator("W"u8);
         WriteOperator("n"u8);
         return this;
     }
+    /// <summary>Intersects the clipping path using the even-odd rule.</summary>
     public PdfContentStreamBuilder ClipEvenOdd()
     {
         WriteOperator("W*"u8);
@@ -690,57 +717,74 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Sets the stroking color in the DeviceGray color space.</summary>
     public PdfContentStreamBuilder SetStrokeGray(double gray) => ColorOperator("G"u8, Component(gray, nameof(gray)));
+    /// <summary>Sets the nonstroking color in the DeviceGray color space.</summary>
     public PdfContentStreamBuilder SetFillGray(double gray) => ColorOperator("g"u8, Component(gray, nameof(gray)));
+    /// <summary>Sets the stroking color in the DeviceRGB color space.</summary>
     public PdfContentStreamBuilder SetStrokeRgb(double red, double green, double blue) =>
         ColorOperator("RG"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
+    /// <summary>Sets the nonstroking color in the DeviceRGB color space.</summary>
     public PdfContentStreamBuilder SetFillRgb(double red, double green, double blue) =>
         ColorOperator("rg"u8, Component(red, nameof(red)), Component(green, nameof(green)), Component(blue, nameof(blue)));
+    /// <summary>Sets the stroking color in the DeviceCMYK color space.</summary>
     public PdfContentStreamBuilder SetStrokeCmyk(double cyan, double magenta, double yellow, double black) =>
         ColorOperator("K"u8, Component(cyan, nameof(cyan)), Component(magenta, nameof(magenta)),
             Component(yellow, nameof(yellow)), Component(black, nameof(black)));
+    /// <summary>Sets the nonstroking color in the DeviceCMYK color space.</summary>
     public PdfContentStreamBuilder SetFillCmyk(double cyan, double magenta, double yellow, double black) =>
         ColorOperator("k"u8, Component(cyan, nameof(cyan)), Component(magenta, nameof(magenta)),
             Component(yellow, nameof(yellow)), Component(black, nameof(black)));
 
+    /// <summary>Sets the nonstroking color using an ICCBased color space.</summary>
     public PdfContentStreamBuilder SetFillIccColor(
         PdfIccProfile profile, params double[] components) =>
         SetIccColor(profile, components, stroke: false);
 
+    /// <summary>Sets the stroking color using an ICCBased color space.</summary>
     public PdfContentStreamBuilder SetStrokeIccColor(
         PdfIccProfile profile, params double[] components) =>
         SetIccColor(profile, components, stroke: true);
 
+    /// <summary>Sets a nonstroking Separation spot color and tint.</summary>
     public PdfContentStreamBuilder SetFillSpotColor(PdfSpotColor color, double tint) =>
         SetSpotColor(color, tint, stroke: false);
 
+    /// <summary>Sets a stroking Separation spot color and tint.</summary>
     public PdfContentStreamBuilder SetStrokeSpotColor(PdfSpotColor color, double tint) =>
         SetSpotColor(color, tint, stroke: true);
 
+    /// <summary>Sets the nonstroking color in a CIE L*a*b* color space.</summary>
     public PdfContentStreamBuilder SetFillLabColor(
         PdfLabColorSpace colorSpace, double lightness, double a, double b) =>
         SetLabColor(colorSpace, lightness, a, b, stroke: false);
 
+    /// <summary>Sets the stroking color in a CIE L*a*b* color space.</summary>
     public PdfContentStreamBuilder SetStrokeLabColor(
         PdfLabColorSpace colorSpace, double lightness, double a, double b) =>
         SetLabColor(colorSpace, lightness, a, b, stroke: true);
 
+    /// <summary>Sets the nonstroking color to an indexed palette entry.</summary>
     public PdfContentStreamBuilder SetFillIndexedColor(
         PdfIndexedColorSpace colorSpace, int index) =>
         SetIndexedColor(colorSpace, index, stroke: false);
 
+    /// <summary>Sets the stroking color to an indexed palette entry.</summary>
     public PdfContentStreamBuilder SetStrokeIndexedColor(
         PdfIndexedColorSpace colorSpace, int index) =>
         SetIndexedColor(colorSpace, index, stroke: true);
 
+    /// <summary>Sets the nonstroking color in a calibrated Gray or RGB color space.</summary>
     public PdfContentStreamBuilder SetFillCalibratedColor(
         PdfCalibratedColorSpace colorSpace, params double[] components) =>
         SetCalibratedColor(colorSpace, components, stroke: false);
 
+    /// <summary>Sets the stroking color in a calibrated Gray or RGB color space.</summary>
     public PdfContentStreamBuilder SetStrokeCalibratedColor(
         PdfCalibratedColorSpace colorSpace, params double[] components) =>
         SetCalibratedColor(colorSpace, components, stroke: true);
 
+    /// <summary>Begins a text object and resets its text-state tracking.</summary>
     public PdfContentStreamBuilder BeginText()
     {
         if (_insideText)
@@ -750,6 +794,7 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Ends the current text object.</summary>
     public PdfContentStreamBuilder EndText()
     {
         RequireText();
@@ -758,6 +803,7 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Selects a standard Type 1 font and text size.</summary>
     public PdfContentStreamBuilder SetFont(PdfStandardFont font, double size)
     {
         RequireText();
@@ -800,12 +846,14 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Moves the text line origin by the specified translation.</summary>
     public PdfContentStreamBuilder MoveText(double x, double y)
     {
         RequireText();
         return Operator("Td"u8, x, y);
     }
 
+    /// <summary>Sets the text matrix and text-line matrix explicitly.</summary>
     public PdfContentStreamBuilder SetTextMatrix(
         double a, double b, double c, double d, double x, double y)
     {
@@ -813,30 +861,35 @@ public sealed class PdfContentStreamBuilder
         return Operator("Tm"u8, a, b, c, d, x, y);
     }
 
+    /// <summary>Sets the vertical distance between successive text lines.</summary>
     public PdfContentStreamBuilder SetTextLeading(double leading)
     {
         RequireText();
         return Operator("TL"u8, leading);
     }
 
+    /// <summary>Moves to the next text line using the current leading.</summary>
     public PdfContentStreamBuilder MoveToNextTextLine()
     {
         RequireText();
         return NoOperand("T*"u8);
     }
 
+    /// <summary>Sets additional spacing applied after each text character.</summary>
     public PdfContentStreamBuilder SetCharacterSpacing(double spacing)
     {
         RequireText();
         return Operator("Tc"u8, spacing);
     }
 
+    /// <summary>Sets additional spacing applied to word-space characters.</summary>
     public PdfContentStreamBuilder SetWordSpacing(double spacing)
     {
         RequireText();
         return Operator("Tw"u8, spacing);
     }
 
+    /// <summary>Sets horizontal text scaling as a percentage of normal width.</summary>
     public PdfContentStreamBuilder SetHorizontalTextScale(double percent)
     {
         RequireText();
@@ -845,12 +898,14 @@ public sealed class PdfContentStreamBuilder
         return Operator("Tz"u8, percent);
     }
 
+    /// <summary>Sets the vertical displacement of text from the baseline.</summary>
     public PdfContentStreamBuilder SetTextRise(double rise)
     {
         RequireText();
         return Operator("Ts"u8, rise);
     }
 
+    /// <summary>Sets whether text is filled, stroked, clipped, or combined.</summary>
     public PdfContentStreamBuilder SetTextRenderingMode(PdfTextRenderingMode mode)
     {
         RequireText();
@@ -858,6 +913,7 @@ public sealed class PdfContentStreamBuilder
         return Operator("Tr"u8, (int)mode);
     }
 
+    /// <summary>Shows text using the selected standard font and Latin-1-compatible encoding.</summary>
     public PdfContentStreamBuilder ShowLatin1Text(string text)
     {
         RequireText();
@@ -935,6 +991,7 @@ public sealed class PdfContentStreamBuilder
         return this;
     }
 
+    /// <summary>Validates balanced graphics, text, and marked-content state and returns the stream bytes.</summary>
     public byte[] Build()
     {
         if (_savedStateDepth != 0)

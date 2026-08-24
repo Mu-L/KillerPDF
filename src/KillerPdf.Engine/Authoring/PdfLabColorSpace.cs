@@ -3,6 +3,7 @@ namespace KillerPdf.Engine.Authoring;
 /// <summary>A CIE L*a*b* color space with explicit white point and component ranges.</summary>
 public sealed class PdfLabColorSpace
 {
+    /// <summary>Creates a Lab color space from white point, black point, and component ranges.</summary>
     public PdfLabColorSpace(
         double whiteX = 0.9642, double whiteY = 1, double whiteZ = 0.8249,
         double blackX = 0, double blackY = 0, double blackZ = 0,
@@ -28,15 +29,25 @@ public sealed class PdfLabColorSpace
         MaximumB = maximumB;
     }
 
+    /// <summary>Gets the white-point X tristimulus value.</summary>
     public double WhiteX { get; }
+    /// <summary>Gets the normalized white-point Y tristimulus value.</summary>
     public double WhiteY { get; }
+    /// <summary>Gets the white-point Z tristimulus value.</summary>
     public double WhiteZ { get; }
+    /// <summary>Gets the black-point X tristimulus value.</summary>
     public double BlackX { get; }
+    /// <summary>Gets the black-point Y tristimulus value.</summary>
     public double BlackY { get; }
+    /// <summary>Gets the black-point Z tristimulus value.</summary>
     public double BlackZ { get; }
+    /// <summary>Gets the minimum a* component.</summary>
     public double MinimumA { get; }
+    /// <summary>Gets the maximum a* component.</summary>
     public double MaximumA { get; }
+    /// <summary>Gets the minimum b* component.</summary>
     public double MinimumB { get; }
+    /// <summary>Gets the maximum b* component.</summary>
     public double MaximumB { get; }
 
     private static double Positive(double value, string name)

@@ -3,35 +3,65 @@ namespace KillerPdf.Engine.Authoring;
 /// <summary>Standard structure types used by tagged PDF logical structure trees.</summary>
 public enum PdfStructureType
 {
+    /// <summary>The root element for a complete document.</summary>
     Document,
+    /// <summary>A large-scale document division.</summary>
     Part,
+    /// <summary>A self-contained article.</summary>
     Article,
+    /// <summary>A section within a document or part.</summary>
     Section,
+    /// <summary>A generic block-level division.</summary>
     Division,
+    /// <summary>A paragraph of text.</summary>
     Paragraph,
+    /// <summary>An unnumbered heading.</summary>
     Heading,
+    /// <summary>A level-one heading.</summary>
     Heading1,
+    /// <summary>A level-two heading.</summary>
     Heading2,
+    /// <summary>A level-three heading.</summary>
     Heading3,
+    /// <summary>A level-four heading.</summary>
     Heading4,
+    /// <summary>A level-five heading.</summary>
     Heading5,
+    /// <summary>A level-six heading.</summary>
     Heading6,
+    /// <summary>A list structure.</summary>
     List,
+    /// <summary>An individual list item.</summary>
     ListItem,
+    /// <summary>The label or marker of a list item.</summary>
     Label,
+    /// <summary>The body content of a list item.</summary>
     ListBody,
+    /// <summary>A table structure.</summary>
     Table,
+    /// <summary>A row in a table.</summary>
     TableRow,
+    /// <summary>A table header cell.</summary>
     TableHeaderCell,
+    /// <summary>A table data cell.</summary>
     TableDataCell,
+    /// <summary>A generic inline span.</summary>
     Span,
+    /// <summary>An inline quotation.</summary>
     Quote,
+    /// <summary>An explanatory note.</summary>
     Note,
+    /// <summary>A reference to other document content.</summary>
     Reference,
+    /// <summary>A fragment of computer code.</summary>
     Code,
+    /// <summary>A link and its associated content.</summary>
     Link,
+    /// <summary>A figure or graphical illustration.</summary>
     Figure,
+    /// <summary>A mathematical formula.</summary>
     Formula,
+    /// <summary>An interactive form control.</summary>
     Form
 }
 

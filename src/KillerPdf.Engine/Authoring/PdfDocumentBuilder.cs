@@ -41,6 +41,7 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<TextNoteDefinition> _textNotes = [];
     private readonly List<TextMarkupDefinition> _textMarkups = [];
 
+    /// <summary>Initializes a document using PDF 2.0 or the specified defined PDF version.</summary>
     public PdfDocumentBuilder(PdfVersion? version = null)
     {
         PdfVersion selected = version ?? PdfVersion.Pdf20;
@@ -50,10 +51,14 @@ public sealed partial class PdfDocumentBuilder
         Version = selected;
     }
 
+    /// <summary>Gets the header version selected for the authored document.</summary>
     public PdfVersion Version { get; }
+    /// <summary>Gets the number of pages currently defined by the builder.</summary>
     public int PageCount => _pages.Count;
+    /// <summary>Gets the descriptive metadata that will be written to the document.</summary>
     public PdfDocumentMetadata? Metadata { get; private set; }
 
+    /// <summary>Sets the document information, language, and descriptive XMP values.</summary>
     public PdfDocumentBuilder SetMetadata(PdfDocumentMetadata metadata)
     {
         ArgumentNullException.ThrowIfNull(metadata);
@@ -65,12 +70,14 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Protects the authored document with Standard Security password encryption.</summary>
     public PdfDocumentBuilder SetPasswordEncryption(PdfPasswordEncryptionOptions options)
     {
         _encryption = options ?? throw new ArgumentNullException(nameof(options));
         return this;
     }
 
+    /// <summary>Sets the document output intent and its embedded ICC destination profile.</summary>
     public PdfDocumentBuilder SetOutputIntent(
         PdfIccProfile profile,
         string outputConditionIdentifier,
@@ -85,6 +92,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Enables general PDF/A-4 authoring and conformance checks.</summary>
     public PdfDocumentBuilder EnablePdfA4Conformance()
     {
         _pdfA4Flavor = PdfA4Flavor.General;
@@ -112,6 +120,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets the initial arrangement of pages in a conforming viewer.</summary>
     public PdfDocumentBuilder SetPageLayout(PdfPageLayout layout)
     {
         if (!Enum.IsDefined(layout)) throw new ArgumentOutOfRangeException(nameof(layout));
@@ -119,6 +128,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets the navigation panel or presentation mode shown when the document opens.</summary>
     public PdfDocumentBuilder SetPageMode(PdfPageMode mode)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
@@ -126,6 +136,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets typed viewer and print preferences for the document catalog.</summary>
     public PdfDocumentBuilder SetViewerPreferences(PdfViewerPreferences preferences)
     {
         ArgumentNullException.ThrowIfNull(preferences);
@@ -139,9 +150,11 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds an empty page with the specified media-box dimensions.</summary>
     public PdfDocumentBuilder AddBlankPage(double width = 612, double height = 792) =>
         AddPage(width, height, ReadOnlyMemory<byte>.Empty);
 
+    /// <summary>Adds a page containing caller-supplied raw PDF content-stream bytes.</summary>
     public PdfDocumentBuilder AddPage(double width, double height, ReadOnlyMemory<byte> content)
     {
         ValidateDimension(width, nameof(width));
@@ -164,6 +177,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a page and transfers the typed content builder's complete resource graph.</summary>
     public PdfDocumentBuilder AddPage(double width, double height, PdfContentStreamBuilder content)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -247,6 +261,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets the visual transition used when advancing to the page.</summary>
     public PdfDocumentBuilder SetPageTransition(
         int pageIndex, PdfPageTransition transition)
     {
@@ -266,6 +281,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets the thumbnail image associated with a page.</summary>
     public PdfDocumentBuilder SetPageThumbnail(int pageIndex, PdfImage thumbnail)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
@@ -274,6 +290,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a rectangular link that opens an absolute URI.</summary>
     public PdfDocumentBuilder AddUriLink(
         int pageIndex, double x, double y, double width, double height, string uri,
         PdfLinkAppearance? appearance = null,
@@ -292,6 +309,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a quadrilateral link that opens an absolute URI.</summary>
     public PdfDocumentBuilder AddUriLink(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads, string uri,
         PdfLinkAppearance? appearance = null,
@@ -312,6 +330,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a rectangular link to a destination in this document.</summary>
     public PdfDocumentBuilder AddPageLink(
         int pageIndex, double x, double y, double width, double height, int destinationPageIndex,
         PdfLinkAppearance? appearance = null, PdfDestination? destination = null,
@@ -332,6 +351,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a quadrilateral link to a destination in this document.</summary>
     public PdfDocumentBuilder AddPageLink(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads, int destinationPageIndex,
         PdfLinkAppearance? appearance = null, PdfDestination? destination = null,
@@ -352,6 +372,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a rectangular link to a previously defined named destination.</summary>
     public PdfDocumentBuilder AddNamedDestinationLink(
         int pageIndex, double x, double y, double width, double height, string destinationName,
         PdfLinkAppearance? appearance = null,
@@ -375,6 +396,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a quadrilateral link to a previously defined named destination.</summary>
     public PdfDocumentBuilder AddNamedDestinationLink(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads, string destinationName,
         PdfLinkAppearance? appearance = null,
@@ -398,9 +420,11 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a named destination that fits its target page in the viewer.</summary>
     public PdfDocumentBuilder AddNamedDestination(string name, int pageIndex) =>
         AddNamedDestination(name, pageIndex, PdfDestination.FitPage());
 
+    /// <summary>Adds a named destination with an explicit target view.</summary>
     public PdfDocumentBuilder AddNamedDestination(
         string name, int pageIndex, PdfDestination destination)
     {
@@ -415,6 +439,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets the page destination shown when the document opens.</summary>
     public PdfDocumentBuilder SetOpenAction(int pageIndex, PdfDestination destination)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
@@ -423,6 +448,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Sets a previously defined named destination as the document open action.</summary>
     public PdfDocumentBuilder SetNamedOpenAction(string destinationName)
     {
         if (string.IsNullOrWhiteSpace(destinationName)
@@ -434,6 +460,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Starts a typed page-label numbering range at the specified page.</summary>
     public PdfDocumentBuilder AddPageLabelRange(
         int pageIndex,
         PdfPageLabelStyle style,
@@ -453,6 +480,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a hierarchical bookmark targeting a page in this document.</summary>
     public PdfDocumentBuilder AddBookmark(
         string title, int pageIndex, int level = 0, PdfBookmarkOptions? options = null)
     {
@@ -471,6 +499,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a hierarchical bookmark targeting a previously defined named destination.</summary>
     public PdfDocumentBuilder AddNamedDestinationBookmark(
         string title, string destinationName, int level = 0,
         PdfBookmarkOptions? options = null)
@@ -565,6 +594,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Embeds a file and optionally associates it with the document.</summary>
     public PdfDocumentBuilder AddAttachment(
         string fileName,
         ReadOnlyMemory<byte> data,
@@ -581,6 +611,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Places an embedded file on a page as a file-attachment annotation.</summary>
     public PdfDocumentBuilder AddFileAttachmentAnnotation(
         int pageIndex,
         double x,
@@ -607,6 +638,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a text form field and its widget appearance to a page.</summary>
     public PdfDocumentBuilder AddTextField(
         int pageIndex,
         string name,
@@ -684,6 +716,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a checkbox form field and its widget appearance to a page.</summary>
     public PdfDocumentBuilder AddCheckBox(
         int pageIndex,
         string name,
@@ -716,6 +749,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a radio-button group whose widgets may span multiple pages.</summary>
     public PdfDocumentBuilder AddRadioGroup(
         string name,
         IEnumerable<PdfRadioButtonOption> options,
@@ -762,6 +796,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a combo box whose export and display strings are identical.</summary>
     public PdfDocumentBuilder AddComboBox(
         int pageIndex,
         string name,
@@ -816,6 +851,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a single-selection list box whose export and display strings are identical.</summary>
     public PdfDocumentBuilder AddListBox(
         int pageIndex,
         string name,
@@ -866,6 +902,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a combo box with distinct export and display values.</summary>
     public PdfDocumentBuilder AddComboBoxOptions(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<PdfChoiceOption> options, string? selectedExportValue = null,
@@ -909,6 +946,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a multiselect list box whose export and display strings are identical.</summary>
     public PdfDocumentBuilder AddMultiSelectListBox(
         int pageIndex,
         string name,
@@ -963,6 +1001,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a single-selection list box with distinct export and display values.</summary>
     public PdfDocumentBuilder AddListBoxOptions(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<PdfChoiceOption> options, string? selectedExportValue = null,
@@ -997,6 +1036,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a multiselect list box with distinct export and display values.</summary>
     public PdfDocumentBuilder AddMultiSelectListBoxOptions(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<PdfChoiceOption> options, IEnumerable<string>? selectedExportValues = null,
@@ -1035,6 +1075,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a push button that opens an absolute URI.</summary>
     public PdfDocumentBuilder AddUriPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string uri, double fontSize = 12, TrueTypeFont? embeddedFont = null,
@@ -1070,6 +1111,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a push button that navigates to a page in this document.</summary>
     public PdfDocumentBuilder AddPagePushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, int destinationPageIndex, PdfDestination? destination = null,
@@ -1104,6 +1146,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a push button that navigates to a previously defined named destination.</summary>
     public PdfDocumentBuilder AddNamedDestinationPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string destinationName, double fontSize = 12,
@@ -1141,6 +1184,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a push button that resets all, selected, or excluded form fields.</summary>
     public PdfDocumentBuilder AddResetFormPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, IEnumerable<string>? fields = null, bool excludeFields = false,
@@ -1183,6 +1227,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a push button that submits the PDF for all, selected, or excluded fields.</summary>
     public PdfDocumentBuilder AddSubmitPdfPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string uri, IEnumerable<string>? fields = null, bool excludeFields = false,
@@ -1228,6 +1273,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds an unsigned signature field with optional seed and locking constraints.</summary>
     public PdfDocumentBuilder AddSignatureField(
         int pageIndex, string name, double x, double y, double width, double height,
         PdfFormFieldMetadata? fieldMetadata = null, PdfFormFieldOptions? fieldOptions = null,
@@ -1262,6 +1308,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a text-note annotation with optional popup, reply, and workflow state.</summary>
     public PdfDocumentBuilder AddTextNote(
         int pageIndex,
         double x,
@@ -1309,6 +1356,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a highlight annotation over a rectangular text region.</summary>
     public PdfDocumentBuilder AddHighlight(
         int pageIndex,
         double x,
@@ -1322,6 +1370,7 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, x, y, width, height,
             contents, color ?? PdfRgbColor.Yellow, opacity, annotationMetadata);
 
+    /// <summary>Adds a highlight annotation over one or more text quadrilaterals.</summary>
     public PdfDocumentBuilder AddHighlight(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 0.35,
@@ -1329,6 +1378,7 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, quads, contents,
             color ?? PdfRgbColor.Yellow, opacity, annotationMetadata);
 
+    /// <summary>Adds an underline annotation over a rectangular text region.</summary>
     public PdfDocumentBuilder AddUnderline(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -1336,6 +1386,7 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.Underline, pageIndex, x, y, width, height,
             contents, color ?? new PdfRgbColor(0, 0.35, 0.9), opacity, annotationMetadata);
 
+    /// <summary>Adds an underline annotation over one or more text quadrilaterals.</summary>
     public PdfDocumentBuilder AddUnderline(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -1343,6 +1394,7 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.Underline, pageIndex, quads, contents,
             color ?? new PdfRgbColor(0, 0.35, 0.9), opacity, annotationMetadata);
 
+    /// <summary>Adds a strikeout annotation over a rectangular text region.</summary>
     public PdfDocumentBuilder AddStrikeOut(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -1350,6 +1402,7 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.StrikeOut, pageIndex, x, y, width, height,
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
 
+    /// <summary>Adds a strikeout annotation over one or more text quadrilaterals.</summary>
     public PdfDocumentBuilder AddStrikeOut(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -1357,6 +1410,7 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.StrikeOut, pageIndex, quads, contents,
             color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
 
+    /// <summary>Adds a squiggly-underline annotation over a rectangular text region.</summary>
     public PdfDocumentBuilder AddSquiggly(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -1364,6 +1418,7 @@ public sealed partial class PdfDocumentBuilder
         => AddTextMarkup(PdfTextMarkupType.Squiggly, pageIndex, x, y, width, height,
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity, annotationMetadata);
 
+    /// <summary>Adds a squiggly-underline annotation over one or more text quadrilaterals.</summary>
     public PdfDocumentBuilder AddSquiggly(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -1400,6 +1455,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Validates the complete authored graph and serializes the PDF document.</summary>
     public byte[] Build()
     {
         bool pdfA4 = _pdfA4Flavor != PdfA4Flavor.None;

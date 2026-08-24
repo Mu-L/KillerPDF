@@ -39,6 +39,7 @@ public sealed class PdfIncrementalAnnotationEditor
     private readonly List<PendingRemoval> _removals = [];
     private readonly List<PendingAnnotationUpdate> _updates = [];
 
+    /// <summary>Initializes a byte-preserving annotation editor for an opened document.</summary>
     public PdfIncrementalAnnotationEditor(PdfDocument document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
@@ -46,8 +47,10 @@ public sealed class PdfIncrementalAnnotationEditor
         _pages = _tree.Pages;
     }
 
+    /// <summary>Gets the number of pages available for annotation editing.</summary>
     public int PageCount => _pages.Count;
 
+    /// <summary>Removes the uniquely named annotation from a page.</summary>
     public PdfIncrementalAnnotationEditor RemoveAnnotation(
         int pageIndex, string name)
     {
@@ -65,6 +68,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Removes an annotation by its zero-based position in the page annotation array.</summary>
     public PdfIncrementalAnnotationEditor RemoveAnnotationAt(
         int pageIndex, int annotationIndex)
     {
@@ -97,6 +101,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Changes or clears the contents of a uniquely named annotation.</summary>
     public PdfIncrementalAnnotationEditor SetAnnotationContents(
         int pageIndex, string name, string? contents)
     {
@@ -105,6 +110,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Changes or clears the lifecycle metadata of a uniquely named annotation.</summary>
     public PdfIncrementalAnnotationEditor SetAnnotationMetadata(
         int pageIndex, string name, PdfAnnotationMetadata? metadata)
     {
@@ -113,6 +119,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Changes or clears annotation contents by page-array position.</summary>
     public PdfIncrementalAnnotationEditor SetAnnotationContentsAt(
         int pageIndex, int annotationIndex, string? contents)
     {
@@ -121,6 +128,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Changes or clears annotation lifecycle metadata by page-array position.</summary>
     public PdfIncrementalAnnotationEditor SetAnnotationMetadataAt(
         int pageIndex, int annotationIndex, PdfAnnotationMetadata? metadata)
     {
@@ -129,6 +137,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a text note with optional popup, reply, and workflow state.</summary>
     public PdfIncrementalAnnotationEditor AddTextNote(
         int pageIndex, double x, double y, string contents,
         PdfRgbColor? color = null, bool open = false, double size = 24,
@@ -187,6 +196,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a highlight over a rectangular text region.</summary>
     public PdfIncrementalAnnotationEditor AddHighlight(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 0.35,
@@ -194,6 +204,7 @@ public sealed class PdfIncrementalAnnotationEditor
         => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, x, y, width, height,
             contents, color ?? PdfRgbColor.Yellow, opacity, annotationMetadata);
 
+    /// <summary>Adds a highlight over one or more text quadrilaterals.</summary>
     public PdfIncrementalAnnotationEditor AddHighlight(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 0.35,
@@ -201,6 +212,7 @@ public sealed class PdfIncrementalAnnotationEditor
         => AddTextMarkup(PdfTextMarkupType.Highlight, pageIndex, quads,
             contents, color ?? PdfRgbColor.Yellow, opacity, annotationMetadata);
 
+    /// <summary>Adds an underline over a rectangular text region.</summary>
     public PdfIncrementalAnnotationEditor AddUnderline(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -209,6 +221,7 @@ public sealed class PdfIncrementalAnnotationEditor
             contents, color ?? new PdfRgbColor(0, 0.35, 0.9), opacity,
             annotationMetadata);
 
+    /// <summary>Adds an underline over one or more text quadrilaterals.</summary>
     public PdfIncrementalAnnotationEditor AddUnderline(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -217,6 +230,7 @@ public sealed class PdfIncrementalAnnotationEditor
             contents, color ?? new PdfRgbColor(0, 0.35, 0.9), opacity,
             annotationMetadata);
 
+    /// <summary>Adds a strikeout over a rectangular text region.</summary>
     public PdfIncrementalAnnotationEditor AddStrikeOut(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -225,6 +239,7 @@ public sealed class PdfIncrementalAnnotationEditor
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity,
             annotationMetadata);
 
+    /// <summary>Adds a strikeout over one or more text quadrilaterals.</summary>
     public PdfIncrementalAnnotationEditor AddStrikeOut(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -233,6 +248,7 @@ public sealed class PdfIncrementalAnnotationEditor
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity,
             annotationMetadata);
 
+    /// <summary>Adds a squiggly underline over a rectangular text region.</summary>
     public PdfIncrementalAnnotationEditor AddSquiggly(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -241,6 +257,7 @@ public sealed class PdfIncrementalAnnotationEditor
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity,
             annotationMetadata);
 
+    /// <summary>Adds a squiggly underline over one or more text quadrilaterals.</summary>
     public PdfIncrementalAnnotationEditor AddSquiggly(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -249,6 +266,7 @@ public sealed class PdfIncrementalAnnotationEditor
             contents, color ?? new PdfRgbColor(0.9, 0.1, 0.1), opacity,
             annotationMetadata);
 
+    /// <summary>Adds a free-text annotation with an embedded font and optional callout.</summary>
     public PdfIncrementalAnnotationEditor AddFreeText(
         int pageIndex, double x, double y, double width, double height,
         string contents, TrueTypeFont font, double fontSize = 12,
@@ -293,6 +311,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a line annotation with optional endpoint symbols and dimension intent.</summary>
     public PdfIncrementalAnnotationEditor AddLine(
         int pageIndex, PdfPoint start, PdfPoint end, PdfRgbColor? color = null,
         double lineWidth = 1, double opacity = 1, string? contents = null,
@@ -320,6 +339,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a rectangle annotation with optional fill and dashed border.</summary>
     public PdfIncrementalAnnotationEditor AddRectangle(
         int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
@@ -330,6 +350,7 @@ public sealed class PdfIncrementalAnnotationEditor
             strokeColor, fillColor, lineWidth, opacity, contents, annotationMetadata,
             dashPattern);
 
+    /// <summary>Adds an ellipse annotation with optional fill and dashed border.</summary>
     public PdfIncrementalAnnotationEditor AddEllipse(
         int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
@@ -340,6 +361,7 @@ public sealed class PdfIncrementalAnnotationEditor
             strokeColor, fillColor, lineWidth, opacity, contents, annotationMetadata,
             dashPattern);
 
+    /// <summary>Adds a polyline annotation with optional endpoint symbols and intent.</summary>
     public PdfIncrementalAnnotationEditor AddPolyline(
         int pageIndex, IReadOnlyList<PdfPoint> vertices, PdfRgbColor? color = null,
         double lineWidth = 1, double opacity = 1, string? contents = null,
@@ -353,6 +375,7 @@ public sealed class PdfIncrementalAnnotationEditor
             opacity, contents, startEnding, endEnding, dashPattern,
             interiorColor, annotationMetadata, intent);
 
+    /// <summary>Adds a polygon annotation with optional fill, dash style, and intent.</summary>
     public PdfIncrementalAnnotationEditor AddPolygon(
         int pageIndex, IReadOnlyList<PdfPoint> vertices,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
@@ -364,6 +387,7 @@ public sealed class PdfIncrementalAnnotationEditor
             lineWidth, opacity, contents, PdfLineEndingStyle.None,
             PdfLineEndingStyle.None, dashPattern, null, annotationMetadata, intent);
 
+    /// <summary>Adds a single-path ink annotation.</summary>
     public PdfIncrementalAnnotationEditor AddInk(
         int pageIndex, IReadOnlyList<PdfPoint> points, PdfRgbColor? color = null,
         double lineWidth = 2, double opacity = 1, string? contents = null,
@@ -372,6 +396,7 @@ public sealed class PdfIncrementalAnnotationEditor
         => AddInk(pageIndex, [points], color, lineWidth, opacity, contents,
             annotationMetadata, dashPattern);
 
+    /// <summary>Adds a multipath ink annotation.</summary>
     public PdfIncrementalAnnotationEditor AddInk(
         int pageIndex, IReadOnlyList<IReadOnlyList<PdfPoint>> strokes, PdfRgbColor? color = null,
         double lineWidth = 2, double opacity = 1, string? contents = null,
@@ -391,6 +416,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a semantic stamp annotation rendered with the supplied image.</summary>
     public PdfIncrementalAnnotationEditor AddImageStamp(
         int pageIndex, double x, double y, double width, double height,
         PdfImage image, string? contents = null,
@@ -408,6 +434,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a caret annotation marking an insertion or replacement location.</summary>
     public PdfIncrementalAnnotationEditor AddCaret(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -426,6 +453,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a caret annotation using the authoring-compatible method name.</summary>
     public PdfIncrementalAnnotationEditor AddCaretAnnotation(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -434,6 +462,7 @@ public sealed class PdfIncrementalAnnotationEditor
         AddCaret(pageIndex, x, y, width, height, contents, color, opacity,
             symbol, annotationMetadata);
 
+    /// <summary>Adds a redaction review mark with optional replacement-text overlay.</summary>
     public PdfIncrementalAnnotationEditor AddRedactionMark(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? fillColor = null,
@@ -502,6 +531,7 @@ public sealed class PdfIncrementalAnnotationEditor
             .Any(value => value.Value.Trim() == "4");
     }
 
+    /// <summary>Places an existing embedded file on a page as an attachment annotation.</summary>
     public PdfIncrementalAnnotationEditor AddFileAttachmentAnnotation(
         int pageIndex, double x, double y, double size, string fileName,
         string? contents = null,
@@ -528,6 +558,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Places an existing embedded file using a concise attachment method name.</summary>
     public PdfIncrementalAnnotationEditor AddFileAttachment(
         int pageIndex, double x, double y, double size, string fileName,
         string? contents = null,
@@ -538,6 +569,7 @@ public sealed class PdfIncrementalAnnotationEditor
             pageIndex, x, y, size, fileName, contents, icon, color,
             annotationMetadata);
 
+    /// <summary>Adds a rectangular link that opens an absolute URI.</summary>
     public PdfIncrementalAnnotationEditor AddUriLink(
         int pageIndex, double x, double y, double width, double height, string uri,
         PdfLinkAppearance? appearance = null,
@@ -553,6 +585,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a quadrilateral link that opens an absolute URI.</summary>
     public PdfIncrementalAnnotationEditor AddUriLink(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads, string uri,
         PdfLinkAppearance? appearance = null,
@@ -569,6 +602,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a rectangular link to a destination in this document.</summary>
     public PdfIncrementalAnnotationEditor AddPageLink(
         int pageIndex, double x, double y, double width, double height,
         int destinationPageIndex, PdfLinkAppearance? appearance = null,
@@ -586,6 +620,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a quadrilateral link to a destination in this document.</summary>
     public PdfIncrementalAnnotationEditor AddPageLink(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         int destinationPageIndex, PdfLinkAppearance? appearance = null,
@@ -604,6 +639,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a rectangular link to an existing named destination.</summary>
     public PdfIncrementalAnnotationEditor AddNamedDestinationLink(
         int pageIndex, double x, double y, double width, double height,
         string destinationName, PdfLinkAppearance? appearance = null,
@@ -622,6 +658,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Adds a quadrilateral link to an existing named destination.</summary>
     public PdfIncrementalAnnotationEditor AddNamedDestinationLink(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string destinationName, PdfLinkAppearance? appearance = null,
@@ -724,6 +761,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return this;
     }
 
+    /// <summary>Validates pending annotation edits and appends one incremental revision.</summary>
     public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
         if (_annotations.Count == 0 && _removals.Count == 0 && _updates.Count == 0)

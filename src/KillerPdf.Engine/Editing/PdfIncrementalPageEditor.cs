@@ -178,6 +178,7 @@ public sealed class PdfIncrementalPageEditor
     private PdfVersion? _minimumFeatureVersion;
     private int _nextImportBatchId;
 
+    /// <summary>Initializes a byte-preserving page editor for an opened document.</summary>
     public PdfIncrementalPageEditor(PdfDocument document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
@@ -185,6 +186,7 @@ public sealed class PdfIncrementalPageEditor
         _pages = _tree.Pages.Select(page => new PageState(page)).ToList();
     }
 
+    /// <summary>Gets the number of pages in the pending edited page sequence.</summary>
     public int PageCount => _pages.Count;
 
     /// <summary>Sets an existing checkbox field to its on or off appearance state.</summary>
@@ -296,6 +298,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Changes the default value of an existing text field.</summary>
     public PdfIncrementalPageEditor SetTextFieldDefaultValue(
         string fieldName, string value, TrueTypeFont? embeddedFont = null)
     {
@@ -304,15 +307,18 @@ public sealed class PdfIncrementalPageEditor
             new PendingFieldDefaultValue(FieldDefaultKind.Text, [value], false, embeddedFont));
     }
 
+    /// <summary>Changes the default checked state of an existing checkbox.</summary>
     public PdfIncrementalPageEditor SetCheckBoxDefaultValue(
         string fieldName, bool isChecked) => SetFieldDefault(fieldName,
             new PendingFieldDefaultValue(FieldDefaultKind.CheckBox, [], isChecked, null));
 
+    /// <summary>Changes or clears the default selection of an existing radio group.</summary>
     public PdfIncrementalPageEditor SetRadioButtonDefaultValue(
         string fieldName, string? selectedValue) => SetFieldDefault(fieldName,
             new PendingFieldDefaultValue(FieldDefaultKind.Radio,
                 selectedValue is null ? [] : [selectedValue], false, null));
 
+    /// <summary>Changes the single default selection of an existing choice field.</summary>
     public PdfIncrementalPageEditor SetChoiceFieldDefaultValue(
         string fieldName, string selectedValue, TrueTypeFont? embeddedFont = null)
     {
@@ -320,6 +326,7 @@ public sealed class PdfIncrementalPageEditor
         return SetChoiceFieldDefaultValues(fieldName, [selectedValue], embeddedFont);
     }
 
+    /// <summary>Changes the default selections of an existing multiselect choice field.</summary>
     public PdfIncrementalPageEditor SetChoiceFieldDefaultValues(
         string fieldName, IEnumerable<string> selectedValues,
         TrueTypeFont? embeddedFont = null)
@@ -334,6 +341,7 @@ public sealed class PdfIncrementalPageEditor
             new PendingFieldDefaultValue(FieldDefaultKind.Choice, values, false, embeddedFont));
     }
 
+    /// <summary>Removes the declared default value from an existing form field.</summary>
     public PdfIncrementalPageEditor ClearFormFieldDefaultValue(string fieldName) =>
         SetFieldDefault(fieldName,
             new PendingFieldDefaultValue(FieldDefaultKind.Remove, [], false, null));
@@ -365,6 +373,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a checkbox and widget appearance to an existing or pending page.</summary>
     public PdfIncrementalPageEditor AddCheckBox(
         int pageIndex, string name, double x, double y, double width, double height,
         bool isChecked = false, string exportValue = "Yes",
@@ -386,6 +395,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a radio-button group whose widgets may span multiple pages.</summary>
     public PdfIncrementalPageEditor AddRadioGroup(
         string name, IEnumerable<PdfRadioButtonOption> options,
         string? selectedValue = null,
@@ -421,6 +431,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a text field and generated widget appearance to a page.</summary>
     public PdfIncrementalPageEditor AddTextField(
         int pageIndex, string name, double x, double y, double width, double height,
         string value = "", double fontSize = 12,
@@ -445,6 +456,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a combo box whose export and display strings are identical.</summary>
     public PdfIncrementalPageEditor AddComboBox(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<string> options, string? selectedValue = null,
@@ -467,6 +479,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a single-selection list box using identical export and display strings.</summary>
     public PdfIncrementalPageEditor AddListBox(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<string> options, string? selectedValue = null,
@@ -488,6 +501,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a multiselect list box using identical export and display strings.</summary>
     public PdfIncrementalPageEditor AddMultiSelectListBox(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<string> options, IEnumerable<string>? selectedValues = null,
@@ -509,6 +523,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a combo box with distinct export and display values.</summary>
     public PdfIncrementalPageEditor AddComboBoxOptions(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<PdfChoiceOption> options, string? selectedExportValue = null,
@@ -531,6 +546,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a single-selection list box with distinct export and display values.</summary>
     public PdfIncrementalPageEditor AddListBoxOptions(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<PdfChoiceOption> options, string? selectedExportValue = null,
@@ -552,6 +568,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a multiselect list box with distinct export and display values.</summary>
     public PdfIncrementalPageEditor AddMultiSelectListBoxOptions(
         int pageIndex, string name, double x, double y, double width, double height,
         IEnumerable<PdfChoiceOption> options,
@@ -574,6 +591,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a push button that opens an absolute URI.</summary>
     public PdfIncrementalPageEditor AddUriPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string uri, double fontSize = 12,
@@ -597,6 +615,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a push button that navigates to a page in the pending document.</summary>
     public PdfIncrementalPageEditor AddPagePushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, int destinationPageIndex,
@@ -627,6 +646,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a push button that navigates to a named destination.</summary>
     public PdfIncrementalPageEditor AddNamedDestinationPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string destinationName, double fontSize = 12,
@@ -654,6 +674,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a push button that resets all, selected, or excluded form fields.</summary>
     public PdfIncrementalPageEditor AddResetFormPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, IEnumerable<string>? fields = null, bool excludeFields = false,
@@ -682,6 +703,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds a push button that submits the PDF for all, selected, or excluded fields.</summary>
     public PdfIncrementalPageEditor AddSubmitPdfPushButton(
         int pageIndex, string name, double x, double y, double width, double height,
         string label, string uri, IEnumerable<string>? fields = null,
@@ -710,6 +732,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Adds an unsigned signature field with optional seed and locking constraints.</summary>
     public PdfIncrementalPageEditor AddSignatureField(
         int pageIndex, string name, double x, double y, double width, double height,
         PdfFormFieldMetadata? fieldMetadata = null,
@@ -1402,9 +1425,12 @@ public sealed class PdfIncrementalPageEditor
     public PdfIncrementalPageEditor AddImportedDocument(PdfDocument source) =>
         InsertImportedDocument(_pages.Count, source);
 
+    /// <summary>Rotates a page clockwise by 90 degrees relative to its effective rotation.</summary>
     public PdfIncrementalPageEditor RotateClockwise(int pageIndex) => Rotate(pageIndex, 90);
+    /// <summary>Rotates a page counterclockwise by 90 degrees relative to its effective rotation.</summary>
     public PdfIncrementalPageEditor RotateCounterClockwise(int pageIndex) => Rotate(pageIndex, -90);
 
+    /// <summary>Sets the page's effective clockwise rotation to an exact right angle.</summary>
     public PdfIncrementalPageEditor SetRotation(int pageIndex, int degreesClockwise)
     {
         ValidateIndex(pageIndex, nameof(pageIndex));
@@ -1529,6 +1555,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Sets the visual transition used when advancing to a page.</summary>
     public PdfIncrementalPageEditor SetPageTransition(
         int pageIndex, PdfPageTransition transition)
     {
@@ -1603,6 +1630,7 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>Validates all pending edits and appends the required incremental revision or revisions.</summary>
     public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
         if (!_orderChanged && !_rotationChanged && !_pageGeometryChanged

@@ -6,6 +6,7 @@ namespace KillerPdf.Engine.Authoring;
 /// <summary>Reusable coloured artwork or an uncoloured stencil repeated over a filled area.</summary>
 public sealed class PdfTilingPattern
 {
+    /// <summary>Creates a validated colored pattern or uncolored stencil from reusable content.</summary>
     public PdfTilingPattern(
         double width, double height, PdfContentStreamBuilder content,
         double? horizontalStep = null, double? verticalStep = null,
@@ -59,12 +60,19 @@ public sealed class PdfTilingPattern
         CalibratedColorSpaces = content.CalibratedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value);
     }
 
+    /// <summary>Gets the pattern-cell width.</summary>
     public double Width { get; }
+    /// <summary>Gets the pattern-cell height.</summary>
     public double Height { get; }
+    /// <summary>Gets the horizontal spacing between pattern cells.</summary>
     public double HorizontalStep { get; }
+    /// <summary>Gets the vertical spacing between pattern cells.</summary>
     public double VerticalStep { get; }
+    /// <summary>Gets the spacing-versus-distortion strategy.</summary>
     public PdfTilingPatternType TilingType { get; }
+    /// <summary>Gets whether the pattern supplies its own colors or acts as a stencil.</summary>
     public PdfTilingPatternPaintType PaintType { get; }
+    /// <summary>Gets the transformation from pattern space to default user space.</summary>
     public PdfPatternMatrix Matrix { get; }
 
     internal byte[] Content { get; }
@@ -98,20 +106,27 @@ public sealed class PdfTilingPattern
 /// <summary>Controls the spacing-versus-distortion tradeoff used by a tiling pattern.</summary>
 public enum PdfTilingPatternType
 {
+    /// <summary>Adjusts spacing to keep pattern cells undistorted.</summary>
     ConstantSpacing = 1,
+    /// <summary>Adjusts pattern cells to keep spacing exact.</summary>
     NoDistortion = 2,
+    /// <summary>Permits small spacing adjustments for faster tiling.</summary>
     FasterTiling = 3
 }
 
+/// <summary>Whether a tiling pattern supplies color or acts as an uncolored stencil.</summary>
 public enum PdfTilingPatternPaintType
 {
+    /// <summary>The pattern content supplies its own colors.</summary>
     Colored = 1,
+    /// <summary>The caller supplies color when painting the stencil.</summary>
     Uncolored = 2
 }
 
 /// <summary>Maps pattern space into the default user space.</summary>
 public readonly record struct PdfPatternMatrix
 {
+    /// <summary>Creates a finite, invertible affine pattern matrix.</summary>
     public PdfPatternMatrix(double a, double b, double c, double d, double e, double f)
     {
         if (!double.IsFinite(a)) throw new ArgumentOutOfRangeException(nameof(a));
@@ -125,11 +140,18 @@ public readonly record struct PdfPatternMatrix
         A = a; B = b; C = c; D = d; E = e; F = f;
     }
 
+    /// <summary>Gets the identity pattern matrix.</summary>
     public static PdfPatternMatrix Identity { get; } = new(1, 0, 0, 1, 0, 0);
+    /// <summary>Gets the horizontal scale component.</summary>
     public double A { get; }
+    /// <summary>Gets the vertical shear component.</summary>
     public double B { get; }
+    /// <summary>Gets the horizontal shear component.</summary>
     public double C { get; }
+    /// <summary>Gets the vertical scale component.</summary>
     public double D { get; }
+    /// <summary>Gets the horizontal translation component.</summary>
     public double E { get; }
+    /// <summary>Gets the vertical translation component.</summary>
     public double F { get; }
 }
