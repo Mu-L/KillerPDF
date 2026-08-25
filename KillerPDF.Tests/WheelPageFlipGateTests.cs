@@ -8,12 +8,11 @@ public sealed class WheelPageFlipGateTests
     private static readonly DateTime Start = new(2026, 8, 22, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
-    public void TwoQuickNotchesAtEdge_ConfirmPageFlip()
+    public void OneStandardNotchAtEdge_ConfirmsPageFlip()
     {
         var gate = new WheelPageFlipGate();
 
-        Assert.False(gate.TryConfirm(-120, Start));
-        Assert.True(gate.TryConfirm(-120, Start.AddMilliseconds(100)));
+        Assert.True(gate.TryConfirm(-120, Start));
     }
 
     [Fact]
@@ -27,21 +26,31 @@ public sealed class WheelPageFlipGateTests
     }
 
     [Fact]
-    public void OppositeDirection_RestartsConfirmation()
+    public void PrecisionDeltasAccumulateInOneDirection()
     {
         var gate = new WheelPageFlipGate();
 
-        Assert.False(gate.TryConfirm(-120, Start));
-        Assert.False(gate.TryConfirm(120, Start.AddMilliseconds(100)));
-        Assert.True(gate.TryConfirm(120, Start.AddMilliseconds(200)));
+        Assert.False(gate.TryConfirm(-40, Start));
+        Assert.False(gate.TryConfirm(-40, Start.AddMilliseconds(50)));
+        Assert.True(gate.TryConfirm(-40, Start.AddMilliseconds(100)));
     }
 
     [Fact]
-    public void SlowNotches_DoNotCombineIntoPageFlip()
+    public void OppositePrecisionDirection_RestartsConfirmation()
     {
         var gate = new WheelPageFlipGate();
 
-        Assert.False(gate.TryConfirm(-120, Start));
-        Assert.False(gate.TryConfirm(-120, Start.AddMilliseconds(700)));
+        Assert.False(gate.TryConfirm(-60, Start));
+        Assert.False(gate.TryConfirm(60, Start.AddMilliseconds(100)));
+        Assert.True(gate.TryConfirm(60, Start.AddMilliseconds(200)));
+    }
+
+    [Fact]
+    public void SlowPrecisionDeltas_DoNotCombineIntoPageFlip()
+    {
+        var gate = new WheelPageFlipGate();
+
+        Assert.False(gate.TryConfirm(-60, Start));
+        Assert.False(gate.TryConfirm(-60, Start.AddMilliseconds(700)));
     }
 }
