@@ -541,6 +541,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Tf_Warn">La trasformazione di una pagina (rotazione o ridimensionamento) la rasterizza: la pagina viene salvata nuovamente come immagine, quindi qualsiasi testo selezionabile in essa verrà perso. Successivamente è possibile eseguire l'OCR per renderlo nuovamente ricercabile.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Non avvisarmi più</sys:String>
     <sys:String x:Key="Str_Tf_Done">Pagina trasformata {0}</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">Trasformate {0} pagine</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Impossibile renderizzare la pagina: riprova tra qualche istante.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Trasformazione non riuscita: {0}</sys:String>
 

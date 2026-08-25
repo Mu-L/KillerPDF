@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Text boxes now support adjustable letter spacing with live preview, spacing-aware wrapping, and matching PDF output for aligning characters with preprinted form boxes (#232).
 - Multiple selected page thumbnails can now be dragged as one ordered block, with the insertion marker identifying the block's exact destination and page rotation state moving with every selected page (#233).
 - PDFs and images dropped between page thumbnails are inserted at the indicated position, and each page thumbnail's context menu can merge selected PDFs directly after that page instead of only appending them (#233).
+- Transform settings can now be previewed page by page and applied to every selected page as one undoable batch while preserving each page's own dimensions, rotation, and annotation burn-in (#204).
 - Dragging a page thumbnail now shows a theme-colored insertion line at the exact before-or-after drop position in the Pages sidebar.
 - The Select tool now shows an I-beam only over selectable PDF text in every view while retaining the hand cursor over links (#221).
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.

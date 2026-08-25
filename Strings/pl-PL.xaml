@@ -522,6 +522,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Tf_Warn">Przekształcenie strony (obrót lub skalowanie) powoduje rasteryzację: strona jest ponownie zapisywana jako obraz, więc wszelki tekst, który można zaznaczyć, zostaje utracony. Możesz później uruchomić OCR, aby ponownie umożliwić wyszukiwanie.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Nie ostrzegaj mnie już więcej</sys:String>
     <sys:String x:Key="Str_Tf_Done">Przekształcona strona {0}</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">Przekształcono {0} stron</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Nie można wyrenderować strony - spróbuj ponownie za chwilę</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Przekształcenie niepowodzenie: {0}</sys:String>
 

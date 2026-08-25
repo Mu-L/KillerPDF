@@ -478,6 +478,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Tf_Warn">Bir sayfayı dönüştürmek (döndürmek veya ölçeklemek) onu rasterize eder: sayfa bir görsel olarak yeniden kaydedilir, bu nedenle üzerindeki seçilebilir metin kaybolur. Daha sonra OCR uygulayarak tekrar aranabilir hale getirebilirsiniz.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Beni bir daha uyarma</sys:String>
     <sys:String x:Key="Str_Tf_Done">{0} sayfa dönüştürüldü</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">{0} sayfa dönüştürüldü</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Sayfa görüntülenemedi - birazdan tekrar deneyin.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Dönüştürme başarısız: {0}</sys:String>
     <sys:String x:Key="Str_Crop_Position">Konum</sys:String>

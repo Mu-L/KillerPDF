@@ -779,32 +779,47 @@ internal static class PdfEngineIntegration
 
     /// <summary>Replaces one page with the first page of an authored PDF.</summary>
     internal static void ReplacePage(string path, int pageIndex, string replacementPath)
+        => ReplacePages(path, new Dictionary<int, string> { [pageIndex] = replacementPath });
+
+    /// <summary>Replaces selected pages with the first pages of authored PDFs in one revision.</summary>
+    internal static void ReplacePages(string path, IReadOnlyDictionary<int, string> replacements)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        ArgumentException.ThrowIfNullOrWhiteSpace(replacementPath);
+        ArgumentNullException.ThrowIfNull(replacements);
+        if (replacements.Count == 0) return;
         PdfDocument target = PdfDocument.Open(File.ReadAllBytes(path));
-        PdfDocument replacement = PdfDocument.Open(File.ReadAllBytes(replacementPath));
-        var replacementEditor = new PdfIncrementalPageEditor(replacement);
-        if (replacementEditor.PageCount < 1)
-            throw new ArgumentException("The replacement document must contain a page.",
-                nameof(replacementPath));
-
-        byte[] result = new PdfIncrementalPageEditor(target)
-            .RemovePage(pageIndex)
-            .InsertImportedPage(pageIndex, replacement, 0)
-            .SetRotation(pageIndex, 0)
-            .Build();
-        ReplaceWithBuiltResult(path, result);
+        var editor = new PdfIncrementalPageEditor(target);
+        foreach (var pair in replacements.OrderBy(pair => pair.Key))
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(pair.Value);
+            if (pair.Key < 0 || pair.Key >= editor.PageCount)
+                throw new ArgumentOutOfRangeException(nameof(replacements));
+            PdfDocument replacement = PdfDocument.Open(File.ReadAllBytes(pair.Value));
+            if (new PdfIncrementalPageEditor(replacement).PageCount < 1)
+                throw new ArgumentException("A replacement document must contain a page.",
+                    nameof(replacements));
+            editor.RemovePage(pair.Key).InsertImportedPage(pair.Key, replacement, 0)
+                .SetRotation(pair.Key, 0);
+        }
+        ReplaceWithBuiltResult(path, editor.Build());
     }
 
     /// <summary>Resets the replaced page's application rotation.</summary>
     internal static void RemapRotationsAfterPageReplacement(
         Dictionary<int, int> rotations, int pageIndex)
+        => RemapRotationsAfterPageReplacements(rotations, [pageIndex]);
+
+    internal static void RemapRotationsAfterPageReplacements(
+        Dictionary<int, int> rotations, IReadOnlyList<int> pageIndices)
     {
         ArgumentNullException.ThrowIfNull(rotations);
-        if (!rotations.ContainsKey(pageIndex))
-            throw new ArgumentOutOfRangeException(nameof(pageIndex));
-        rotations[pageIndex] = 0;
+        ArgumentNullException.ThrowIfNull(pageIndices);
+        foreach (int pageIndex in pageIndices.Distinct())
+        {
+            if (!rotations.ContainsKey(pageIndex))
+                throw new ArgumentOutOfRangeException(nameof(pageIndices));
+            rotations[pageIndex] = 0;
+        }
     }
 
     /// <summary>Creates a new document from selected working-document pages.</summary>

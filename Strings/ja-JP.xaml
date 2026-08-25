@@ -529,6 +529,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Tf_Warn">ページの変換 (回転または拡大縮小)はラスタライズを伴います ：ページは画像として再保存されるため、選択可能なテキストは失われます。後で OCR を実行して再び検索可能にすることができます。</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">再度警告しない</sys:String>
     <sys:String x:Key="Str_Tf_Done">ページ {0} を変換しました</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">{0} ページを変換しました</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">ページをレンダリングできませんでした - しばらくしてから再試行してください。</sys:String>
     <sys:String x:Key="Str_Tf_Failed">変換に失敗しました: {0}</sys:String>
 

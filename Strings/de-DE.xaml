@@ -480,6 +480,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Tf_Warn">Beim Transformieren einer Seite (Drehen oder Skalieren) wird diese gerastert: Die Seite wird als Bild neu gespeichert, sodass auswählbarer Text darauf verloren geht. Sie können anschließend eine OCR-Erkennung ausführen, um die Seite wieder durchsuchbar zu machen.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Nicht erneut warnen</sys:String>
     <sys:String x:Key="Str_Tf_Done">Seite {0} transformiert</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">{0} Seiten transformiert</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Die Seite konnte nicht dargestellt werden - versuchen Sie es gleich erneut.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Transformieren fehlgeschlagen: {0}</sys:String>
 

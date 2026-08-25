@@ -694,6 +694,39 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ReplacePages_SwapsBatchInOneStablePageOrder()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-replace-pages-{Guid.NewGuid():N}.pdf");
+        string first = Path.Combine(Path.GetTempPath(), $"killerpdf-replace-first-{Guid.NewGuid():N}.pdf");
+        string second = Path.Combine(Path.GetTempPath(), $"killerpdf-replace-second-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder()
+                .AddBlankPage(100, 200).AddBlankPage(200, 300)
+                .AddBlankPage(300, 400).AddBlankPage(400, 500).Build());
+            File.WriteAllBytes(first, new PdfDocumentBuilder().AddBlankPage(610, 710).Build());
+            File.WriteAllBytes(second, new PdfDocumentBuilder().AddBlankPage(620, 720).Build());
+
+            PdfEngineIntegration.ReplacePages(path,
+                new Dictionary<int, string> { [1] = first, [3] = second });
+
+            PdfDocument reopened = PdfDocument.Open(File.ReadAllBytes(path));
+            Assert.Equal([100d, 610d, 300d, 620d], Enumerable.Range(0, 4)
+                .Select(index => PageMediaBox(reopened, index)[2]));
+            var rotations = new Dictionary<int, int> { [0] = 90, [1] = 180, [2] = 270, [3] = 90 };
+            PdfEngineIntegration.RemapRotationsAfterPageReplacements(rotations, [1, 3]);
+            Assert.Equal([90, 0, 270, 0], Enumerable.Range(0, 4)
+                .Select(index => rotations[index]));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(first)) File.Delete(first);
+            if (File.Exists(second)) File.Delete(second);
+        }
+    }
+
+    [Fact]
     public void ExtractPages_WritesSelectedOrderWithEffectiveRotations()
     {
         string sourcePath = Path.Combine(Path.GetTempPath(), $"killerpdf-extract-source-{Guid.NewGuid():N}.pdf");

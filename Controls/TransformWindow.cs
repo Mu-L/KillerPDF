@@ -18,6 +18,9 @@ namespace KillerPDF
     /// </summary>
     internal sealed class TransformWindow : Window
     {
+        internal sealed record PagePreview(BitmapSource Source, double WidthPoints,
+            double HeightPoints, int DocumentPageNumber);
+
         public bool Applied { get; private set; }
         public double Angle { get; private set; }     // total = quarter turns + fine
         public double Scale { get; private set; } = 1.0;
@@ -32,7 +35,8 @@ namespace KillerPDF
         public Point[] PerspectiveCorners { get; private set; } =
             [new(0, 0), new(1, 0), new(1, 1), new(0, 1)];
 
-        private readonly BitmapSource _src;
+        private readonly IReadOnlyList<PagePreview> _pages;
+        private BitmapSource _src;
         private readonly Image _preview = new()
         {
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -42,10 +46,14 @@ namespace KillerPDF
             { Color = Colors.Black, BlurRadius = 14, ShadowDepth = 3, Direction = 270, Opacity = 0.45 }
         };
         private readonly Border _previewArea = null!;
-        private readonly double _srcW;
-        private readonly double _srcH;
-        private readonly double _pageWpt;
-        private readonly double _pageHpt;
+        private double _srcW;
+        private double _srcH;
+        private double _pageWpt;
+        private double _pageHpt;
+        private int _previewPageIndex;
+        private readonly TextBlock _pageCounter = null!;
+        private readonly Button _previousPage = null!;
+        private readonly Button _nextPage = null!;
         private readonly TextBlock _sizeReadout = null!;
         private int _quarter;        // 0..3 quarter turns clockwise
         private double _fine;        // fine deskew, degrees
@@ -78,13 +86,16 @@ namespace KillerPDF
         private static SolidColorBrush R(string key) => (SolidColorBrush)Application.Current.Resources[key];
         private static string S(string key) => Application.Current.TryFindResource(key) as string ?? key;
 
-        public TransformWindow(Window owner, BitmapSource src, double pageWpt, double pageHpt)
+        public TransformWindow(Window owner, IReadOnlyList<PagePreview> pages)
         {
-            _src = src;
-            _srcW = src.PixelWidth;
-            _srcH = src.PixelHeight;
-            _pageWpt = pageWpt;
-            _pageHpt = pageHpt;
+            ArgumentNullException.ThrowIfNull(pages);
+            if (pages.Count == 0) throw new ArgumentException("At least one page preview is required.", nameof(pages));
+            _pages = pages;
+            _src = pages[0].Source;
+            _srcW = _src.PixelWidth;
+            _srcH = _src.PixelHeight;
+            _pageWpt = pages[0].WidthPoints;
+            _pageHpt = pages[0].HeightPoints;
             Title = "KillerPDF - " + S("Str_Tf_Suffix");
             Width = 980;
             Height = 720;
@@ -134,7 +145,7 @@ namespace KillerPDF
             cancelBtn.Click += (_, _2) => { Applied = false; Close(); };
             cancelBtn.IsCancel = true;   // Esc
             actionRow.Children.Add(cancelBtn);
-            var applyBtn = UiKit.Make(S("Str_Tf_Apply"), true);
+            var applyBtn = UiKit.Make(pages.Count == 1 ? S("Str_Tf_Apply") : $"{S("Str_Tf_Apply")} ({pages.Count})", true);
             applyBtn.Click += (_, _2) => CommitAndClose();
             applyBtn.IsDefault = true;   // Enter
             actionRow.Children.Add(applyBtn);
@@ -366,17 +377,85 @@ namespace KillerPDF
             previewWrap.Child = previewGrid;
             _previewArea = previewWrap;
             previewWrap.SizeChanged += (_, _2) => SizePreviewImage();
+
+            var previewColumn = new DockPanel();
+            if (pages.Count > 1)
+            {
+                var navigation = new Grid { Height = 38, Margin = new Thickness(8, 0, 8, 8) };
+                navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                navigation.ColumnDefinitions.Add(new ColumnDefinition());
+                navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                _previousPage = UiKit.Make("‹", false);
+                _previousPage.Width = 44;
+                _previousPage.ToolTip = S("Str_Kb_PrevPage");
+                _previousPage.Click += (_, _2) => ShowPreviewPage(_previewPageIndex - 1);
+                Grid.SetColumn(_previousPage, 0);
+                navigation.Children.Add(_previousPage);
+                _pageCounter = new TextBlock
+                {
+                    FontFamily = UiKit.MonoFont,
+                    FontSize = 12,
+                    Foreground = R("TextBrush"),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(_pageCounter, 1);
+                navigation.Children.Add(_pageCounter);
+                _nextPage = UiKit.Make("›", false);
+                _nextPage.Width = 44;
+                _nextPage.ToolTip = S("Str_Kb_NextPage");
+                _nextPage.Click += (_, _2) => ShowPreviewPage(_previewPageIndex + 1);
+                Grid.SetColumn(_nextPage, 2);
+                navigation.Children.Add(_nextPage);
+                DockPanel.SetDock(navigation, Dock.Bottom);
+                previewColumn.Children.Add(navigation);
+            }
             // Family shadow under the content pane, like the main window (flat on 98SE).
-            root.Children.Add(UiKit.PaneWithShadow(previewWrap));
+            previewColumn.Children.Add(UiKit.PaneWithShadow(previewWrap));
+            root.Children.Add(previewColumn);
 
             Content = DialogChrome.Frame(this, Owner, "KillerPDF - " + S("Str_Tf_Suffix"), () => { Applied = false; Close(); }, root);
             UpdatePreview();   // populate the output-size readout at the original dimensions
+            UpdatePageNavigation();
 
-            // Esc-to-close is wired by DialogChrome.Frame; Enter commits.
-            KeyDown += (_, e) => { if (e.Key == Key.Enter) CommitAndClose(); };
+            // Esc-to-close is wired by DialogChrome.Frame; Enter commits. Arrow keys flip through
+            // batch previews unless a slider currently owns the key press.
+            KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Enter) CommitAndClose();
+                else if (_pages.Count > 1 && e.OriginalSource is not Slider && e.Key == Key.Left)
+                { ShowPreviewPage(_previewPageIndex - 1); e.Handled = true; }
+                else if (_pages.Count > 1 && e.OriginalSource is not Slider && e.Key == Key.Right)
+                { ShowPreviewPage(_previewPageIndex + 1); e.Handled = true; }
+            };
         }
 
         private double Total => _quarter * 90 + _fine;
+
+        private void ShowPreviewPage(int index)
+        {
+            if (index < 0 || index >= _pages.Count || index == _previewPageIndex) return;
+            _previewPageIndex = index;
+            PagePreview page = _pages[index];
+            _src = page.Source;
+            _srcW = _src.PixelWidth;
+            _srcH = _src.PixelHeight;
+            _pageWpt = page.WidthPoints;
+            _pageHpt = page.HeightPoints;
+            _alignLine.Visibility = Visibility.Collapsed;
+            _lineCoords.Text = "";
+            UpdatePreview();
+            UpdatePageNavigation();
+        }
+
+        private void UpdatePageNavigation()
+        {
+            if (_pages.Count <= 1 || _pageCounter is null) return;
+            PagePreview page = _pages[_previewPageIndex];
+            _pageCounter.Text = $"{_previewPageIndex + 1} / {_pages.Count}    #{page.DocumentPageNumber}";
+            _previousPage.IsEnabled = _previewPageIndex > 0;
+            _nextPage.IsEnabled = _previewPageIndex + 1 < _pages.Count;
+        }
 
         private void CommitAndClose()
         {

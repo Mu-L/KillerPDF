@@ -33,12 +33,20 @@ namespace KillerPDF
             // directly after typing used to preview (and apply) the page without the new text.
             CommitActiveTextBox();
             int pageIdx = PageList.SelectedIndex;
-            // Render the preview from a copy with this page's annotations baked in, so the preview matches
-            // what Apply will produce (otherwise annotations are invisible in the Transform window). Kept at a
-            // modest resolution (the preview only shows at ~600px) so the live scale/rotate compose stays
-            // fast; Apply re-renders at full resolution independently.
-            var src = RenderPageBitmap(pageIdx, 1100, BurnPageAnnotationsToTemp(pageIdx));
-            if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
+            int[] pageIndices = PageList.SelectedItems.Cast<PageThumbnailVm>()
+                .Select(page => page.PageIndex).Distinct().OrderBy(index => index).ToArray();
+            if (pageIndices.Length == 0) pageIndices = [pageIdx];
+            // Build a modest preview for every selected page. Transform settings remain shared, while
+            // the window can flip through the actual targets before applying the batch.
+            PdfEngineDocumentSession previewSession = EnsureEngineDocumentSession();
+            var previews = new List<TransformWindow.PagePreview>();
+            foreach (int selectedPage in pageIndices)
+            {
+                var src = RenderPageBitmap(selectedPage, 1100, BurnPageAnnotationsToTemp(selectedPage));
+                if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
+                var (pwpt, phpt) = previewSession.VisualPageSize(selectedPage, _pageRotations);
+                previews.Add(new TransformWindow.PagePreview(src, pwpt, phpt, selectedPage + 1));
+            }
 
             // First-use warning that a transform rasterizes the page; persists the opt-out.
             if (App.GetSetting("RotateWarnAck") != "1")
@@ -50,25 +58,24 @@ namespace KillerPDF
                 if (dontWarn) App.SetSetting("RotateWarnAck", "1");
             }
 
-            var page = EnsureEngineDocumentSession().Pages[pageIdx];
-            var (pwpt, phpt) = (page.Width, page.Height);   // CropBox-aware, so the readout matches the visible page
-            var win = new TransformWindow(this, src, pwpt, phpt);
+            var win = new TransformWindow(this, previews);
             win.ShowDialog();
             if (win.Applied && (Math.Abs(win.Angle) > 0.01 || Math.Abs(win.Scale - 1.0) > 0.001 ||
                 win.FlipH || win.FlipV || !PerspectiveWarp.IsIdentity(win.PerspectiveCorners) ||
                 !TransformWindow.LevelsIdentity(win.LevelBlack, win.LevelWhite, win.LevelGamma)))
-                ApplyPageTransform(pageIdx, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV,
+                ApplyPageTransforms(pageIndices, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV,
                     win.PerspectiveCorners, win.LevelBlack, win.LevelWhite, win.LevelGamma);
         }
 
-        // Rasterizes one page with the chosen rotate + scale and swaps it in for the original (undoable).
-        private void ApplyPageTransform(int pageIdx, double angleDeg, double scale, bool fixedPage,
-            bool flipH, bool flipV, Point[] perspectiveCorners,
+        // Rasterizes every selected page with one transform setup and swaps the batch in as one undo step.
+        private void ApplyPageTransforms(IReadOnlyList<int> pageIndices, double angleDeg,
+            double scale, bool fixedPage, bool flipH, bool flipV, Point[] perspectiveCorners,
             int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0)
         {
             if (_doc is null || _currentFile is null) return;
             PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
-            if (pageIdx < 0 || pageIdx >= engineSession.PageCount) return;
+            int[] pages = pageIndices.Distinct().OrderBy(index => index).ToArray();
+            if (pages.Length == 0 || pages.Any(index => index < 0 || index >= engineSession.PageCount)) return;
 
             try
             {
@@ -78,46 +85,54 @@ namespace KillerPDF
                 // If the page carries annotations, bake just that page's annotations into the PDF so they
                 // rotate/scale with the page (it is being rasterized anyway, and the user was warned). The
                 // helper is non-destructive (restores _doc); we then drop the now-baked annotations.
-                string? burned = BurnPageAnnotationsToTemp(pageIdx);
-                if (burned != null && _annotations.TryGetValue(pageIdx, out var pageAnns))
-                    pageAnns.Clear();   // now part of the page image
+                var replacements = new Dictionary<int, string>();
+                var bakedAnnotationPages = new List<int>();
+                foreach (int pageIdx in pages)
+                {
+                    string? burned = BurnPageAnnotationsToTemp(pageIdx);
+                    if (burned != null) bakedAnnotationPages.Add(pageIdx);
+                    var src = RenderPageBitmap(pageIdx, 2200, burned);
+                    if (src is null) throw new InvalidOperationException(Loc("Str_Tf_NoRender"));
 
-                var src = RenderPageBitmap(pageIdx, 2200, burned);
-                if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
+                    var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
+                        ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
+                    var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
+                    composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
+                    var (epw, eph) = engineSession.VisualPageSize(pageIdx, _pageRotations);
+                    double sx = epw / src.PixelWidth;
+                    double sy = eph / src.PixelHeight;
+                    double newWpt = composed.PixelWidth * sx;
+                    double newHpt = composed.PixelHeight * sy;
 
-                var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
-                    ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
-                var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
-                // #174: levels last, on the final full-resolution pixels - same pass the preview shows.
-                composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
-                var (epw, eph) = engineSession.VisualPageSize(pageIdx, _pageRotations);
-                // #167: the bitmap is in VISUAL orientation - RenderPageBitmap applies the page's
-                // in-app rotation - but MediaBox/CropBox are always unrotated (the working file has
-                // /Rotate stripped into _pageRotations). On a quarter-turned page the two disagreed,
-                // so sx and sy came out different: the transformed page was squeezed back to portrait
-                // and stretched vertically. Swap the point dimensions to match what was rendered.
-                double sx = epw / src.PixelWidth;
-                double sy = eph / src.PixelHeight;
-                double newWpt = composed.PixelWidth * sx;
-                double newHpt = composed.PixelHeight * sy;
-
-                // Build a one-page engine PDF holding the transformed image.
-                string tmp = App.MakeTempFile("xfpage");
-                byte[] pixels = new byte[composed.PixelWidth * composed.PixelHeight * 4];
-                composed.CopyPixels(pixels, composed.PixelWidth * 4, 0);
-                File.WriteAllBytes(tmp, PdfEngineIntegration.CreateRasterDocument([
-                    new PdfEngineIntegration.RasterPage(composed.PixelWidth,
-                        composed.PixelHeight, newWpt, newHpt, pixels)]));
+                    string tmp = App.MakeTempFile("xfpage");
+                    byte[] pixels = new byte[composed.PixelWidth * composed.PixelHeight * 4];
+                    composed.CopyPixels(pixels, composed.PixelWidth * 4, 0);
+                    File.WriteAllBytes(tmp, PdfEngineIntegration.CreateRasterDocument([
+                        new PdfEngineIntegration.RasterPage(composed.PixelWidth,
+                            composed.PixelHeight, newWpt, newHpt, pixels)]));
+                    replacements[pageIdx] = tmp;
+                }
+                foreach (int pageIdx in bakedAnnotationPages)
+                    if (_annotations.TryGetValue(pageIdx, out var pageAnns)) pageAnns.Clear();
 
                 SaveTempAndReload(
                     keepAnnotations: true,
                     finalizeSavedFile: path =>
-                        PdfEngineIntegration.ReplacePage(path, pageIdx, tmp),
+                        PdfEngineIntegration.ReplacePages(path, replacements),
                     remapRotations: rotations =>
-                        PdfEngineIntegration.RemapRotationsAfterPageReplacement(
-                            rotations, pageIdx),
-                    selectedPageAfterReload: pageIdx);
-                SetStatus(string.Format(Loc("Str_Tf_Done"), pageIdx + 1));
+                        PdfEngineIntegration.RemapRotationsAfterPageReplacements(
+                            rotations, pages),
+                    selectedPageAfterReload: pages[0]);
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
+                {
+                    PageList.SelectedItems.Clear();
+                    foreach (int pageIdx in pages)
+                        if (pageIdx >= 0 && pageIdx < PageList.Items.Count)
+                            PageList.SelectedItems.Add(PageList.Items[pageIdx]);
+                }));
+                SetStatus(pages.Length == 1
+                    ? string.Format(Loc("Str_Tf_Done"), pages[0] + 1)
+                    : string.Format(Loc("Str_Tf_DoneBatch"), pages.Length));
             }
             catch (Exception ex)
             {
