@@ -974,10 +974,6 @@ namespace KillerPDF
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
                 Dictionary<int, int> finalRotations = SnapshotPageRotations();
-                // Always strip link annotation borders regardless of user annotation count
-                // so mailto/URI links don't appear as strikethrough lines in other viewers.
-                PdfScrub.StripLinkAnnotationBorders(_doc);
-
                 if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
                     // Save a clean copy of the doc (without burned annotations), burn
@@ -985,9 +981,11 @@ namespace KillerPDF
                     // from the clean copy so future saves don't double-burn.
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
+                    PdfEngineIntegration.StripLinkAppearances(tempClean);
                     DrawStampsOnDocument();
                     DrawAnnotationsOnDocument();
                     _doc.Save(saveTarget);
+                    PdfEngineIntegration.StripLinkAppearances(saveTarget);
                     WriteFormValuesToDocument(saveTarget);
                     PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                     _doc.Close();
@@ -1009,6 +1007,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(saveTarget);
+                    PdfEngineIntegration.StripLinkAppearances(saveTarget);
                     WriteFormValuesToDocument(saveTarget);
                     PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                 }
@@ -1088,16 +1087,15 @@ namespace KillerPDF
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
                 Dictionary<int, int> finalRotations = SnapshotPageRotations();
-                // Always strip link annotation borders regardless of user annotation count.
-                PdfScrub.StripLinkAnnotationBorders(_doc);
-
                 if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
+                    PdfEngineIntegration.StripLinkAppearances(tempClean);
                     DrawStampsOnDocument();
                     DrawAnnotationsOnDocument();
                     _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
                     WriteFormValuesToDocument(dlg.FileName);
                     PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _doc.Close();
@@ -1130,6 +1128,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
                     WriteFormValuesToDocument(dlg.FileName);
                     PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _originalFile = dlg.FileName;

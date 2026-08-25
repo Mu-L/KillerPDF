@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added bulk link-appearance normalization to the incremental annotation editor and integrated it into desktop Save and Save As output, including clean reload snapshots and annotation-burn saves.
 - Removed live PdfSharpCore page mutation from desktop rotation commands by routing selected turns through the application rotation-state boundary that the engine persists on final save.
 - Integrated viewer link removal through the engine's indexed native-annotation deletion path, preserving the original document bytes and all unselected annotations.
 - Integrated headless corpus resaving through the deterministic engine writer, exposed certification-permission inspection, and made batch validation skip protected signatures instead of carrying invalidated signature values forward.

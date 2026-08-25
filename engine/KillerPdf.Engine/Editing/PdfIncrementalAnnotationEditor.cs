@@ -50,6 +50,38 @@ public sealed class PdfIncrementalAnnotationEditor
     /// <summary>Gets the number of pages available for annotation editing.</summary>
     public int PageCount => _pages.Count;
 
+    /// <summary>Gets whether this editor contains pending annotation changes.</summary>
+    public bool HasChanges => _annotations.Count > 0 || _removals.Count > 0 || _updates.Count > 0;
+
+    /// <summary>Removes visual styling from every indirect link annotation.</summary>
+    public PdfIncrementalAnnotationEditor StripLinkAppearances()
+    {
+        for (int pageIndex = 0; pageIndex < _pages.Count; pageIndex++)
+        {
+            PdfPageTreeEntry page = _pages[pageIndex];
+            if (!page.Dictionary.TryGetValue(AnnotsName, out PdfObject? annotsValue)
+                || ResolveValue(annotsValue,
+                    $"Page {pageIndex + 1} /Annots value") is not PdfArray annotations)
+                continue;
+            for (int annotationIndex = 0; annotationIndex < annotations.Count; annotationIndex++)
+            {
+                ResolvedValue resolved = ResolveWithIdentity(annotations[annotationIndex],
+                    $"Page {pageIndex + 1} annotation {annotationIndex + 1}");
+                if (resolved.FinalReference is not PdfIndirectReference reference
+                    || resolved.Value is not PdfDictionary annotation
+                    || !annotation.TryGetValue(Name("Subtype"), out PdfObject? subtypeValue)
+                    || ResolveValue(subtypeValue,
+                        $"Page {pageIndex + 1} annotation subtype") is not PdfName subtype
+                    || subtype.ValueAsLatin1() != "Link")
+                    continue;
+                _updates.Add(new PendingAnnotationUpdate(
+                    pageIndex, $"annotation {annotationIndex + 1}", reference,
+                    annotation, false, null, false, null, true));
+            }
+        }
+        return this;
+    }
+
     /// <summary>Removes the uniquely named annotation from a page.</summary>
     public PdfIncrementalAnnotationEditor RemoveAnnotation(
         int pageIndex, string name)
@@ -1672,7 +1704,7 @@ public sealed class PdfIncrementalAnnotationEditor
                 $"Annotation '{target.Name}' already has a pending contents update.",
                 parameterName);
         _updates.Add(new PendingAnnotationUpdate(target.PageIndex, target.Name,
-            target.Reference, target.Dictionary, true, contents, false, null));
+            target.Reference, target.Dictionary, true, contents, false, null, false));
     }
 
     private void AddMetadataUpdate(
@@ -1685,7 +1717,7 @@ public sealed class PdfIncrementalAnnotationEditor
                 $"Annotation '{target.Name}' already has a pending metadata update.",
                 parameterName);
         _updates.Add(new PendingAnnotationUpdate(target.PageIndex, target.Name,
-            target.Reference, target.Dictionary, false, null, true, metadata));
+            target.Reference, target.Dictionary, false, null, true, metadata, false));
     }
 
     private void EnsureNotPendingUpdate(PendingRemoval target)
@@ -1726,6 +1758,14 @@ public sealed class PdfIncrementalAnnotationEditor
                     PdfLinkAnnotationFactory.AddMetadata(values, change.Metadata);
                     foreach ((string key, PdfObject value) in values)
                         entries[Name(key)] = value;
+                }
+                if (change.StripLinkAppearance)
+                {
+                    entries.Remove(Name("AP"));
+                    entries.Remove(Name("C"));
+                    entries[Name("BS")] = Dictionary(("W", new PdfInteger(0)));
+                    entries[Name("Border")] = new PdfArray([
+                        new PdfInteger(0), new PdfInteger(0), new PdfInteger(0)]);
                 }
             }
             update.ReplaceObject(first.Reference.ObjectNumber,
@@ -3698,7 +3738,8 @@ public sealed class PdfIncrementalAnnotationEditor
     private sealed record PendingAnnotationUpdate(
         int PageIndex, string Name, PdfIndirectReference Reference,
         PdfDictionary Dictionary, bool UpdateContents, string? Contents,
-        bool UpdateMetadata, PdfAnnotationMetadata? Metadata);
+        bool UpdateMetadata, PdfAnnotationMetadata? Metadata,
+        bool StripLinkAppearance);
     private sealed record EditorFontBinding(
         PdfName Resource, PdfIndirectReference Type0Reference, EmbeddedFontUsage Usage);
     private sealed record ResolvedValue(

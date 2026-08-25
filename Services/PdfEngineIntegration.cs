@@ -108,6 +108,16 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, result);
     }
 
+    /// <summary>Normalizes native links to invisible clickable regions through one revision.</summary>
+    internal static void StripLinkAppearances(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        PdfDocument source = PdfDocument.Open(File.ReadAllBytes(path));
+        var editor = new PdfIncrementalAnnotationEditor(source).StripLinkAppearances();
+        if (!editor.HasChanges) return;
+        ReplaceWithBuiltResult(path, editor.Build());
+    }
+
     /// <summary>Merges PDF documents and image frames through one engine page tree.</summary>
     internal static byte[] MergeFiles(IReadOnlyList<string> paths)
     {

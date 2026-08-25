@@ -143,6 +143,43 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void StripLinkAppearances_MakesLinksInvisibleAndPreservesTargets()
+    {
+        string path = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-strip-links-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder().AddBlankPage(200, 300)
+                .AddUriLink(0, 10, 10, 80, 20, "https://example.com/",
+                    new PdfLinkAppearance(borderWidth: 2,
+                        color: new PdfRgbColor(1, 0, 0)))
+                .Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.StripLinkAppearances(path);
+
+            byte[] result = File.ReadAllBytes(path);
+            PdfDocument reopened = PdfDocument.Open(result);
+            PdfArray annotations = Assert.IsType<PdfArray>(
+                Page(reopened, 0)[new PdfName("Annots"u8)]);
+            PdfDictionary link = Assert.IsType<PdfDictionary>(reopened.Resolve(
+                Assert.IsType<PdfIndirectReference>(Assert.Single(annotations))));
+            PdfDictionary borderStyle = Assert.IsType<PdfDictionary>(link[new PdfName("BS"u8)]);
+            PdfArray border = Assert.IsType<PdfArray>(link[new PdfName("Border"u8)]);
+            Assert.Equal(0, Assert.IsType<PdfInteger>(borderStyle[new PdfName("W"u8)]).Value);
+            Assert.All(border, value => Assert.Equal(0, Assert.IsType<PdfInteger>(value).Value));
+            Assert.False(link.ContainsKey(new PdfName("C"u8)));
+            Assert.False(link.ContainsKey(new PdfName("AP"u8)));
+            Assert.True(link.ContainsKey(new PdfName("A"u8)));
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void AddSearchableTextLayers_WritesExtractableMultiscriptUnicode()
     {
         string input = Path.Combine(Path.GetTempPath(),

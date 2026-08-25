@@ -519,8 +519,7 @@ namespace KillerPDF.Controls
             }
         }
 
-        // StripLinkAnnotationBorders lives in Services/PdfScrub.cs (KillerUI refactor), beside
-        // the other pre-save scrubs it always runs with.
+        // Save and Save As normalize native link appearances through PdfEngineIntegration.
 
         /// <summary>
         /// Records a page's link rectangles for the tiled views (continuous, grid, two-page). No
