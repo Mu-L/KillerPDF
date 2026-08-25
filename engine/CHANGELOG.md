@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ## [1.8.0-alpha.1] - Unreleased
 
 - Added a high-level hierarchical bookmark reader that preserves decoded titles, stable indirect-object identity, open state, styling, color, explicit page destinations, named destinations, and destination view geometry.
+- Integrated the desktop bookmark sidebar through the high-level reader so its retained rows and multi-selection state no longer expose or hold legacy parser objects.
 - Added byte-preserving signature invalidation cleanup that clears catalog certification permissions and signed field values while retaining empty signature fields and widgets for safe re-signing and later full rewrites.
 - Added bulk link-appearance normalization to the incremental annotation editor and integrated it into desktop Save and Save As output, including clean reload snapshots and annotation-burn saves.
 - Removed live PdfSharpCore page mutation from desktop rotation commands by routing selected turns through the application rotation-state boundary that the engine persists on final save.

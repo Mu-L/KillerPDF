@@ -24,6 +24,13 @@ internal static class PdfEngineIntegration
         IReadOnlyDictionary<string, string> RadioValues,
         IReadOnlyDictionary<string, double> TextFontSizes);
 
+    /// <summary>Reads the complete bookmark hierarchy for the desktop sidebar.</summary>
+    internal static IReadOnlyList<PdfBookmarkInfo> ReadBookmarks(byte[] source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return PdfBookmarkReader.Read(PdfDocument.Open(source));
+    }
+
     /// <summary>Applies a complete pending form-edit batch as one incremental revision.</summary>
     internal static void ApplyFormValues(string path, FormEdits edits)
     {

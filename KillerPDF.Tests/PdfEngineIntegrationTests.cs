@@ -15,6 +15,30 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void ReadBookmarks_ProvidesSidebarHierarchyWithoutPdfSharpObjects()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage().AddBlankPage()
+            .AddNamedDestination("section", 1, PdfDestination.FitWidth(700))
+            .AddBookmark("Chapter", 0, options: new PdfBookmarkOptions
+            {
+                Style = PdfBookmarkStyle.Bold,
+                Color = new PdfRgbColor(0.2, 0.4, 0.6)
+            })
+            .AddNamedDestinationBookmark("Section", "section", 1)
+            .Build();
+
+        PdfBookmarkInfo chapter = Assert.Single(PdfEngineIntegration.ReadBookmarks(source));
+
+        Assert.Equal("Chapter", chapter.Title);
+        Assert.Equal(PdfBookmarkStyle.Bold, chapter.Style);
+        Assert.Equal(new PdfRgbColor(0.2, 0.4, 0.6), chapter.Color);
+        PdfBookmarkInfo section = Assert.Single(chapter.Children);
+        Assert.Equal("section", section.NamedDestination);
+        Assert.Equal(1, section.DestinationPageIndex);
+    }
+
+    [Fact]
     public void CreateBlankDocument_AuthorsOneA4Page()
     {
         byte[] result = PdfEngineIntegration.CreateBlankDocument();

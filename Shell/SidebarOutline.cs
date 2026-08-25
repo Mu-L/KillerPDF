@@ -160,14 +160,8 @@ namespace KillerPDF
             OutlineTree.Items.Clear();
             try
             {
-                // #103: _doc.Outlines lazily CREATES an empty outlines object on documents that
-                // have none, and PdfSharpCore's writer then emits the catalog's /Outlines
-                // reference without ever writing the object - a dangling xref entry that strict
-                // parsers (PdfSharpCore itself included) refuse to reopen. Peek at the catalog
-                // read-only and only touch .Outlines when the document really has one.
-                bool hasOutlines = _doc?.Internals.Catalog.Elements.ContainsKey("/Outlines") == true;
-                var outlines = hasOutlines ? _doc!.Outlines : null;
-                if (outlines is null || outlines.Count == 0)
+                IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> outlines = ReadEngineBookmarks();
+                if (outlines.Count == 0)
                 {
                     // #133: stay enabled on an editable document so the user can open the panel and
                     // add a first bookmark (the ghost row is then the only entry); read-only
@@ -188,12 +182,28 @@ namespace KillerPDF
             }
         }
 
-        private void AddOutlineItems(ItemCollection target, PdfSharpCore.Pdf.PdfOutlineCollection outlines, int depth = 0)
+        private IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> ReadEngineBookmarks()
         {
-            foreach (PdfSharpCore.Pdf.PdfOutline outline in outlines)
+            if (_doc is null) return [];
+            byte[] bytes;
+            if (_doc.IsReadOnly && !string.IsNullOrWhiteSpace(_currentFile) && File.Exists(_currentFile))
+                bytes = File.ReadAllBytes(_currentFile);
+            else
             {
-                int pageIdx = GetOutlinePageIndex(outline);
-                string title = PdfOutlines.FixRawUnicodeTitle(outline.Title ?? string.Empty);
+                using var stream = new MemoryStream();
+                _doc.Save(stream, false);
+                bytes = stream.ToArray();
+            }
+            return PdfEngineIntegration.ReadBookmarks(bytes);
+        }
+
+        private void AddOutlineItems(ItemCollection target,
+            IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> outlines, int depth = 0)
+        {
+            foreach (KillerPdf.Engine.Documents.PdfBookmarkInfo outline in outlines)
+            {
+                int pageIdx = outline.DestinationPageIndex ?? -1;
+                string title = outline.Title;
                 var item = new TreeViewItem
                 {
                     Header = string.IsNullOrEmpty(title) ? Loc("Str_Outline_Untitled") : title,
@@ -201,12 +211,12 @@ namespace KillerPDF
                     // deep outline is otherwise a wall on open. ApplyOutlineExpandState overrides
                     // this with the user's own choices once the file has been seen this session.
                     IsExpanded = depth == 0,
-                    Tag = new OutlineNodeRef(outline, outlines, pageIdx),
+                    Tag = new OutlineNodeRef(outline),
                     ToolTip = pageIdx >= 0 ? string.Format(Loc("Str_PageLabel"), pageIdx + 1) : null,
                     Style = (Style)FindResource("OutlineItemStyle")
                 };
-                if (outline.Outlines is not null && outline.Outlines.Count > 0)
-                    AddOutlineItems(item.Items, outline.Outlines, depth + 1);
+                if (outline.Children.Count > 0)
+                    AddOutlineItems(item.Items, outline.Children, depth + 1);
                 target.Add(item);
             }
         }
@@ -263,45 +273,39 @@ namespace KillerPDF
             Walk(OutlineTree.Items, "");
         }
 
-        /// <summary>
-        /// PdfSharpCore only fills DestinationPage when the bookmark's /Dest is a literal array.
-        /// Bookmarks pointing at a *named* destination leave it null - wkhtmltopdf writes
-        /// /Dest /__WKANCHOR_n into a flat catalog /Dests dictionary, and since most HTML-to-PDF
-        /// invoice and statement generators are wkhtmltopdf underneath, that path is common.
-        /// Fall back to ResolveDest (Links.cs), which already walks /Dests and the /Names /Dests
-        /// name tree for the link layer.
-        /// </summary>
-        private int GetOutlinePageIndex(PdfSharpCore.Pdf.PdfOutline outline)
-        {
-            if (outline.DestinationPage is PdfSharpCore.Pdf.PdfPage destPage)
-            {
-                for (int i = 0; i < _doc!.PageCount; i++)
-                    if (ReferenceEquals(_doc.Pages[i], destPage)) return i;
-            }
-
-            var dest = outline.Elements.GetValue("/Dest");
-            if (dest is null
-                && outline.Elements.GetValue("/A") is PdfSharpCore.Pdf.PdfDictionary action
-                && action.Elements.GetName("/S") == "/GoTo")
-            {
-                dest = action.Elements.GetValue("/D");
-            }
-            return ResolveDest(dest) ?? -1;
-        }
-
         // ============================================================
         // Bookmark editing (#133): add / rename / delete
         // ============================================================
 
-        /// <summary>Ties a TreeViewItem to its PdfOutline and the collection that contains it.</summary>
+        /// <summary>Ties a row to engine-owned bookmark data and stable PDF object identity.</summary>
         private sealed class OutlineNodeRef
         {
-            public readonly PdfSharpCore.Pdf.PdfOutline Outline;
-            public readonly PdfSharpCore.Pdf.PdfOutlineCollection Parent;
-            public readonly int PageIndex;
-            public OutlineNodeRef(PdfSharpCore.Pdf.PdfOutline outline,
-                                  PdfSharpCore.Pdf.PdfOutlineCollection parent, int pageIndex)
-            { Outline = outline; Parent = parent; PageIndex = pageIndex; }
+            public readonly KillerPdf.Engine.Documents.PdfBookmarkInfo Bookmark;
+            public (int ObjectNumber, int Generation) Identity =>
+                (Bookmark.ObjectNumber, Bookmark.Generation);
+            public int PageIndex => Bookmark.DestinationPageIndex ?? -1;
+            public OutlineNodeRef(KillerPdf.Engine.Documents.PdfBookmarkInfo bookmark) => Bookmark = bookmark;
+        }
+
+        private (PdfSharpCore.Pdf.PdfOutline Outline,
+            PdfSharpCore.Pdf.PdfOutlineCollection Parent)? ResolveEditableOutline(OutlineNodeRef node)
+        {
+            if (_doc is null || !_doc.Internals.Catalog.Elements.ContainsKey("/Outlines")) return null;
+            (PdfSharpCore.Pdf.PdfOutline, PdfSharpCore.Pdf.PdfOutlineCollection)? Walk(
+                PdfSharpCore.Pdf.PdfOutlineCollection collection)
+            {
+                foreach (PdfSharpCore.Pdf.PdfOutline outline in collection)
+                {
+                    var id = outline.Reference?.ObjectID;
+                    if (id.HasValue && id.Value.ObjectNumber == node.Bookmark.ObjectNumber
+                        && id.Value.GenerationNumber == node.Bookmark.Generation)
+                        return (outline, collection);
+                    var child = Walk(outline.Outlines);
+                    if (child.HasValue) return child;
+                }
+                return null;
+            }
+            return Walk(_doc.Outlines);
         }
 
         // PdfSharpCore cannot save a document opened read-only (owner-password or XRef-fallback
@@ -311,7 +315,7 @@ namespace KillerPDF
         // Multi-select (#133 phase 2). WPF's TreeView is hard single-select, so its built-in
         // selection stays the "primary" item and Ctrl/Shift clicks maintain this extra set on top.
         // Keyed by PdfOutline object so the selection survives tree rebuilds within one document.
-        private readonly HashSet<PdfSharpCore.Pdf.PdfOutline> _bmExtraSel = new();
+        private readonly HashSet<(int ObjectNumber, int Generation)> _bmExtraSel = new();
         private bool _suppressOutlineNav;
 
         /// <summary>All bookmark rows in visual order (optionally only rows currently visible,
@@ -338,7 +342,7 @@ namespace KillerPDF
             {
                 it.ApplyTemplate();
                 var bd = it.Template?.FindName("Bd", it) as Border;
-                if (_bmExtraSel.Contains(r.Outline))
+                if (_bmExtraSel.Contains(r.Identity))
                 {
                     if (bd is not null)
                     {
@@ -395,8 +399,8 @@ namespace KillerPDF
             {
                 // Fold the primary into the set so the whole selection lives in one place, then toggle.
                 if (OutlineTree.SelectedItem is TreeViewItem prim && prim.Tag is OutlineNodeRef pr)
-                    _bmExtraSel.Add(pr.Outline);
-                if (!_bmExtraSel.Add(nref.Outline)) _bmExtraSel.Remove(nref.Outline);
+                    _bmExtraSel.Add(pr.Identity);
+                if (!_bmExtraSel.Add(nref.Identity)) _bmExtraSel.Remove(nref.Identity);
             }
             else
             {
@@ -410,7 +414,7 @@ namespace KillerPDF
                 if (ib < 0) return;
                 if (ia < 0) ia = ib;
                 for (int k = Math.Min(ia, ib); k <= Math.Max(ia, ib); k++)
-                    _bmExtraSel.Add(flat[k].Ref.Outline);
+                    _bmExtraSel.Add(flat[k].Ref.Identity);
             }
             ApplyExtraSelectionVisuals();
             e.Handled = true;   // keep the built-in primary selection where it is
@@ -468,17 +472,20 @@ namespace KillerPDF
         private void AddBookmarkInto(OutlineNodeRef? parent)
         {
             if (!CanEditBookmarks) return;
-            if (parent is not null && !ReferenceEquals(parent.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+            var resolvedParent = parent is null ? null : ResolveEditableOutline(parent);
+            if (parent is not null && resolvedParent is null) { LoadOutlines(); return; }
             int page = Math.Max(0, PageList.SelectedIndex);
             if (page >= _doc!.PageCount) page = _doc.PageCount - 1;
             if (page < 0) return;
             PushDocUndo();   // bookmark ops ride the document-snapshot undo like crop/page ops do
-            var col = parent is null ? _doc.Outlines : parent.Outline.Outlines;
+            var col = parent is null ? _doc.Outlines : resolvedParent!.Value.Outline.Outlines;
             var added = col.Add(string.Format(Loc("Str_Bm_DefaultTitle"), page + 1), _doc.Pages[page], true);
+            var addedIdentity = (added.Reference.ObjectID.ObjectNumber,
+                added.Reference.ObjectID.GenerationNumber);
             PdfOutlines.ScrubStaleOutlineLinkKeys(_doc);
             MarkDirty(true);
             RefreshOutlines();
-            if (FindOutlineItem(OutlineTree.Items, added) is { } tvi && tvi.Tag is OutlineNodeRef nref)
+            if (FindOutlineItem(OutlineTree.Items, addedIdentity) is { } tvi && tvi.Tag is OutlineNodeRef nref)
             {
                 tvi.BringIntoView();
                 BeginInlineRename(tvi, nref);
@@ -490,8 +497,9 @@ namespace KillerPDF
         private void BeginInlineRename(TreeViewItem tvi, OutlineNodeRef nref)
         {
             if (!CanEditBookmarks) return;
-            if (!ReferenceEquals(nref.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
-            string current = PdfOutlines.FixRawUnicodeTitle(nref.Outline.Title ?? string.Empty);
+            var resolved = ResolveEditableOutline(nref);
+            if (resolved is null) { LoadOutlines(); return; }
+            string current = nref.Bookmark.Title;
             // UiKit.Field: self-templated, so the OS-default white box / blue focus chrome never shows.
             var box = UiKit.Field();
             box.Text = current;
@@ -509,7 +517,7 @@ namespace KillerPDF
                 if (t.Length > 0 && t != current)
                 {
                     PushDocUndo();
-                    nref.Outline.Title = t;   // the setter writes a proper Unicode string, healing mojibake entries
+                    resolved.Value.Outline.Title = t;
                     MarkDirty(true);
                     RefreshOutlines();
                 }
@@ -534,13 +542,14 @@ namespace KillerPDF
                 (Action)(() => { box.Focus(); box.SelectAll(); }));
         }
 
-        /// <summary>Finds the tree item for a PdfOutline, expanding collapsed ancestors on the way.</summary>
-        private static TreeViewItem? FindOutlineItem(ItemCollection items, object outline)
+        /// <summary>Finds the tree item for a bookmark identity, expanding collapsed ancestors.</summary>
+        private static TreeViewItem? FindOutlineItem(
+            ItemCollection items, (int ObjectNumber, int Generation) identity)
         {
             foreach (TreeViewItem it in items)
             {
-                if (it.Tag is OutlineNodeRef r && ReferenceEquals(r.Outline, outline)) return it;
-                if (FindOutlineItem(it.Items, outline) is { } hit) { it.IsExpanded = true; return hit; }
+                if (it.Tag is OutlineNodeRef r && r.Identity == identity) return it;
+                if (FindOutlineItem(it.Items, identity) is { } hit) { it.IsExpanded = true; return hit; }
             }
             return null;
         }
@@ -550,17 +559,17 @@ namespace KillerPDF
         private void DeleteSelectedBookmarks(OutlineNodeRef? clicked)
         {
             if (!CanEditBookmarks) return;
-            if (clicked is not null && !ReferenceEquals(clicked.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+            if (clicked is not null && ResolveEditableOutline(clicked) is null) { LoadOutlines(); return; }
 
             // Gather targets: the extra set, the primary, and the clicked item, deduplicated.
             var all = new List<(TreeViewItem Item, OutlineNodeRef Ref)>();
             FlattenBookmarkItems(OutlineTree.Items, visibleOnly: false, all);
             var targets = new List<OutlineNodeRef>();
             foreach (var (_, r) in all)
-                if (_bmExtraSel.Contains(r.Outline)) targets.Add(r);
+                if (_bmExtraSel.Contains(r.Identity)) targets.Add(r);
             void AddTarget(OutlineNodeRef? r)
             {
-                if (r is not null && !targets.Any(t => ReferenceEquals(t.Outline, r.Outline))) targets.Add(r);
+                if (r is not null && !targets.Any(t => t.Identity == r.Identity)) targets.Add(r);
             }
             AddTarget((OutlineTree.SelectedItem as TreeViewItem)?.Tag as OutlineNodeRef);
             AddTarget(clicked);
@@ -568,19 +577,22 @@ namespace KillerPDF
 
             // A target with a selected ancestor is covered by deleting the ancestor - drop it so the
             // remaining targets are independent (their parent collections stay valid during removal).
-            var chosen = new HashSet<object>(targets.Select(t => (object)t.Outline));
+            var resolvedTargets = targets.Select(t => (Node: t, Resolved: ResolveEditableOutline(t)))
+                .Where(t => t.Resolved.HasValue)
+                .Select(t => (t.Node, t.Resolved!.Value.Outline, t.Resolved.Value.Parent)).ToList();
+            var chosen = new HashSet<PdfSharpCore.Pdf.PdfOutline>(resolvedTargets.Select(t => t.Outline));
             bool Covered(PdfSharpCore.Pdf.PdfOutline o)
             {
                 for (var p = o.Parent; p is not null; p = p.Parent)
                     if (chosen.Contains(p)) return true;
                 return false;
             }
-            targets = targets.Where(t => !Covered(t.Outline)).ToList();
+            resolvedTargets = resolvedTargets.Where(t => !Covered(t.Outline)).ToList();
 
-            int total = targets.Sum(t => 1 + PdfOutlines.CountOutlines(t.Outline.Outlines));
+            int total = resolvedTargets.Sum(t => 1 + PdfOutlines.CountOutlines(t.Outline.Outlines));
             if (total > 1)
             {
-                string msg = targets.Count == 1
+                string msg = resolvedTargets.Count == 1
                     ? string.Format(Loc("Str_Bm_DeleteKids"), total - 1)
                     : string.Format(Loc("Str_Bm_DeleteMulti"), total);
                 var r = KillerDialog.Show(this, msg, Loc("Str_Dlg_AppTitle"),
@@ -588,7 +600,7 @@ namespace KillerPDF
                 if (r != MessageBoxResult.Yes) return;
             }
             PushDocUndo();   // one Ctrl+Z restores the whole set
-            foreach (var t in targets)
+            foreach (var t in resolvedTargets)
                 PdfOutlines.RemoveOutlineRecursive(t.Parent, t.Outline);
             PdfOutlines.ScrubStaleOutlineLinkKeys(_doc);
             MarkDirty(true);
@@ -599,20 +611,24 @@ namespace KillerPDF
         private void MoveBookmark(OutlineNodeRef nref, int delta)
         {
             if (!CanEditBookmarks) return;
-            if (!ReferenceEquals(nref.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
-            int i = nref.Parent.IndexOf(nref.Outline);
+            var resolved = ResolveEditableOutline(nref);
+            if (resolved is null) { LoadOutlines(); return; }
+            var (outline, parent) = resolved.Value;
+            int i = parent.IndexOf(outline);
             int j = i + delta;
-            if (i < 0 || j < 0 || j >= nref.Parent.Count) return;
+            if (i < 0 || j < 0 || j >= parent.Count) return;
             PushDocUndo();
             // RemoveAt drops the object from the xref table; Insert/Add puts it straight back.
-            nref.Parent.RemoveAt(i);
-            if (j >= nref.Parent.Count) nref.Parent.Add(nref.Outline);
-            else nref.Parent.Insert(j, nref.Outline);
+            parent.RemoveAt(i);
+            if (j >= parent.Count) parent.Add(outline);
+            else parent.Insert(j, outline);
             PdfOutlines.ScrubStaleOutlineLinkKeys(_doc);
             MarkDirty(true);
             RefreshOutlines();
             // Keep the moved item selected, without the page-jump side effect.
-            if (FindOutlineItem(OutlineTree.Items, nref.Outline) is { } moved)
+            var movedIdentity = (outline.Reference.ObjectID.ObjectNumber,
+                outline.Reference.ObjectID.GenerationNumber);
+            if (FindOutlineItem(OutlineTree.Items, movedIdentity) is { } moved)
             {
                 _suppressOutlineNav = true;
                 try { moved.IsSelected = true; moved.BringIntoView(); }
@@ -624,17 +640,19 @@ namespace KillerPDF
         private void SetBookmarkDestination(OutlineNodeRef nref)
         {
             if (!CanEditBookmarks) return;
-            if (!ReferenceEquals(nref.Outline.Owner, _doc)) { LoadOutlines(); return; }   // stale ref (doc was reloaded)
+            var resolved = ResolveEditableOutline(nref);
+            if (resolved is null) { LoadOutlines(); return; }
+            PdfSharpCore.Pdf.PdfOutline outline = resolved.Value.Outline;
             int page = Math.Max(0, PageList.SelectedIndex);
             if (page >= _doc!.PageCount) page = _doc.PageCount - 1;
             if (page < 0) return;
             PushDocUndo();
-            nref.Outline.DestinationPage = _doc.Pages[page];
+            outline.DestinationPage = _doc.Pages[page];
             // Plain jump: /XYZ null null null keeps the reader's current zoom/position behavior.
-            nref.Outline.PageDestinationType = PdfSharpCore.Pdf.PdfPageDestinationType.Xyz;
-            nref.Outline.Left = double.NaN;
-            nref.Outline.Top = double.NaN;
-            nref.Outline.Zoom = double.NaN;
+            outline.PageDestinationType = PdfSharpCore.Pdf.PdfPageDestinationType.Xyz;
+            outline.Left = double.NaN;
+            outline.Top = double.NaN;
+            outline.Zoom = double.NaN;
             MarkDirty(true);
             RefreshOutlines();
         }
@@ -667,12 +685,12 @@ namespace KillerPDF
             // bookmark is added or removed, so the path-keyed state LoadOutlines restores can land
             // on the wrong siblings after an edit. This object-keyed pass corrects every node that
             // existed before the edit; only genuinely new nodes keep the build default.
-            var expandedBy = new Dictionary<object, bool>();
+            var expandedBy = new Dictionary<(int ObjectNumber, int Generation), bool>();
             void Capture(ItemCollection items)
             {
                 foreach (TreeViewItem it in items)
                 {
-                    if (it.Tag is OutlineNodeRef r) expandedBy[r.Outline] = it.IsExpanded;
+                    if (it.Tag is OutlineNodeRef r) expandedBy[r.Identity] = it.IsExpanded;
                     Capture(it.Items);
                 }
             }
@@ -689,7 +707,7 @@ namespace KillerPDF
             {
                 foreach (TreeViewItem it in items)
                 {
-                    if (it.Tag is OutlineNodeRef r && expandedBy.TryGetValue(r.Outline, out bool ex))
+                    if (it.Tag is OutlineNodeRef r && expandedBy.TryGetValue(r.Identity, out bool ex))
                         it.IsExpanded = ex;
                     Restore(it.Items);
                 }
@@ -708,7 +726,7 @@ namespace KillerPDF
             {
                 // Right-click outside the multi-selection collapses it to the clicked item (the
                 // file-explorer convention); inside it, the menu acts on the whole set.
-                bool inMulti = _bmExtraSel.Contains(nref.Outline);
+                bool inMulti = _bmExtraSel.Contains(nref.Identity);
                 if (!inMulti) ClearBookmarkMultiSelection();
                 _suppressOutlineNav = true;
                 try { tvi.IsSelected = true; }   // WPF doesn't select on right-click by itself
@@ -725,12 +743,14 @@ namespace KillerPDF
                     menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmAddChild"), (_, _2) => AddBookmarkInto(nref), glyph: ""));
                     menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmSetDest"), (_, _2) => SetBookmarkDestination(nref), glyph: ""));
                     menu.Items.Add(new Separator());
-                    int idx = nref.Parent.IndexOf(nref.Outline);
+                    var editable = ResolveEditableOutline(nref);
+                    int idx = editable?.Parent.IndexOf(editable.Value.Outline) ?? -1;
+                    int siblingCount = editable?.Parent.Count ?? 0;
                     var up = MakeMenuItem(Loc("Str_Ctx_BmMoveUp"), (_, _2) => MoveBookmark(nref, -1), glyph: "");
                     up.IsEnabled = idx > 0;
                     menu.Items.Add(up);
                     var down = MakeMenuItem(Loc("Str_Ctx_BmMoveDown"), (_, _2) => MoveBookmark(nref, +1), glyph: "");
-                    down.IsEnabled = idx >= 0 && idx < nref.Parent.Count - 1;
+                    down.IsEnabled = idx >= 0 && idx < siblingCount - 1;
                     menu.Items.Add(down);
                     menu.Items.Add(new Separator());
                     menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_BmDelete"), (_, _2) => DeleteSelectedBookmarks(nref), "Delete", ""));
