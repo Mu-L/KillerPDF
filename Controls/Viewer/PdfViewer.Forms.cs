@@ -32,6 +32,10 @@ namespace KillerPDF.Controls
         private FormFieldInfo _formDragField;
         private Point _formDragStart;
         private Point _formDragOrigin;
+        private Size _formDragSize;
+        private bool _formDragIsResize;
+
+        private const double FormResizeGripSize = 14;
 
         internal void RefreshFormDesignMode()
         {
@@ -63,24 +67,52 @@ namespace KillerPDF.Controls
                 _formDragField = field;
                 _formDragStart = e.GetPosition(canvas);
                 _formDragOrigin = new Point(Canvas.GetLeft(element), Canvas.GetTop(element));
+                _formDragSize = new Size(element.ActualWidth, element.ActualHeight);
+                Point local = e.GetPosition(element);
+                _formDragIsResize = local.X >= element.ActualWidth - FormResizeGripSize
+                    && local.Y >= element.ActualHeight - FormResizeGripSize;
                 element.CaptureMouse();
                 Panel.SetZIndex(element, 30);
-                SetStatus($"Moving fillable field {field.FieldName}");
+                SetStatus(_formDragIsResize
+                    ? $"Resizing fillable field {field.FieldName}"
+                    : $"Moving fillable field {field.FieldName}");
                 e.Handled = true;
             };
             element.PreviewMouseMove += (_, e) =>
             {
-                if (!ReferenceEquals(_formDragControl, element)
-                    || e.LeftButton != MouseButtonState.Pressed) return;
+                if (!ReferenceEquals(_formDragControl, element))
+                {
+                    if (_currentTool == EditTool.FormField)
+                    {
+                        Point local = e.GetPosition(element);
+                        element.Cursor = local.X >= element.ActualWidth - FormResizeGripSize
+                            && local.Y >= element.ActualHeight - FormResizeGripSize
+                            ? Cursors.SizeNWSE : Cursors.SizeAll;
+                    }
+                    return;
+                }
+                if (e.LeftButton != MouseButtonState.Pressed) return;
                 Point position = e.GetPosition(canvas);
-                double left = Math.Clamp(
-                    _formDragOrigin.X + position.X - _formDragStart.X,
-                    0, Math.Max(0, canvas.ActualWidth - element.ActualWidth));
-                double top = Math.Clamp(
-                    _formDragOrigin.Y + position.Y - _formDragStart.Y,
-                    0, Math.Max(0, canvas.ActualHeight - element.ActualHeight));
-                Canvas.SetLeft(element, left);
-                Canvas.SetTop(element, top);
+                if (_formDragIsResize)
+                {
+                    element.Width = Math.Max(12, Math.Min(
+                        _formDragSize.Width + position.X - _formDragStart.X,
+                        canvas.ActualWidth - _formDragOrigin.X));
+                    element.Height = Math.Max(12, Math.Min(
+                        _formDragSize.Height + position.Y - _formDragStart.Y,
+                        canvas.ActualHeight - _formDragOrigin.Y));
+                }
+                else
+                {
+                    double left = Math.Clamp(
+                        _formDragOrigin.X + position.X - _formDragStart.X,
+                        0, Math.Max(0, canvas.ActualWidth - element.ActualWidth));
+                    double top = Math.Clamp(
+                        _formDragOrigin.Y + position.Y - _formDragStart.Y,
+                        0, Math.Max(0, canvas.ActualHeight - element.ActualHeight));
+                    Canvas.SetLeft(element, left);
+                    Canvas.SetTop(element, top);
+                }
                 e.Handled = true;
             };
             element.PreviewMouseLeftButtonUp += (_, e) =>
@@ -90,13 +122,15 @@ namespace KillerPDF.Controls
                 _formDragControl = null;
                 _formDragCanvas = null;
                 Panel.SetZIndex(element, -1);
-                CommitFormFieldMove(pageIndex, field, element, canvas);
+                bool resized = _formDragIsResize;
+                _formDragIsResize = false;
+                CommitFormFieldRectangle(pageIndex, field, element, canvas, resized);
                 e.Handled = true;
             };
         }
 
-        private void CommitFormFieldMove(
-            int pageIndex, FormFieldInfo field, FrameworkElement element, Canvas canvas)
+        private void CommitFormFieldRectangle(
+            int pageIndex, FormFieldInfo field, FrameworkElement element, Canvas canvas, bool resized)
         {
             if (_currentFile is null) return;
             Rect canvasRectangle = new(
@@ -118,7 +152,9 @@ namespace KillerPDF.Controls
                 finalizeSavedFile: path => PdfEngineIntegration.MoveFormWidget(
                     path, field.ObjNum, field.Generation, left, bottom, right, top),
                 selectedPageAfterReload: pageIndex);
-            SetStatus($"Moved fillable field {field.FieldName}");
+            SetStatus(resized
+                ? $"Resized fillable field {field.FieldName}"
+                : $"Moved fillable field {field.FieldName}");
         }
 
         private readonly record struct FormFieldInfo(
