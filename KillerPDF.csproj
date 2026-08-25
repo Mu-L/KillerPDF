@@ -98,9 +98,6 @@
     <!-- PdfSharpCore is vendored (third_party/PdfSharpCore, MIT) so PDF/A conformance bugs can be patched at the source - see VENDORED.txt -->
     <ProjectReference Include="third_party\PdfSharpCore\PdfSharpCore.csproj" />
     <ProjectReference Include="engine\KillerPdf.Engine\KillerPdf.Engine.csproj" />
-    <!-- Digital signatures only (Services/Signing). Separate namespace (PdfSharp.*) so it does not
-         clash with PdfSharpCore, which still drives the rest of the app. -->
-    <PackageReference Include="PDFsharp" Version="6.2.4" />
     <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="Docnet.Core" Version="2.6.0" />
     <!-- We embed the x64 natives as resources and self-extract them at runtime (OcrNativeBootstrap), so the
