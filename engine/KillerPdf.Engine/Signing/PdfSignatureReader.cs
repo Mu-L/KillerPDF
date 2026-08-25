@@ -11,7 +11,8 @@ namespace KillerPdf.Engine.Signing;
 /// <summary>Inspects signature fields and structurally validates their signed byte ranges.</summary>
 public static class PdfSignatureReader
 {
-    internal static PdfSignatureCertificationPermission? ReadCertificationPermission(
+    /// <summary>Reads the document certification permission registered in the catalog.</summary>
+    public static PdfSignatureCertificationPermission? ReadCertificationPermission(
         PdfDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);

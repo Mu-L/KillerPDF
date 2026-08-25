@@ -62,6 +62,38 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ResaveDocument_WritesDeterministicEngineOutput()
+    {
+        string input = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-resave-input-{Guid.NewGuid():N}.pdf");
+        string first = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-resave-first-{Guid.NewGuid():N}.pdf");
+        string second = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-resave-second-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(input, new PdfDocumentBuilder()
+                .SetMetadata(new PdfDocumentMetadata { Title = "Batch fixture" })
+                .AddBlankPage(200, 300).Build());
+
+            PdfEngineIntegration.ResaveDocument(input, first);
+            PdfEngineIntegration.ResaveDocument(input, second);
+
+            Assert.Equal(File.ReadAllBytes(first), File.ReadAllBytes(second));
+            IReadOnlyList<PdfPageInformation> pages = PdfPageInformation.Read(
+                PdfDocument.Open(File.ReadAllBytes(first)));
+            Assert.Single(pages);
+            Assert.Equal(200, pages[0].Width);
+            Assert.Equal(300, pages[0].Height);
+        }
+        finally
+        {
+            foreach (string path in new[] { input, first, second })
+                if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void AddSearchableTextLayers_WritesExtractableMultiscriptUnicode()
     {
         string input = Path.Combine(Path.GetTempPath(),

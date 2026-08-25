@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Integrated headless corpus resaving through the deterministic engine writer, exposed certification-permission inspection, and made batch validation skip protected signatures instead of carrying invalidated signature values forward.
 - Integrated import-based repair and temp-reload recovery through complete engine document-graph rebuilds, with explicit preservation or stripping of native page rotations.
 - Integrated GUI and CLI searchable-PDF OCR through byte-preserving typed overlays with invisible Unicode text, per-script embedded fallback fonts, ToUnicode extraction maps, fitted word geometry, and native page-rotation transforms.
 - Added byte-preserving typed-content overlays for existing pages. Each overlay is isolated as a Form XObject with its complete font, image, color-space, and graphics-state resources, including embedded Unicode fonts and ToUnicode maps.

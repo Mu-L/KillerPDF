@@ -88,6 +88,15 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(destinationPath, editor.Build());
     }
 
+    /// <summary>Performs a deterministic full-document resave through the engine writer.</summary>
+    internal static void ResaveDocument(string sourcePath, string destinationPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        PdfDocument source = PdfDocument.Open(File.ReadAllBytes(sourcePath));
+        ReplaceWithBuiltResult(destinationPath, PdfDocumentWriter.Write(source));
+    }
+
     /// <summary>Merges PDF documents and image frames through one engine page tree.</summary>
     internal static byte[] MergeFiles(IReadOnlyList<string> paths)
     {

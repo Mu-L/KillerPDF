@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Signing;
 using KillerPDF.Services;
 
 namespace KillerPDF.Features
@@ -17,10 +17,9 @@ namespace KillerPDF.Features
     //
     // Resaves one PDF (or every *.pdf under a folder tree, mirroring the
     // relative structure into the output folder) through the same pipeline a
-    // GUI save uses: PdfReader.Open(Modify), PdfScrub.ScrubEmptyOutlines,
-    // PdfScrub.ScrubDegenerateCropBoxes, PdfScrub.StripLinkAnnotationBorders, Save. No window,
-    // no dialogs, no repair fallbacks, no encryption stripping - files that
-    // cannot go through the plain Modify pipeline are reported as SKIP with a
+    // Resaves through The KillerPDF.Engine's deterministic full-document writer. No window,
+    // no dialogs, no repair fallbacks, no encryption stripping. Files that
+    // cannot go through the plain engine pipeline are reported as SKIP with a
     // reason instead of silently faking a result.
     //
     // Built for the veraPDF validation harness (validation/): baseline the
@@ -176,7 +175,7 @@ namespace KillerPDF.Features
 
         /// <summary>
         /// Resaves a single PDF through the standard save pipeline.
-        /// Returns "OK", "SKIP" (could not enter the plain Modify pipeline;
+        /// Returns "OK", "SKIP" (could not enter the plain engine pipeline;
         /// reason in <paramref name="detail"/>), or "FAIL" (opened but the
         /// save itself failed - the case the harness exists to catch).
         /// </summary>
@@ -201,10 +200,10 @@ namespace KillerPDF.Features
                 return "SKIP";
             }
 
-            PdfDocument doc;
+            PdfDocument document;
             try
             {
-                doc = PdfReader.Open(src, PdfDocumentOpenMode.Modify);
+                document = PdfDocument.Open(File.ReadAllBytes(src));
             }
             catch (Exception ex)
             {
@@ -212,20 +211,20 @@ namespace KillerPDF.Features
                 return "SKIP";
             }
 
+            if (PdfSignatureReader.Read(document).Any(signature => signature.IsSigned)
+                || PdfSignatureReader.ReadCertificationPermission(document).HasValue)
+            {
+                detail = "signed - batch mode does not invalidate signatures";
+                return "SKIP";
+            }
+
             try
             {
-                // Same pre-save pipeline as SaveInPlace for a document with no user edits.
-                PdfScrub.ScrubEmptyOutlines(doc);          // #103: never write a dangling /Outlines reference
-                PdfScrub.ScrubDegenerateCropBoxes(doc);    // never write a zero-size /CropBox (Adobe out-of-range)
-                PdfScrub.ScrubDeadSignatures(doc);         // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
-                PdfScrub.StripLinkAnnotationBorders(doc);  // link borders are stripped on every GUI save
-                doc.Save(dst);
-                doc.Close();
+                PdfEngineIntegration.ResaveDocument(src, dst);
                 return "OK";
             }
             catch (Exception ex)
             {
-                try { doc.Close(); } catch { }
                 detail = "save failed: " + FlattenBatchDetail(ex.Message);
                 return "FAIL";
             }
