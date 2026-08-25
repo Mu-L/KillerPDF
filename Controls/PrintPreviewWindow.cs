@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Docnet.Core;
 using Docnet.Core.Models;
+using KillerPDF.Services;
 
 namespace KillerPDF
 {
@@ -66,10 +67,11 @@ namespace KillerPDF
         // changes halfway through (especially N-up, which controls the page-loop increment).
         private readonly record struct PrintLayout(
             bool Landscape, int AlignH, int AlignV, int ScaleMode, double CustomPct,
-            double MarginPx, int NUp, bool Duplex);
+            double MarginPx, int NUp, bool Duplex, bool Grayscale);
 
         private PrintLayout CurrentLayout() => new(
-            _landscape, _alignH, _alignV, _scaleMode, _customPct, _marginPx, _nUp, _duplex);
+            _landscape, _alignH, _alignV, _scaleMode, _customPct, _marginPx,
+            _nUp, _duplex, _grayscale);
 
         // Printable area in DIPs for the currently selected printer + orientation.
         private double _areaW = 816;   // Letter portrait fallback (8.5in * 96)
@@ -398,7 +400,9 @@ namespace KillerPDF
                     // white sheet doesn't peek through as a 1px hairline at the page edge (float seam).
                     if (iw >= (aw - 2 * m) - 1.5) iw = aw - 2 * m + 1;   // +1 bleed: covers the right hairline (clipped by the sheet)
                     if (ih >= (ah - 2 * m) - 1.5) ih = ah - 2 * m + 1;
-                    var img = new Image { Source = pages[idx]!, Width = iw, Height = ih };
+                    BitmapSource source = layout.Grayscale
+                        ? PrintColorConverter.CreateGrayscaleBitmap(pages[idx]!) : pages[idx]!;
+                    var img = new Image { Source = source, Width = iw, Height = ih };
                     RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                     Canvas.SetLeft(img, m + OffsetH(aw - 2 * m, iw, layout));
                     Canvas.SetTop(img, m + OffsetV(ah - 2 * m, ih, layout));
@@ -417,7 +421,9 @@ namespace KillerPDF
                     double availW = Math.Max(1, cellW - gap), availH = Math.Max(1, cellH - gap);
                     double s = Math.Min(availW / rw[idx], availH / rh[idx]);
                     double iw = rw[idx] * s, ih = rh[idx] * s;
-                    var img = new Image { Source = pages[idx]!, Width = iw, Height = ih };
+                    BitmapSource source = layout.Grayscale
+                        ? PrintColorConverter.CreateGrayscaleBitmap(pages[idx]!) : pages[idx]!;
+                    var img = new Image { Source = source, Width = iw, Height = ih };
                     RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                     Canvas.SetLeft(img, m + col * cellW + (cellW - iw) / 2);
                     Canvas.SetTop(img, m + row * cellH + (cellH - ih) / 2);
@@ -681,7 +687,11 @@ namespace KillerPDF
             colorMode.Items.Add(S("Str_Print_BW"));
             _grayscale = App.GetSetting("PrintGrayscale") == "1";   // restore last color choice
             colorMode.SelectedIndex = _grayscale ? 1 : 0;
-            colorMode.SelectionChanged += (s, _) => _grayscale = ((ComboBox)s).SelectedIndex == 1;
+            colorMode.SelectionChanged += (s, _) =>
+            {
+                _grayscale = ((ComboBox)s).SelectedIndex == 1;
+                UpdatePreview();
+            };
             panel.Children.Add(colorMode);
 
             panel.Children.Add(Label(S("Str_Print_Copies")));
