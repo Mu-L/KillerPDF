@@ -73,6 +73,7 @@ namespace KillerPDF.Features
             string? command = args.FirstOrDefault(a =>
                 Eq(a, "--help") || Eq(a, "-h") || Eq(a, "/?") ||
                 Eq(a, "--version") || Eq(a, "-v") ||
+                Eq(a, "--verify") || Eq(a, "/verify") ||
                 Eq(a, "--merge") || Eq(a, "--extract-pages") || Eq(a, "--split") ||
                 Eq(a, "--decrypt") || Eq(a, "--to-image") || Eq(a, "--flatten") ||
                 Eq(a, "--print") || Eq(a, "--ocr"));
@@ -93,6 +94,10 @@ namespace KillerPDF.Features
                     case "--version":
                     case "-v":
                         con.WriteLine(AppVersion.Display);
+                        break;
+                    case "--verify":
+                    case "/verify":
+                        exitCode = CliVerifyPayload(con);
                         break;
                     case "--merge":
                         exitCode = CliMerge(positionals, con);
@@ -142,6 +147,7 @@ namespace KillerPDF.Features
             "  KillerPDF.exe <file.pdf>                                    open in the app",
             "  KillerPDF.exe --version | -v                                print version",
             "  KillerPDF.exe --help | -h | /?                              this text",
+            "  KillerPDF.exe --verify | /verify                            verify every installed payload file",
             "",
             "  --merge <out.pdf> <in1> <in2> ...        merge PDFs (and images) into one PDF",
             "  --extract-pages <in.pdf> <pages> <out.pdf>",
@@ -164,6 +170,19 @@ namespace KillerPDF.Features
             "Exit codes: 0 success, 1 operation failed, 2 bad usage.",
             "Runs headless and works while the KillerPDF window is open.",
         ]);
+
+        private static int CliVerifyPayload(TextWriter output)
+        {
+            PayloadIntegrityResult result = PayloadIntegrityVerifier.Verify(AppContext.BaseDirectory);
+            if (result.Success)
+            {
+                output.WriteLine($"PASS: verified {result.VerifiedFiles} payload files.");
+                return 0;
+            }
+            output.WriteLine("FAIL: installed payload verification failed.");
+            foreach (string error in result.Errors) output.WriteLine("  " + error);
+            return 1;
+        }
 
         /// <summary>
         /// Splits args into positionals (everything after the command flag that

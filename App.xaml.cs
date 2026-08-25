@@ -115,10 +115,6 @@ namespace KillerPDF
                 return;
             }
 
-            StartupTrace.Mark("pdfium integrity check starting");
-            if (!CheckPdfiumIntegrity()) { StartupTrace.Mark("pdfium integrity check failed"); Shutdown(2); return; }
-            StartupTrace.Mark("pdfium integrity check complete");
-
             // Machine-wide install, no UI. Used by winget / choco / RMM deployments and by the
             // all-users checkbox, which re-runs this exe elevated with /silent. Checked before
             // everything else: it must never show a window or touch the single-instance mutex.
@@ -1566,54 +1562,6 @@ namespace KillerPDF
             };
 
             dlg.ShowDialog();
-        }
-
-        // ── pdfium.dll integrity check ───────────────────────────────────────
-
-        /// <summary>
-        /// Finds the Costura-embedded pdfium resource, decompresses it in-memory,
-        /// and compares its SHA256 to BuildInfo.PdfiumSha256.
-        /// Returns false (and shows a message box) only on a confirmed mismatch.
-        /// Fails-open if the check cannot complete (dev builds, missing resource, I/O error).
-        /// </summary>
-        private static bool CheckPdfiumIntegrity()
-        {
-            if (string.Equals(BuildInfo.PdfiumSha256, BuildInfo.PdfiumSha256Disabled, StringComparison.Ordinal))
-                return true; // disabled for this build (dev / SkipSign)
-
-            var asm = Assembly.GetExecutingAssembly();
-            var resourceName = Array.Find(asm.GetManifestResourceNames(),
-                n => n.IndexOf("pdfium", StringComparison.OrdinalIgnoreCase) >= 0
-                     && n.EndsWith(".compressed", StringComparison.OrdinalIgnoreCase));
-
-            if (resourceName == null)
-                return true; // not bundled via Costura (dev build running from bin/)
-
-            try
-            {
-                string actual;
-                using (var rs      = asm.GetManifestResourceStream(resourceName)!)
-                using (var deflate = new DeflateStream(rs, CompressionMode.Decompress))
-                using (var sha     = SHA256.Create())
-                    actual = BitConverter.ToString(sha.ComputeHash(deflate)).Replace("-", "");
-
-                if (!string.Equals(actual, BuildInfo.PdfiumSha256,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    MessageBox.Show(
-                        "Security check failed: pdfium.dll integrity verification failed.\n\n" +
-                        $"Expected: {BuildInfo.PdfiumSha256}\n" +
-                        $"Actual  : {actual}\n\n" +
-                        "The bundled PDF engine may have been tampered with. KillerPDF will exit.",
-                        $"{AppName} - Security", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return false;
-                }
-                return true;
-            }
-            catch
-            {
-                return true; // fail-open: only block on confirmed mismatch
-            }
         }
 
         // ============================================================

@@ -3,8 +3,7 @@
 .SYNOPSIS
     KillerPDF release script: build payload → sign inner app → pack launcher → sign launcher → verify → publish.
 .DESCRIPTION
-    1. Locates pdfium.dll in the NuGet cache, hashes it, and writes BuildInfo.cs so the
-       legacy woven development build's embedded integrity check knows the expected value.
+    1. Locates and hashes pdfium.dll for the published checksum summary.
     2. Builds the ordinary multi-file KillerPDF.App payload without Costura/Fody weaving.
     3. Signs KillerPDF.App.exe, regenerates its hash manifest, compresses that payload once,
        and embeds it in the public portable/installer KillerPDF.exe.
@@ -24,8 +23,7 @@
     Ignored when CertThumbprint is supplied.
 
 .PARAMETER SkipSign
-    Skip signing. Writes all-zeros into BuildInfo.cs (disables runtime pdfium check).
-    Useful for local test builds. Prints a red warning banner.
+    Skip signing for local test builds. Prints a red warning banner.
 
 .EXAMPLE
     .\release.ps1 -CertThumbprint "AABBCC..."
@@ -49,7 +47,6 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $proj         = Join-Path $PSScriptRoot "KillerPDF.csproj"
-$buildInfoPath = Join-Path $PSScriptRoot "BuildInfo.cs"
 $publishDir   = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\publish"
 $exe          = Join-Path $publishDir "KillerPDF.exe"
 $portableBuild = Join-Path $PSScriptRoot "build\build-portable.ps1"
@@ -152,8 +149,8 @@ foreach ($localeFile in Get-ChildItem $stringsDir -Filter '*.xaml') {
 }
 Write-Host "    Translations OK: $($englishStrings.Count) keys across $((Get-ChildItem $stringsDir -Filter '*.xaml').Count) languages" -ForegroundColor Green
 
-# ── 1. Hash pdfium.dll and update BuildInfo.cs ──────────────────────────────
-Write-Host "`n==> Locating pdfium.dll for integrity pre-hash..." -ForegroundColor Cyan
+# ── 1. Hash pdfium.dll for the published checksum summary ──────────────────
+Write-Host "`n==> Locating pdfium.dll for checksum reporting..." -ForegroundColor Cyan
 
 # Look in the NuGet package cache for Docnet.Core's pdfium
 $nugetCache = Join-Path $env:USERPROFILE ".nuget\packages"
@@ -172,50 +169,13 @@ if ($pdfiumNuget -and (Test-Path $pdfiumNuget)) {
     $pdfiumPath = $pdfiumBuild
     Write-Host "    Using build output: $pdfiumPath"
 } else {
-    Write-Warning "    pdfium.dll not found - BuildInfo.cs will retain all-zeros (check disabled)."
+    Write-Warning "    pdfium.dll not found - its checksum will be unavailable."
 }
 
 $pdfiumHash = "0000000000000000000000000000000000000000000000000000000000000000"
 if ($pdfiumPath) {
     $pdfiumHash = (Get-FileHash $pdfiumPath -Algorithm SHA256).Hash
     Write-Host "    pdfium SHA256: $pdfiumHash" -ForegroundColor Green
-}
-
-if ($SkipSign) {
-    # Leave all-zeros so the runtime check is disabled
-    $pdfiumHash = "0000000000000000000000000000000000000000000000000000000000000000"
-    Write-Host "    SkipSign: BuildInfo.cs will keep all-zeros (check disabled)." -ForegroundColor Yellow
-}
-
-Write-Host "`n==> Writing BuildInfo.cs..." -ForegroundColor Cyan
-$buildInfoContent = @"
-namespace KillerPDF
-{
-    /// <summary>
-    /// Build-time constants written or verified by release.ps1.
-    /// </summary>
-    internal static class BuildInfo
-    {
-        /// <summary>
-        /// SHA256 of pdfium.dll (original bytes, before Costura compression).
-        /// Updated by release.ps1 immediately before each build.
-        /// All-zeros means the check is disabled (dev / SkipSign builds).
-        /// </summary>
-        internal const string PdfiumSha256 = "$pdfiumHash";
-
-        internal const string PdfiumSha256Disabled = "0000000000000000000000000000000000000000000000000000000000000000";
-    }
-}
-"@
-$buildInfoContent = $buildInfoContent.TrimEnd("`r", "`n") + [Environment]::NewLine
-$currentBuildInfo = if (Test-Path $buildInfoPath) { [System.IO.File]::ReadAllText($buildInfoPath) } else { "" }
-$normalizedBuildInfo = $buildInfoContent -replace "`r`n?", "`n"
-$normalizedCurrentBuildInfo = $currentBuildInfo -replace "`r`n?", "`n"
-if ($normalizedCurrentBuildInfo -ne $normalizedBuildInfo) {
-    [System.IO.File]::WriteAllText($buildInfoPath, $buildInfoContent, [System.Text.UTF8Encoding]::new($false))
-    Write-Host "    BuildInfo.cs updated." -ForegroundColor Green
-} else {
-    Write-Host "    BuildInfo.cs already current." -ForegroundColor Green
 }
 
 # ── 2. Build the loose payload and one-payload launcher ──────────────────────

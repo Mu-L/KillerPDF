@@ -51,6 +51,7 @@
          and of MainWindow so the invariants can be checked without standing up a window. -->
     <Compile Include="..\Services\ShortcutTable.cs" Link="Services\ShortcutTable.cs" />
     <Compile Include="..\Services\EditableTextShortcutPolicy.cs" Link="Services\EditableTextShortcutPolicy.cs" />
+    <Compile Include="..\Services\PayloadIntegrityVerifier.cs" Link="Services\PayloadIntegrityVerifier.cs" />
   </ItemGroup>
 
   <ItemGroup>
