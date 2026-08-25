@@ -154,6 +154,10 @@ namespace KillerPDF.Controls
 
         private void PagePreviewPanel_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
+            // ScrollChanged bubbles from nested form controls. Only movement of the document
+            // viewport is page navigation or a reason to rebuild document chrome.
+            if (!ReferenceEquals(e.OriginalSource, PagePreviewPanel)) return;
+
             // The vertical scrollbar can appear/disappear without a window resize (zoom, page count
             // changes). When it does, re-anchor the annotate bars so a right-docked bar tracks the
             // scrollbar's edge instead of getting covered (or stranded once it's gone).
@@ -301,7 +305,7 @@ namespace KillerPDF.Controls
         // grid/two-page = DIP 1:1); everything else - background, clip, tag, input handler - is identical.
         private Canvas BuildPageOverlay(int page, double width, double height, System.Windows.Media.Transform? layoutTransform)
         {
-            var overlay = new Canvas
+            var overlay = new SafeCanvas
             {
                 Width = width,
                 Height = height,
@@ -327,7 +331,7 @@ namespace KillerPDF.Controls
             var img = new Image { Stretch = Stretch.None };
             RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
 
-            var overlay = new Canvas { Background = Brushes.Transparent, ClipToBounds = true };
+            var overlay = new SafeCanvas { Background = Brushes.Transparent, ClipToBounds = true };
             overlay.PreviewMouseLeftButtonDown += Canvas_MouseLeftButtonDown;
             overlay.MouseMove                  += Canvas_MouseMove;
             overlay.MouseLeave                 += Canvas_MouseLeave;
@@ -915,7 +919,7 @@ namespace KillerPDF.Controls
                 // Defer additional pages until layout has settled so ActualWidth is valid.
                 // RenderPageLinks runs AFTER RenderAdditionalPages so ClearSecondaryPages
                 // inside RenderAdditionalPages doesn't wipe the overlays we just added.
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
                 {
                     // Only Grid/Two-Page lay out neighbor tiles. In Single mode RenderAdditionalPages would
                     // snap the panel width to pageW + 12 (the inter-tile gap), nudging the lone page ~6px left
