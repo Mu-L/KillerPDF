@@ -565,16 +565,27 @@ namespace KillerPDF
             // (rotate, move, delete) only make sense on a thumbnail; the empty area gets the page-agnostic
             // menu (same one the gray area around the page uses). With no document open the menu still
             // opens, carrying only the sidebar-side section appended at the bottom.
-            bool onThumb = false;
+            ListBoxItem? clickedItem = null;
             if (_doc is not null)
                 for (var d = e.OriginalSource as DependencyObject; d != null; d = VisualTreeHelper.GetParent(d))
-                    if (d is ListBoxItem) { onThumb = true; break; }
+                    if (d is ListBoxItem item) { clickedItem = item; break; }
+
+            bool onThumb = clickedItem is not null;
+            int clickedPage = -1;
+            if (clickedItem?.DataContext is PageThumbnailVm clickedThumbnail)
+            {
+                clickedPage = clickedThumbnail.PageIndex;
+                // WPF does not select a ListBoxItem on right-click. Make page actions target the
+                // thumbnail that opened the menu, while preserving an existing multi-selection.
+                if (!PageList.SelectedItems.Contains(clickedThumbnail))
+                    PageList.SelectedItem = clickedThumbnail;
+            }
 
             var menu = MakeThemedMenu();
             if (onThumb)
             {
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_InsertBlank"), (s, ev) => InsertBlankPage_Click(s!, ev), glyph: ""));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, ev) => DuplicatePage(PageList.SelectedIndex), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, ev) => DuplicatePage(clickedPage), glyph: ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCWShort"), (s, ev) => RotatePages_Click(90), glyph: ""));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCWShort"), (s, ev) => RotatePages_Click(-90), glyph: ""));
