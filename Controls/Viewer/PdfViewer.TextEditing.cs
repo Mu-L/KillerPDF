@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,6 +23,51 @@ namespace KillerPDF.Controls
     // members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
+        private readonly ConditionalWeakTable<Canvas, SafeCanvas> _textEditorLayers = new();
+
+        private SafeCanvas TextEditorLayerFor(Canvas pageCanvas)
+        {
+            if (_textEditorLayers.TryGetValue(pageCanvas, out SafeCanvas? existing))
+                return existing;
+            var layer = new SafeCanvas
+            {
+                Width = pageCanvas.Width,
+                Height = pageCanvas.Height,
+                Background = null,
+                ClipToBounds = true
+            };
+            Panel.SetZIndex(layer, 1000);
+            pageCanvas.SizeChanged += (_, _) =>
+            {
+                layer.Width = pageCanvas.ActualWidth > 0 ? pageCanvas.ActualWidth : pageCanvas.Width;
+                layer.Height = pageCanvas.ActualHeight > 0 ? pageCanvas.ActualHeight : pageCanvas.Height;
+            };
+            pageCanvas.Children.Add(layer);
+            _textEditorLayers.Add(pageCanvas, layer);
+            return layer;
+        }
+
+        private void ClearRenderedCanvas(Canvas pageCanvas)
+        {
+            SafeCanvas editorLayer = TextEditorLayerFor(pageCanvas);
+            for (int index = pageCanvas.Children.Count - 1; index >= 0; index--)
+                if (!ReferenceEquals(pageCanvas.Children[index], editorLayer))
+                    pageCanvas.Children.RemoveAt(index);
+        }
+
+        private void QueueTextEditorFocus(TextBox textBox, bool selectAll = false)
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+            {
+                if (!ReferenceEquals(_activeTextBox, textBox)
+                    || textBox.Parent is not SafeCanvas) return;
+                textBox.Focus();
+                Keyboard.Focus(textBox);
+                if (selectAll) textBox.SelectAll();
+                if (!ReferenceEquals(_tehBox, textBox)) AttachTextEditResizeHandles(textBox);
+            }));
+        }
+
         // ============================================================
         // Inline text editing (double-click)
         // ============================================================
@@ -141,11 +187,14 @@ namespace KillerPDF.Controls
                     };
                     Canvas.SetLeft(ptb, placed.Position.X);
                     Canvas.SetTop(ptb, placed.Position.Y);
-                    _activeCanvas.Children.Add(ptb);
+                    TextEditorLayerFor(_activeCanvas).Children.Add(ptb);
                     _activeTextBox = ptb;
                     StyleEditBox(ptb);   // restore the box's typeface + B/I/S
                     ptb.PreviewKeyDown += TextBox_PreviewKeyDown;
-                    ptb.Loaded += (s, ev) => { ptb.Focus(); Keyboard.Focus(ptb); ptb.SelectAll(); ptb.LostFocus += TextBox_LostFocus; AttachTextEditResizeHandles(ptb); };
+                    ptb.LostFocus += TextBox_LostFocus;
+                    ptb.Loaded += (_, _) => QueueTextEditorFocus(ptb, selectAll: true);
+                    ptb.PreviewMouseLeftButtonDown += (_, _) => QueueTextEditorFocus(ptb);
+                    QueueTextEditorFocus(ptb, selectAll: true);
                     ShowTextSettings();
                     SetStatus(Loc("Str_St_EditingText"));
                     return;
@@ -372,11 +421,14 @@ namespace KillerPDF.Controls
             };
             Canvas.SetLeft(tb, cLeft);
             Canvas.SetTop(tb, cTop);
-            _activeCanvas.Children.Add(tb);
+            TextEditorLayerFor(_activeCanvas).Children.Add(tb);
             _activeTextBox = tb;
             StyleEditBox(tb);
             tb.PreviewKeyDown += TextBox_PreviewKeyDown;
-            tb.Loaded += (s, ev) => { tb.Focus(); Keyboard.Focus(tb); tb.SelectAll(); tb.LostFocus += TextBox_LostFocus; AttachTextEditResizeHandles(tb); };
+            tb.LostFocus += TextBox_LostFocus;
+            tb.Loaded += (_, _) => QueueTextEditorFocus(tb, selectAll: true);
+            tb.PreviewMouseLeftButtonDown += (_, _) => QueueTextEditorFocus(tb);
+            QueueTextEditorFocus(tb, selectAll: true);
             ShowTextSettings();
             SetStatus(Loc("Str_St_EditingText"));
         }
@@ -414,7 +466,8 @@ namespace KillerPDF.Controls
         // treated as a request to place a new one (the Grid-view "box jumps to cursor" bug).
         private bool ClickInsideActiveTextBox(Point pos)
         {
-            if (_activeTextBox is null || !ReferenceEquals(_activeTextBox.Parent, _activeCanvas)) return false;
+            if (_activeTextBox is null
+                || !ReferenceEquals(_activeTextBox.Parent, TextEditorLayerFor(_activeCanvas))) return false;
             double x = Canvas.GetLeft(_activeTextBox), y = Canvas.GetTop(_activeTextBox);
             if (double.IsNaN(x) || double.IsNaN(y)) return false;
             double w = _activeTextBox.ActualWidth > 0 ? _activeTextBox.ActualWidth : _activeTextBox.Width;
@@ -455,24 +508,16 @@ namespace KillerPDF.Controls
             };
             Canvas.SetLeft(tb, pos.X);
             Canvas.SetTop(tb, pos.Y);
-            _activeCanvas.Children.Add(tb);
+            TextEditorLayerFor(_activeCanvas).Children.Add(tb);
             _activeTextBox = tb;
             StyleEditBox(tb);   // current typeface + B/I/S
             tb.PreviewKeyDown += TextBox_PreviewKeyDown;
             tb.LostFocus += TextBox_LostFocus;
-            // Focus the box and attach its live resize handles once laid out. Loaded fires on first
-            // placement; a dispatcher fallback covers re-entry (Text tool -> Select -> Text again),
-            // where Loaded may have already run - without it the new box silently took no typing and
-            // showed no handles. Activate is idempotent (guards against double focus/handle attach).
-            void Activate()
-            {
-                if (!ReferenceEquals(_activeTextBox, tb)) return;
-                tb.Focus();
-                Keyboard.Focus(tb);
-                if (!ReferenceEquals(_tehBox, tb)) AttachTextEditResizeHandles(tb);
-            }
-            tb.Loaded += (s, e) => Activate();
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(Activate));
+            // Input priority runs after the placement click has completed, so that click cannot
+            // immediately take focus back from the new editor.
+            tb.Loaded += (_, _) => QueueTextEditorFocus(tb);
+            tb.PreviewMouseLeftButtonDown += (_, _) => QueueTextEditorFocus(tb);
+            QueueTextEditorFocus(tb);
         }
 
         // ── Live resize handles around the editing TextBox ──────────────────────────────
@@ -503,7 +548,7 @@ namespace KillerPDF.Controls
                 // PreviewMouseLeftButtonDown and would otherwise intercept the click), mirroring the
                 // committed-annotation resize handles.
                 _textEditHandles.Add(hd);
-                _activeCanvas.Children.Add(hd);
+                TextEditorLayerFor(_activeCanvas).Children.Add(hd);
             }
             tb.SizeChanged += TextEditBox_SizeChanged;
             LayoutTextEditHandles();

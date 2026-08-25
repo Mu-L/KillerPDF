@@ -119,7 +119,7 @@ namespace KillerPDF.Controls
             // every multi-page view populates; fall back to the single-page canvas. View-mode
             // independent on purpose so the tools behave identically in all four modes.
             _activeCanvas = CanvasForPage(pageIndex);
-            _activeCanvas.Children.Clear();
+            ClearRenderedCanvas(_activeCanvas);
 
             RenderStamps(pageIndex);   // stamp layer (page numbers / watermark) sits beneath annotations
 
