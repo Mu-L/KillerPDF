@@ -308,11 +308,8 @@ namespace KillerPDF
                         PdfEngineIntegration.DuplicatePage(path, pageIdx),
                     remapRotations: rotations =>
                         PdfEngineIntegration.RemapRotationsAfterPageDuplication(
-                            rotations, pageIdx));
-                int duplicatedPage = pageIdx + 1;
-                ActiveViewer.SyncPageListSelection(duplicatedPage);
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                    (Action)(() => ActiveViewer.SyncPageListSelection(duplicatedPage)));
+                            rotations, pageIdx),
+                    selectedPageAfterReload: pageIdx + 1);
                 SetStatus(string.Format(Loc("Str_St_DuplicatedPage"), pageIdx + 1));
             }
             catch (Exception ex)

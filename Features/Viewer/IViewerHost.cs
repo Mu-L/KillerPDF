@@ -73,7 +73,8 @@ namespace KillerPDF.Features
         void HideSignaturePopup();
         void SaveTempAndReload(bool keepAnnotations, bool preserveZoom,
             Action<string>? finalizeSavedFile = null,
-            Action<Dictionary<int, int>>? remapRotations = null);
+            Action<Dictionary<int, int>>? remapRotations = null,
+            int? selectedPageAfterReload = null);
         void RecordNavJump();
         PageAnnotation? PairPartner(PageAnnotation annotation);
         void RenderStamps(int page);

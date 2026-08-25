@@ -29,7 +29,8 @@ namespace KillerPDF
 
         private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
             Action<string>? finalizeSavedFile = null,
-            Action<Dictionary<int, int>>? remapRotations = null)
+            Action<Dictionary<int, int>>? remapRotations = null,
+            int? selectedPageAfterReload = null)
         {
             if (_doc is null || _currentFile is null) return;
             // We're about to replace the working file with a fresh temp; release the cached PDFium link
@@ -51,7 +52,7 @@ namespace KillerPDF
             ClearSelection();
             MarkDirty();
             var doc = _doc;
-            int selectedIdx = PageList.SelectedIndex;
+            int selectedIdx = selectedPageAfterReload ?? PageList.SelectedIndex;
 
             // Capture page rotations, then strip them from the document before saving.
             // Docnet uses FPDF_GetPageWidth/Height (MediaBox, no rotation) to size the bitmap,
