@@ -159,7 +159,11 @@ namespace KillerPDF.Controls
                 // badge is per-pane furniture, unlike the page-jump box synced below.
                 if (e.VerticalChange != 0) ShowPageBadge(nearest);
 
-                SyncCurrentPageTo(nearest);
+                // Rebuilding Continuous temporarily returns the ScrollViewer to the top while its
+                // slots are replaced. That layout scroll is not navigation: keep the requested page
+                // selected until the target slot has its final geometry and the deferred scroll lands.
+                if (_continuousScrollTarget < 0)
+                    SyncCurrentPageTo(nearest);
 
                 // Once the scroll settles, sharpen the pages now in view (and release the ones that left).
                 // Cheap when there's nothing to do: below the hi-res threshold it's a restore-only pass over
@@ -327,6 +331,9 @@ namespace KillerPDF.Controls
             // #130: a malformed page tree can parse to zero pages - Pages[0] below would throw
             // ArgumentOutOfRangeException. Bail out instead of crashing; the view just stays empty.
             if (_doc.PageCount == 0) return;
+            initialPage = Math.Clamp(initialPage, 0, _doc.PageCount - 1);
+            _continuousScrollTarget = initialPage;
+            SyncPageListSelection(initialPage);
             // Coming from Grid, the shared ScrollViewer still carries the grid's overrides
             // (horizontal bar Disabled, vertical Visible). Continuous never passes through
             // RefreshPageView, where the other modes restore them - so restore here, or a
@@ -430,7 +437,6 @@ namespace KillerPDF.Controls
             else if (fitDefault) FitToPage();
             else SetZoom(_zoomLevel);
 
-            _continuousScrollTarget = initialPage;
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                 () => ScrollContinuousToPage(initialPage));
 
@@ -592,9 +598,13 @@ namespace KillerPDF.Controls
             if (_continuousScrollTarget >= 0 && fi >= _continuousScrollTarget)
             {
                 int tgt = _continuousScrollTarget;
-                _continuousScrollTarget = -1;
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                    (Action)(() => ScrollContinuousToPage(tgt)));
+                    (Action)(() =>
+                    {
+                        ScrollContinuousToPage(tgt);
+                        _continuousScrollTarget = -1;
+                        SyncCurrentPageTo(tgt);
+                    }));
             }
             // Virtualized slots render on approach, so a page ABOVE the viewport can refine its
             // estimated height mid-scroll (e.g. scrolling upward into a cropped page). Compensate
