@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added byte-preserving typed-content overlays for existing pages. Each overlay is isolated as a Form XObject with its complete font, image, color-space, and graphics-state resources, including embedded Unicode fonts and ToUnicode maps.
 - Integrated desktop detached signing through the engine's CAdES signature writer and removed the application's separate PDFsharp 6.2 signing dependency.
 - Integrated last-resort PDFium raster repair through direct engine raster-page authoring and retired the replaced PdfSharpCore image-page helper.
 - Integrated blank-document creation and Transform raster replacement-page authoring through the engine's page and image builders.

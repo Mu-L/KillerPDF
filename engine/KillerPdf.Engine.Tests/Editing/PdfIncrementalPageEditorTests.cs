@@ -10,8 +10,10 @@ using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Writing;
 using KillerPdf.Engine.Security;
 using KillerPdf.Engine.Filters;
+using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Syntax;
 using KillerPdf.Engine.Signing;
+using KillerPdf.Engine.Tests.Fonts;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Editing;
@@ -377,6 +379,85 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void Build_AppendsTypedContentWithIsolatedResources()
+    {
+        var originalContent = new PdfContentStreamBuilder()
+            .BeginText()
+            .SetFont(PdfStandardFont.Helvetica, 10)
+            .SetTextMatrix(1, 0, 0, 1, 10, 20)
+            .ShowLatin1Text("Original")
+            .EndText();
+        byte[] sourceBytes = new PdfDocumentBuilder()
+            .AddPage(200, 300, originalContent).Build();
+        PdfDocument source = PdfDocument.Open(sourceBytes);
+        var overlay = new PdfContentStreamBuilder()
+            .BeginText()
+            .SetFont(PdfStandardFont.Courier, 12)
+            .SetTextRenderingMode(PdfTextRenderingMode.Invisible)
+            .SetTextMatrix(1, 0, 0, 1, 30, 40)
+            .ShowLatin1Text("Searchable")
+            .EndText();
+
+        byte[] updated = new PdfIncrementalPageEditor(source)
+            .AppendPageContent(0, 200, 300, overlay)
+            .Build();
+        PdfDocument reopened = PdfDocument.Open(updated);
+        PdfDictionary page = FlatPages(reopened).Pages[0];
+        PdfDictionary resources = ResolveDictionary(
+            reopened, page[Name("Resources")]);
+        PdfDictionary xObjects = ResolveDictionary(
+            reopened, resources[Name("XObject")]);
+        PdfStream form = ResolveStream(reopened, xObjects[Name("KPO1")]);
+        PdfDictionary formResources = ResolveDictionary(
+            reopened, form.Dictionary[Name("Resources")]);
+        PdfArray contents = Assert.IsType<PdfArray>(page[Name("Contents")]);
+
+        Assert.True(ResolveDictionary(reopened,
+            resources[Name("Font")]).ContainsKey(Name("F1")));
+        Assert.True(ResolveDictionary(reopened,
+            formResources[Name("Font")]).ContainsKey(Name("F1")));
+        Assert.Contains("Searchable", Encoding.Latin1.GetString(
+            PdfStreamDecoder.Decode(form)));
+        Assert.Equal("q /KPO1 Do Q\n", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(ResolveStream(reopened, contents[^1]))));
+        Assert.True(updated.AsSpan(0, sourceBytes.Length).SequenceEqual(sourceBytes));
+    }
+
+    [Fact]
+    public void Build_AppendsTypedUnicodeContentWithToUnicodeMap()
+    {
+        byte[] sourceBytes = new PdfDocumentBuilder().AddBlankPage(200, 300).Build();
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: true));
+        var overlay = new PdfContentStreamBuilder()
+            .BeginText()
+            .SetFont(font, 12)
+            .SetTextRenderingMode(PdfTextRenderingMode.Invisible)
+            .SetTextMatrix(1, 0, 0, 1, 20, 40)
+            .ShowUnicodeText("😀")
+            .EndText();
+
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalPageEditor(
+                PdfDocument.Open(sourceBytes))
+            .AppendPageContent(0, 200, 300, overlay)
+            .Build());
+        PdfDictionary page = FlatPages(reopened).Pages[0];
+        PdfDictionary resources = ResolveDictionary(reopened, page[Name("Resources")]);
+        PdfDictionary xObjects = ResolveDictionary(reopened, resources[Name("XObject")]);
+        PdfStream form = ResolveStream(reopened, xObjects[Name("KPO1")]);
+        PdfDictionary formResources = ResolveDictionary(
+            reopened, form.Dictionary[Name("Resources")]);
+        PdfDictionary fonts = ResolveDictionary(reopened, formResources[Name("Font")]);
+        PdfDictionary type0 = ResolveDictionary(reopened, fonts[Name("F1")]);
+        PdfStream toUnicode = ResolveStream(reopened, type0[Name("ToUnicode")]);
+
+        Assert.Contains("<0001> <D83DDE00>",
+            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(toUnicode)));
+        Assert.Contains("<0001> Tj",
+            Encoding.ASCII.GetString(PdfStreamDecoder.Decode(form)));
+    }
+
+    [Fact]
     public void Build_ReplacesRemovesAndUpdatesImportedPageContent()
     {
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
@@ -444,6 +525,12 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Throws<NotSupportedException>(() =>
             new PdfIncrementalPageEditor(tagged)
                 .AppendPageContent(0, "q Q\n"u8.ToArray())
+                .Build());
+
+        Assert.Throws<NotSupportedException>(() =>
+            new PdfIncrementalPageEditor(tagged)
+                .AppendPageContent(0, 612, 792,
+                    new PdfContentStreamBuilder().Rectangle(1, 1, 2, 2).Fill())
                 .Build());
     }
 

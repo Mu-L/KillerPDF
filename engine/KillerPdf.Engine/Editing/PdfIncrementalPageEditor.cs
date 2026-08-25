@@ -1329,6 +1329,26 @@ public sealed class PdfIncrementalPageEditor
         return this;
     }
 
+    /// <summary>
+    /// Appends typed content to an existing page as an isolated Form XObject, including every
+    /// font, image, color-space, and graphics-state resource referenced by the content.
+    /// </summary>
+    public PdfIncrementalPageEditor AppendPageContent(
+        int pageIndex, double width, double height, PdfContentStreamBuilder content)
+    {
+        ValidateIndex(pageIndex, nameof(pageIndex));
+        ValidatePositiveFinite(width, nameof(width));
+        ValidatePositiveFinite(height, nameof(height));
+        ArgumentNullException.ThrowIfNull(content);
+        PageState page = _pages[pageIndex];
+        if (page.Entry is null)
+            throw new InvalidOperationException(
+                "Typed content can only be appended to an existing destination page.");
+        page.TypedOverlays.Add(BuildTypedPage(width, height, content));
+        _pagePresentationChanged = true;
+        return this;
+    }
+
     /// <summary>Copies a page from another document into the current page order.</summary>
     public PdfIncrementalPageEditor InsertImportedPage(
         int pageIndex, PdfDocument source, int sourcePageIndex)
@@ -3447,7 +3467,8 @@ public sealed class PdfIncrementalPageEditor
                      || page.Thumbnail is not null
                      || page.RemoveThumbnail
                      || page.ReplaceAnnotations
-                     || page.ContentUpdate != PageContentUpdate.None))
+                     || page.ContentUpdate != PageContentUpdate.None
+                     || page.TypedOverlays.Count > 0))
         {
             PdfPageTreeEntry entry = state.Entry
                 ?? throw new InvalidOperationException("New pages require a rebuilt page tree.");
@@ -3494,6 +3515,7 @@ public sealed class PdfIncrementalPageEditor
         IDictionary<PdfName, PdfObject> replacements,
         ICollection<PdfName> removals)
     {
+        ApplyTypedOverlays(update, state, page, replacements);
         if (state.ContentUpdate == PageContentUpdate.None) return;
         if (state.ContentUpdate == PageContentUpdate.Replace)
         {
@@ -3517,6 +3539,80 @@ public sealed class PdfIncrementalPageEditor
         var items = ExistingPageContentItems(update, existing);
         items.Add(appended);
         replacements[ContentsName] = new PdfArray(items);
+    }
+
+    private void ApplyTypedOverlays(
+        PdfIncrementalUpdateBuilder update, PageState state, PdfDictionary page,
+        IDictionary<PdfName, PdfObject> replacements)
+    {
+        if (state.TypedOverlays.Count == 0) return;
+
+        PdfObject? resourcesValue = page.TryGetValue(Name("Resources"), out PdfObject? direct)
+            ? direct
+            : state.Entry!.InheritedValues.GetValueOrDefault(Name("Resources"));
+        PdfDictionary resources = resourcesValue is null
+            ? new PdfDictionary([])
+            : ResolveCatalogValue(_document, resourcesValue, "A page /Resources value")
+                as PdfDictionary ?? throw new InvalidOperationException(
+                    "A page /Resources value is not a dictionary.");
+        PdfDictionary xObjects = resources.TryGetValue(Name("XObject"), out PdfObject? xObjectValue)
+            ? ResolveCatalogValue(_document, xObjectValue, "A page /Resources /XObject value")
+                as PdfDictionary ?? throw new InvalidOperationException(
+                    "A page /Resources /XObject value is not a dictionary.")
+            : new PdfDictionary([]);
+        var xObjectEntries = xObjects.ToDictionary(entry => entry.Key, entry => entry.Value);
+        var invocation = new MemoryStream();
+
+        foreach (PdfDocument overlay in state.TypedOverlays)
+        {
+            PdfPageTreeEntry overlayPage = AssertSinglePage(overlay);
+            PdfObject overlayResources = overlayPage.InheritedValues.TryGetValue(
+                    Name("Resources"), out PdfObject? inheritedResources)
+                ? inheritedResources
+                : new PdfDictionary([]);
+            if (!overlayPage.Dictionary.TryGetValue(ContentsName, out PdfObject? contentsValue)
+                || ResolveCatalogValue(overlay, contentsValue,
+                    "A typed overlay /Contents value") is not PdfStream contents)
+                throw new InvalidOperationException(
+                    "A typed overlay page must contain one content stream.");
+
+            var form = new PdfStream(Dictionary(
+                ("Type", Name("XObject")),
+                ("Subtype", Name("Form")),
+                ("FormType", new PdfInteger(1)),
+                ("BBox", overlayPage.InheritedValues[MediaBoxName]),
+                ("Resources", overlayResources)),
+                PdfStreamDecoder.Decode(contents, overlay.Resolve, 64 * 1024 * 1024));
+            var importer = new PdfObjectGraphImporter(overlay, update, []);
+            PdfIndirectReference formReference = update.AddObject(importer.Import(form));
+
+            int suffix = 1;
+            PdfName resourceName;
+            do resourceName = Name($"KPO{suffix++}");
+            while (xObjectEntries.ContainsKey(resourceName));
+            xObjectEntries.Add(resourceName, formReference);
+            invocation.Write("q /"u8);
+            invocation.Write(resourceName.Bytes.Span);
+            invocation.Write(" Do Q\n"u8);
+        }
+
+        var resourceEntries = resources
+            .Where(entry => !entry.Key.Equals(Name("XObject")))
+            .Append(new KeyValuePair<PdfName, PdfObject>(
+                Name("XObject"), new PdfDictionary(xObjectEntries)));
+        replacements[Name("Resources")] = new PdfDictionary(resourceEntries);
+
+        byte[] commands = invocation.ToArray();
+        state.Content = state.Content is null ? commands : [.. state.Content, .. commands];
+        state.ContentUpdate = PageContentUpdate.Append;
+
+        static PdfPageTreeEntry AssertSinglePage(PdfDocument document)
+        {
+            PdfPageTree tree = PdfPageTree.Read(document);
+            if (tree.Pages.Count != 1)
+                throw new InvalidOperationException("A typed overlay must contain exactly one page.");
+            return tree.Pages[0];
+        }
     }
 
     private List<PdfObject> ExistingPageContentItems(
@@ -8060,9 +8156,10 @@ public sealed class PdfIncrementalPageEditor
     private void ValidateExistingStructureTreePageSet()
     {
         if (!_tree.Catalog.ContainsKey(StructTreeRootName)) return;
-        if (_pages.Any(page => page.ContentUpdate != PageContentUpdate.None))
+        if (_pages.Any(page => page.ContentUpdate != PageContentUpdate.None
+                || page.TypedOverlays.Count > 0))
             throw new NotSupportedException(
-                "Raw content cannot be appended to or replace content in an existing tagged PDF without matching structure updates.");
+                "Content cannot be appended to or replace content in an existing tagged PDF without matching structure updates.");
         bool additionsAreSupported = _pages.Where(page => page.Entry is null)
             .All(page => page.Content is null
                 && (page.ImportedDocument is null
@@ -17257,6 +17354,7 @@ public sealed class PdfIncrementalPageEditor
         internal bool RemoveThumbnail { get; set; }
         internal byte[]? Content { get; set; }
         internal PageContentUpdate ContentUpdate { get; set; }
+        internal List<PdfDocument> TypedOverlays { get; } = [];
         internal bool ReplaceAnnotations { get; set; }
         internal PdfArray? Annotations { get; set; }
     }
