@@ -73,6 +73,21 @@ internal static class PdfEngineIntegration
         return editor.Build();
     }
 
+    /// <summary>Rebuilds a complete document graph into a clean engine-authored page tree.</summary>
+    internal static void RebuildDocument(
+        string sourcePath, string destinationPath, bool stripRotations = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        PdfDocument source = PdfDocument.Open(File.ReadAllBytes(sourcePath));
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+        var editor = new PdfIncrementalPageEditor(empty).AddImportedDocument(source);
+        if (stripRotations)
+            for (int pageIndex = 0; pageIndex < editor.PageCount; pageIndex++)
+                editor.SetRotation(pageIndex, 0);
+        ReplaceWithBuiltResult(destinationPath, editor.Build());
+    }
+
     /// <summary>Merges PDF documents and image frames through one engine page tree.</summary>
     internal static byte[] MergeFiles(IReadOnlyList<string> paths)
     {

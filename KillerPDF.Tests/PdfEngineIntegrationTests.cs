@@ -27,6 +27,41 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void RebuildDocument_PreservesPagesAndOptionallyStripsRotations()
+    {
+        string input = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-rebuild-input-{Guid.NewGuid():N}.pdf");
+        string preserved = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-rebuild-preserved-{Guid.NewGuid():N}.pdf");
+        string stripped = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-rebuild-stripped-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+                .SetMetadata(new PdfDocumentMetadata { Title = "Repair fixture" })
+                .AddBlankPage(200, 300).AddBlankPage(400, 500).Build());
+            File.WriteAllBytes(input, new PdfIncrementalPageEditor(authored)
+                .SetRotation(0, 90).SetRotation(1, 270).Build());
+
+            PdfEngineIntegration.RebuildDocument(input, preserved);
+            PdfEngineIntegration.RebuildDocument(input, stripped, stripRotations: true);
+
+            IReadOnlyList<PdfPageInformation> preservedPages =
+                PdfPageInformation.Read(PdfDocument.Open(File.ReadAllBytes(preserved)));
+            IReadOnlyList<PdfPageInformation> strippedPages =
+                PdfPageInformation.Read(PdfDocument.Open(File.ReadAllBytes(stripped)));
+            Assert.Equal([90, 270], preservedPages.Select(page => page.Rotation));
+            Assert.Equal([0, 0], strippedPages.Select(page => page.Rotation));
+            Assert.Equal([200d, 400d], preservedPages.Select(page => page.Width));
+        }
+        finally
+        {
+            foreach (string path in new[] { input, preserved, stripped })
+                if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void AddSearchableTextLayers_WritesExtractableMultiscriptUnicode()
     {
         string input = Path.Combine(Path.GetTempPath(),

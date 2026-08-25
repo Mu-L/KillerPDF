@@ -54,15 +54,8 @@ namespace KillerPDF.Services
         {
             try
             {
-                using var importDoc = PdfReader.Open(sourcePath, PdfDocumentOpenMode.Import);
-                var cleanDoc = new PdfDocument();
-                for (int i = 0; i < importDoc.PageCount; i++)
-                    cleanDoc.Pages.Add(importDoc.Pages[i]);
-                if (stripRotations)
-                    for (int i = 0; i < cleanDoc.PageCount; i++)
-                        cleanDoc.Pages[i].Rotate = 0;
-                cleanDoc.Save(destPath);
-                cleanDoc.Close();
+                PdfEngineIntegration.RebuildDocument(
+                    sourcePath, destPath, stripRotations);
                 return true;
             }
             catch { return false; }
@@ -300,8 +293,8 @@ namespace KillerPDF.Services
         // ---- Background-safe repair strategies -----------------------------------------------
 
         /// <summary>
-        /// Strategy 1 worker (background-safe, no UI/_doc access): page-copies the source through
-        /// PdfSharpCore Import mode into a clean temp PDF and returns its path.
+        /// Strategy 1 worker (background-safe, no UI/_doc access): imports the complete source
+        /// graph through The KillerPDF.Engine into a clean temp PDF and returns its path.
         /// </summary>
         internal static string? RepairViaImportToFile(string path)
         {
@@ -309,16 +302,8 @@ namespace KillerPDF.Services
             // and doesn't surface as a debugger "user-unhandled" break during the awaited Task.
             try
             {
-                PdfDocument repairedDoc;
-                using (var importDoc = PdfReader.Open(path, PdfDocumentOpenMode.Import))
-                {
-                    repairedDoc = new PdfDocument();
-                    for (int i = 0; i < importDoc.PageCount; i++)
-                        repairedDoc.Pages.Add(importDoc.Pages[i]);
-                }
                 var repairedPath = App.MakeTempFile("repaired");
-                repairedDoc.Save(repairedPath);
-                repairedDoc.Close();
+                PdfEngineIntegration.RebuildDocument(path, repairedPath);
                 return repairedPath;
             }
             catch { return null; }

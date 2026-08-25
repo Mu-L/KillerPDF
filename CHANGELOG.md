@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Import-based repair and temp-reload recovery now rebuild complete document graphs through The KillerPDF.Engine, including the rotation-stripping variant, instead of constructing replacement documents with PdfSharpCore.
 - Searchable PDF OCR now appends invisible Unicode text through The KillerPDF.Engine with embedded per-script fallback fonts, extractable ToUnicode maps, isolated page resources, and rotation-aware placement instead of resaving the document through PdfSharpCore.
 - Digital signatures now use The KillerPDF.Engine's detached CMS writer instead of the separate PDFsharp 6.2 signing package, while retaining Windows certificate-store, PFX, cloud-token, and whole-chain SHA-256 signing.
 - Last-resort PDFium raster repair now authors recovered pages through The KillerPDF.Engine, and the obsolete PdfSharpCore image-page importer has been removed.
