@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Integrated sidebar PDF and image drop append through complete engine imports, including repaired sources, multiframe images, and rotation-state remapping.
 - Integrated desktop image import plus combined folder and archive ingestion through the engine's complete-document and multiframe-image composition path.
 - Added a public crop-aware page-information reader for effective width, height, and normalized native rotation, and integrated it into every CLI raster workflow.
 - Added application integration gates for mixed PDF and multiframe-image merging plus direct raster-page authoring for desktop and CLI flattening, removing the remaining PdfSharpCore document construction from those workflows.

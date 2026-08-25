@@ -102,47 +102,43 @@ namespace KillerPDF
         {
             if (_doc is null) return;
             CommitActiveTextBox();
-            int before = _doc.PageCount;
+            var imports = new List<PdfEngineIntegration.ImportedDocument>();
             foreach (var f in files)
             {
+                string? importPath = null;
                 if (PdfImport.IsPdfPath(f))
                 {
-                    var target = _doc;
-                    if (target != null && TryAppendPdfPages(target, f)) continue;
-
-                    // #203: a damaged PDF used to be swallowed here, so nothing was added and
-                    // nothing was said. Offer the same repair the open path offers.
-                    string? repaired = await RepairPdfForImportAsync(f);
-                    if (repaired != null && _doc != null) TryAppendPdfPages(_doc, repaired);
+                    importPath = f;
+                    try { PdfEngineIntegration.ValidateDocument(importPath); }
+                    catch { importPath = await RepairPdfForImportAsync(f); }
                 }
                 else
                 {
-                    var target = _doc;
-                    if (target != null)
-                        try { PdfImport.AddImagePagesFromFile(target, f); } catch { /* skip an unreadable image */ }
+                    try
+                    {
+                        importPath = App.MakeTempFile("dropimage");
+                        File.WriteAllBytes(importPath, PdfEngineIntegration.MergeFiles([f]));
+                    }
+                    catch { importPath = null; }
                 }
+                if (importPath is null) continue;
+                try
+                {
+                    var pages = PdfEngineIntegration.ReadPageInformation(importPath);
+                    imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
+                        pages.Select(page => page.Rotation).ToArray()));
+                }
+                catch { /* skip anything still unreadable after repair */ }
             }
             if (_doc is null) return;
-            if (_doc.PageCount == before) { SetStatus(Loc("Str_Drop_NothingOpenable")); return; }
-            MarkDirty(true);
-            SaveTempAndReload(keepAnnotations: true, preserveZoom: true);
+            if (imports.Count == 0) { SetStatus(Loc("Str_Drop_NothingOpenable")); return; }
+            SaveTempAndReload(
+                keepAnnotations: true,
+                preserveZoom: true,
+                finalizeSavedFile: path => PdfEngineIntegration.AppendDocuments(path, imports),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterDocumentAppend(rotations, imports));
             SetStatus(string.Format(Loc("Str_Status_Merged"), files.Length));
-        }
-
-        /// <summary>
-        /// Import-mode page copy. False when the file cannot be read at all, which is the signal
-        /// to offer a repair rather than silently dropping it.
-        /// </summary>
-        private static bool TryAppendPdfPages(PdfDocument target, string path)
-        {
-            try
-            {
-                using var src = PdfReader.Open(path, PdfDocumentOpenMode.Import);
-                if (src.PageCount == 0) return false;
-                for (int i = 0; i < src.PageCount; i++) target.AddPage(src.Pages[i]);
-                return true;
-            }
-            catch { return false; }
         }
 
         /// <summary>

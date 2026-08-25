@@ -840,11 +840,10 @@ namespace KillerPDF
                         PdfEngineIntegration.ValidateDocument(importPath);
                     }
 
-                    using var srcRead = PdfReader.Open(importPath, PdfDocumentOpenMode.ReadOnly);
+                    IReadOnlyList<KillerPdf.Engine.Documents.PdfPageInformation> pages =
+                        PdfEngineIntegration.ReadPageInformation(importPath);
                     imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
-                        Enumerable.Range(0, srcRead.PageCount)
-                            .Select(index => srcRead.Pages[index].Rotate)
-                            .ToArray()));
+                        pages.Select(page => page.Rotation).ToArray()));
                 }
                 SaveTempAndReload(
                     finalizeSavedFile: path =>
