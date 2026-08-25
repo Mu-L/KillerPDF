@@ -19,10 +19,15 @@ public sealed class PdfImage
         SoftMask = softMask;
     }
 
+    /// <summary>Gets the image width in pixels.</summary>
     public int Width { get; }
+    /// <summary>Gets the image height in pixels.</summary>
     public int Height { get; }
+    /// <summary>Gets the number of bits used for each color component.</summary>
     public int BitsPerComponent { get; }
+    /// <summary>Gets the device color space used by the image samples.</summary>
     public PdfImageColorSpace ColorSpace { get; }
+    /// <summary>Gets the encoded image payload.</summary>
     public ReadOnlyMemory<byte> Data { get; }
     internal string Filter { get; }
     internal bool InvertComponents { get; }
@@ -312,9 +317,13 @@ public sealed class PdfImage
     }
 }
 
+/// <summary>The device color space used by a PDF image.</summary>
 public enum PdfImageColorSpace
 {
+    /// <summary>One-component grayscale samples.</summary>
     Gray,
+    /// <summary>Three-component red, green, and blue samples.</summary>
     Rgb,
+    /// <summary>Four-component cyan, magenta, yellow, and black samples.</summary>
     Cmyk
 }

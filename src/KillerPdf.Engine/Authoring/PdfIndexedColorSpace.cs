@@ -1,12 +1,22 @@
 namespace KillerPdf.Engine.Authoring;
 
-public enum PdfIndexedBaseColorSpace { Gray, Rgb, Cmyk }
+/// <summary>The device color space used by an indexed palette.</summary>
+public enum PdfIndexedBaseColorSpace
+{
+    /// <summary>One-byte grayscale palette entries.</summary>
+    Gray,
+    /// <summary>Three-byte red, green, and blue palette entries.</summary>
+    Rgb,
+    /// <summary>Four-byte cyan, magenta, yellow, and black palette entries.</summary>
+    Cmyk
+}
 
 /// <summary>A compact palette whose entries use a device Gray, RGB, or CMYK base space.</summary>
 public sealed class PdfIndexedColorSpace
 {
     private readonly byte[] _palette;
 
+    /// <summary>Creates a validated palette with between one and 256 complete entries.</summary>
     public PdfIndexedColorSpace(
         PdfIndexedBaseColorSpace baseColorSpace, ReadOnlyMemory<byte> palette)
     {
@@ -31,8 +41,12 @@ public sealed class PdfIndexedColorSpace
         _palette = palette.ToArray();
     }
 
+    /// <summary>Gets the device space used by each palette entry.</summary>
     public PdfIndexedBaseColorSpace BaseColorSpace { get; }
+    /// <summary>Gets the number of color components in each palette entry.</summary>
     public int ComponentCount { get; }
+    /// <summary>Gets the number of palette entries.</summary>
     public int EntryCount { get; }
+    /// <summary>Gets the packed palette component bytes.</summary>
     public ReadOnlyMemory<byte> Palette => _palette;
 }
