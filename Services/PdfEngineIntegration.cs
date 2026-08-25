@@ -6,6 +6,9 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Writing;
+using DrawingBitmap = System.Drawing.Bitmap;
+using DrawingGraphics = System.Drawing.Graphics;
+using DrawingImage = System.Drawing.Image;
 
 namespace KillerPDF.Services;
 
@@ -66,6 +69,131 @@ internal static class PdfEngineIntegration
         for (int index = 1; index < sources.Count; index++)
             editor.AddImportedDocument(PdfDocument.Open(sources[index]));
         return editor.Build();
+    }
+
+    /// <summary>Merges PDF documents and image frames through one engine page tree.</summary>
+    internal static byte[] MergeFiles(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        if (paths.Count == 0)
+            throw new ArgumentException("At least one input file is required.", nameof(paths));
+
+        bool firstIsPdf = string.Equals(Path.GetExtension(paths[0]), ".pdf",
+            StringComparison.OrdinalIgnoreCase);
+        PdfDocument target = firstIsPdf
+            ? PdfDocument.Open(File.ReadAllBytes(paths[0]))
+            : PdfDocument.Open(new PdfDocumentBuilder().Build());
+        var editor = new PdfIncrementalPageEditor(target);
+        foreach (string path in paths.Skip(firstIsPdf ? 1 : 0))
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+            if (string.Equals(Path.GetExtension(path), ".pdf",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                editor.AddImportedDocument(PdfDocument.Open(File.ReadAllBytes(path)));
+                continue;
+            }
+            AppendImageFrames(editor, path);
+        }
+        return editor.Build();
+    }
+
+    private static void AppendImageFrames(PdfIncrementalPageEditor editor, string path)
+    {
+        using DrawingImage source = DrawingImage.FromFile(path);
+        var dimension = new System.Drawing.Imaging.FrameDimension(source.FrameDimensionsList[0]);
+        int frameCount = Math.Max(1, source.GetFrameCount(dimension));
+        for (int frameIndex = 0; frameIndex < frameCount; frameIndex++)
+        {
+            source.SelectActiveFrame(dimension, frameIndex);
+            int width = source.Width;
+            int height = source.Height;
+            double dpiX = source.HorizontalResolution;
+            double dpiY = source.VerticalResolution;
+            if (dpiX is < 24 or > 4800) dpiX = 96;
+            if (dpiY is < 24 or > 4800) dpiY = 96;
+            double pageWidth = width * 72.0 / dpiX;
+            double pageHeight = height * 72.0 / dpiY;
+            double shrink = Math.Min(1, 14400.0 / Math.Max(pageWidth, pageHeight));
+            pageWidth *= shrink;
+            pageHeight *= shrink;
+            double grow = Math.Max(1, 3.0 / Math.Min(pageWidth, pageHeight));
+            pageWidth *= grow;
+            pageHeight *= grow;
+
+            using var bitmap = new DrawingBitmap(width, height,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (DrawingGraphics graphics = DrawingGraphics.FromImage(bitmap))
+                graphics.DrawImage(source, 0, 0, width, height);
+            byte[] rgba = CopyRgba(bitmap);
+            PdfImage image = PdfImage.FromRgba(width, height, rgba);
+            editor.AddPage(pageWidth, pageHeight,
+                new PdfContentStreamBuilder().DrawImage(
+                    image, 0, 0, pageWidth, pageHeight));
+        }
+    }
+
+    private static byte[] CopyRgba(DrawingBitmap bitmap)
+    {
+        var rectangle = new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height);
+        System.Drawing.Imaging.BitmapData data = bitmap.LockBits(rectangle,
+            System.Drawing.Imaging.ImageLockMode.ReadOnly,
+            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        try
+        {
+            byte[] rgba = new byte[checked(bitmap.Width * bitmap.Height * 4)];
+            byte[] row = new byte[Math.Abs(data.Stride)];
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                IntPtr rowAddress = IntPtr.Add(data.Scan0, y * data.Stride);
+                System.Runtime.InteropServices.Marshal.Copy(rowAddress, row, 0, row.Length);
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    int source = x * 4;
+                    int target = (y * bitmap.Width + x) * 4;
+                    rgba[target] = row[source + 2];
+                    rgba[target + 1] = row[source + 1];
+                    rgba[target + 2] = row[source];
+                    rgba[target + 3] = row[source + 3];
+                }
+            }
+            return rgba;
+        }
+        finally
+        {
+            bitmap.UnlockBits(data);
+        }
+    }
+
+    internal sealed record RasterPage(
+        int PixelWidth, int PixelHeight, double PageWidth, double PageHeight,
+        ReadOnlyMemory<byte> BgraPixels);
+
+    /// <summary>Authors a flattened PDF from opaque or alpha-bearing PDFium BGRA pages.</summary>
+    internal static byte[] CreateRasterDocument(IReadOnlyList<RasterPage> pages)
+    {
+        ArgumentNullException.ThrowIfNull(pages);
+        if (pages.Count == 0)
+            throw new ArgumentException("At least one raster page is required.", nameof(pages));
+        var builder = new PdfDocumentBuilder();
+        foreach (RasterPage page in pages)
+        {
+            if (page.PixelWidth <= 0 || page.PixelHeight <= 0)
+                throw new ArgumentOutOfRangeException(nameof(pages),
+                    "Raster page dimensions must be positive.");
+            int required = checked(page.PixelWidth * page.PixelHeight * 4);
+            if (page.BgraPixels.Length != required)
+                throw new ArgumentException(
+                    "A raster page does not contain the required BGRA pixel count.", nameof(pages));
+            byte[] rgba = page.BgraPixels.ToArray();
+            for (int pixel = 0; pixel < rgba.Length; pixel += 4)
+                (rgba[pixel], rgba[pixel + 2]) = (rgba[pixel + 2], rgba[pixel]);
+            PdfImage image = PdfImage.FromRgba(page.PixelWidth, page.PixelHeight, rgba);
+            builder.AddPage(page.PageWidth, page.PageHeight,
+                new PdfContentStreamBuilder().DrawImage(
+                    image, 0, 0, page.PageWidth, page.PageHeight));
+        }
+        return builder.Build();
     }
 
     /// <summary>Extracts selected pages into a new PDF in the supplied order.</summary>

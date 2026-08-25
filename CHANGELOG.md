@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- CLI merge now handles mixed PDF and image inputs entirely through The KillerPDF.Engine, including multiframe images, while CLI flattening authors rendered image pages directly through the engine without an intermediate PdfSharpCore rebuild.
 - Save and Save As now persist text, choice, checkbox, and radio form edits through The KillerPDF.Engine as one incremental revision, including hierarchical field names, choice export values, and per-field text-size overrides.
 - CLI OCR now restores native page rotations through a byte-preserving engine revision instead of reopening and resaving the completed searchable PDF through PdfSharpCore.
 - Opening password-protected PDFs now authenticates and creates the editable decrypted working copy through The KillerPDF.Engine, with the existing tolerant fallbacks retained for owner-restricted files.

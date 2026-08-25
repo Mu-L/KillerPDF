@@ -134,6 +134,58 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void MergeFiles_ComposesPdfAndImageInputsInOriginalOrder()
+    {
+        string pdfPath = Path.Combine(Path.GetTempPath(), $"killerpdf-merge-{Guid.NewGuid():N}.pdf");
+        string imagePath = Path.Combine(Path.GetTempPath(), $"killerpdf-merge-{Guid.NewGuid():N}.png");
+        try
+        {
+            File.WriteAllBytes(pdfPath, new PdfDocumentBuilder()
+                .AddPage(200, 300, ReadOnlyMemory<byte>.Empty)
+                .AddBookmark("PDF page", 0)
+                .Build());
+            using (var bitmap = new System.Drawing.Bitmap(40, 20))
+            {
+                bitmap.SetResolution(72, 72);
+                using System.Drawing.Graphics graphics = System.Drawing.Graphics.FromImage(bitmap);
+                graphics.Clear(System.Drawing.Color.CornflowerBlue);
+                bitmap.Save(imagePath, System.Drawing.Imaging.ImageFormat.Png);
+            }
+
+            byte[] merged = PdfEngineIntegration.MergeFiles([pdfPath, imagePath]);
+
+            PdfDocument document = PdfDocument.Open(merged);
+            byte[] pdfSource = File.ReadAllBytes(pdfPath);
+            Assert.True(merged.AsSpan(0, pdfSource.Length).SequenceEqual(pdfSource));
+            Assert.Equal(2, PdfDocumentInformation.Read(document).PageCount);
+            string syntax = System.Text.Encoding.Latin1.GetString(merged);
+            Assert.Contains("/Subtype /Image", syntax);
+            Assert.Contains("/Outlines", syntax);
+        }
+        finally
+        {
+            if (File.Exists(pdfPath)) File.Delete(pdfPath);
+            if (File.Exists(imagePath)) File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void CreateRasterDocument_AuthorsBgraPagesWithRequestedPointSizes()
+    {
+        byte[] result = PdfEngineIntegration.CreateRasterDocument([
+            new PdfEngineIntegration.RasterPage(2, 1, 144, 72,
+                new byte[] { 30, 20, 10, 255, 60, 50, 40, 128 }),
+            new PdfEngineIntegration.RasterPage(1, 1, 72, 144,
+                new byte[] { 90, 80, 70, 255 })]);
+
+        Assert.Equal(2, PdfDocumentInformation.Read(PdfDocument.Open(result)).PageCount);
+        string syntax = System.Text.Encoding.Latin1.GetString(result);
+        Assert.Contains("/MediaBox [0 0 144 72]", syntax);
+        Assert.Contains("/MediaBox [0 0 72 144]", syntax);
+        Assert.Contains("/SMask", syntax);
+    }
+
+    [Fact]
     public void ExtractPages_UsesRequestedPageOrderAndReturnsIndependentDocument()
     {
         byte[] source = new PdfDocumentBuilder()

@@ -237,11 +237,8 @@ namespace KillerPDF.Features
         // ============================================================
         // --merge <out.pdf> <in1> <in2> ...
         // ============================================================
-        // Mirrors the GUI merge (FileOperations.cs Merge_Click): per source PDF,
-        // harvest named destinations from a ReadOnly open, copy pages from an
-        // Import open, then rewrite named-destination links against the page
-        // offset. Image inputs go through the same importer the GUI drop
-        // pipeline uses (ImportAndZip.cs).
+        // The engine imports complete PDF graphs and authors one page per image
+        // frame, retaining input order and a leading PDF's original byte prefix.
         private static int CliMerge(List<string> pos, TextWriter con)
         {
             if (pos.Count < 3)
@@ -259,44 +256,12 @@ namespace KillerPDF.Features
                 { con.WriteLine("Output file cannot also be an input."); return 2; }
             }
 
-            if (inputs.All(PdfImport.IsPdfPath))
-            {
-                byte[] merged = PdfEngineIntegration.MergeDocuments(
-                    inputs.Select(File.ReadAllBytes).ToList());
-                CliEnsureParentDir(outPath);
-                File.WriteAllBytes(outPath, merged);
-                int pageCount = KillerPdf.Engine.Documents.PdfDocumentInformation
-                    .Read(KillerPdf.Engine.Documents.PdfDocument.Open(merged)).PageCount;
-                con.WriteLine($"Merged {inputs.Count} files ({pageCount} pages) -> {outPath}");
-                return 0;
-            }
-
-            using var outPdf = new PdfDocument();
-            foreach (var f in inputs)
-            {
-                if (PdfImport.IsPdfPath(f))
-                {
-                    int pageOffset = outPdf.PageCount;
-                    Dictionary<string, int> namedDestMap;
-                    using (var srcRead = PdfReader.Open(f, PdfDocumentOpenMode.ReadOnly))
-                        namedDestMap = PdfImport.BuildNamedDestMap(srcRead);
-                    using var src = PdfReader.Open(f, PdfDocumentOpenMode.Import);
-                    for (int i = 0; i < src.PageCount; i++)
-                        outPdf.AddPage(src.Pages[i]);
-                    if (namedDestMap.Count > 0)
-                        PdfImport.RewriteNamedDestLinks(outPdf, pageOffset, namedDestMap);
-                }
-                else
-                {
-                    PdfImport.AddImagePagesFromFile(outPdf, f);
-                }
-            }
-
-            PdfScrub.ScrubEmptyOutlines(outPdf);
-            PdfScrub.ScrubDegenerateCropBoxes(outPdf);
+            byte[] merged = PdfEngineIntegration.MergeFiles(inputs);
             CliEnsureParentDir(outPath);
-            outPdf.Save(outPath);
-            con.WriteLine($"Merged {inputs.Count} files ({outPdf.PageCount} pages) -> {outPath}");
+            File.WriteAllBytes(outPath, merged);
+            int pageCount = KillerPdf.Engine.Documents.PdfDocumentInformation
+                .Read(KillerPdf.Engine.Documents.PdfDocument.Open(merged)).PageCount;
+            con.WriteLine($"Merged {inputs.Count} files ({pageCount} pages) -> {outPath}");
             return 0;
         }
 
@@ -542,7 +507,7 @@ namespace KillerPDF.Features
         // --flatten <in.pdf> <out.pdf> [--dpi n]
         // ============================================================
         // Same rasterize-and-rebuild the GUI's Save Flattened runs (150 dpi
-        // default, PNG-embedded pages sized in points), plus the rotation
+        // default, engine-authored image pages sized in points), plus the rotation
         // handling the GUI gets for free from its normalized working copy.
         private static int CliFlatten(List<string> pos, Dictionary<string, string> options, TextWriter con)
         {
@@ -561,7 +526,7 @@ namespace KillerPDF.Features
             using var dr = DocLib.Instance.GetDocReader(renderPath, new PageDimensions(dpi / 72.0));
             int pageCount = dr.GetPageCount();
 
-            using var outDoc = new PdfDocument();
+            var pages = new List<PdfEngineIntegration.RasterPage>(pageCount);
             for (int i = 0; i < pageCount; i++)
             {
                 byte[] raw; int w, h;
@@ -577,8 +542,6 @@ namespace KillerPDF.Features
                 }
                 int rot = rotations != null && i < rotations.Length ? rotations[i] : 0;
                 if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
-                var png = BitmapHelpers.RenderToPng(raw, w, h);
-
                 double wPt, hPt;
                 if (dims != null && i < dims.Length)
                 {
@@ -593,15 +556,10 @@ namespace KillerPDF.Features
                     hPt = h * 72.0 / dpi;
                 }
 
-                var newPage = outDoc.AddPage();
-                newPage.Width = XUnit.FromPoint(wPt);
-                newPage.Height = XUnit.FromPoint(hPt);
-                using var xi = XImage.FromStream(() => new MemoryStream(png));
-                using var gfx = XGraphics.FromPdfPage(newPage);
-                gfx.DrawImage(xi, 0, 0, newPage.Width.Point, newPage.Height.Point);
+                pages.Add(new PdfEngineIntegration.RasterPage(w, h, wPt, hPt, raw));
             }
             CliEnsureParentDir(outPath);
-            outDoc.Save(outPath);
+            File.WriteAllBytes(outPath, PdfEngineIntegration.CreateRasterDocument(pages));
             con.WriteLine($"Flattened {pageCount} pages at {dpi:0} dpi -> {outPath}");
             return 0;
         }
