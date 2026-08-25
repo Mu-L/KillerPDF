@@ -427,7 +427,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Drop_TooMany">Questa cartella o archivio contiene {0} file. KillerPDF aprirà solo il primo {1}. Vuoi continuare?</sys:String>
     <sys:String x:Key="Str_Status_Merged">Uniti {0} file: non ancora salvati</sys:String>
     <sys:String x:Key="Str_Drop_Merging">Unione file...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">Unione annullata</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">Unione annullata</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">Vuoi chiudere tutti i documenti? Le modifiche non salvate andranno perse.</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">Prima apri un file PDF.</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">Vuoi salvare le modifiche prima di comprimerle in ZIP?</sys:String>
