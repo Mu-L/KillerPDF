@@ -8,6 +8,7 @@ using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Security;
 using KillerPDF.Services;
 using Xunit;
+using PigDocument = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF.Tests;
 
@@ -23,6 +24,82 @@ public sealed class PdfEngineIntegrationTests
         Assert.Single(pages);
         Assert.Equal(595, pages[0].Width);
         Assert.Equal(842, pages[0].Height);
+    }
+
+    [Fact]
+    public void AddSearchableTextLayers_WritesExtractableMultiscriptUnicode()
+    {
+        string input = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-ocr-input-{Guid.NewGuid():N}.pdf");
+        string output = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-ocr-output-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder().AddBlankPage(300, 400).Build();
+            File.WriteAllBytes(input, source);
+            var words = new[]
+            {
+                new PdfEngineIntegration.SearchableWord("Hello", 10, 10, 80, 30),
+                new PdfEngineIntegration.SearchableWord("বাংলা", 10, 40, 100, 65),
+                new PdfEngineIntegration.SearchableWord("日本語", 10, 75, 100, 100),
+                new PdfEngineIntegration.SearchableWord("中文", 10, 110, 80, 135),
+            };
+
+            int count = PdfEngineIntegration.AddSearchableTextLayers(
+                input, output,
+                [new PdfEngineIntegration.SearchablePage(300, 400, words)]);
+
+            Assert.Equal(4, count);
+            Assert.True(File.ReadAllBytes(output).AsSpan(0, source.Length).SequenceEqual(source));
+            using PigDocument extracted = PigDocument.Open(output);
+            string text = extracted.GetPage(1).Text;
+            Assert.Contains("Hello", text);
+            Assert.Contains("বাংলা", text);
+            Assert.Contains("日本語", text);
+            Assert.Contains("中文", text);
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void AddSearchableTextLayers_HandlesEveryNativePageRotation()
+    {
+        string input = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-ocr-rotated-input-{Guid.NewGuid():N}.pdf");
+        string output = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-ocr-rotated-output-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+                .AddBlankPage(300, 400).AddBlankPage(300, 400)
+                .AddBlankPage(300, 400).AddBlankPage(300, 400).Build());
+            byte[] source = new PdfIncrementalPageEditor(authored)
+                .SetRotation(0, 0).SetRotation(1, 90)
+                .SetRotation(2, 180).SetRotation(3, 270).Build();
+            File.WriteAllBytes(input, source);
+            var layers = Enumerable.Range(0, 4).Select(index =>
+                new PdfEngineIntegration.SearchablePage(
+                    index % 2 == 0 ? 300 : 400,
+                    index % 2 == 0 ? 400 : 300,
+                    [new PdfEngineIntegration.SearchableWord(
+                        $"Rotation{index}", 10, 10, 120, 35)])).ToArray();
+
+            Assert.Equal(4, PdfEngineIntegration.AddSearchableTextLayers(
+                input, output, layers));
+
+            using PigDocument extracted = PigDocument.Open(output);
+            for (int index = 0; index < 4; index++)
+                Assert.Contains($"Rotation{index}", extracted.GetPage(index + 1).Text);
+        }
+        finally
+        {
+            if (File.Exists(input)) File.Delete(input);
+            if (File.Exists(output)) File.Delete(output);
+        }
     }
 
     [Fact]

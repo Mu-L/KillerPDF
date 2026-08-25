@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
+using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Writing;
 using DrawingBitmap = System.Drawing.Bitmap;
 using DrawingGraphics = System.Drawing.Graphics;
@@ -194,6 +196,103 @@ internal static class PdfEngineIntegration
     internal sealed record RasterPage(
         int PixelWidth, int PixelHeight, double PageWidth, double PageHeight,
         ReadOnlyMemory<byte> BgraPixels);
+
+    internal sealed record SearchableWord(
+        string Text, int Left, int Top, int Right, int Bottom);
+
+    internal sealed record SearchablePage(
+        int PixelWidth, int PixelHeight, IReadOnlyList<SearchableWord> Words);
+
+    /// <summary>Appends invisible, Unicode-mapped OCR text to every supplied page.</summary>
+    internal static int AddSearchableTextLayers(
+        string sourcePath, string destinationPath, IReadOnlyList<SearchablePage> pages)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        ArgumentNullException.ThrowIfNull(pages);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(sourcePath));
+        IReadOnlyList<PdfPageInformation> information = PdfPageInformation.Read(document);
+        if (pages.Count != information.Count)
+            throw new ArgumentException(
+                "The OCR page count must match the PDF page count.", nameof(pages));
+
+        var editor = new PdfIncrementalPageEditor(document);
+        var fonts = new Dictionary<string, TrueTypeFont>(StringComparer.OrdinalIgnoreCase);
+        int writtenWords = 0;
+        for (int pageIndex = 0; pageIndex < pages.Count; pageIndex++)
+        {
+            SearchablePage page = pages[pageIndex];
+            if (page.PixelWidth <= 0 || page.PixelHeight <= 0)
+                throw new ArgumentOutOfRangeException(nameof(pages),
+                    "OCR pixel dimensions must be positive.");
+            PdfPageInformation geometry = information[pageIndex];
+            double displayWidth = geometry.Rotation is 90 or 270
+                ? geometry.Height : geometry.Width;
+            double displayHeight = geometry.Rotation is 90 or 270
+                ? geometry.Width : geometry.Height;
+            double scaleX = displayWidth / page.PixelWidth;
+            double scaleY = displayHeight / page.PixelHeight;
+            var content = new PdfContentStreamBuilder().SaveState();
+            ApplyDisplayTransform(content, geometry);
+            content.BeginText().SetTextRenderingMode(PdfTextRenderingMode.Invisible);
+            int pageWords = 0;
+            foreach (SearchableWord word in page.Words)
+            {
+                if (string.IsNullOrWhiteSpace(word.Text)) continue;
+                string family = FontCoverage.PickFamily("Segoe UI", word.Text);
+                if (!fonts.TryGetValue(family, out TrueTypeFont? font))
+                {
+                    byte[]? bytes = KillerFontResolver.RegularFaceBytes(family);
+                    if (bytes is null) continue;
+                    try { font = TrueTypeFont.Load(bytes); }
+                    catch { continue; }
+                    fonts.Add(family, font);
+                }
+                if (!CanMap(font, word.Text)) continue;
+
+                double height = Math.Max(1, (word.Bottom - word.Top) * scaleY);
+                double width = Math.Max(1, (word.Right - word.Left) * scaleX);
+                double naturalWidth = NaturalWidth(font, word.Text, height);
+                double horizontalScale = naturalWidth > 0
+                    ? Math.Clamp(width / naturalWidth * 100, 10, 1000)
+                    : 100;
+                content.SetFont(font, height)
+                    .SetHorizontalTextScale(horizontalScale)
+                    .SetTextMatrix(1, 0, 0, -1,
+                        word.Left * scaleX,
+                        word.Top * scaleY + height * 0.8)
+                    .ShowUnicodeText(word.Text);
+                pageWords++;
+            }
+            content.EndText().RestoreState();
+            if (pageWords == 0) continue;
+            editor.AppendPageContent(
+                pageIndex, geometry.Width, geometry.Height, content);
+            writtenWords += pageWords;
+        }
+        ReplaceWithBuiltResult(destinationPath, editor.Build());
+        return writtenWords;
+    }
+
+    private static void ApplyDisplayTransform(
+        PdfContentStreamBuilder content, PdfPageInformation page)
+    {
+        switch (page.Rotation)
+        {
+            case 0: content.Transform(1, 0, 0, -1, 0, page.Height); break;
+            case 90: content.Transform(0, 1, 1, 0, 0, 0); break;
+            case 180: content.Transform(-1, 0, 0, 1, page.Width, 0); break;
+            case 270: content.Transform(0, -1, -1, 0, page.Width, page.Height); break;
+            default: throw new InvalidOperationException("The PDF page rotation is unsupported.");
+        }
+    }
+
+    private static bool CanMap(TrueTypeFont font, string text) =>
+        text.EnumerateRunes().All(rune => font.GetGlyphId(rune.Value) != 0);
+
+    private static double NaturalWidth(TrueTypeFont font, string text, double size) =>
+        text.EnumerateRunes().Sum(rune =>
+            font.GetPdfAdvanceWidth(font.GetGlyphId(rune.Value))) * size / 1000;
 
     /// <summary>Authors a flattened PDF from opaque or alpha-bearing PDFium BGRA pages.</summary>
     internal static byte[] CreateRasterDocument(IReadOnlyList<RasterPage> pages)
