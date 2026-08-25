@@ -223,16 +223,19 @@ public sealed class PdfIncrementalPageEditor
 
     /// <summary>Sets an existing text-field value and regenerates its widget appearance.</summary>
     public PdfIncrementalPageEditor SetTextFieldValue(
-        string fieldName, string value, TrueTypeFont? embeddedFont = null)
+        string fieldName, string value, TrueTypeFont? embeddedFont = null,
+        double? fontSize = null)
     {
         if (string.IsNullOrWhiteSpace(fieldName))
             throw new ArgumentException("The form field name cannot be empty.", nameof(fieldName));
         ArgumentNullException.ThrowIfNull(value);
+        if (fontSize.HasValue && (!double.IsFinite(fontSize.Value) || fontSize.Value <= 0))
+            throw new ArgumentOutOfRangeException(nameof(fontSize));
         _checkBoxValues.Remove(fieldName);
         _radioButtonValues.Remove(fieldName);
         _choiceFieldValues.Remove(fieldName);
         _resetFieldValues.Remove(fieldName);
-        _textFieldValues[fieldName] = new PendingTextFieldValue(value, embeddedFont);
+        _textFieldValues[fieldName] = new PendingTextFieldValue(value, embeddedFont, fontSize);
         _catalogPresentationChanged = true;
         return this;
     }
@@ -2637,7 +2640,7 @@ public sealed class PdfIncrementalPageEditor
                     $"The text field '{fieldName}' /DV value is not a string.")
             };
             UpdateTextField(update, fieldReference, field, form, fieldName,
-                new PendingTextFieldValue(text, embeddedFont));
+                new PendingTextFieldValue(text, embeddedFont, null));
             return;
         }
         if (fieldType.Equals(ButtonFieldName))
@@ -2931,7 +2934,11 @@ public sealed class PdfIncrementalPageEditor
             Alignment = (PdfTextFieldAlignment)OptionalInteger(
                 field, QuaddingName, 0, 2, fieldName)
         };
-        (double fontSize, PdfRgbColor textColor) = TextDefaultAppearance(field, form, fieldName);
+        (double existingFontSize, PdfRgbColor textColor) = TextDefaultAppearance(field, form, fieldName);
+        double fontSize = pending.FontSize ?? existingFontSize;
+        PdfString? overriddenAppearance = pending.FontSize.HasValue
+            ? OverrideDefaultAppearance(field, form, fieldName, fontSize)
+            : null;
         var widgets = new List<(PdfIndirectReference Reference, PdfDictionary Dictionary)>();
         Collect(fieldReference, field, 0);
         if (widgets.Count == 0)
@@ -2985,18 +2992,25 @@ public sealed class PdfIncrementalPageEditor
             {
                 replacements[FieldValueName] = TextString(pending.Value);
                 replacements[FieldFlagsName] = new PdfInteger(flags & ~(1L << 25));
+                if (overriddenAppearance is not null)
+                    replacements[DefaultAppearanceName] = overriddenAppearance;
             }
             update.ReplaceObject(widgetReference.ObjectNumber,
                 ReplaceMany(widget, replacements,
                     widgetReference.Equals(fieldReference) ? [RichValueName] : []));
         }
         if (!widgets.Any(widget => widget.Reference.Equals(fieldReference)))
-            update.ReplaceObject(fieldReference.ObjectNumber,
-                ReplaceMany(field, new Dictionary<PdfName, PdfObject>
+        {
+            var fieldReplacements = new Dictionary<PdfName, PdfObject>
                 {
                     [FieldValueName] = TextString(pending.Value),
                     [FieldFlagsName] = new PdfInteger(flags & ~(1L << 25))
-                }, [RichValueName]));
+                };
+            if (overriddenAppearance is not null)
+                fieldReplacements[DefaultAppearanceName] = overriddenAppearance;
+            update.ReplaceObject(fieldReference.ObjectNumber,
+                ReplaceMany(field, fieldReplacements, [RichValueName]));
+        }
 
         void Collect(PdfIndirectReference reference, PdfDictionary candidate, int depth)
         {
@@ -3018,6 +3032,30 @@ public sealed class PdfIncrementalPageEditor
                 Collect(kidReference, kid, depth + 1);
             }
         }
+    }
+
+    private PdfString OverrideDefaultAppearance(
+        PdfDictionary field, PdfDictionary form, string fieldName, double fontSize)
+    {
+        PdfObject value = field.TryGetValue(DefaultAppearanceName, out PdfObject? fieldValue)
+            ? fieldValue
+            : form.TryGetValue(DefaultAppearanceName, out PdfObject? formValue)
+                ? formValue
+                : throw new InvalidOperationException(
+                    $"The text field '{fieldName}' has no default appearance.");
+        PdfString appearance = ResolveCatalogValue(
+            _document, value, $"The text field '{fieldName}' /DA value") as PdfString
+            ?? throw new InvalidOperationException(
+                $"The text field '{fieldName}' /DA value is not a string.");
+        string[] tokens = Encoding.Latin1.GetString(appearance.Bytes.Span)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        int tf = Array.IndexOf(tokens, "Tf");
+        if (tf < 2)
+            throw new InvalidOperationException(
+                $"The text field '{fieldName}' /DA value has no valid font selection.");
+        tokens[tf - 1] = fontSize.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+        return new PdfString(Encoding.Latin1.GetBytes(string.Join(' ', tokens)),
+            PdfStringForm.Literal);
     }
 
     private long FieldFlags(PdfDictionary field, string fieldName)
@@ -17247,7 +17285,7 @@ public sealed class PdfIncrementalPageEditor
         string? Condition, string? RegistryName,
         string? Information);
     private sealed record PendingTextFieldValue(
-        string Value, TrueTypeFont? EmbeddedFont);
+        string Value, TrueTypeFont? EmbeddedFont, double? FontSize);
     private sealed record PendingChoiceFieldValue(
         IReadOnlyList<string> Values, TrueTypeFont? EmbeddedFont,
         bool AllowEmptySingle);

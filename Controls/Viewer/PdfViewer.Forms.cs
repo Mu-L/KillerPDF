@@ -25,6 +25,11 @@ namespace KillerPDF.Controls
     // spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
+        private sealed record FormChoiceItem(string ExportValue, string DisplayValue)
+        {
+            public override string ToString() => DisplayValue;
+        }
+
         private readonly record struct FormFieldInfo(
             int    ObjNum,        // widget annotation object number (used as key)
             string FieldType,     // /Tx, /Btn, /Ch
@@ -36,7 +41,7 @@ namespace KillerPDF.Controls
             string OnValue,       // radio/checkbox on-state value (e.g. "/Yes")
             bool   IsReadOnly,
             double Cx, double Cy, double Cw, double Ch,
-            List<string> Options,
+            List<FormChoiceItem> Options,
             double DaFontPt,   // font size from the field's /DA (points); 0 = auto-size
             double Scale,      // canvas units per PDF point, for converting DaFontPt to canvas size
             bool   IsComb,     // #158: /Tx with the Comb flag (bit 25) and a MaxLen
@@ -87,13 +92,13 @@ namespace KillerPDF.Controls
                 }
                 else if (!f.IsCheckBox && !f.IsRadio && f.FieldType != "/Ch")
                 {
-                    string cur     = _formTextValues.TryGetValue(f.ObjNum, out var tv) ? tv : f.CurrentValue;
+                    string cur     = _formTextValues.TryGetValue(f.FieldName, out var tv) ? tv : f.CurrentValue;
                     // Size text the way the field intends: use its /DA font size when one is given;
                     // otherwise auto-size - single-line fits the box height (capped so a tall field
                     // isn't giant), multi-line uses a steady readable size rather than shrinking with
                     // the box. This replaces the old box-height guess that made fields huge or tiny.
                     double fontSize;
-                    if (_formFontSizes.TryGetValue(f.ObjNum, out var userPt) && userPt > 0 && f.Scale > 0)
+                    if (_formFontSizes.TryGetValue(f.FieldName, out var userPt) && userPt > 0 && f.Scale > 0)
                         fontSize = userPt * f.Scale;          // user override (the new per-field size control)
                     else if (f.DaFontPt > 0.5 && f.Scale > 0)
                         fontSize = f.DaFontPt * f.Scale;
@@ -142,7 +147,7 @@ namespace KillerPDF.Controls
                     if (f.IsComb) tb.FontFamily = new FontFamily("Consolas");
                     // No outline at rest (the page already shows the field box); accent only on focus.
                     // Focus also raises the per-field font-size stepper (and hides it on blur).
-                    int    capturedKey   = f.ObjNum;
+                    string capturedKey   = f.FieldName;
                     double capturedScale = f.Scale;
                     tb.GotFocus  += (_, _) => { tb.SetResourceReference(Control.BorderBrushProperty, "HeaderLineBrush"); ShowFormSizeBar(tb, capturedKey, capturedScale); };
                     tb.LostFocus += (_, _) => { tb.BorderBrush = Brushes.Transparent; HideFormSizeBar(); };
@@ -153,7 +158,7 @@ namespace KillerPDF.Controls
                 // Dropdown / choice
                 else if (f.FieldType == "/Ch" && f.Options.Count > 0)
                 {
-                    string cur = _formTextValues.TryGetValue(f.ObjNum, out var tv) ? tv : f.CurrentValue;
+                    string cur = _formChoiceValues.TryGetValue(f.FieldName, out var tv) ? tv : f.CurrentValue;
                     var combo = new ComboBox
                     {
                         Tag       = FormOverlayTag,
@@ -167,11 +172,16 @@ namespace KillerPDF.Controls
                         ToolTip   = string.IsNullOrEmpty(f.FieldName) ? null : f.FieldName,
                     };
                     foreach (var opt in f.Options) combo.Items.Add(opt);
-                    combo.SelectedItem = cur;
-                    int capturedKey = f.ObjNum;
+                    combo.SelectedItem = f.Options.FirstOrDefault(option =>
+                        string.Equals(option.ExportValue, cur, StringComparison.Ordinal));
+                    string capturedKey = f.FieldName;
                     combo.SelectionChanged += (_, _) =>
                     {
-                        if (combo.SelectedItem is string s) { _formTextValues[capturedKey] = s; MarkDirty(true); }
+                        if (combo.SelectedItem is FormChoiceItem selected)
+                        {
+                            _formChoiceValues[capturedKey] = selected.ExportValue;
+                            MarkDirty(true);
+                        }
                     };
                     ctrl = combo;
                 }
@@ -179,7 +189,7 @@ namespace KillerPDF.Controls
                 // Checkbox
                 else if (f.IsCheckBox)
                 {
-                    bool isChecked = _formCheckValues.TryGetValue(f.ObjNum, out var cv) ? cv
+                    bool isChecked = _formCheckValues.TryGetValue(f.FieldName, out var cv) ? cv
                         : !string.IsNullOrEmpty(f.CurrentValue)
                           && f.CurrentValue != "/Off" && f.CurrentValue != "Off";
 
@@ -211,7 +221,7 @@ namespace KillerPDF.Controls
                     };
                     if (!f.IsReadOnly)
                     {
-                        int capturedKey = f.ObjNum;
+                        string capturedKey = f.FieldName;
                         box.MouseLeftButtonDown += (_, e) =>
                         {
                             bool now = !(_formCheckValues.TryGetValue(capturedKey, out var v) ? v : isChecked);
@@ -449,19 +459,20 @@ namespace KillerPDF.Controls
                     // Walk the parent chain to resolve inherited attributes
                     string ft     = "";
                     string name   = "";
+                    var nameParts = new List<string>();
                     string curVal = "";
                     string da     = "";   // default appearance string (holds the field's font size)
                     int    flags  = 0;
                     int    maxLen = 0;    // #158: /MaxLen, the comb cell count
-                    var    options = new List<string>();
+                    var    options = new List<FormChoiceItem>();
 
                     PdfDictionary? node = ann;
                     while (node is not null)
                     {
                         if (string.IsNullOrEmpty(ft)   && node.Elements["/FT"] is not null)
                             ft = node.Elements["/FT"]?.ToString() ?? "";
-                        if (string.IsNullOrEmpty(name) && node.Elements["/T"] is PdfString ts)
-                            name = ts.Value;
+                        if (node.Elements["/T"] is PdfString ts && !string.IsNullOrEmpty(ts.Value))
+                            nameParts.Add(ts.Value);
                         if (string.IsNullOrEmpty(curVal) && node.Elements["/V"] is not null)
                         {
                             var vElem = node.Elements["/V"];
@@ -478,9 +489,14 @@ namespace KillerPDF.Controls
                             for (int j = 0; j < optArr.Elements.Count; j++)
                             {
                                 var o = optArr.Elements[j];
-                                if (o is PdfString ps2) options.Add(ps2.Value);
+                                if (o is PdfString ps2) options.Add(new FormChoiceItem(ps2.Value, ps2.Value));
                                 else if (o is PdfArray pa2 && pa2.Elements.Count >= 2)
-                                    options.Add((pa2.Elements[1] as PdfString)?.Value ?? "");
+                                {
+                                    string export = (pa2.Elements[0] as PdfString)?.Value ?? "";
+                                    string display = (pa2.Elements[1] as PdfString)?.Value ?? export;
+                                    if (!string.IsNullOrEmpty(export))
+                                        options.Add(new FormChoiceItem(export, display));
+                                }
                             }
                         }
 
@@ -489,10 +505,15 @@ namespace KillerPDF.Controls
                         if (parentItem is null) break;
                         node = parentItem as PdfDictionary ?? DerefItem(parentItem) as PdfDictionary;
                     }
+                    if (nameParts.Count > 0)
+                    {
+                        nameParts.Reverse();
+                        name = string.Join('.', nameParts);
+                    }
 
                     // No resolvable field type (directly or inherited) means this Widget is not a fillable
                     // field (just a bare annotation widget). Skip it rather than guessing it's a text box.
-                    if (string.IsNullOrEmpty(ft)) continue;
+                    if (string.IsNullOrEmpty(ft) || string.IsNullOrEmpty(name)) continue;
 
                     bool isReadOnly  = (flags & 1) != 0;
                     bool isMultiLine = ft.Contains("Tx") && (flags & 4096) != 0;
@@ -560,163 +581,13 @@ namespace KillerPDF.Controls
         }
 
         /// <summary>
-        /// Writes all filled form values back into the PDF document's AcroForm field dictionaries.
-        /// Called just before saving so values are persisted in the output file.
+        /// Applies all pending form values to a saved PDF as one engine revision.
         /// </summary>
-        private void WriteFormValuesToDocument()
+        private void WriteFormValuesToDocument(string path)
         {
-            if (_doc is null) return;
-            if (_formTextValues.Count == 0 && _formCheckValues.Count == 0 && _formRadioValues.Count == 0) return;
-
-            try
-            {
-                for (int p = 0; p < _doc.PageCount; p++)
-                {
-                    var page = _doc.Pages[p];
-                    var annotsArr = page.Elements.GetArray("/Annots");
-                    if (annotsArr is null) continue;
-
-                    for (int i = 0; i < annotsArr.Elements.Count; i++)
-                    {
-                        PdfItem? elem = annotsArr.Elements[i];
-                        PdfDictionary? ann = elem as PdfDictionary ?? DerefItem(elem) as PdfDictionary;
-                        if (ann is null) continue;
-
-                        var subtype = ann.Elements["/Subtype"]?.ToString() ?? "";
-                        if (!subtype.Contains("Widget")) continue;
-
-                        int objNum = PdfScrub.GetObjectNumber(elem);
-                        if (objNum < 0) objNum = -(p * 10000 + i);
-
-                        // Walk parent chain to find the canonical field dict (owns /FT)
-                        PdfDictionary? fieldDict = ann;
-                        PdfDictionary? node = ann;
-                        while (node is not null)
-                        {
-                            if (node.Elements["/FT"] is not null) { fieldDict = node; break; }
-                            var pi = node.Elements["/Parent"];
-                            if (pi is null) break;
-                            node = pi as PdfDictionary ?? DerefItem(pi) as PdfDictionary;
-                        }
-
-                        // Gather field rect for AP stream sizing
-                        var rectArr = ann.Elements.GetArray("/Rect");
-                        double fieldW = 100, fieldH = 20;
-                        if (rectArr?.Elements.Count >= 4)
-                        {
-                            double rx1 = rectArr.Elements.GetReal(0), ry1 = rectArr.Elements.GetReal(1);
-                            double rx2 = rectArr.Elements.GetReal(2), ry2 = rectArr.Elements.GetReal(3);
-                            fieldW = Math.Abs(rx2 - rx1);
-                            fieldH = Math.Abs(ry2 - ry1);
-                        }
-
-                        // Resolve /DA for font name/size (walk parent chain)
-                        string? daStr = null;
-                        node = ann;
-                        while (node is not null && daStr is null)
-                        {
-                            if (node.Elements["/DA"] is PdfString ds) daStr = ds.Value;
-                            var pi = node.Elements["/Parent"];
-                            if (pi is null) break;
-                            node = pi as PdfDictionary ?? DerefItem(pi) as PdfDictionary;
-                        }
-
-                        // /Ff is inheritable like /DA, and bit 13 (4096) is Multiline. The saved
-                        // appearance has to know which it is: a multiline field lays its value out
-                        // in lines from the top of the box, a single-line one draws one centered line.
-                        int fieldFlags = 0;
-                        int combLen = 0;   // #158: /MaxLen, inheritable like /Ff
-                        node = ann;
-                        while (node is not null && (fieldFlags == 0 || combLen == 0))
-                        {
-                            if (fieldFlags == 0 && node.Elements["/Ff"] is PdfInteger fi) fieldFlags = fi.Value;
-                            if (combLen == 0 && node.Elements["/MaxLen"] is PdfInteger ml) combLen = ml.Value;
-                            var pi = node.Elements["/Parent"];
-                            if (pi is null) break;
-                            node = pi as PdfDictionary ?? DerefItem(pi) as PdfDictionary;
-                        }
-                        bool isMultiLine = (fieldFlags & 4096) != 0;
-                        bool isComb = (fieldFlags & (1 << 24)) != 0 && combLen > 0 && !isMultiLine;
-
-                        if (_formTextValues.TryGetValue(objNum, out var textVal) && fieldDict is not null)
-                        {
-                            fieldDict.Elements["/V"] = new PdfString(textVal);
-                            // Bake a per-field font-size override (from the size stepper) into the
-                            // field's /DA so the saved appearance and any later editor use it.
-                            if (_formFontSizes.TryGetValue(objNum, out var ovPt) && ovPt > 0)
-                            {
-                                daStr = WithDaFontSize(daStr, ovPt);
-                                fieldDict.Elements["/DA"] = new PdfString(daStr);
-                            }
-                            GenerateTextFieldAppearance(ann, textVal, daStr, fieldW, fieldH, isMultiLine,
-                                isComb ? combLen : 0);
-                        }
-                        else if (_formCheckValues.TryGetValue(objNum, out var checkVal) && fieldDict is not null)
-                        {
-                            string onVal = "/Yes";
-                            try
-                            {
-                                var apDict = ann.Elements.GetDictionary("/AP");
-                                var nDict  = apDict?.Elements.GetDictionary("/N");
-                                if (nDict is not null)
-                                    foreach (var k in nDict.Elements.Keys)
-                                        if (k != "/Off") { onVal = k; break; }
-                            }
-                            catch { }
-
-                            fieldDict.Elements["/V"]  = new PdfName(checkVal ? onVal : "/Off");
-                            fieldDict.Elements["/AS"] = new PdfName(checkVal ? onVal : "/Off");
-                            ann.Elements["/AS"]        = new PdfName(checkVal ? onVal : "/Off");
-                            GenerateCheckBoxAppearance(ann, checkVal, onVal, fieldW, fieldH);
-                        }
-                        else if (_formRadioValues.Count > 0 && fieldDict is not null)
-                        {
-                            // Radio button: look up by field name (shared across all widgets in the group)
-                            string ft2 = fieldDict.Elements["/FT"]?.ToString() ?? "";
-                            if (ft2.Contains("Btn"))
-                            {
-                                // Walk to find /T on the parent field node
-                                string fieldName2 = "";
-                                var n2 = fieldDict;
-                                while (n2 is not null && string.IsNullOrEmpty(fieldName2))
-                                {
-                                    if (n2.Elements["/T"] is PdfString ts2) fieldName2 = ts2.Value;
-                                    var pi2 = n2.Elements["/Parent"];
-                                    if (pi2 is null) break;
-                                    n2 = pi2 as PdfDictionary ?? DerefItem(pi2) as PdfDictionary;
-                                }
-                                if (_formRadioValues.TryGetValue(fieldName2, out var radioSel))
-                                {
-                                    // Set /V on the parent field
-                                    fieldDict.Elements["/V"] = new PdfName(radioSel);
-                                    // Set /AS on this widget to show selected or off
-                                    string onVal2 = "/Yes";
-                                    try
-                                    {
-                                        var apD = ann.Elements.GetDictionary("/AP");
-                                        var nD  = apD?.Elements.GetDictionary("/N");
-                                        if (nD is not null)
-                                            foreach (var k in nD.Elements.Keys)
-                                                if (k != "/Off") { onVal2 = k; break; }
-                                    }
-                                    catch { }
-                                    ann.Elements["/AS"] = new PdfName(onVal2 == radioSel ? onVal2 : "/Off");
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Belt-and-suspenders: also set NeedAppearances in case any AP generation failed
-                try
-                {
-                    var acroForm = _doc.Internals.Catalog.Elements.GetDictionary("/AcroForm");
-                    if (acroForm is not null)
-                        acroForm.Elements["/NeedAppearances"] = new PdfBoolean(true);
-                }
-                catch { }
-            }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"WriteFormValuesToDocument: {ex}"); }
+            PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
+                _formTextValues, _formChoiceValues, _formCheckValues,
+                _formRadioValues, _formFontSizes));
         }
 
         /// <summary>
@@ -1018,11 +889,11 @@ namespace KillerPDF.Controls
         // can never collide with the annotate bars or float detached over the page.
         private ScrollChangedEventHandler? _formBarScrollHook;   // detached in HideFormSizeBar
 
-        private void ShowFormSizeBar(TextBox tb, int objNum, double scale)
+        private void ShowFormSizeBar(TextBox tb, string fieldName, double scale)
         {
             HideFormSizeBar();
             _activeFormTb    = tb;
-            _activeFormObj   = objNum;
+            _activeFormName  = fieldName;
             _activeFormScale = scale > 0 ? scale : 1;
 
             double curPt = Math.Round(_activeFormTb.FontSize / _activeFormScale);
@@ -1134,7 +1005,7 @@ namespace KillerPDF.Controls
             double scale = _activeFormScale > 0 ? _activeFormScale : 1;
             double pt = Math.Round(_activeFormTb.FontSize / scale);
             pt = Math.Max(4, Math.Min(96, pt + delta));
-            _formFontSizes[_activeFormObj] = pt;
+            _formFontSizes[_activeFormName] = pt;
             _activeFormTb.FontSize = pt * scale;
             sizeLbl.Text = pt.ToString("0");
             MarkDirty(true);

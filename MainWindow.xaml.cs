@@ -77,15 +77,16 @@ namespace KillerPDF
         // the content isn't clipped; RotateBitmap is applied at render time instead.
         private Dictionary<int, int> _pageRotations { get => ActiveViewer.PageRotationsRef; set => ActiveViewer.PageRotationsRef = value; }
 
-        // Form filling - text/check keyed by widget object number; radio keyed by field name
-        private Dictionary<int, string> _formTextValues { get => ActiveViewer.FormTextValuesRef; set => ActiveViewer.FormTextValuesRef = value; }
-        private Dictionary<int, bool> _formCheckValues { get => ActiveViewer.FormCheckValuesRef; set => ActiveViewer.FormCheckValuesRef = value; }
+        // Form filling, keyed by each field's qualified name.
+        private Dictionary<string, string> _formTextValues { get => ActiveViewer.FormTextValuesRef; set => ActiveViewer.FormTextValuesRef = value; }
+        private Dictionary<string, string> _formChoiceValues { get => ActiveViewer.FormChoiceValuesRef; set => ActiveViewer.FormChoiceValuesRef = value; }
+        private Dictionary<string, bool> _formCheckValues { get => ActiveViewer.FormCheckValuesRef; set => ActiveViewer.FormCheckValuesRef = value; }
         private Dictionary<string, string> _formRadioValues { get => ActiveViewer.FormRadioValuesRef; set => ActiveViewer.FormRadioValuesRef = value; }
-        private Dictionary<int, double> _formFontSizes { get => ActiveViewer.FormFontSizesRef; set => ActiveViewer.FormFontSizesRef = value; }
+        private Dictionary<string, double> _formFontSizes { get => ActiveViewer.FormFontSizesRef; set => ActiveViewer.FormFontSizesRef = value; }
         // Floating font-size stepper shown while a form text field is focused.
         private Border? _formSizeBar { get => ActiveViewer.FormSizeBarRef; set => ActiveViewer.FormSizeBarRef = value; }
         private TextBox? _activeFormTb { get => ActiveViewer.ActiveFormTbRef; set => ActiveViewer.ActiveFormTbRef = value; }
-        private int _activeFormObj { get => ActiveViewer.ActiveFormObjRef; set => ActiveViewer.ActiveFormObjRef = value; }
+        private string _activeFormName { get => ActiveViewer.ActiveFormNameRef; set => ActiveViewer.ActiveFormNameRef = value; }
         private double _activeFormScale { get => ActiveViewer.ActiveFormScaleRef; set => ActiveViewer.ActiveFormScaleRef = value; }
         private const string FormOverlayTag = "FormFieldOverlay";
 

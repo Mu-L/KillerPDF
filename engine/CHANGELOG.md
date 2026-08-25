@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Integrated desktop form persistence through one engine revision for text, choice, checkbox, and radio fields, and added an optional validated text-size override that updates both the field default appearance and regenerated widget appearance.
 - Reused the application rotation gate to restore rotated CLI OCR output without a second full-document resave.
 - Integrated authenticated encryption removal into the desktop open pipeline, including engine-first handling for empty-password protected files before tolerant fallbacks.
 - Added an explicit full-rewrite policy for removing password encryption from an authenticated document, including omission of the encryption dictionary from the output object graph.

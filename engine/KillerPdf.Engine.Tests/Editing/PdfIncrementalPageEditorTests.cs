@@ -12751,7 +12751,7 @@ public sealed class PdfIncrementalPageEditorTests
             .Build();
 
         byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
-            .SetTextFieldValue("customer.name", "Updated")
+            .SetTextFieldValue("customer.name", "Updated", fontSize: 7.5)
             .Build();
 
         Assert.Equal(source, updated[..source.Length]);
@@ -12766,11 +12766,14 @@ public sealed class PdfIncrementalPageEditorTests
             Assert.IsType<PdfString>(field[Name("V")])));
         Assert.Equal("Default", DecodeUnicode(
             Assert.IsType<PdfString>(field[Name("DV")])));
+        Assert.Contains("7.5 Tf", Encoding.Latin1.GetString(
+            Assert.IsType<PdfString>(field[Name("DA")]).Bytes.Span));
         Assert.False(Assert.IsType<PdfBoolean>(form[Name("NeedAppearances")]).Value);
         PdfDictionary appearance = DictionaryValue(document, field[Name("AP")]);
         PdfStream normal = ResolveStream(document, appearance[Name("N")]);
         string operators = Encoding.Latin1.GetString(PdfStreamDecoder.Decode(normal));
         Assert.Contains("(Updated) Tj", operators);
+        Assert.Contains("7.5 Tf", operators);
         Assert.Contains("[3 2] 0 d", operators);
         Assert.Contains("0.2 0.3 0.4 rg", operators);
     }
@@ -12819,6 +12822,9 @@ public sealed class PdfIncrementalPageEditorTests
             new PdfIncrementalPageEditor(PdfDocument.Open(textSource))
                 .SetTextFieldValue("code", "too long")
                 .Build());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PdfIncrementalPageEditor(PdfDocument.Open(textSource))
+                .SetTextFieldValue("code", "1234", fontSize: 0));
         byte[] checkBoxSource = new PdfDocumentBuilder().AddBlankPage()
             .AddCheckBox(0, "approved", 20, 20, 20, 20).Build();
         Assert.Throws<InvalidOperationException>(() =>

@@ -96,13 +96,14 @@ namespace KillerPDF.Controls
         private bool _updatingCropInputs;
 
         // ── Form filling ─────────────────────────────────────────────────────────────────────
-        private Dictionary<int, string> _formTextValues = [];
-        private Dictionary<int, bool> _formCheckValues = [];
+        private Dictionary<string, string> _formTextValues = [];
+        private Dictionary<string, string> _formChoiceValues = [];
+        private Dictionary<string, bool> _formCheckValues = [];
         private Dictionary<string, string> _formRadioValues = [];
-        private Dictionary<int, double> _formFontSizes = [];
+        private Dictionary<string, double> _formFontSizes = [];
         private Border? _formSizeBar;
         private TextBox? _activeFormTb;
-        private int _activeFormObj;
+        private string _activeFormName = string.Empty;
         private double _activeFormScale = 1;
         private const string FormOverlayTag = "FormFieldOverlay";
 

@@ -174,6 +174,7 @@ namespace KillerPDF
             _navForward.Clear();
             _renderDims.Clear();
             _formTextValues.Clear();
+            _formChoiceValues.Clear();
             _formCheckValues.Clear();
             _formFontSizes.Clear();
             _formRadioValues.Clear();
@@ -388,6 +389,7 @@ namespace KillerPDF
             _navForward.Clear();
             _renderDims.Clear();
             _formTextValues.Clear();
+            _formChoiceValues.Clear();
             _formCheckValues.Clear();
             _formFontSizes.Clear();
             _formRadioValues.Clear();
@@ -976,7 +978,6 @@ namespace KillerPDF
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
-                WriteFormValuesToDocument();
                 Dictionary<int, int> finalRotations = SnapshotPageRotations();
                 // Always strip link annotation borders regardless of user annotation count
                 // so mailto/URI links don't appear as strikethrough lines in other viewers.
@@ -992,6 +993,7 @@ namespace KillerPDF
                     DrawStampsOnDocument();
                     DrawAnnotationsOnDocument();
                     _doc.Save(saveTarget);
+                    WriteFormValuesToDocument(saveTarget);
                     PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                     _doc.Close();
                     try
@@ -1012,6 +1014,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(saveTarget);
+                    WriteFormValuesToDocument(saveTarget);
                     PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                 }
 
@@ -1089,7 +1092,6 @@ namespace KillerPDF
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
-                WriteFormValuesToDocument();
                 Dictionary<int, int> finalRotations = SnapshotPageRotations();
                 // Always strip link annotation borders regardless of user annotation count.
                 PdfScrub.StripLinkAnnotationBorders(_doc);
@@ -1101,6 +1103,7 @@ namespace KillerPDF
                     DrawStampsOnDocument();
                     DrawAnnotationsOnDocument();
                     _doc.Save(dlg.FileName);
+                    WriteFormValuesToDocument(dlg.FileName);
                     PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _doc.Close();
                     try
@@ -1132,6 +1135,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(dlg.FileName);
+                    WriteFormValuesToDocument(dlg.FileName);
                     PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _originalFile = dlg.FileName;
                     FileNameLabel.Text = System.IO.Path.GetFileName(dlg.FileName);

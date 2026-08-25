@@ -95,7 +95,7 @@ namespace KillerPDF
 
         // ── Save paths ───────────────────────────────────────────────────────────────────────
         private void DrawAnnotationsOnDocument(int? onlyPage = null) => ActiveViewer.DrawAnnotationsOnDocumentExt(onlyPage);
-        private void WriteFormValuesToDocument() => ActiveViewer.WriteFormValuesToDocumentExt();
+        private void WriteFormValuesToDocument(string path) => ActiveViewer.WriteFormValuesToDocumentExt(path);
 
         // ── Bound from MainWindow.xaml - see the class comment, these are load-bearing ───────
         private void Undo_Click(object sender, RoutedEventArgs e) => ActiveViewer.UndoClickExt(sender, e);

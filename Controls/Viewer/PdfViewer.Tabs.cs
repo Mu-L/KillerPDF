@@ -68,10 +68,11 @@ namespace KillerPDF.Controls
             // which killed the background render tasks (vanishing thumbnails after invert).
             public readonly System.Collections.Concurrent.ConcurrentDictionary<(int page, int bucket, int rot), long> RenderCacheSize = new();
             public Dictionary<int, int> PageRotations = [];
-            public Dictionary<int, string> FormTextValues = [];
-            public Dictionary<int, bool> FormCheckValues = [];
+            public Dictionary<string, string> FormTextValues = [];
+            public Dictionary<string, string> FormChoiceValues = [];
+            public Dictionary<string, bool> FormCheckValues = [];
             public Dictionary<string, string> FormRadioValues = [];
-            public Dictionary<int, double> FormFontSizes = [];
+            public Dictionary<string, double> FormFontSizes = [];
             public Stack<UndoEntry> UndoStack = new();
             public Stack<UndoEntry> RedoStack = new();
             public Dictionary<int, List<(double left, double bottom, double right, double top)>> AllSearchRects = [];
@@ -205,6 +206,7 @@ namespace KillerPDF.Controls
             s.RenderDims       = _renderDims;
             s.PageRotations    = _pageRotations;
             s.FormTextValues   = _formTextValues;
+            s.FormChoiceValues = _formChoiceValues;
             s.FormCheckValues  = _formCheckValues;
             s.FormRadioValues  = _formRadioValues;
             s.FormFontSizes    = _formFontSizes;
@@ -299,6 +301,7 @@ namespace KillerPDF.Controls
             _renderDims       = s.RenderDims;
             _pageRotations    = s.PageRotations;
             _formTextValues   = s.FormTextValues;
+            _formChoiceValues = s.FormChoiceValues;
             _formCheckValues  = s.FormCheckValues;
             _formRadioValues  = s.FormRadioValues;
             _formFontSizes    = s.FormFontSizes;

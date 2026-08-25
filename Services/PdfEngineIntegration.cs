@@ -12,6 +12,35 @@ namespace KillerPDF.Services;
 /// <summary>Bridges completed application state into The KillerPDF.Engine during migration.</summary>
 internal static class PdfEngineIntegration
 {
+    internal sealed record FormEdits(
+        IReadOnlyDictionary<string, string> TextValues,
+        IReadOnlyDictionary<string, string> ChoiceValues,
+        IReadOnlyDictionary<string, bool> CheckBoxValues,
+        IReadOnlyDictionary<string, string> RadioValues,
+        IReadOnlyDictionary<string, double> TextFontSizes);
+
+    /// <summary>Applies a complete pending form-edit batch as one incremental revision.</summary>
+    internal static void ApplyFormValues(string path, FormEdits edits)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(edits);
+        if (edits.TextValues.Count == 0 && edits.ChoiceValues.Count == 0
+            && edits.CheckBoxValues.Count == 0 && edits.RadioValues.Count == 0)
+            return;
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        var editor = new PdfIncrementalPageEditor(document);
+        foreach ((string name, string value) in edits.TextValues.OrderBy(item => item.Key))
+            editor.SetTextFieldValue(name, value, fontSize:
+                edits.TextFontSizes.TryGetValue(name, out double size) ? size : null);
+        foreach ((string name, string value) in edits.ChoiceValues.OrderBy(item => item.Key))
+            editor.SetChoiceFieldValue(name, value);
+        foreach ((string name, bool value) in edits.CheckBoxValues.OrderBy(item => item.Key))
+            editor.SetCheckBoxValue(name, value);
+        foreach ((string name, string value) in edits.RadioValues.OrderBy(item => item.Key))
+            editor.SetRadioButtonValue(name, value.TrimStart('/'));
+        ReplaceWithBuiltResult(path, editor.Build());
+    }
+
     /// <summary>Authenticates and fully rewrites a PDF without password encryption.</summary>
     internal static void RemoveEncryption(
         string sourcePath, string destinationPath, string password)

@@ -165,13 +165,14 @@ namespace KillerPDF.Controls
         internal TextBox? CropRangeBoxRef { get => _cropRangeBox; set => _cropRangeBox = value; }
         internal string CropUnitRef { get => _cropUnit; set => _cropUnit = value; }
         internal bool UpdatingCropInputsRef { get => _updatingCropInputs; set => _updatingCropInputs = value; }
-        internal Dictionary<int, string> FormTextValuesRef { get => _formTextValues; set => _formTextValues = value; }
-        internal Dictionary<int, bool> FormCheckValuesRef { get => _formCheckValues; set => _formCheckValues = value; }
+        internal Dictionary<string, string> FormTextValuesRef { get => _formTextValues; set => _formTextValues = value; }
+        internal Dictionary<string, string> FormChoiceValuesRef { get => _formChoiceValues; set => _formChoiceValues = value; }
+        internal Dictionary<string, bool> FormCheckValuesRef { get => _formCheckValues; set => _formCheckValues = value; }
         internal Dictionary<string, string> FormRadioValuesRef { get => _formRadioValues; set => _formRadioValues = value; }
-        internal Dictionary<int, double> FormFontSizesRef { get => _formFontSizes; set => _formFontSizes = value; }
+        internal Dictionary<string, double> FormFontSizesRef { get => _formFontSizes; set => _formFontSizes = value; }
         internal Border? FormSizeBarRef { get => _formSizeBar; set => _formSizeBar = value; }
         internal TextBox? ActiveFormTbRef { get => _activeFormTb; set => _activeFormTb = value; }
-        internal int ActiveFormObjRef { get => _activeFormObj; set => _activeFormObj = value; }
+        internal string ActiveFormNameRef { get => _activeFormName; set => _activeFormName = value; }
         internal double ActiveFormScaleRef { get => _activeFormScale; set => _activeFormScale = value; }
         internal Stack<UndoEntry> UndoStackRef { get => _undoStack; set => _undoStack = value; }
         internal Stack<UndoEntry> RedoStackRef { get => _redoStack; set => _redoStack = value; }
@@ -190,7 +191,7 @@ namespace KillerPDF.Controls
 
         // ── Save paths ───────────────────────────────────────────────────────────────────────
         internal void DrawAnnotationsOnDocumentExt(int? onlyPage = null) => DrawAnnotationsOnDocument(onlyPage);
-        internal void WriteFormValuesToDocumentExt() => WriteFormValuesToDocument();
+        internal void WriteFormValuesToDocumentExt(string path) => WriteFormValuesToDocument(path);
 
         // ── Handlers bound from MainWindow.xaml ──────────────────────────────────────────────
         // WPF resolves Click="X" against the XAML root's code-behind, which is still MainWindow, so

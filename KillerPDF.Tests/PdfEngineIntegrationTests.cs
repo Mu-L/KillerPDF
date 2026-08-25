@@ -14,6 +14,46 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void ApplyFormValues_WritesAllDesktopFieldTypesInOneRevision()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-forms-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder()
+                .AddBlankPage()
+                .AddBlankPage()
+                .AddTextField(0, "customer.name", 20, 20, 140, 24, "Original")
+                .AddComboBoxOptions(0, "customer.country", 20, 60, 140, 24, [
+                    new PdfChoiceOption("US", "United States"),
+                    new PdfChoiceOption("CA", "Canada")], "US")
+                .AddCheckBox(0, "customer.approved", 20, 100, 20, 20)
+                .AddRadioGroup("customer.plan", [
+                    new PdfRadioButtonOption(0, 20, 140, 20, 20, "Free"),
+                    new PdfRadioButtonOption(1, 20, 20, 20, 20, "Pro")], "Free")
+                .Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
+                new Dictionary<string, string> { ["customer.name"] = "Updated" },
+                new Dictionary<string, string> { ["customer.country"] = "CA" },
+                new Dictionary<string, bool> { ["customer.approved"] = true },
+                new Dictionary<string, string> { ["customer.plan"] = "/Pro" },
+                new Dictionary<string, double> { ["customer.name"] = 7.5 }));
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            Assert.Equal(2, PdfDocumentInformation.Read(PdfDocument.Open(result)).PageCount);
+            string syntax = System.Text.Encoding.Latin1.GetString(result);
+            Assert.Contains("/V /Pro", syntax);
+            Assert.Contains("7.5 Tf", syntax);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void RemoveEncryption_WritesPasswordFreeDocumentWithPreservedMetadata()
     {
         string sourcePath = Path.Combine(Path.GetTempPath(), $"killerpdf-encrypted-{Guid.NewGuid():N}.pdf");
