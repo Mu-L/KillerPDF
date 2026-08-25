@@ -1200,9 +1200,9 @@ namespace KillerPDF
 
             content.Children.Add(new TextBlock
             {
-                Text         = alreadyInstalled
-                    ? "A newer version is available. Install it or run without updating."
-                    : "Install KillerPDF on this computer, or run it without installing.",
+                Text         = Current.TryFindResource(alreadyInstalled
+                    ? "Str_Dlg_UpdateUserMsg"
+                    : "Str_Dlg_InstallMsg") as string ?? string.Empty,
                 Foreground   = Brushes.White,
                 TextWrapping = TextWrapping.Wrap,
                 Margin       = new Thickness(0, 0, 0, 16)
@@ -1476,11 +1476,10 @@ namespace KillerPDF
                 try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
             }
 
-            var sigInfo = sigValid
-                ? $"{sigSubject}"
-                : "(not signed or chain failed)";
+            var none = Current.TryFindResource("Str_Margin_None") as string ?? "None";
+            var sigInfo = sigValid ? $"{sigSubject}" : none;
 
-            var thumbInfo = string.IsNullOrEmpty(sigThumbprint) ? "(none)" : sigThumbprint;
+            var thumbInfo = string.IsNullOrEmpty(sigThumbprint) ? none : sigThumbprint;
 
             var card = new Border
             {

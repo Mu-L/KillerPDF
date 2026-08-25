@@ -2315,9 +2315,8 @@ namespace KillerPDF.Controls
             foreach (var p in pages) RenderAllAnnotations(p);
             ReattachSelectionVisuals();   // keep the current selection chrome after the repaint
             MarkDirty();
-            SetStatus(pids.Count == 1
-                ? "Unpaired - the text and cover are now separate"
-                : $"Unpaired {pids.Count} text/cover pairs");
+            string unpaired = Loc("Str_Ctx_Unpair");
+            SetStatus(pids.Count == 1 ? unpaired : $"{unpaired} ({pids.Count})");
         }
 
         // RenderAllAnnotations rebuilds the page canvas from scratch, so the selection outline and any

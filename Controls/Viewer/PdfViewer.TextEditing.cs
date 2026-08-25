@@ -376,9 +376,7 @@ namespace KillerPDF.Controls
             tb.PreviewKeyDown += TextBox_PreviewKeyDown;
             tb.Loaded += (s, ev) => { tb.Focus(); Keyboard.Focus(tb); tb.SelectAll(); tb.LostFocus += TextBox_LostFocus; AttachTextEditResizeHandles(tb); };
             ShowTextSettings();
-            SetStatus(string.IsNullOrEmpty(text)
-                ? "Type your text, then drag the cover over the original - Enter to save, Escape to cancel"
-                : "Editing text - change size/color above, Enter to save, Escape to cancel");
+            SetStatus(Loc("Str_St_EditingText"));
         }
 
         // ============================================================

@@ -56,8 +56,8 @@ namespace KillerPDF.Features
         {
             var (sigValid, sigSubject, sigThumbprint) = App.GetExeSignerInfo();
 
-            _host.Publisher   = sigValid ? sigSubject : "(not signed or chain failed)";
-            _host.Thumbprint  = string.IsNullOrEmpty(sigThumbprint) ? "(none)" : sigThumbprint;
+            _host.Publisher   = sigValid ? sigSubject : _host.Loc("Str_Margin_None");
+            _host.Thumbprint  = string.IsNullOrEmpty(sigThumbprint) ? _host.Loc("Str_Margin_None") : sigThumbprint;
             _host.Sha256      = _host.Loc("Str_About_Computing");
             _host.ReleaseDate = ReleaseDate;
 

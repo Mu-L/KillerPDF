@@ -82,9 +82,7 @@ namespace KillerPDF
             {
                 _pendingSignField = (initials, objNum, pageIndex, x, y, w, h);
                 ShowSignaturePopup();
-                SetStatus(initials
-                    ? "Choose initials - they will be reused for every initials field"
-                    : "Choose a signature - it will be reused for every signature field");
+                SetStatus(initials ? Loc("Str_Sig_Initials") : Loc("Str_Sig_Signatures"));
                 return;
             }
             DropSignatureInField(objNum, choice, pageIndex, x, y, w, h);
