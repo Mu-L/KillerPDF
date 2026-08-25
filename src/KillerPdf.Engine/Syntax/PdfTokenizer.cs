@@ -9,8 +9,10 @@ public sealed class PdfTokenizer
     private readonly ReadOnlyMemory<byte> _source;
     private int _position;
 
+    /// <summary>Creates a tokenizer positioned at the beginning of a PDF byte sequence.</summary>
     public PdfTokenizer(ReadOnlyMemory<byte> source) : this(source, 0) { }
 
+    /// <summary>Creates a tokenizer positioned at the specified byte offset.</summary>
     public PdfTokenizer(ReadOnlyMemory<byte> source, int startOffset)
     {
         if (startOffset < 0 || startOffset > source.Length)
@@ -20,6 +22,7 @@ public sealed class PdfTokenizer
         _position = startOffset;
     }
 
+    /// <summary>Gets the current zero-based byte position.</summary>
     public int Position => _position;
 
     internal int RemainingByteCount => _source.Length - _position;
@@ -58,6 +61,7 @@ public sealed class PdfTokenizer
         return value;
     }
 
+    /// <summary>Reads the next lexical token after skipping PDF whitespace and comments.</summary>
     public PdfToken Read()
     {
         SkipTrivia();

@@ -8,6 +8,7 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
     private static ReadOnlySpan<byte> Marker => "startxref"u8;
     private static ReadOnlySpan<byte> EndMarker => "%%EOF"u8;
 
+    /// <summary>Finds and validates the final startxref declaration and end-of-file marker.</summary>
     public static PdfStartXref Find(ReadOnlySpan<byte> source)
     {
         int markerOffset = FindFinalMarkerOutsideComment(source);

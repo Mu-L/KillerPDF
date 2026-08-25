@@ -6,11 +6,13 @@ namespace KillerPdf.Engine.Writing;
 /// <summary>Writes the engine object model as deterministic, ASCII-safe PDF syntax.</summary>
 public static class PdfObjectWriter
 {
+    /// <summary>Maximum nested array and dictionary depth accepted during serialization.</summary>
     public const int MaximumNestingDepth = 256;
 
     private static readonly PdfName LengthName = new("Length"u8);
     private static ReadOnlySpan<byte> HexDigits => "0123456789ABCDEF"u8;
 
+    /// <summary>Serializes one direct PDF object to canonical bytes.</summary>
     public static byte[] Write(PdfObject value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -19,6 +21,7 @@ public static class PdfObjectWriter
         return output.ToArray();
     }
 
+    /// <summary>Serializes one direct PDF object to a writable stream.</summary>
     public static void Write(Stream destination, PdfObject value)
     {
         ArgumentNullException.ThrowIfNull(destination);
@@ -28,6 +31,7 @@ public static class PdfObjectWriter
         WriteObject(destination, value, 0);
     }
 
+    /// <summary>Serializes one complete indirect-object declaration to canonical bytes.</summary>
     public static byte[] Write(PdfIndirectObject value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -36,6 +40,7 @@ public static class PdfObjectWriter
         return output.ToArray();
     }
 
+    /// <summary>Serializes one complete indirect-object declaration to a writable stream.</summary>
     public static void Write(Stream destination, PdfIndirectObject value)
     {
         ArgumentNullException.ThrowIfNull(destination);

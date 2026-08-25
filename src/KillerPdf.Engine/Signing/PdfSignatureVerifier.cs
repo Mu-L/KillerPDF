@@ -7,10 +7,12 @@ namespace KillerPdf.Engine.Signing;
 /// <summary>Verifies detached CMS signatures over bytes reconstructed from PDF byte ranges.</summary>
 public static class PdfSignatureVerifier
 {
+    /// <summary>Verifies signature structure and cryptographic integrity without checking trust.</summary>
     public static PdfSignatureVerificationResult VerifyIntegrity(
         PdfDocument document, PdfSignatureInfo signature) =>
         Verify(document, signature, checkCertificateTrust: false);
 
+    /// <summary>Verifies signature integrity and evaluates the signing certificate's system trust.</summary>
     public static PdfSignatureVerificationResult VerifyTrust(
         PdfDocument document, PdfSignatureInfo signature) =>
         Verify(document, signature, checkCertificateTrust: true);

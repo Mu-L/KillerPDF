@@ -9,6 +9,7 @@ namespace KillerPdf.Engine.CrossReference;
 /// <summary>Reads one classic cross-reference table or one PDF 1.5+ cross-reference stream.</summary>
 public static class PdfCrossReferenceReader
 {
+    /// <summary>Maximum number of cross-reference entries accepted in one section.</summary>
     public const int MaximumEntriesPerSection = 1_000_000;
 
     private static readonly PdfName TypeName = new("Type"u8);
@@ -18,6 +19,7 @@ public static class PdfCrossReferenceReader
     private static readonly PdfName IndexName = new("Index"u8);
     private static readonly PdfName XRefStmName = new("XRefStm"u8);
 
+    /// <summary>Reads and validates one classic or stream cross-reference section at the specified offset.</summary>
     public static PdfCrossReferenceSection ReadSection(ReadOnlyMemory<byte> source, long offset)
     {
         if (offset is < 0 or > int.MaxValue || offset >= source.Length)

@@ -6,6 +6,7 @@ namespace KillerPdf.Engine.Filters;
 /// <summary>Decodes a stream's filter pipeline with a hard output-size limit.</summary>
 public static class PdfStreamDecoder
 {
+    /// <summary>Default maximum number of decoded bytes produced by one stream.</summary>
     public const int DefaultMaximumDecodedBytes = 256 * 1024 * 1024;
 
     private static readonly PdfName FilterName = new("Filter"u8);
@@ -15,9 +16,11 @@ public static class PdfStreamDecoder
     private static readonly PdfName BitsPerComponentName = new("BitsPerComponent"u8);
     private static readonly PdfName ColumnsName = new("Columns"u8);
 
+    /// <summary>Decodes a stream whose filter metadata contains no indirect references.</summary>
     public static byte[] Decode(PdfStream stream, int maximumDecodedBytes = DefaultMaximumDecodedBytes)
         => DecodeCore(stream, null, maximumDecodedBytes);
 
+    /// <summary>Decodes a stream while resolving indirect filter and predictor metadata.</summary>
     public static byte[] Decode(
         PdfStream stream,
         Func<PdfIndirectReference, PdfObject> resolve,

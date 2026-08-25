@@ -9,6 +9,7 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<CaretAnnotationDefinition> _caretAnnotations = [];
     private readonly List<RedactionAnnotationDefinition> _redactionAnnotations = [];
 
+    /// <summary>Adds a caret annotation that marks an insertion point or paragraph replacement.</summary>
     public PdfDocumentBuilder AddCaretAnnotation(
         int pageIndex, double x, double y, double width, double height,
         string? contents = null, PdfRgbColor? color = null, double opacity = 1,
@@ -26,6 +27,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a review-time redaction mark with optional overlay text and post-redaction fill.</summary>
     public PdfDocumentBuilder AddRedactionMark(
         int pageIndex, IReadOnlyList<PdfTextQuad> quads,
         string? contents = null, PdfRgbColor? fillColor = null,

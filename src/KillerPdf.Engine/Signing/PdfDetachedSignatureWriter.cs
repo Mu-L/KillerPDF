@@ -33,6 +33,7 @@ public static class PdfDetachedSignatureWriter
     private const long RangeSentinel4 = 4_444_444_444;
     private const int MaximumReservedSignatureSize = 1_048_576;
 
+    /// <summary>Creates an incremental detached signature using caller-supplied CMS generation.</summary>
     public static byte[] Sign(
         PdfDocument document,
         Func<ReadOnlyMemory<byte>, byte[]> createDetachedCms,

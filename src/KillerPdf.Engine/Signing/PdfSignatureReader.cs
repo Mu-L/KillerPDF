@@ -44,6 +44,7 @@ public static class PdfSignatureReader
     private static readonly PdfName KidsName = Name("Kids");
     private static readonly PdfName ValueName = Name("V");
 
+    /// <summary>Discovers and structurally inspects every signature field in a document.</summary>
     public static IReadOnlyList<PdfSignatureInfo> Read(PdfDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -116,6 +117,7 @@ public static class PdfSignatureReader
         }
     }
 
+    /// <summary>Returns the exact discontiguous bytes covered by a signature's byte range.</summary>
     public static byte[] GetSignedContent(PdfDocument document, PdfSignatureInfo signature)
     {
         ArgumentNullException.ThrowIfNull(document);

@@ -11,12 +11,14 @@ namespace KillerPdf.Engine.Diagnostics;
 /// <summary>Performs a bounded, non-throwing structural inspection of a PDF file.</summary>
 public static class PdfDocumentInspector
 {
+    /// <summary>Default maximum number of indirect objects inspected in one document.</summary>
     public const int DefaultMaximumInspectedObjects = 100_000;
 
     private static readonly PdfName RootName = new("Root"u8);
     private static readonly PdfName TypeName = new("Type"u8);
     private static readonly PdfName CatalogName = new("Catalog"u8);
 
+    /// <summary>Inspects an unencrypted PDF for structural and conformance diagnostics.</summary>
     public static PdfInspectionReport Inspect(
         ReadOnlyMemory<byte> source,
         int maximumInspectedObjects = DefaultMaximumInspectedObjects)

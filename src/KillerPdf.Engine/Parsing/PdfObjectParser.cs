@@ -7,6 +7,7 @@ namespace KillerPdf.Engine.Parsing;
 /// <summary>Builds typed PDF objects from the lexical token stream.</summary>
 public sealed class PdfObjectParser
 {
+    /// <summary>Maximum nested array and dictionary depth accepted by the object parser.</summary>
     public const int MaximumNestingDepth = 256;
 
     private static readonly PdfName LengthName = new("Length"u8);
@@ -15,6 +16,7 @@ public sealed class PdfObjectParser
     private readonly Func<PdfIndirectReference, long>? _streamLengthResolver;
     private readonly List<PdfToken> _lookahead = [];
 
+    /// <summary>Creates a parser positioned at the beginning of a PDF byte sequence.</summary>
     public PdfObjectParser(
         ReadOnlyMemory<byte> source,
         Func<PdfIndirectReference, long>? streamLengthResolver = null)
@@ -22,6 +24,7 @@ public sealed class PdfObjectParser
     {
     }
 
+    /// <summary>Creates a parser positioned at a specified byte offset.</summary>
     public PdfObjectParser(
         ReadOnlyMemory<byte> source,
         int startOffset,
@@ -31,6 +34,7 @@ public sealed class PdfObjectParser
         _streamLengthResolver = streamLengthResolver;
     }
 
+    /// <summary>Parses one direct or indirect-reference PDF object.</summary>
     public PdfObject ParseObject() => ParseObject(0);
 
     /// <summary>Parses exactly one direct object and rejects any trailing non-trivia bytes.</summary>
@@ -43,6 +47,7 @@ public sealed class PdfObjectParser
         return value;
     }
 
+    /// <summary>Parses one complete indirect object declaration.</summary>
     public PdfIndirectObject ParseIndirectObject() =>
         ParseIndirectObjectCore(out _);
 

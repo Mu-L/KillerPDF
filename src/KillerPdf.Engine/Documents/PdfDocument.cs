@@ -14,6 +14,7 @@ namespace KillerPdf.Engine.Documents;
 /// </summary>
 public sealed class PdfDocument
 {
+    /// <summary>Maximum number of compressed members accepted in one object stream.</summary>
     public const int MaximumObjectsPerObjectStream = 1_000_000;
 
     private static readonly PdfName TypeName = new("Type"u8);
@@ -35,11 +36,16 @@ public sealed class PdfDocument
         CrossReferences = crossReferences;
     }
 
+    /// <summary>Gets the merged cross-reference revision table.</summary>
     public PdfCrossReferenceTable CrossReferences { get; }
+    /// <summary>Gets the parsed PDF header.</summary>
     public PdfHeader Header => CrossReferences.Header;
+    /// <summary>Gets the newest revision trailer dictionary.</summary>
     public PdfDictionary Trailer => CrossReferences.LatestTrailer;
     internal ReadOnlyMemory<byte> Source => _source;
+    /// <summary>Gets whether the document declares a standard security handler.</summary>
     public bool IsEncrypted => CrossReferences.TryGetTrailerValue(new PdfName("Encrypt"u8), out _);
+    /// <summary>Gets whether encrypted objects are available in decrypted form.</summary>
     public bool IsDecrypted => !IsEncrypted || _security is not null;
     /// <summary>
     /// The password role that authenticated this document, or <see cref="PdfPasswordAuthenticationRole.None"/>
@@ -65,6 +71,7 @@ public sealed class PdfDocument
                 resolve ?? Resolve)
             : value;
 
+    /// <summary>Opens and validates an unencrypted PDF from memory.</summary>
     public static PdfDocument Open(ReadOnlyMemory<byte> source)
     {
         // Own the bytes so lazy resolution cannot observe caller mutations after validation.

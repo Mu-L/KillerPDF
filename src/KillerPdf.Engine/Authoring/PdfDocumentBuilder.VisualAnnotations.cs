@@ -11,6 +11,7 @@ public sealed partial class PdfDocumentBuilder
     private readonly List<VisualAnnotationDefinition> _visualAnnotations = [];
     private readonly List<ImageStampDefinition> _imageStamps = [];
 
+    /// <summary>Adds a free-text annotation with an embedded font and deterministic appearance.</summary>
     public PdfDocumentBuilder AddFreeText(
         int pageIndex, double x, double y, double width, double height,
         string contents, TrueTypeFont font, double fontSize = 12,
@@ -47,6 +48,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a line annotation with optional endpoint decorations, interior color, and intent.</summary>
     public PdfDocumentBuilder AddLineAnnotation(
         int pageIndex, PdfPoint start, PdfPoint end, PdfRgbColor? color = null,
         double lineWidth = 1, double opacity = 1, string? contents = null,
@@ -71,6 +73,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds a rectangular annotation with optional stroke, fill, opacity, and dash pattern.</summary>
     public PdfDocumentBuilder AddRectangleAnnotation(
         int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
@@ -81,6 +84,7 @@ public sealed partial class PdfDocumentBuilder
             strokeColor, fillColor, lineWidth, opacity, contents, dashPattern,
             annotationMetadata);
 
+    /// <summary>Adds an elliptical annotation with optional stroke, fill, opacity, and dash pattern.</summary>
     public PdfDocumentBuilder AddEllipseAnnotation(
         int pageIndex, double x, double y, double width, double height,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
@@ -91,6 +95,7 @@ public sealed partial class PdfDocumentBuilder
             strokeColor, fillColor, lineWidth, opacity, contents, dashPattern,
             annotationMetadata);
 
+    /// <summary>Adds an open polyline annotation from a validated vertex sequence.</summary>
     public PdfDocumentBuilder AddPolylineAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> vertices, PdfRgbColor? color = null,
         double lineWidth = 1, double opacity = 1, string? contents = null,
@@ -104,6 +109,7 @@ public sealed partial class PdfDocumentBuilder
             pageIndex, vertices, closed: false, color, null, lineWidth, opacity, contents,
             startEnding, endEnding, dashPattern, interiorColor, annotationMetadata, intent);
 
+    /// <summary>Adds a closed polygon annotation from a validated vertex sequence.</summary>
     public PdfDocumentBuilder AddPolygonAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> vertices,
         PdfRgbColor? strokeColor = null, PdfRgbColor? fillColor = null,
@@ -116,6 +122,7 @@ public sealed partial class PdfDocumentBuilder
             lineWidth, opacity, contents, PdfLineEndingStyle.None, PdfLineEndingStyle.None,
             dashPattern, null, annotationMetadata, intent);
 
+    /// <summary>Adds a single-stroke ink annotation.</summary>
     public PdfDocumentBuilder AddInkAnnotation(
         int pageIndex, IReadOnlyList<PdfPoint> points, PdfRgbColor? color = null,
         double lineWidth = 2, double opacity = 1, string? contents = null,
@@ -125,6 +132,7 @@ public sealed partial class PdfDocumentBuilder
             pageIndex, [points], color, lineWidth, opacity, contents, dashPattern,
             annotationMetadata);
 
+    /// <summary>Adds a multi-stroke ink annotation.</summary>
     public PdfDocumentBuilder AddInkAnnotation(
         int pageIndex, IReadOnlyList<IReadOnlyList<PdfPoint>> strokes, PdfRgbColor? color = null,
         double lineWidth = 2, double opacity = 1, string? contents = null,
@@ -144,6 +152,7 @@ public sealed partial class PdfDocumentBuilder
         return this;
     }
 
+    /// <summary>Adds an image-backed stamp annotation with a standard semantic icon name.</summary>
     public PdfDocumentBuilder AddImageStamp(
         int pageIndex, double x, double y, double width, double height,
         PdfImage image, string? contents = null,

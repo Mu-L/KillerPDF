@@ -15,10 +15,14 @@ public sealed class PdfIccProfile
         ColorSpace = colorSpace;
     }
 
+    /// <summary>Gets the validated ICC profile bytes.</summary>
     public ReadOnlyMemory<byte> Data => _data;
+    /// <summary>Gets the number of color components described by the profile.</summary>
     public int ComponentCount { get; }
+    /// <summary>Gets the ICC header color-space signature.</summary>
     public string ColorSpace { get; }
 
+    /// <summary>Loads and validates a bounded ICC profile.</summary>
     public static PdfIccProfile Load(ReadOnlyMemory<byte> source)
     {
         byte[] data = source.ToArray();

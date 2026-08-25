@@ -3,6 +3,7 @@ namespace KillerPdf.Engine.Writing;
 /// <summary>File-structure choices for an appended incremental revision.</summary>
 public sealed class PdfIncrementalUpdateWriteOptions
 {
+    /// <summary>Gets the cross-reference representation used by the appended revision.</summary>
     public PdfCrossReferenceFormat CrossReferenceFormat { get; init; } =
         PdfCrossReferenceFormat.Table;
 

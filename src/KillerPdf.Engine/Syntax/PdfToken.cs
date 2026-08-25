@@ -9,5 +9,6 @@ public readonly record struct PdfToken(
     int Length,
     ReadOnlyMemory<byte> Value)
 {
+    /// <summary>Decodes the token value bytes using the PDF-compatible Latin-1 mapping.</summary>
     public string ValueAsLatin1() => Encoding.Latin1.GetString(Value.Span);
 }

@@ -3,6 +3,7 @@ namespace KillerPdf.Engine.Authoring;
 /// <summary>Four corners of one text run, in PDF QuadPoints order.</summary>
 public readonly record struct PdfTextQuad
 {
+    /// <summary>Creates a non-collapsed quadrilateral from corners in PDF text-markup order.</summary>
     public PdfTextQuad(
         PdfPoint upperLeft,
         PdfPoint upperRight,
@@ -27,9 +28,13 @@ public readonly record struct PdfTextQuad
         LowerRight = lowerRight;
     }
 
+    /// <summary>Gets the upper-left corner.</summary>
     public PdfPoint UpperLeft { get; }
+    /// <summary>Gets the upper-right corner.</summary>
     public PdfPoint UpperRight { get; }
+    /// <summary>Gets the lower-left corner.</summary>
     public PdfPoint LowerLeft { get; }
+    /// <summary>Gets the lower-right corner.</summary>
     public PdfPoint LowerRight { get; }
 
     internal void Validate() => _ = new PdfTextQuad(

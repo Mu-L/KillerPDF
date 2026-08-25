@@ -52,6 +52,7 @@ public sealed class PdfIncrementalUpdateBuilder
     private PdfObject? _documentInformation;
     private bool _documentInformationRemovedByFree;
 
+    /// <summary>Creates an incremental update builder for an opened document.</summary>
     public PdfIncrementalUpdateBuilder(PdfDocument document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
@@ -149,6 +150,7 @@ public sealed class PdfIncrementalUpdateBuilder
         return this;
     }
 
+    /// <summary>Serializes the registered changes as one incremental revision.</summary>
     public byte[] Build(PdfIncrementalUpdateWriteOptions? options = null)
     {
         options ??= new PdfIncrementalUpdateWriteOptions();

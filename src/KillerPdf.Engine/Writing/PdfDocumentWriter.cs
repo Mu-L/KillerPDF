@@ -50,6 +50,7 @@ public static class PdfDocumentWriter
         DocChecksumName
     ];
 
+    /// <summary>Performs a deterministic full rewrite using the selected preservation policies.</summary>
     public static byte[] Write(PdfDocument document, PdfDocumentWriteOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);

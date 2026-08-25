@@ -6,8 +6,10 @@ namespace KillerPdf.Engine.Syntax;
 public readonly record struct PdfHeader(PdfVersion Version, int Offset)
 {
     private static ReadOnlySpan<byte> Signature => "%PDF-"u8;
+    /// <summary>Maximum number of leading bytes searched for a compatible PDF header.</summary>
     public const int SearchLimit = 1024;
 
+    /// <summary>Parses a bounded PDF header and its source offset.</summary>
     public static PdfHeader Parse(ReadOnlySpan<byte> source)
     {
         int searchableLength = Math.Min(source.Length, SearchLimit);
@@ -31,6 +33,7 @@ public readonly record struct PdfHeader(PdfVersion Version, int Offset)
         return new PdfHeader(new PdfVersion(major, minor), offset);
     }
 
+    /// <summary>Creates canonical header bytes for a defined PDF version.</summary>
     public static byte[] Create(PdfVersion version)
     {
         if (!PdfVersion.IsDefined(version.Major, version.Minor))

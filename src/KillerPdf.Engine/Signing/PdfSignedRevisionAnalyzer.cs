@@ -8,6 +8,7 @@ namespace KillerPdf.Engine.Signing;
 /// <summary>Locates valid incremental PDF revisions added after a signed byte range.</summary>
 public static class PdfSignedRevisionAnalyzer
 {
+    /// <summary>Analyzes revisions and certification permissions after a selected signature.</summary>
     public static PdfSignedRevisionAnalysis Analyze(
         PdfDocument document, PdfSignatureInfo signature)
     {
