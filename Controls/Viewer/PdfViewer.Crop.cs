@@ -628,6 +628,7 @@ namespace KillerPDF.Controls
                 var (rx1, ry1, rx2, ry2) = CanvasToPdfRect(
                     _cropCanvasRect, refPdfW, refPdfH, refDims.w, refDims.h, rot);
 
+                var crops = new Dictionary<int, PdfEngineIntegration.PageRectangle?>();
                 foreach (int pi in pageIndices)
                 {
                     if (pi < 0 || pi >= _doc.PageCount) continue;
@@ -647,27 +648,14 @@ namespace KillerPDF.Controls
                     if (x2 - x1 < 1) x2 = x1 + 1;
                     if (y2 - y1 < 1) y2 = y1 + 1;
 
-                    // Write CropBox directly into the page dictionary (more reliable across
-                    // PdfSharpCore versions than the CropBox property setter).
-                    var cropArr = new PdfSharpCore.Pdf.PdfArray();
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x1));
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y1));
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x2));
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y2));
-                    page.Elements["/CropBox"] = cropArr;
-
-                    // Mirror to TrimBox (PDF spec: TrimBox within CropBox within MediaBox)
-                    var trimArr = new PdfSharpCore.Pdf.PdfArray();
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x1));
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y1));
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x2));
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y2));
-                    page.Elements["/TrimBox"] = trimArr;
+                    crops[pi] = new PdfEngineIntegration.PageRectangle(
+                        x1, y1, x2 - x1, y2 - y1);
                 }
 
                 HideCropConfirmBar();
                 SetTool(EditTool.Select);
-                SaveTempAndReload(keepAnnotations: true, preserveZoom: true);
+                SaveTempAndReload(keepAnnotations: true, preserveZoom: true,
+                    path => PdfEngineIntegration.ApplyCropBoxes(path, crops));
                 SetStatus(string.Format(Loc("Str_Cropped"), pageIndices.Length));
             }
             catch (Exception ex)
@@ -682,15 +670,15 @@ namespace KillerPDF.Controls
             try
             {
                 PushDocUndo();
-                foreach (int pi in pageIndices)
-                {
-                    if (pi < 0 || pi >= _doc.PageCount) continue;
-                    _doc.Pages[pi].Elements.Remove("/CropBox");
-                    _doc.Pages[pi].Elements.Remove("/TrimBox");
-                }
+                var crops = pageIndices
+                    .Where(pi => pi >= 0 && pi < _doc.PageCount)
+                    .Distinct()
+                    .ToDictionary(pi => pi,
+                        _ => (PdfEngineIntegration.PageRectangle?)null);
                 HideCropConfirmBar();
                 SetTool(EditTool.Select);
-                SaveTempAndReload(keepAnnotations: true);
+                SaveTempAndReload(keepAnnotations: true,
+                    finalizeSavedFile: path => PdfEngineIntegration.ApplyCropBoxes(path, crops));
                 SetStatus(string.Format(Loc("Str_RemovedCrop"), pageIndices.Length));
             }
             catch (Exception ex)

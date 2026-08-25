@@ -20,6 +20,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Release payloads are now self-contained .NET 10 Windows builds, so users still need no separate runtime installation.
 - Document Information now reads metadata, PDF version, and page count through The KillerPDF.Engine while retaining the existing live-document save path during staged integration.
 - Save and Save As now write every page's final effective rotation through The KillerPDF.Engine as a byte-preserving incremental revision after the remaining application state is serialized.
+- Applying or removing a page crop now writes matching crop and trim boundaries through The KillerPDF.Engine as a byte-preserving incremental revision before the working document reloads.
 
 ### Fixed
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.

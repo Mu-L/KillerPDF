@@ -39,8 +39,9 @@ namespace KillerPDF
         System.Windows.Controls.ContextMenu IViewerHost.MakeThemedMenu() => MakeThemedMenu();
         void IViewerHost.CloseSearchBar() => CloseSearchBar();
         void IViewerHost.HideSignaturePopup() => HideSignaturePopup();
-        void IViewerHost.SaveTempAndReload(bool keepAnnotations, bool preserveZoom)
-            => SaveTempAndReload(keepAnnotations, preserveZoom);
+        void IViewerHost.SaveTempAndReload(bool keepAnnotations, bool preserveZoom,
+            Action<string>? finalizeSavedFile)
+            => SaveTempAndReload(keepAnnotations, preserveZoom, finalizeSavedFile);
         void IViewerHost.RecordNavJump() => RecordNavJump();
         PageAnnotation? IViewerHost.PairPartner(PageAnnotation annotation) => PairPartner(annotation);
         void IViewerHost.RenderStamps(int page) => RenderStamps(page);

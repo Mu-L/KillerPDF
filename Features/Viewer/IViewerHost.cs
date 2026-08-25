@@ -71,7 +71,8 @@ namespace KillerPDF.Features
         ContextMenu MakeThemedMenu();
         void CloseSearchBar();
         void HideSignaturePopup();
-        void SaveTempAndReload(bool keepAnnotations, bool preserveZoom);
+        void SaveTempAndReload(bool keepAnnotations, bool preserveZoom,
+            Action<string>? finalizeSavedFile = null);
         void RecordNavJump();
         PageAnnotation? PairPartner(PageAnnotation annotation);
         void RenderStamps(int page);

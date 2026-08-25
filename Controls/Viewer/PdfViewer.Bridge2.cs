@@ -154,8 +154,9 @@ namespace KillerPDF.Controls
         // ── Methods still on the window ──────────────────────────────────────────────────────
         private void MarkDirty(bool dirty = true) => Host!.MarkDirty(dirty);
         private void SetTool(EditTool t) => Host!.SetTool(t);
-        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false)
-            => Host!.SaveTempAndReload(keepAnnotations, preserveZoom);
+        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
+            Action<string>? finalizeSavedFile = null)
+            => Host!.SaveTempAndReload(keepAnnotations, preserveZoom, finalizeSavedFile);
         private void RecordNavJump() => Host!.RecordNavJump();
         private PageAnnotation? CloneAnnotation(PageAnnotation a) => Host!.CloneAnnotation(a);
         private PageAnnotation? PairPartner(PageAnnotation a) => Host!.PairPartner(a);

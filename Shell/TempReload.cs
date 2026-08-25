@@ -27,7 +27,8 @@ namespace KillerPDF
         // Temp save/reload
         // ============================================================
 
-        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false)
+        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
+            Action<string>? finalizeSavedFile = null)
         {
             if (_doc is null || _currentFile is null) return;
             // We're about to replace the working file with a fresh temp; release the cached PDFium link
@@ -87,6 +88,12 @@ namespace KillerPDF
                     !PdfImport.TryImportRepairToPath(_currentFile!, tempPath, stripRotations: true))
                     throw; // re-throw original if both fallbacks fail
             }
+
+            // Structural operations can finalize the freshly serialized working file through
+            // KillerPDF.Engine before PdfSharpCore reopens it. The callback owns atomic replacement
+            // of tempPath and runs only after the base save or repair path has completed.
+            finalizeSavedFile?.Invoke(tempPath);
+
             // PdfSharpCore sometimes saves a file where one object's xref offset points at the
             // xref table itself (object N offset = xref table position). When PdfSharp then tries
             // to re-open that file in Modify mode it seeks to the xref table, reads the keyword
