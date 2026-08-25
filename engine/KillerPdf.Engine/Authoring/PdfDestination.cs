@@ -47,8 +47,10 @@ public sealed class PdfDestination
         return new(PdfDestinationKind.FitR, left, bottom, right, top);
     }
 
-    internal PdfDestinationKind Kind { get; }
-    internal IReadOnlyList<double?> Values { get; }
+    /// <summary>Gets the destination view mode.</summary>
+    public PdfDestinationKind Kind { get; }
+    /// <summary>Gets the coordinates used by the destination view mode.</summary>
+    public IReadOnlyList<double?> Values { get; }
 
     internal PdfArray ToArray(PdfIndirectReference page)
     {
@@ -86,4 +88,23 @@ public sealed class PdfDestination
         new(Encoding.ASCII.GetBytes(value));
 }
 
-internal enum PdfDestinationKind { Xyz, Fit, FitH, FitV, FitR, FitB, FitBH, FitBV }
+/// <summary>Identifies how a destination page is positioned in a conforming viewer.</summary>
+public enum PdfDestinationKind
+{
+    /// <summary>Uses optional left, top, and zoom values.</summary>
+    Xyz,
+    /// <summary>Fits the complete page.</summary>
+    Fit,
+    /// <summary>Fits the page width.</summary>
+    FitH,
+    /// <summary>Fits the page height.</summary>
+    FitV,
+    /// <summary>Fits a rectangle.</summary>
+    FitR,
+    /// <summary>Fits the page bounding box.</summary>
+    FitB,
+    /// <summary>Fits the bounding-box width.</summary>
+    FitBH,
+    /// <summary>Fits the bounding-box height.</summary>
+    FitBV
+}
