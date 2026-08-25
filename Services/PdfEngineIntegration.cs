@@ -396,7 +396,8 @@ internal static class PdfEngineIntegration
 
     internal sealed record RasterPage(
         int PixelWidth, int PixelHeight, double PageWidth, double PageHeight,
-        ReadOnlyMemory<byte> BgraPixels);
+        ReadOnlyMemory<byte> BgraPixels,
+        ReadOnlyMemory<byte> JpegData = default);
 
     internal sealed record SearchableWord(
         string Text, int Left, int Top, int Right, int Bottom);
@@ -507,14 +508,25 @@ internal static class PdfEngineIntegration
             if (page.PixelWidth <= 0 || page.PixelHeight <= 0)
                 throw new ArgumentOutOfRangeException(nameof(pages),
                     "Raster page dimensions must be positive.");
-            int required = checked(page.PixelWidth * page.PixelHeight * 4);
-            if (page.BgraPixels.Length != required)
-                throw new ArgumentException(
-                    "A raster page does not contain the required BGRA pixel count.", nameof(pages));
-            byte[] rgba = page.BgraPixels.ToArray();
-            for (int pixel = 0; pixel < rgba.Length; pixel += 4)
-                (rgba[pixel], rgba[pixel + 2]) = (rgba[pixel + 2], rgba[pixel]);
-            PdfImage image = PdfImage.FromRgba(page.PixelWidth, page.PixelHeight, rgba);
+            PdfImage image;
+            if (!page.JpegData.IsEmpty)
+            {
+                image = PdfImage.FromJpeg(page.JpegData);
+                if (image.Width != page.PixelWidth || image.Height != page.PixelHeight)
+                    throw new ArgumentException(
+                        "A raster page's JPEG dimensions do not match its declared dimensions.", nameof(pages));
+            }
+            else
+            {
+                int required = checked(page.PixelWidth * page.PixelHeight * 4);
+                if (page.BgraPixels.Length != required)
+                    throw new ArgumentException(
+                        "A raster page does not contain the required BGRA pixel count.", nameof(pages));
+                byte[] rgba = page.BgraPixels.ToArray();
+                for (int pixel = 0; pixel < rgba.Length; pixel += 4)
+                    (rgba[pixel], rgba[pixel + 2]) = (rgba[pixel + 2], rgba[pixel]);
+                image = PdfImage.FromRgba(page.PixelWidth, page.PixelHeight, rgba);
+            }
             builder.AddPage(page.PageWidth, page.PageHeight,
                 new PdfContentStreamBuilder().DrawImage(
                     image, 0, 0, page.PageWidth, page.PageHeight));

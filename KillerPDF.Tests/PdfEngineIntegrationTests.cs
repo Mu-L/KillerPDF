@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
@@ -568,6 +570,26 @@ public sealed class PdfEngineIntegrationTests
         Assert.Contains("/MediaBox [0 0 144 72]", syntax);
         Assert.Contains("/MediaBox [0 0 72 144]", syntax);
         Assert.Contains("/SMask", syntax);
+    }
+
+    [Fact]
+    public void CreateRasterDocument_EmbedsSuppliedJpegWithoutRecompression()
+    {
+        BitmapSource bitmap = BitmapSource.Create(2, 1, 96, 96, PixelFormats.Bgr24,
+            null, new byte[] { 0, 0, 255, 0, 255, 0 }, 6);
+        var encoder = new JpegBitmapEncoder { QualityLevel = 70 };
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        byte[] jpeg = stream.ToArray();
+
+        byte[] result = PdfEngineIntegration.CreateRasterDocument([
+            new PdfEngineIntegration.RasterPage(2, 1, 144, 72,
+                ReadOnlyMemory<byte>.Empty, jpeg)]);
+
+        string syntax = System.Text.Encoding.Latin1.GetString(result);
+        Assert.Contains("/Filter /DCTDecode", syntax);
+        Assert.True(result.AsSpan().IndexOf(jpeg) >= 0);
     }
 
     [Fact]

@@ -31,6 +31,11 @@ namespace KillerPDF
         public int    LevelBlack { get; private set; }
         public int    LevelWhite { get; private set; } = 255;
         public double LevelGamma { get; private set; } = 1.0;
+        public PageColorMode ColorMode { get; private set; }
+        public int BlackWhiteThreshold { get; private set; } = 160;
+        public int OutputDpi { get; private set; }
+        public bool UseJpegCompression { get; private set; }
+        public int JpegQuality { get; private set; } = 85;
 
         public Point[] PerspectiveCorners { get; private set; } =
             [new(0, 0), new(1, 0), new(1, 1), new(0, 1)];
@@ -64,6 +69,9 @@ namespace KillerPDF
         private readonly Slider _rotSlider = null!;
         private readonly Slider _scaleSlider = null!;
         private Slider _lvlBlack = null!, _lvlWhite = null!, _lvlGamma = null!;   // #174
+        private ComboBox _colorMode = null!;
+        private Slider _bwThreshold = null!, _dpiSlider = null!, _jpegSlider = null!;
+        private CheckBox _setDpi = null!, _useJpeg = null!;
         private readonly RadioButton _resizeRadio = null!;
         private bool _flipH;
         private bool _flipV;
@@ -137,6 +145,7 @@ namespace KillerPDF
                 _resizeRadio.IsChecked = true; _flipHCheck.IsChecked = false; _flipVCheck.IsChecked = false;
                 ResetPerspective();
                 ResetLevels();   // #174
+                ResetQuality();
             };
             bottom.Children.Add(resetAll);
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
@@ -288,6 +297,90 @@ namespace KillerPDF
             levelsReset.Click += (_, _2) => ResetLevels();
             stack.Children.Add(levelsReset);
             WrapSection(stack, levelsStart, S("Str_Tf_Levels"), expanded: false);
+
+            // #173: output quality applies after geometry and levels. Defaults preserve the
+            // existing lossless, automatic-resolution Transform behavior.
+            stack.Children.Add(Divider());
+            int qualityStart = stack.Children.Count;
+            stack.Children.Add(SliderLabel(S("Str_Tf_ColorMode")));
+            _colorMode = new ComboBox
+            {
+                ItemsSource = new[]
+                {
+                    S("Str_Print_Color"), S("Str_Tf_Grayscale"), S("Str_Tf_BlackWhite")
+                },
+                SelectedIndex = 0,
+                Margin = new Thickness(0, 3, 0, 3)
+            };
+            _colorMode.SelectionChanged += (_, _) =>
+            {
+                ColorMode = (PageColorMode)Math.Max(0, _colorMode.SelectedIndex);
+                _bwThreshold.IsEnabled = ColorMode == PageColorMode.BlackAndWhite;
+                SchedulePreview();
+            };
+            stack.Children.Add(_colorMode);
+            stack.Children.Add(SliderLabel(S("Str_Tf_Threshold")));
+            _bwThreshold = new Slider
+            {
+                Minimum = 0, Maximum = 255, Value = 160, IsEnabled = false,
+                TickFrequency = 5, SmallChange = 1, LargeChange = 10,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            if (darkSlider != null) _bwThreshold.Style = darkSlider;
+            _bwThreshold.ValueChanged += (_, ev) =>
+            {
+                BlackWhiteThreshold = (int)Math.Round(ev.NewValue);
+                SchedulePreview();
+            };
+            stack.Children.Add(_bwThreshold);
+
+            _setDpi = MakeCheck(S("Str_Tf_SetDpi"));
+            _setDpi.Checked += (_, _) => { OutputDpi = (int)Math.Round(_dpiSlider.Value); _dpiSlider.IsEnabled = true; };
+            _setDpi.Unchecked += (_, _) => { OutputDpi = 0; _dpiSlider.IsEnabled = false; };
+            stack.Children.Add(_setDpi);
+            var dpiValue = SliderLabel("300 DPI");
+            dpiValue.HorizontalAlignment = HorizontalAlignment.Right;
+            _dpiSlider = new Slider
+            {
+                Minimum = 72, Maximum = 600, Value = 300, IsEnabled = false,
+                TickFrequency = 25, SmallChange = 1, LargeChange = 25,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            if (darkSlider != null) _dpiSlider.Style = darkSlider;
+            _dpiSlider.ValueChanged += (_, ev) =>
+            {
+                dpiValue.Text = $"{ev.NewValue:0} DPI";
+                if (_setDpi.IsChecked == true) OutputDpi = (int)Math.Round(ev.NewValue);
+            };
+            stack.Children.Add(_dpiSlider);
+            stack.Children.Add(dpiValue);
+
+            _useJpeg = MakeCheck(S("Str_Tf_UseJpeg"));
+            _useJpeg.Checked += (_, _) => { UseJpegCompression = true; _jpegSlider.IsEnabled = true; };
+            _useJpeg.Unchecked += (_, _) => { UseJpegCompression = false; _jpegSlider.IsEnabled = false; };
+            stack.Children.Add(_useJpeg);
+            var jpegValue = SliderLabel("85%");
+            jpegValue.HorizontalAlignment = HorizontalAlignment.Right;
+            _jpegSlider = new Slider
+            {
+                Minimum = 25, Maximum = 100, Value = 85, IsEnabled = false,
+                TickFrequency = 5, SmallChange = 1, LargeChange = 5,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            if (darkSlider != null) _jpegSlider.Style = darkSlider;
+            _jpegSlider.ValueChanged += (_, ev) =>
+            {
+                JpegQuality = (int)Math.Round(ev.NewValue);
+                jpegValue.Text = $"{ev.NewValue:0}%";
+            };
+            stack.Children.Add(_jpegSlider);
+            stack.Children.Add(jpegValue);
+            var qualityReset = UiKit.Make(S("Str_Tf_Reset"), false);
+            qualityReset.Margin = new Thickness(0, 7, 0, 0);
+            qualityReset.HorizontalAlignment = HorizontalAlignment.Left;
+            qualityReset.Click += (_, _) => ResetQuality();
+            stack.Children.Add(qualityReset);
+            WrapSection(stack, qualityStart, S("Str_Tf_Quality"), expanded: false);
 
             side.Children.Add(new ScrollViewer
             {
@@ -629,6 +722,22 @@ namespace KillerPDF
             _lvlBlack.Value = 0; _lvlWhite.Value = 255; _lvlGamma.Value = 1.0;
         }
 
+        private void ResetQuality()
+        {
+            _colorMode.SelectedIndex = 0;
+            _bwThreshold.Value = 160;
+            _setDpi.IsChecked = false;
+            _dpiSlider.Value = 300;
+            _useJpeg.IsChecked = false;
+            _jpegSlider.Value = 85;
+            ColorMode = PageColorMode.Color;
+            BlackWhiteThreshold = 160;
+            OutputDpi = 0;
+            UseJpegCompression = false;
+            JpegQuality = 85;
+            SchedulePreview();
+        }
+
         private TextBlock SliderLabel(string text) => new()
         {
             Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
@@ -645,6 +754,9 @@ namespace KillerPDF
             // #174: levels ride on top of whatever geometry the preview shows.
             if (_preview.Source is BitmapSource lvlSrc && !LevelsIdentity(LevelBlack, LevelWhite, LevelGamma))
                 _preview.Source = ApplyLevels(lvlSrc, LevelBlack, LevelWhite, LevelGamma);
+            if (_preview.Source is BitmapSource colorSrc && ColorMode != PageColorMode.Color)
+                _preview.Source = PageQualityConverter.ApplyColorMode(
+                    colorSrc, ColorMode, BlackWhiteThreshold);
 
             if (_sizeReadout != null && _preview.Source is BitmapSource b && _srcW > 0 && _pageWpt > 0)
             {

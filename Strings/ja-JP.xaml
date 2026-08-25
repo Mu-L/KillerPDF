@@ -724,6 +724,13 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Tf_LevelsBlack">ブラックポイント</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">ホワイトポイント</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">中間調</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">色</sys:String>
     <sys:String x:Key="Str_Color_Pick">色を選択</sys:String>

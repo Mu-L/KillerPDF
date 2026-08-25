@@ -717,6 +717,13 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Tf_LevelsBlack">Punkt czerni</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punkt bieli</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Półtony</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- Theme names missed when pl-PL landed alongside the seven new themes in 1.7.2.
          Proper nouns, untranslated by family convention (matches de-DE et al). -->
     <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>

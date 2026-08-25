@@ -62,15 +62,22 @@ namespace KillerPDF
             win.ShowDialog();
             if (win.Applied && (Math.Abs(win.Angle) > 0.01 || Math.Abs(win.Scale - 1.0) > 0.001 ||
                 win.FlipH || win.FlipV || !PerspectiveWarp.IsIdentity(win.PerspectiveCorners) ||
-                !TransformWindow.LevelsIdentity(win.LevelBlack, win.LevelWhite, win.LevelGamma)))
+                !TransformWindow.LevelsIdentity(win.LevelBlack, win.LevelWhite, win.LevelGamma) ||
+                win.ColorMode != PageColorMode.Color || win.OutputDpi > 0 ||
+                win.UseJpegCompression))
                 ApplyPageTransforms(pageIndices, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV,
-                    win.PerspectiveCorners, win.LevelBlack, win.LevelWhite, win.LevelGamma);
+                    win.PerspectiveCorners, win.LevelBlack, win.LevelWhite, win.LevelGamma,
+                    win.ColorMode, win.BlackWhiteThreshold, win.OutputDpi,
+                    win.UseJpegCompression, win.JpegQuality);
         }
 
         // Rasterizes every selected page with one transform setup and swaps the batch in as one undo step.
         private void ApplyPageTransforms(IReadOnlyList<int> pageIndices, double angleDeg,
             double scale, bool fixedPage, bool flipH, bool flipV, Point[] perspectiveCorners,
-            int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0)
+            int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0,
+            PageColorMode colorMode = PageColorMode.Color,
+            int blackWhiteThreshold = 160, int outputDpi = 0,
+            bool useJpegCompression = false, int jpegQuality = 85)
         {
             if (_doc is null || _currentFile is null) return;
             PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
@@ -91,14 +98,19 @@ namespace KillerPDF
                 {
                     string? burned = BurnPageAnnotationsToTemp(pageIdx);
                     if (burned != null) bakedAnnotationPages.Add(pageIdx);
-                    var src = RenderPageBitmap(pageIdx, 2200, burned);
+                    var (epw, eph) = engineSession.VisualPageSize(pageIdx, _pageRotations);
+                    int renderBudget = outputDpi > 0
+                        ? Math.Max(1, (int)Math.Ceiling(Math.Max(epw, eph) * outputDpi / 72.0))
+                        : 2200;
+                    var src = RenderPageBitmap(pageIdx, renderBudget, burned);
                     if (src is null) throw new InvalidOperationException(Loc("Str_Tf_NoRender"));
 
                     var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
                         ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
                     var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
                     composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
-                    var (epw, eph) = engineSession.VisualPageSize(pageIdx, _pageRotations);
+                    composed = PageQualityConverter.ApplyColorMode(
+                        composed, colorMode, blackWhiteThreshold);
                     double sx = epw / src.PixelWidth;
                     double sy = eph / src.PixelHeight;
                     double newWpt = composed.PixelWidth * sx;
@@ -107,9 +119,11 @@ namespace KillerPDF
                     string tmp = App.MakeTempFile("xfpage");
                     byte[] pixels = new byte[composed.PixelWidth * composed.PixelHeight * 4];
                     composed.CopyPixels(pixels, composed.PixelWidth * 4, 0);
+                    ReadOnlyMemory<byte> jpeg = useJpegCompression
+                        ? EncodeJpeg(composed, jpegQuality) : default;
                     File.WriteAllBytes(tmp, PdfEngineIntegration.CreateRasterDocument([
                         new PdfEngineIntegration.RasterPage(composed.PixelWidth,
-                            composed.PixelHeight, newWpt, newHpt, pixels)]));
+                            composed.PixelHeight, newWpt, newHpt, pixels, jpeg)]));
                     replacements[pageIdx] = tmp;
                 }
                 foreach (int pageIdx in bakedAnnotationPages)
@@ -139,6 +153,18 @@ namespace KillerPDF
                 KillerDialog.Show(this, string.Format(Loc("Str_Tf_Failed"), ex.Message), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private static byte[] EncodeJpeg(BitmapSource source, int quality)
+        {
+            var encoder = new JpegBitmapEncoder
+            {
+                QualityLevel = Math.Clamp(quality, 1, 100)
+            };
+            encoder.Frames.Add(BitmapFrame.Create(source));
+            using var stream = new MemoryStream();
+            encoder.Save(stream);
+            return stream.ToArray();
         }
 
         // Saves the document with ONE page's annotations burned in, to a temp PDF, and returns its path

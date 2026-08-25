@@ -530,6 +530,13 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Tf_LevelsBlack">Fekete pont</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Fehér pont</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Középtónusok</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <sys:String x:Key="Str_Tf_CorrectPerspective">Trapéz alakú torzítás javítása</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Húzza a négy sarkot a lefényképezett oldal körvonalára. Az Alkalmaz téglalappá egyenesíti.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Sarkok visszaállítása</sys:String>

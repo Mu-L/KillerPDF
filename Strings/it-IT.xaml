@@ -530,6 +530,13 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Tf_LevelsBlack">Punto di nero</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punto di bianco</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Mezzitoni</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <sys:String x:Key="Str_Tf_CorrectPerspective">Correggi distorsione trapezoidale</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Trascina i quattro angoli sul contorno della pagina fotografata. Applica il raddrizzamento nel rettangolo.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Ripristina angoli</sys:String>

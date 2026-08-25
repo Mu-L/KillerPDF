@@ -530,6 +530,13 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Tf_LevelsBlack">Black point</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">White point</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Midtones</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <sys:String x:Key="Str_Tf_CorrectPerspective">Correct trapezoidal distortion</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Drag the four corners onto the photographed page outline. Apply straightens it into a rectangle.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Reset corners</sys:String>

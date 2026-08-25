@@ -719,6 +719,13 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Tf_LevelsBlack">কালো বিন্দু</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">সাদা বিন্দু</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">মধ্যম টোন</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">রং</sys:String>
     <sys:String x:Key="Str_Color_Pick">একটি রং বাছুন</sys:String>
