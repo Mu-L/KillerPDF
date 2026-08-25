@@ -1,8 +1,8 @@
-# KillerPDF 1.8.0-alpha.2 validation results
+# KillerPDF 1.8.0-beta.1 validation results
 
 Validation date: 2026-08-25
 
-KillerPDF 1.8.0-alpha.2 rewrote 2,898 of 2,907 deliberately hostile conformance PDFs
+KillerPDF 1.8.0-beta.1 rewrote 2,898 of 2,907 deliberately hostile conformance PDFs
 through The KillerPDF.Engine. That is a 99.7% successful rewrite rate, with zero rewrite
 failures, zero saved-file conformance regressions, and zero structural regressions.
 
@@ -12,7 +12,7 @@ and 34.6% higher throughput on the test system.
 
 ## Headline results
 
-| Result | KillerPDF 1.7.5 | KillerPDF 1.8.0-alpha.2 |
+| Result | KillerPDF 1.7.5 | KillerPDF 1.8.0-beta.1 |
 |---|---:|---:|
 | Complete corpus | 2,907 | 2,907 |
 | Successful rewrites | 2,236 | 2,898 |
@@ -97,7 +97,7 @@ the median of those five runs.
 | Version | Median elapsed | Median throughput |
 |---|---:|---:|
 | KillerPDF 1.7.5 | 9.46 seconds | 236.48 files/second |
-| KillerPDF 1.8.0-alpha.2 | **7.03 seconds** | **318.22 files/second** |
+| KillerPDF 1.8.0-beta.1 | **7.03 seconds** | **318.22 files/second** |
 | Alpha difference | **25.7% less time** | **34.6% higher throughput** |
 
 This is a batch full-rewrite benchmark, not a claim about every interactive operation or
@@ -107,7 +107,7 @@ every computer. The measured alpha speedup on this workload is 1.35 times.
 
 | Component | Version |
 |---|---|
-| KillerPDF | 1.8.0-alpha.2 |
+| KillerPDF | 1.8.0-beta.1 |
 | Engine | The KillerPDF.Engine at commit `4436f3e459cf0429f5fbafd0c416332858390541` |
 | Runtime | .NET 10, Windows |
 | veraPDF | 1.30.2 |
@@ -169,5 +169,5 @@ successfully rewritten by both versions, then run:
     -OutputDirectory 'C:\path\to\benchmark-output' `
     -Runs 5 `
     -BaselineLabel 'KillerPDF 1.7.5' `
-    -CandidateLabel 'KillerPDF 1.8.0-alpha.2'
+    -CandidateLabel 'KillerPDF 1.8.0-beta.1'
 ```

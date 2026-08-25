@@ -4,7 +4,7 @@ All notable changes to The KillerPDF.Engine are documented here. Application cha
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0-alpha.2] - Unreleased
+## [1.8.0-beta.1] - Unreleased
 
 - Expanded tolerant full rewrites across malformed but recoverable headers, cross-reference tables and streams, trailer metadata, stream lengths, and trailing data while retaining bounded parsing and deterministic output. Explicit signature invalidation now removes stale signature values and certification permissions before rewriting, and the corpus gates distinguish intentional skips from regressions.
 - Completed the desktop document-engine migration by replacing the mutable PdfSharpCore document with an engine-validated serialized working-state handle. Removed the production and test references, vendored source, compatibility formatter tests, solution project, and portable payload dependencies; Release, strict docs, qpdf, veraPDF PDF/UA-2, packaging, and launcher gates pass.
