@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Expanded the immutable desktop engine session into stamp preview, search geometry, text placement and restyling, clipboard text placement, and annotation text scaling, removing measurement-only PdfSharpCore imports from those components.
 - Added a byte-preserving save sanitizer for empty or dangling outline roots and direct crop boxes that are degenerate or outside the effective media box, integrated it across desktop save and reload output, and removed the legacy live-document scrubbers.
 - Integrated save-time signature invalidation cleanup through the engine writer after application serialization and removed the legacy live-document scrubber, retaining empty signature fields and widgets for later re-signing.
 - Integrated temp-reload rotation capture through immutable engine page information and moved zero-rotation PDFium working-copy production onto a byte-preserving engine revision, removing live PdfSharpCore page-rotation mutation from the base serialization path.

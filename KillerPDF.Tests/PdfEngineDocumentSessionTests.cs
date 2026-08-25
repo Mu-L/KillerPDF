@@ -50,4 +50,20 @@ public sealed class PdfEngineDocumentSessionTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [Fact]
+    public void VisualPageSize_UsesApplicationRotationWhenPresent()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-visual-size-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder().AddBlankPage(320, 480).Build());
+            PdfEngineDocumentSession session = PdfEngineDocumentSession.Open(path);
+
+            Assert.Equal((320d, 480d), session.VisualPageSize(0));
+            Assert.Equal((480d, 320d), session.VisualPageSize(0,
+                new Dictionary<int, int> { [0] = 90 }));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

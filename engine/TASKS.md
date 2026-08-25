@@ -18,8 +18,8 @@ Last updated: 2026-08-25
 - Latest completed commit before the active burn-in slice: `f3ed0a3 v1.8.0-alpha.1: read form widgets through engine`
 - Current automated baseline:
   - 1,421 engine tests pass.
-  - 133 application tests pass.
-  - 1,554 total tests pass.
+  - 134 application tests pass.
+  - 1,555 total tests pass.
   - Release solution build succeeds with zero warnings and zero errors.
   - Strict engine documentation build succeeds with zero warnings and zero errors.
 - Nothing has been pushed.
@@ -87,7 +87,7 @@ All desktop burn paths now append isolated typed engine content. This includes S
 
 ## Exact next slice
 
-Continue the live desktop document open and temp-reload migration in `Shell/FileOperations.cs` and `Shell/TempReload.cs`. Open finalization, page-list initialization, links, and forms share one immutable engine session. Temp rotation serialization plus all save-time signature, outline, and crop-box cleanup are engine-owned. Next, audit the remaining direct live-document mutations and move the next coherent editing group onto engine revisions while retaining PdfSharpCore only where a not-yet-migrated operation still requires it.
+Continue the live desktop migration. The immutable engine session now supplies open and page-list state plus link, form, stamp, search, text, and annotation geometry. Temp rotation serialization and all save-time structural cleanup are engine-owned. Next, migrate the remaining viewport and crop geometry reads onto the session, then audit the smaller direct live-document mutations that remain.
 
 ## Remaining major legacy pockets after forms
 

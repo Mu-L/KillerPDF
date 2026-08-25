@@ -19,6 +19,7 @@ internal sealed class PdfEngineDocumentSession
     internal ReadOnlyMemory<byte> Source { get; }
     internal PdfDocument Document { get; }
     internal IReadOnlyList<PdfPageInformation> Pages { get; }
+    internal int PageCount => Pages.Count;
 
     internal static PdfEngineDocumentSession Open(string path)
     {
@@ -39,5 +40,17 @@ internal sealed class PdfEngineDocumentSession
         rotations.Clear();
         for (int index = 0; index < Pages.Count; index++)
             rotations[index] = Pages[index].Rotation;
+    }
+
+    internal (double Width, double Height) VisualPageSize(
+        int pageIndex, IReadOnlyDictionary<int, int>? rotations = null)
+    {
+        if (pageIndex < 0 || pageIndex >= Pages.Count)
+            throw new ArgumentOutOfRangeException(nameof(pageIndex));
+        PdfPageInformation page = Pages[pageIndex];
+        int rotation = rotations?.TryGetValue(pageIndex, out int stored) == true
+            ? ((stored % 360) + 360) % 360 : page.Rotation;
+        return rotation is 90 or 270
+            ? (page.Height, page.Width) : (page.Width, page.Height);
     }
 }

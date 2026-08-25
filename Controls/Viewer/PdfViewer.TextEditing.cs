@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -110,7 +107,7 @@ namespace KillerPDF.Controls
                     _textFillColor = placed.GetFill();   // and the fill swatches in sync with the box
                     double syp = 1.0;
                     if (_doc is not null && _renderDims.TryGetValue(pageIdx, out var prd) && prd.h > 0)
-                        syp = _doc.Pages[pageIdx].Height.Point / prd.h;
+                        syp = EnsureEngineDocumentSession().Pages[pageIdx].Height / prd.h;
                     _textFontSize = Math.Max(1, Math.Round(placed.FontSize * syp));
                     // Sync the bar's typeface + B/I/S to the box being re-edited.
                     _textFontName = string.IsNullOrEmpty(placed.FontName) ? "Segoe UI" : placed.FontName;
@@ -433,7 +430,7 @@ namespace KillerPDF.Controls
             double fontCanvas = _textFontSize;
             if (_doc is not null && _renderDims.TryGetValue(pageIdx, out var rdims) && rdims.h > 0)
             {
-                double sy = _doc.Pages[pageIdx].Height.Point / rdims.h;
+                double sy = EnsureEngineDocumentSession().Pages[pageIdx].Height / rdims.h;
                 if (sy > 0) fontCanvas = _textFontSize / sy;
             }
             // A default-size box dropped at the click point. Width is fixed (text wraps to it) and the

@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Features;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
@@ -338,13 +335,14 @@ namespace KillerPDF
         private void ApplySearchHighlights(int page, Canvas canvas)
         {
             if (_searchBar is null || _searchBar.Visibility != Visibility.Visible) return;
-            if (_doc is null || page < 0 || page >= _doc.PageCount) return;
+            if (_doc is null || page < 0 || page >= EnsureEngineDocumentSession().PageCount) return;
             if (!Search.TryGetPageRects(page, out var rects)) return;
             if (!_renderDims.TryGetValue(page, out var rd)) return;
 
             var (renderW, renderH) = rd;
-            double pdfW = _doc.Pages[page].Width.Point;
-            double pdfH = _doc.Pages[page].Height.Point;
+            var pageInfo = EnsureEngineDocumentSession().Pages[page];
+            double pdfW = pageInfo.Width;
+            double pdfH = pageInfo.Height;
             if (pdfW <= 0 || pdfH <= 0) return;
             double sx = renderW / pdfW;
             double sy = renderH / pdfH;

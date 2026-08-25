@@ -653,7 +653,7 @@ namespace KillerPDF.Controls
                 _textFillColor = tsel.GetFill();
                 double sy = 1.0;
                 if (_doc is not null && _renderDims.TryGetValue(tsel.PageIndex, out var rd) && rd.h > 0)
-                    sy = _doc.Pages[tsel.PageIndex].Height.Point / rd.h;
+                    sy = EnsureEngineDocumentSession().Pages[tsel.PageIndex].Height / rd.h;
                 _textFontSize = Math.Max(1, Math.Round(tsel.FontSize * sy));
                 ShowTextSettings();
             }

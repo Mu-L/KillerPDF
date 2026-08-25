@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using PdfSharpCore.Drawing;
 using KillerPDF.Services;
 
 namespace KillerPDF
@@ -34,13 +33,13 @@ namespace KillerPDF
             var src = RenderPageBitmap(pageIdx, 1100, BurnPageAnnotationsToTemp(pageIdx));
             if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
 
-            var page = _doc.Pages[pageIdx];
-            var (pwpt, phpt) = EffectivePageSize(page);
-            var win = new StampWindow(this, src, pwpt, phpt, _doc.PageCount, pageIdx, _docStampSpec,
+            PdfEngineDocumentSession session = EnsureEngineDocumentSession();
+            var (pwpt, phpt) = session.VisualPageSize(pageIdx, _pageRotations);
+            var win = new StampWindow(this, src, pwpt, phpt, session.PageCount, pageIdx, _docStampSpec,
                 idx =>   // page-render callback for the preview stepper
                 {
                     var s = RenderPageBitmap(idx, 1100, BurnPageAnnotationsToTemp(idx));
-                    var (w, h) = EffectivePageSize(_doc!.Pages[idx]);
+                    var (w, h) = EnsureEngineDocumentSession().VisualPageSize(idx, _pageRotations);
                     return (s, w, h);
                 });
             win.ShowDialog();
@@ -64,7 +63,7 @@ namespace KillerPDF
         {
             _stamps.Clear();
             if (_docStampSpec is null || _doc is null) return;
-            int n = _doc.PageCount;
+            int n = EnsureEngineDocumentSession().PageCount;
 
             if (_docStampSpec.NumbersEnabled)
                 foreach (int p in PdfBurn.StampPageRange(_docStampSpec.NumRange, n))
@@ -117,7 +116,8 @@ namespace KillerPDF
             // First page that carries a number, so numbering starts at StartNumber there.
             int firstNumPage = -1;
             if (spec.NumbersEnabled)
-                foreach (int p in PdfBurn.StampPageRange(spec.NumRange, _doc.PageCount)) { firstNumPage = p; break; }
+                foreach (int p in PdfBurn.StampPageRange(spec.NumRange,
+                    EnsureEngineDocumentSession().PageCount)) { firstNumPage = p; break; }
 
             foreach (var st in list)
             {
@@ -132,7 +132,7 @@ namespace KillerPDF
             int number = spec.StartNumber + Math.Max(0, pageIndex - Math.Max(0, firstNumPage));
             string text = (string.IsNullOrEmpty(spec.Format) ? "{n}" : spec.Format)
                 .Replace("{n}", number.ToString())
-                .Replace("{N}", (_doc?.PageCount ?? 1).ToString());
+                .Replace("{N}", EnsureEngineDocumentSession().PageCount.ToString());
             if (text.Length == 0) return;
 
             var tb = new TextBlock { Text = text, FontFamily = UiKit.UiFont, FontSize = Math.Max(1, fontCanvas), Foreground = new SolidColorBrush(spec.NumColor), IsHitTestVisible = false };
@@ -213,9 +213,7 @@ namespace KillerPDF
         private (double rdW, double rdH, double pwpt, double phpt) StampRenderDims(int pageIndex)
         {
             if (_doc is null) return (0, 0, 0, 0);
-            double pw = _doc.Pages[pageIndex].Width.Point;
-            double ph = _doc.Pages[pageIndex].Height.Point;
-            if (_pageRotations.TryGetValue(pageIndex, out int rot) && (rot == 90 || rot == 270)) (pw, ph) = (ph, pw);
+            var (pw, ph) = EnsureEngineDocumentSession().VisualPageSize(pageIndex, _pageRotations);
             double maxDim = Math.Max(1, Math.Max(pw, ph));
             return (2048.0 * pw / maxDim, 2048.0 * ph / maxDim, pw, ph);
         }

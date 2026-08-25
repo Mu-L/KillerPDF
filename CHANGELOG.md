@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Stamp preview, search-highlight mapping, text placement and restyling, clipboard text placement, and annotation text scaling now use the active engine session for page count and physical or visual page geometry. The stamps, search, text-settings, and text-editing components no longer import PdfSharpCore solely for document measurements.
 - Save, Save As, flattened export, and temp reload now repair empty outline roots and degenerate or out-of-media crop boxes through a byte-preserving KillerPDF.Engine sanitizer after serialization. The legacy live-document outline and crop scrubbers have been removed.
 - Save and Save As now clear invalidated signature values and certification permissions through KillerPDF.Engine after serialization, preserving empty fields for re-signing without mutating the live PdfSharpCore form tree.
 - Temp reload now captures native or application-managed page rotations from the immutable engine session and creates its zero-rotation PDFium working copy through a byte-preserving engine revision. It no longer clears and mutates every live PdfSharpCore page rotation before serialization.
