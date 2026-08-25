@@ -11,7 +11,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KillerPdf.Engine", "engine\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KillerPdf.Engine.Tests", "engine\KillerPdf.Engine.Tests\KillerPdf.Engine.Tests.csproj", "{D84D71A2-A2B2-4B6F-95BA-03B03A3D2350}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "engine", "engine", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "The KillerPDF.Engine", "The KillerPDF.Engine", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+	ProjectSection(SolutionItems) = preProject
+		engine\README.md = engine\README.md
+		engine\CHANGELOG.md = engine\CHANGELOG.md
+		engine\docs\architecture\ADR-001-pdf-engine-boundary.md = engine\docs\architecture\ADR-001-pdf-engine-boundary.md
+		engine\docs\architecture\ADR-002-integrate-engine-through-modern-windows-shell.md = engine\docs\architecture\ADR-002-integrate-engine-through-modern-windows-shell.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KillerPdf.Engine.Corpus", "engine\KillerPdf.Engine.Corpus\KillerPdf.Engine.Corpus.csproj", "{D6003DED-F54D-402F-B089-2060AD781CE3}"
 EndProject
