@@ -1730,6 +1730,7 @@ namespace KillerPDF.Controls
                 _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, viewW / _continuousPageW));
                 ApplyZoom(lite);
                 int ci = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
+                if (ci >= 0) NavigateContinuousToPage(ci);
                 if (ci >= 0 && _doc != null)
                     SetStatus(string.Format(Loc("Str_FitWidth"), ci + 1, _doc.PageCount, $"{DisplayZoomPct():F0}"));
                 return;
@@ -1769,6 +1770,7 @@ namespace KillerPDF.Controls
                 _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax,
                     Math.Min(viewW / _continuousPageW, viewH / dipH)));
                 ApplyZoom(lite);
+                NavigateContinuousToPage(ci);
                 SetStatus(string.Format(Loc("Str_FitPage"), ci + 1, _doc.PageCount, $"{DisplayZoomPct():F0}"));
                 return;
             }
