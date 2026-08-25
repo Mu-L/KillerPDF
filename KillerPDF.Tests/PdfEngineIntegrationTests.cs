@@ -12,6 +12,56 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void InsertBlankPage_AddsA4PageAtRequestedPosition()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-insert-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder()
+                .AddBlankPage(100, 200).SetPageRotation(0, 90)
+                .AddBlankPage(300, 400).SetPageRotation(1, 270)
+                .Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.InsertBlankPage(path, 1, 595, 842);
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            PdfDocument reopened = PdfDocument.Open(result);
+            Assert.Equal(3, PageCount(reopened));
+            Assert.Equal([0d, 0d, 100d, 200d], PageMediaBox(reopened, 0));
+            Assert.Equal([0d, 0d, 595d, 842d], PageMediaBox(reopened, 1));
+            Assert.Equal([0d, 0d, 300d, 400d], PageMediaBox(reopened, 2));
+            Assert.Equal(270, PageRotation(reopened, 2));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void RemapRotationsAfterPageInsertion_ShiftsPagesAndAddsZeroRotation()
+    {
+        var rotations = new Dictionary<int, int>
+        {
+            [0] = 90,
+            [1] = 180,
+            [2] = 270
+        };
+
+        PdfEngineIntegration.RemapRotationsAfterPageInsertion(rotations, 1);
+
+        Assert.Equal(new Dictionary<int, int>
+        {
+            [0] = 90,
+            [1] = 0,
+            [2] = 180,
+            [3] = 270
+        }, rotations);
+    }
+
+    [Fact]
     public void MovePage_ReordersPagesAndPreservesTheirRotation()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-move-{Guid.NewGuid():N}.pdf");

@@ -131,6 +131,33 @@ internal static class PdfEngineIntegration
             rotations[index] = ordered[index];
     }
 
+    /// <summary>Inserts a blank page at its final zero-based position.</summary>
+    internal static void InsertBlankPage(
+        string path, int pageIndex, double width, double height)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        byte[] source = File.ReadAllBytes(path);
+        PdfDocument document = PdfDocument.Open(source);
+        byte[] result = new PdfIncrementalPageEditor(document)
+            .InsertBlankPage(pageIndex, width, height)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
+    /// <summary>Creates a zero-rotation entry and shifts later page rotation state.</summary>
+    internal static void RemapRotationsAfterPageInsertion(
+        Dictionary<int, int> rotations, int pageIndex)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        var ordered = Enumerable.Range(0, rotations.Count)
+            .Select(index => rotations[index])
+            .ToList();
+        ordered.Insert(pageIndex, 0);
+        rotations.Clear();
+        for (int index = 0; index < ordered.Count; index++)
+            rotations[index] = ordered[index];
+    }
+
     private static void ReplaceWithBuiltResult(string path, byte[] result)
     {
         string directory = Path.GetDirectoryName(Path.GetFullPath(path))!;

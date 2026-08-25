@@ -112,14 +112,18 @@ namespace KillerPDF
         private void InsertBlankPage_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
-            int insertAfter = PageList.SelectedIndex >= 0 ? PageList.SelectedIndex : doc.PageCount - 1;
+            int insertAfter = PageList.SelectedIndex >= 0
+                ? PageList.SelectedIndex : _doc.PageCount - 1;
+            int insertIndex = insertAfter + 1;
             try
             {
-                var blank = new PdfPage { Width = XUnit.FromPoint(595), Height = XUnit.FromPoint(842) };
-                doc.Pages.Insert(insertAfter + 1, blank);
-                SaveTempAndReload();
-                PageList.SelectedIndex = insertAfter + 1;
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.InsertBlankPage(path, insertIndex, 595, 842),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageInsertion(
+                            rotations, insertIndex));
+                PageList.SelectedIndex = insertIndex;
                 SetStatus(string.Format(Loc("Str_St_InsertedBlank"), insertAfter + 2));
             }
             catch (Exception ex)
@@ -133,11 +137,15 @@ namespace KillerPDF
         private void AddBlankPageAtEnd()
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
             try
             {
-                doc.Pages.Add(new PdfPage { Width = XUnit.FromPoint(595), Height = XUnit.FromPoint(842) });
-                SaveTempAndReload();
+                int insertIndex = _doc.PageCount;
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.InsertBlankPage(path, insertIndex, 595, 842),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageInsertion(
+                            rotations, insertIndex));
                 if (PageList.Items.Count > 0) PageList.SelectedIndex = PageList.Items.Count - 1;
                 SetStatus(string.Format(Loc("Str_St_AddedBlank"), _doc?.PageCount));
             }
