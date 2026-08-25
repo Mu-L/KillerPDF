@@ -27,4 +27,27 @@ public sealed class PdfEngineDocumentSessionTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [Fact]
+    public void CaptureRotations_UsesNativeStateThenPreservesCompleteApplicationState()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-rotations-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder().AddBlankPage(320, 480).Build();
+            File.WriteAllBytes(path, source);
+            PdfEngineIntegration.ApplyPageRotations(path,
+                new Dictionary<int, int> { [0] = 90 });
+            PdfEngineDocumentSession session = PdfEngineDocumentSession.Open(path);
+            var rotations = new Dictionary<int, int>();
+
+            session.CaptureRotations(rotations);
+            Assert.Equal(90, rotations[0]);
+
+            rotations[0] = 270;
+            session.CaptureRotations(rotations);
+            Assert.Equal(270, rotations[0]);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

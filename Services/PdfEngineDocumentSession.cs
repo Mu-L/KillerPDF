@@ -28,4 +28,16 @@ internal sealed class PdfEngineDocumentSession
         return new PdfEngineDocumentSession(path, source, document,
             PdfPageInformation.Read(document));
     }
+
+    /// <summary>Captures effective visual rotations without consulting the mutable legacy model.</summary>
+    internal void CaptureRotations(Dictionary<int, int> rotations)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        bool completeApplicationState = rotations.Count == Pages.Count
+            && Enumerable.Range(0, Pages.Count).All(rotations.ContainsKey);
+        if (completeApplicationState) return;
+        rotations.Clear();
+        for (int index = 0; index < Pages.Count; index++)
+            rotations[index] = Pages[index].Rotation;
+    }
 }

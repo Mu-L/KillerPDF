@@ -53,28 +53,24 @@ namespace KillerPDF
             var doc = _doc;
             int selectedIdx = selectedPageAfterReload ?? PageList.SelectedIndex;
 
-            // Capture page rotations, then strip them from the document before saving.
+            // Capture page rotations, then strip them from the serialized working copy.
             // Docnet uses FPDF_GetPageWidth/Height (MediaBox, no rotation) to size the bitmap,
             // then renders with PDFium's page CTM which *does* include /Rotate.  For 90�/270�
             // the rendered landscape content overflows the portrait-sized bitmap and gets clipped.
             // Stripping /Rotate to 0 before saving means Docnet renders clean unrotated content
             // that fits the bitmap; RotateBitmap is applied in each render path instead.
-            _pageRotations.Clear();
-            for (int i = 0; i < doc.PageCount; i++)
-            {
-                int rot = ((doc.Pages[i].Rotate % 360) + 360) % 360;
-                _pageRotations[i] = rot;
-                doc.Pages[i].Rotate = 0;
-            }
+            EnsureEngineDocumentSession().CaptureRotations(_pageRotations);
             remapRotations?.Invoke(_pageRotations);
 
             var tempPath = App.MakeTempFile("temp");
+            var serializedPath = App.MakeTempFile("serialized");
             try
             {
                 PdfScrub.ScrubEmptyOutlines(doc);   // #103: never write a dangling /Outlines reference
                 PdfScrub.ScrubDegenerateCropBoxes(doc);   // never write a zero-size /CropBox (Adobe out-of-range)
-                doc.Save(tempPath);
+                doc.Save(serializedPath);
                 doc.Close();
+                PdfEngineIntegration.CreateZeroRotationCopy(serializedPath, tempPath);
             }
             catch (Exception saveEx) when (PdfImport.IsXRefException(saveEx))
             {
