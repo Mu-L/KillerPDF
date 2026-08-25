@@ -804,30 +804,26 @@ namespace KillerPDF
         private void Merge_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
                           { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SelectMerge"), Multiselect = true };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
+                var imports = new List<PdfEngineIntegration.ImportedDocument>();
                 foreach (var file in dlg.FileNames)
                 {
-                    int pageOffset = doc.PageCount;
-
-                    // Open twice: Import mode for AddPage, ReadOnly for catalog access.
                     using var srcRead = PdfReader.Open(file, PdfDocumentOpenMode.ReadOnly);
-                    var namedDestMap = PdfImport.BuildNamedDestMap(srcRead);
-
-                    using var src = PdfReader.Open(file, PdfDocumentOpenMode.Import);
-                    for (int i = 0; i < src.PageCount; i++)
-                        doc.AddPage(src.Pages[i]);
-
-                    // Rewrite named-destination links in the newly added pages so they
-                    // resolve correctly after the catalog is not imported.
-                    if (namedDestMap.Count > 0)
-                        PdfImport.RewriteNamedDestLinks(doc, pageOffset, namedDestMap);
+                    imports.Add(new PdfEngineIntegration.ImportedDocument(file,
+                        Enumerable.Range(0, srcRead.PageCount)
+                            .Select(index => srcRead.Pages[index].Rotate)
+                            .ToArray()));
                 }
-                SaveTempAndReload();
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.AppendDocuments(path, imports),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterDocumentAppend(
+                            rotations, imports));
                 SetStatus(string.Format(Loc("Str_St_Merged"), dlg.FileNames.Length, _doc?.PageCount));
             }
             catch (Exception ex)
@@ -836,8 +832,8 @@ namespace KillerPDF
             }
         }
 
-        // The named-destination helpers (BuildNamedDestMap, RewriteNamedDestLinks and their
-        // private walkers) live in Services/PdfImport.cs (KillerUI refactor).
+        // The legacy named-destination helpers still used by the CLI live in Services/PdfImport.cs.
+        // Interactive merge now uses the engine's complete-document import and preserves the catalog.
 
         // DerefItemStatic, RectNum and the pre-save scrubs live in Services/PdfScrub.cs
         // (KillerUI refactor) - pure functions shared by the GUI saves, TempReload and the CLI.

@@ -296,23 +296,19 @@ namespace KillerPDF
             menu.Items.Add(book);
         }
 
-        // Deep-copies page pageIdx and inserts the copy right after it. AddPage on a same-document page
-        // would share the reference rather than duplicate, so the page is re-imported from an in-memory
-        // copy of the document (the same round-trip the undo snapshot uses).
+        // Deep-copies page pageIdx and inserts the copy right after it. The engine imports the complete
+        // reachable page graph into a new page identity instead of sharing the original page reference.
         private void DuplicatePage(int pageIdx)
         {
             if (_doc is null || pageIdx < 0 || pageIdx >= _doc.PageCount) return;
-            var doc = _doc;
             try
             {
-                using var ms = new MemoryStream();
-                doc.Save(ms, false);
-                ms.Position = 0;
-                using var src = PdfReader.Open(ms, PdfDocumentOpenMode.Import);
-                var copy = doc.AddPage(src.Pages[pageIdx]);   // imported copy, appended at the end
-                doc.Pages.RemoveAt(doc.PageCount - 1);
-                doc.Pages.Insert(pageIdx + 1, copy);
-                SaveTempAndReload();
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.DuplicatePage(path, pageIdx),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageDuplication(
+                            rotations, pageIdx));
                 PageList.SelectedIndex = pageIdx + 1;
                 SetStatus(string.Format(Loc("Str_St_DuplicatedPage"), pageIdx + 1));
             }

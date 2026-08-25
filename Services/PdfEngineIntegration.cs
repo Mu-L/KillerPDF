@@ -14,6 +14,9 @@ internal static class PdfEngineIntegration
     internal readonly record struct PageRectangle(
         double X, double Y, double Width, double Height);
 
+    internal sealed record ImportedDocument(
+        string Path, IReadOnlyList<int> PageRotations);
+
     /// <summary>
     /// Writes the application's effective page rotations as the final incremental revision.
     /// The source file is replaced only after the engine has built the complete result.
@@ -156,6 +159,93 @@ internal static class PdfEngineIntegration
         rotations.Clear();
         for (int index = 0; index < ordered.Count; index++)
             rotations[index] = ordered[index];
+    }
+
+    /// <summary>Deep-copies one page directly after its source page.</summary>
+    internal static void DuplicatePage(string path, int pageIndex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        byte[] sourceBytes = File.ReadAllBytes(path);
+        PdfDocument target = PdfDocument.Open(sourceBytes);
+        PdfDocument source = PdfDocument.Open(sourceBytes);
+        byte[] result = new PdfIncrementalPageEditor(target)
+            .InsertImportedPage(pageIndex + 1, source, pageIndex)
+            .SetRotation(pageIndex + 1, 0)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
+    /// <summary>Duplicates the source page's effective application rotation.</summary>
+    internal static void RemapRotationsAfterPageDuplication(
+        Dictionary<int, int> rotations, int pageIndex)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        var ordered = Enumerable.Range(0, rotations.Count)
+            .Select(index => rotations[index])
+            .ToList();
+        ordered.Insert(pageIndex + 1, ordered[pageIndex]);
+        rotations.Clear();
+        for (int index = 0; index < ordered.Count; index++)
+            rotations[index] = ordered[index];
+    }
+
+    /// <summary>Creates a new document from selected working-document pages.</summary>
+    internal static void ExtractPages(
+        string sourcePath, string destinationPath, IReadOnlyList<int> pageIndices,
+        IReadOnlyDictionary<int, int> rotations)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        ArgumentNullException.ThrowIfNull(pageIndices);
+        ArgumentNullException.ThrowIfNull(rotations);
+        if (pageIndices.Count == 0)
+            throw new ArgumentException("At least one page must be extracted.", nameof(pageIndices));
+
+        PdfDocument source = PdfDocument.Open(File.ReadAllBytes(sourcePath));
+        PdfDocument empty = PdfDocument.Open(new KillerPdf.Engine.Authoring.PdfDocumentBuilder().Build());
+        var editor = new PdfIncrementalPageEditor(empty)
+            .InsertImportedPages(0, source, pageIndices);
+        for (int outputIndex = 0; outputIndex < pageIndices.Count; outputIndex++)
+            editor.SetRotation(outputIndex,
+                rotations.TryGetValue(pageIndices[outputIndex], out int rotation) ? rotation : 0);
+        ReplaceWithBuiltResult(destinationPath, editor.Build());
+    }
+
+    /// <summary>Appends complete PDF documents and normalizes their rotations for the viewer.</summary>
+    internal static void AppendDocuments(
+        string path, IReadOnlyList<ImportedDocument> sources)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(sources);
+        if (sources.Count == 0) return;
+
+        PdfDocument target = PdfDocument.Open(File.ReadAllBytes(path));
+        var editor = new PdfIncrementalPageEditor(target);
+        foreach (ImportedDocument import in sources)
+        {
+            PdfDocument source = PdfDocument.Open(File.ReadAllBytes(import.Path));
+            int offset = editor.PageCount;
+            int count = new PdfIncrementalPageEditor(source).PageCount;
+            if (import.PageRotations.Count != count)
+                throw new ArgumentException(
+                    "The imported rotation count must match the source page count.", nameof(sources));
+            editor.AddImportedDocument(source);
+            for (int index = 0; index < count; index++)
+                editor.SetRotation(offset + index, 0);
+        }
+        ReplaceWithBuiltResult(path, editor.Build());
+    }
+
+    /// <summary>Appends imported page rotations to the application rotation map.</summary>
+    internal static void RemapRotationsAfterDocumentAppend(
+        Dictionary<int, int> rotations, IReadOnlyList<ImportedDocument> sources)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        ArgumentNullException.ThrowIfNull(sources);
+        int index = rotations.Count;
+        foreach (ImportedDocument source in sources)
+            foreach (int rotation in source.PageRotations)
+                rotations[index++] = ((rotation % 360) + 360) % 360;
     }
 
     private static void ReplaceWithBuiltResult(string path, byte[] result)

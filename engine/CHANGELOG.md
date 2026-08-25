@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added application integration gates for deep page duplication, ordered selected-page extraction with effective rotations, and complete-document merging with normalized viewer rotation state.
 - Added an application integration gate that inserts blank A4 pages at a selected position or at the end of a document while shifting retained application rotation state.
 - Added an application integration gate that moves pages through the incremental page editor for sidebar button and thumbnail-drag reordering while moving application rotation state with each page.
 - Added an application integration gate that removes selected pages through the incremental page editor and renumbers the desktop application's retained-page rotation state.
