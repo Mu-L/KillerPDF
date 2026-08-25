@@ -503,23 +503,9 @@ namespace KillerPDF.Controls
                 var pdfPage = _doc.Pages[pageIndex];
                 var annotsArr = pdfPage.Elements.GetArray("/Annots");
                 if (annotsArr is null || annotIndex >= annotsArr.Elements.Count) return;
-
-                // Neutralize the annotation object before removing the /Annots reference.
-                // If PdfSharpCore writes the orphaned indirect object to the output file,
-                // aggressive PDF viewers that scan cross-reference tables directly (rather
-                // than following /Annots) would still trigger the link without this step.
-                PdfItem? elem = annotsArr.Elements[annotIndex];
-                PdfDictionary? ann = elem as PdfDictionary ?? DerefItem(elem) as PdfDictionary;
-                if (ann != null)
-                {
-                    ann.Elements.Remove("/A");
-                    ann.Elements.Remove("/Dest");
-                    ann.Elements.Remove("/Subtype");
-                }
-
-                annotsArr.Elements.RemoveAt(annotIndex);
                 MarkDirty();
-                SaveTempAndReload();
+                SaveTempAndReload(finalizeSavedFile: path =>
+                    PdfEngineIntegration.RemoveAnnotation(path, pageIndex, annotIndex));
                 // Refresh the current page view so the overlay disappears.
                 int sel = _currentPage;
                 _currentPage = -1;

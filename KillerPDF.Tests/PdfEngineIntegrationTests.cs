@@ -94,6 +94,34 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void RemoveAnnotation_RemovesOnlySelectedNativeAnnotation()
+    {
+        string path = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-remove-annotation-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder().AddBlankPage(200, 300)
+                .AddUriLink(0, 10, 10, 50, 20, "https://example.com/first")
+                .AddUriLink(0, 10, 40, 50, 20, "https://example.com/second")
+                .Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.RemoveAnnotation(path, 0, 0);
+
+            byte[] result = File.ReadAllBytes(path);
+            PdfDocument reopened = PdfDocument.Open(result);
+            PdfArray annotations = Assert.IsType<PdfArray>(
+                Page(reopened, 0)[new PdfName("Annots"u8)]);
+            Assert.Single(annotations);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void AddSearchableTextLayers_WritesExtractableMultiscriptUnicode()
     {
         string input = Path.Combine(Path.GetTempPath(),

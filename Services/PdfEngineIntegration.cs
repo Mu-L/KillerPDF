@@ -97,6 +97,17 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(destinationPath, PdfDocumentWriter.Write(source));
     }
 
+    /// <summary>Removes one native PDF annotation by its page-array index.</summary>
+    internal static void RemoveAnnotation(string path, int pageIndex, int annotationIndex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        PdfDocument source = PdfDocument.Open(File.ReadAllBytes(path));
+        byte[] result = new PdfIncrementalAnnotationEditor(source)
+            .RemoveAnnotationAt(pageIndex, annotationIndex)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
     /// <summary>Merges PDF documents and image frames through one engine page tree.</summary>
     internal static byte[] MergeFiles(IReadOnlyList<string> paths)
     {
