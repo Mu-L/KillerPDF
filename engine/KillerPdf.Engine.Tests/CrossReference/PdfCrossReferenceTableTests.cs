@@ -242,7 +242,7 @@ public sealed class PdfCrossReferenceTableTests
     }
 
     [Fact]
-    public void Read_RejectsLinearizedMainXrefHintBeforePreviousTarget()
+    public void Read_AllowsLinearizedMainXrefHintImmediatelyBeforePreviousTarget()
     {
         var source = new StringBuilder("%PDF-1.7\n");
         int objectOffset = source.Length;
@@ -263,11 +263,10 @@ public sealed class PdfCrossReferenceTableTests
         source.Replace("/E 0000000000", $"/E {mainOffset - 2:0000000000}");
         source.Replace("/T 0000000000", $"/T {mainOffset - 1:0000000000}");
 
-        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
-            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
+            Encoding.ASCII.GetBytes(source.ToString()));
 
-        Assert.Contains("/Prev must point to an earlier", error.Message,
-            StringComparison.Ordinal);
+        Assert.Equal(2, table.Sections.Count);
     }
 
     [Fact]
@@ -591,7 +590,7 @@ public sealed class PdfCrossReferenceTableTests
     }
 
     [Fact]
-    public void Read_RejectsChangedPermanentIdentifierAcrossRevisions()
+    public void Read_AcceptsChangedPermanentIdentifierAcrossRevisions()
     {
         var source = new StringBuilder("%PDF-2.0\n");
         int oldOffset = source.Length;
@@ -602,11 +601,10 @@ public sealed class PdfCrossReferenceTableTests
         source.Append($"trailer\n<< /Size 1 /ID [<03> <04>] /Prev {oldOffset} >>\n");
         source.Append($"startxref\n{latestOffset}\n%%EOF\n");
 
-        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
-            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
+            Encoding.ASCII.GetBytes(source.ToString()));
 
-        Assert.Contains("first trailer /ID value cannot change", error.Message,
-            StringComparison.Ordinal);
+        Assert.True(table.TryGetTrailerValue(Name("ID"), out _));
     }
 
     [Theory]
@@ -697,21 +695,16 @@ public sealed class PdfCrossReferenceTableTests
     }
 
     [Fact]
-    public void Read_RejectsInvalidMergedFreeListTopology()
+    public void Read_IgnoresInvalidMergedFreeListTopology()
     {
-        PdfSyntaxException activeHead = Assert.Throws<PdfSyntaxException>(() =>
-            PdfCrossReferenceTable.Read(InvalidFreeListPdf(cyclic: false)));
-        PdfSyntaxException cycle = Assert.Throws<PdfSyntaxException>(() =>
-            PdfCrossReferenceTable.Read(InvalidFreeListPdf(cyclic: true)));
-
-        Assert.Contains("free-list points to active or missing object 1",
-            activeHead.Message, StringComparison.Ordinal);
-        Assert.Contains("free-list chain contains a cycle",
-            cycle.Message, StringComparison.Ordinal);
+        Assert.Equal(PdfCrossReferenceEntryType.Free,
+            PdfCrossReferenceTable.Read(InvalidFreeListPdf(cyclic: false))[0].Type);
+        Assert.Equal(PdfCrossReferenceEntryType.Free,
+            PdfCrossReferenceTable.Read(InvalidFreeListPdf(cyclic: true))[0].Type);
     }
 
     [Fact]
-    public void Read_RejectsRevisionHistoryThatNeverDefinesObjectZero()
+    public void Read_SynthesizesObjectZeroWhenRevisionHistoryOmitsIt()
     {
         var source = new StringBuilder("%PDF-2.0\n");
         int objectOffset = source.Length;
@@ -722,11 +715,11 @@ public sealed class PdfCrossReferenceTableTests
         source.Append("trailer\n<< /Size 2 >>\n");
         source.Append($"startxref\n{xrefOffset}\n%%EOF\n");
 
-        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
-            PdfCrossReferenceTable.Read(Encoding.ASCII.GetBytes(source.ToString())));
+        PdfCrossReferenceEntry zero = PdfCrossReferenceTable.Read(
+            Encoding.ASCII.GetBytes(source.ToString()))[0];
 
-        Assert.Contains("must define object 0", error.Message,
-            StringComparison.Ordinal);
+        Assert.Equal(PdfCrossReferenceEntryType.Free, zero.Type);
+        Assert.Equal(65_535, zero.Field2);
     }
 
     [Fact]
@@ -739,7 +732,7 @@ public sealed class PdfCrossReferenceTableTests
     }
 
     [Fact]
-    public void Read_RejectsUnregisteredStandaloneCrossReferenceStream()
+    public void Read_AcceptsUnregisteredStandaloneCrossReferenceStream()
     {
         using var source = new MemoryStream();
         Write("%PDF-2.0\n");
@@ -750,11 +743,9 @@ public sealed class PdfCrossReferenceTableTests
         source.Write(row);
         Write($"\nendstream endobj\nstartxref\n{streamOffset}\n%%EOF\n");
 
-        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
-            PdfCrossReferenceTable.Read(source.ToArray()));
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(source.ToArray());
 
-        Assert.Contains("entry for itself", error.Message,
-            StringComparison.Ordinal);
+        Assert.Equal(PdfCrossReferenceEntryType.Free, table[0].Type);
 
         void Write(string value) => source.Write(Encoding.ASCII.GetBytes(value));
     }

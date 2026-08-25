@@ -41,10 +41,16 @@ public sealed class PdfHeaderTests
     [InlineData("%PDF-2.00\n")]
     [InlineData("%PDF-2.0x")]
     [InlineData("%PDF-2.0")]
-    public void Parse_RequiresLineEndingImmediatelyAfterVersion(string source)
+    public void Parse_RecoversVersionWithoutCanonicalLineEnding(string source)
     {
-        Assert.Throws<FormatException>(() =>
-            PdfHeader.Parse(System.Text.Encoding.ASCII.GetBytes(source)));
+        Assert.Equal(PdfVersion.Pdf20,
+            PdfHeader.Parse(System.Text.Encoding.ASCII.GetBytes(source)).Version);
+    }
+
+    [Fact]
+    public void Parse_MapsUnofficialPdf19DeclarationToPdf20()
+    {
+        Assert.Equal(PdfVersion.Pdf20, PdfHeader.Parse("%PDF-1.9\n"u8).Version);
     }
 
     [Fact]

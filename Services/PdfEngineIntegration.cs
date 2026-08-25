@@ -152,12 +152,19 @@ internal static class PdfEngineIntegration
     }
 
     /// <summary>Performs a deterministic full-document resave through the engine writer.</summary>
-    internal static void ResaveDocument(string sourcePath, string destinationPath)
+    internal static void ResaveDocument(
+        string sourcePath,
+        string destinationPath,
+        bool allowSignatureInvalidation = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
         PdfDocument source = PdfDocument.Open(File.ReadAllBytes(sourcePath));
-        ReplaceWithBuiltResult(destinationPath, PdfDocumentWriter.Write(source));
+        ReplaceWithBuiltResult(destinationPath, PdfDocumentWriter.Write(source,
+            new PdfDocumentWriteOptions
+            {
+                AllowSignatureInvalidation = allowSignatureInvalidation
+            }));
     }
 
     /// <summary>Removes one native PDF annotation by its page-array index.</summary>

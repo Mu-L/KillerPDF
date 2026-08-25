@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Expanded tolerant full rewrites across malformed but recoverable headers, cross-reference tables and streams, trailer metadata, stream lengths, and trailing data while retaining bounded parsing and deterministic output. Explicit signature invalidation now removes stale signature values and certification permissions before rewriting, and the corpus gates distinguish intentional skips from regressions.
 - Completed the desktop document-engine migration by replacing the mutable PdfSharpCore document with an engine-validated serialized working-state handle. Removed the production and test references, vendored source, compatibility formatter tests, solution project, and portable payload dependencies; Release, strict docs, qpdf, veraPDF PDF/UA-2, packaging, and launcher gates pass.
 - Reframed the desktop installed-font catalog and TrueType Collection extractor as an engine embedding service, removing the PdfSharpCore font-resolver interface and process-wide resolver registration while retaining Unicode coverage and styled-face selection.
 - Expanded the desktop engine boundary into Transform geometry, native-link removal validation, and image-export page state, then removed the unreachable PdfSharpCore named-destination importer and link-style scrub layer superseded by complete engine imports and annotation editing.
@@ -25,7 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Added bulk link-appearance normalization to the incremental annotation editor and integrated it into desktop Save and Save As output, including clean reload snapshots and annotation-burn saves.
 - Removed live PdfSharpCore page mutation from desktop rotation commands by routing selected turns through the application rotation-state boundary that the engine persists on final save.
 - Integrated viewer link removal through the engine's indexed native-annotation deletion path, preserving the original document bytes and all unselected annotations.
-- Integrated headless corpus resaving through the deterministic engine writer, exposed certification-permission inspection, and made batch validation skip protected signatures instead of carrying invalidated signature values forward.
+- Integrated headless corpus resaving through the deterministic engine writer, exposed certification-permission inspection, and made batch validation explicitly clear invalidated signature values and certification permissions.
 - Integrated import-based repair and temp-reload recovery through complete engine document-graph rebuilds, with explicit preservation or stripping of native page rotations.
 - Integrated GUI and CLI searchable-PDF OCR through byte-preserving typed overlays with invisible Unicode text, per-script embedded fallback fonts, ToUnicode extraction maps, fitted word geometry, and native page-rotation transforms.
 - Added byte-preserving typed-content overlays for existing pages. Each overlay is isolated as a Form XObject with its complete font, image, color-space, and graphics-state resources, including embedded Unicode fonts and ToUnicode maps.

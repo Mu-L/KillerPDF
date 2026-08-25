@@ -12,6 +12,7 @@ public sealed class PdfObjectParser
 
     private static readonly PdfName LengthName = new("Length"u8);
 
+    private readonly ReadOnlyMemory<byte> _source;
     private readonly PdfTokenizer _tokenizer;
     private readonly Func<PdfIndirectReference, long>? _streamLengthResolver;
     private readonly List<PdfToken> _lookahead = [];
@@ -30,6 +31,7 @@ public sealed class PdfObjectParser
         int startOffset,
         Func<PdfIndirectReference, long>? streamLengthResolver = null)
     {
+        _source = source;
         _tokenizer = new PdfTokenizer(source, startOffset);
         _streamLengthResolver = streamLengthResolver;
     }
@@ -186,9 +188,64 @@ public sealed class PdfObjectParser
         ConsumeStreamClosingLineEnding(dataOffset + length);
 
         PdfToken endStream = Take();
-        RequireKeyword(endStream, "endstream", "A stream payload must end with the endstream keyword");
+        if (!IsKeyword(endStream, "endstream"))
+            return RecoverStream(dictionary, dataOffset, length, streamKeywordOffset);
         return new PdfStream(dictionary, encodedData.Span);
     }
+
+    private PdfStream RecoverStream(
+        PdfDictionary dictionary,
+        int dataOffset,
+        int declaredLength,
+        int streamKeywordOffset)
+    {
+        ReadOnlySpan<byte> marker = "endstream"u8;
+        ReadOnlySpan<byte> source = _source.Span;
+        int searchStart = dataOffset;
+        int searchEnd = Math.Min(source.Length, checked(dataOffset + Math.Max(declaredLength, 0) + 1_048_576));
+        int expectedEnd = Math.Min(source.Length, checked(dataOffset + declaredLength));
+        int best = -1;
+        int bestDistance = int.MaxValue;
+
+        while (searchStart <= searchEnd - marker.Length)
+        {
+            int relative = source[searchStart..searchEnd].IndexOf(marker);
+            if (relative < 0) break;
+            int candidate = searchStart + relative;
+            int after = candidate + marker.Length;
+            bool leftDelimited = candidate == dataOffset || IsPdfWhitespace(source[candidate - 1]);
+            bool rightDelimited = after == source.Length
+                || IsPdfWhitespace(source[after])
+                || source[after] is (byte)'/' or (byte)'<' or (byte)'>' or (byte)'[' or (byte)']'
+                    or (byte)'(' or (byte)')';
+            if (leftDelimited && rightDelimited)
+            {
+                int distance = Math.Abs(candidate - expectedEnd);
+                if (distance < bestDistance)
+                {
+                    best = candidate;
+                    bestDistance = distance;
+                }
+            }
+            searchStart = candidate + 1;
+        }
+
+        if (best < 0)
+            throw Error("A stream payload must end with the endstream keyword", streamKeywordOffset);
+
+        int dataEnd = best;
+        if (dataEnd > dataOffset && source[dataEnd - 1] == (byte)'\n') dataEnd--;
+        if (dataEnd > dataOffset && source[dataEnd - 1] == (byte)'\r') dataEnd--;
+        _lookahead.Clear();
+        _tokenizer.SetRawPosition(best);
+        PdfToken recoveredEnd = Take();
+        RequireKeyword(recoveredEnd, "endstream",
+            "A recovered stream payload must end with the endstream keyword");
+        return new PdfStream(dictionary, source[dataOffset..dataEnd]);
+    }
+
+    private static bool IsPdfWhitespace(byte value) =>
+        value is 0 or 9 or 10 or 12 or 13 or 32;
 
     private int ResolveStreamLength(PdfDictionary dictionary, int offset)
     {
@@ -223,8 +280,23 @@ public sealed class PdfObjectParser
                 _tokenizer.TryReadRawByte(out _);
             return;
         }
-
-        throw Error("The stream keyword must be followed by CR, LF, or CRLF", offset);
+        if (first is 0 or 9 or 12 or 32)
+        {
+            while (_tokenizer.TryPeekRawByte(out byte horizontal)
+                && horizontal is 0 or 9 or 12 or 32)
+                _tokenizer.TryReadRawByte(out _);
+            if (_tokenizer.TryPeekRawByte(out byte lineEnding)
+                && lineEnding is (byte)'\r' or (byte)'\n')
+            {
+                _tokenizer.TryReadRawByte(out byte consumed);
+                if (consumed == (byte)'\r'
+                    && _tokenizer.TryPeekRawByte(out byte lf)
+                    && lf == (byte)'\n')
+                    _tokenizer.TryReadRawByte(out _);
+            }
+            return;
+        }
+        _tokenizer.RewindRawByte();
     }
 
     private void ConsumeStreamClosingLineEnding(int offset)

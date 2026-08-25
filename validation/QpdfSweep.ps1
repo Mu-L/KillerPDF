@@ -8,8 +8,9 @@
     resave log written by `KillerPDF.exe --batch-resave` and checks only the rows marked OK -
     skipped files were never written and have nothing to compare.
 
-    qpdf exit codes: 0 = clean, 2 = errors, 3 = warnings only. "Worsened" is any pair whose
-    after-code is higher than its before-code. The release bar is zero worsened.
+    qpdf exit codes: 0 = clean, 2 = errors, 3 = warnings only. Because the numeric exit codes
+    are not severity ordered, the comparison ranks clean below warnings below errors. The
+    release bar is zero worsened.
 
     .\QpdfSweep.ps1 -Corpus C:\pdf-corpus -Resaved C:\pdf-corpus-resaved `
         -ResaveLog ..\resave.csv -CsvOut qpdf-results.csv
@@ -49,6 +50,17 @@ function Get-QpdfCheckCode {
     }
 }
 
+function Get-QpdfSeverity {
+    param([int]$Code)
+
+    switch ($Code) {
+        0 { return 0 }
+        3 { return 1 }
+        2 { return 2 }
+        default { return 3 }
+    }
+}
+
 $rows = Import-Csv -LiteralPath $ResaveLog | Where-Object { $_.Status -eq 'OK' }
 $results = New-Object System.Collections.Generic.List[object]
 $i = 0
@@ -64,7 +76,12 @@ foreach ($r in $rows) {
     }
     $b = Get-QpdfCheckCode $o
     $a = Get-QpdfCheckCode $n
-    $results.Add([pscustomobject]@{ File = $r.File; Before = $b; After = $a; Worsened = ($a -gt $b) })
+    $results.Add([pscustomobject]@{
+        File = $r.File
+        Before = $b
+        After = $a
+        Worsened = ((Get-QpdfSeverity $a) -gt (Get-QpdfSeverity $b))
+    })
 }
 
 $results | Export-Csv -LiteralPath $CsvOut -NoTypeInformation -Encoding UTF8

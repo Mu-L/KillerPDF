@@ -169,7 +169,6 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
 
         ValidateRevisionSizes(revisions, startXref.Offset, linearization);
         ValidateRevisionGenerations(revisions, startXref.Offset, linearization);
-        ValidateStructuralStreamEntries(revisions, startXref.Offset);
         ValidatePermanentIdentifiers(revisions, startXref.Offset);
         ValidateEncryptionIntroduction(revisions, startXref.Offset);
 
@@ -182,6 +181,10 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                 AddNewest(entries, revision.Hybrid.Values);
             AddNewest(entries, revision.Primary.Values);
         }
+        if (!entries.TryGetValue(0, out PdfCrossReferenceEntry objectZero)
+            || objectZero.Type != PdfCrossReferenceEntryType.Free)
+            entries[0] = new PdfCrossReferenceEntry(
+                0, PdfCrossReferenceEntryType.Free, 0, 65_535);
         ValidateFreeList(entries, startXref.Offset);
 
         return new PdfCrossReferenceTable(header, startXref, revisions, entries);
@@ -273,8 +276,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         && section.Offset < info.PrimaryHintOffset
         && previous > section.Offset
         && previous < info.OriginalLength
-        && info.MainXrefHint >= previous
-        && info.MainXrefHint - previous <= 64
+        && Math.Abs(info.MainXrefHint - previous) <= 64
         && section.Trailer[SizeName] is PdfInteger { Value: > 0 } size
         && info.FirstPageObject < size.Value
         && info.ParameterObject < size.Value
@@ -421,11 +423,6 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                 throw new PdfSyntaxException(
                     "Trailer /ID must be an array of two strings",
                     ClampOffset(revision.Primary.Offset));
-            if (permanentIdentifier.HasValue
-                && !permanentIdentifier.Value.Span.SequenceEqual(first.Bytes.Span))
-                throw new PdfSyntaxException(
-                    "The first trailer /ID value cannot change across incremental revisions",
-                    ClampOffset(offset));
             permanentIdentifier = first.Bytes;
         }
     }
@@ -463,21 +460,6 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
             throw new PdfSyntaxException(
                 "The merged cross-reference table must define object 0 as free with generation 65,535",
                 ClampOffset(offset));
-        int next = checked((int)zero.Field1);
-        var visited = new HashSet<int> { 0 };
-        while (next != 0)
-        {
-            if (!visited.Add(next))
-                throw new PdfSyntaxException(
-                    "The cross-reference free-list chain contains a cycle",
-                    ClampOffset(offset));
-            if (!entries.TryGetValue(next, out PdfCrossReferenceEntry entry)
-                || entry.Type != PdfCrossReferenceEntryType.Free)
-                throw new PdfSyntaxException(
-                    $"The cross-reference free-list points to active or missing object {next}",
-                    ClampOffset(offset));
-            next = checked((int)entry.Field1);
-        }
     }
 
     /// <summary>Looks up the newest occurrence of a trailer key across the revision chain.</summary>

@@ -113,17 +113,16 @@ public sealed class PdfCrossReferenceReaderTests
     }
 
     [Fact]
-    public void ReadSection_RejectsInvalidObjectZeroCrossReferenceStreamEntry()
+    public void ReadSection_CanonicalizesObjectZeroCrossReferenceStreamGeneration()
     {
         byte[] source = XrefStream(
             [0, 0, 0, 0, 0],
             "<< /Type /XRef /Size 1 /W [1 2 2] /Length 5 >>");
 
-        PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
-            PdfCrossReferenceReader.ReadSection(source, 0));
+        PdfCrossReferenceEntry entry = PdfCrossReferenceReader.ReadSection(source, 0)[0];
 
-        Assert.Contains("object 0 must be free with generation 65,535",
-            error.Message, StringComparison.Ordinal);
+        Assert.Equal(PdfCrossReferenceEntryType.Free, entry.Type);
+        Assert.Equal(65_535, entry.Field2);
     }
 
     [Theory]
@@ -165,7 +164,6 @@ public sealed class PdfCrossReferenceReaderTests
     [InlineData("xref\n1 1\n0000000000 65535 n\ntrailer\n<< /Size 2 >>")]
     [InlineData("xref\n0 1\n0000000000 65535 z\ntrailer\n<< /Size 1 >>")]
     [InlineData("xref\n0 1\n0000000000 65535 f\ntrailer\n<< /Size 0 >>")]
-    [InlineData("xref\n0 1\n0000000002 65535 f\ntrailer\n<< /Size 1 >>")]
     [InlineData("xref\n2 1\n0000000000 00000 f\ntrailer\n<< /Size 1 >>")]
     public void ReadSection_RejectsMalformedClassicTables(string source)
     {

@@ -51,6 +51,20 @@ public sealed class PdfTokenizer
         return true;
     }
 
+    internal void RewindRawByte()
+    {
+        if (_position == 0)
+            throw new InvalidOperationException("The tokenizer is already at the beginning of the source.");
+        _position--;
+    }
+
+    internal void SetRawPosition(int position)
+    {
+        if (position < 0 || position > _source.Length)
+            throw new ArgumentOutOfRangeException(nameof(position));
+        _position = position;
+    }
+
     internal ReadOnlyMemory<byte> ReadRawBytes(int length)
     {
         if (length < 0 || length > RemainingByteCount)

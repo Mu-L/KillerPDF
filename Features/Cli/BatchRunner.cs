@@ -211,16 +211,10 @@ namespace KillerPDF.Features
                 return "SKIP";
             }
 
-            if (PdfSignatureReader.Read(document).Any(signature => signature.IsSigned)
-                || PdfSignatureReader.ReadCertificationPermission(document).HasValue)
-            {
-                detail = "signed - batch mode does not invalidate signatures";
-                return "SKIP";
-            }
-
             try
             {
-                PdfEngineIntegration.ResaveDocument(src, dst);
+                PdfEngineIntegration.ResaveDocument(
+                    src, dst, allowSignatureInvalidation: true);
                 return "OK";
             }
             catch (Exception ex)

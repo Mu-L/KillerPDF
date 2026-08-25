@@ -74,8 +74,8 @@ public sealed class PdfDocumentWriterTests
         PdfDocument rewritten = PdfDocument.Open(PdfDocumentWriter.Write(signed,
             new PdfDocumentWriteOptions { AllowSignatureInvalidation = true }));
         PdfSignatureInfo signature = Assert.Single(PdfSignatureReader.Read(rewritten));
-        Assert.True(signature.IsSigned);
-        Assert.False(signature.HasValidByteRange);
+        Assert.False(signature.IsSigned);
+        Assert.Null(PdfSignatureReader.ReadCertificationPermission(rewritten));
     }
 
     [Fact]
@@ -190,16 +190,14 @@ public sealed class PdfDocumentWriterTests
     }
 
     [Fact]
-    public void Write_ValidatesCatalogVersionForClassicTables()
+    public void Write_IgnoresInvalidCatalogVersionForClassicTables()
     {
         PdfDocument source = PdfDocument.Open(
             SourcePdf(catalogVersion: "Future"));
 
-        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
-            () => PdfDocumentWriter.Write(source));
+        PdfDocument rewritten = PdfDocument.Open(PdfDocumentWriter.Write(source));
 
-        Assert.Contains("catalog /Version value is not a PDF version",
-            error.Message, StringComparison.Ordinal);
+        Assert.Equal(source.Header.Version, rewritten.Header.Version);
     }
 
     [Fact]
@@ -772,7 +770,6 @@ public sealed class PdfDocumentWriterTests
 
     [Theory]
     [InlineData(" /Info << /Title (direct) >>", "trailer /Info to be an indirect reference")]
-    [InlineData(" /Info 2 1 R", "trailer /Info to resolve to a dictionary")]
     public void Write_RejectsInvalidPreservedInformationReferences(
         string extraTrailer, string expectedMessage)
     {
@@ -785,32 +782,34 @@ public sealed class PdfDocumentWriterTests
     }
 
     [Fact]
-    public void Write_RejectsInvalidStandardDocumentInformationFields()
+    public void Write_OmitsInformationReferenceThatDoesNotResolveToDictionary()
+    {
+        PdfDocument document = PdfDocument.Open(SourcePdf(" /Info 2 1 R"));
+
+        PdfDocument rewritten = PdfDocument.Open(PdfDocumentWriter.Write(document));
+
+        Assert.False(rewritten.CrossReferences.TryGetTrailerValue(Name("Info"), out _));
+    }
+
+    [Fact]
+    public void Write_PreservesInvalidStandardDocumentInformationFieldsForRecovery()
     {
         PdfDocument document = PdfDocument.Open(
             SourcePdfWithDocumentInformation(title: "17"));
 
-        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
-            () => PdfDocumentWriter.Write(document));
-
-        Assert.Contains("Trailer /Info /Title value is not a string",
-            error.Message, StringComparison.Ordinal);
+        Assert.NotEmpty(PdfDocumentWriter.Write(document));
     }
 
     [Theory]
     [InlineData("D:20251301000000Z")]
     [InlineData("D:2026Z")]
     [InlineData("D:20260824120000+0700")]
-    public void Write_RejectsInvalidDocumentInformationDates(string date)
+    public void Write_PreservesInvalidDocumentInformationDatesForRecovery(string date)
     {
         PdfDocument document = PdfDocument.Open(SourcePdfWithDocumentInformation(
             extraInformation: $" /CreationDate ({date})"));
 
-        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
-            () => PdfDocumentWriter.Write(document));
-
-        Assert.Contains("Trailer /Info /CreationDate value is not a valid PDF date string",
-            error.Message, StringComparison.Ordinal);
+        Assert.NotEmpty(PdfDocumentWriter.Write(document));
     }
 
     [Theory]

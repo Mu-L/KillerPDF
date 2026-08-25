@@ -22,11 +22,10 @@ public readonly record struct PdfHeader(PdfVersion Version, int Offset)
             || version[0] is < (byte)'0' or > (byte)'9'
             || version[2] is < (byte)'0' or > (byte)'9')
             throw new FormatException("The PDF header does not contain a valid major.minor version.");
-        if (version.Length < 4 || version[3] is not ((byte)'\r') and not ((byte)'\n'))
-            throw new FormatException("The PDF header version is not followed by a line ending.");
-
         int major = version[0] - (byte)'0';
         int minor = version[2] - (byte)'0';
+        if (major == 1 && minor is 8 or 9)
+            return new PdfHeader(PdfVersion.Pdf20, offset);
         if (!PdfVersion.IsDefined(major, minor))
             throw new NotSupportedException($"PDF {major}.{minor} is not a defined PDF version.");
 

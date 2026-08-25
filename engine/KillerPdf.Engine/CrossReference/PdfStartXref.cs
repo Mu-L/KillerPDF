@@ -54,8 +54,6 @@ public readonly record struct PdfStartXref(long Offset, int MarkerOffset)
             throw new PdfSyntaxException("The startxref declaration is not followed by %%EOF", position);
         position += EndMarker.Length;
         SkipWhitespace(source, ref position);
-        if (position != source.Length)
-            throw new PdfSyntaxException("Unexpected data follows the final %%EOF marker", position);
 
         return new PdfStartXref(offset, markerOffset);
     }

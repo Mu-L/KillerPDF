@@ -88,6 +88,15 @@ public static class PdfDocumentWriter
             || rootTypeName.ValueAsLatin1() != "Catalog")
             throw new InvalidOperationException(
                 "A full rewrite requires trailer /Root to resolve to a catalog dictionary.");
+        bool hasCertification =
+            PdfSignatureReader.ReadCertificationPermission(document).HasValue;
+        bool hasSignedFields =
+            PdfSignatureReader.Read(document).Any(signature => signature.IsSigned);
+        if (options.AllowSignatureInvalidation && (hasCertification || hasSignedFields))
+        {
+            byte[] cleared = PdfSignatureInvalidationWriter.ClearSignatureValues(document);
+            return Write(PdfDocument.Open(cleared), options);
+        }
         if (options.MetadataPolicy == PdfMetadataPolicy.Preserve
             && document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject info))
         {
@@ -95,13 +104,8 @@ public static class PdfDocumentWriter
                 throw new InvalidOperationException(
                     "A full rewrite requires trailer /Info to be an indirect reference.");
             if (ResolveValue(document, infoReference,
-                    "The trailer /Info value") is not PdfDictionary informationDictionary)
-                throw new InvalidOperationException(
-                    "A full rewrite requires trailer /Info to resolve to a dictionary.");
-            ValidateDocumentInformation(informationDictionary,
-                value => ResolveValue(document, value,
-                    "A document-information value"));
-            ValidateDocumentInformationGraph(document, informationDictionary);
+                    "The trailer /Info value") is PdfDictionary informationDictionary)
+                ValidateDocumentInformationGraph(document, informationDictionary);
         }
         bool outputIsEncrypted = document.IsEncrypted && !options.RemoveEncryption;
         bool preservesIdentifiers = options.PreserveDocumentIdentifiers || outputIsEncrypted;
@@ -119,10 +123,7 @@ public static class PdfDocumentWriter
         ValidateApplicationTrailerGraphs(document);
         if (!options.AllowSignatureInvalidation)
         {
-            bool hasCertification =
-                PdfSignatureReader.ReadCertificationPermission(document).HasValue;
-            if (hasCertification
-                || PdfSignatureReader.Read(document).Any(signature => signature.IsSigned))
+            if (hasCertification || hasSignedFields)
                 throw new InvalidOperationException(
                     "A full rewrite invalidates existing signatures. Set AllowSignatureInvalidation explicitly to proceed.");
         }
@@ -583,16 +584,15 @@ public static class PdfDocumentWriter
         PdfObject resolvedVersion = ResolveValue(document, versionValue,
             "The catalog /Version value");
         if (resolvedVersion is not PdfName versionName)
-            throw new InvalidOperationException("The catalog /Version value is not a name.");
+            return headerVersion;
         string text = versionName.ValueAsLatin1();
         if (text.Length != 3 || text[1] != '.'
             || text[0] is < '0' or > '9' || text[2] is < '0' or > '9')
-            throw new InvalidOperationException("The catalog /Version value is not a PDF version.");
+            return headerVersion;
         int major = text[0] - '0';
         int minor = text[2] - '0';
         if (!PdfVersion.IsDefined(major, minor))
-            throw new InvalidOperationException(
-                $"The catalog /Version PDF {major}.{minor} is not defined.");
+            return headerVersion;
         PdfVersion declared = new(major, minor);
         return declared.CompareTo(headerVersion) > 0 ? declared : headerVersion;
     }
@@ -637,8 +637,11 @@ public static class PdfDocumentWriter
         foreach ((PdfName name, PdfObject value) in document.CrossReferences.MergedTrailer)
             if (!StructuralTrailerNames.Contains(name))
                 entries.Add(new KeyValuePair<PdfName, PdfObject>(name, value));
-        if (options.MetadataPolicy == PdfMetadataPolicy.Preserve)
-            AddInherited(document, entries, InfoName);
+        if (options.MetadataPolicy == PdfMetadataPolicy.Preserve
+            && document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject info)
+            && info is PdfIndirectReference
+            && ResolveValue(document, info, "The trailer /Info value") is PdfDictionary)
+            entries.Add(new KeyValuePair<PdfName, PdfObject>(InfoName, info));
         if (options.PreserveDocumentIdentifiers)
             AddInherited(document, entries, IdName);
         if (document.IsEncrypted && !options.RemoveEncryption)
@@ -772,7 +775,12 @@ public static class PdfDocumentWriter
             if (!StructuralTrailerNames.Contains(name))
                 Validate(value, $"Trailer /{name.ValueAsLatin1()} value", 0);
         if (options.MetadataPolicy == PdfMetadataPolicy.Preserve
-            && document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject info))
+            && document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject info)
+            && info is PdfIndirectReference infoReference
+            && currentObjects.TryGetValue(
+                (infoReference.ObjectNumber, infoReference.Generation),
+                out PdfObject? information)
+            && information is PdfDictionary)
             Validate(info, "Trailer /Info value", 0);
         if (document.IsEncrypted && !options.RemoveEncryption
             && document.CrossReferences.TryGetTrailerValue(

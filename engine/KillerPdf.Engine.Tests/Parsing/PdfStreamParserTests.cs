@@ -59,12 +59,20 @@ public sealed class PdfStreamParserTests
     [InlineData("1 0 obj << >> stream\n\nendstream endobj")]
     [InlineData("1 0 obj << /Length -1 >> stream\n\nendstream endobj")]
     [InlineData("1 0 obj << /Length /Five >> stream\nHello\nendstream endobj")]
-    [InlineData("1 0 obj << /Length 5 >> stream Hello\nendstream endobj")]
-    [InlineData("1 0 obj << /Length 8 >> stream\nHello\nendstream endobj")]
     [InlineData("1 0 obj << /Length 5 >> stream\nHello\nendobj")]
     public void ParseIndirectObject_RejectsMalformedStreamBoundaries(string source)
     {
         Assert.Throws<PdfSyntaxException>(() => Parser(source).ParseIndirectObject());
+    }
+
+    [Theory]
+    [InlineData("1 0 obj << /Length 5 >> stream Hello\nendstream endobj")]
+    [InlineData("1 0 obj << /Length 8 >> stream\nHello\nendstream endobj")]
+    public void ParseIndirectObject_RecoversMalformedStreamBoundaries(string source)
+    {
+        var stream = Assert.IsType<PdfStream>(Parser(source).ParseIndirectObject().Value);
+
+        Assert.Equal("Hello", Encoding.Latin1.GetString(stream.EncodedData.Span));
     }
 
     [Fact]

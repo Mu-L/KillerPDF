@@ -87,10 +87,11 @@ public static class PdfCrossReferenceReader
     {
         if (field2 is < 0 or > 65_535)
             throw Error("An xref generation must be between 0 and 65,535", statusToken.Offset);
-        if (objectNumber == 0
-            && (!IsKeyword(statusToken, "f") || field2 != 65_535))
+        if (objectNumber == 0 && !IsKeyword(statusToken, "f"))
             throw Error("Cross-reference object 0 must be free with generation 65,535",
                 statusToken.Offset);
+        if (objectNumber == 0)
+            field2 = 65_535;
 
         if (IsKeyword(statusToken, "n"))
         {
@@ -171,9 +172,11 @@ public static class PdfCrossReferenceReader
         ulong field2,
         int offset)
     {
-        if (objectNumber == 0 && (type != 0 || field2 != 65_535))
+        if (objectNumber == 0 && type != 0)
             throw Error("Cross-reference object 0 must be free with generation 65,535",
                 offset);
+        if (objectNumber == 0)
+            field2 = 65_535;
         return type switch
         {
             0 when field1 <= int.MaxValue && field2 <= 65_535 =>
@@ -271,9 +274,6 @@ public static class PdfCrossReferenceReader
                 entry.Type is PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed
                 && entry.ObjectNumber >= size))
             throw Error("Trailer /Size must be greater than every in-use object number", offset);
-        if (entries.Any(entry => entry.Type == PdfCrossReferenceEntryType.Free
-                && entry.Field1 >= size))
-            throw Error("A free cross-reference entry points beyond trailer /Size", offset);
         if (entries.Any(entry => entry.Type == PdfCrossReferenceEntryType.Free
                 && entry.ObjectNumber > size))
             throw Error("A free cross-reference entry lies beyond trailer /Size", offset);
