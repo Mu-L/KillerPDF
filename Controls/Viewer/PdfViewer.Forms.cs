@@ -51,26 +51,29 @@ namespace KillerPDF.Controls
             if (control is not FrameworkElement element) return;
             if (_currentTool == EditTool.FormField && field.ObjNum > 0)
             {
-                element.Cursor = Cursors.SizeAll;
+                element.Cursor = element is TextBox ? Cursors.IBeam : Cursors.SizeAll;
                 element.ForceCursor = true;
-                if (element is TextBox textBox) textBox.IsReadOnly = true;
                 if (element is ComboBox comboBox) comboBox.IsEnabled = false;
             }
 
             element.PreviewMouseLeftButtonDown += (_, e) =>
             {
                 if (_currentTool != EditTool.FormField || field.ObjNum <= 0) return;
-                HideFormSizeBar();
-                Keyboard.ClearFocus();
+                Point local = e.GetPosition(element);
+                bool resize = local.X >= element.ActualWidth - FormResizeGripSize
+                    && local.Y >= element.ActualHeight - FormResizeGripSize;
+                if (element is TextBox && !resize
+                    && !IsFormMoveBorder(local, element.ActualWidth, element.ActualHeight))
+                    return;
                 _formDragControl = element;
                 _formDragCanvas = canvas;
                 _formDragField = field;
                 _formDragStart = e.GetPosition(canvas);
                 _formDragOrigin = new Point(Canvas.GetLeft(element), Canvas.GetTop(element));
                 _formDragSize = new Size(element.ActualWidth, element.ActualHeight);
-                Point local = e.GetPosition(element);
-                _formDragIsResize = local.X >= element.ActualWidth - FormResizeGripSize
-                    && local.Y >= element.ActualHeight - FormResizeGripSize;
+                _formDragIsResize = resize;
+                HideFormSizeBar();
+                Keyboard.ClearFocus();
                 element.CaptureMouse();
                 Panel.SetZIndex(element, 30);
                 SetStatus(_formDragIsResize
@@ -85,9 +88,12 @@ namespace KillerPDF.Controls
                     if (_currentTool == EditTool.FormField)
                     {
                         Point local = e.GetPosition(element);
-                        element.Cursor = local.X >= element.ActualWidth - FormResizeGripSize
-                            && local.Y >= element.ActualHeight - FormResizeGripSize
-                            ? Cursors.SizeNWSE : Cursors.SizeAll;
+                        bool resize = local.X >= element.ActualWidth - FormResizeGripSize
+                            && local.Y >= element.ActualHeight - FormResizeGripSize;
+                        element.Cursor = resize ? Cursors.SizeNWSE
+                            : element is TextBox
+                                && !IsFormMoveBorder(local, element.ActualWidth, element.ActualHeight)
+                                ? Cursors.IBeam : Cursors.SizeAll;
                     }
                     return;
                 }
@@ -127,6 +133,13 @@ namespace KillerPDF.Controls
                 CommitFormFieldRectangle(pageIndex, field, element, canvas, resized);
                 e.Handled = true;
             };
+        }
+
+        private static bool IsFormMoveBorder(Point point, double width, double height)
+        {
+            const double edge = 6;
+            return point.X <= edge || point.Y <= edge
+                || point.X >= width - edge || point.Y >= height - edge;
         }
 
         private void CommitFormFieldRectangle(
