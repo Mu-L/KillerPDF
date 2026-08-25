@@ -31,6 +31,39 @@ internal static class PdfEngineIntegration
         return PdfBookmarkReader.Read(PdfDocument.Open(source));
     }
 
+    /// <summary>Replaces the document bookmark hierarchy as one engine revision.</summary>
+    internal static void ReplaceBookmarks(string path, IReadOnlyList<PdfBookmarkInfo> bookmarks)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(bookmarks);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        var editor = new PdfIncrementalPageEditor(document).ClearBookmarks();
+        Add(bookmarks, 0);
+        ReplaceWithBuiltResult(path, editor.Build());
+
+        void Add(IReadOnlyList<PdfBookmarkInfo> items, int level)
+        {
+            foreach (PdfBookmarkInfo item in items)
+            {
+                var options = new PdfBookmarkOptions
+                {
+                    Style = item.Style,
+                    Color = item.Color,
+                    IsOpen = item.IsOpen,
+                    Destination = item.Destination ?? PdfDestination.FitPage()
+                };
+                if (item.NamedDestination is not null)
+                    editor.AddNamedDestinationBookmark(item.Title, item.NamedDestination, level, options);
+                else if (item.DestinationPageIndex.HasValue)
+                    editor.AddBookmark(item.Title, item.DestinationPageIndex.Value, level, options);
+                else
+                    throw new NotSupportedException(
+                        $"Bookmark '{item.Title}' has no local page or named destination.");
+                Add(item.Children, level + 1);
+            }
+        }
+    }
+
     /// <summary>Applies a complete pending form-edit batch as one incremental revision.</summary>
     internal static void ApplyFormValues(string path, FormEdits edits)
     {

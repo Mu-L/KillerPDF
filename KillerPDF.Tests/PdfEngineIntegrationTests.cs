@@ -39,6 +39,45 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ReplaceBookmarks_WritesEditedHierarchyThroughEngine()
+    {
+        string path = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-bookmarks-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder()
+                .AddBlankPage().AddBlankPage()
+                .AddNamedDestination("section", 1, PdfDestination.FitWidth(700))
+                .AddBookmark("Old chapter", 0)
+                .AddNamedDestinationBookmark("Section", "section", 1)
+                .Build());
+            IReadOnlyList<PdfBookmarkInfo> original =
+                PdfEngineIntegration.ReadBookmarks(File.ReadAllBytes(path));
+            PdfBookmarkInfo changed = original[0] with
+            {
+                Title = "Renamed chapter",
+                Style = PdfBookmarkStyle.Italic,
+                IsOpen = false
+            };
+
+            PdfEngineIntegration.ReplaceBookmarks(path, [changed]);
+
+            PdfBookmarkInfo result = Assert.Single(
+                PdfEngineIntegration.ReadBookmarks(File.ReadAllBytes(path)));
+            Assert.Equal("Renamed chapter", result.Title);
+            Assert.Equal(PdfBookmarkStyle.Italic, result.Style);
+            Assert.False(result.IsOpen);
+            PdfBookmarkInfo child = Assert.Single(result.Children);
+            Assert.Equal("section", child.NamedDestination);
+            Assert.Equal(1, child.DestinationPageIndex);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void CreateBlankDocument_AuthorsOneA4Page()
     {
         byte[] result = PdfEngineIntegration.CreateBlankDocument();
