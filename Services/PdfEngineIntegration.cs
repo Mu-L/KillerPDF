@@ -45,6 +45,18 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, editor.Build());
     }
 
+    /// <summary>Writes complete descriptive document metadata incrementally.</summary>
+    internal static void ApplyDocumentMetadata(string path, PdfDocumentMetadata metadata)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(metadata);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        byte[] result = new PdfIncrementalPageEditor(document)
+            .SetMetadata(metadata)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
     /// <summary>
     /// Writes visible crop and matching trim boundaries as the final incremental revision.
     /// A null rectangle removes both boundaries so the page falls back to its media box.

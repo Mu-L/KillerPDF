@@ -785,18 +785,23 @@ namespace KillerPDF
                 Creator = _doc.Info.Creator,
                 Producer = _doc.Info.Producer
             };
-            var dlg = new DocumentInfoDialog(this, info, metadata =>
-            {
-                _doc.Info.Title = metadata.Title ?? "";
-                _doc.Info.Author = metadata.Author ?? "";
-                _doc.Info.Subject = metadata.Subject ?? "";
-                _doc.Info.Keywords = metadata.Keywords ?? "";
-                _doc.Info.Creator = metadata.Creator ?? "";
-            }, path);
+            KillerPdf.Engine.Authoring.PdfDocumentMetadata? editedMetadata = null;
+            var dlg = new DocumentInfoDialog(this, info, metadata => editedMetadata = metadata, path);
             dlg.ShowDialog();   // fade-close dialogs don't reliably return true; rely on the Saved flag
-            if (dlg.Saved)
+            if (dlg.Saved && editedMetadata is not null)
             {
-                MarkDirty();
+                var completeMetadata = editedMetadata with
+                {
+                    Language = info.Language,
+                    CreationDate = info.CreationDate,
+                    ModificationDate = info.ModificationDate,
+                    Trapped = info.Trapped
+                };
+                PushDocUndo();
+                SaveTempAndReload(
+                    keepAnnotations: true,
+                    finalizeSavedFile: target =>
+                        PdfEngineIntegration.ApplyDocumentMetadata(target, completeMetadata));
                 SetStatus(Loc("Str_St_DocInfoUpdated"));
             }
         }

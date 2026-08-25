@@ -428,6 +428,50 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ApplyDocumentMetadata_WritesCompleteMetadataAndPreservesPrefix()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-metadata-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+            File.WriteAllBytes(path, source);
+            var metadata = new PdfDocumentMetadata
+            {
+                Title = "Updated title",
+                Author = "Steve",
+                Subject = "The KillerPDF.Engine",
+                Keywords = "PDF 2.0, PDF/A",
+                Creator = "KillerPDF",
+                Producer = "Original producer",
+                Language = "en-US",
+                CreationDate = new DateTimeOffset(2026, 8, 24, 10, 11, 12, TimeSpan.FromHours(-7)),
+                ModificationDate = new DateTimeOffset(2026, 8, 24, 11, 12, 13, TimeSpan.Zero),
+                Trapped = PdfTrappedStatus.False
+            };
+
+            PdfEngineIntegration.ApplyDocumentMetadata(path, metadata);
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            var info = PdfDocumentInformation.Read(PdfDocument.Open(result));
+            Assert.Equal(metadata.Title, info.Title);
+            Assert.Equal(metadata.Author, info.Author);
+            Assert.Equal(metadata.Subject, info.Subject);
+            Assert.Equal(metadata.Keywords, info.Keywords);
+            Assert.Equal(metadata.Creator, info.Creator);
+            Assert.Equal(metadata.Producer, info.Producer);
+            Assert.Equal(metadata.Language, info.Language);
+            Assert.Equal(metadata.CreationDate, info.CreationDate);
+            Assert.Equal(metadata.ModificationDate, info.ModificationDate);
+            Assert.Equal(metadata.Trapped, info.Trapped);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void ApplyPageRotations_WithNoApplicationRotations_LeavesFileUntouched()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-rotation-{Guid.NewGuid():N}.pdf");

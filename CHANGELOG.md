@@ -19,6 +19,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 ### Changed
 - Release payloads are now self-contained .NET 10 Windows builds, so users still need no separate runtime installation.
 - Document Information now reads metadata, PDF version, and page count through The KillerPDF.Engine while retaining the existing live-document save path during staged integration.
+- Document Information edits now write complete document information and XMP through The KillerPDF.Engine in an undoable incremental revision while preserving producer, language, dates, and trapping status.
 - Save and Save As now write every page's final effective rotation through The KillerPDF.Engine as a byte-preserving incremental revision after the remaining application state is serialized.
 - Applying or removing a page crop now writes matching crop and trim boundaries through The KillerPDF.Engine as a byte-preserving incremental revision before the working document reloads.
 - Deleting pages now rebuilds the page tree through The KillerPDF.Engine while preserving the rotation state of every retained page.

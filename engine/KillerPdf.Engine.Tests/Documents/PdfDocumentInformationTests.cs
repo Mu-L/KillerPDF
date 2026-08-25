@@ -18,7 +18,11 @@ public sealed class PdfDocumentInformationTests
                 Subject = "The KillerPDF.Engine",
                 Keywords = "PDF 2.0, PDF/A",
                 Creator = "Tests",
-                Producer = "The KillerPDF.Engine"
+                Producer = "The KillerPDF.Engine",
+                Language = "en-US",
+                CreationDate = new DateTimeOffset(2026, 8, 24, 10, 11, 12, TimeSpan.FromHours(-7)),
+                ModificationDate = new DateTimeOffset(2026, 8, 24, 11, 12, 13, TimeSpan.Zero),
+                Trapped = PdfTrappedStatus.False
             })
             .AddBlankPage()
             .AddBlankPage()
@@ -32,6 +36,10 @@ public sealed class PdfDocumentInformationTests
         Assert.Equal("PDF 2.0, PDF/A", info.Keywords);
         Assert.Equal("Tests", info.Creator);
         Assert.Equal("The KillerPDF.Engine", info.Producer);
+        Assert.Equal("en-US", info.Language);
+        Assert.Equal(new DateTimeOffset(2026, 8, 24, 10, 11, 12, TimeSpan.FromHours(-7)), info.CreationDate);
+        Assert.Equal(new DateTimeOffset(2026, 8, 24, 11, 12, 13, TimeSpan.Zero), info.ModificationDate);
+        Assert.Equal(PdfTrappedStatus.False, info.Trapped);
         Assert.Equal(PdfVersion.Pdf20, info.Version);
         Assert.Equal(2, info.PageCount);
     }
