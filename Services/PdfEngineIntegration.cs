@@ -11,6 +11,53 @@ namespace KillerPDF.Services;
 /// <summary>Bridges completed application state into The KillerPDF.Engine during migration.</summary>
 internal static class PdfEngineIntegration
 {
+    /// <summary>Merges complete PDF documents while preserving the first document byte prefix.</summary>
+    internal static byte[] MergeDocuments(IReadOnlyList<byte[]> sources)
+    {
+        ArgumentNullException.ThrowIfNull(sources);
+        if (sources.Count == 0)
+            throw new ArgumentException("At least one PDF document is required.", nameof(sources));
+
+        PdfDocument document = PdfDocument.Open(sources[0]);
+        var editor = new PdfIncrementalPageEditor(document);
+        for (int index = 1; index < sources.Count; index++)
+            editor.AddImportedDocument(PdfDocument.Open(sources[index]));
+        return editor.Build();
+    }
+
+    /// <summary>Extracts selected pages into a new PDF in the supplied order.</summary>
+    internal static byte[] ExtractPages(byte[] source, IReadOnlyList<int> pageIndices)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(pageIndices);
+        if (pageIndices.Count == 0)
+            throw new ArgumentException("At least one page is required.", nameof(pageIndices));
+
+        PdfDocument sourceDocument = PdfDocument.Open(source);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+        var editor = new PdfIncrementalPageEditor(empty);
+        foreach (int pageIndex in pageIndices)
+            editor.AddImportedPage(sourceDocument, pageIndex);
+        return editor.Build();
+    }
+
+    /// <summary>Splits a PDF into one independently valid PDF per source page.</summary>
+    internal static IReadOnlyList<byte[]> SplitPages(byte[] source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        PdfDocument sourceDocument = PdfDocument.Open(source);
+        int pageCount = new PdfIncrementalPageEditor(sourceDocument).PageCount;
+        var results = new byte[pageCount][];
+        for (int pageIndex = 0; pageIndex < pageCount; pageIndex++)
+        {
+            PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+            results[pageIndex] = new PdfIncrementalPageEditor(empty)
+                .AddImportedPage(sourceDocument, pageIndex)
+                .Build();
+        }
+        return results;
+    }
+
     internal readonly record struct PageRectangle(
         double X, double Y, double Width, double Height);
 

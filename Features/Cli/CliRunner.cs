@@ -259,6 +259,18 @@ namespace KillerPDF.Features
                 { con.WriteLine("Output file cannot also be an input."); return 2; }
             }
 
+            if (inputs.All(PdfImport.IsPdfPath))
+            {
+                byte[] merged = PdfEngineIntegration.MergeDocuments(
+                    inputs.Select(File.ReadAllBytes).ToList());
+                CliEnsureParentDir(outPath);
+                File.WriteAllBytes(outPath, merged);
+                int pageCount = KillerPdf.Engine.Documents.PdfDocumentInformation
+                    .Read(KillerPdf.Engine.Documents.PdfDocument.Open(merged)).PageCount;
+                con.WriteLine($"Merged {inputs.Count} files ({pageCount} pages) -> {outPath}");
+                return 0;
+            }
+
             using var outPdf = new PdfDocument();
             foreach (var f in inputs)
             {
@@ -303,17 +315,14 @@ namespace KillerPDF.Features
             string inPath = Path.GetFullPath(pos[0]), spec = pos[1], outPath = Path.GetFullPath(pos[2]);
             if (!File.Exists(inPath)) { con.WriteLine($"Input not found: {inPath}"); return 2; }
 
-            using var importDoc = PdfReader.Open(inPath, PdfDocumentOpenMode.Import);
-            var indices = CliParsePageRange(spec, importDoc.PageCount, out string err);
+            byte[] source = File.ReadAllBytes(inPath);
+            int pageCount = KillerPdf.Engine.Documents.PdfDocumentInformation
+                .Read(KillerPdf.Engine.Documents.PdfDocument.Open(source)).PageCount;
+            var indices = CliParsePageRange(spec, pageCount, out string err);
             if (indices is null) { con.WriteLine(err); return 2; }
 
-            using var newDoc = new PdfDocument();
-            foreach (var idx in indices)
-                newDoc.AddPage(importDoc.Pages[idx]);
-            PdfScrub.ScrubEmptyOutlines(newDoc);
-            PdfScrub.ScrubDegenerateCropBoxes(newDoc);
             CliEnsureParentDir(outPath);
-            newDoc.Save(outPath);
+            File.WriteAllBytes(outPath, PdfEngineIntegration.ExtractPages(source, indices));
             con.WriteLine($"Extracted {indices.Count} pages -> {outPath}");
             return 0;
         }
@@ -332,18 +341,17 @@ namespace KillerPDF.Features
             if (!File.Exists(inPath)) { con.WriteLine($"Input not found: {inPath}"); return 2; }
             Directory.CreateDirectory(outDir);
 
-            using var importDoc = PdfReader.Open(inPath, PdfDocumentOpenMode.Import);
+            byte[] source = File.ReadAllBytes(inPath);
+            IReadOnlyList<byte[]> pages = PdfEngineIntegration.SplitPages(source);
             string baseName = Path.GetFileNameWithoutExtension(inPath);
-            int digits = Math.Max(3, importDoc.PageCount.ToString().Length);
-            for (int i = 0; i < importDoc.PageCount; i++)
+            int digits = Math.Max(3, pages.Count.ToString().Length);
+            for (int i = 0; i < pages.Count; i++)
             {
-                using var single = new PdfDocument();
-                single.AddPage(importDoc.Pages[i]);
-                PdfScrub.ScrubEmptyOutlines(single);
-                PdfScrub.ScrubDegenerateCropBoxes(single);
-                single.Save(Path.Combine(outDir, $"{baseName}-page-{(i + 1).ToString().PadLeft(digits, '0')}.pdf"));
+                File.WriteAllBytes(
+                    Path.Combine(outDir, $"{baseName}-page-{(i + 1).ToString().PadLeft(digits, '0')}.pdf"),
+                    pages[i]);
             }
-            con.WriteLine($"Split {importDoc.PageCount} pages into {outDir}");
+            con.WriteLine($"Split {pages.Count} pages into {outDir}");
             return 0;
         }
 

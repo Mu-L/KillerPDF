@@ -12,6 +12,54 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void MergeDocuments_PreservesFirstPrefixAndImportsCompleteDocuments()
+    {
+        byte[] first = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBookmark("First", 0)
+            .Build();
+        byte[] second = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBlankPage()
+            .AddBookmark("Second", 1)
+            .Build();
+
+        byte[] merged = PdfEngineIntegration.MergeDocuments([first, second]);
+
+        Assert.True(merged.AsSpan(0, first.Length).SequenceEqual(first));
+        Assert.Equal(3, PdfDocumentInformation.Read(PdfDocument.Open(merged)).PageCount);
+    }
+
+    [Fact]
+    public void ExtractPages_UsesRequestedPageOrderAndReturnsIndependentDocument()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddPage(100, 200, ReadOnlyMemory<byte>.Empty)
+            .AddPage(100, 300, ReadOnlyMemory<byte>.Empty)
+            .AddPage(100, 400, ReadOnlyMemory<byte>.Empty)
+            .Build();
+
+        byte[] extracted = PdfEngineIntegration.ExtractPages(source, [2, 0]);
+        Assert.Equal(2, PdfDocumentInformation.Read(PdfDocument.Open(extracted)).PageCount);
+    }
+
+    [Fact]
+    public void SplitPages_ReturnsOneValidDocumentPerPage()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddPage(100, 200, ReadOnlyMemory<byte>.Empty)
+            .AddPage(100, 300, ReadOnlyMemory<byte>.Empty)
+            .AddPage(100, 400, ReadOnlyMemory<byte>.Empty)
+            .Build();
+
+        IReadOnlyList<byte[]> pages = PdfEngineIntegration.SplitPages(source);
+
+        Assert.Equal(3, pages.Count);
+        Assert.All(pages, page => Assert.Equal(
+            1, PdfDocumentInformation.Read(PdfDocument.Open(page)).PageCount));
+    }
+
+    [Fact]
     public void ValidateDocument_RejectsSourceWithoutTrailer()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-invalid-{Guid.NewGuid():N}.pdf");
