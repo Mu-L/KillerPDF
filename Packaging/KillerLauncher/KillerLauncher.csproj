@@ -11,8 +11,8 @@
     <ApplicationIcon Condition="'$(LauncherIcon)' != ''">$(LauncherIcon)</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version Condition="'$(LauncherVersion)' != ''">$(LauncherVersion)</Version>
-    <AssemblyVersion Condition="'$(LauncherVersion)' != ''">$(LauncherVersion).0</AssemblyVersion>
-    <FileVersion Condition="'$(LauncherVersion)' != ''">$(LauncherVersion).0</FileVersion>
+    <AssemblyVersion Condition="'$(LauncherFileVersion)' != ''">$(LauncherFileVersion)</AssemblyVersion>
+    <FileVersion Condition="'$(LauncherFileVersion)' != ''">$(LauncherFileVersion)</FileVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- The launcher only uses .NET Framework inbox assemblies, so it needs no binding redirects.
          Disabling their generated config also keeps SDK 10 publish from looking for a config named

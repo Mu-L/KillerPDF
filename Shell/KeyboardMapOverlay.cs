@@ -299,7 +299,7 @@ namespace KillerPDF
             _kbLayer = layer;
             if (!_kbBuilt) return;
             var map = KbMap[layer];
-            foreach (var kv in _kbKeys)   // no KeyValuePair deconstruction on net48
+            foreach (var kv in _kbKeys)
             {
                 var vis = kv.Value;
                 if (map.TryGetValue(kv.Key, out var b))
@@ -324,7 +324,7 @@ namespace KillerPDF
                 if (_kbKeys.TryGetValue(m, out var vis))
                     vis.Cap.SetResourceReference(Border.BorderBrushProperty,
                         System.Array.IndexOf(KbLayerMods[layer], m) >= 0 ? "PrimaryBrush" : "CardBorderBrush");
-            foreach (var kv in _kbLayerBtns)   // no KeyValuePair deconstruction on net48
+            foreach (var kv in _kbLayerBtns)
             {
                 kv.Value.SetResourceReference(ForegroundProperty, kv.Key == layer ? "PrimaryBrush" : "MutedTextBrush");
                 kv.Value.SetResourceReference(BorderBrushProperty, kv.Key == layer ? "PrimaryBrush" : "CardBorderBrush");

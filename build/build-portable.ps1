@@ -12,11 +12,11 @@ Set-StrictMode -Version Latest
 $projectDir = Split-Path -Parent $PSScriptRoot
 $appProject = Join-Path $projectDir 'KillerPDF.csproj'
 $launcherProject = Join-Path $projectDir 'Packaging\KillerLauncher\KillerLauncher.csproj'
-$artifactRoot = Join-Path $projectDir "bin\$Configuration\net48\portable-package"
+$artifactRoot = Join-Path $projectDir "bin\$Configuration\net10.0-windows\portable-package"
 $payloadDir = Join-Path $artifactRoot 'payload'
 $payloadZip = Join-Path $artifactRoot 'payload.zip'
 $launcherOutput = Join-Path $artifactRoot 'launcher'
-$publicDir = Join-Path $projectDir "bin\$Configuration\net48\publish"
+$publicDir = Join-Path $projectDir "bin\$Configuration\net10.0-windows\publish"
 $publicExe = Join-Path $publicDir 'KillerPDF.exe'
 
 if (-not $RepackOnly) {
@@ -32,10 +32,15 @@ $versionXml = [xml](Get-Content -Raw -LiteralPath $appProject)
 $versionNode = $versionXml.SelectSingleNode('/Project/PropertyGroup/Version')
 $version = if ($versionNode) { [string]$versionNode.InnerText } else { '' }
 if (-not $version) { throw 'KillerPDF.csproj has no Version.' }
+$fileVersionNode = $versionXml.SelectSingleNode('/Project/PropertyGroup/FileVersion')
+$fileVersion = if ($fileVersionNode) { [string]$fileVersionNode.InnerText } else { '' }
+if (-not $fileVersion) { throw 'KillerPDF.csproj has no FileVersion.' }
 
 if (-not $RepackOnly) {
     Write-Host "==> Building loose KillerPDF payload $version..." -ForegroundColor Cyan
     & dotnet publish $appProject -c $Configuration `
+        -r win-x64 `
+        --self-contained true `
         -p:KillerPayloadBuild=true `
         -p:PublishDir="$payloadDir\"
     if ($LASTEXITCODE -ne 0) { throw 'Payload build failed.' }
@@ -67,7 +72,7 @@ if ($payloadDifference.Count -gt 0) {
     $details = ($payloadDifference | ForEach-Object { "$($_.SideIndicator) $($_.InputObject)" }) -join [Environment]::NewLine
     throw "Payload file set changed. Review dependencies and update build\payload-files.txt deliberately:`n$details"
 }
-foreach ($required in 'KillerPDF.App.exe', 'pdfium.dll', 'PdfSharpCore.dll', 'System.Text.Json.dll') {
+foreach ($required in 'KillerPDF.App.exe', 'KillerPdf.Engine.dll', 'pdfium.dll', 'PdfSharpCore.dll', 'System.Text.Json.dll') {
     if ($actualPayloadNames -notcontains $required) {
         throw "Required loose payload file is missing ($required). Costura/Fody may have run accidentally."
     }
@@ -107,6 +112,7 @@ Write-Host "==> Building the public portable launcher..." -ForegroundColor Cyan
 & dotnet publish $launcherProject -c $Configuration `
     -p:LauncherAssemblyName=KillerPDF `
     -p:LauncherVersion=$version `
+    -p:LauncherFileVersion=$fileVersion `
     -p:LauncherIcon="$(Join-Path $projectDir 'Resources\kp-icon.ico')" `
     -p:PayloadZip="$payloadZip" `
     -p:AllowUnsignedInstall="$(!$RequireSignature)" `

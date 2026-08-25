@@ -56,7 +56,6 @@ namespace KillerPDF.Services
         internal static System.Net.Http.HttpClient MakeDownloadClient()
         {
             // Timeout covers connect + headers; the body is bounded by the cancellation token instead.
-            System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
             var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(100) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-OCR");
             return http;

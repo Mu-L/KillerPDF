@@ -106,7 +106,6 @@ namespace KillerPDF.Features
             if (current is null) return;
             try
             {
-                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
                 using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(4) };
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-UpdateCheck");
                 var json = await http.GetStringAsync($"{Repo.Replace("github.com", "api.github.com/repos")}/releases/latest")
@@ -184,7 +183,6 @@ namespace KillerPDF.Features
         {
             try
             {
-                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
                 using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(90) };
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-UpdateCheck");
 

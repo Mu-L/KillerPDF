@@ -279,7 +279,7 @@ namespace KillerPDF.Controls
                     IsHitTestVisible = false,
                     Tag = "TextSelQuad"
                 };
-                // Live theme binding (net48 rule: a plain brush snapshot won't follow a theme
+                // Live theme binding: a plain brush snapshot will not follow a theme
                 // switch) - the quads recolor the moment the theme or accent changes.
                 rect.SetResourceReference(Shape.FillProperty, "SelectionAccent");
                 Canvas.SetLeft(rect, r.X);

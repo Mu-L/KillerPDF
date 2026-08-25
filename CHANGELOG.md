@@ -13,7 +13,11 @@ KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipelin
 KillerPDF 1.8 introduces the independent KillerPDF Engine. Its detailed development history is maintained in the [KillerPDF Engine changelog](engine/CHANGELOG.md).
 
 ### Added
+- The Windows application now directly references KillerPDF Engine after moving to .NET 10, establishing the integration boundary while PdfSharpCore is retired through tested feature slices.
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
+
+### Changed
+- Release payloads are now self-contained .NET 10 Windows builds, so users still need no separate runtime installation.
 
 ### Fixed
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.

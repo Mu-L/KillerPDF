@@ -1327,8 +1327,10 @@ namespace KillerPDF
             // Try to read cert info regardless of signature validity
             try
             {
-                var raw  = X509Certificate.CreateFromSignedFile(filePath);
-                var cert = new X509Certificate2(raw);
+#pragma warning disable SYSLIB0057 // Required to extract the signer certificate from a PE Authenticode signature.
+                var raw = X509Certificate.CreateFromSignedFile(filePath);
+#pragma warning restore SYSLIB0057
+                using var cert = X509CertificateLoader.LoadCertificate(raw.GetRawCertData());
                 subject    = cert.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
                 thumbprint = cert.Thumbprint ?? string.Empty;
             }

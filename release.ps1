@@ -50,10 +50,10 @@ Set-StrictMode -Version Latest
 
 $proj         = Join-Path $PSScriptRoot "KillerPDF.csproj"
 $buildInfoPath = Join-Path $PSScriptRoot "BuildInfo.cs"
-$publishDir   = Join-Path $PSScriptRoot "bin\Release\net48\publish"
+$publishDir   = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\publish"
 $exe          = Join-Path $publishDir "KillerPDF.exe"
 $portableBuild = Join-Path $PSScriptRoot "build\build-portable.ps1"
-$payloadDir    = Join-Path $PSScriptRoot "bin\Release\net48\portable-package\payload"
+$payloadDir    = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\portable-package\payload"
 $innerExe      = Join-Path $payloadDir "KillerPDF.App.exe"
 
 # TSA endpoints - tried in order; first success wins.
@@ -162,7 +162,7 @@ $pdfiumNuget = Get-ChildItem "$nugetCache\docnet.core\*\runtimes\win-x64\native\
                Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
 
 # Also check the build output as a fallback
-$pdfiumBuild = Join-Path $PSScriptRoot "bin\Release\net48\win-x64\pdfium.dll"
+$pdfiumBuild = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\win-x64\pdfium.dll"
 
 $pdfiumPath = $null
 if ($pdfiumNuget -and (Test-Path $pdfiumNuget)) {

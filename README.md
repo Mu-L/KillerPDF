@@ -59,7 +59,7 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 ## Requirements
 
 - Windows 10 or 11 (x64)
-- No runtime install. Everything needed is inside the EXE (targets .NET Framework 4.8, which ships with every supported Windows release).
+- No runtime install. The portable package includes the .NET 10 Windows runtime.
 
 ## Download
 
@@ -86,9 +86,9 @@ cd KillerPDF
 dotnet publish -c Release
 ```
 
-Output lands in `bin/Release/net48/publish/`. Normal publishing produces the development single-file build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds a verified multi-file payload and packs it into one portable `KillerPDF.exe`; installed shortcuts launch the inner app directly for faster startup.
+Output lands in `bin/Release/net10.0-windows/publish/`. Normal publishing produces the development build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds a verified, self-contained Windows payload and packs it into one portable `KillerPDF.exe`; installed shortcuts launch the inner app directly for faster startup.
 
-The current 1.8 development branch requires the .NET 10 SDK because the reusable engine targets .NET 10. The desktop application continues to target .NET Framework 4.8 during integration.
+The current 1.8 development branch requires the .NET 10 SDK. Both the reusable engine and the Windows application now target .NET 10, with the application using `net10.0-windows`.
 
 The existing desktop write pipeline still uses the vendored PdfSharpCore build under `third_party/PdfSharpCore/` while KillerPDF Engine integration proceeds. Each application surface will move to the new engine behind regression and corpus gates before the legacy dependency is removed.
 

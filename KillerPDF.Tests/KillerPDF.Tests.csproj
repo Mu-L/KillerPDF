@@ -1,13 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <!-- Inert on PolySharp 1.15.0, whose targets never make this property compiler-visible.
-         Set here so bumping this project to 1.16.0 cannot reintroduce the CS8336 reserved-name
-         break on net48 that KillerPDF.csproj works around. -->
-    <PolySharpUseEmbeddedAttributeForGeneratedTypes>false</PolySharpUseEmbeddedAttributeForGeneratedTypes>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <UseWPF>true</UseWPF>
@@ -22,12 +18,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="PolySharp" Version="1.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="PdfPig" Version="0.1.14" />
-    <PackageReference Include="System.Text.Json" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,10 +44,6 @@
     <!-- Data only, same reasoning as OcrCatalog: the shortcut table is deliberately free of WPF
          and of MainWindow so the invariants can be checked without standing up a window. -->
     <Compile Include="..\Services\ShortcutTable.cs" Link="Services\ShortcutTable.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>

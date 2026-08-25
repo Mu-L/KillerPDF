@@ -14,7 +14,7 @@ namespace KillerPDF.Services.Signing
     /// so the whole module ports to Avalonia / Linux / Mac unchanged.
     ///
     /// v1 milestone: an invisible-but-valid signature (Adobe still lists it in the Signatures panel),
-    /// SHA-256, no timestamp. The .NET Framework build of PDFsharp cannot timestamp; once the plumbing
+    /// SHA-256, no timestamp. The current PDFsharp signing path cannot timestamp; once the plumbing
     /// is validated we swap the default signer for a Bouncy Castle IDigitalSigner to get portable
     /// crypto plus timestamps/LTV. A visible signature appearance comes after that.
     /// </summary>
