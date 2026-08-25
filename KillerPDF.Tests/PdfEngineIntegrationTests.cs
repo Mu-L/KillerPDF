@@ -12,6 +12,58 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void RemovePages_DeletesSelectedPagesAndPreservesRetainedRotations()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-delete-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder()
+                .AddBlankPage(100, 200).SetPageRotation(0, 90)
+                .AddBlankPage(200, 300).SetPageRotation(1, 180)
+                .AddBlankPage(300, 400).SetPageRotation(2, 270)
+                .AddBlankPage(400, 500)
+                .Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.RemovePages(path, [2, 0]);
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            PdfDocument reopened = PdfDocument.Open(result);
+            Assert.Equal(2, PageCount(reopened));
+            Assert.Equal([0d, 0d, 200d, 300d], PageMediaBox(reopened, 0));
+            Assert.Equal(180, PageRotation(reopened, 0));
+            Assert.Equal([0d, 0d, 400d, 500d], PageMediaBox(reopened, 1));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void RemapRotationsAfterPageRemoval_DropsDeletedEntriesAndRenumbersSurvivors()
+    {
+        var rotations = new Dictionary<int, int>
+        {
+            [0] = 90,
+            [1] = 180,
+            [2] = 270,
+            [3] = 0,
+            [4] = 90
+        };
+
+        PdfEngineIntegration.RemapRotationsAfterPageRemoval(rotations, [3, 1]);
+
+        Assert.Equal(new Dictionary<int, int>
+        {
+            [0] = 90,
+            [1] = 270,
+            [2] = 90
+        }, rotations);
+    }
+
+    [Fact]
     public void ApplyCropBoxes_WritesMatchingCropAndTrimBoxesIncrementally()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-crop-{Guid.NewGuid():N}.pdf");
@@ -162,6 +214,27 @@ public sealed class PdfEngineIntegrationTests
             PdfReal real => real.Value,
             _ => throw new Xunit.Sdk.XunitException("Page box contains a nonnumeric value.")
         }).ToArray();
+    }
+
+    private static double[] PageMediaBox(PdfDocument document, int pageIndex)
+    {
+        PdfArray box = Assert.IsType<PdfArray>(
+            Page(document, pageIndex)[new PdfName("MediaBox"u8)]);
+        return box.Select(item => item switch
+        {
+            PdfInteger integer => (double)integer.Value,
+            PdfReal real => real.Value,
+            _ => throw new Xunit.Sdk.XunitException("Media box contains a nonnumeric value.")
+        }).ToArray();
+    }
+
+    private static int PageCount(PdfDocument document)
+    {
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(document.Trailer[new PdfName("Root"u8)])));
+        PdfDictionary pages = Assert.IsType<PdfDictionary>(document.Resolve(
+            Assert.IsType<PdfIndirectReference>(catalog[new PdfName("Pages"u8)])));
+        return checked((int)Assert.IsType<PdfInteger>(pages[new PdfName("Count"u8)]).Value);
     }
 
     private static PdfDictionary Page(PdfDocument document, int pageIndex)

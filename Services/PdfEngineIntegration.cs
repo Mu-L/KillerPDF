@@ -66,6 +66,42 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, editor.Build());
     }
 
+    /// <summary>Removes pages as one byte-preserving incremental revision.</summary>
+    internal static void RemovePages(string path, IReadOnlyCollection<int> pageIndices)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(pageIndices);
+        int[] removed = pageIndices.Distinct().OrderByDescending(index => index).ToArray();
+        if (removed.Length == 0) return;
+
+        byte[] source = File.ReadAllBytes(path);
+        PdfDocument document = PdfDocument.Open(source);
+        var editor = new PdfIncrementalPageEditor(document);
+        foreach (int pageIndex in removed) editor.RemovePage(pageIndex);
+        ReplaceWithBuiltResult(path, editor.Build());
+    }
+
+    /// <summary>Renumbers application rotation state after pages are removed.</summary>
+    internal static void RemapRotationsAfterPageRemoval(
+        Dictionary<int, int> rotations, IReadOnlyCollection<int> pageIndices)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        ArgumentNullException.ThrowIfNull(pageIndices);
+        int[] removed = pageIndices.Distinct().OrderBy(index => index).ToArray();
+        if (removed.Length == 0) return;
+
+        var remapped = new Dictionary<int, int>();
+        foreach ((int oldIndex, int rotation) in rotations.OrderBy(item => item.Key))
+        {
+            if (Array.BinarySearch(removed, oldIndex) >= 0) continue;
+            int shift = removed.Count(index => index < oldIndex);
+            remapped[oldIndex - shift] = rotation;
+        }
+        rotations.Clear();
+        foreach ((int pageIndex, int rotation) in remapped)
+            rotations[pageIndex] = rotation;
+    }
+
     private static void ReplaceWithBuiltResult(string path, byte[] result)
     {
         string directory = Path.GetDirectoryName(Path.GetFullPath(path))!;

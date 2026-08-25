@@ -28,7 +28,8 @@ namespace KillerPDF
         // ============================================================
 
         private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
-            Action<string>? finalizeSavedFile = null)
+            Action<string>? finalizeSavedFile = null,
+            Action<Dictionary<int, int>>? remapRotations = null)
         {
             if (_doc is null || _currentFile is null) return;
             // We're about to replace the working file with a fresh temp; release the cached PDFium link
@@ -65,6 +66,7 @@ namespace KillerPDF
                 _pageRotations[i] = rot;
                 doc.Pages[i].Rotate = 0;
             }
+            remapRotations?.Invoke(_pageRotations);
 
             var tempPath = App.MakeTempFile("temp");
             try

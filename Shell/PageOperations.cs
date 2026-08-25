@@ -88,7 +88,6 @@ namespace KillerPDF
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
             var selected = PageList.SelectedItems;
             if (selected.Count == 0) { KillerDialog.Show(this, Loc("Str_Dlg_SelectDelete")); return; }
             var result = KillerDialog.Show(this, selected.Count == 1 ? Loc("Str_Dlg_DeletePage1") : string.Format(Loc("Str_Dlg_DeletePagesN"), selected.Count), "KillerPDF",
@@ -98,9 +97,10 @@ namespace KillerPDF
             {
                 var indices = new List<int>();
                 foreach (PageThumbnailVm vm in selected) indices.Add(vm.PageIndex);
-                foreach (var idx in indices.OrderByDescending(i => i))
-                    doc.Pages.RemoveAt(idx);
-                SaveTempAndReload();
+                SaveTempAndReload(
+                    finalizeSavedFile: path => PdfEngineIntegration.RemovePages(path, indices),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageRemoval(rotations, indices));
                 SetStatus(string.Format(Loc("Str_Deleted"), indices.Count, _doc?.PageCount));
             }
             catch (Exception ex)

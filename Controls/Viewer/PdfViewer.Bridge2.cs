@@ -155,8 +155,10 @@ namespace KillerPDF.Controls
         private void MarkDirty(bool dirty = true) => Host!.MarkDirty(dirty);
         private void SetTool(EditTool t) => Host!.SetTool(t);
         private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
-            Action<string>? finalizeSavedFile = null)
-            => Host!.SaveTempAndReload(keepAnnotations, preserveZoom, finalizeSavedFile);
+            Action<string>? finalizeSavedFile = null,
+            Action<Dictionary<int, int>>? remapRotations = null)
+            => Host!.SaveTempAndReload(
+                keepAnnotations, preserveZoom, finalizeSavedFile, remapRotations);
         private void RecordNavJump() => Host!.RecordNavJump();
         private PageAnnotation? CloneAnnotation(PageAnnotation a) => Host!.CloneAnnotation(a);
         private PageAnnotation? PairPartner(PageAnnotation a) => Host!.PairPartner(a);
