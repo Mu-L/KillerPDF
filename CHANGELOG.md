@@ -97,7 +97,7 @@ KillerPDF 1.7.5 is a small maintenance release that closes several visible annot
 - The current-page span badge now casts a small shadow beneath its rectangle, while its text remains independently rendered and crisp. The 98SE theme keeps the badge flat with the rest of its classic chrome.
 
 ### Fixed
-- Rotating a page now keeps upright text boxes, images, and signatures inside the new page bounds. Their centers still follow the rotated sheet, but an item near the old long edge is clamped before it can become invisible and unrecoverable off-page (#169, thanks terada-d).
+- Rotating a page now keeps upright text boxes, images, and signatures inside the new page bounds. Their centers still follow the rotated sheet, but an item near any shrinking edge is clamped against the post-rotation frame before it can become invisible and unrecoverable off-page. Regression coverage includes both A3 orientations and both turn directions (#169, thanks terada-d).
 - Fast wheel scrolling in Single Page and Two-Page views no longer carries its remaining momentum into an accidental page change at the edge. Scrolling keeps its existing speed; changing pages requires a deliberate second wheel gesture (#205, thanks 1mk3r).
 - Transform now commits an active text box before building its preview, so text placed immediately before opening Transform is included in both the preview and the transformed page.
 - Grid zoom now updates every page seam in one layout pass, so the pages no longer resize first and then visibly settle one border at a time as their refreshed bitmaps arrive.

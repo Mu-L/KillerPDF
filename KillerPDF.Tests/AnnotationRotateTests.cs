@@ -103,6 +103,60 @@ public sealed class AnnotationRotateTests
         Assert.InRange(image.Position.Y + image.SourceHeight * image.Scale, 0, W);
     }
 
+    public static TheoryData<double, double, int> QuarterTurnFrames => new()
+    {
+        { 1191, 842, 90 },
+        { 1191, 842, -90 },
+        { 842, 1191, 90 },
+        { 842, 1191, -90 },
+    };
+
+    [Theory]
+    [MemberData(nameof(QuarterTurnFrames))]
+    public void UprightItemsNearEveryEdge_UsePostRotationBounds(double oldW, double oldH, int delta)
+    {
+        const double itemW = 152.906;
+        const double itemH = 91.25;
+        Point[] positions =
+        [
+            new(0, 0),
+            new(oldW - itemW, 0),
+            new(0, oldH - itemH),
+            new(oldW - itemW, oldH - itemH),
+        ];
+
+        foreach (Point position in positions)
+        {
+            var text = new TextAnnotation
+            {
+                Position = position,
+                Width = itemW,
+                Height = itemH,
+            };
+            var image = new ImageAnnotation
+            {
+                Position = position,
+                SourceWidth = itemW,
+                SourceHeight = itemH,
+                Scale = 1,
+            };
+
+            AnnotationRotate.Remap([text, image], delta, oldW, oldH);
+
+            AssertInsideRotatedFrame(text.Position, itemW, itemH, oldH, oldW);
+            AssertInsideRotatedFrame(image.Position, itemW, itemH, oldH, oldW);
+        }
+    }
+
+    private static void AssertInsideRotatedFrame(
+        Point position, double width, double height, double frameWidth, double frameHeight)
+    {
+        Assert.InRange(position.X, 0, Math.Max(0, frameWidth - width));
+        Assert.InRange(position.Y, 0, Math.Max(0, frameHeight - height));
+        Assert.InRange(position.X + width, 0, frameWidth);
+        Assert.InRange(position.Y + height, 0, frameHeight);
+    }
+
     [Fact]
     public void InkPoints_MapPerPoint()
     {
