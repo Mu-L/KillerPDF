@@ -3,6 +3,7 @@ using KillerPdf.Engine.Objects;
 
 namespace KillerPdf.Engine.CrossReference;
 
+/// <summary>One classic, stream, or hybrid component of a PDF cross-reference revision.</summary>
 public sealed class PdfCrossReferenceSection : IReadOnlyDictionary<int, PdfCrossReferenceEntry>
 {
     private static readonly PdfName PrevName = new("Prev"u8);
@@ -26,20 +27,33 @@ public sealed class PdfCrossReferenceSection : IReadOnlyDictionary<int, PdfCross
         HybridStreamOffset = OptionalOffset(trailer, XRefStmName);
     }
 
+    /// <summary>Gets the byte offset at which the section begins.</summary>
     public long Offset { get; }
+    /// <summary>Gets the section trailer or cross-reference stream dictionary.</summary>
     public PdfDictionary Trailer { get; }
+    /// <summary>Gets whether the section is represented by a cross-reference stream.</summary>
     public bool IsStream { get; }
+    /// <summary>Gets the cross-reference stream object number when applicable.</summary>
     public int? StreamObjectNumber { get; }
+    /// <summary>Gets the preceding revision offset declared by Prev.</summary>
     public long? PreviousOffset { get; }
+    /// <summary>Gets the hybrid companion stream offset declared by XRefStm.</summary>
     public long? HybridStreamOffset { get; }
 
+    /// <inheritdoc/>
     public int Count => _entries.Count;
+    /// <inheritdoc/>
     public IEnumerable<int> Keys => _entries.Keys;
+    /// <inheritdoc/>
     public IEnumerable<PdfCrossReferenceEntry> Values => _entries.Values;
+    /// <inheritdoc/>
     public PdfCrossReferenceEntry this[int key] => _entries[key];
 
+    /// <inheritdoc/>
     public bool ContainsKey(int key) => _entries.ContainsKey(key);
+    /// <inheritdoc/>
     public bool TryGetValue(int key, out PdfCrossReferenceEntry value) => _entries.TryGetValue(key, out value);
+    /// <inheritdoc/>
     public IEnumerator<KeyValuePair<int, PdfCrossReferenceEntry>> GetEnumerator() => _entries.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 

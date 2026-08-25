@@ -2,10 +2,12 @@ using System.Collections;
 
 namespace KillerPdf.Engine.Objects;
 
+/// <summary>An immutable PDF dictionary with unique name keys and non-null object values.</summary>
 public sealed class PdfDictionary : PdfObject, IReadOnlyDictionary<PdfName, PdfObject>
 {
     private readonly Dictionary<PdfName, PdfObject> _entries;
 
+    /// <summary>Creates a dictionary from unique name and object pairs.</summary>
     public PdfDictionary(IEnumerable<KeyValuePair<PdfName, PdfObject>> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
@@ -24,13 +26,20 @@ public sealed class PdfDictionary : PdfObject, IReadOnlyDictionary<PdfName, PdfO
         }
     }
 
+    /// <inheritdoc/>
     public int Count => _entries.Count;
+    /// <inheritdoc/>
     public IEnumerable<PdfName> Keys => _entries.Keys;
+    /// <inheritdoc/>
     public IEnumerable<PdfObject> Values => _entries.Values;
+    /// <inheritdoc/>
     public PdfObject this[PdfName key] => _entries[key];
 
+    /// <inheritdoc/>
     public bool ContainsKey(PdfName key) => _entries.ContainsKey(key);
+    /// <inheritdoc/>
     public bool TryGetValue(PdfName key, out PdfObject value) => _entries.TryGetValue(key, out value!);
+    /// <inheritdoc/>
     public IEnumerator<KeyValuePair<PdfName, PdfObject>> GetEnumerator() => _entries.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

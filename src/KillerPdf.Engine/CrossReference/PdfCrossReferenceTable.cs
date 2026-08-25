@@ -11,6 +11,7 @@ namespace KillerPdf.Engine.CrossReference;
 /// </summary>
 public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossReferenceEntry>
 {
+    /// <summary>Maximum number of incremental revisions accepted during bounded traversal.</summary>
     public const int MaximumRevisionCount = 1_024;
     private static readonly PdfName SizeName = new("Size"u8);
     private static readonly PdfName IdName = new("ID"u8);
@@ -38,8 +39,11 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         _entries = entries;
     }
 
+    /// <summary>Gets the parsed PDF header and its source offset.</summary>
     public PdfHeader Header { get; }
+    /// <summary>Gets the final startxref declaration.</summary>
     public PdfStartXref StartXref { get; }
+    /// <summary>Gets primary cross-reference sections from newest revision to oldest.</summary>
     public IReadOnlyList<PdfCrossReferenceSection> Sections =>
         _revisions.Select(revision => revision.Primary).ToArray();
     internal IEnumerable<PdfCrossReferenceSection> AllSections =>
@@ -84,6 +88,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         }
     }
 
+    /// <summary>Gets the trailer belonging to the newest primary section.</summary>
     public PdfDictionary LatestTrailer => _revisions[0].Primary.Trailer;
     /// <summary>
     /// Returns the effective trailer dictionary across the revision chain, choosing the newest
@@ -106,11 +111,16 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         }
     }
 
+    /// <inheritdoc/>
     public int Count => _entries.Count;
+    /// <inheritdoc/>
     public IEnumerable<int> Keys => _entries.Keys;
+    /// <inheritdoc/>
     public IEnumerable<PdfCrossReferenceEntry> Values => _entries.Values;
+    /// <inheritdoc/>
     public PdfCrossReferenceEntry this[int key] => _entries[key];
 
+    /// <summary>Reads, validates, and merges the complete cross-reference revision chain.</summary>
     public static PdfCrossReferenceTable Read(ReadOnlyMemory<byte> source)
     {
         PdfHeader header = PdfHeader.Parse(source.Span);
@@ -470,6 +480,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         }
     }
 
+    /// <summary>Looks up the newest occurrence of a trailer key across the revision chain.</summary>
     public bool TryGetTrailerValue(PdfName name, out PdfObject value)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -485,8 +496,11 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         return false;
     }
 
+    /// <inheritdoc/>
     public bool ContainsKey(int key) => _entries.ContainsKey(key);
+    /// <inheritdoc/>
     public bool TryGetValue(int key, out PdfCrossReferenceEntry value) => _entries.TryGetValue(key, out value);
+    /// <inheritdoc/>
     public IEnumerator<KeyValuePair<int, PdfCrossReferenceEntry>> GetEnumerator() => _entries.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 

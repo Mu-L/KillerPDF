@@ -1,7 +1,9 @@
 namespace KillerPdf.Engine.Objects;
 
+/// <summary>A reference to an indirect object number and generation.</summary>
 public sealed class PdfIndirectReference : PdfObject
 {
+    /// <summary>Creates a validated indirect reference.</summary>
     public PdfIndirectReference(int objectNumber, int generation)
     {
         if (objectNumber < 0)
@@ -13,13 +15,16 @@ public sealed class PdfIndirectReference : PdfObject
         Generation = generation;
     }
 
+    /// <summary>Gets the nonnegative object number.</summary>
     public int ObjectNumber { get; }
+    /// <summary>Gets the generation from zero through 65,535.</summary>
     public int Generation { get; }
 }
 
 /// <summary>A numbered top-level object and the source offset at which its declaration begins.</summary>
 public sealed class PdfIndirectObject
 {
+    /// <summary>Creates a parsed indirect object and records its declaration offset.</summary>
     public PdfIndirectObject(int objectNumber, int generation, PdfObject value, int offset)
     {
         if (objectNumber < 0)
@@ -35,8 +40,12 @@ public sealed class PdfIndirectObject
         Offset = offset;
     }
 
+    /// <summary>Gets the nonnegative object number.</summary>
     public int ObjectNumber { get; }
+    /// <summary>Gets the generation from zero through 65,535.</summary>
     public int Generation { get; }
+    /// <summary>Gets the parsed object value.</summary>
     public PdfObject Value { get; }
+    /// <summary>Gets the zero-based byte offset of the indirect declaration.</summary>
     public int Offset { get; }
 }
