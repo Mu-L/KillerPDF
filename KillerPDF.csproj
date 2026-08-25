@@ -10,7 +10,7 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\kp-icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.8.0-alpha.1</Version>
+    <Version>1.8.0-alpha.2</Version>
     <AssemblyVersion>1.8.0.0</AssemblyVersion>
     <FileVersion>1.8.0.0</FileVersion>
     <!-- Shown in the About card beside the version so a user can tell how old their build.

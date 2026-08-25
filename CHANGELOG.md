@@ -4,7 +4,7 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0-alpha.1] - Unreleased
+## [1.8.0-alpha.2] - Unreleased
 
 KillerPDF 1.8 begins the replacement of its legacy PdfSharpCore document pipeline with an independently authored .NET 10 PDF document engine. It is responsible for reading, validating, authoring, structurally editing, and writing PDF files. PDFium remains KillerPDF's rendering and display backend, while PdfPig continues to handle text extraction during the migration. This alpha is an engineering build, not a public release.
 
