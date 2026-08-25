@@ -85,6 +85,10 @@ namespace KillerPDF.Controls
         // WPF can raise ScrollChanged while the requested offset is still clamped to the old layout;
         // without this target, that interim event immediately writes Page 1 back into the sidebar.
         private int _continuousNavigationTarget = -1;
+        // An explicit sidebar selection owns Grid's highlight until the user interacts with the
+        // document viewport. Passive layout/BringIntoView scrolls must not replace it with the tile
+        // nearest the viewport center.
+        private int _gridSelectionPinned = -1;
 
         private void NavigateContinuousToPage(int pageIndex)
         {
@@ -225,7 +229,7 @@ namespace KillerPDF.Controls
                 // #197 follow-up: grid scrolling never raised the badge (it only fired on a page
                 // change), and one page number can't say which tiles are on screen - show the span.
                 if (e.VerticalChange != 0 && firstVis >= 0) ShowPageBadgeSpan(firstVis, lastVis);
-                if (nearest >= 0) SyncCurrentPageTo(nearest);
+                if (nearest >= 0 && _gridSelectionPinned < 0) SyncCurrentPageTo(nearest);
             }
         }
 

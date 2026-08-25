@@ -174,6 +174,7 @@ namespace KillerPDF.Controls
 
         private void ScrollWheel(MouseWheelEventArgs e)
         {
+            _gridSelectionPinned = -1;
             e.Handled = true;
             PagePreviewPanel.ScrollToVerticalOffset(
                 PagePreviewPanel.VerticalOffset - e.Delta * (48.0 / 120.0) * WheelScrollFactor);
@@ -205,6 +206,7 @@ namespace KillerPDF.Controls
 
         internal void PagePreviewPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
+            _gridSelectionPinned = -1;
             // A press that lands on the document scrollbar must reach the scrollbar itself (thumb drag,
             // track paging). The pan/crop/marquee handling below otherwise claims the press first and sets
             // e.Handled, so the thumb could never be grabbed. Let scrollbar presses fall through untouched.

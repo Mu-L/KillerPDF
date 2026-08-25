@@ -99,6 +99,7 @@ namespace KillerPDF.Controls
                 }
                 if (_viewMode == ViewMode.Grid)
                 {
+                    _gridSelectionPinned = _currentPage;
                     // Grid is a stable overview: selecting a page highlights it but must NOT
                     // re-anchor the grid. It still needs an initial render (open / first display)
                     // when no tiles exist yet; later selections only update the highlight.
