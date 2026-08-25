@@ -95,11 +95,8 @@ namespace KillerPDF
                 try
                 {
                     if (_doc is not null) { _doc.Close(); _doc = null; }
-                    _doc = PdfReader.Open(srcPath, pw, PdfDocumentOpenMode.Modify);
-                    // Save a decrypted temp copy so Docnet can render without needing the password
                     var tempDec = App.MakeTempFile("dec");
-                    _doc.Save(tempDec);
-                    _doc.Close();
+                    PdfEngineIntegration.RemoveEncryption(srcPath, tempDec, pw);
                     _doc = PdfReader.Open(tempDec, PdfDocumentOpenMode.Modify);
                     _currentFile = tempDec;
                     FinishOpenFile(path, tempDec);
@@ -311,7 +308,18 @@ namespace KillerPDF
                 if (_doc is not null) { _doc.Close(); _doc = null; }
                 var repairedPath = App.MakeTempFile("repaired");
                 bool ok = await System.Threading.Tasks.Task.Run(() =>
-                    PdfiumInterop.TryPdfiumStripEncryption(srcPath, repairedPath) || PdfImport.TryImportRepairToPath(srcPath, repairedPath));
+                {
+                    try
+                    {
+                        PdfEngineIntegration.RemoveEncryption(srcPath, repairedPath, string.Empty);
+                        return true;
+                    }
+                    catch
+                    {
+                        return PdfiumInterop.TryPdfiumStripEncryption(srcPath, repairedPath)
+                            || PdfImport.TryImportRepairToPath(srcPath, repairedPath);
+                    }
+                });
                 if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_Canceled")); EndCancellableOp(); return; }
                 if (!ok)
                 {
