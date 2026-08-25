@@ -105,15 +105,17 @@ internal static class PdfEngineBurn
         double size = Math.Max(1, text.FontSize * sy);
         double padX = 2 * sx, padY = 2 * sy;
         double lineHeight = size * 1.2;
-        var lines = Wrap(text.Content, font, size, Math.Max(1, width - 2 * padX));
+        double characterSpacing = text.LetterSpacing * sy;
+        var lines = Wrap(text.Content, font, size, Math.Max(1, width - 2 * padX), characterSpacing);
         content.SaveState().SetFillRgb(text.ColorR / 255d, text.ColorG / 255d, text.ColorB / 255d)
-            .SetOpacity(text.ColorA / 255d).BeginText().SetFont(font, size);
+            .SetOpacity(text.ColorA / 255d).BeginText().SetFont(font, size)
+            .SetCharacterSpacing(characterSpacing);
         double baseline = y + padY + size;
         foreach (string line in lines)
         {
             if (baseline > y + height) break;
             content.SetTextMatrix(1, 0, 0, -1, x + padX, baseline).ShowUnicodeText(line);
-            double lineWidth = Measure(font, line, size);
+            double lineWidth = Measure(font, line, size, characterSpacing);
             if (text.Underline) DrawRuleAfterText(content, x + padX, baseline + size * .12, lineWidth, size);
             if (text.Strike) DrawRuleAfterText(content, x + padX, baseline - size * .3, lineWidth, size);
             baseline += lineHeight;
@@ -296,7 +298,8 @@ internal static class PdfEngineBurn
         return found;
     }
 
-    private static IReadOnlyList<string> Wrap(string text, TrueTypeFont font, double size, double width)
+    private static IReadOnlyList<string> Wrap(string text, TrueTypeFont font, double size, double width,
+        double characterSpacing = 0)
     {
         var result = new List<string>();
         foreach (string paragraph in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
@@ -305,18 +308,18 @@ internal static class PdfEngineBurn
             foreach (string word in paragraph.Split(' '))
             {
                 string candidate = line.Length == 0 ? word : line + " " + word;
-                if (line.Length > 0 && Measure(font, candidate, size) > width)
+                if (line.Length > 0 && Measure(font, candidate, size, characterSpacing) > width)
                 {
                     result.Add(line);
                     line = "";
                 }
-                if (line.Length == 0 && Measure(font, word, size) > width)
+                if (line.Length == 0 && Measure(font, word, size, characterSpacing) > width)
                 {
                     var fragment = new StringBuilder();
                     foreach (Rune rune in word.EnumerateRunes())
                     {
                         string next = fragment + rune.ToString();
-                        if (fragment.Length > 0 && Measure(font, next, size) > width)
+                        if (fragment.Length > 0 && Measure(font, next, size, characterSpacing) > width)
                         {
                             result.Add(fragment.ToString());
                             fragment.Clear();
@@ -335,6 +338,12 @@ internal static class PdfEngineBurn
 
     private static double Measure(TrueTypeFont font, string text, double size) => text.EnumerateRunes()
         .Sum(rune => font.GetPdfAdvanceWidth(font.GetGlyphId(rune.Value))) * size / 1000;
+
+    private static double Measure(TrueTypeFont font, string text, double size, double characterSpacing)
+    {
+        int count = text.EnumerateRunes().Count();
+        return Measure(font, text, size) + Math.Max(0, count - 1) * characterSpacing;
+    }
 
     private static EngineImage? LoadImageFile(string? path, double opacity)
     {

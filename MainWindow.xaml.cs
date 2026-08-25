@@ -126,6 +126,7 @@ namespace KillerPDF
 
         // Text (typewriter) tool settings
         private double _textFontSize { get => ActiveViewer.TextFontSizeRef; set => ActiveViewer.TextFontSizeRef = value; }
+        private double _textLetterSpacing { get => ActiveViewer.TextLetterSpacingRef; set => ActiveViewer.TextLetterSpacingRef = value; }
         // Current text-tool typeface and style (mirrors the text bar; carried onto each new/edited box).
         private string _textFontName { get => ActiveViewer.TextFontNameRef; set => ActiveViewer.TextFontNameRef = value; }
         private bool _textBold { get => ActiveViewer.TextBoldRef; set => ActiveViewer.TextBoldRef = value; }

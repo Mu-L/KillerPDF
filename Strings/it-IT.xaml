@@ -466,6 +466,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Bar_Color">Colore:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">Riempi:</sys:String>
     <sys:String x:Key="Str_Bar_Size">Dimensione:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">Spaziatura:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Opacità:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Opacità riempimento:</sys:String>
     <sys:String x:Key="Str_Bar_Font">Font:</sys:String>

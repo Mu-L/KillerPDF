@@ -207,4 +207,31 @@ public sealed class PdfBurnRotationTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [Fact]
+    public void TextBurn_WritesLetterSpacingOperator()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-letter-spacing-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder().AddBlankPage(612, 792).Build());
+            var text = new TextAnnotation
+            {
+                PageIndex = 0,
+                Position = new Point(20, 30),
+                Content = "A1B2C3",
+                FontName = "Segoe UI",
+                FontSize = 14,
+                LetterSpacing = 3,
+                Width = 200,
+                Height = 30
+            };
+            PdfEngineBurn.Burn(path,
+                new Dictionary<int, List<PageAnnotation>> { [0] = [text] },
+                new Dictionary<int, (int w, int h)> { [0] = (612, 792) });
+
+            Assert.Contains("3 Tc", AllDecodedStreams(path));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

@@ -109,6 +109,7 @@ namespace KillerPDF.Controls
                     if (_doc is not null && _renderDims.TryGetValue(pageIdx, out var prd) && prd.h > 0)
                         syp = EnsureEngineDocumentSession().Pages[pageIdx].Height / prd.h;
                     _textFontSize = Math.Max(1, Math.Round(placed.FontSize * syp));
+                    _textLetterSpacing = placed.LetterSpacing * syp;
                     // Sync the bar's typeface + B/I/S to the box being re-edited.
                     _textFontName = string.IsNullOrEmpty(placed.FontName) ? "Segoe UI" : placed.FontName;
                     _textBold = placed.Bold; _textItalic = placed.Italic; _textStrike = placed.Strike; _textUnderline = placed.Underline;
@@ -342,6 +343,7 @@ namespace KillerPDF.Controls
             _textBold = bold;
             _textItalic = italic;
             _textStrike = _textUnderline = false;
+            _textLetterSpacing = 0;
             _pendingEditWasDirty = _isDirty;   // capture before the cover dirties the doc
             if (!_annotations.ContainsKey(pageIdx)) _annotations[pageIdx] = [];
             _annotations[pageIdx].Add(cover);
@@ -680,6 +682,7 @@ namespace KillerPDF.Controls
                     Position = new Point(x, y),
                     Content = content,
                     FontSize = tb.FontSize,
+                    LetterSpacing = CanvasLetterSpacing(pageIdx),
                     FontName = _textFontName,
                     Bold = _textBold,
                     Italic = _textItalic,

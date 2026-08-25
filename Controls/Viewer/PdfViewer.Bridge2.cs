@@ -38,6 +38,7 @@ namespace KillerPDF.Controls
         // ── Text (typewriter) tool ───────────────────────────────────────────────────────────
         private TextBox? _activeTextBox;
         private double _textFontSize = 24;
+        private double _textLetterSpacing;
         private string _textFontName = "Segoe UI";
         private bool _textBold;
         private bool _textItalic;

@@ -23,6 +23,41 @@ namespace KillerPDF.Controls
     // changes. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
+        private double CanvasLetterSpacing(int pageIndex)
+        {
+            double spacing = _textLetterSpacing;
+            if (_doc is not null && pageIndex >= 0 && _renderDims.TryGetValue(pageIndex, out var rd) && rd.h > 0)
+            {
+                double sy = EnsureEngineDocumentSession().Pages[pageIndex].Height / rd.h;
+                if (sy > 0) spacing /= sy;
+            }
+            return spacing;
+        }
+
+        private static void ApplyLetterSpacing(DependencyObject control, string text, double spacing)
+        {
+            var effects = new TextEffectCollection();
+            if (Math.Abs(spacing) >= .01)
+            {
+                int column = 0;
+                var elements = System.Globalization.StringInfo.GetTextElementEnumerator(text);
+                while (elements.MoveNext())
+                {
+                    string current = elements.GetTextElement();
+                    int index = elements.ElementIndex;
+                    if (current is "\r" or "\n") { column = 0; continue; }
+                    effects.Add(new TextEffect
+                    {
+                        PositionStart = index,
+                        PositionCount = current.Length,
+                        Transform = new TranslateTransform(column * spacing, 0)
+                    });
+                    column++;
+                }
+            }
+            control.SetValue(TextBlock.TextEffectsProperty, effects);
+        }
+
         private static double MeasureTextBoxHeight(string text, double width, double fontSize)
         {
             double inner = Math.Max(1, width - 4);   // minus left+right padding (2 + 2)
@@ -56,6 +91,7 @@ namespace KillerPDF.Controls
                 TextWrapping = TextWrapping.Wrap,
                 VerticalAlignment = VerticalAlignment.Top
             };
+            ApplyLetterSpacing(tb, ta.Content, ta.LetterSpacing);
             // Crisp glyphs: pixel-snapped layout + grayscale AA (ClearType can't subpixel on the
             // transparent overlay, and the default left the placed text looking aliased).
             TextOptions.SetTextFormattingMode(tb, TextFormattingMode.Display);
@@ -652,6 +688,7 @@ namespace KillerPDF.Controls
                 if (_doc is not null && _renderDims.TryGetValue(tsel.PageIndex, out var rd) && rd.h > 0)
                     sy = EnsureEngineDocumentSession().Pages[tsel.PageIndex].Height / rd.h;
                 _textFontSize = Math.Max(1, Math.Round(tsel.FontSize * sy));
+                _textLetterSpacing = tsel.LetterSpacing * sy;
                 ShowTextSettings();
             }
             // Selecting a highlight / strikethrough / underline opens the draw bar synced to it, so its
