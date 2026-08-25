@@ -1174,6 +1174,11 @@ namespace KillerPDF.Controls
                     e.Handled = true;
                     break;
 
+                case EditTool.FormField:
+                    BeginFormFieldDrag(pageIdx, pos);
+                    e.Handled = true;
+                    break;
+
                 case EditTool.Highlight:
                 case EditTool.Strikethrough:
                 case EditTool.Underline:
@@ -1721,6 +1726,13 @@ namespace KillerPDF.Controls
                     _cropCanvasRect = new Rect(Canvas.GetLeft(crect), Canvas.GetTop(crect), crect.Width, crect.Height);
                     SyncCropBoxInputs();
                     break;
+
+                case EditTool.FormField when _activePreview is Rectangle fieldRect:
+                    Canvas.SetLeft(fieldRect, Math.Min(pos.X, _drawStart.X));
+                    Canvas.SetTop(fieldRect, Math.Min(pos.Y, _drawStart.Y));
+                    fieldRect.Width = Math.Abs(pos.X - _drawStart.X);
+                    fieldRect.Height = Math.Abs(pos.Y - _drawStart.Y);
+                    break;
             }
         }
 
@@ -1959,6 +1971,10 @@ namespace KillerPDF.Controls
 
             switch (_currentTool)
             {
+                case EditTool.FormField when _activePreview is Rectangle fieldRect:
+                    CommitFormFieldDrag(pageIdx, fieldRect);
+                    break;
+
                 case EditTool.Highlight when _activePreview is Rectangle:
                 case EditTool.Strikethrough when _activePreview is Rectangle:
                 case EditTool.Underline when _activePreview is Rectangle:

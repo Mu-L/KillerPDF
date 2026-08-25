@@ -1274,6 +1274,7 @@
                     <StackPanel x:Name="RightBar" Orientation="Horizontal">
                     <Button x:Name="ToolSelectBtn" Content="&#xE8B0;" Style="{StaticResource ToolbarButton}" Click="ToolSelect_Click" ToolTip="{DynamicResource Str_TT_SelectTool}"/>
                     <Button x:Name="ToolTextBtn" Content="&#xE8D2;" Style="{StaticResource ToolbarButton}" Click="ToolText_Click" ToolTip="{DynamicResource Str_TT_TextTool}"/>
+                    <Button x:Name="ToolFormFieldBtn" Content="&#xE8D7;" Style="{StaticResource ToolbarButton}" Click="ToolFormField_Click" ToolTip="Fillable text field - drag a box onto the page"/>
                     <Button x:Name="ToolHighlightBtn" Content="&#xE7E6;" Style="{StaticResource ToolbarButton}" Click="ToolHighlight_Click" ToolTip="{DynamicResource Str_TT_HighlightTool}"/>
                     <Button x:Name="ToolUnderlineBtn" Content="&#xE738;" Style="{StaticResource ToolbarButton}" Click="ToolLine_Click" ToolTip="{DynamicResource Str_TT_LineTool}"/>
                     <Button x:Name="ToolShapeBtn" Content="&#xE739;" Style="{StaticResource ToolbarButton}" Click="ToolShape_Click" ToolTip="{DynamicResource Str_TT_ShapeTool}"/>

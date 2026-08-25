@@ -277,6 +277,7 @@ namespace KillerPDF
             set { _view.CurrentPage = value; if (PageList.SelectedIndex != value) PageList.SelectedIndex = value; }
         }
         private readonly Button _toolSelectBtn = null!;
+        private readonly Button _toolFormFieldBtn = null!;
         private readonly Button _toolTextBtn = null!;
         private readonly Button _toolHighlightBtn = null!;
         private readonly Button _toolUnderlineBtn = null!;
@@ -326,6 +327,7 @@ namespace KillerPDF
             _pageContentPanel = ActiveViewer.PageHost;
             _continuousPanel  = ActiveViewer.ContinuousHost;
             _toolSelectBtn = (Button)FindName("ToolSelectBtn")!;
+            _toolFormFieldBtn = (Button)FindName("ToolFormFieldBtn")!;
             _toolTextBtn = (Button)FindName("ToolTextBtn")!;
             _toolHighlightBtn = (Button)FindName("ToolHighlightBtn")!;
             _toolUnderlineBtn = (Button)FindName("ToolUnderlineBtn")!;

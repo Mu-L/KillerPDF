@@ -809,6 +809,7 @@ namespace KillerPDF
 
         private void ToolSelect_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Select);
         private void ToolText_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Text);
+        private void ToolFormField_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.FormField);
         private void ToolHighlight_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Highlight);
         private void ToolLine_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Line);
         private void ToolDraw_Click(object sender, RoutedEventArgs e) => SetTool(EditTool.Draw);

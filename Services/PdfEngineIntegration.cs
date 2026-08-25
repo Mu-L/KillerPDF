@@ -54,6 +54,42 @@ internal static class PdfEngineIntegration
         return PdfFormWidgetReader.ReadPage(document, pageIndex);
     }
 
+    /// <summary>Adds one editable AcroForm text field to an existing page.</summary>
+    internal static string AddTextField(
+        string path, int pageIndex, double x, double y, double width, double height)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        var existingNames = new HashSet<string>(StringComparer.Ordinal);
+        int pageCount = PdfPageInformation.Read(document).Count;
+        for (int index = 0; index < pageCount; index++)
+            foreach (PdfFormWidgetInfo widget in PdfFormWidgetReader.ReadPage(document, index))
+                if (!string.IsNullOrWhiteSpace(widget.FieldName))
+                    existingNames.Add(widget.FieldName);
+
+        int suffix = 1;
+        string name;
+        do name = $"answer_{suffix++:000}";
+        while (existingNames.Contains(name));
+
+        var appearance = new PdfFormFieldAppearanceStyle
+        {
+            BackgroundColor = new PdfRgbColor(1, 1, 1),
+            BorderColor = new PdfRgbColor(1, 0, 0),
+            TextColor = new PdfRgbColor(0, 0, 0),
+            BorderWidth = 1
+        };
+        var options = new PdfTextFieldOptions { Multiline = height >= 32 };
+        byte[] result = new PdfIncrementalPageEditor(document).AddTextField(
+            pageIndex, name, x, y, width, height, options: options,
+            fieldMetadata: new PdfFormFieldMetadata
+            {
+                Tooltip = $"Answer {suffix - 1}"
+            }, appearanceStyle: appearance).Build();
+        ReplaceWithBuiltResult(path, result);
+        return name;
+    }
+
     /// <summary>Replaces the document bookmark hierarchy as one engine revision.</summary>
     internal static void ReplaceBookmarks(string path, IReadOnlyList<PdfBookmarkInfo> bookmarks)
     {

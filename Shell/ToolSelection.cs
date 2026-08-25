@@ -29,6 +29,7 @@ namespace KillerPDF
         internal static Cursor CursorForTool(EditTool tool) => tool switch
         {
             EditTool.Text => Cursors.IBeam,
+            EditTool.FormField => Cursors.Cross,
             EditTool.Highlight => Cursors.Cross,
             EditTool.Strikethrough => Cursors.Cross,
             EditTool.Underline => Cursors.Cross,
@@ -65,6 +66,7 @@ namespace KillerPDF
             {
                 (_toolSelectBtn, EditTool.Select),
                 (_toolTextBtn, EditTool.Text),
+                (_toolFormFieldBtn, EditTool.FormField),
                 (_toolHighlightBtn, EditTool.Highlight),
                 (_toolUnderlineBtn, EditTool.Line),          // the old Underline button is now the Line tool
                 (_toolDrawBtn, EditTool.Draw),

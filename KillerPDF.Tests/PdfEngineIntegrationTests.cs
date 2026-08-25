@@ -15,6 +15,32 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void AddTextField_CreatesUniquelyNamedEditableWidgets()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-field-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder().AddBlankPage().Build());
+
+            string first = PdfEngineIntegration.AddTextField(path, 0, 72, 600, 200, 24);
+            string second = PdfEngineIntegration.AddTextField(path, 0, 72, 540, 200, 48);
+
+            Assert.Equal("answer_001", first);
+            Assert.Equal("answer_002", second);
+            PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+            IReadOnlyList<PdfFormWidgetInfo> widgets =
+                PdfEngineIntegration.ReadPageFormWidgets(document, 0);
+            Assert.Equal(2, widgets.Count);
+            Assert.Contains(widgets, widget => widget.FieldName == first);
+            Assert.Contains(widgets, widget => widget.FieldName == second);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void ReadBookmarks_ProvidesSidebarHierarchyWithoutPdfSharpObjects()
     {
         byte[] source = new PdfDocumentBuilder()
