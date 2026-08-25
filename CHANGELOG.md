@@ -14,9 +14,11 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 
 ### Added
 - The Windows application now directly references The KillerPDF.Engine after moving to .NET 10, establishing the integration boundary while PdfSharpCore is retired through tested feature slices.
+- The Select tool now shows an I-beam only over selectable PDF text in every view while retaining the hand cursor over links (#221).
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Fillable text fields now force the standard I-beam above the viewer tool cursor, keeping the insertion point and editable state visually clear while entering form text (#235).
 - The all-users installer handoff now completes once and leaves the final installed-app relaunch to the portable UI, preventing the duplicate portable restart reported in #238. Portable packaging runs a disposable install smoke test to keep that command boundary covered.
 - KillerPDF now owns its serialized desktop working state through The KillerPDF.Engine. The application, application tests, solution, portable payload, and repository no longer reference or vendor PdfSharpCore; the obsolete compatibility formatter tests and transitive payload libraries have been removed.
 - Installed font discovery and TrueType Collection face extraction are now an engine-oriented application service with no PdfSharpCore resolver contract or process-wide startup registration. Unicode burn-in and form appearance generation retain the same installed-face and glyph-coverage behavior.

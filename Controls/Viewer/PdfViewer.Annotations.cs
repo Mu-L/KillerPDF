@@ -1340,6 +1340,12 @@ namespace KillerPDF.Controls
             if (e.OriginalSource is DependencyObject moveSrc && IsFormFieldElement(moveSrc))
                 return;
 
+            // #221: the Select tool has two behaviors, flowing selection on text and a marquee on
+            // empty page. Reflect the behavior under the pointer instead of leaving an arrow over
+            // selectable text. Link hover below deliberately takes precedence with a hand.
+            if (_currentTool == EditTool.Select && sender is Canvas textHoverCanvas && textHoverCanvas.Tag is int textPage)
+                textHoverCanvas.Cursor = SelectableTextCursor(textPage, e.GetPosition(textHoverCanvas));
+
             // Shapes tool (#127 Phase 3): rubber-band the in-progress polygon (no button held).
             if (_currentTool == EditTool.Shape && _shapePolyPoints.Count > 0)
             {
@@ -1360,7 +1366,9 @@ namespace KillerPDF.Controls
                         if (hpos.X >= l.Cx - LinkHitPad && hpos.X <= l.Cx + l.Cw + LinkHitPad &&
                             hpos.Y >= l.Cy - LinkHitPad && hpos.Y <= l.Cy + l.Ch + LinkHitPad)
                         { hoverTarget = l.Tip; break; }
-                linkHoverCv.Cursor = hoverTarget != null ? System.Windows.Input.Cursors.Hand : null;
+                linkHoverCv.Cursor = hoverTarget != null
+                    ? System.Windows.Input.Cursors.Hand
+                    : SelectableTextCursor(hpage, hpos);
                 ShowLinkHoverStatus(hoverTarget);
             }
 

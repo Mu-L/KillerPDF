@@ -73,6 +73,19 @@ namespace KillerPDF.Controls
         private static (double X, double Y) CanvasToPdf(Point pos, double renderW, double renderH, PageTextRuns runs)
             => (pos.X * runs.PdfWidth / renderW, runs.PdfHeight - pos.Y * runs.PdfHeight / renderH);
 
+        /// <summary>Returns an I-beam only when the Select tool is over actual selectable text.
+        /// Empty page remains an arrow so the cursor also explains which drag behavior will begin.</summary>
+        private Cursor SelectableTextCursor(int pageIdx, Point pos)
+        {
+            if (_currentTool != EditTool.Select || _currentFile is null) return CursorForTool(_currentTool);
+            if (!_renderDims.TryGetValue(pageIdx, out var rd) || rd.w <= 0 || rd.h <= 0)
+                return Cursors.Arrow;
+            var runs = _textRuns.GetPage(_currentFile, pageIdx);
+            if (runs is null || runs.Chars.Count == 0) return Cursors.Arrow;
+            var (px, py) = CanvasToPdf(pos, rd.w, rd.h, runs);
+            return TextRunService.IsOverText(runs, px, py) ? Cursors.IBeam : Cursors.Arrow;
+        }
+
         /// <summary>Called from the Select tool's mouse-down. Returns true (and arms the drag) only
         /// when the press lands ON text; empty page falls through to the marquee.</summary>
         private bool TryBeginTextSelection(int pageIdx, Point pos)

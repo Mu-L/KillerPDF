@@ -129,6 +129,8 @@ namespace KillerPDF.Controls
                         Background       = f.IsComb ? Brushes.Transparent : fieldBg,
                         Foreground       = Brushes.Black,
                         CaretBrush       = Brushes.Black,
+                        Cursor           = Cursors.IBeam,
+                        ForceCursor      = true,
                         SelectionBrush   = (System.Windows.Media.Brush)FindResource("HeaderLineBrush"),
                         Style            = (Style)FindResource("FormFieldTextBox"),
                         BorderBrush      = Brushes.Transparent,
