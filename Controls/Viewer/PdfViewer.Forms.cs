@@ -27,8 +27,103 @@ namespace KillerPDF.Controls
             public override string ToString() => DisplayValue;
         }
 
+        private FrameworkElement? _formDragControl;
+        private Canvas? _formDragCanvas;
+        private FormFieldInfo _formDragField;
+        private Point _formDragStart;
+        private Point _formDragOrigin;
+
+        internal void RefreshFormDesignMode()
+        {
+            var pages = new HashSet<int>(_pages.Keys);
+            if (_currentPage >= 0) pages.Add(_currentPage);
+            foreach (int page in pages)
+                RenderAllAnnotations(page);
+        }
+
+        private void AttachFormDesignDrag(
+            UIElement control, FormFieldInfo field, int pageIndex, Canvas canvas)
+        {
+            if (control is not FrameworkElement element) return;
+            if (_currentTool == EditTool.FormField && field.ObjNum > 0)
+            {
+                element.Cursor = Cursors.SizeAll;
+                element.ForceCursor = true;
+                if (element is TextBox textBox) textBox.IsReadOnly = true;
+                if (element is ComboBox comboBox) comboBox.IsEnabled = false;
+            }
+
+            element.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                if (_currentTool != EditTool.FormField || field.ObjNum <= 0) return;
+                HideFormSizeBar();
+                Keyboard.ClearFocus();
+                _formDragControl = element;
+                _formDragCanvas = canvas;
+                _formDragField = field;
+                _formDragStart = e.GetPosition(canvas);
+                _formDragOrigin = new Point(Canvas.GetLeft(element), Canvas.GetTop(element));
+                element.CaptureMouse();
+                Panel.SetZIndex(element, 30);
+                SetStatus($"Moving fillable field {field.FieldName}");
+                e.Handled = true;
+            };
+            element.PreviewMouseMove += (_, e) =>
+            {
+                if (!ReferenceEquals(_formDragControl, element)
+                    || e.LeftButton != MouseButtonState.Pressed) return;
+                Point position = e.GetPosition(canvas);
+                double left = Math.Clamp(
+                    _formDragOrigin.X + position.X - _formDragStart.X,
+                    0, Math.Max(0, canvas.ActualWidth - element.ActualWidth));
+                double top = Math.Clamp(
+                    _formDragOrigin.Y + position.Y - _formDragStart.Y,
+                    0, Math.Max(0, canvas.ActualHeight - element.ActualHeight));
+                Canvas.SetLeft(element, left);
+                Canvas.SetTop(element, top);
+                e.Handled = true;
+            };
+            element.PreviewMouseLeftButtonUp += (_, e) =>
+            {
+                if (!ReferenceEquals(_formDragControl, element)) return;
+                element.ReleaseMouseCapture();
+                _formDragControl = null;
+                _formDragCanvas = null;
+                Panel.SetZIndex(element, -1);
+                CommitFormFieldMove(pageIndex, field, element, canvas);
+                e.Handled = true;
+            };
+        }
+
+        private void CommitFormFieldMove(
+            int pageIndex, FormFieldInfo field, FrameworkElement element, Canvas canvas)
+        {
+            if (_currentFile is null) return;
+            Rect canvasRectangle = new(
+                Canvas.GetLeft(element), Canvas.GetTop(element),
+                element.ActualWidth, element.ActualHeight);
+            IReadOnlyList<KillerPdf.Engine.Documents.PdfPageInformation> pages =
+                PdfEngineIntegration.ReadPageInformation(_currentFile);
+            if ((uint)pageIndex >= (uint)pages.Count) return;
+            KillerPdf.Engine.Documents.PdfPageInformation page = pages[pageIndex];
+            int rotation = _pageRotations.TryGetValue(pageIndex, out int storedRotation)
+                ? ((storedRotation % 360) + 360) % 360
+                : page.Rotation;
+            (double left, double bottom, double right, double top) = CanvasToPdfRect(
+                canvasRectangle, page.Width, page.Height,
+                Math.Max(1, canvas.ActualWidth), Math.Max(1, canvas.ActualHeight), rotation);
+            SaveTempAndReload(
+                keepAnnotations: true,
+                preserveZoom: true,
+                finalizeSavedFile: path => PdfEngineIntegration.MoveFormWidget(
+                    path, field.ObjNum, field.Generation, left, bottom, right, top),
+                selectedPageAfterReload: pageIndex);
+            SetStatus($"Moved fillable field {field.FieldName}");
+        }
+
         private readonly record struct FormFieldInfo(
             int    ObjNum,        // widget annotation object number (used as key)
+            int    Generation,
             string FieldType,     // /Tx, /Btn, /Ch
             bool   IsCheckBox,
             bool   IsRadio,
@@ -301,6 +396,7 @@ namespace KillerPDF.Controls
                 }
 
                 if (ctrl is null) continue;
+                AttachFormDesignDrag(ctrl, f, pageIndex, canvas);
                 Canvas.SetLeft(ctrl, f.Cx);
                 Canvas.SetTop(ctrl, f.Cy);
                 // #156: field overlays sit BELOW the annotation layer. RenderAllAnnotations paints
@@ -394,7 +490,8 @@ namespace KillerPDF.Controls
                         ? widget.ObjectNumber : -(pageIndex * 10000 + widget.AnnotationIndex);
                     double fontSize = ParseDaFontSize(widget.DefaultAppearance);
                     double scale = rotation is 90 or 270 ? canvasH / pageW : canvasH / pageH;
-                    result.Add(new FormFieldInfo(objectNumber, fieldType, isCheckBox, isRadio,
+                    result.Add(new FormFieldInfo(objectNumber, widget.Generation,
+                        fieldType, isCheckBox, isRadio,
                         isMultiLine, widget.FieldName, widget.Value, widget.OnValue,
                         (flags & 1) != 0, cx, cy, cw, ch,
                         widget.Options.Select(option => new FormChoiceItem(

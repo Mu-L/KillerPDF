@@ -90,6 +90,20 @@ internal static class PdfEngineIntegration
         return name;
     }
 
+    /// <summary>Moves one native form widget while preserving its field and appearance.</summary>
+    internal static void MoveFormWidget(
+        string path, int objectNumber, int generation,
+        double left, double bottom, double right, double top)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        byte[] result = new PdfIncrementalPageEditor(document)
+            .SetFormWidgetRectangle(
+                objectNumber, generation, left, bottom, right, top)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
     /// <summary>Replaces the document bookmark hierarchy as one engine revision.</summary>
     internal static void ReplaceBookmarks(string path, IReadOnlyList<PdfBookmarkInfo> bookmarks)
     {

@@ -167,6 +167,8 @@ public sealed class PdfIncrementalPageEditor
         new(StringComparer.Ordinal);
     private readonly Dictionary<string, PdfFormFieldMetadata?> _fieldMetadataChanges =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<(int ObjectNumber, int Generation), PendingWidgetRectangle>
+        _widgetRectangleChanges = [];
     private readonly Dictionary<string, PendingFieldDefaultValue> _fieldDefaultChanges =
         new(StringComparer.Ordinal);
     private readonly HashSet<string> _removedFormFields = new(StringComparer.Ordinal);
@@ -297,6 +299,25 @@ public sealed class PdfIncrementalPageEditor
         if (metadata?.MappingName is not null && string.IsNullOrWhiteSpace(metadata.MappingName))
             throw new ArgumentException("A field mapping name cannot be empty.", nameof(metadata));
         _fieldMetadataChanges[fieldName] = metadata;
+        _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Moves or resizes one indirect AcroForm widget annotation.</summary>
+    public PdfIncrementalPageEditor SetFormWidgetRectangle(
+        int objectNumber, int generation,
+        double left, double bottom, double right, double top)
+    {
+        if (objectNumber <= 0)
+            throw new ArgumentOutOfRangeException(nameof(objectNumber));
+        if (generation < 0)
+            throw new ArgumentOutOfRangeException(nameof(generation));
+        if (!double.IsFinite(left) || !double.IsFinite(bottom)
+            || !double.IsFinite(right) || !double.IsFinite(top)
+            || right <= left || top <= bottom)
+            throw new ArgumentException("The widget rectangle must be finite and nondegenerate.");
+        _widgetRectangleChanges[(objectNumber, generation)] =
+            new PendingWidgetRectangle(left, bottom, right, top);
         _catalogPresentationChanged = true;
         return this;
     }
@@ -1676,6 +1697,7 @@ public sealed class PdfIncrementalPageEditor
             && mergesFormFields;
         if (_clearMetadata) update.SetDocumentInformation(null);
         if (!deferFormFieldChanges) ApplyFormFieldValueChanges(update);
+        ApplyFormWidgetRectangleChanges(update);
         if (!deferFormFieldRemovals) ApplyFormFieldRemovals(update);
         if (_orderChanged)
             BuildReorderedTree(update);
@@ -1895,6 +1917,34 @@ public sealed class PdfIncrementalPageEditor
                 _document, kidsValue, "An AcroForm field /Kids value");
             foreach (PdfObject kid in kids)
                 Visit(kid, qualifiedName, fieldType, depth + 1);
+        }
+    }
+
+    private void ApplyFormWidgetRectangleChanges(PdfIncrementalUpdateBuilder update)
+    {
+        if (_widgetRectangleChanges.Count == 0) return;
+        var reachable = new HashSet<(int ObjectNumber, int Generation)>();
+        for (int pageIndex = 0; pageIndex < _tree.Pages.Count; pageIndex++)
+            foreach (PdfFormWidgetInfo widget in PdfFormWidgetReader.ReadPage(_document, pageIndex))
+                if (widget.ObjectNumber > 0)
+                    reachable.Add((widget.ObjectNumber, widget.Generation));
+
+        foreach ((var identity, PendingWidgetRectangle rectangle) in _widgetRectangleChanges)
+        {
+            if (!reachable.Contains(identity))
+                throw new InvalidOperationException(
+                    $"The document has no indirect form widget {identity.ObjectNumber} {identity.Generation} R.");
+            var reference = new PdfIndirectReference(identity.ObjectNumber, identity.Generation);
+            PdfDictionary widget = ResolveDictionary(
+                _document, reference, "The form widget");
+            PdfDictionary replacement = ReplaceMany(widget,
+                new Dictionary<PdfName, PdfObject>
+                {
+                    [RectangleName] = new PdfArray([
+                        Number(rectangle.Left), Number(rectangle.Bottom),
+                        Number(rectangle.Right), Number(rectangle.Top)])
+                });
+            update.ReplaceObject(identity.ObjectNumber, replacement);
         }
     }
 
@@ -17288,6 +17338,8 @@ public sealed class PdfIncrementalPageEditor
 
     private sealed record PageLabelRange(
         long PageIndex, PdfName? Style, PdfString? Prefix, long StartNumber);
+    private sealed record PendingWidgetRectangle(
+        double Left, double Bottom, double Right, double Top);
     private sealed record PageLabelSpec(PdfName? Style, PdfString? Prefix, long Number);
     private sealed record DestinationReferences(
         IReadOnlySet<string> StringNames, IReadOnlySet<PdfName> LegacyNames);

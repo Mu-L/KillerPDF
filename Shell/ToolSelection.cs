@@ -61,6 +61,7 @@ namespace KillerPDF
             CancelShapePolygon();   // abandon an in-progress polygon when switching tools
             if (tool != EditTool.Draw) HideBrushPreview();   // drop the brush cursor when leaving Draw
             _currentTool = tool;
+            ActiveViewer.RefreshFormDesignMode();
 
             var map = new (Button btn, EditTool t)[]
             {

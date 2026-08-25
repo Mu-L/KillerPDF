@@ -12866,6 +12866,44 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void SetFormWidgetRectangle_MovesIndirectWidgetAndPreservesFieldState()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "answer", 20, 30, 160, 24, "Original")
+            .Build();
+        PdfDocument original = PdfDocument.Open(source);
+        PdfFormWidgetInfo widget = Assert.Single(PdfFormWidgetReader.ReadPage(original, 0));
+
+        byte[] updated = new PdfIncrementalPageEditor(original)
+            .SetFormWidgetRectangle(widget.ObjectNumber, widget.Generation,
+                72, 500, 232, 524)
+            .Build();
+
+        Assert.Equal(source, updated[..source.Length]);
+        PdfFormWidgetInfo moved = Assert.Single(PdfFormWidgetReader.ReadPage(
+            PdfDocument.Open(updated), 0));
+        Assert.Equal("answer", moved.FieldName);
+        Assert.Equal("Original", moved.Value);
+        Assert.Equal(72, moved.Left);
+        Assert.Equal(500, moved.Bottom);
+        Assert.Equal(232, moved.Right);
+        Assert.Equal(524, moved.Top);
+    }
+
+    [Fact]
+    public void SetFormWidgetRectangle_RejectsInvalidOrUnknownWidgets()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "answer", 20, 30, 160, 24)
+            .Build();
+        PdfDocument document = PdfDocument.Open(source);
+        Assert.Throws<ArgumentException>(() => new PdfIncrementalPageEditor(document)
+            .SetFormWidgetRectangle(1, 0, 10, 10, 10, 20));
+        Assert.Throws<InvalidOperationException>(() => new PdfIncrementalPageEditor(document)
+            .SetFormWidgetRectangle(9999, 0, 10, 10, 20, 20).Build());
+    }
+
+    [Fact]
     public void SetTextFieldValue_PreservesCombBehaviorAndComposesWithReordering()
     {
         byte[] source = new PdfDocumentBuilder().AddBlankPage().AddBlankPage()
