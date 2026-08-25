@@ -12,16 +12,23 @@ public sealed class PdfDestination
         Values = values;
     }
 
+    /// <summary>Creates a destination that fits the complete page in the viewer.</summary>
     public static PdfDestination FitPage() => new(PdfDestinationKind.Fit);
+    /// <summary>Creates a destination that fits the page bounding box in the viewer.</summary>
     public static PdfDestination FitBoundingBox() => new(PdfDestinationKind.FitB);
+    /// <summary>Creates a destination that fits the page width at an optional top coordinate.</summary>
     public static PdfDestination FitWidth(double? top = null) =>
         new(PdfDestinationKind.FitH, Optional(top, nameof(top)));
+    /// <summary>Creates a destination that fits the page height at an optional left coordinate.</summary>
     public static PdfDestination FitHeight(double? left = null) =>
         new(PdfDestinationKind.FitV, Optional(left, nameof(left)));
+    /// <summary>Creates a destination that fits the bounding-box width at an optional top coordinate.</summary>
     public static PdfDestination FitBoundingBoxWidth(double? top = null) =>
         new(PdfDestinationKind.FitBH, Optional(top, nameof(top)));
+    /// <summary>Creates a destination that fits the bounding-box height at an optional left coordinate.</summary>
     public static PdfDestination FitBoundingBoxHeight(double? left = null) =>
         new(PdfDestinationKind.FitBV, Optional(left, nameof(left)));
+    /// <summary>Creates a destination at optional left and top coordinates and an optional positive zoom factor.</summary>
     public static PdfDestination At(double? left = null, double? top = null, double? zoom = null)
     {
         if (zoom.HasValue && (!double.IsFinite(zoom.Value) || zoom.Value <= 0))
@@ -29,6 +36,7 @@ public sealed class PdfDestination
         return new(PdfDestinationKind.Xyz,
             Optional(left, nameof(left)), Optional(top, nameof(top)), zoom);
     }
+    /// <summary>Creates a destination that fits the specified nonempty rectangle.</summary>
     public static PdfDestination FitRectangle(
         double left, double bottom, double right, double top)
     {
