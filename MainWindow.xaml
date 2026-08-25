@@ -2579,7 +2579,7 @@
                     <Grid x:Name="ShortcutListHost">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition Width="36"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 

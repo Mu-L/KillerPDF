@@ -66,6 +66,23 @@ namespace KillerPDF
             (KbLayer.Shift, "SHIFT"), (KbLayer.Alt, "ALT"),
         ];
 
+        private static string? KbCapResource(string id) => id switch
+        {
+            "Ctrl" or "RCtrl" => "Str_Key_Ctrl",
+            "Alt" or "RAlt" => "Str_Key_Alt",
+            "Shift" or "RShift" => "Str_Key_Shift",
+            "Del" => "Str_Key_Delete",
+            "Enter" => "Str_Key_Enter",
+            "Esc" => "Str_Key_Esc",
+            "Menu" => "Str_Key_Menu",
+            "Home" => "Str_Key_Home",
+            "End" => "Str_Key_End",
+            "PgUp" => "Str_Key_PgUp",
+            "PgDn" => "Str_Key_PgDn",
+            "Tab" => "Str_Key_Tab",
+            _ => null,
+        };
+
         // Modifier keycaps that light up per layer (they define it rather than carry a binding).
         private static readonly Dictionary<KbLayer, string[]> KbLayerMods = new()
         {
@@ -93,7 +110,7 @@ namespace KillerPDF
             if (keyboard && !_kbBuilt) BuildKeyboardView();
             ShortcutListHost.Visibility     = keyboard ? Visibility.Collapsed : Visibility.Visible;
             ShortcutKeyboardHost.Visibility = keyboard ? Visibility.Visible : Visibility.Collapsed;
-            ShortcutCardGrid.MaxWidth       = keyboard ? 1080 : 640;
+            ShortcutCardGrid.MaxWidth       = keyboard ? 1120 : 760;
             KsViewListBtn.SetResourceReference(ForegroundProperty, keyboard ? "MutedTextBrush" : "PrimaryBrush");
             KsViewKeyboardBtn.SetResourceReference(ForegroundProperty, keyboard ? "PrimaryBrush" : "MutedTextBrush");
             if (keyboard) SetKbLayer(KbLayer.Base);
@@ -157,6 +174,9 @@ namespace KillerPDF
                         FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 5, 0, 0),
                     };
+                    string? capResource = KbCapResource(id);
+                    if (capResource is not null)
+                        capText.SetResourceReference(TextBlock.TextProperty, capResource);
                     capText.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                     var act = new TextBlock
                     {
@@ -308,7 +328,10 @@ namespace KillerPDF
                     vis.Bar.SetResourceReference(Shape.FillProperty, "KsCat" + b.Cat);
                     vis.Bar.Visibility = Visibility.Visible;
                     vis.Act.SetResourceReference(TextBlock.TextProperty, b.Label);
-                    vis.Act.SetResourceReference(TextBlock.ForegroundProperty, "KsCat" + b.Cat);
+                    // The border and category bar carry the category color. Keep the action text on
+                    // the theme's guaranteed readable foreground, since several neon families have
+                    // one category color that is too dark against their keyboard face (#230).
+                    vis.Act.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                     vis.Act.Visibility = Visibility.Visible;
                 }
                 else

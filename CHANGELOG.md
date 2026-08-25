@@ -18,6 +18,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- The shortcut help list is wider with more column spacing, and the visual keyboard localizes named keycaps while using guaranteed-readable action and heading text across dark themes (#230).
 - The remaining reported signature, text-editing, install, publisher-verification, and text-cover unpair messages now use the active language resources instead of hardcoded English (#227).
 - Fillable text fields now force the standard I-beam above the viewer tool cursor, keeping the insertion point and editable state visually clear while entering form text (#235).
 - The all-users installer handoff now completes once and leaves the final installed-app relaunch to the portable UI, preventing the duplicate portable restart reported in #238. Portable packaging runs a disposable install smoke test to keep that command boundary covered.
