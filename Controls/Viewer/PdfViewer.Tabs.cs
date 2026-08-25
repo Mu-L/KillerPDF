@@ -282,11 +282,9 @@ namespace KillerPDF.Controls
             _doc            = s.Doc;
             _currentFile    = s.CurrentFile;
             _originalFile   = s.OriginalFile;
-            // The cached PDFium link handle belongs to the file we're switching AWAY from. This is the one
-            // chokepoint every active-doc swap funnels through (tab switch, close-tab, close-all), so drop
-            // it here and it can never outlive its document; the next link extraction reopens it lazily for
-            // the new file (see EnsureLinkPdfiumDoc). CloseLinkPdfiumDoc is idempotent and cheap.
-            CloseLinkPdfiumDoc();
+            // The immutable engine view belongs to the file we are switching away from. This is the
+            // chokepoint for every active-document swap, so it cannot outlive its serialized source.
+            CloseEngineDocumentSession();
             _zoomLevel      = s.ZoomLevel;
             _lastRenderZoom = s.LastRenderZoom;
             _fitMode        = s.Fit;

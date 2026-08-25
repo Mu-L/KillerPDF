@@ -327,7 +327,7 @@ namespace KillerPDF.Controls
             if (_doc is null || pageIndex >= _doc.PageCount) return result;
             try
             {
-                KillerPdf.Engine.Documents.PdfDocument engineDocument = EnsureLinkEngineDocument();
+                KillerPdf.Engine.Documents.PdfDocument engineDocument = EnsureEngineDocumentSession().Document;
                 foreach (KillerPdf.Engine.Documents.PdfFormWidgetInfo widget in
                     PdfEngineIntegration.ReadPageFormWidgets(engineDocument, pageIndex))
                 {

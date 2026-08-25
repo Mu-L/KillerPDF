@@ -83,7 +83,7 @@ namespace KillerPDF.Controls
         internal void RebuildCropBarForLocaleExt() => RebuildCropBarForLocale();
 
         // ── Links ────────────────────────────────────────────────────────────────────────────
-        internal void CloseLinkPdfiumDocExt() => CloseLinkPdfiumDoc();
+        internal void CloseEngineDocumentSessionExt() => CloseEngineDocumentSession();
         internal void AddLinkMenuItemsExt(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => AddLinkMenuItems(menu, target, annotIndex, pageIndex);
         internal bool IsPanning => _isPanning;

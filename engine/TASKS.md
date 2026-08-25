@@ -18,8 +18,8 @@ Last updated: 2026-08-25
 - Latest completed commit before the active burn-in slice: `f3ed0a3 v1.8.0-alpha.1: read form widgets through engine`
 - Current automated baseline:
   - 1,419 engine tests pass.
-  - 132 application tests pass.
-  - 1,551 total tests pass.
+  - 133 application tests pass.
+  - 1,552 total tests pass.
   - Release solution build succeeds with zero warnings and zero errors.
   - Strict engine documentation build succeeds with zero warnings and zero errors.
 - Nothing has been pushed.
@@ -87,7 +87,7 @@ All desktop burn paths now append isolated typed engine content. This includes S
 
 ## Exact next slice
 
-Migrate the live desktop document open and temp-reload boundary in `Shell/FileOperations.cs` and `Shell/TempReload.cs`. Establish an engine-owned immutable source and editing-session lifecycle while keeping PDFium as the renderer, then remove the remaining dependence on a live mutable PdfSharpCore document one vertical operation group at a time.
+Continue the live desktop document open and temp-reload migration in `Shell/FileOperations.cs` and `Shell/TempReload.cs`. The first step is complete: links and forms now share one immutable engine session containing owned source bytes, the parsed document, and crop-aware page information, and every reload, save, close, and tab switch invalidates it through one lifecycle boundary. Next, move document-open validation and page-state initialization onto that session while keeping PDFium as the renderer, then remove remaining live mutable PdfSharpCore operations one vertical group at a time.
 
 ## Remaining major legacy pockets after forms
 

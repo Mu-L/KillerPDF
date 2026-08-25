@@ -223,17 +223,18 @@ namespace KillerPDF.Controls
         private List<LinkInfo> GetPageLinks(int pageIndex, int bitmapW, int bitmapH)
         {
             var links = new List<LinkInfo>();
-            if (_doc is null || _currentFile is null) return links;
+            if (_currentFile is null) return links;
             try
             {
-                var pdfPage = _doc.Pages[pageIndex];
-                double pageWidthPt  = pdfPage.Width.Point;
-                double pageHeightPt = pdfPage.Height.Point;
+                PdfEngineDocumentSession session = EnsureEngineDocumentSession();
+                if (pageIndex < 0 || pageIndex >= session.Pages.Count) return links;
+                var page = session.Pages[pageIndex];
+                double pageWidthPt  = page.Width;
+                double pageHeightPt = page.Height;
                 if (pageWidthPt  <= 0) pageWidthPt  = 595.28;
                 if (pageHeightPt <= 0) pageHeightPt = 841.89;
-                KillerPdf.Engine.Documents.PdfDocument engineDocument = EnsureLinkEngineDocument();
                 foreach (KillerPdf.Engine.Documents.PdfLinkInfo link in
-                    PdfEngineIntegration.ReadPageLinks(engineDocument, pageIndex))
+                    PdfEngineIntegration.ReadPageLinks(session.Document, pageIndex))
                 {
                     var (cx, cy, cw, ch) = PdfRectToCanvas(
                         link.Left, link.Bottom, link.Right, link.Top,
@@ -251,26 +252,17 @@ namespace KillerPDF.Controls
             return links;
         }
 
-        private KillerPdf.Engine.Documents.PdfDocument? _linkEngineDocument;
-        private string? _linkEngineDocumentPath;
+        private PdfEngineDocumentSession? _engineDocumentSession;
 
-        private KillerPdf.Engine.Documents.PdfDocument EnsureLinkEngineDocument()
+        private PdfEngineDocumentSession EnsureEngineDocumentSession()
         {
             if (_currentFile is null) throw new InvalidOperationException("No PDF is open.");
-            if (_linkEngineDocument is not null && _linkEngineDocumentPath == _currentFile)
-                return _linkEngineDocument;
-            _linkEngineDocument = KillerPdf.Engine.Documents.PdfDocument.Open(
-                File.ReadAllBytes(_currentFile));
-            _linkEngineDocumentPath = _currentFile;
-            return _linkEngineDocument;
+            if (_engineDocumentSession is not null && _engineDocumentSession.Path == _currentFile)
+                return _engineDocumentSession;
+            return _engineDocumentSession = PdfEngineDocumentSession.Open(_currentFile);
         }
 
-        // The bridge name is retained while existing document lifecycle callers are migrated.
-        private void CloseLinkPdfiumDoc()
-        {
-            _linkEngineDocument = null;
-            _linkEngineDocumentPath = null;
-        }
+        private void CloseEngineDocumentSession() => _engineDocumentSession = null;
 
         /// <summary>
         /// Renders link overlays for the primary page onto the annotation canvas.

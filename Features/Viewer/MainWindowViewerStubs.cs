@@ -86,7 +86,7 @@ namespace KillerPDF
         private void RebuildCropBarForLocale() => ActiveViewer.RebuildCropBarForLocaleExt();
 
         // ── Links ────────────────────────────────────────────────────────────────────────────
-        private void CloseLinkPdfiumDoc() => ActiveViewer.CloseLinkPdfiumDocExt();
+        private void CloseEngineDocumentSession() => ActiveViewer.CloseEngineDocumentSessionExt();
         private void AddLinkMenuItems(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => ActiveViewer.AddLinkMenuItemsExt(menu, target, annotIndex, pageIndex);
         private const double LinkHitPad = Controls.PdfViewer.LinkHitPadShared;

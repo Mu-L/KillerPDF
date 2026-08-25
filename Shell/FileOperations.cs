@@ -164,7 +164,7 @@ namespace KillerPDF
             FileNameLabel.Text = System.IO.Path.GetFileName(displayPath);
             _annotations.Clear();
             _continuousLinks.Clear();   // drop the previous document's cached link rects
-            CloseLinkPdfiumDoc();       // and release the cached PDFium link handle for the old file
+            CloseEngineDocumentSession();
             _undoStack.Clear();
             _redoStack.Clear();
             // The map belongs to the previous document. Native rotations in a newly opened PDF
@@ -378,7 +378,7 @@ namespace KillerPDF
             _doc.Close();
             _doc = null;
             _currentFile = null;
-            CloseLinkPdfiumDoc();   // release the cached PDFium link handle for the closed file
+            CloseEngineDocumentSession();
             App.RemoveSetting("LastFile");   // don't reopen a manually-closed file on next launch (Issue #75)
             _activeTextBox = null;   // cancel any in-progress typewriter edit before canvas clear
             RemoveTextEditHandles();
@@ -965,11 +965,9 @@ namespace KillerPDF
             PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
             PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             string saveTarget = _originalFile!;
-            // #129: the cached PDFium link handle (EnsureLinkPdfiumDoc) can hold _currentFile open,
-            // and on a plain open _currentFile IS the user's real file - PdfSharp then can't overwrite
-            // it (sharing violation, "being used by another process"). Release it before saving; it
-            // reopens lazily on the next render sweep, re-parsing the freshly saved file.
-            CloseLinkPdfiumDoc();
+            // Drop the immutable engine view before replacing the working file. It reopens lazily
+            // on the next link or form render and therefore cannot expose stale document state.
+            CloseEngineDocumentSession();
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1078,7 +1076,7 @@ namespace KillerPDF
             }
             catch { /* malformed seed path - just open the dialog with its defaults */ }
             if (dlg.ShowDialog(this) != true) return;
-            CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
+            CloseEngineDocumentSession();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
             PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
@@ -1167,7 +1165,7 @@ namespace KillerPDF
                           { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SaveFlattened"),
                             CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
-            CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
+            CloseEngineDocumentSession();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
             PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)

@@ -33,9 +33,8 @@ namespace KillerPDF
             int? selectedPageAfterReload = null)
         {
             if (_doc is null || _currentFile is null) return;
-            // We're about to replace the working file with a fresh temp; release the cached PDFium link
-            // handle for the outgoing file now (it reopens for the new temp on the post-reload re-render).
-            CloseLinkPdfiumDoc();
+            // The serialized working file is about to change, so discard its immutable engine view.
+            CloseEngineDocumentSession();
             // Stop render workers tied to the outgoing file before clearing the cache. Without this,
             // an already-running Grid or Continuous task can finish after the clear and put an old
             // page bitmap straight back into the active session.
