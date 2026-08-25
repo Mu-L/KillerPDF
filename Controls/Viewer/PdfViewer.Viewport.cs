@@ -375,7 +375,8 @@ namespace KillerPDF.Controls
             // restore both here for the same reason as the scrollbar overrides above.
             DocSurfacePad.Padding = new Thickness(12);
             DocSurfacePad.VerticalAlignment = VerticalAlignment.Top;
-            _continuousRenderCts?.Cancel();
+            CancelAndRelease(_continuousRenderCts);
+            _continuousRenderCts = null;
             _continuousPanel.Children.Clear();
             _continuousTops.Clear();
             _continuousCanvases.Clear();
@@ -384,7 +385,8 @@ namespace KillerPDF.Controls
 
             // Fresh slot set: any hi-res re-sharpen bookkeeping from the previous layout is stale.
             // (This reset used to live in the render pass, back when it repainted every slot.)
-            _continuousSharpenCts?.Cancel();
+            CancelAndRelease(_continuousSharpenCts);
+            _continuousSharpenCts = null;
             _continuousSharpPages.Clear();
             _continuousSharpW = 0;
 
@@ -484,7 +486,7 @@ namespace KillerPDF.Controls
         internal async System.Threading.Tasks.Task RenderContinuousPages(int centerPage)
         {
             if (_doc is null || _currentFile is null) return;
-            _continuousRenderCts?.Cancel();
+            CancelAndRelease(_continuousRenderCts);
             _continuousRenderCts = new System.Threading.CancellationTokenSource();
             var cts = _continuousRenderCts;
 
@@ -735,7 +737,7 @@ namespace KillerPDF.Controls
             // 1.05 is hysteresis only, so a page sitting on the boundary doesn't re-raster on a nudge.
             bool wantHi = hiW >= (int)(baseW * 1.05);
 
-            _continuousSharpenCts?.Cancel();
+            CancelAndRelease(_continuousSharpenCts);
             _continuousSharpenCts = new System.Threading.CancellationTokenSource();
             var cts = _continuousSharpenCts;
 
@@ -1074,7 +1076,7 @@ namespace KillerPDF.Controls
             }
 
             // Cancel any previously running secondary render.
-            _secondaryRenderCts?.Cancel();
+            CancelAndRelease(_secondaryRenderCts);
             _secondaryRenderCts = new System.Threading.CancellationTokenSource();
             var cts = _secondaryRenderCts;
 
@@ -2039,7 +2041,8 @@ namespace KillerPDF.Controls
 
             if (!isContinuous)
             {
-                _continuousRenderCts?.Cancel();
+                CancelAndRelease(_continuousRenderCts);
+                _continuousRenderCts = null;
                 _continuousPanel.Children.Clear();
                 _continuousTops.Clear();
                 _continuousCanvases.Clear();
@@ -2055,7 +2058,8 @@ namespace KillerPDF.Controls
             }
             else
             {
-                _secondaryRenderCts?.Cancel();
+                CancelAndRelease(_secondaryRenderCts);
+                _secondaryRenderCts = null;
                 ClearSecondaryPages();
                 _pageContentPanel.Width = double.NaN;
                 // Drop any scroll offset carried over from the previous mode (especially Continuous,

@@ -450,6 +450,31 @@ namespace KillerPDF.Controls
             HideSignaturePopup();
         }
 
+        // Stop every deferred or background renderer owned by this pane before its live document
+        // fields are replaced. Each callback already observes its token; canceling them together
+        // prevents pixels and thumbnails from the departing document reaching the incoming view.
+        private void CancelRenderWork()
+        {
+            _rerenderTimer?.Stop();
+
+            CancelAndRelease(_secondaryRenderCts);
+            _secondaryRenderCts = null;
+            CancelAndRelease(_continuousRenderCts);
+            _continuousRenderCts = null;
+            CancelAndRelease(_continuousSharpenCts);
+            _continuousSharpenCts = null;
+
+            _thumbCts?.Cancel();
+            _thumbCts?.Dispose();
+            _thumbCts = null;
+        }
+
+        private static void CancelAndRelease(System.Threading.CancellationTokenSource? source)
+        {
+            source?.Cancel();
+            source?.Dispose();
+        }
+
         // ============================================================
         // Rendering the active session
         // ============================================================
@@ -485,7 +510,8 @@ namespace KillerPDF.Controls
             if (_doc is null) return;
             if (_viewMode == ViewMode.Continuous)
             {
-                _continuousSharpenCts?.Cancel();
+                CancelAndRelease(_continuousSharpenCts);
+                _continuousSharpenCts = null;
                 _continuousSharpPages.Clear();
                 foreach (var child in _continuousPanel.Children)
                     if (child is Border b && b.Child is Grid g
@@ -528,9 +554,9 @@ namespace KillerPDF.Controls
         // does not close the document or touch session bookkeeping (callers handle that).
         private void ShowEmptyState()
         {
+            CancelRenderWork();
             _activeTextBox = null;
             RemoveTextEditHandles();
-            _thumbCts?.Cancel();
             Host?.ClearSidebarPages(this);
             PageImage.Source = null;
             _annotationCanvas.Children.Clear();
@@ -548,7 +574,6 @@ namespace KillerPDF.Controls
                 Host.CloseFileEnabled = false;
                 Host.PageJumpEnabled = false;
             }
-            _continuousRenderCts?.Cancel();
             _continuousPanel.Children.Clear();
             _continuousTops.Clear();
             if (Host != null)
@@ -575,6 +600,7 @@ namespace KillerPDF.Controls
             EnsureInitialSession();
             CommitActiveTextBox();
             CancelTransientForSwitch();
+            CancelRenderWork();
             prev = _active;
             if (_active != null) CaptureSessionState(_active);
 
@@ -692,6 +718,7 @@ namespace KillerPDF.Controls
             Host?.FocusViewer(this);
             CommitActiveTextBox();
             CancelTransientForSwitch();
+            CancelRenderWork();
             if (_active != null) CaptureSessionState(_active);
             SetActiveSession(target);
             ApplySessionState(target);
@@ -795,6 +822,7 @@ namespace KillerPDF.Controls
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
             }
 
+            CancelRenderWork();
             try { _doc?.Close(); } catch { }
             _doc = null;
 
@@ -843,6 +871,7 @@ namespace KillerPDF.Controls
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
             }
 
+            CancelRenderWork();
             foreach (var s in docTabs) { try { s.Doc?.Close(); } catch { } }
             try { _doc?.Close(); } catch { }
             _doc = null;
