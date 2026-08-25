@@ -229,6 +229,10 @@ internal static class PdfEngineIntegration
         return PdfPageInformation.Read(PdfDocument.Open(File.ReadAllBytes(path)));
     }
 
+    /// <summary>Authors a new one-page blank document.</summary>
+    internal static byte[] CreateBlankDocument(double width = 595, double height = 842) =>
+        new PdfDocumentBuilder().AddPage(width, height, ReadOnlyMemory<byte>.Empty).Build();
+
     /// <summary>Extracts selected pages into a new PDF in the supplied order.</summary>
     internal static byte[] ExtractPages(byte[] source, IReadOnlyList<int> pageIndices)
     {

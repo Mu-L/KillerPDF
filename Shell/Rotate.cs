@@ -107,8 +107,6 @@ namespace KillerPDF
                 var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
                 // #174: levels last, on the final full-resolution pixels - same pass the preview shows.
                 composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
-                byte[] png = EncodePng(composed);
-
                 var oldPage = _doc.Pages[pageIdx];
                 var (epw, eph) = EffectivePageSize(oldPage);   // honor CropBox so a cropped page keeps its size
                 // #167: the bitmap is in VISUAL orientation - RenderPageBitmap applies the page's
@@ -123,18 +121,13 @@ namespace KillerPDF
                 double newWpt = composed.PixelWidth * sx;
                 double newHpt = composed.PixelHeight * sy;
 
-                // Build a one-page PDF holding the transformed image (the proven image-page pattern).
+                // Build a one-page engine PDF holding the transformed image.
                 string tmp = App.MakeTempFile("xfpage");
-                using (var one = new PdfDocument())
-                {
-                    var np = one.AddPage();
-                    np.Width  = XUnit.FromPoint(newWpt);
-                    np.Height = XUnit.FromPoint(newHpt);
-                    using (var xi = XImage.FromStream(() => new MemoryStream(png)))
-                    using (var gfx = XGraphics.FromPdfPage(np))
-                        gfx.DrawImage(xi, 0, 0, np.Width.Point, np.Height.Point);
-                    one.Save(tmp);
-                }
+                byte[] pixels = new byte[composed.PixelWidth * composed.PixelHeight * 4];
+                composed.CopyPixels(pixels, composed.PixelWidth * 4, 0);
+                File.WriteAllBytes(tmp, PdfEngineIntegration.CreateRasterDocument([
+                    new PdfEngineIntegration.RasterPage(composed.PixelWidth,
+                        composed.PixelHeight, newWpt, newHpt, pixels)]));
 
                 SaveTempAndReload(
                     keepAnnotations: true,
@@ -304,13 +297,5 @@ namespace KillerPDF
             return rtb;
         }
 
-        private static byte[] EncodePng(BitmapSource bmp)
-        {
-            var enc = new PngBitmapEncoder();
-            enc.Frames.Add(BitmapFrame.Create(bmp));
-            using var ms = new MemoryStream();
-            enc.Save(ms);
-            return ms.ToArray();
-        }
     }
 }

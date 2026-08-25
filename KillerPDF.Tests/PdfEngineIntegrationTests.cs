@@ -14,6 +14,18 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void CreateBlankDocument_AuthorsOneA4Page()
+    {
+        byte[] result = PdfEngineIntegration.CreateBlankDocument();
+
+        IReadOnlyList<PdfPageInformation> pages =
+            PdfPageInformation.Read(PdfDocument.Open(result));
+        Assert.Single(pages);
+        Assert.Equal(595, pages[0].Width);
+        Assert.Equal(842, pages[0].Height);
+    }
+
+    [Fact]
     public void ApplyFormValues_WritesAllDesktopFieldTypesInOneRevision()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-forms-{Guid.NewGuid():N}.pdf");

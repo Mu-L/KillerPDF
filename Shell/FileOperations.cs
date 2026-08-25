@@ -437,12 +437,8 @@ namespace KillerPDF
             var target = BeginTabLoad(out var prev, out bool createdNew);
             try
             {
-                var newDoc = new PdfDocument();
-                newDoc.AddPage(); // one blank A4 page
-
                 var tempPath = App.MakeTempFile("new");
-                newDoc.Save(tempPath);
-                newDoc.Close();
+                File.WriteAllBytes(tempPath, PdfEngineIntegration.CreateBlankDocument());
 
                 _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
                 FinishOpenFile("Untitled.pdf", tempPath);
