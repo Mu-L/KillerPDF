@@ -855,6 +855,10 @@ namespace KillerPDF.Controls
         {
             if (_doc is null) return;
             if (sender is Canvas srcCanvas) _activeCanvas = srcCanvas;
+            if (Keyboard.FocusedElement is TextBox focusedField
+                && (e.OriginalSource is not DependencyObject clickSource
+                    || !IsDescendantOf(clickSource, focusedField)))
+                Keyboard.ClearFocus();
             // A click on a live text-edit corner handle starts a free-form resize. Checked FIRST, before
             // the "click inside the editing box" guard below: that guard tests OriginalSource, which is
             // unreliable across the nested transparent canvases, so it can otherwise swallow a corner

@@ -58,6 +58,14 @@ namespace KillerPDF
             bool editableTextFocused =
                 e.OriginalSource is TextBox tbSrc && !tbSrc.IsReadOnly
                 || _activeTextBox is not null && _activeTextBox.IsFocused;
+            if (editableTextFocused && e.Key == Key.Escape
+                && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                Keyboard.ClearFocus();
+                Focus();
+                e.Handled = true;
+                return;
+            }
             if (editableTextFocused
                 && EditableTextShortcutPolicy.KeepInTextBox(e.Key, Keyboard.Modifiers))
                 return;
