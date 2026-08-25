@@ -3,6 +3,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using KillerPDF.Services;
+using KillerPdf.Engine.Filters;
+using KillerPdf.Engine.Objects;
+using EngineDocument = KillerPdf.Engine.Documents.PdfDocument;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using Xunit;
@@ -35,8 +38,14 @@ public sealed class PdfBurnRotationTests
             [0] = [new HighlightAnnotation { PageIndex = 0, Bounds = bounds, Style = HighlightStyle.Fill }],
         };
         var dims = new Dictionary<int, (int w, int h)> { [0] = (renderW, renderH) };
-        PdfBurn.DrawAnnotationsIntoDoc(doc, annots, dims, null, rotations);
-        return SaveToText(doc);
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-burn-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            doc.Save(path);
+            PdfEngineBurn.Burn(path, annots, dims, null, null, rotations);
+            return AllDecodedStreams(path);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 
     private static string SaveToText(PdfDocument doc)
@@ -49,6 +58,18 @@ public sealed class PdfBurnRotationTests
         // page content instead of depending on the writer's storage choice.
         var content = doc.Pages[0].Contents.CreateSingleContent();
         return Encoding.GetEncoding("ISO-8859-1").GetString(content.Stream.UnfilteredValue);
+    }
+
+    private static string AllDecodedStreams(string path)
+    {
+        EngineDocument document = EngineDocument.Open(File.ReadAllBytes(path));
+        var text = new StringBuilder();
+        foreach (int objectNumber in document.CrossReferences.Keys)
+            if (document.Resolve(objectNumber) is PdfStream stream)
+                try { text.AppendLine(Encoding.GetEncoding("ISO-8859-1").GetString(
+                    PdfStreamDecoder.Decode(stream, document.Resolve))); }
+                catch { }
+        return text.ToString();
     }
 
     // Every `x y w h re` operator in the saved file, as (w, h).
@@ -155,9 +176,52 @@ public sealed class PdfBurnRotationTests
         page.Rotate = 90;
 
         var spec = new StampSpec { NumbersEnabled = true, Format = "{n} / {N}" };
-        PdfBurn.DrawStampsIntoDoc(doc, spec);
-
-        string pdf = SaveToText(doc);
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-stamp-{Guid.NewGuid():N}.pdf");
+        doc.Save(path);
+        PdfEngineBurn.Burn(path, new Dictionary<int, List<PageAnnotation>>(),
+            new Dictionary<int, (int w, int h)>(), spec);
+        string pdf = AllDecodedStreams(path);
+        File.Delete(path);
         Assert.True(HasQuarterTurnCm(pdf), "stamp burn on a rotated page emitted no quarter-turn cm");
+    }
+
+    [Fact]
+    public void EngineBurn_WritesTypedMarkupResourcesAndReopens()
+    {
+        using var doc = new PdfDocument();
+        doc.AddPage().MediaBox = new PdfRectangle(new XPoint(0, 0), new XPoint(612, 792));
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-typed-burn-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            doc.Save(path);
+            var annotations = new Dictionary<int, List<PageAnnotation>>
+            {
+                [0] =
+                [
+                    new HighlightAnnotation { PageIndex = 0, Bounds = new Rect(20, 30, 80, 14) },
+                    new InkAnnotation
+                    {
+                        PageIndex = 0, Points = [new Point(10, 10), new Point(40, 50)],
+                        StrokeWidth = 3
+                    },
+                    new ImageAnnotation
+                    {
+                        PageIndex = 0, Position = new Point(50, 60), SourceWidth = 10,
+                        SourceHeight = 10, Scale = 1,
+                        ImageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2pGQAAAAASUVORK5CYII="
+                    }
+                ]
+            };
+            PdfEngineBurn.Burn(path, annotations,
+                new Dictionary<int, (int w, int h)> { [0] = (612, 792) });
+
+            EngineDocument reopened = EngineDocument.Open(File.ReadAllBytes(path));
+            Assert.Single(KillerPdf.Engine.Documents.PdfPageInformation.Read(reopened));
+            string streams = AllDecodedStreams(path);
+            Assert.Contains(" gs", streams);
+            Assert.Contains("1 J", streams);
+            Assert.Contains(" Do", streams);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 }

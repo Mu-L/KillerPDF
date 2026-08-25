@@ -93,7 +93,6 @@ namespace KillerPDF
         internal const string ConfirmLinksSetting = Controls.PdfViewer.ConfirmLinksSetting;
 
         // ── Save paths ───────────────────────────────────────────────────────────────────────
-        private void DrawAnnotationsOnDocument(int? onlyPage = null) => ActiveViewer.DrawAnnotationsOnDocumentExt(onlyPage);
         private void WriteFormValuesToDocument(string path) => ActiveViewer.WriteFormValuesToDocumentExt(path);
 
         // ── Bound from MainWindow.xaml - see the class comment, these are load-bearing ───────

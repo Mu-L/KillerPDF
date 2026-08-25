@@ -15,11 +15,11 @@ Last updated: 2026-08-25
 ## Current state
 
 - Worktree was clean when this handoff was written.
-- Latest commit: `aa03333 v1.8.0-alpha.1: read viewer links through engine`
+- Latest completed commit before the active burn-in slice: `f3ed0a3 v1.8.0-alpha.1: read form widgets through engine`
 - Current automated baseline:
-  - 1,417 engine tests pass.
-  - 130 application tests pass.
-  - 1,547 total tests pass.
+  - 1,419 engine tests pass.
+  - 132 application tests pass.
+  - 1,551 total tests pass.
   - Release solution build succeeds with zero warnings and zero errors.
   - Strict engine documentation build succeeds with zero warnings and zero errors.
 - Nothing has been pushed.
@@ -79,13 +79,18 @@ Completed implementation:
 
 The completed gate is 1,419 engine tests and 131 application tests, with clean Release and strict documentation builds.
 
+## Annotation and stamp burn-in slice completed
+
+All desktop burn paths now append isolated typed engine content. This includes Save, Save As, flattened export, image export, Transform preview, and print. The integration preserves visual-frame rotation mapping, Unicode text wrapping and installed bold or italic faces, underline and strike rules, transparent backgrounds, multiply highlights, carved highlight geometry, redactions, rounded ink, filled shapes, drawn and image signatures, placed images, page numbers, mirrored and custom placement, and rotated text or image watermarks. Stamps are emitted before annotations so the established layer order remains intact.
+
+`Services/PdfBurn.cs` now contains only the WPF highlight-erase geometry and shared page-range parser. The PdfSharpCore drawing implementation and its viewer or shell wrappers have been removed. Focused engine burn tests cover all quarter-turn mappings, stamp rotation, typed graphics-state resources, rounded paths, images, and engine reopen validation.
+
 ## Exact next slice
 
-Migrate annotation and stamp burn-in from `Services/PdfBurn.cs` to typed engine page content. Preserve visual-frame rotation mapping, text wrapping and styles, highlight multiply blending, freehand paths, shapes, images, redactions, page numbers, and watermarks. Keep PDFium as the rendering backend and compare the new engine output against existing burn fixtures before removing the legacy drawing implementation.
+Migrate the live desktop document open and temp-reload boundary in `Shell/FileOperations.cs` and `Shell/TempReload.cs`. Establish an engine-owned immutable source and editing-session lifecycle while keeping PDFium as the renderer, then remove the remaining dependence on a live mutable PdfSharpCore document one vertical operation group at a time.
 
 ## Remaining major legacy pockets after forms
 
-- `Services/PdfBurn.cs`: annotation and stamp burn-in still uses PdfSharpCore drawing. This is a large drawing-heavy slice and should use typed engine content and image resources.
 - `Services/PdfFonts.cs`: still implements the PdfSharpCore font resolver. Preserve `RegularFaceBytes` or move the useful font indexing and TTC extraction behind an engine-oriented font service before removing the resolver interface.
 - `Shell/TempReload.cs` and document open paths in `Shell/FileOperations.cs`: the live mutable desktop document is still PdfSharpCore-owned.
 - `Services/PdfImport.cs` and `Services/PdfScrub.cs`: remaining tolerant legacy repair and save-time cleanup helpers need an evidence-based audit before removal.

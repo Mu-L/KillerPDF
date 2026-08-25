@@ -187,11 +187,23 @@ namespace KillerPDF.Services
         /// is not installed. Used by FontCoverage to read the 'cmap' - the collection split has
         /// already happened here, so callers never have to know a face came out of a .ttc.</summary>
         internal static byte[]? RegularFaceBytes(string family)
+            => FaceBytes(family, false, false);
+
+        /// <summary>Returns the closest installed face for a family as standalone font bytes.</summary>
+        internal static byte[]? FaceBytes(string family, bool bold, bool italic)
         {
             EnsureIndexed();
             if (string.IsNullOrWhiteSpace(family)) return null;
             if (!Families.TryGetValue(family, out var byStyle)) return null;
-            if (!byStyle.TryGetValue(XFontStyle.Regular, out var key))
+            var wanted = (bold, italic) switch
+            {
+                (true, true) => XFontStyle.BoldItalic,
+                (true, false) => XFontStyle.Bold,
+                (false, true) => XFontStyle.Italic,
+                _ => XFontStyle.Regular,
+            };
+            if (!byStyle.TryGetValue(wanted, out var key)
+                && !byStyle.TryGetValue(XFontStyle.Regular, out key))
             {
                 key = byStyle.Values.FirstOrDefault();
                 if (key is null) return null;

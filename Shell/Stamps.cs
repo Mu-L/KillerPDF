@@ -243,19 +243,10 @@ namespace KillerPDF
 
         // StampPageRange (shared with the burned output) lives in Services/PdfBurn.cs.
 
-        // ---- Export: burn the stamp layer into the PDF (below annotations) on save/flatten ----
-
-        // Draws the active stamps into the doc via XGraphics, in PDF-point space. Called BEFORE
-        // DrawAnnotationsOnDocument at each save site so stamps sit beneath annotations.
-        private void DrawStampsOnDocument(int? onlyPage = null)
-            => PdfBurn.DrawStampsIntoDoc(_doc, _docStampSpec, onlyPage, _pageRotations);
-
         // True when the document carries stamps that must be burned on save. The save sites used to
         // gate the whole burn block on the ANNOTATION count alone, so a document whose only markup
         // was stamps (page numbers / watermark on a fresh doc) saved without them (#147).
         private bool HasActiveStamps => _docStampSpec is { } s && (s.NumbersEnabled || s.WmEnabled);
 
-        // DrawStampsIntoDoc and its DrawNumberPdf / DrawWatermarkPdf / LoadStampImage workers
-        // live in Services/PdfBurn.cs with the annotation burn core.
     }
 }

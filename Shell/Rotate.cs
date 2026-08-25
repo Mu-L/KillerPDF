@@ -164,8 +164,9 @@ namespace KillerPDF
             bool burnOk = true;
             try
             {
-                DrawAnnotationsOnDocument(pageIdx);
-                _doc.Save(tempBurned);
+                System.IO.File.Copy(tempClean, tempBurned, true);
+                PdfEngineBurn.Burn(tempBurned, _annotations, _renderDims,
+                    null, pageIdx, _pageRotations);
             }
             catch { burnOk = false; }
             _doc.Close();

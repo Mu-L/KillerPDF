@@ -189,7 +189,6 @@ namespace KillerPDF.Controls
         internal List<FrameworkElement> AnnotBarDragInnersRef => _annotBarDragInners;
 
         // ── Save paths ───────────────────────────────────────────────────────────────────────
-        internal void DrawAnnotationsOnDocumentExt(int? onlyPage = null) => DrawAnnotationsOnDocument(onlyPage);
         internal void WriteFormValuesToDocumentExt(string path) => WriteFormValuesToDocument(path);
 
         // ── Handlers bound from MainWindow.xaml ──────────────────────────────────────────────

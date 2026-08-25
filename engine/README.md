@@ -57,6 +57,8 @@ Existing files can be changed through byte-preserving incremental updates or rew
 
 The authoring model covers pages, content streams, graphics state, paths, text, fonts, images, color spaces, shadings, tiling patterns, transparency, resources, metadata, navigation, optional content, attachments, and viewer behavior. The API uses typed PDF concepts instead of exposing raw application state.
 
+KillerPDF itself now uses those typed content APIs for its complete annotation and stamp burn-in pipeline. Text boxes, highlights, redactions, freehand ink, filled shapes, signatures, placed images, page numbers, and watermarks are written as isolated page overlays with rotation-aware placement and self-contained resources.
+
 ### Edit document structure
 
 Pages can be inserted, imported, removed, reordered, rotated, cropped, resized, trimmed, and assigned page boxes, labels, transitions, thumbnails, annotations, form widgets, and structure relationships. Object graphs and dependent resources are imported with collision handling rather than copied as isolated dictionaries.

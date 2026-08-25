@@ -982,9 +982,9 @@ namespace KillerPDF
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
                     PdfEngineIntegration.StripLinkAppearances(tempClean);
-                    DrawStampsOnDocument();
-                    DrawAnnotationsOnDocument();
-                    _doc.Save(saveTarget);
+                    System.IO.File.Copy(tempClean, saveTarget, true);
+                    PdfEngineBurn.Burn(saveTarget, _annotations, _renderDims,
+                        _docStampSpec, null, _pageRotations);
                     PdfEngineIntegration.StripLinkAppearances(saveTarget);
                     WriteFormValuesToDocument(saveTarget);
                     PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
@@ -1092,9 +1092,9 @@ namespace KillerPDF
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
                     PdfEngineIntegration.StripLinkAppearances(tempClean);
-                    DrawStampsOnDocument();
-                    DrawAnnotationsOnDocument();
-                    _doc.Save(dlg.FileName);
+                    System.IO.File.Copy(tempClean, dlg.FileName, true);
+                    PdfEngineBurn.Burn(dlg.FileName, _annotations, _renderDims,
+                        _docStampSpec, null, _pageRotations);
                     PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
                     WriteFormValuesToDocument(dlg.FileName);
                     PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
@@ -1182,9 +1182,9 @@ namespace KillerPDF
                 var tempClean  = App.MakeTempFile("clean");
                 var tempBurned = App.MakeTempFile("burned");
                 _doc.Save(tempClean);
-                DrawStampsOnDocument();
-                DrawAnnotationsOnDocument();
-                _doc.Save(tempBurned);
+                System.IO.File.Copy(tempClean, tempBurned, true);
+                PdfEngineBurn.Burn(tempBurned, _annotations, _renderDims,
+                    _docStampSpec, null, _pageRotations);
                 _doc.Close();
                 try
                 {
@@ -1300,9 +1300,9 @@ namespace KillerPDF
                 var tempClean  = App.MakeTempFile("clean");
                 var tempBurned = App.MakeTempFile("burned");
                 _doc.Save(tempClean);
-                DrawStampsOnDocument();
-                DrawAnnotationsOnDocument();
-                _doc.Save(tempBurned);
+                System.IO.File.Copy(tempClean, tempBurned, true);
+                PdfEngineBurn.Burn(tempBurned, _annotations, _renderDims,
+                    _docStampSpec, null, _pageRotations);
                 _doc.Close();
                 try
                 {
@@ -1442,28 +1442,13 @@ namespace KillerPDF
 
                 // Flatten the annotations onto a throwaway COPY on a background thread. The live _doc is never
                 // touched (no close/reopen), so the UI stays responsive and the editing session keeps its
-                // overlay annotations. DrawAnnotationsIntoDoc is static, so it can't reach UI state.
+                // overlay annotations. The engine burn service is static, so it cannot reach UI state.
                 bool burned = await Task.Run(() =>
                 {
                     try
                     {
-                        PdfDocument burnDoc;
-                        try { burnDoc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify); }
-                        catch (Exception ex) when (PdfImport.IsXRefException(ex))
-                        {
-                            // PdfSharpCore can write a snapshot its own reader then chokes on; repair via
-                            // Import then PDFium, same as the save/undo paths.
-                            var fixedPath = App.MakeTempFile("printfixed");
-                            if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath) && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
-                                return false;
-                            burnDoc = PdfReader.Open(fixedPath, PdfDocumentOpenMode.Modify);
-                        }
-                        using (burnDoc)
-                        {
-                            PdfBurn.DrawStampsIntoDoc(burnDoc, stampSnap, null, rotSnap);   // stamps sit beneath annotations
-                            PdfBurn.DrawAnnotationsIntoDoc(burnDoc, annotsSnap, dimsSnap, null, rotSnap);
-                            burnDoc.Save(burnPath);
-                        }
+                        System.IO.File.Copy(tempClean, burnPath, true);
+                        PdfEngineBurn.Burn(burnPath, annotsSnap, dimsSnap, stampSnap, null, rotSnap);
                         return true;
                     }
                     catch { return false; }
