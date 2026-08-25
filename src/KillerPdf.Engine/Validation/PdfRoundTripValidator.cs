@@ -7,6 +7,14 @@ using KillerPdf.Engine.Writing;
 
 namespace KillerPdf.Engine.Validation;
 
+/// <summary>The outcome and artifacts from deterministic rewrite verification.</summary>
+/// <param name="Succeeded">Whether rewriting, reopening, and verification succeeded.</param>
+/// <param name="IsDeterministic">Whether the first and second rewrite bytes are identical.</param>
+/// <param name="RewrittenSha256">The lowercase SHA-256 digest of the first rewrite.</param>
+/// <param name="RewrittenBytes">The first rewritten PDF bytes.</param>
+/// <param name="SourceInspection">The structural inspection of the source.</param>
+/// <param name="RewrittenInspection">The structural inspection of the first rewrite.</param>
+/// <param name="FailureMessage">A failure explanation, or null after success.</param>
 public sealed record PdfRoundTripResult(
     bool Succeeded,
     bool IsDeterministic,
@@ -19,6 +27,7 @@ public sealed record PdfRoundTripResult(
 /// <summary>Runs the preservation writer through reopen and second-write verification.</summary>
 public static class PdfRoundTripValidator
 {
+    /// <summary>Validates an unencrypted PDF through structural inspection and two deterministic rewrites.</summary>
     public static PdfRoundTripResult Validate(
         ReadOnlyMemory<byte> source,
         PdfDocumentWriteOptions? options = null)
