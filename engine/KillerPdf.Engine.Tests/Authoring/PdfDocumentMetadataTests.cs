@@ -19,7 +19,7 @@ public sealed class PdfDocumentMetadataTests
             Subject = "PDF 2.0 authoring",
             Keywords = "PDF, authoring",
             Creator = "KillerPDF",
-            Producer = "KillerPDF Engine",
+            Producer = "The KillerPDF.Engine",
             Language = "en-US",
             CreationDate = new DateTimeOffset(2026, 8, 22, 12, 34, 56, TimeSpan.FromHours(-7))
         };

@@ -15,10 +15,10 @@ public sealed class PdfDocumentInformationTests
             {
                 Title = "Technical overview",
                 Author = "Steve",
-                Subject = "KillerPDF Engine",
+                Subject = "The KillerPDF.Engine",
                 Keywords = "PDF 2.0, PDF/A",
                 Creator = "Tests",
-                Producer = "KillerPDF Engine"
+                Producer = "The KillerPDF.Engine"
             })
             .AddBlankPage()
             .AddBlankPage()
@@ -28,10 +28,10 @@ public sealed class PdfDocumentInformationTests
 
         Assert.Equal("Technical overview", info.Title);
         Assert.Equal("Steve", info.Author);
-        Assert.Equal("KillerPDF Engine", info.Subject);
+        Assert.Equal("The KillerPDF.Engine", info.Subject);
         Assert.Equal("PDF 2.0, PDF/A", info.Keywords);
         Assert.Equal("Tests", info.Creator);
-        Assert.Equal("KillerPDF Engine", info.Producer);
+        Assert.Equal("The KillerPDF.Engine", info.Producer);
         Assert.Equal(PdfVersion.Pdf20, info.Version);
         Assert.Equal(2, info.PageCount);
     }

@@ -6,11 +6,11 @@ KillerPDF is a free, open-source PDF editor for Windows. View, annotate, OCR, me
 
 Full how-tos live on the [help page](https://killerpdf.net/help.html); internals, formats, and limits on the [technical page](https://killerpdf.net/technical.html).
 
-## KillerPDF Engine
+## The KillerPDF.Engine
 
-KillerPDF 1.8 introduces an independent, reusable .NET PDF 2.0 document engine. The engine is developed as a first-class area of this monorepo with its own public API, tests, corpus tooling, architecture documentation, README, and release history.
+KillerPDF 1.8 introduces The KillerPDF.Engine, an independent and reusable .NET library for PDF 2.0, PDF/A, and PDF/UA document processing. It is a first-class area of this monorepo with its own public API, tests, corpus tooling, architecture documentation, README, and release history.
 
-Developers building PDF capabilities into other applications can start with the [KillerPDF Engine README](engine/README.md) and follow detailed changes in the [engine changelog](engine/CHANGELOG.md).
+Developers building PDF capabilities into other applications can start with [The KillerPDF.Engine README](engine/README.md) and follow detailed changes in [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
 
 ## Features
 
@@ -90,7 +90,7 @@ Output lands in `bin/Release/net10.0-windows/publish/`. Normal publishing produc
 
 The current 1.8 development branch requires the .NET 10 SDK. Both the reusable engine and the Windows application now target .NET 10, with the application using `net10.0-windows`.
 
-The existing desktop write pipeline still uses the vendored PdfSharpCore build under `third_party/PdfSharpCore/` while KillerPDF Engine integration proceeds. Each application surface will move to the new engine behind regression and corpus gates before the legacy dependency is removed.
+The existing desktop write pipeline still uses the vendored PdfSharpCore build under `third_party/PdfSharpCore/` while The KillerPDF.Engine integration proceeds. Each application surface will move to the new engine behind regression and corpus gates before the legacy dependency is removed.
 
 ## Translations
 
@@ -98,7 +98,7 @@ UI strings live in `Strings/` (one XAML `ResourceDictionary` per locale). To add
 
 ## Changelog
 
-See the [KillerPDF application changelog](CHANGELOG.md). The reusable library has a separate [KillerPDF Engine changelog](engine/CHANGELOG.md).
+See the [KillerPDF application changelog](CHANGELOG.md) and [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
 
 ## License
 

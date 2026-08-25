@@ -1,8 +1,8 @@
-# KillerPDF Engine
+# The KillerPDF.Engine
 
-KillerPDF Engine is an independent, UI-free .NET library for reading, validating, authoring, structurally editing, signing, encrypting, and writing PDF files. It was created to give KillerPDF a modern PDF 2.0 and PDF/A foundation, but its public API is designed for reuse by other applications.
+The KillerPDF.Engine is an independent, UI-free .NET library for reading, validating, authoring, structurally editing, signing, encrypting, and writing PDF files. It gives KillerPDF a modern PDF 2.0, PDF/A, and PDF/UA foundation while exposing a public API designed for use in other applications.
 
-The engine is under active development for KillerPDF 1.8.0. Its APIs are documented and extensively tested, but the first public package has not been released yet.
+“The KillerPDF.Engine” is the public name and is pronounced “the KillerPDF engine.” The assembly, package identifier, and C# namespaces use `KillerPdf.Engine`.
 
 ## Five-minute start
 
@@ -20,7 +20,7 @@ using KillerPdf.Engine.Authoring;
 byte[] pdf = new PdfDocumentBuilder()
     .SetMetadata(new PdfDocumentMetadata
     {
-        Title = "Hello from KillerPDF Engine",
+        Title = "Hello from The KillerPDF.Engine",
         Author = "Example application",
         Language = "en-US"
     })
@@ -43,7 +43,41 @@ byte[] rewritten = PdfDocumentWriter.Write(document);
 File.WriteAllBytes("output.pdf", rewritten);
 ```
 
-## What it covers
+## Major capabilities
+
+### Read and understand real PDF files
+
+The KillerPDF.Engine parses the PDF file itself, including headers, tokens, objects, streams, classic cross-reference tables, cross-reference streams, object streams, trailers, incremental revisions, page trees, name trees, and number trees. Objects are resolved lazily, malformed structures are bounded, and diagnostics retain useful file offsets.
+
+### Preserve or deliberately rewrite
+
+Existing files can be changed through byte-preserving incremental updates or rewritten deterministically. Incremental editing retains the original byte prefix, which is essential for signatures, auditability, and preservation-sensitive workflows. Deterministic rewrites make output reproducible and regression testing practical.
+
+### Author complete documents
+
+The authoring model covers pages, content streams, graphics state, paths, text, fonts, images, color spaces, shadings, tiling patterns, transparency, resources, metadata, navigation, optional content, attachments, and viewer behavior. The API uses typed PDF concepts instead of exposing raw application state.
+
+### Edit document structure
+
+Pages can be inserted, imported, removed, reordered, rotated, cropped, resized, trimmed, and assigned page boxes, labels, transitions, thumbnails, annotations, form widgets, and structure relationships. Object graphs and dependent resources are imported with collision handling rather than copied as isolated dictionaries.
+
+### Build and edit interactive PDFs
+
+The KillerPDF.Engine supports bookmarks, destinations, links, attachments, visual and editorial annotations, replies, popups, redactions, optional-content groups, and AcroForm fields. Text fields, checkboxes, radio buttons, combo boxes, list boxes, push buttons, and signature fields have typed authoring and incremental-editing APIs.
+
+### Handle standards and accessibility
+
+The engine includes PDF/A-4, PDF/A-4e, PDF/A-4f, tagged PDF, and PDF/UA-2 authoring safeguards. Structure trees, parent trees, semantic roles, alternate descriptions, output intents, embedded fonts, metadata, annotations, forms, and associated files are validated as coordinated document features.
+
+### Protect and sign documents
+
+Password security covers RC4, AES-128, AES-256, crypt filters, permission flags, authenticated imports, incremental updates, and rewrites. Digital-signature support includes detached CMS signing, signature fields, certification permissions, field locks, seed constraints, timestamp attributes, signature discovery, cryptographic verification, and signed-revision analysis.
+
+### Validate before trusting output
+
+Structural diagnostics, bounded parsing, explicit implementation limits, round-trip validation, and fail-closed graph imports prevent ambiguous or unsafe input from being silently rewritten. Generated conformance fixtures are checked with independent tools rather than accepted because the header contains a particular version number.
+
+## Capability summary
 
 - PDF syntax, objects, streams, classic cross-reference tables, cross-reference streams, object streams, trailers, and incremental revisions
 - Deterministic full rewrites and byte-preserving incremental updates
@@ -59,7 +93,7 @@ File.WriteAllBytes("output.pdf", rewritten);
 
 ## What it does not do
 
-KillerPDF Engine is a document engine, not a renderer or desktop framework. It does not render pages, provide UI controls, or perform text extraction. KillerPDF currently uses PDFium for rendering and PdfPig for text extraction outside this library.
+The KillerPDF.Engine is a document engine, not a renderer or desktop framework. It does not render pages, provide UI controls, or perform text extraction. KillerPDF uses PDFium for rendering and PdfPig for text extraction outside this library.
 
 ## Repository layout
 
@@ -73,7 +107,7 @@ engine/
   README.md                  This developer entry point
 ```
 
-The engine remains in the KillerPDF monorepo so engine changes, application integration, tests, and corpus gates can evolve atomically. Its dependency boundary is deliberately independent: the library does not reference WPF, KillerPDF application code, PDFium, PdfPig, PdfSharpCore, or PDFsharp.
+The KillerPDF.Engine remains in the KillerPDF monorepo so library changes, application integration, tests, and corpus gates can evolve atomically. Its dependency boundary is deliberately independent: the library does not reference WPF, KillerPDF application code, PDFium, PdfPig, PdfSharpCore, or PDFsharp.
 
 ## Build and test
 
@@ -86,11 +120,11 @@ dotnet test engine\KillerPdf.Engine.Tests\KillerPdf.Engine.Tests.csproj -c Relea
 
 The project treats compiler warnings as errors and generates XML API documentation during normal builds.
 
-## Validation
+## Release validation
 
-The current development gate includes:
+The release gate includes:
 
-- 1,404 engine tests
+- 1,406 engine tests
 - A strict Release build with zero warnings
 - A 2,907-file incremental structural corpus gate
 - A 2,907-file selected-page import corpus gate with zero unexpected failures
@@ -110,12 +144,12 @@ Corpus files are intentionally malformed or nonconforming in many cases. A refus
 
 The original architecture decision is recorded in [ADR-001](docs/architecture/ADR-001-pdf-engine-boundary.md).
 
-## Development status
+## KillerPDF integration
 
-The current version is `1.8.0-alpha.1`. The reusable engine foundation and API documentation are complete, while integration into the KillerPDF desktop application is the next major phase. PdfSharpCore still powers the existing application pipeline until each integration surface is replaced and verified.
+KillerPDF directly references The KillerPDF.Engine and has begun moving production features onto it. Document information is the first integrated read path. PdfSharpCore remains temporarily in the application while page operations, annotations, forms, drawing, OCR, and save workflows move through independent regression and corpus gates.
 
-See the [engine changelog](CHANGELOG.md) for detailed capability history.
+See [The KillerPDF.Engine changelog](CHANGELOG.md) for detailed capability history.
 
 ## License
 
-KillerPDF Engine is currently licensed under GPLv3 as part of the KillerPDF repository. See the repository [LICENSE](../LICENSE).
+The KillerPDF.Engine is licensed under GPLv3 as part of the KillerPDF repository. See the repository [LICENSE](../LICENSE).
