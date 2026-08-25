@@ -1,13 +1,21 @@
 namespace KillerPdf.Engine.Authoring;
 
+/// <summary>A standard icon displayed for a closed text-note annotation.</summary>
 public enum PdfTextNoteIcon
 {
+    /// <summary>A note icon.</summary>
     Note,
+    /// <summary>A comment icon.</summary>
     Comment,
+    /// <summary>A key icon.</summary>
     Key,
+    /// <summary>A help icon.</summary>
     Help,
+    /// <summary>A new-paragraph icon.</summary>
     NewParagraph,
+    /// <summary>A paragraph icon.</summary>
     Paragraph,
+    /// <summary>An insert icon.</summary>
     Insert
 }
 

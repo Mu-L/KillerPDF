@@ -1,21 +1,31 @@
 namespace KillerPdf.Engine.Authoring;
 
+/// <summary>Describes the intended use of a free-text annotation.</summary>
 public enum PdfFreeTextIntent
 {
+    /// <summary>A general free-text annotation.</summary>
     FreeText,
+    /// <summary>A free-text annotation whose callout line points to related content.</summary>
     Callout,
+    /// <summary>A typewriter-style free-text annotation.</summary>
     TypeWriter
 }
 
+/// <summary>Describes the intended use of a line annotation.</summary>
 public enum PdfLineAnnotationIntent
 {
+    /// <summary>A line that functions as an arrow.</summary>
     Arrow,
+    /// <summary>A line that records a dimension.</summary>
     Dimension
 }
 
+/// <summary>Describes the intended use of a polyline or polygon annotation.</summary>
 public enum PdfVertexAnnotationIntent
 {
+    /// <summary>A polygon with a cloud-style border.</summary>
     Cloud,
+    /// <summary>A polyline or polygon that records a dimension.</summary>
     Dimension
 }
 
