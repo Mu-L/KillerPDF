@@ -52,11 +52,15 @@ namespace KillerPDF
                 return;
             }
 
-            // Don't intercept keys when typing in an editable TextBox (typewriter tool or form field).
-            // The zoom ComboBox is editable-but-read-only; after using it, focus parks on its inner
-            // TextBox and would otherwise swallow every shortcut (e.g. Ctrl+F) until the user clicked away.
-            if (e.OriginalSource is TextBox tbSrc && !tbSrc.IsReadOnly) return;
-            if (_activeTextBox is not null && _activeTextBox.IsFocused) return;
+            // Ordinary typing and standard text-editing gestures stay in an editable TextBox.
+            // Window commands such as Ctrl+S, Ctrl+F, and Ctrl+P must continue through the app
+            // shortcut chain even while a form field or typewriter box owns keyboard focus.
+            bool editableTextFocused =
+                e.OriginalSource is TextBox tbSrc && !tbSrc.IsReadOnly
+                || _activeTextBox is not null && _activeTextBox.IsFocused;
+            if (editableTextFocused
+                && EditableTextShortcutPolicy.KeepInTextBox(e.Key, Keyboard.Modifiers))
+                return;
 
             if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
             {
