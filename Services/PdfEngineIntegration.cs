@@ -98,6 +98,32 @@ internal static class PdfEngineIntegration
         return editor.Build();
     }
 
+    /// <summary>Merges every readable PDF or image input and skips invalid entries.</summary>
+    internal static byte[] MergeReadableFiles(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
+        var editor = new PdfIncrementalPageEditor(empty);
+        foreach (string path in paths)
+        {
+            try
+            {
+                if (string.Equals(Path.GetExtension(path), ".pdf",
+                        StringComparison.OrdinalIgnoreCase))
+                    editor.AddImportedDocument(PdfDocument.Open(File.ReadAllBytes(path)));
+                else
+                    AppendImageFrames(editor, path);
+            }
+            catch
+            {
+                // Folder and archive imports deliberately retain every readable entry.
+            }
+        }
+        if (editor.PageCount == 0)
+            throw new InvalidOperationException("No readable PDF or image pages were found.");
+        return editor.Build();
+    }
+
     private static void AppendImageFrames(PdfIncrementalPageEditor editor, string path)
     {
         using DrawingImage source = DrawingImage.FromFile(path);

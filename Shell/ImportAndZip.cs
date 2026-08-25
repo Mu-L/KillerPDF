@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
@@ -60,16 +59,9 @@ namespace KillerPDF
         // image declares none). Returns a temp PDF path; the caller opens it and the user can Save As.
         private static string BuildPdfFromImages(string[] imagePaths)
         {
-            using var pdf = new PdfDocument();
-            foreach (var path in imagePaths) PdfImport.AddImagePagesFromFile(pdf, path);
-
-            if (pdf.PageCount == 0)
-                throw new InvalidOperationException(
-                    Application.Current.TryFindResource("Str_Err_NoImages") as string ?? "No images could be read.");
-
             string outPath = Path.Combine(Path.GetTempPath(),
                 $"Imported-{DateTime.Now:yyyyMMdd-HHmmss-fff}.pdf");
-            pdf.Save(outPath);
+            File.WriteAllBytes(outPath, PdfEngineIntegration.MergeFiles(imagePaths));
             return outPath;
         }
 
@@ -243,33 +235,10 @@ namespace KillerPDF
         // Unreadable / encrypted entries are skipped rather than aborting the whole merge.
         private static string? BuildCombinedPdf(List<string> files, CancellationToken ct)
         {
-            using var outPdf = new PdfDocument();
-            foreach (var f in files)
-            {
-                if (ct.IsCancellationRequested) return null;
-                if (PdfImport.IsPdfPath(f))
-                {
-                    try
-                    {
-                        using var src = PdfReader.Open(f, PdfDocumentOpenMode.Import);
-                        for (int i = 0; i < src.PageCount; i++) outPdf.AddPage(src.Pages[i]);
-                    }
-                    catch { /* skip an unreadable/encrypted PDF */ }
-                }
-                else
-                {
-                    try { PdfImport.AddImagePagesFromFile(outPdf, f); } catch { /* skip an unreadable image */ }
-                }
-            }
-
             if (ct.IsCancellationRequested) return null;
-            if (outPdf.PageCount == 0)
-                throw new InvalidOperationException(
-                    Application.Current.TryFindResource("Str_Err_NoImages") as string ?? "Nothing could be read.");
-
             string outPath = Path.Combine(Path.GetTempPath(),
                 $"Combined-{DateTime.Now:yyyyMMdd-HHmmss-fff}.pdf");
-            outPdf.Save(outPath);
+            File.WriteAllBytes(outPath, PdfEngineIntegration.MergeReadableFiles(files));
             return outPath;
         }
 

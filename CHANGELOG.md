@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Import Images and combined folder or archive imports now author image frames and import complete PDF graphs through The KillerPDF.Engine while retaining their existing skip-unreadable behavior.
 - CLI rendering preparation for image export, flattening, printing, and OCR now reads crop-aware page dimensions and rotations through The KillerPDF.Engine instead of opening a mutable PdfSharpCore document.
 - CLI merge now handles mixed PDF and image inputs entirely through The KillerPDF.Engine, including multiframe images, while both desktop and CLI flattening author rendered image pages directly through the engine without an intermediate PdfSharpCore rebuild.
 - Save and Save As now persist text, choice, checkbox, and radio form edits through The KillerPDF.Engine as one incremental revision, including hierarchical field names, choice export values, and per-field text-size overrides.

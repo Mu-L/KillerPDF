@@ -186,6 +186,27 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void MergeReadableFiles_SkipsInvalidFolderImportEntries()
+    {
+        string validPath = Path.Combine(Path.GetTempPath(), $"killerpdf-readable-{Guid.NewGuid():N}.pdf");
+        string invalidPath = Path.Combine(Path.GetTempPath(), $"killerpdf-invalid-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(validPath, new PdfDocumentBuilder().AddBlankPage().Build());
+            File.WriteAllText(invalidPath, "not a PDF");
+
+            byte[] result = PdfEngineIntegration.MergeReadableFiles([invalidPath, validPath]);
+
+            Assert.Equal(1, PdfDocumentInformation.Read(PdfDocument.Open(result)).PageCount);
+        }
+        finally
+        {
+            if (File.Exists(validPath)) File.Delete(validPath);
+            if (File.Exists(invalidPath)) File.Delete(invalidPath);
+        }
+    }
+
+    [Fact]
     public void ExtractPages_UsesRequestedPageOrderAndReturnsIndependentDocument()
     {
         byte[] source = new PdfDocumentBuilder()
