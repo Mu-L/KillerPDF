@@ -312,6 +312,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Ocr_SearchablePdf">Make Searchable PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Extract All Text...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Language</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">Form-aware OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Open a PDF first</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - coming soon</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Select Tool</sys:String>

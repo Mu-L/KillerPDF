@@ -312,6 +312,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Ocr_SearchablePdf">Vytvořit prohledávatelné PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Extrahovat veškerý text...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Jazyk</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">OCR s podporou formulářů</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Nejprve otevřete PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - již brzy</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Nástroj výběru</sys:String>

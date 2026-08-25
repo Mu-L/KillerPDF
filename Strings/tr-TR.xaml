@@ -444,6 +444,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Ocr_SearchablePdf">Aranabilir PDF Oluştur...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Tüm Metni Çıkart...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Dil</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">Form duyarlı OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Önce bir PDF açın</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - yakında</sys:String>
     <sys:String x:Key="Str_TT_Ocr">Sayfada OCR uygula (metni kopyala) (Ctrl+Shift+O)</sys:String>

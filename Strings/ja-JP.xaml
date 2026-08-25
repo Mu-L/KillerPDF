@@ -311,6 +311,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Ocr_SearchablePdf">検索可能な PDF を作成...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">すべてのテキストを抽出...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">言語</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">フォーム対応 OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">先に PDF を開いてください</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - 近日対応</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">選択ツール</sys:String>

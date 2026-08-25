@@ -446,6 +446,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Ocr_SearchablePdf">製作可搜尋的 PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">擷取所有文字...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">語言</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">表單感知 OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">請先開啟一個 PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - 即將推出</sys:String>
     <sys:String x:Key="Str_TT_Ocr">OCR 頁面（複製文字） (Ctrl+Shift+O)</sys:String>

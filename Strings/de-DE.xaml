@@ -444,6 +444,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Ocr_SearchablePdf">Durchsuchbare PDF erstellen...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Gesamten Text extrahieren...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Sprache</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">Formularbewusste OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Öffnen Sie zuerst eine PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - demnächst verfügbar</sys:String>
     <sys:String x:Key="Str_TT_Ocr">OCR-Seite (Text kopieren) (Strg+Umschalt+O)</sys:String>

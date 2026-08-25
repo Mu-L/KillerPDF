@@ -444,6 +444,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Ocr_SearchablePdf">অনুসন্ধানযোগ্য PDF তৈরি করুন...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">সমস্ত টেক্সট বের করুন...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">ভাষা</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">ফর্ম-সচেতন OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">প্রথমে একটি PDF খুলুন</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - শীঘ্রই আসছে</sys:String>
     <sys:String x:Key="Str_TT_Ocr">পৃষ্ঠায় OCR করুন (টেক্সট কপি করুন) (Ctrl+Shift+O)</sys:String>

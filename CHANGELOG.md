@@ -19,6 +19,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - PDFs and images dropped between page thumbnails are inserted at the indicated position, and each page thumbnail's context menu can merge selected PDFs directly after that page instead of only appending them (#233).
 - Transform settings can now be previewed page by page and applied to every selected page as one undoable batch while preserving each page's own dimensions, rotation, and annotation burn-in (#204).
 - Transform now adjusts selected pages to grayscale or thresholded black and white, optionally resamples them from 72 to 600 DPI, and can use selectable JPEG compression while preserving the existing lossless automatic-resolution defaults (#173).
+- OCR can now optionally use existing form-field geometry as recognition boundaries, apply numeric character constraints, read comb fields cell by cell, honor maximum lengths, and validate close matches against choice lists. Plain OCR remains the default (#242).
 - Dragging a page thumbnail now shows a theme-colored insertion line at the exact before-or-after drop position in the Pages sidebar.
 - The Select tool now shows an I-beam only over selectable PDF text in every view while retaining the hand cursor over links (#221).
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.

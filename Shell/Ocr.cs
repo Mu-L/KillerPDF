@@ -66,6 +66,7 @@ namespace KillerPDF
         // larger, more accurate "best" models and new languages keep using them.
         private bool OcrHighQuality => App.GetSetting("OcrHighQuality") == "1";
         private void SetOcrHighQuality(bool on) => App.SetSetting("OcrHighQuality", on ? "1" : "0");
+        private bool OcrFormAware => App.GetSetting("OcrFormAware") == "1";
 
         // Builds the multi-select Language submenu. Installed languages are checkable and stay toggled in the
         // open menu; not-yet-installed ones offer a one-time download. At least one language stays selected.
@@ -367,6 +368,7 @@ namespace KillerPDF
         }
 
         string IOcrHost.OcrLanguageString => CurrentOcrLanguageString();
+        bool IOcrHost.FormAwareOcr => OcrFormAware;
         Task<bool> IOcrHost.EnsureOcrModelsReadyAsync() => EnsureOcrModelsReadyAsync();
         void IOcrHost.CommitActiveTextBox() => CommitActiveTextBox();
         void IOcrHost.SaveDocumentTo(string path) => _doc!.Save(path);
@@ -432,6 +434,20 @@ namespace KillerPDF
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_ExtractText"), (_, _) => ExtractAllText(), null, ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(BuildLanguageMenu());
+                var formAware = new MenuItem
+                {
+                    Header = Loc("Str_Ocr_FormAware"),
+                    IsCheckable = true,
+                    IsChecked = OcrFormAware,
+                    StaysOpenOnClick = true
+                };
+                formAware.Click += (_, _) =>
+                {
+                    bool enabled = !OcrFormAware;
+                    App.SetSetting("OcrFormAware", enabled ? "1" : "0");
+                    formAware.IsChecked = enabled;
+                };
+                menu.Items.Add(formAware);
             }
             menu.PlacementTarget = (UIElement)sender;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;

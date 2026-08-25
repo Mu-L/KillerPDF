@@ -312,6 +312,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Ocr_SearchablePdf">Abilita ricerca nel PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Estraii tutto il testo...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Lingua</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">OCR sensibile ai moduli</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Prima apri un PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - prossimamente</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Strumento selezione</sys:String>

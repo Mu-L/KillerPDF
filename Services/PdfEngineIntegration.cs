@@ -54,6 +54,24 @@ internal static class PdfEngineIntegration
         return PdfFormWidgetReader.ReadPage(document, pageIndex);
     }
 
+    internal static IReadOnlyList<PdfFormWidgetInfo> ReadPageFormWidgets(
+        string path, int pageIndex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return ReadPageFormWidgets(PdfDocument.Open(File.ReadAllBytes(path)), pageIndex);
+    }
+
+    internal static IReadOnlyList<IReadOnlyList<PdfFormWidgetInfo>> ReadAllPageFormWidgets(
+        string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        int pageCount = PdfDocumentInformation.Read(document).PageCount;
+        return Enumerable.Range(0, pageCount)
+            .Select(index => (IReadOnlyList<PdfFormWidgetInfo>)PdfFormWidgetReader.ReadPage(document, index))
+            .ToArray();
+    }
+
     /// <summary>Adds one editable AcroForm text field to an existing page.</summary>
     internal static string AddTextField(
         string path, int pageIndex, double x, double y, double width, double height)
