@@ -356,10 +356,11 @@ namespace KillerPDF.Controls
         internal void SetupContinuousView(int initialPage, bool fitDefault = true)
         {
             if (_doc is null) return;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             // #130: a malformed page tree can parse to zero pages - Pages[0] below would throw
             // ArgumentOutOfRangeException. Bail out instead of crashing; the view just stays empty.
-            if (_doc.PageCount == 0) return;
-            initialPage = Math.Clamp(initialPage, 0, _doc.PageCount - 1);
+            if (engineSession.PageCount == 0) return;
+            initialPage = Math.Clamp(initialPage, 0, engineSession.PageCount - 1);
             _continuousScrollTarget = initialPage;
             SyncPageListSelection(initialPage);
             // Coming from Grid, the shared ScrollViewer still carries the grid's overrides
@@ -391,17 +392,14 @@ namespace KillerPDF.Controls
             //   zoom = viewportW / _continuousPageW
             // and if _continuousPageW were derived from the current zoom level the two
             // would cancel and FitToWidth would always return approximately the old zoom.
-            var refPage = _doc.Pages[0];
-            _continuousPageW = Math.Max(200.0, refPage.Width.Point * (96.0 / 72.0));
+            var (referenceWidth, _) = engineSession.VisualPageSize(0, _pageRotations);
+            _continuousPageW = Math.Max(200.0, referenceWidth * (96.0 / 72.0));
 
             double y = 0;
-            for (int i = 0; i < _doc.PageCount; i++)
+            for (int i = 0; i < engineSession.PageCount; i++)
             {
                 _continuousTops.Add(y);
-                var pdfPage = _doc.Pages[i];
-                double pw = pdfPage.Width.Point, ph = pdfPage.Height.Point;
-                if (_pageRotations.TryGetValue(i, out int prot) && (prot == 90 || prot == 270))
-                    (pw, ph) = (ph, pw);
+                var (pw, ph) = engineSession.VisualPageSize(i, _pageRotations);
                 // Scaffold: reuse this tab's cached render dimensions (from a prior render of this page) so
                 // the frame is built at its REAL size up front. On a tab switch the page slots are already the
                 // right shape - no dark estimate-sized box that resizes when the bitmap finally streams in.
@@ -1605,11 +1603,11 @@ namespace KillerPDF.Controls
         private double DisplayZoomFactor()
         {
             if (_viewMode == ViewMode.Continuous || _doc is null) return 1.0;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             int idx = _viewMode == ViewMode.Grid ? 0 : Math.Max(0, State.CurrentPage);   // never the shared sidebar's index (see ApplyZoom)
-            if (idx < 0 || idx >= _doc.PageCount) return 1.0;
+            if (idx < 0 || idx >= engineSession.PageCount) return 1.0;
             if (!_renderDims.TryGetValue(idx, out var d) || d.w <= 0) return 1.0;
-            double wpt = _doc.Pages[idx].Width.Point, hpt = _doc.Pages[idx].Height.Point;
-            if (_pageRotations.TryGetValue(idx, out int r) && (r == 90 || r == 270)) wpt = hpt;
+            var (wpt, _) = engineSession.VisualPageSize(idx, _pageRotations);
             double naturalW = wpt * 96.0 / 72.0;
             if (naturalW <= 0) return 1.0;
             return d.w / naturalW;
@@ -1766,10 +1764,11 @@ namespace KillerPDF.Controls
             if (_viewMode == ViewMode.Continuous)
             {
                 if (_continuousPageW <= 0 || _doc is null) return;
+                PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
                 int ci = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
-                if (ci < 0 || ci >= _doc.PageCount) return;
-                var pdfPage = _doc.Pages[ci];
-                double ratio = Math.Max(0.1, pdfPage.Height.Point / Math.Max(1.0, pdfPage.Width.Point));
+                if (ci < 0 || ci >= engineSession.PageCount) return;
+                var (pageWidth, pageHeight) = engineSession.VisualPageSize(ci, _pageRotations);
+                double ratio = Math.Max(0.1, pageHeight / Math.Max(1.0, pageWidth));
                 double dipH  = _continuousPageW * ratio;
                 _fitMode   = FitMode.Page;
                 _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax,

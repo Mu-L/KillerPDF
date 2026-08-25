@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Expanded the immutable desktop engine session into continuous viewport layout, displayed zoom, fit calculations, and crop editing, preserving application-managed and native page rotation while removing the remaining viewer and crop geometry reads from the mutable PdfSharpCore page model.
 - Expanded the immutable desktop engine session into stamp preview, search geometry, text placement and restyling, clipboard text placement, and annotation text scaling, removing measurement-only PdfSharpCore imports from those components.
 - Added a byte-preserving save sanitizer for empty or dangling outline roots and direct crop boxes that are degenerate or outside the effective media box, integrated it across desktop save and reload output, and removed the legacy live-document scrubbers.
 - Integrated save-time signature invalidation cleanup through the engine writer after application serialization and removed the legacy live-document scrubber, retaining empty signature fields and widgets for later re-signing.

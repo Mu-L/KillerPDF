@@ -117,12 +117,8 @@ namespace KillerPDF.Controls
         // rotation the rendered bitmap is turned, so the point dims are swapped relative to the raw page.
         private (double dispW, double dispH, double sx, double sy) CropDisplayDims(int pi, (double w, double h) dims)
         {
-            _pageRotations.TryGetValue(pi, out int rot);
-            var page = _doc!.Pages[pi];
-            double pdfW = page.Width.Point, pdfH = page.Height.Point;
-            bool swap = rot == 90 || rot == 270;
-            double dispW = swap ? pdfH : pdfW;
-            double dispH = swap ? pdfW : pdfH;
+            var (dispW, dispH) = EnsureEngineDocumentSession()
+                .VisualPageSize(pi, _pageRotations);
             return (dispW, dispH, dispW / dims.w, dispH / dims.h);   // sx,sy: page-points per canvas-unit
         }
 
@@ -609,6 +605,7 @@ namespace KillerPDF.Controls
         private void ApplyCrop(int[] pageIndices)
         {
             if (_doc is null || _currentFile is null) { SetStatus(Loc("Str_CropNoDoc")); return; }
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             int currentPage = _cropPageIndex >= 0 ? _cropPageIndex : _currentPage;
             if (currentPage < 0) { SetStatus(Loc("Str_CropNoPage")); return; }
             if (!_renderDims.TryGetValue(currentPage, out var refDims))
@@ -621,9 +618,9 @@ namespace KillerPDF.Controls
                 // Convert canvas rect to PDF CropBox coords using the rotation-aware helper.
                 // This is the correct inversion of how Docnet renders the rotated bitmap.
                 _pageRotations.TryGetValue(currentPage, out int rot);
-                var refPage = _doc.Pages[currentPage];
-                double refPdfW = refPage.Width.Point;
-                double refPdfH = refPage.Height.Point;
+                var refPage = engineSession.Pages[currentPage];
+                double refPdfW = refPage.Width;
+                double refPdfH = refPage.Height;
 
                 var (rx1, ry1, rx2, ry2) = CanvasToPdfRect(
                     _cropCanvasRect, refPdfW, refPdfH, refDims.w, refDims.h, rot);
@@ -631,10 +628,10 @@ namespace KillerPDF.Controls
                 var crops = new Dictionary<int, PdfEngineIntegration.PageRectangle?>();
                 foreach (int pi in pageIndices)
                 {
-                    if (pi < 0 || pi >= _doc.PageCount) continue;
-                    var page  = _doc.Pages[pi];
-                    double pW = page.Width.Point;
-                    double pH = page.Height.Point;
+                    if (pi < 0 || pi >= engineSession.PageCount) continue;
+                    var page  = engineSession.Pages[pi];
+                    double pW = page.Width;
+                    double pH = page.Height;
 
                     // Scale proportionally when "All Pages" spans pages of different sizes
                     double x1 = rx1 * pW / refPdfW;
@@ -667,11 +664,12 @@ namespace KillerPDF.Controls
         private void RemoveCropBox(int[] pageIndices)
         {
             if (_doc is null || _currentFile is null) return;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             try
             {
                 PushDocUndo();
                 var crops = pageIndices
-                    .Where(pi => pi >= 0 && pi < _doc.PageCount)
+                    .Where(pi => pi >= 0 && pi < engineSession.PageCount)
                     .Distinct()
                     .ToDictionary(pi => pi,
                         _ => (PdfEngineIntegration.PageRectangle?)null);
