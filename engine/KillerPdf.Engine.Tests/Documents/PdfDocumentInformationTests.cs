@@ -1,0 +1,50 @@
+using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Syntax;
+using Xunit;
+
+namespace KillerPdf.Engine.Tests.Documents;
+
+public sealed class PdfDocumentInformationTests
+{
+    [Fact]
+    public void Read_ReturnsMetadataVersionAndPageCount()
+    {
+        byte[] bytes = new PdfDocumentBuilder(PdfVersion.Pdf20)
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Technical overview",
+                Author = "Steve",
+                Subject = "KillerPDF Engine",
+                Keywords = "PDF 2.0, PDF/A",
+                Creator = "Tests",
+                Producer = "KillerPDF Engine"
+            })
+            .AddBlankPage()
+            .AddBlankPage()
+            .Build();
+
+        PdfDocumentInformation info = PdfDocumentInformation.Read(PdfDocument.Open(bytes));
+
+        Assert.Equal("Technical overview", info.Title);
+        Assert.Equal("Steve", info.Author);
+        Assert.Equal("KillerPDF Engine", info.Subject);
+        Assert.Equal("PDF 2.0, PDF/A", info.Keywords);
+        Assert.Equal("Tests", info.Creator);
+        Assert.Equal("KillerPDF Engine", info.Producer);
+        Assert.Equal(PdfVersion.Pdf20, info.Version);
+        Assert.Equal(2, info.PageCount);
+    }
+
+    [Fact]
+    public void Read_AllowsMissingInformationDictionary()
+    {
+        byte[] bytes = new PdfDocumentBuilder().AddBlankPage().Build();
+
+        PdfDocumentInformation info = PdfDocumentInformation.Read(PdfDocument.Open(bytes));
+
+        Assert.Null(info.Title);
+        Assert.Null(info.Author);
+        Assert.Equal(1, info.PageCount);
+    }
+}

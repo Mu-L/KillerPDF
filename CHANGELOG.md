@@ -18,6 +18,7 @@ KillerPDF 1.8 introduces the independent KillerPDF Engine. Its detailed developm
 
 ### Changed
 - Release payloads are now self-contained .NET 10 Windows builds, so users still need no separate runtime installation.
+- Document Information now reads metadata, PDF version, and page count through KillerPDF Engine while retaining the existing live-document save path during staged integration.
 
 ### Fixed
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.

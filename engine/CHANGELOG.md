@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added a high-level `PdfDocumentInformation` reader for decoded document metadata, PDF version, and validated page count.
 - The primary document builder, content-stream builder, incremental page editor, and incremental annotation editor now have complete XML summaries across their public entry points, covering construction, conformance, pages, navigation, graphics state, paths, color, text, attachments, forms, annotations, editing, and serialization.
 - Typed viewer preferences, tagged-PDF structure roles, axial and radial shadings, link appearances, page transitions, annotation metadata and flags, and blend modes now provide complete XML summaries for their public values and properties.
 - Reusable tiling patterns and matrices, extended graphics states, alpha and luminosity soft masks, backdrop colors, and transparency-group Form XObjects now provide complete XML summaries across their public construction and state.
@@ -645,4 +646,3 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Added rewrite policy for preserving or upgrading the PDF header, retaining or removing document information, and independently retaining document identifiers, plus reusable round-trip and corpus validation.
 - Accepted the complete PDF 2.x header declaration range through `%PDF-2.9` and corrected classic cross-reference `/Size` handling for free boundary entries found in PDF/A-4 fixtures.
 - Header parsing requires CR or LF immediately after the single-digit major and minor version, rejecting truncated declarations and longer strings that merely begin with a defined version.
-

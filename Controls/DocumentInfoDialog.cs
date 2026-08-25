@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using PdfSharpCore.Pdf;
+using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Documents;
 
 namespace KillerPDF
 {
@@ -11,14 +12,17 @@ namespace KillerPDF
     // DialogChrome, no preview pane. Producer/dates/structure are shown read-only.
     internal sealed class DocumentInfoDialog : Window
     {
-        private readonly PdfDocument _doc;
+        private readonly PdfDocumentInformation _info;
+        private readonly Action<PdfDocumentMetadata> _save;
         private TextBox _title = null!, _author = null!, _subject = null!, _keywords = null!, _creator = null!;
 
         public bool Saved { get; private set; }
 
-        public DocumentInfoDialog(Window owner, PdfDocument doc, string? filePath)
+        public DocumentInfoDialog(Window owner, PdfDocumentInformation info,
+            Action<PdfDocumentMetadata> save, string? filePath)
         {
-            _doc = doc;
+            _info = info;
+            _save = save;
             Title = "KillerPDF - " + L("Str_DocInfo_Suffix");
             Width = 460;
             SizeToContent = SizeToContent.Height;
@@ -31,11 +35,11 @@ namespace KillerPDF
         {
             var body = new StackPanel { Margin = new Thickness(20, 6, 20, 16) };
 
-            _title    = AddField(body, L("Str_DocInfo_Title"),    _doc.Info.Title);
-            _author   = AddField(body, L("Str_DocInfo_Author"),   _doc.Info.Author);
-            _subject  = AddField(body, L("Str_DocInfo_Subject"),  _doc.Info.Subject);
-            _keywords = AddField(body, L("Str_DocInfo_Keywords"), _doc.Info.Keywords, wrap: true);
-            _creator  = AddField(body, L("Str_DocInfo_Creator"),  _doc.Info.Creator);
+            _title    = AddField(body, L("Str_DocInfo_Title"),    _info.Title);
+            _author   = AddField(body, L("Str_DocInfo_Author"),   _info.Author);
+            _subject  = AddField(body, L("Str_DocInfo_Subject"),  _info.Subject);
+            _keywords = AddField(body, L("Str_DocInfo_Keywords"), _info.Keywords, wrap: true);
+            _creator  = AddField(body, L("Str_DocInfo_Creator"),  _info.Creator);
 
             body.Children.Add(new TextBlock
             {
@@ -83,22 +87,25 @@ namespace KillerPDF
         private string BuildSummary(string? filePath)
         {
             var parts = new List<string>();
-            string producer = ""; try { producer = _doc.Info.Producer ?? ""; } catch { }
+            string producer = _info.Producer ?? "";
             if (producer.Length > 0) parts.Add($"Producer: {producer}");
-            parts.Add($"{_doc.PageCount} pages");
-            parts.Add($"PDF {_doc.Version / 10}.{_doc.Version % 10}");
-            try { var d = _doc.Info.CreationDate; if (d != default) parts.Add($"created {d:yyyy-MM-dd HH:mm}"); } catch { }
+            parts.Add($"{_info.PageCount} pages");
+            parts.Add($"PDF {_info.Version.Major}.{_info.Version.Minor}");
             try { if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath)) parts.Add($"{new FileInfo(filePath).Length / 1024.0:N0} KB"); } catch { }
             return string.Join("\n", parts);
         }
 
         private void SaveAndClose()
         {
-            _doc.Info.Title    = _title.Text;
-            _doc.Info.Author   = _author.Text;
-            _doc.Info.Subject  = _subject.Text;
-            _doc.Info.Keywords = _keywords.Text;
-            _doc.Info.Creator  = _creator.Text;
+            _save(new PdfDocumentMetadata
+            {
+                Title = _title.Text,
+                Author = _author.Text,
+                Subject = _subject.Text,
+                Keywords = _keywords.Text,
+                Creator = _creator.Text,
+                Producer = _info.Producer
+            });
             Saved = true;
             Close();
         }

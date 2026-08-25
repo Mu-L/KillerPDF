@@ -760,7 +760,39 @@ namespace KillerPDF
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
-            var dlg = new DocumentInfoDialog(this, _doc, _originalFile ?? _currentFile);
+            string? path = _originalFile ?? _currentFile;
+            KillerPdf.Engine.Documents.PdfDocumentInformation info;
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(path!);
+                var engineDocument = KillerPdf.Engine.Documents.PdfDocument.Open(bytes);
+                info = KillerPdf.Engine.Documents.PdfDocumentInformation.Read(engineDocument);
+            }
+            catch
+            {
+                info = new KillerPdf.Engine.Documents.PdfDocumentInformation
+                {
+                    Version = new KillerPdf.Engine.Syntax.PdfVersion(_doc.Version / 10, _doc.Version % 10),
+                    PageCount = _doc.PageCount
+                };
+            }
+            info = info with
+            {
+                Title = _doc.Info.Title,
+                Author = _doc.Info.Author,
+                Subject = _doc.Info.Subject,
+                Keywords = _doc.Info.Keywords,
+                Creator = _doc.Info.Creator,
+                Producer = _doc.Info.Producer
+            };
+            var dlg = new DocumentInfoDialog(this, info, metadata =>
+            {
+                _doc.Info.Title = metadata.Title ?? "";
+                _doc.Info.Author = metadata.Author ?? "";
+                _doc.Info.Subject = metadata.Subject ?? "";
+                _doc.Info.Keywords = metadata.Keywords ?? "";
+                _doc.Info.Creator = metadata.Creator ?? "";
+            }, path);
             dlg.ShowDialog();   // fade-close dialogs don't reliably return true; rely on the Saved flag
             if (dlg.Saved)
             {
