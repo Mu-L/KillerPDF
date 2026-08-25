@@ -386,7 +386,7 @@ internal static class PdfEngineIntegration
                 string family = FontCoverage.PickFamily("Segoe UI", word.Text);
                 if (!fonts.TryGetValue(family, out TrueTypeFont? font))
                 {
-                    byte[]? bytes = KillerFontResolver.RegularFaceBytes(family);
+                    byte[]? bytes = InstalledFontCatalog.RegularFaceBytes(family);
                     if (bytes is null) continue;
                     try { font = TrueTypeFont.Load(bytes); }
                     catch { continue; }

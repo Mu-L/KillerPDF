@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Installed font discovery and TrueType Collection face extraction are now an engine-oriented application service with no PdfSharpCore resolver contract or process-wide startup registration. Unicode burn-in and form appearance generation retain the same installed-face and glyph-coverage behavior.
 - Transform sizing now uses crop-aware visual geometry from the immutable engine session, native link removal no longer preflights the legacy annotation array, and obsolete PdfSharpCore named-destination and link-style scrub helpers have been removed after their engine replacements made them unreachable.
 - The Adobe-compatible page-size guard now detects and proportionally normalizes oversized or undersized pages through a byte-preserving KillerPDF.Engine revision, including page boundaries, content coordinates, annotation rectangles, and link quadrilaterals. Flattened export, print sizing, and saved rotation snapshots also use the immutable engine session.
 - Continuous-page layout, displayed zoom, fit-to-page calculations, and crop editing now read crop-aware physical and visual page geometry from the active immutable engine session instead of the live PdfSharpCore page collection.

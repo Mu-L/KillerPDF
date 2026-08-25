@@ -287,8 +287,8 @@ internal static class PdfEngineBurn
         string family = FontCoverage.PickFamily(string.IsNullOrWhiteSpace(wanted) ? "Segoe UI" : wanted, text);
         string key = $"{family}|{bold}|{italic}";
         if (cache.TryGetValue(key, out TrueTypeFont? found)) return found;
-        byte[]? bytes = KillerFontResolver.FaceBytes(family, bold, italic)
-            ?? KillerFontResolver.RegularFaceBytes(family);
+        byte[]? bytes = InstalledFontCatalog.FaceBytes(family, bold, italic)
+            ?? InstalledFontCatalog.RegularFaceBytes(family);
         if (bytes is null) return null;
         try { found = TrueTypeFont.Load(bytes); }
         catch { return null; }

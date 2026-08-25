@@ -1,6 +1,4 @@
 using System.IO;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Fonts;
 using SixLabors.Fonts;
 
 namespace KillerPDF.Services
@@ -9,8 +7,8 @@ namespace KillerPDF.Services
     // Font resolution for the SAVE path (#168).
     //
     // The editor is a WPF TextBox, which falls back per character across the
-    // whole system font set, so anything typed LOOKS right. The save path is
-    // PdfSharpCore, which resolves exactly one face and emits .notdef (a box)
+    // whole system font set, so anything typed LOOKS right. The engine save path
+    // embeds exactly one selected face and emits .notdef (a box)
     // for every codepoint that face lacks - so CJK, Indic and other non-Latin
     // text was displayed correctly and then saved as boxes.
     //
@@ -20,13 +18,7 @@ namespace KillerPDF.Services
     // in our font picker (that is populated from WPF, which reads .ttc fine),
     // so a user could pick one, see it render, and still get boxes on save.
     //
-    // Enumerating .ttc is necessary but NOT sufficient: PdfSharpCore's parser
-    // rejects collections outright -
-    //     OpenTypeFontface.Read(): if (startTag == TTCF) throw ...
-    //         "TrueType collection fonts are not yet supported"
-    // - so the bytes handed back must already be a single standalone face.
-    // ExtractTtcFace below rebuilds one, which is why nothing in third_party/
-    // needed patching: the engine never sees a 'ttcf' tag.
+    // Collection faces are extracted into standalone sfnt bytes before embedding.
     //
     // NOTE ON FILE SIZE: embedded fonts are SUBSET (PdfTrueTypeFont /PdfCIDFont
     // call CreateFontSubSet), so a few Japanese characters cost tens of KB in
@@ -34,27 +26,17 @@ namespace KillerPDF.Services
     // i.e. CFF/.otf - which PdfCIDFont embeds WHOLE. That is why .otf is
     // enumerated last and only used when nothing else covers the text.
     // ============================================================
-    internal sealed class KillerFontResolver : IFontResolver
+    internal static class InstalledFontCatalog
     {
-        public string DefaultFontName => "Arial";
-
-        // faceKey -> the physical face. faceKey is what we hand PdfSharpCore in
-        // FontResolverInfo and get back in GetFont, so it just has to be unique.
+        // faceKey -> the physical face. Keys only need to be unique inside this catalog.
         private static readonly Dictionary<string, FaceFile> Faces = new(StringComparer.OrdinalIgnoreCase);
         // family (lower) -> style -> faceKey
-        private static readonly Dictionary<string, Dictionary<XFontStyle, string>> Families = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Dictionary<FaceStyle, string>> Families = new(StringComparer.OrdinalIgnoreCase);
         private static readonly object Gate = new();
         private static bool _indexed;
 
         private readonly record struct FaceFile(string Path, int FaceIndex);
-
-        /// <summary>Installs this resolver process-wide. Call once at startup, BEFORE any XFont is
-        /// created - PdfSharpCore caches the resolver on first use and warns on a later swap.</summary>
-        internal static void Install()
-        {
-            try { GlobalFontSettings.FontResolver = new KillerFontResolver(); }
-            catch { /* a resolver is already in use; the stock one still works for Latin */ }
-        }
+        private enum FaceStyle { Regular, Bold, Italic, BoldItalic }
 
         // ── Index ─────────────────────────────────────────────────────────────────────────────
 
@@ -117,70 +99,18 @@ namespace KillerPDF.Services
 
             var style = desc.Style switch
             {
-                SixLabors.Fonts.FontStyle.Bold       => XFontStyle.Bold,
-                SixLabors.Fonts.FontStyle.Italic     => XFontStyle.Italic,
-                SixLabors.Fonts.FontStyle.BoldItalic => XFontStyle.BoldItalic,
-                _                                    => XFontStyle.Regular,
+                SixLabors.Fonts.FontStyle.Bold       => FaceStyle.Bold,
+                SixLabors.Fonts.FontStyle.Italic     => FaceStyle.Italic,
+                SixLabors.Fonts.FontStyle.BoldItalic => FaceStyle.BoldItalic,
+                _                                    => FaceStyle.Regular,
             };
 
             string faceKey = family + "#" + style + "#" + faceIndex + "#" + Path.GetFileName(path);
             if (!Faces.ContainsKey(faceKey)) Faces[faceKey] = new FaceFile(path, faceIndex);
 
             if (!Families.TryGetValue(family, out var byStyle))
-                Families[family] = byStyle = new Dictionary<XFontStyle, string>();
+                Families[family] = byStyle = new Dictionary<FaceStyle, string>();
             if (!byStyle.ContainsKey(style)) byStyle[style] = faceKey;   // first wins = pattern order
-        }
-
-        // ── IFontResolver ─────────────────────────────────────────────────────────────────────
-
-        // The interface declares these non-nullable but documents null as "cannot satisfy" (and the
-        // stock resolver returns null the same way), so the null-forgiving returns below match the
-        // contract as written rather than as annotated.
-        public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
-        {
-            EnsureIndexed();
-            if (string.IsNullOrWhiteSpace(familyName)) return null!;
-
-            if (!Families.TryGetValue(familyName, out var byStyle))
-            {
-                // WPF's picker can hand back a localized family name on a non-English Windows while
-                // this index is keyed on the invariant one. Fall back to a loose match so a font the
-                // user can see in the list still resolves.
-                var hit = Families.FirstOrDefault(kv =>
-                    kv.Key.Replace(" ", "").Equals(familyName.Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
-                if (hit.Value is null) return null!;
-                byStyle = hit.Value;
-            }
-
-            var want = (isBold, isItalic) switch
-            {
-                (true, true)  => XFontStyle.BoldItalic,
-                (true, false) => XFontStyle.Bold,
-                (false, true) => XFontStyle.Italic,
-                _             => XFontStyle.Regular,
-            };
-
-            // Exact style, else regular, else whatever this family has. PdfSharpCore can simulate
-            // the missing emphasis, which is better than failing to resolve the family at all.
-            if (byStyle.TryGetValue(want, out var key))
-                return new FontResolverInfo(key);
-            if (byStyle.TryGetValue(XFontStyle.Regular, out var regular))
-                return new FontResolverInfo(regular, isBold, isItalic);
-            var any = byStyle.Values.FirstOrDefault();
-            return any is null ? null! : new FontResolverInfo(any, isBold, isItalic);
-        }
-
-        public byte[] GetFont(string faceName)
-        {
-            EnsureIndexed();
-            if (!Faces.TryGetValue(faceName, out var face)) return null!;
-            try
-            {
-                byte[] bytes = File.ReadAllBytes(face.Path);
-                // A collection must be split before PdfSharpCore sees it (it throws on 'ttcf').
-                return (IsCollection(bytes) ? ExtractTtcFace(bytes, face.FaceIndex) : bytes) ?? null!;
-            }
-            catch { return null!; }
         }
 
         /// <summary>The regular face of a family as standalone font bytes, or null when the family
@@ -197,13 +127,13 @@ namespace KillerPDF.Services
             if (!Families.TryGetValue(family, out var byStyle)) return null;
             var wanted = (bold, italic) switch
             {
-                (true, true) => XFontStyle.BoldItalic,
-                (true, false) => XFontStyle.Bold,
-                (false, true) => XFontStyle.Italic,
-                _ => XFontStyle.Regular,
+                (true, true) => FaceStyle.BoldItalic,
+                (true, false) => FaceStyle.Bold,
+                (false, true) => FaceStyle.Italic,
+                _ => FaceStyle.Regular,
             };
             if (!byStyle.TryGetValue(wanted, out var key)
-                && !byStyle.TryGetValue(XFontStyle.Regular, out key))
+                && !byStyle.TryGetValue(FaceStyle.Regular, out key))
             {
                 key = byStyle.Values.FirstOrDefault();
                 if (key is null) return null;

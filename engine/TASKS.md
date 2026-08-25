@@ -87,7 +87,7 @@ All desktop burn paths now append isolated typed engine content. This includes S
 
 ## Exact next slice
 
-Continue the live desktop migration. The immutable engine session now supplies open and page-list state plus link, form, stamp, search, text, annotation, viewport, zoom, crop, Transform, flatten, print, and image-export geometry. Obsolete PdfSharpCore named-destination and link-scrub helpers are gone. Next, preserve the useful font catalog and TTC extraction while removing the PdfSharpCore font-resolver contract, then simplify the remaining live document open, snapshot, and reload boundary.
+Continue the live desktop migration. The immutable engine session supplies all read-only page state used by editing, display, export, and print workflows, and the installed-font catalog no longer implements a PdfSharpCore resolver contract. Next, replace the remaining PdfSharpCore live document open, snapshot, save, and reload boundary with serialized engine-owned working state, then remove compatibility imports, the project reference, and the vendored source.
 
 ## Remaining major legacy pockets after forms
 
