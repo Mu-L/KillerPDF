@@ -1639,6 +1639,25 @@ if (args.Length == 4 && args[0] == "--pdfa-visual-annotation-smoke")
     return 0;
 }
 
+if (args.Length == 2 && args[0] == "--rotation-smoke")
+{
+    byte[] source = new PdfDocumentBuilder()
+        .AddBlankPage(612, 792)
+        .AddBlankPage(792, 612)
+        .Build();
+    byte[] pdf = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+        .SetRotation(0, 90)
+        .SetRotation(1, 270)
+        .Build();
+    if (!pdf.AsSpan(0, source.Length).SequenceEqual(source))
+        throw new InvalidDataException("The rotation update changed source bytes.");
+    string destination = Path.GetFullPath(args[1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.WriteAllBytes(destination, pdf);
+    Console.WriteLine($"Wrote two page rotations in {pdf.Length - source.Length:N0} appended bytes to {destination}");
+    return 0;
+}
+
 if (args.Length == 3 && args[0] == "--incremental-smoke")
 {
     byte[] source = File.ReadAllBytes(args[1]);
@@ -2050,6 +2069,7 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-annotation-smoke <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfa-visual-annotation-smoke <font.ttf> <profile.icc> <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-smoke <input.pdf> <output.pdf>");
+    Console.WriteLine("       KillerPdf.Engine.Corpus --rotation-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfua-link-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --pdfua-form-smoke <output.pdf>");
     Console.WriteLine("       KillerPdf.Engine.Corpus --incremental-annotation-smoke <input.pdf> <output.pdf>");

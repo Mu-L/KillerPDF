@@ -955,6 +955,7 @@ namespace KillerPDF
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
                 WriteFormValuesToDocument();
+                Dictionary<int, int> finalRotations = SnapshotPageRotations();
                 // Always strip link annotation borders regardless of user annotation count
                 // so mailto/URI links don't appear as strikethrough lines in other viewers.
                 PdfScrub.StripLinkAnnotationBorders(_doc);
@@ -969,6 +970,7 @@ namespace KillerPDF
                     DrawStampsOnDocument();
                     DrawAnnotationsOnDocument();
                     _doc.Save(saveTarget);
+                    PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                     _doc.Close();
                     try
                     {
@@ -988,6 +990,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(saveTarget);
+                    PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                 }
 
                 MarkDirty(false);
@@ -1065,6 +1068,7 @@ namespace KillerPDF
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
                 WriteFormValuesToDocument();
+                Dictionary<int, int> finalRotations = SnapshotPageRotations();
                 // Always strip link annotation borders regardless of user annotation count.
                 PdfScrub.StripLinkAnnotationBorders(_doc);
 
@@ -1075,6 +1079,7 @@ namespace KillerPDF
                     DrawStampsOnDocument();
                     DrawAnnotationsOnDocument();
                     _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _doc.Close();
                     try
                     {
@@ -1105,6 +1110,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _originalFile = dlg.FileName;
                     FileNameLabel.Text = System.IO.Path.GetFileName(dlg.FileName);
                     MarkDirty(false);
@@ -1122,6 +1128,15 @@ namespace KillerPDF
             {
                 KillerDialog.Show(this, Loc("Str_Err_SaveFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private Dictionary<int, int> SnapshotPageRotations()
+        {
+            var rotations = new Dictionary<int, int>();
+            if (_doc is null) return rotations;
+            for (int index = 0; index < _doc.PageCount; index++)
+                rotations[index] = ((_doc.Pages[index].Rotate % 360) + 360) % 360;
+            return rotations;
         }
 
         private async void SaveFlattened_Click(object sender, RoutedEventArgs e)

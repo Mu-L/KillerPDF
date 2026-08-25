@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added an application integration gate that writes native and in-app page rotations as the final incremental revision, replaces saved files atomically, preserves the original byte prefix, and validates a dedicated rotation fixture with qpdf.
 - Added a high-level `PdfDocumentInformation` reader for decoded document metadata, PDF version, and validated page count.
 - The primary document builder, content-stream builder, incremental page editor, and incremental annotation editor now have complete XML summaries across their public entry points, covering construction, conformance, pages, navigation, graphics state, paths, color, text, attachments, forms, annotations, editing, and serialization.
 - Typed viewer preferences, tagged-PDF structure roles, axial and radial shadings, link appearances, page transitions, annotation metadata and flags, and blend modes now provide complete XML summaries for their public values and properties.
