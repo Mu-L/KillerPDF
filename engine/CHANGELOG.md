@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Integrated last-resort PDFium raster repair through direct engine raster-page authoring and retired the replaced PdfSharpCore image-page helper.
 - Integrated blank-document creation and Transform raster replacement-page authoring through the engine's page and image builders.
 - Integrated sidebar PDF and image drop append through complete engine imports, including repaired sources, multiframe images, and rotation-state remapping.
 - Integrated desktop image import plus combined folder and archive ingestion through the engine's complete-document and multiframe-image composition path.

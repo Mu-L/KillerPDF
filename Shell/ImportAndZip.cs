@@ -65,7 +65,7 @@ namespace KillerPDF
             return outPath;
         }
 
-        // AddImagePagesFromFile and IsPdfPath live in Services/PdfImport.cs (KillerUI refactor).
+        // IsPdfPath lives in Services/PdfImport.cs (KillerUI refactor).
 
         // ----- Drag/drop of folders, archives, and multiple files ----------------------------
 

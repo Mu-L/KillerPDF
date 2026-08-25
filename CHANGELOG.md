@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Last-resort PDFium raster repair now authors recovered pages through The KillerPDF.Engine, and the obsolete PdfSharpCore image-page importer has been removed.
 - New Document now authors its blank A4 page through The KillerPDF.Engine, and Transform now authors its raster replacement page through the engine before replacing the original page graph.
 - PDFs and images dropped onto an open document now append through The KillerPDF.Engine, preserving complete imported document graphs and image frames while retaining repair prompts and application rotation state.
 - Import Images and combined folder or archive imports now author image frames and import complete PDF graphs through The KillerPDF.Engine while retaining their existing skip-unreadable behavior.
