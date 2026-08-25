@@ -82,7 +82,6 @@ namespace KillerPDF
         System.Windows.Media.Effects.DropShadowEffect IViewerHost.AnnotBarShadow() => AnnotBarShadow();
         void IViewerHost.FadeOverlayOut(UIElement element) => FadeOverlayOut(element);
         void IViewerHost.FadeOutAndRemoveBar(System.Windows.Controls.Border? bar) => FadeOutAndRemoveBar(bar);
-        PdfSharpCore.Pdf.PdfItem IViewerHost.DerefItem(PdfSharpCore.Pdf.PdfItem item) => DerefItem(item);
         string IViewerHost.WordsToText(System.Collections.Generic.IEnumerable<UglyToad.PdfPig.Content.Word> words)
             => WordsToText(words);
         System.Windows.Controls.MenuItem IViewerHost.MakeMenuItem(string header, RoutedEventHandler click,

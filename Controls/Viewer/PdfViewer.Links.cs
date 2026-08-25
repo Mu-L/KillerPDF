@@ -315,12 +315,11 @@ namespace KillerPDF.Controls
         /// </summary>
         private void RemoveLinkAnnotation(int pageIndex, int annotIndex)
         {
-            if (_doc is null || pageIndex >= _doc.PageCount || annotIndex < 0) return;
+            if (_doc is null || annotIndex < 0) return;
+            PdfEngineDocumentSession session = EnsureEngineDocumentSession();
+            if (pageIndex < 0 || pageIndex >= session.PageCount) return;
             try
             {
-                var pdfPage = _doc.Pages[pageIndex];
-                var annotsArr = pdfPage.Elements.GetArray("/Annots");
-                if (annotsArr is null || annotIndex >= annotsArr.Elements.Count) return;
                 MarkDirty();
                 SaveTempAndReload(finalizeSavedFile: path =>
                     PdfEngineIntegration.RemoveAnnotation(path, pageIndex, annotIndex));

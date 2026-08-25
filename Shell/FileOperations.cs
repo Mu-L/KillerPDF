@@ -861,12 +861,6 @@ namespace KillerPDF
             }
         }
 
-        // The legacy named-destination helpers still used by the CLI live in Services/PdfImport.cs.
-        // Interactive merge now uses the engine's complete-document import and preserves the catalog.
-
-        // DerefItemStatic, RectNum and the pre-save scrubs live in Services/PdfScrub.cs
-        // (KillerUI refactor) - pure functions shared by the GUI saves, TempReload and the CLI.
-
         // ============================================================
         // Adobe page-size guard
         // ============================================================
@@ -1204,6 +1198,7 @@ namespace KillerPDF
         {
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
+            int pageCount = EnsureEngineDocumentSession().PageCount;
 
             var opts = new ExportImagesDialog(this, presetRange);
             opts.ShowDialog();   // fade-close dialogs don't reliably return true; rely on Confirmed
@@ -1212,7 +1207,7 @@ namespace KillerPDF
             List<int>? selected = null;
             if (opts.Range.Length > 0)
             {
-                selected = CliParsePageRange(opts.Range, _doc.PageCount, out string rangeErr);
+                selected = CliParsePageRange(opts.Range, pageCount, out string rangeErr);
                 if (selected is null)
                 {
                     KillerDialog.Show(this, rangeErr.Length > 0 ? rangeErr : Loc("Str_InvalidRange"),
@@ -1220,7 +1215,7 @@ namespace KillerPDF
                     return;
                 }
             }
-            selected ??= [.. Enumerable.Range(0, _doc.PageCount)];
+            selected ??= [.. Enumerable.Range(0, pageCount)];
 
             string ext = opts.Jpeg ? "jpg" : "png";
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
@@ -1271,12 +1266,12 @@ namespace KillerPDF
 
             // In-app rotations live outside the file (the working copy has /Rotate stripped -
             // BitmapHelpers), so snapshot them and rotate the pixels like the render path does.
-            var rotSnapshot = new int[_doc.PageCount];
+            var rotSnapshot = new int[pageCount];
             for (int i = 0; i < rotSnapshot.Length; i++)
                 if (_pageRotations.TryGetValue(i, out int r)) rotSnapshot[i] = r;
 
             var overlay = ShowFlattenProgress(selected.Count, Loc("Str_Busy_ExportPage"));
-            int digits  = Math.Max(3, _doc.PageCount.ToString().Length);
+            int digits  = Math.Max(3, pageCount.ToString().Length);
             bool jpeg   = opts.Jpeg;
             double dpi  = opts.Dpi;
             var pages   = selected;

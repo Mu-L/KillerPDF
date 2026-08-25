@@ -197,7 +197,6 @@ namespace KillerPDF.Controls
         private void ShowShortcutsOverlayExclusive() => Host!.ShowShortcutsOverlayExclusive();
         private void FadeOverlayOut(UIElement el) => Host!.FadeOverlayOut(el);
         private void FadeOutAndRemoveBar(Border? bar) => Host!.FadeOutAndRemoveBar(bar);
-        private PdfSharpCore.Pdf.PdfItem DerefItem(PdfSharpCore.Pdf.PdfItem item) => Host!.DerefItem(item);
         private string WordsToText(IEnumerable<UglyToad.PdfPig.Content.Word> src) => Host!.WordsToText(src);
         private MenuItem MakeMenuItem(string header, RoutedEventHandler click,
                                       string? gesture = null, string? glyph = null)

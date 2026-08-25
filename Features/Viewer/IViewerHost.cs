@@ -107,7 +107,6 @@ namespace KillerPDF.Features
         System.Windows.Media.Effects.DropShadowEffect AnnotBarShadow();
         void FadeOverlayOut(UIElement element);
         void FadeOutAndRemoveBar(Border? bar);
-        PdfSharpCore.Pdf.PdfItem DerefItem(PdfSharpCore.Pdf.PdfItem item);
         string WordsToText(System.Collections.Generic.IEnumerable<UglyToad.PdfPig.Content.Word> words);
         MenuItem MakeMenuItem(string header, RoutedEventHandler click, string? gesture, string? glyph);
         bool FullScreen { get; }

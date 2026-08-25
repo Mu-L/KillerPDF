@@ -20,7 +20,7 @@ using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 // The scrubs, bitmap helpers, import helpers and PDFium interop all live in Services
-// (PdfScrub.cs, BitmapHelpers.cs, PdfImport.cs, PdfiumInterop.cs; KillerUI refactor,
+// (BitmapHelpers.cs, PdfImport.cs, PdfiumInterop.cs; KillerUI refactor,
 // 2026-07-31), called qualified below. No Features-to-Shell reaches remain in this file.
 // OpenBatchConsole and FlattenBatchDetail are shared with the batch runner.
 using static KillerPDF.Features.BatchRunner;

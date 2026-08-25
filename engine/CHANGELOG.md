@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Expanded the desktop engine boundary into Transform geometry, native-link removal validation, and image-export page state, then removed the unreachable PdfSharpCore named-destination importer and link-style scrub layer superseded by complete engine imports and annotation editing.
 - Added a byte-preserving page-dimension normalizer that proportionally scales page boundaries, existing content coordinate systems, annotation rectangles, and link quadrilaterals, and integrated it into the desktop Adobe-compatible save guard alongside engine-owned flatten, print, and rotation measurements.
 - Expanded the immutable desktop engine session into continuous viewport layout, displayed zoom, fit calculations, and crop editing, preserving application-managed and native page rotation while removing the remaining viewer and crop geometry reads from the mutable PdfSharpCore page model.
 - Expanded the immutable desktop engine session into stamp preview, search geometry, text placement and restyling, clipboard text placement, and annotation text scaling, removing measurement-only PdfSharpCore imports from those components.

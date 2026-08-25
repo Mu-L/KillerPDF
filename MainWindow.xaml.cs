@@ -802,22 +802,6 @@ namespace KillerPDF
             restore.Start();
         }
 
-        /// <summary>
-        /// Dereferences a PdfItem if it is an indirect reference (PdfReference is internal;
-        /// we detect it by looking for a public "Value" property returning PdfObject).
-        /// </summary>
-        private static PdfItem DerefItem(PdfItem item)
-        {
-            var valueProp = item.GetType().GetProperty("Value",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            if (valueProp?.GetValue(item) is PdfObject resolved)
-                return resolved;
-            return item;
-        }
-
-        // GetObjectNumber lives in Services/PdfScrub.cs (KillerUI refactor), beside
-        // DerefItemStatic - the same reflection-over-PdfReference family.
-
         // ============================================================
         // Search (Ctrl+F)
         // ============================================================

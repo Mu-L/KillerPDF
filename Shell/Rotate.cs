@@ -6,7 +6,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Docnet.Core;
 using Docnet.Core.Models;
-using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
@@ -53,8 +52,8 @@ namespace KillerPDF
                 if (dontWarn) App.SetSetting("RotateWarnAck", "1");
             }
 
-            var page = _doc.Pages[pageIdx];
-            var (pwpt, phpt) = EffectivePageSize(page);   // CropBox-aware, so the readout matches the visible page
+            var page = EnsureEngineDocumentSession().Pages[pageIdx];
+            var (pwpt, phpt) = (page.Width, page.Height);   // CropBox-aware, so the readout matches the visible page
             var win = new TransformWindow(this, src, pwpt, phpt);
             win.ShowDialog();
             if (win.Applied && (Math.Abs(win.Angle) > 0.01 || Math.Abs(win.Scale - 1.0) > 0.001 ||
@@ -64,28 +63,14 @@ namespace KillerPDF
                     win.PerspectiveCorners, win.LevelBlack, win.LevelWhite, win.LevelGamma);
         }
 
-        // The page's visible size in points: the CropBox if one is set (so a cropped page reports its real,
-        // smaller size), otherwise the full MediaBox. PdfPage.Width/Height return the MediaBox only.
-        private static (double wpt, double hpt) EffectivePageSize(PdfPage page)
-        {
-            double wpt = page.Width.Point, hpt = page.Height.Point;
-            if (page.Elements.GetArray("/CropBox") is { Elements.Count: 4 } cb)
-            {
-                double x1 = cb.Elements.GetReal(0), y1 = cb.Elements.GetReal(1);
-                double x2 = cb.Elements.GetReal(2), y2 = cb.Elements.GetReal(3);
-                double cw = Math.Abs(x2 - x1), ch = Math.Abs(y2 - y1);
-                if (cw > 1 && ch > 1) { wpt = cw; hpt = ch; }
-            }
-            return (wpt, hpt);
-        }
-
         // Rasterizes one page with the chosen rotate + scale and swaps it in for the original (undoable).
         private void ApplyPageTransform(int pageIdx, double angleDeg, double scale, bool fixedPage,
             bool flipH, bool flipV, Point[] perspectiveCorners,
             int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0)
         {
             if (_doc is null || _currentFile is null) return;
-            if (pageIdx < 0 || pageIdx >= _doc.PageCount) return;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            if (pageIdx < 0 || pageIdx >= engineSession.PageCount) return;
 
             try
             {
@@ -107,15 +92,12 @@ namespace KillerPDF
                 var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
                 // #174: levels last, on the final full-resolution pixels - same pass the preview shows.
                 composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
-                var oldPage = _doc.Pages[pageIdx];
-                var (epw, eph) = EffectivePageSize(oldPage);   // honor CropBox so a cropped page keeps its size
+                var (epw, eph) = engineSession.VisualPageSize(pageIdx, _pageRotations);
                 // #167: the bitmap is in VISUAL orientation - RenderPageBitmap applies the page's
                 // in-app rotation - but MediaBox/CropBox are always unrotated (the working file has
                 // /Rotate stripped into _pageRotations). On a quarter-turned page the two disagreed,
                 // so sx and sy came out different: the transformed page was squeezed back to portrait
                 // and stretched vertically. Swap the point dimensions to match what was rendered.
-                int visRot = _pageRotations.TryGetValue(pageIdx, out int vr) ? ((vr % 360) + 360) % 360 : 0;
-                if (visRot == 90 || visRot == 270) (epw, eph) = (eph, epw);
                 double sx = epw / src.PixelWidth;
                 double sy = eph / src.PixelHeight;
                 double newWpt = composed.PixelWidth * sx;

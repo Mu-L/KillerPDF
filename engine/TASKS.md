@@ -87,7 +87,7 @@ All desktop burn paths now append isolated typed engine content. This includes S
 
 ## Exact next slice
 
-Continue the live desktop migration. The immutable engine session now supplies open and page-list state plus link, form, stamp, search, text, annotation, viewport, zoom, crop, flatten, and print geometry. Temp rotation serialization, save-time structural cleanup, and Adobe-range normalization are engine-owned. Next, remove the obsolete PdfSharpCore named-destination and link-scrub helpers, migrate Transform geometry, and continue the direct live-document audit.
+Continue the live desktop migration. The immutable engine session now supplies open and page-list state plus link, form, stamp, search, text, annotation, viewport, zoom, crop, Transform, flatten, print, and image-export geometry. Obsolete PdfSharpCore named-destination and link-scrub helpers are gone. Next, preserve the useful font catalog and TTC extraction while removing the PdfSharpCore font-resolver contract, then simplify the remaining live document open, snapshot, and reload boundary.
 
 ## Remaining major legacy pockets after forms
 
