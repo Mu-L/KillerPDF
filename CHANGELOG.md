@@ -22,6 +22,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Save and Save As now write every page's final effective rotation through The KillerPDF.Engine as a byte-preserving incremental revision after the remaining application state is serialized.
 - Applying or removing a page crop now writes matching crop and trim boundaries through The KillerPDF.Engine as a byte-preserving incremental revision before the working document reloads.
 - Deleting pages now rebuilds the page tree through The KillerPDF.Engine while preserving the rotation state of every retained page.
+- Moving pages from the sidebar buttons or by dragging thumbnails now reorders the page tree through The KillerPDF.Engine and carries each page's rotation with it.
 
 ### Fixed
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.

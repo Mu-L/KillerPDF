@@ -102,6 +102,35 @@ internal static class PdfEngineIntegration
             rotations[pageIndex] = rotation;
     }
 
+    /// <summary>Moves one page to its final position in a byte-preserving revision.</summary>
+    internal static void MovePage(string path, int sourceIndex, int destinationIndex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        byte[] source = File.ReadAllBytes(path);
+        PdfDocument document = PdfDocument.Open(source);
+        byte[] result = new PdfIncrementalPageEditor(document)
+            .MovePage(sourceIndex, destinationIndex)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
+    /// <summary>Moves rotation state with a reordered page.</summary>
+    internal static void RemapRotationsAfterPageMove(
+        Dictionary<int, int> rotations, int sourceIndex, int destinationIndex)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        if (sourceIndex == destinationIndex) return;
+        var ordered = Enumerable.Range(0, rotations.Count)
+            .Select(index => rotations[index])
+            .ToList();
+        int moved = ordered[sourceIndex];
+        ordered.RemoveAt(sourceIndex);
+        ordered.Insert(destinationIndex, moved);
+        rotations.Clear();
+        for (int index = 0; index < ordered.Count; index++)
+            rotations[index] = ordered[index];
+    }
+
     private static void ReplaceWithBuiltResult(string path, byte[] result)
     {
         string directory = Path.GetDirectoryName(Path.GetFullPath(path))!;

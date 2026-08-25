@@ -12,6 +12,59 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void MovePage_ReordersPagesAndPreservesTheirRotation()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-move-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder()
+                .AddBlankPage(100, 200).SetPageRotation(0, 90)
+                .AddBlankPage(200, 300).SetPageRotation(1, 180)
+                .AddBlankPage(300, 400).SetPageRotation(2, 270)
+                .Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.MovePage(path, 0, 2);
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            PdfDocument reopened = PdfDocument.Open(result);
+            Assert.Equal([0d, 0d, 200d, 300d], PageMediaBox(reopened, 0));
+            Assert.Equal(180, PageRotation(reopened, 0));
+            Assert.Equal([0d, 0d, 300d, 400d], PageMediaBox(reopened, 1));
+            Assert.Equal(270, PageRotation(reopened, 1));
+            Assert.Equal([0d, 0d, 100d, 200d], PageMediaBox(reopened, 2));
+            Assert.Equal(90, PageRotation(reopened, 2));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void RemapRotationsAfterPageMove_MovesRotationWithPage()
+    {
+        var rotations = new Dictionary<int, int>
+        {
+            [0] = 90,
+            [1] = 180,
+            [2] = 270,
+            [3] = 0
+        };
+
+        PdfEngineIntegration.RemapRotationsAfterPageMove(rotations, 0, 2);
+
+        Assert.Equal(new Dictionary<int, int>
+        {
+            [0] = 180,
+            [1] = 270,
+            [2] = 90,
+            [3] = 0
+        }, rotations);
+    }
+
+    [Fact]
     public void RemovePages_DeletesSelectedPagesAndPreservesRetainedRotations()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-delete-{Guid.NewGuid():N}.pdf");

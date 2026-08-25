@@ -150,24 +150,22 @@ namespace KillerPDF
         private void MoveUp_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null || PageList.SelectedIndex <= 0) return;
-            var doc = _doc;
             int idx = PageList.SelectedIndex;
-            var page = doc.Pages[idx];
-            doc.Pages.RemoveAt(idx);
-            doc.Pages.Insert(idx - 1, page);
-            SaveTempAndReload();
+            SaveTempAndReload(
+                finalizeSavedFile: path => PdfEngineIntegration.MovePage(path, idx, idx - 1),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterPageMove(rotations, idx, idx - 1));
             PageList.SelectedIndex = idx - 1;
         }
 
         private void MoveDown_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null || PageList.SelectedIndex < 0 || PageList.SelectedIndex >= _doc.PageCount - 1) return;
-            var doc = _doc;
             int idx = PageList.SelectedIndex;
-            var page = doc.Pages[idx];
-            doc.Pages.RemoveAt(idx);
-            doc.Pages.Insert(idx + 1, page);
-            SaveTempAndReload();
+            SaveTempAndReload(
+                finalizeSavedFile: path => PdfEngineIntegration.MovePage(path, idx, idx + 1),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterPageMove(rotations, idx, idx + 1));
             PageList.SelectedIndex = idx + 1;
         }
 

@@ -188,7 +188,6 @@ namespace KillerPDF
                 if (files.Length > 0) { AppendFilesToCurrentDoc(files); e.Handled = true; return; }
             }
             if (_doc is null || !e.Data.GetDataPresent(typeof(int))) return;
-            var doc = _doc;
             int fromIdx = (int)e.Data.GetData(typeof(int))!;
             var pos = e.GetPosition(PageList);
             int toIdx = PageList.Items.Count - 1;
@@ -201,11 +200,14 @@ namespace KillerPDF
                 }
             }
             if (fromIdx == toIdx) return;
-            var page = doc.Pages[fromIdx];
-            doc.Pages.RemoveAt(fromIdx);
             if (toIdx > fromIdx) toIdx--;
-            doc.Pages.Insert(toIdx, page);
-            SaveTempAndReload();
+            int finalIndex = toIdx;
+            SaveTempAndReload(
+                finalizeSavedFile: path =>
+                    PdfEngineIntegration.MovePage(path, fromIdx, finalIndex),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterPageMove(
+                        rotations, fromIdx, finalIndex));
             PageList.SelectedIndex = toIdx;
         }
     }
