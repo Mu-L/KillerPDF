@@ -1,122 +1,143 @@
-# Standards-conformance validation results - KillerPDF 1.8.0-alpha.1
+# KillerPDF 1.8.0-alpha.1 validation results
 
 Validation date: 2026-08-25
 
-KillerPDF 1.8.0-alpha.1 resaved the complete 2,907-file conformance corpus through
-The KillerPDF.Engine. Among the 2,381 files the engine accepted and wrote, veraPDF found
-zero new standards-conformance failures and qpdf found zero structural regressions. Fifty
-files became more conformant after serialization.
+KillerPDF 1.8.0-alpha.1 rewrote 2,898 of 2,907 deliberately hostile conformance PDFs
+through The KillerPDF.Engine. That is a 99.7% successful rewrite rate, with zero rewrite
+failures, zero saved-file conformance regressions, and zero structural regressions.
 
-This report records the first complete corpus run after KillerPDF's document pipeline was
-migrated from PdfSharpCore to The KillerPDF.Engine. The historical KillerPDF 1.7.5 results
-remain available in [RESULTS.md](RESULTS.md).
+On the exact 2,236-file workload supported by KillerPDF 1.7.5, the alpha completed every
+rewrite in a median 7.03 seconds instead of 9.46 seconds. That is 25.7% less elapsed time
+and 34.6% higher throughput on the test system.
 
-## Result
+## Headline results
 
-**Pass: zero conformance or structural regressions across every file the engine wrote.**
+| Result | KillerPDF 1.7.5 | KillerPDF 1.8.0-alpha.1 |
+|---|---:|---:|
+| Complete corpus | 2,907 | 2,907 |
+| Successful rewrites | 2,236 | 2,898 |
+| Corpus rewrite rate | 76.9% | 99.7% |
+| Additional successful rewrites | | **662** |
+| Saved files with new veraPDF failures | 0 | **0** |
+| Saved files with worse qpdf status | 0 | **0** |
 
-| Outcome | Files |
+The alpha successfully rewrote 29.6% more files than version 1.7.5, measured against the
+1.7.5 accepted set. It retained all 2,236 files that version 1.7.5 could rewrite and added
+support for 662 more.
+
+## What changed
+
+The KillerPDF.Engine now performs bounded recovery for common real-world structural defects,
+then emits a deterministic full rewrite. This validation round expanded recovery across:
+
+- noncanonical headers and trailing data;
+- malformed but recoverable classic cross-reference tables and cross-reference streams;
+- inconsistent free-object bookkeeping and linearization offsets;
+- recoverable stream opening syntax and incorrect stream lengths;
+- malformed optional document information and catalog version declarations;
+- signed documents when signature invalidation is explicitly authorized.
+
+For an authorized full rewrite of a signed document, the engine removes stale signature
+values and certification permissions while retaining empty signature fields for later
+re-signing. It does not present an invalidated signature as though it were still signed.
+
+## Complete corpus result
+
+| Batch outcome | Files |
 |---|---:|
 | Corpus total | 2,907 |
-| Resaved successfully | 2,381 |
-| Rejected while opening | 514 |
-| Rejected while saving | 12 |
-| Saved with unchanged veraPDF outcome | 2,331 |
-| Improved to compliant | 49 |
-| Improved by one failed rule | 1 |
-| Saved with new veraPDF failures | 0 |
-| Saved with worse qpdf status | 0 |
+| Rewritten successfully | **2,898** |
+| Intentionally skipped | 9 |
+| Rewrite failures | **0** |
 
-The engine produced 145 more successful resaves than KillerPDF 1.7.5 while preserving the
-same zero-regression standard for every output it created.
+The nine skips consist of four encrypted inputs, which batch mode deliberately does not
+decrypt or strip, and five parser-hostile files that do not provide enough reliable PDF
+structure for a safe rewrite. Every source file remained untouched.
+
+## veraPDF conformance gate
+
+veraPDF compared every successful rewrite with its pristine source by relative path.
+
+| Saved-file outcome | Files |
+|---|---:|
+| Unchanged conformance result | 2,824 |
+| Became fully compliant | **68** |
+| Improved by one or more failed rules | **6** |
+| Regressed | **0** |
+
+The result is a clean gate: no rewritten file gained a failed veraPDF rule. Seventy-four
+outputs improved, including malformed file-structure tests and signed permission tests that
+were normalized into honest unsigned rewrites.
+
+The comparison log also records the nine intentional batch skips as `SKIPPED`. They are not
+counted as regressions because no altered output exists for them.
+
+## qpdf structural gate
+
+`qpdf --check` compared all 2,898 original and rewritten pairs.
+
+| qpdf status before to after | Files |
+|---|---:|
+| Clean to clean (`0` to `0`) | 2,511 |
+| Warning to clean (`3` to `0`) | **374** |
+| Warning retained (`3` to `3`) | 12 |
+| Error retained (`2` to `2`) | 1 |
+| Worsened | **0** |
+
+No output became structurally worse. The deterministic rewrite removed qpdf warnings from
+374 inputs.
+
+## Speed comparison
+
+The benchmark used the shared 2,236-file set successfully handled by KillerPDF 1.7.5. Both
+versions processed identical files on the same Windows system. Each version received one
+unmeasured warmup, followed by five measured runs in alternating order. The table reports
+the median of those five runs.
+
+| Version | Median elapsed | Median throughput |
+|---|---:|---:|
+| KillerPDF 1.7.5 | 9.46 seconds | 236.48 files/second |
+| KillerPDF 1.8.0-alpha.1 | **7.03 seconds** | **318.22 files/second** |
+| Alpha difference | **25.7% less time** | **34.6% higher throughput** |
+
+This is a batch full-rewrite benchmark, not a claim about every interactive operation or
+every computer. The measured alpha speedup on this workload is 1.35 times.
 
 ## Build under test
 
 | Component | Version |
 |---|---|
 | KillerPDF | 1.8.0-alpha.1 |
-| Engine | The KillerPDF.Engine from commit `0c2a000407637628470b70c943bc4492e1b2324f` |
+| Engine | The KillerPDF.Engine at commit `4436f3e459cf0429f5fbafd0c416332858390541` |
 | Runtime | .NET 10, Windows |
 | veraPDF | 1.30.2 |
 | qpdf | 12.3.2 |
+| Engine tests | 1,424 passed |
+| Application tests | 129 passed |
+| Release build | 0 warnings, 0 errors |
 
-The tested commit is `v1.8.0-alpha.1: complete engine migration`.
+The historical KillerPDF 1.7.5 report remains unchanged in [RESULTS.md](RESULTS.md).
 
-## Corpus
+## Corpus and method
 
-The corpus contains 2,907 PDFs from the public veraPDF PDF/A and PDF/UA conformance suites,
-the Isartor PDF/A-1b test suite, and TWG test files. These are deliberately hostile inputs.
-Many are constructed to violate one exact standards requirement, and some contain malformed
-file structures that a parser must reject.
+The 2,907-file corpus combines public veraPDF PDF/A and PDF/UA conformance suites, the
+Isartor PDF/A-1b suite, and TWG test files. Many inputs are intentionally malformed to
+violate one exact standards requirement.
 
-The pristine source corpus was read from a local corpus directory. The test did not modify any
-source file. Resaved PDFs and reports were written to a separate output directory.
+The validation procedure was:
 
-## Method
-
-1. Validate all 2,907 original files recursively with veraPDF and save the JSON baseline.
-2. Run KillerPDF's `--batch-resave` command across the complete corpus.
-3. Validate all successfully resaved files recursively with the same veraPDF version.
-4. Compare the before and after veraPDF results by relative path with
-   [Compare-VeraPDF.ps1](Compare-VeraPDF.ps1).
-5. Run `qpdf --check` against each of the 2,381 original and resaved file pairs with
-   [QpdfSweep.ps1](QpdfSweep.ps1).
-6. Treat rejected files separately from saved files. A rejected input has no output that
-   could have regressed.
-
-## veraPDF results
-
-veraPDF reported no new failed rule on any of the 2,381 saved files:
-
-| Saved-file outcome | Files |
-|---|---:|
-| Unchanged | 2,331 |
-| Became fully compliant | 49 |
-| Failed one fewer rule | 1 |
-| Regressed | 0 |
-
-The remaining improvement was the Isartor test-suite manual. Its resaved copy no longer
-failed ISO 19005-1:2005 clause 6.1.4 test 3.
-
-The comparison script also reports 526 `MISSING_AFTER` entries because it compares the full
-2,907-file baseline with the 2,381-file output tree. Those entries correspond exactly to the
-514 open rejections and 12 save rejections. They are not altered PDFs and are excluded from
-the saved-file regression count.
-
-## qpdf structural results
-
-`qpdf --check` completed across all 2,381 original and resaved pairs:
-
-| qpdf status before to after | Files |
-|---|---:|
-| Clean to clean (`0` to `0`) | 2,363 |
-| Warning to clean (`3` to `0`) | 12 |
-| Warning retained (`3` to `3`) | 5 |
-| Error retained (`2` to `2`) | 1 |
-| Worsened | 0 |
-
-No saved file became structurally worse. Twelve inputs carrying qpdf warnings were rewritten
-as clean files.
-
-## Rejected inputs
-
-The engine rejected 514 files during open because they could not be parsed safely. It rejected
-another 12 during save after full-rewrite validation detected invalid source structures:
-
-| Save rejection | Files |
-|---|---:|
-| Missing or malformed `endstream` syntax | 5 |
-| Invalid catalog `/Version` | 3 |
-| Non-string trailer `/Info /Title` | 2 |
-| Invalid trailer `/Info /ModDate` | 1 |
-| Trailer `/Info` did not resolve to a dictionary | 1 |
-
-No rejected input produced an output PDF, and every original remained untouched. This is the
-intended safety behavior for sources the engine cannot fully and reliably rewrite.
+1. Validate the pristine corpus recursively with veraPDF and retain the JSON baseline.
+2. Run `KillerPDF.exe --batch-resave` across the complete corpus into a separate tree.
+3. Validate every rewritten file with the same veraPDF version.
+4. Compare before and after results with [Compare-VeraPDF.ps1](Compare-VeraPDF.ps1), using
+   the batch log to distinguish explicit skips from missing outputs.
+5. Compare every original and rewritten pair with [QpdfSweep.ps1](QpdfSweep.ps1).
+6. Build the intersection accepted by both versions and benchmark it with
+   [Benchmark-Versions.ps1](Benchmark-Versions.ps1).
 
 ## Reproduction
 
-Run these commands from the repository root after placing veraPDF and qpdf on `PATH`:
+Run from the repository root after placing veraPDF and qpdf on `PATH`:
 
 ```powershell
 $Corpus = 'C:\path\to\pdf-corpus'
@@ -130,12 +151,23 @@ Start-Process -Wait .\bin\Release\net10.0-windows\KillerPDF.exe `
 verapdf --recurse --format json $Resaved > after.json
 
 .\validation\Compare-VeraPDF.ps1 -Baseline baseline.json -After after.json `
-    -BaselineRoot $Corpus -AfterRoot $Resaved -CsvOut compare.csv
+    -BaselineRoot $Corpus -AfterRoot $Resaved -ResaveLog resave.csv `
+    -CsvOut compare.csv
 
 .\validation\QpdfSweep.ps1 -Corpus $Corpus -Resaved $Resaved `
     -ResaveLog resave.csv -CsvOut qpdf-results.csv
 ```
 
-The veraPDF comparison command exits with a failure when outputs are absent, including files
-that KillerPDF deliberately rejected. Review `MISSING_AFTER` entries against `resave.csv`, then
-evaluate regressions among rows whose output files exist.
+For the controlled version comparison, create an input directory containing only files
+successfully rewritten by both versions, then run:
+
+```powershell
+.\validation\Benchmark-Versions.ps1 `
+    -BaselineExe 'C:\path\to\KillerPDF-1.7.5.exe' `
+    -CandidateExe '.\bin\Release\net10.0-windows\KillerPDF.exe' `
+    -InputDirectory 'C:\path\to\shared-input' `
+    -OutputDirectory 'C:\path\to\benchmark-output' `
+    -Runs 5 `
+    -BaselineLabel 'KillerPDF 1.7.5' `
+    -CandidateLabel 'KillerPDF 1.8.0-alpha.1'
+```
