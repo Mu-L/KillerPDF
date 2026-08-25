@@ -272,16 +272,16 @@ namespace KillerPDF
         // NOTE: AccessViolationException is not catchable on .NET 4.8 without
         // [HandleProcessCorruptedStateExceptions], which we deliberately omit.
 
+        private int _recoverableCrashDialogPending;
+
         private void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
+            // Let WPF unwind the failing input/layout callback before creating another window.
+            // Opening a modal dialog inside this event re-enters the dispatcher while its visual
+            // tree may still be inconsistent, which can turn one recoverable error into a loop.
+            e.Handled = true;
             var logPath = CrashReporter.Capture(e.Exception, "Dispatcher");
-            bool cont   = ShowCrashDialog(e.Exception, logPath, isFatal: false);
-            e.Handled   = true; // always handle; we manage the exit ourselves
-            if (!cont)
-            {
-                CleanupSessionTemps();
-                Shutdown(1);
-            }
+            QueueRecoverableCrashDialog(e.Exception, logPath);
         }
 
         private void OnDomainException(object sender, UnhandledExceptionEventArgs e)
@@ -308,13 +308,38 @@ namespace KillerPDF
             e.SetObserved(); // prevent process teardown
             var logPath = CrashReporter.Capture(e.Exception, "TaskScheduler");
 
+            QueueRecoverableCrashDialog(e.Exception, logPath);
+        }
+
+        private void QueueRecoverableCrashDialog(Exception exception, string logPath)
+        {
+            if (System.Threading.Interlocked.Exchange(ref _recoverableCrashDialogPending, 1) != 0)
+                return;
             try
             {
                 if (Dispatcher != null && !Dispatcher.HasShutdownStarted)
-                    Dispatcher.BeginInvoke(new Action(
-                        () => ShowCrashDialog(e.Exception, logPath, isFatal: false)));
+                {
+                    Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+                    {
+                        try
+                        {
+                            if (!ShowCrashDialog(exception, logPath, isFatal: false))
+                            {
+                                CleanupSessionTemps();
+                                Shutdown(1);
+                            }
+                        }
+                        finally
+                        {
+                            System.Threading.Interlocked.Exchange(ref _recoverableCrashDialogPending, 0);
+                        }
+                    }));
+                    return;
+                }
             }
-            catch { /* best-effort */ }
+            catch { /* the error was still captured even if the dispatcher is unavailable */ }
+
+            System.Threading.Interlocked.Exchange(ref _recoverableCrashDialogPending, 0);
         }
 
         /// <summary>
