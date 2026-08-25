@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added a byte-preserving save sanitizer for empty or dangling outline roots and direct crop boxes that are degenerate or outside the effective media box, integrated it across desktop save and reload output, and removed the legacy live-document scrubbers.
 - Integrated save-time signature invalidation cleanup through the engine writer after application serialization and removed the legacy live-document scrubber, retaining empty signature fields and widgets for later re-signing.
 - Integrated temp-reload rotation capture through immutable engine page information and moved zero-rotation PDFium working-copy production onto a byte-preserving engine revision, removing live PdfSharpCore page-rotation mutation from the base serialization path.
 - Added an application-level immutable engine document session that owns the serialized source, parsed document, and crop-aware page information shared by desktop open finalization, page-list initialization, links, and forms, with centralized invalidation across reload, save, close, and tab-switch boundaries.

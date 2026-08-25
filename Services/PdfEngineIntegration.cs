@@ -192,6 +192,16 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, result);
     }
 
+    /// <summary>Repairs empty outlines and invalid direct crop boxes after serialization.</summary>
+    internal static void RepairHarmlessSaveArtifacts(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        byte[] original = File.ReadAllBytes(path);
+        byte[] result = PdfSaveSanitizer.RepairHarmlessArtifacts(PdfDocument.Open(original));
+        if (result.AsSpan().SequenceEqual(original)) return;
+        ReplaceWithBuiltResult(path, result);
+    }
+
     /// <summary>Merges PDF documents and image frames through one engine page tree.</summary>
     internal static byte[] MergeFiles(IReadOnlyList<string> paths)
     {

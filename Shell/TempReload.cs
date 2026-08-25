@@ -66,10 +66,9 @@ namespace KillerPDF
             var serializedPath = App.MakeTempFile("serialized");
             try
             {
-                PdfScrub.ScrubEmptyOutlines(doc);   // #103: never write a dangling /Outlines reference
-                PdfScrub.ScrubDegenerateCropBoxes(doc);   // never write a zero-size /CropBox (Adobe out-of-range)
                 doc.Save(serializedPath);
                 doc.Close();
+                PdfEngineIntegration.RepairHarmlessSaveArtifacts(serializedPath);
                 PdfEngineIntegration.CreateZeroRotationCopy(serializedPath, tempPath);
             }
             catch (Exception saveEx) when (PdfImport.IsXRefException(saveEx))

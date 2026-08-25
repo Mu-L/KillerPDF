@@ -965,8 +965,6 @@ namespace KillerPDF
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(this, new RoutedEventArgs()); return; }
             CommitActiveTextBox();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
-            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
             string saveTarget = _originalFile!;
             // Drop the immutable engine view before replacing the working file. It reopens lazily
             // on the next link or form render and therefore cannot expose stale document state.
@@ -982,6 +980,7 @@ namespace KillerPDF
                     // from the clean copy so future saves don't double-burn.
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(tempClean);
                     PdfEngineIntegration.StripLinkAppearances(tempClean);
                     System.IO.File.Copy(tempClean, saveTarget, true);
                     PdfEngineIntegration.ClearInvalidatedSignatures(saveTarget);
@@ -1009,6 +1008,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(saveTarget);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(saveTarget);
                     PdfEngineIntegration.ClearInvalidatedSignatures(saveTarget);
                     PdfEngineIntegration.StripLinkAppearances(saveTarget);
                     WriteFormValuesToDocument(saveTarget);
@@ -1083,8 +1083,6 @@ namespace KillerPDF
             if (dlg.ShowDialog(this) != true) return;
             CloseEngineDocumentSession();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
-            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1093,6 +1091,7 @@ namespace KillerPDF
                 {
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(tempClean);
                     PdfEngineIntegration.StripLinkAppearances(tempClean);
                     System.IO.File.Copy(tempClean, dlg.FileName, true);
                     PdfEngineIntegration.ClearInvalidatedSignatures(dlg.FileName);
@@ -1131,6 +1130,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(dlg.FileName);
                     PdfEngineIntegration.ClearInvalidatedSignatures(dlg.FileName);
                     PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
                     WriteFormValuesToDocument(dlg.FileName);
@@ -1173,8 +1173,6 @@ namespace KillerPDF
             if (dlg.ShowDialog(this) != true) return;
             CloseEngineDocumentSession();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
-            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)
@@ -1185,6 +1183,7 @@ namespace KillerPDF
                 var tempClean  = App.MakeTempFile("clean");
                 var tempBurned = App.MakeTempFile("burned");
                 _doc.Save(tempClean);
+                PdfEngineIntegration.RepairHarmlessSaveArtifacts(tempClean);
                 System.IO.File.Copy(tempClean, tempBurned, true);
                 PdfEngineBurn.Burn(tempBurned, _annotations, _renderDims,
                     _docStampSpec, null, _pageRotations);
@@ -1209,6 +1208,7 @@ namespace KillerPDF
             {
                 var temp = App.MakeTempFile("src");
                 _doc.Save(temp);
+                PdfEngineIntegration.RepairHarmlessSaveArtifacts(temp);
                 sourcePath = temp;
             }
 
