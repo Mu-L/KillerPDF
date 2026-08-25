@@ -17,6 +17,14 @@ internal static class PdfEngineIntegration
     internal sealed record ImportedDocument(
         string Path, IReadOnlyList<int> PageRotations);
 
+    /// <summary>Validates that the engine can open a document for page-copy operations.</summary>
+    internal static void ValidateDocument(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        _ = new PdfIncrementalPageEditor(
+            PdfDocument.Open(File.ReadAllBytes(path))).PageCount;
+    }
+
     /// <summary>
     /// Writes the application's effective page rotations as the final incremental revision.
     /// The source file is replaced only after the engine has built the complete result.

@@ -233,11 +233,9 @@
     </Style>
 
     <Style x:Key="PickerRowContent" TargetType="Panel">
-        <Style.Triggers>
-            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                <Setter Property="Effect" Value="{DynamicResource TextStroke}"/>
-            </DataTrigger>
-        </Style.Triggers>
+        <!-- Keep selected names crisp against SelectionBg. TextStroke rendered as a dark
+             drop shadow inside the yellow selection and made filenames look doubled. -->
+        <Setter Property="Effect" Value="{x:Null}"/>
     </Style>
 
     <Style x:Key="PickerName" TargetType="TextBlock">

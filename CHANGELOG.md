@@ -27,6 +27,9 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Page duplication, selected-page extraction, and complete-document PDF merging now copy page and catalog object graphs through The KillerPDF.Engine, including validated forms, tags, bookmarks, named destinations, layers, attachments, and inherited page state.
 
 ### Fixed
+- Duplicating a page now keeps the new copy selected in both the sidebar and active viewer after the rebuilt page tree and deferred layout finish loading.
+- Merge now validates each input with The KillerPDF.Engine and routes unreadable PDFs through the same lossless repair, import repair, and raster recovery sequence used by Open and drag-drop.
+- Selected rows in the file dialog no longer apply a dark text-stroke effect inside the yellow selection background, keeping filenames crisp and undoubled.
 - Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.
 - Cross-reference parsing now caps each classic or stream section at one million entries and rejects oversized subsection counts or `/Index` ranges before iterating or decoding their rows.
 - Object-stream reading now rejects containers declaring more than one million compressed objects before decoding their headers or allocating object lists.

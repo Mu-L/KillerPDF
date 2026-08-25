@@ -12,6 +12,22 @@ namespace KillerPDF.Tests;
 public sealed class PdfEngineIntegrationTests
 {
     [Fact]
+    public void ValidateDocument_RejectsSourceWithoutTrailer()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-invalid-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllText(path, "%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
+
+            Assert.ThrowsAny<Exception>(() => PdfEngineIntegration.ValidateDocument(path));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void DuplicatePage_DeepCopiesPageAtFollowingPosition()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-duplicate-{Guid.NewGuid():N}.pdf");

@@ -801,7 +801,7 @@ namespace KillerPDF
             }
         }
 
-        private void Merge_Click(object sender, RoutedEventArgs e)
+        private async void Merge_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
@@ -812,8 +812,21 @@ namespace KillerPDF
                 var imports = new List<PdfEngineIntegration.ImportedDocument>();
                 foreach (var file in dlg.FileNames)
                 {
-                    using var srcRead = PdfReader.Open(file, PdfDocumentOpenMode.ReadOnly);
-                    imports.Add(new PdfEngineIntegration.ImportedDocument(file,
+                    string importPath = file;
+                    try
+                    {
+                        PdfEngineIntegration.ValidateDocument(importPath);
+                    }
+                    catch
+                    {
+                        string? repaired = await RepairPdfForImportAsync(file);
+                        if (repaired is null) return;
+                        importPath = repaired;
+                        PdfEngineIntegration.ValidateDocument(importPath);
+                    }
+
+                    using var srcRead = PdfReader.Open(importPath, PdfDocumentOpenMode.ReadOnly);
+                    imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
                         Enumerable.Range(0, srcRead.PageCount)
                             .Select(index => srcRead.Pages[index].Rotate)
                             .ToArray()));

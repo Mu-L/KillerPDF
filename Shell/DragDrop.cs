@@ -112,7 +112,7 @@ namespace KillerPDF
 
                     // #203: a damaged PDF used to be swallowed here, so nothing was added and
                     // nothing was said. Offer the same repair the open path offers.
-                    string? repaired = await RepairDroppedPdfAsync(f);
+                    string? repaired = await RepairPdfForImportAsync(f);
                     if (repaired != null && _doc != null) TryAppendPdfPages(_doc, repaired);
                 }
                 else
@@ -150,7 +150,7 @@ namespace KillerPDF
         /// repaired temp copy, or null if the user declined or nothing recovered it. The original
         /// file is never written to.
         /// </summary>
-        private async System.Threading.Tasks.Task<string?> RepairDroppedPdfAsync(string path)
+        private async System.Threading.Tasks.Task<string?> RepairPdfForImportAsync(string path)
         {
             var ask = KillerDialog.Show(this,
                 string.Format(Loc("Str_Dlg_RepairAsk"), System.IO.Path.GetFileName(path)),

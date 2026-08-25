@@ -309,7 +309,10 @@ namespace KillerPDF
                     remapRotations: rotations =>
                         PdfEngineIntegration.RemapRotationsAfterPageDuplication(
                             rotations, pageIdx));
-                PageList.SelectedIndex = pageIdx + 1;
+                int duplicatedPage = pageIdx + 1;
+                ActiveViewer.SyncPageListSelection(duplicatedPage);
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                    (Action)(() => ActiveViewer.SyncPageListSelection(duplicatedPage)));
                 SetStatus(string.Format(Loc("Str_St_DuplicatedPage"), pageIdx + 1));
             }
             catch (Exception ex)
