@@ -123,6 +123,31 @@ $builtLauncher = Join-Path $launcherOutput 'KillerPDF.exe'
 if (-not [IO.File]::Exists($builtLauncher)) { throw "Launcher output is missing: $builtLauncher" }
 [IO.File]::Copy($builtLauncher, $publicExe, $true)
 
+# Regression gate for #238: installer commands must install exactly once and exit. They must not
+# fall through to the portable launch path or start the installed UI. A disposable install root
+# keeps this safe for developer and CI builds without touching registry or installed copies.
+$installSmokeRoot = Join-Path $artifactRoot ('install-smoke-' + [Guid]::NewGuid().ToString('N'))
+$previousTestRoot = [Environment]::GetEnvironmentVariable('KILLERPDF_TEST_INSTALL_ROOT')
+$previousSkipRegistration = [Environment]::GetEnvironmentVariable('KILLERPDF_SKIP_REGISTRATION')
+try {
+    [Environment]::SetEnvironmentVariable('KILLERPDF_TEST_INSTALL_ROOT', $installSmokeRoot)
+    [Environment]::SetEnvironmentVariable('KILLERPDF_SKIP_REGISTRATION', '1')
+    $installProcess = Start-Process -FilePath $builtLauncher -ArgumentList '/install-user' -Wait -PassThru
+    if ($installProcess.ExitCode -ne 0) {
+        throw "Launcher install smoke test failed with exit code $($installProcess.ExitCode)."
+    }
+    foreach ($required in 'KillerPDF.App.exe', 'payload.manifest') {
+        if (-not [IO.File]::Exists((Join-Path $installSmokeRoot $required))) {
+            throw "Launcher install smoke test did not install $required."
+        }
+    }
+}
+finally {
+    [Environment]::SetEnvironmentVariable('KILLERPDF_TEST_INSTALL_ROOT', $previousTestRoot)
+    [Environment]::SetEnvironmentVariable('KILLERPDF_SKIP_REGISTRATION', $previousSkipRegistration)
+    if ([IO.Directory]::Exists($installSmokeRoot)) { [IO.Directory]::Delete($installSmokeRoot, $true) }
+}
+
 $payloadBytes = ([IO.FileInfo]$payloadZip).Length
 $publicBytes = ([IO.FileInfo]$publicExe).Length
 Write-Host "    Payload files : $($payloadFiles.Count)" -ForegroundColor Green

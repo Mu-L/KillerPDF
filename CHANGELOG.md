@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- The all-users installer handoff now completes once and leaves the final installed-app relaunch to the portable UI, preventing the duplicate portable restart reported in #238. Portable packaging runs a disposable install smoke test to keep that command boundary covered.
 - KillerPDF now owns its serialized desktop working state through The KillerPDF.Engine. The application, application tests, solution, portable payload, and repository no longer reference or vendor PdfSharpCore; the obsolete compatibility formatter tests and transitive payload libraries have been removed.
 - Installed font discovery and TrueType Collection face extraction are now an engine-oriented application service with no PdfSharpCore resolver contract or process-wide startup registration. Unicode burn-in and form appearance generation retain the same installed-face and glyph-coverage behavior.
 - Transform sizing now uses crop-aware visual geometry from the immutable engine session, native link removal no longer preflights the legacy annotation array, and obsolete PdfSharpCore named-destination and link-style scrub helpers have been removed after their engine replacements made them unreachable.
