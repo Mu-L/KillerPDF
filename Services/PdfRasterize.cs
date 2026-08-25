@@ -2,8 +2,6 @@ using System.IO;
 using System.Threading;
 using Docnet.Core;
 using Docnet.Core.Models;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
 
 namespace KillerPDF.Services
 {
@@ -27,15 +25,15 @@ namespace KillerPDF.Services
             Action<int, int> progress, CancellationToken ct)
         {
             // Rasterize pages across CPU cores. Docnet/PDFium is not thread-safe, so the
-            // pdfium render is serialized behind a lock; the PNG encode (GDI+) runs in
-            // parallel. Pages are assembled into the PDF afterwards, in order.
+            // PDFium rendering is serialized behind a lock. Pages are authored by the
+            // engine afterwards in their original order.
             //
             // The source document is opened ONCE here. The old code re-opened it inside
             // the per-page loop, re-parsing the whole file on every page (O(pages) full
             // document parses) - the dominant cost on large files. A single scaling
             // factor renders each page at its own size at 150 DPI (150/72), so the doc
             // no longer needs reopening to apply per-page pixel dimensions.
-            var pngPages = new byte[pageCount][];
+            var rasterPages = new PdfEngineIntegration.RasterPage[pageCount];
             var docGate  = new object();
             int done     = 0;
             var po = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount) };
@@ -57,8 +55,8 @@ namespace KillerPDF.Services
                     bgra = PdfiumInterop.RenderPageWithAnnotations(sourcePath, i, rw, rh)
                         ?? pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                 }
-                // Encode BGRA to PNG (GDI+) outside the lock so it parallelizes.
-                pngPages[i] = BitmapHelpers.RenderToPng(bgra, rw, rh);
+                rasterPages[i] = new PdfEngineIntegration.RasterPage(
+                    rw, rh, pageDims[i].widthPt, pageDims[i].heightPt, bgra);
 
                 int n = System.Threading.Interlocked.Increment(ref done);
                 progress(n, pageCount);
@@ -66,25 +64,8 @@ namespace KillerPDF.Services
 
             if (ct.IsCancellationRequested) return;   // canceled during render: assemble/save nothing
 
-            // Assemble the output PDF in page order (PdfSharp is single-threaded).
-            var outDoc = new PdfDocument();
-            try
-            {
-                for (int i = 0; i < pageCount; i++)
-                {
-                    var newPage = outDoc.AddPage();
-                    newPage.Width  = XUnit.FromPoint(pageDims[i].widthPt);
-                    newPage.Height = XUnit.FromPoint(pageDims[i].heightPt);
-                    using var xi  = XImage.FromStream(() => new MemoryStream(pngPages[i]));
-                    using var gfx = XGraphics.FromPdfPage(newPage);
-                    gfx.DrawImage(xi, 0, 0, newPage.Width.Point, newPage.Height.Point);
-                }
-                outDoc.Save(outputPath);
-            }
-            finally
-            {
-                outDoc.Dispose();
-            }
+            File.WriteAllBytes(outputPath,
+                PdfEngineIntegration.CreateRasterDocument(rasterPages));
         }
 
         /// <summary>
