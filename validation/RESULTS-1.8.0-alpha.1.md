@@ -49,8 +49,8 @@ the Isartor PDF/A-1b test suite, and TWG test files. These are deliberately host
 Many are constructed to violate one exact standards requirement, and some contain malformed
 file structures that a parser must reject.
 
-The pristine source corpus was read from `C:\Users\steve\pdf-corpus`. The test did not modify
-any source file. Resaved PDFs and reports were written to a separate output directory.
+The pristine source corpus was read from a local corpus directory. The test did not modify any
+source file. Resaved PDFs and reports were written to a separate output directory.
 
 ## Method
 
@@ -119,20 +119,20 @@ intended safety behavior for sources the engine cannot fully and reliably rewrit
 Run these commands from the repository root after placing veraPDF and qpdf on `PATH`:
 
 ```powershell
-verapdf --recurse --format json C:\Users\steve\pdf-corpus > baseline.json
+$Corpus = 'C:\path\to\pdf-corpus'
+$Resaved = 'C:\path\to\pdf-corpus-resaved'
+
+verapdf --recurse --format json $Corpus > baseline.json
 
 Start-Process -Wait .\bin\Release\net10.0-windows\KillerPDF.exe `
-    -ArgumentList '--batch-resave', 'C:\Users\steve\pdf-corpus', `
-    'C:\Users\steve\pdf-corpus-resaved', '--log', 'resave.csv'
+    -ArgumentList '--batch-resave', $Corpus, $Resaved, '--log', 'resave.csv'
 
-verapdf --recurse --format json C:\Users\steve\pdf-corpus-resaved > after.json
+verapdf --recurse --format json $Resaved > after.json
 
 .\validation\Compare-VeraPDF.ps1 -Baseline baseline.json -After after.json `
-    -BaselineRoot C:\Users\steve\pdf-corpus `
-    -AfterRoot C:\Users\steve\pdf-corpus-resaved -CsvOut compare.csv
+    -BaselineRoot $Corpus -AfterRoot $Resaved -CsvOut compare.csv
 
-.\validation\QpdfSweep.ps1 -Corpus C:\Users\steve\pdf-corpus `
-    -Resaved C:\Users\steve\pdf-corpus-resaved `
+.\validation\QpdfSweep.ps1 -Corpus $Corpus -Resaved $Resaved `
     -ResaveLog resave.csv -CsvOut qpdf-results.csv
 ```
 
