@@ -654,6 +654,7 @@ namespace KillerPDF
                 // Illustrator / Figma convention) - its digit went to Text so Shapes could take 4 and
                 // the digits keep mirroring the toolbar order.
                 case Key.V: SetTool(EditTool.Select); return true;
+                case Key.F: SetTool(EditTool.FormField); return true;
                 case Key.T: case Key.D1: case Key.NumPad1: SetTool(EditTool.Text); return true;
                 case Key.H: case Key.D2: case Key.NumPad2: SetTool(EditTool.Highlight); return true;
                 case Key.L: case Key.U: case Key.D3: case Key.NumPad3: SetTool(EditTool.Line); return true;

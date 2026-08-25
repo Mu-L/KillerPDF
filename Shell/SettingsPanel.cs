@@ -1088,6 +1088,7 @@ namespace KillerPDF
                     (ToolDrawBtn,       new UIElement[] { MiDraw }),
                     (ToolUnderlineBtn,  new UIElement[] { MiUnderline }),   // now the Line tool
                     (ToolHighlightBtn,  new UIElement[] { MiHighlight }),
+                    (ToolFormFieldBtn,  new UIElement[] { MiFormField }),
                     (ToolTextBtn,       new UIElement[] { MiText }),
                 };
 
@@ -1116,6 +1117,7 @@ namespace KillerPDF
                 UIElement? activeToolBar = _currentTool switch
                 {
                     EditTool.Text      => ToolTextBtn,
+                    EditTool.FormField => ToolFormFieldBtn,
                     EditTool.Line      => ToolUnderlineBtn,   // repurposed to the Line tool
                     EditTool.Highlight => ToolHighlightBtn,
                     EditTool.Draw      => ToolDrawBtn,

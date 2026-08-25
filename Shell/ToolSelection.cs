@@ -141,7 +141,8 @@ namespace KillerPDF
         {
             var map = new (Button mi, EditTool t)[]
             {
-                (MiText, EditTool.Text), (MiUnderline, EditTool.Line), (MiHighlight, EditTool.Highlight),
+                (MiText, EditTool.Text), (MiFormField, EditTool.FormField),
+                (MiUnderline, EditTool.Line), (MiHighlight, EditTool.Highlight),
                 (MiDraw, EditTool.Draw), (MiImage, EditTool.Image), (MiCrop, EditTool.Crop),
                 (MiSignature, EditTool.Signature),
             };
