@@ -105,6 +105,33 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ReadPageFormWidgets_ProvidesInteractiveViewerState()
+    {
+        PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage(300, 400)
+            .AddTextField(0, "contact.email", 20, 300, 180, 24, "a@example.com", 10,
+                new PdfTextFieldOptions { MaximumLength = 120 })
+            .AddComboBoxOptions(0, "region", 20, 250, 140, 24,
+            [
+                new PdfChoiceOption("us", "United States"),
+                new PdfChoiceOption("ca", "Canada")
+            ], "ca")
+            .Build());
+
+        IReadOnlyList<PdfFormWidgetInfo> widgets =
+            PdfEngineIntegration.ReadPageFormWidgets(document, 0);
+
+        Assert.Equal(2, widgets.Count);
+        PdfFormWidgetInfo text = widgets.Single(widget => widget.FieldName == "contact.email");
+        Assert.Equal(PdfFormFieldKind.Text, text.FieldKind);
+        Assert.Equal("a@example.com", text.Value);
+        Assert.Equal(120, text.MaximumLength);
+        PdfFormWidgetInfo choice = widgets.Single(widget => widget.FieldName == "region");
+        Assert.Equal("ca", choice.Value);
+        Assert.Equal("Canada", choice.Options[1].DisplayValue);
+    }
+
+    [Fact]
     public void CreateBlankDocument_AuthorsOneA4Page()
     {
         byte[] result = PdfEngineIntegration.CreateBlankDocument();

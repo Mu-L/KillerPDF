@@ -45,6 +45,14 @@ internal static class PdfEngineIntegration
         return PdfLinkReader.ReadPage(document, pageIndex);
     }
 
+    /// <summary>Reads interactive form widgets from an already parsed engine document.</summary>
+    internal static IReadOnlyList<PdfFormWidgetInfo> ReadPageFormWidgets(
+        PdfDocument document, int pageIndex)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return PdfFormWidgetReader.ReadPage(document, pageIndex);
+    }
+
     /// <summary>Replaces the document bookmark hierarchy as one engine revision.</summary>
     internal static void ReplaceBookmarks(string path, IReadOnlyList<PdfBookmarkInfo> bookmarks)
     {

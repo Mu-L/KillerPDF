@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added a high-level form-widget reader with stable page and annotation identity, inherited hierarchical field state, values, flags, limits, default appearances, choice options, button states, effective page boxes, and rotation, and integrated it into desktop interactive form overlays.
 - Added a high-level native link reader with normalized rectangles, stable annotation-array indices, decoded URI actions, direct page targets, and resolved modern or legacy named destinations, and integrated it into all desktop viewer link overlays and hit testing.
 - Added a high-level hierarchical bookmark reader that preserves decoded titles, stable indirect-object identity, open state, styling, color, explicit page destinations, named destinations, and destination view geometry.
 - Integrated desktop bookmark reading and complete-hierarchy editing through the engine. Sidebar rows and multi-selection state no longer expose or hold legacy parser objects, and add, rename, delete, reorder, retarget, and clear operations are written as one engine revision.
