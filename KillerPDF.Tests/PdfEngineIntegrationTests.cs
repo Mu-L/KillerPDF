@@ -66,6 +66,51 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ReplacePage_ImportsReplacementAtSamePositionAndKeepsPageCount()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-replace-{Guid.NewGuid():N}.pdf");
+        string replacementPath = Path.Combine(Path.GetTempPath(), $"killerpdf-replacement-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder()
+                .AddBlankPage(100, 200).SetPageRotation(0, 90)
+                .AddBlankPage(200, 300).SetPageRotation(1, 180)
+                .AddBlankPage(300, 400).SetPageRotation(2, 270)
+                .Build();
+            File.WriteAllBytes(path, source);
+            File.WriteAllBytes(replacementPath, new PdfDocumentBuilder()
+                .AddBlankPage(612, 792).SetPageRotation(0, 90)
+                .Build());
+
+            PdfEngineIntegration.ReplacePage(path, 1, replacementPath);
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            PdfDocument reopened = PdfDocument.Open(result);
+            Assert.Equal(3, PageCount(reopened));
+            Assert.Equal([0d, 0d, 100d, 200d], PageMediaBox(reopened, 0));
+            Assert.Equal([0d, 0d, 612d, 792d], PageMediaBox(reopened, 1));
+            Assert.Equal(0, PageRotation(reopened, 1));
+            Assert.Equal([0d, 0d, 300d, 400d], PageMediaBox(reopened, 2));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(replacementPath)) File.Delete(replacementPath);
+        }
+    }
+
+    [Fact]
+    public void RemapRotationsAfterPageReplacement_ResetsOnlyReplacementPage()
+    {
+        var rotations = new Dictionary<int, int> { [0] = 90, [1] = 180, [2] = 270 };
+
+        PdfEngineIntegration.RemapRotationsAfterPageReplacement(rotations, 1);
+
+        Assert.Equal(new Dictionary<int, int> { [0] = 90, [1] = 0, [2] = 270 }, rotations);
+    }
+
+    [Fact]
     public void ExtractPages_WritesSelectedOrderWithEffectiveRotations()
     {
         string sourcePath = Path.Combine(Path.GetTempPath(), $"killerpdf-extract-source-{Guid.NewGuid():N}.pdf");

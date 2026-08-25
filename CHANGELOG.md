@@ -25,6 +25,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Moving pages from the sidebar buttons or by dragging thumbnails now reorders the page tree through The KillerPDF.Engine and carries each page's rotation with it.
 - Inserting a blank A4 page after the current page or at the end of the document now rebuilds the page tree through The KillerPDF.Engine.
 - Page duplication, selected-page extraction, and complete-document PDF merging now copy page and catalog object graphs through The KillerPDF.Engine, including validated forms, tags, bookmarks, named destinations, layers, attachments, and inherited page state.
+- Transform now replaces its rasterized result page through The KillerPDF.Engine and resets that page's effective rotation while retaining its position in the document.
 
 ### Fixed
 - Duplicating a page now keeps the new copy selected in both the sidebar and active viewer after the rebuilt page tree and deferred layout finish loading.

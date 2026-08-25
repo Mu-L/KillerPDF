@@ -136,16 +136,14 @@ namespace KillerPDF
                     one.Save(tmp);
                 }
 
-                // Import that page and swap it in for the original (mirrors DuplicatePage's index dance).
-                using (var srcDoc = PdfReader.Open(tmp, PdfDocumentOpenMode.Import))
-                {
-                    var imported = _doc.AddPage(srcDoc.Pages[0]);
-                    _doc.Pages.RemoveAt(_doc.PageCount - 1);
-                    _doc.Pages.Insert(pageIdx, imported);
-                    _doc.Pages.RemoveAt(pageIdx + 1);
-                }
-
-                SaveTempAndReload(keepAnnotations: true);
+                SaveTempAndReload(
+                    keepAnnotations: true,
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.ReplacePage(path, pageIdx, tmp),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageReplacement(
+                            rotations, pageIdx),
+                    selectedPageAfterReload: pageIdx);
                 SetStatus(string.Format(Loc("Str_Tf_Done"), pageIdx + 1));
             }
             catch (Exception ex)

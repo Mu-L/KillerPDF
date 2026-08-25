@@ -197,6 +197,36 @@ internal static class PdfEngineIntegration
             rotations[index] = ordered[index];
     }
 
+    /// <summary>Replaces one page with the first page of an authored PDF.</summary>
+    internal static void ReplacePage(string path, int pageIndex, string replacementPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(replacementPath);
+        PdfDocument target = PdfDocument.Open(File.ReadAllBytes(path));
+        PdfDocument replacement = PdfDocument.Open(File.ReadAllBytes(replacementPath));
+        var replacementEditor = new PdfIncrementalPageEditor(replacement);
+        if (replacementEditor.PageCount < 1)
+            throw new ArgumentException("The replacement document must contain a page.",
+                nameof(replacementPath));
+
+        byte[] result = new PdfIncrementalPageEditor(target)
+            .RemovePage(pageIndex)
+            .InsertImportedPage(pageIndex, replacement, 0)
+            .SetRotation(pageIndex, 0)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
+    /// <summary>Resets the replaced page's application rotation.</summary>
+    internal static void RemapRotationsAfterPageReplacement(
+        Dictionary<int, int> rotations, int pageIndex)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        if (!rotations.ContainsKey(pageIndex))
+            throw new ArgumentOutOfRangeException(nameof(pageIndex));
+        rotations[pageIndex] = 0;
+    }
+
     /// <summary>Creates a new document from selected working-document pages.</summary>
     internal static void ExtractPages(
         string sourcePath, string destinationPath, IReadOnlyList<int> pageIndices,
