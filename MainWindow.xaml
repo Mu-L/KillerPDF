@@ -1545,6 +1545,7 @@
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  SelectionChanged="PageList_SelectionChanged"
                                  AllowDrop="True" Drop="PageList_Drop" DragOver="PageList_DragOver"
+                                 DragLeave="PageList_DragLeave"
                                  PreviewMouseLeftButtonDown="PageList_PreviewMouseLeftButtonDown"
                                  PreviewMouseMove="PageList_PreviewMouseMove"
                                  MouseRightButtonUp="PageList_MouseRightButtonUp">
@@ -1589,6 +1590,17 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                             </ListBox>
+                        </Border>
+                        <!-- Page reorder insertion marker. Its Y translation is driven from the same
+                             thumbnail midpoint calculation used by the eventual drop. -->
+                        <Border x:Name="PageDropIndicator" Height="3" Margin="8,0,20,0"
+                                VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                                Background="{DynamicResource SelectionAccent}"
+                                CornerRadius="1.5" Panel.ZIndex="5" IsHitTestVisible="False"
+                                Visibility="Collapsed">
+                            <Border.RenderTransform>
+                                <TranslateTransform Y="0"/>
+                            </Border.RenderTransform>
                         </Border>
                         </Grid>
                         <!-- Outline/bookmark tree (visible when OUTLINES tab is active) -->

@@ -14,6 +14,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 
 ### Added
 - The Windows application now directly references The KillerPDF.Engine after moving to .NET 10, establishing the integration boundary while PdfSharpCore is retired through tested feature slices.
+- Dragging a page thumbnail now shows a theme-colored insertion line at the exact before-or-after drop position in the Pages sidebar.
 - The Select tool now shows an I-beam only over selectable PDF text in every view while retaining the hand cursor over links (#221).
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 

@@ -48,6 +48,7 @@ namespace KillerPDF
         // ============================================================
 
         private bool _pageDragArmed;
+        private int _pageDropInsertionIndex = -1;
         private void PageList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _dragStartPoint = e.GetPosition(null);
@@ -70,7 +71,10 @@ namespace KillerPDF
                 Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
             {
                 if (PageList.SelectedIndex >= 0)
-                    DragDrop.DoDragDrop(PageList, PageList.SelectedIndex, DragDropEffects.Move);
+                {
+                    try { DragDrop.DoDragDrop(PageList, PageList.SelectedIndex, DragDropEffects.Move); }
+                    finally { HidePageDropIndicator(); }
+                }
             }
         }
 
@@ -79,12 +83,60 @@ namespace KillerPDF
             // #172: files dropped onto the Pages sidebar append to the open document,
             // so the list accepts FileDrop as well as its own page-reorder payload.
             if (e.Data.GetDataPresent(typeof(int)))
+            {
                 e.Effects = DragDropEffects.Move;
+                ShowPageDropIndicator(e.GetPosition(PageList));
+            }
             else if (_doc != null && DroppedOpenablePaths(e).Length > 0)
+            {
                 e.Effects = DragDropEffects.Copy;
+                HidePageDropIndicator();
+            }
             else
+            {
                 e.Effects = DragDropEffects.None;
+                HidePageDropIndicator();
+            }
             e.Handled = true;
+        }
+
+        private void PageList_DragLeave(object sender, DragEventArgs e) => HidePageDropIndicator();
+
+        /// <summary>Returns the insertion slot from 0 through Count and the matching visual Y.
+        /// Both the marker and the drop consume this result so what the user sees is authoritative.</summary>
+        private (int Index, double Y)? PageDropSlot(Point position)
+        {
+            ListBoxItem? last = null;
+            int lastIndex = -1;
+            for (int i = 0; i < PageList.Items.Count; i++)
+            {
+                if (PageList.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem item) continue;
+                var top = item.TranslatePoint(new Point(0, 0), PageList);
+                if (position.Y < top.Y + item.ActualHeight / 2)
+                    return (i, item.TranslatePoint(new Point(0, 0), PageListFadeHost).Y);
+                last = item;
+                lastIndex = i;
+            }
+            if (last is null) return null;
+            double bottom = last.TranslatePoint(new Point(0, last.ActualHeight), PageListFadeHost).Y;
+            return (lastIndex + 1, bottom);
+        }
+
+        private void ShowPageDropIndicator(Point position)
+        {
+            var slot = PageDropSlot(position);
+            if (slot is null) { HidePageDropIndicator(); return; }
+            _pageDropInsertionIndex = slot.Value.Index;
+            if (PageDropIndicator.RenderTransform is TranslateTransform move)
+                move.Y = Math.Max(0, Math.Min(PageListFadeHost.ActualHeight - PageDropIndicator.Height,
+                    slot.Value.Y - PageDropIndicator.Height / 2));
+            PageDropIndicator.Visibility = Visibility.Visible;
+        }
+
+        private void HidePageDropIndicator()
+        {
+            PageDropIndicator.Visibility = Visibility.Collapsed;
+            _pageDropInsertionIndex = -1;
         }
 
         private static string[] DroppedOpenablePaths(DragEventArgs e)
@@ -178,30 +230,23 @@ namespace KillerPDF
             if (_doc != null && !e.Data.GetDataPresent(typeof(int)))
             {
                 var files = DroppedOpenablePaths(e);
-                if (files.Length > 0) { AppendFilesToCurrentDoc(files); e.Handled = true; return; }
+                if (files.Length > 0) { HidePageDropIndicator(); AppendFilesToCurrentDoc(files); e.Handled = true; return; }
             }
-            if (_doc is null || !e.Data.GetDataPresent(typeof(int))) return;
+            if (_doc is null || !e.Data.GetDataPresent(typeof(int))) { HidePageDropIndicator(); return; }
             int fromIdx = (int)e.Data.GetData(typeof(int))!;
-            var pos = e.GetPosition(PageList);
-            int toIdx = PageList.Items.Count - 1;
-            for (int i = 0; i < PageList.Items.Count; i++)
-            {
-                if (PageList.ItemContainerGenerator.ContainerFromIndex(i) is ListBoxItem item)
-                {
-                    var itemPos = item.TranslatePoint(new Point(0, item.ActualHeight / 2), PageList);
-                    if (pos.Y < itemPos.Y) { toIdx = i; break; }
-                }
-            }
-            if (fromIdx == toIdx) return;
-            if (toIdx > fromIdx) toIdx--;
-            int finalIndex = toIdx;
+            int insertionIndex = _pageDropInsertionIndex;
+            if (insertionIndex < 0)
+                insertionIndex = PageDropSlot(e.GetPosition(PageList))?.Index ?? fromIdx;
+            HidePageDropIndicator();
+            int finalIndex = insertionIndex > fromIdx ? insertionIndex - 1 : insertionIndex;
+            if (fromIdx == finalIndex) return;
             SaveTempAndReload(
                 finalizeSavedFile: path =>
                     PdfEngineIntegration.MovePage(path, fromIdx, finalIndex),
                 remapRotations: rotations =>
                     PdfEngineIntegration.RemapRotationsAfterPageMove(
                         rotations, fromIdx, finalIndex));
-            PageList.SelectedIndex = toIdx;
+            PageList.SelectedIndex = finalIndex;
         }
     }
 }
