@@ -2,7 +2,7 @@
 
 The KillerPDF.Engine is an independent, UI-free .NET library for reading, validating, authoring, structurally editing, signing, encrypting, and writing PDF files. It gives KillerPDF a modern PDF 2.0, PDF/A, and PDF/UA foundation while exposing a public API designed for use in other applications.
 
-“The KillerPDF.Engine” is the public name and is pronounced “the KillerPDF engine.” The assembly, package identifier, and C# namespaces use `KillerPdf.Engine`.
+“The KillerPDF.Engine” is the formal display name. Ordinary prose may use “KillerPDF.Engine” or “the engine” when it reads more naturally. The assembly, package identifier, and C# namespaces use `KillerPdf.Engine`.
 
 ## Five-minute start
 
