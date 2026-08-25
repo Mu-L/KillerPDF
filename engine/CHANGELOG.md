@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Added an explicit full-rewrite policy for removing password encryption from an authenticated document, including omission of the encryption dictionary from the output object graph.
 - Added a shared application rendering gate that creates a byte-preserving zero-rotation copy for CLI image export, flattening, printing, and OCR.
 - Added application integration gates for complete-document CLI merge, ordered page extraction, and per-page splitting through the engine import pipeline.
 - Added application integration gates for deep page duplication, ordered selected-page extraction with effective rotations, and complete-document merging with normalized viewer rotation state.

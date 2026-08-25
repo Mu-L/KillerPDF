@@ -5,12 +5,26 @@ using System.Linq;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
+using KillerPdf.Engine.Writing;
 
 namespace KillerPDF.Services;
 
 /// <summary>Bridges completed application state into The KillerPDF.Engine during migration.</summary>
 internal static class PdfEngineIntegration
 {
+    /// <summary>Authenticates and fully rewrites a PDF without password encryption.</summary>
+    internal static void RemoveEncryption(
+        string sourcePath, string destinationPath, string password)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        ArgumentNullException.ThrowIfNull(password);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(sourcePath), password);
+        byte[] result = PdfDocumentWriter.Write(document,
+            new PdfDocumentWriteOptions { RemoveEncryption = true });
+        ReplaceWithBuiltResult(destinationPath, result);
+    }
+
     /// <summary>Merges complete PDF documents while preserving the first document byte prefix.</summary>
     internal static byte[] MergeDocuments(IReadOnlyList<byte[]> sources)
     {

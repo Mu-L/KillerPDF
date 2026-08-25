@@ -360,8 +360,8 @@ namespace KillerPDF.Features
         // ============================================================
         // Without a password: the same lossless PDFium strip the GUI uses at
         // open time (owner/permissions encryption), with the Import-rebuild
-        // fallback. With a password: PdfSharpCore opens with the password and
-        // saves a decrypted copy, the same sequence as the GUI password path.
+        // fallback. With a password, The KillerPDF.Engine authenticates and
+        // fully rewrites the document without its encryption dictionary.
         private static int CliDecrypt(List<string> pos, Dictionary<string, string> options, TextWriter con)
         {
             if (pos.Count != 2)
@@ -376,10 +376,7 @@ namespace KillerPDF.Features
             options.TryGetValue("--password", out string? password);
             if (!string.IsNullOrEmpty(password))
             {
-                using var doc = PdfReader.Open(inPath, password!, PdfDocumentOpenMode.Modify);
-                PdfScrub.ScrubEmptyOutlines(doc);
-                PdfScrub.ScrubDegenerateCropBoxes(doc);
-                doc.Save(outPath);
+                PdfEngineIntegration.RemoveEncryption(inPath, outPath, password!);
                 con.WriteLine($"Decrypted -> {outPath}");
                 return 0;
             }
@@ -418,8 +415,7 @@ namespace KillerPDF.Features
                 var dec = App.MakeTempFile("clidec");
                 if (!string.IsNullOrEmpty(password))
                 {
-                    using var pdoc = PdfReader.Open(inPath, password!, PdfDocumentOpenMode.Modify);
-                    pdoc.Save(dec);
+                    PdfEngineIntegration.RemoveEncryption(inPath, dec, password!);
                 }
                 else if (!PdfiumInterop.TryPdfiumStripEncryption(inPath, dec) && !PdfImport.TryImportRepairToPath(inPath, dec))
                 {

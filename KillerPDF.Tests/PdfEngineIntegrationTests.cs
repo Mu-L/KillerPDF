@@ -5,6 +5,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Objects;
+using KillerPdf.Engine.Security;
 using KillerPDF.Services;
 using Xunit;
 
@@ -12,6 +13,36 @@ namespace KillerPDF.Tests;
 
 public sealed class PdfEngineIntegrationTests
 {
+    [Fact]
+    public void RemoveEncryption_WritesPasswordFreeDocumentWithPreservedMetadata()
+    {
+        string sourcePath = Path.Combine(Path.GetTempPath(), $"killerpdf-encrypted-{Guid.NewGuid():N}.pdf");
+        string destinationPath = Path.Combine(Path.GetTempPath(), $"killerpdf-decrypted-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(sourcePath, new PdfDocumentBuilder()
+                .SetMetadata(new PdfDocumentMetadata { Title = "Preserved" })
+                .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+                {
+                    UserPassword = "user",
+                    OwnerPassword = "owner"
+                })
+                .AddBlankPage()
+                .Build());
+
+            PdfEngineIntegration.RemoveEncryption(sourcePath, destinationPath, "owner");
+
+            PdfDocument document = PdfDocument.Open(File.ReadAllBytes(destinationPath));
+            Assert.False(document.IsEncrypted);
+            Assert.Equal("Preserved", PdfDocumentInformation.Read(document).Title);
+        }
+        finally
+        {
+            if (File.Exists(sourcePath)) File.Delete(sourcePath);
+            if (File.Exists(destinationPath)) File.Delete(destinationPath);
+        }
+    }
+
     [Fact]
     public void CreateZeroRotationCopy_PreservesSourcePrefixAndClearsEveryRotation()
     {

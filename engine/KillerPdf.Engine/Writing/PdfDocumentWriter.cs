@@ -103,7 +103,8 @@ public static class PdfDocumentWriter
                     "A document-information value"));
             ValidateDocumentInformationGraph(document, informationDictionary);
         }
-        bool preservesIdentifiers = options.PreserveDocumentIdentifiers || document.IsEncrypted;
+        bool outputIsEncrypted = document.IsEncrypted && !options.RemoveEncryption;
+        bool preservesIdentifiers = options.PreserveDocumentIdentifiers || outputIsEncrypted;
         bool hasIdentifiers = document.CrossReferences.TryGetTrailerValue(
             IdName, out PdfObject identifiers);
         if (preservesIdentifiers && hasIdentifiers
@@ -112,7 +113,7 @@ public static class PdfDocumentWriter
                 || identifierArray.Any(item => item is not PdfString)))
             throw new InvalidOperationException(
                 "A full rewrite requires trailer /ID to be an array of two strings.");
-        if (document.IsEncrypted && !hasIdentifiers)
+        if (outputIsEncrypted && !hasIdentifiers)
             throw new InvalidOperationException(
                 "An encrypted full rewrite requires trailer /ID document identifiers.");
         ValidateApplicationTrailerGraphs(document);
@@ -134,6 +135,13 @@ public static class PdfDocumentWriter
                 "Structural-stream compression requires the cross-reference-stream format.");
 
         List<WritableObject> objects = ReadCurrentObjects(document);
+        if (options.RemoveEncryption
+            && document.CrossReferences.TryGetTrailerValue(EncryptName, out PdfObject encryptionValue))
+        {
+            HashSet<(int ObjectNumber, int Generation)> encryptionObjects = ResolveChain(
+                document, encryptionValue, "The trailer /Encrypt value").Identities.ToHashSet();
+            objects.RemoveAll(item => encryptionObjects.Contains((item.ObjectNumber, item.Generation)));
+        }
         root = RemoveCatalogMetadata(document, root, objects, options.MetadataPolicy);
         RemoveDocumentInformationObject(document, root, objects, options.MetadataPolicy);
         ValidateCatalogGraph(root, objects);
@@ -153,8 +161,9 @@ public static class PdfDocumentWriter
         WriteAscii(output, $"%PDF-{outputVersion}\n");
         output.Write([(byte)'%', 0xE2, 0xE3, 0xCF, 0xD3, (byte)'\n']);
 
-        IReadOnlySet<int> encryptionBootstrapObjectNumbers =
-            document.EncryptionBootstrapObjectNumbers;
+        IReadOnlySet<int> encryptionBootstrapObjectNumbers = outputIsEncrypted
+            ? document.EncryptionBootstrapObjectNumbers
+            : new HashSet<int>();
         List<WritableObject> packed = options.UseObjectStreams
             ? objects.Where(item => item.Generation == 0 && item.Value is not PdfStream
                 && !encryptionBootstrapObjectNumbers.Contains(item.ObjectNumber)).ToList()
@@ -176,7 +185,9 @@ public static class PdfDocumentWriter
         {
             int offset = checked((int)output.Position);
             offsets.Add(new WrittenOffset(item.ObjectNumber, item.Generation, offset));
-            PdfObject value = document.EncryptObject(item.ObjectNumber, item.Value);
+            PdfObject value = outputIsEncrypted
+                ? document.EncryptObject(item.ObjectNumber, item.Value)
+                : item.Value;
             PdfObjectWriter.Write(
                 output,
                 new PdfIndirectObject(item.ObjectNumber, item.Generation, value, offset));
@@ -188,7 +199,9 @@ public static class PdfDocumentWriter
             PdfStream objectStream = BuildObjectStream(
                 chunk.Objects, options.CompressStructuralStreams);
             PdfObjectWriter.Write(output, new PdfIndirectObject(chunk.ObjectNumber, 0,
-                document.EncryptObject(chunk.ObjectNumber, objectStream), offset));
+                outputIsEncrypted
+                    ? document.EncryptObject(chunk.ObjectNumber, objectStream)
+                    : objectStream, offset));
         }
 
         int xrefOffset = checked((int)output.Position);
@@ -628,7 +641,7 @@ public static class PdfDocumentWriter
             AddInherited(document, entries, InfoName);
         if (options.PreserveDocumentIdentifiers)
             AddInherited(document, entries, IdName);
-        if (document.IsEncrypted)
+        if (document.IsEncrypted && !options.RemoveEncryption)
         {
             if (!entries.Any(entry => entry.Key.Equals(IdName)))
                 AddInherited(document, entries, IdName);
@@ -761,7 +774,7 @@ public static class PdfDocumentWriter
         if (options.MetadataPolicy == PdfMetadataPolicy.Preserve
             && document.CrossReferences.TryGetTrailerValue(InfoName, out PdfObject info))
             Validate(info, "Trailer /Info value", 0);
-        if (document.IsEncrypted
+        if (document.IsEncrypted && !options.RemoveEncryption
             && document.CrossReferences.TryGetTrailerValue(
                 EncryptName, out PdfObject encryption))
             Validate(encryption, "Trailer /Encrypt value", 0);

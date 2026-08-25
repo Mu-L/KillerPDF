@@ -326,6 +326,34 @@ public sealed class PdfDocumentWriterTests
     }
 
     [Fact]
+    public void Write_RemoveEncryption_EmitsDecryptedDocumentAndOmitsEncryptionObject()
+    {
+        byte[] encrypted = new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata { Title = "Decrypted title" })
+            .SetPasswordEncryption(new PdfPasswordEncryptionOptions
+            {
+                UserPassword = "user",
+                OwnerPassword = "owner"
+            })
+            .AddBlankPage()
+            .Build();
+        PdfDocument authenticated = PdfDocument.Open(encrypted, "owner");
+        PdfIndirectReference encryptionReference = Assert.IsType<PdfIndirectReference>(
+            authenticated.Trailer[Name("Encrypt")]);
+
+        byte[] rewritten = PdfDocumentWriter.Write(authenticated,
+            new PdfDocumentWriteOptions { RemoveEncryption = true });
+        PdfDocument reopened = PdfDocument.Open(rewritten);
+
+        Assert.False(reopened.IsEncrypted);
+        Assert.False(reopened.Trailer.ContainsKey(Name("Encrypt")));
+        Assert.False(reopened.CrossReferences.TryGetValue(
+            encryptionReference.ObjectNumber, out PdfCrossReferenceEntry entry)
+            && entry.Type != PdfCrossReferenceEntryType.Free);
+        Assert.Equal("Decrypted title", PdfDocumentInformation.Read(reopened).Title);
+    }
+
+    [Fact]
     public void Write_AllowsVersionUpgradesButRefusesBlindDowngrades()
     {
         PdfDocument document = PdfDocument.Open(SourcePdf(version: "1.7"));
