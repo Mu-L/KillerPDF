@@ -19,6 +19,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="PdfPig" Version="0.1.14" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta17" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,7 +53,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\third_party\PdfSharpCore\PdfSharpCore.csproj" />
     <ProjectReference Include="..\engine\KillerPdf.Engine\KillerPdf.Engine.csproj" />
   </ItemGroup>
 

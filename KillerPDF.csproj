@@ -46,9 +46,10 @@
     </AssemblyAttribute>
   </ItemGroup>
 
-  <!-- The engine and vendored PdfSharpCore projects build independently; keep the app's implicit
+  <!-- The engine project builds independently; keep the app's implicit
        source globs out of those trees or their files compile as part of the WPF application. -->
   <ItemGroup>
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta17" />
     <Compile Remove="engine\**" />
     <Compile Remove="third_party\**" />
     <Compile Remove="Packaging\**" />
@@ -95,8 +96,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <!-- PdfSharpCore is vendored (third_party/PdfSharpCore, MIT) so PDF/A conformance bugs can be patched at the source - see VENDORED.txt -->
-    <ProjectReference Include="third_party\PdfSharpCore\PdfSharpCore.csproj" />
     <ProjectReference Include="engine\KillerPdf.Engine\KillerPdf.Engine.csproj" />
     <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="Docnet.Core" Version="2.6.0" />

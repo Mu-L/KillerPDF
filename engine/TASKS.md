@@ -17,9 +17,9 @@ Last updated: 2026-08-25
 - Worktree was clean when this handoff was written.
 - Latest completed commit before the active burn-in slice: `f3ed0a3 v1.8.0-alpha.1: read form widgets through engine`
 - Current automated baseline:
-  - 1,421 engine tests pass.
-  - 134 application tests pass.
-  - 1,555 total tests pass.
+  - 1,424 engine tests pass.
+  - 129 application tests pass.
+  - 1,553 total tests pass.
   - Release solution build succeeds with zero warnings and zero errors.
   - Strict engine documentation build succeeds with zero warnings and zero errors.
 - Nothing has been pushed.
@@ -87,15 +87,15 @@ All desktop burn paths now append isolated typed engine content. This includes S
 
 ## Exact next slice
 
-Continue the live desktop migration. The immutable engine session supplies all read-only page state used by editing, display, export, and print workflows, and the installed-font catalog no longer implements a PdfSharpCore resolver contract. Next, replace the remaining PdfSharpCore live document open, snapshot, save, and reload boundary with serialized engine-owned working state, then remove compatibility imports, the project reference, and the vendored source.
+The KillerPDF.Engine desktop migration is complete. The application now owns serialized engine-validated working state, and no production, application-test, solution, packaging, or vendored-source dependency on PdfSharpCore remains. Begin the planned feature-debugging pass with Steve, then run the external 2,907-file preservation corpus when that corpus is available locally.
 
-## Remaining major legacy pockets after forms
+## Completed final dependency removal
 
-- `Services/PdfFonts.cs`: still implements the PdfSharpCore font resolver. Preserve `RegularFaceBytes` or move the useful font indexing and TTC extraction behind an engine-oriented font service before removing the resolver interface.
-- `Shell/TempReload.cs` and document open paths in `Shell/FileOperations.cs`: the live mutable desktop document is still PdfSharpCore-owned.
-- `Services/PdfImport.cs` and `Services/PdfScrub.cs`: remaining tolerant legacy repair and save-time cleanup helpers need an evidence-based audit before removal.
-- `PdfViewer.Forms.cs`: after discovery migration, verify that only WPF overlay behavior remains.
-- Final dependency removal: delete the PdfSharpCore project reference, remove `third_party/PdfSharpCore`, clean unused imports and compatibility tests, then run unit, corpus, qpdf, veraPDF, packaging, and launch gates.
+- Installed font lookup and TTC extraction remain as an engine-oriented application service without a legacy resolver interface.
+- Open, snapshot, save, reload, undo, tab, and presence state now use `PdfWorkingDocument` over engine-validated serialized bytes.
+- `Services/PdfScrub.cs`, legacy named-destination helpers, compatibility formatter tests, project references, solution entries, payload entries, and `third_party/PdfSharpCore` are removed.
+- Automated unit, Release build, strict docs, generated qpdf, veraPDF PDF/UA-2, portable packaging, and packaged launcher gates pass.
+- The external 2,907-file preservation corpus is not present on this machine and remains the only deferred integration gate.
 
 ## Important cautions
 

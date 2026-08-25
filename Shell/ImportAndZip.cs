@@ -7,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Win32;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 
 namespace KillerPDF
@@ -37,7 +35,7 @@ namespace KillerPDF
             try
             {
                 string tempPath = BuildPdfFromImages(dlg.FileNames);
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
                 FinishOpenFile("Imported.pdf", tempPath);
                 _originalFile = null;   // no saved location yet -> Save becomes Save As
                 MarkDirty(true);        // unsaved -> orange icon + close warns
@@ -184,7 +182,7 @@ namespace KillerPDF
                     return;
                 }
 
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
                 FinishOpenFile("Combined.pdf", tempPath);
                 _originalFile = null;   // unsaved -> Save routes to Save As
                 MarkDirty(true);
@@ -215,7 +213,7 @@ namespace KillerPDF
             try
             {
                 string tempPath = BuildPdfFromImages(images);
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
                 FinishOpenFile(displayName, tempPath);
                 _originalFile = null;
                 MarkDirty(true);

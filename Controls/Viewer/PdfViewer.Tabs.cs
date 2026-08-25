@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using PdfSharpCore.Pdf;
+using KillerPDF.Services;
 
 namespace KillerPDF.Controls
 {
@@ -35,7 +35,7 @@ namespace KillerPDF.Controls
         // unchanged. Still nested, so it is only reachable as MainWindow.DocumentSession.
         internal sealed class DocumentSession : System.ComponentModel.INotifyPropertyChanged
         {
-            public PdfDocument? Doc;
+            public PdfWorkingDocument? Doc;
             public string? CurrentFile;
             public string? OriginalFile;
             // Set on a restored tab that hasn't been loaded yet (lazy tabs): Doc stays null until the

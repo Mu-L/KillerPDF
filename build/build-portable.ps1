@@ -72,7 +72,7 @@ if ($payloadDifference.Count -gt 0) {
     $details = ($payloadDifference | ForEach-Object { "$($_.SideIndicator) $($_.InputObject)" }) -join [Environment]::NewLine
     throw "Payload file set changed. Review dependencies and update build\payload-files.txt deliberately:`n$details"
 }
-foreach ($required in 'KillerPDF.App.exe', 'KillerPdf.Engine.dll', 'pdfium.dll', 'PdfSharpCore.dll', 'System.Text.Json.dll') {
+foreach ($required in 'KillerPDF.App.exe', 'KillerPdf.Engine.dll', 'pdfium.dll', 'System.Text.Json.dll') {
     if ($actualPayloadNames -notcontains $required) {
         throw "Required loose payload file is missing ($required). Costura/Fody may have run accidentally."
     }

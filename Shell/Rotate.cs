@@ -6,8 +6,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Docnet.Core;
 using Docnet.Core.Models;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 
 namespace KillerPDF
@@ -154,7 +152,7 @@ namespace KillerPDF
             _doc.Close();
             try
             {
-                _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempClean);
             }
             catch (Exception xrefEx) when (PdfImport.IsXRefException(xrefEx))
             {
@@ -163,7 +161,7 @@ namespace KillerPDF
                     && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                     throw;
                 tempClean = fixedPath;
-                _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempClean);
             }
             _currentFile = tempClean;
             return burnOk ? tempBurned : null;

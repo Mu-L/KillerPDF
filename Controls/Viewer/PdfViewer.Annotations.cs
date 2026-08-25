@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -2584,7 +2581,7 @@ namespace KillerPDF.Controls
                 // rotations) then PDFium, mirroring the save/reload path, instead of crashing.
                 try
                 {
-                    _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempPath);
                 }
                 catch (Exception undoOpenEx) when (PdfImport.IsXRefException(undoOpenEx))
                 {
@@ -2593,7 +2590,7 @@ namespace KillerPDF.Controls
                         && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))
                         throw;
                     tempPath = fixedPath;
-                    _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempPath);
                 }
                 _currentFile = tempPath;
                 _annotations.Clear();

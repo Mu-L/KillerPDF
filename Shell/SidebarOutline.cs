@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -191,7 +188,7 @@ namespace KillerPDF
             else
             {
                 using var stream = new MemoryStream();
-                _doc.Save(stream, false);
+                _doc.Save(stream);
                 bytes = stream.ToArray();
             }
             return PdfEngineIntegration.ReadBookmarks(bytes);

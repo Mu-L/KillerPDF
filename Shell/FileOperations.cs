@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Writing;
@@ -62,7 +59,7 @@ namespace KillerPDF
             try
             {
                 if (_doc is not null) { _doc.Close(); _doc = null; }
-                _doc = PdfReader.Open(srcPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(srcPath);
                 // PdfSharp cannot save modified encrypted PDFs - it copies unmodified encrypted
                 // stream bytes verbatim but fails when it has to re-serialize a dirty object.
                 // Strip encryption silently at open time via Import so all edits work correctly.
@@ -99,7 +96,7 @@ namespace KillerPDF
                     if (_doc is not null) { _doc.Close(); _doc = null; }
                     var tempDec = App.MakeTempFile("dec");
                     PdfEngineIntegration.RemoveEncryption(srcPath, tempDec, pw);
-                    _doc = PdfReader.Open(tempDec, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempDec);
                     _currentFile = tempDec;
                     FinishOpenFile(path, tempDec);
                     _openedFromProtected = true;   // #149: unlocked with the user's password
@@ -116,7 +113,7 @@ namespace KillerPDF
                 try
                 {
                     if (_doc is not null) { _doc.Close(); _doc = null; }
-                    _doc = PdfReader.Open(srcPath, PdfDocumentOpenMode.ReadOnly);
+                    _doc = PdfWorkingDocument.Open(srcPath, isReadOnly: true);
                     _currentFile = srcPath;
                     FinishOpenFile(path, srcPath);
                     SetStatus(string.Format(Loc("Str_OpenedReadOnlyXRef"), System.IO.Path.GetFileName(path), _doc.PageCount));
@@ -276,7 +273,7 @@ namespace KillerPDF
                 }
 
                 // Open and render the repaired copy on the UI thread.
-                _doc = PdfReader.Open(repairedPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(repairedPath);
                 _currentFile = repairedPath;
                 FinishOpenFile(path, repairedPath);
                 MarkDirty(true); // repaired copy lives in temp - user must Save As
@@ -334,7 +331,7 @@ namespace KillerPDF
                     TryRepairAndOpen(srcPath);   // re-registers the cancellable op; repair finalizes the tab
                     return;
                 }
-                _doc = PdfReader.Open(repairedPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(repairedPath);
                 _currentFile = repairedPath;
                 FinishOpenFile(displayPath, repairedPath);
                 _openedFromProtected = true;   // #149: source carried encryption, silently stripped above
@@ -446,7 +443,7 @@ namespace KillerPDF
                 var tempPath = App.MakeTempFile("new");
                 File.WriteAllBytes(tempPath, PdfEngineIntegration.CreateBlankDocument());
 
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
                 FinishOpenFile("Untitled.pdf", tempPath);
                 SetStatus(Loc("Str_KS_NewBlank"));
                 CaptureSessionState(_active!);
@@ -773,30 +770,9 @@ namespace KillerPDF
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
             string? path = _originalFile ?? _currentFile;
-            KillerPdf.Engine.Documents.PdfDocumentInformation info;
-            try
-            {
-                byte[] bytes = File.ReadAllBytes(path!);
-                var engineDocument = KillerPdf.Engine.Documents.PdfDocument.Open(bytes);
-                info = KillerPdf.Engine.Documents.PdfDocumentInformation.Read(engineDocument);
-            }
-            catch
-            {
-                info = new KillerPdf.Engine.Documents.PdfDocumentInformation
-                {
-                    Version = new KillerPdf.Engine.Syntax.PdfVersion(_doc.Version / 10, _doc.Version % 10),
-                    PageCount = _doc.PageCount
-                };
-            }
-            info = info with
-            {
-                Title = _doc.Info.Title,
-                Author = _doc.Info.Author,
-                Subject = _doc.Info.Subject,
-                Keywords = _doc.Info.Keywords,
-                Creator = _doc.Info.Creator,
-                Producer = _doc.Info.Producer
-            };
+            KillerPdf.Engine.Documents.PdfDocumentInformation info =
+                KillerPdf.Engine.Documents.PdfDocumentInformation.Read(
+                    EnsureEngineDocumentSession().Document);
             KillerPdf.Engine.Authoring.PdfDocumentMetadata? editedMetadata = null;
             var dlg = new DocumentInfoDialog(this, info, metadata => editedMetadata = metadata, path);
             dlg.ShowDialog();   // fade-close dialogs don't reliably return true; rely on the Saved flag
@@ -926,7 +902,7 @@ namespace KillerPDF
                     _doc.Close();
                     try
                     {
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                     {
@@ -935,7 +911,7 @@ namespace KillerPDF
                             && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                             throw;
                         tempClean = fixedPath;
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     _currentFile = tempClean;
                 }
@@ -1037,7 +1013,7 @@ namespace KillerPDF
                     _doc.Close();
                     try
                     {
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                     {
@@ -1046,7 +1022,7 @@ namespace KillerPDF
                             && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                             throw;
                         tempClean = fixedPath;
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     _currentFile = tempClean;
                     _originalFile = dlg.FileName;
@@ -1122,7 +1098,7 @@ namespace KillerPDF
                 _doc.Close();
                 try
                 {
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                 {
@@ -1131,7 +1107,7 @@ namespace KillerPDF
                         && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                         throw;
                     tempClean = fixedPath;
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 _currentFile = tempClean;
                 sourcePath = tempBurned;
@@ -1243,7 +1219,7 @@ namespace KillerPDF
                 _doc.Close();
                 try
                 {
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                 {
@@ -1252,7 +1228,7 @@ namespace KillerPDF
                         && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                         throw;
                     tempClean = fixedPath;
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 _currentFile = tempClean;
                 sourcePath = tempBurned;

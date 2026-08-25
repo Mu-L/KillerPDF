@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -99,7 +96,7 @@ namespace KillerPDF
             // robust error recovery and will rewrite a correct xref), then retry the open.
             try
             {
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
             }
             catch (Exception openEx) when (PdfImport.IsXRefException(openEx))
             {
@@ -107,7 +104,7 @@ namespace KillerPDF
                 if (!PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))
                     throw; // PDFium also failed - re-throw original reopen error
                 tempPath = fixedPath;
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
             }
             _currentFile = tempPath;
 
@@ -115,11 +112,6 @@ namespace KillerPDF
             // where a worker was already inside PDFium when the first clear happened and published its
             // stale result while the edited document was being saved and reopened.
             ActiveViewer.InvalidateRenderCacheExt(_active);
-
-            // Restore rotations in the reopened in-memory doc so saves, form fields,
-            // and all other operations see the correct rotation values.
-            foreach (var kv in _pageRotations)
-                _doc.Pages[kv.Key].Rotate = kv.Value;
 
             RefreshPageList();
             if (selectedIdx >= 0 && selectedIdx < PageList.Items.Count)

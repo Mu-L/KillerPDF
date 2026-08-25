@@ -3,7 +3,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using PdfSharpCore.Pdf;
 using KillerPDF.Services;
 
 namespace KillerPDF.Controls
@@ -90,7 +89,7 @@ namespace KillerPDF.Controls
             => AddLinkMenuItems(menu, target, annotIndex, pageIndex);
         internal bool IsPanning => _isPanning;
         internal EditTool CurrentToolRef { get => _currentTool; set => _currentTool = value; }
-        internal PdfDocument? DocumentRef { get => _doc; set => _doc = value; }
+        internal PdfWorkingDocument? DocumentRef { get => _doc; set => _doc = value; }
         internal string? CurrentFileRef { get => _currentFile; set => _currentFile = value; }
         internal Dictionary<int, List<PageAnnotation>> AnnotationsRef { get => _annotations; set => _annotations = value; }
         internal Dictionary<int, (int w, int h)> RenderDimsRef { get => _renderDims; set => _renderDims = value; }

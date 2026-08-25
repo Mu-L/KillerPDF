@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -23,7 +20,7 @@ namespace KillerPDF
 {
     public partial class MainWindow : Window
     {
-        private PdfDocument? _doc { get => ActiveViewer?.DocumentRef; set { if (ActiveViewer != null) ActiveViewer.DocumentRef = value; } }
+        private PdfWorkingDocument? _doc { get => ActiveViewer?.DocumentRef; set { if (ActiveViewer != null) ActiveViewer.DocumentRef = value; } }
         private string? _currentFile { get => ActiveViewer?.CurrentFileRef; set { if (ActiveViewer != null) ActiveViewer.CurrentFileRef = value; } }
         private string? _originalFile { get => ActiveViewer?.OriginalFileRef; set { if (ActiveViewer != null) ActiveViewer.OriginalFileRef = value; } }
         private Point _dragStartPoint;

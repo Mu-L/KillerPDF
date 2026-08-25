@@ -150,7 +150,7 @@ The original architecture decision is recorded in [ADR-001](docs/architecture/AD
 
 ## KillerPDF integration
 
-KillerPDF directly references The KillerPDF.Engine and has begun moving production features onto it. Document information is the first integrated read path. PdfSharpCore remains temporarily in the application while page operations, annotations, forms, drawing, OCR, and save workflows move through independent regression and corpus gates.
+KillerPDF directly references The KillerPDF.Engine as its document parser, writer, and editing library. The Windows application no longer references or vendors PdfSharpCore; PDFium remains responsible for rendering and PdfPig for text extraction.
 
 See [The KillerPDF.Engine changelog](CHANGELOG.md) for detailed capability history.
 

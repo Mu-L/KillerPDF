@@ -3,11 +3,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using KillerPDF.Services;
+using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Objects;
 using EngineDocument = KillerPdf.Engine.Documents.PdfDocument;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
 using Xunit;
 
 namespace KillerPDF.Tests;
@@ -27,11 +27,10 @@ public sealed class PdfBurnRotationTests
     private static string BurnHighlightContent(int nativeRotate, Dictionary<int, int>? rotations,
         double pageW, double pageH, int renderW, int renderH, Rect bounds)
     {
-        using var doc = new PdfDocument();
-        doc.Options.NoCompression = true;
-        var page = doc.AddPage();
-        page.MediaBox = new PdfRectangle(new XPoint(0, 0), new XPoint(pageW, pageH));
-        if (nativeRotate != 0) page.Rotate = nativeRotate;
+        byte[] source = new PdfDocumentBuilder().AddBlankPage(pageW, pageH).Build();
+        if (nativeRotate != 0)
+            source = new PdfIncrementalPageEditor(EngineDocument.Open(source))
+                .SetRotation(0, nativeRotate).Build();
 
         var annots = new Dictionary<int, List<PageAnnotation>>
         {
@@ -41,23 +40,11 @@ public sealed class PdfBurnRotationTests
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-burn-{Guid.NewGuid():N}.pdf");
         try
         {
-            doc.Save(path);
+            File.WriteAllBytes(path, source);
             PdfEngineBurn.Burn(path, annots, dims, null, null, rotations);
             return AllDecodedStreams(path);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
-    }
-
-    private static string SaveToText(PdfDocument doc)
-    {
-        using var ms = new MemoryStream();
-        doc.Save(ms, false);
-
-        // PdfSharpCore may Flate-compress content streams even when NoCompression is set;
-        // that option governs document structure, not every page stream. Inspect the decoded
-        // page content instead of depending on the writer's storage choice.
-        var content = doc.Pages[0].Contents.CreateSingleContent();
-        return Encoding.GetEncoding("ISO-8859-1").GetString(content.Stream.UnfilteredValue);
     }
 
     private static string AllDecodedStreams(string path)
@@ -169,15 +156,13 @@ public sealed class PdfBurnRotationTests
     {
         // Stamps share the visual-frame helpers; the original #169 gap was the stamp burn never
         // receiving the angle at all, so preview and output disagreed.
-        using var doc = new PdfDocument();
-        doc.Options.NoCompression = true;
-        var page = doc.AddPage();
-        page.MediaBox = new PdfRectangle(new XPoint(0, 0), new XPoint(BoxW, BoxH));
-        page.Rotate = 90;
+        byte[] source = new PdfIncrementalPageEditor(EngineDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage(BoxW, BoxH).Build()))
+            .SetRotation(0, 90).Build();
 
         var spec = new StampSpec { NumbersEnabled = true, Format = "{n} / {N}" };
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-stamp-{Guid.NewGuid():N}.pdf");
-        doc.Save(path);
+        File.WriteAllBytes(path, source);
         PdfEngineBurn.Burn(path, new Dictionary<int, List<PageAnnotation>>(),
             new Dictionary<int, (int w, int h)>(), spec);
         string pdf = AllDecodedStreams(path);
@@ -188,12 +173,10 @@ public sealed class PdfBurnRotationTests
     [Fact]
     public void EngineBurn_WritesTypedMarkupResourcesAndReopens()
     {
-        using var doc = new PdfDocument();
-        doc.AddPage().MediaBox = new PdfRectangle(new XPoint(0, 0), new XPoint(612, 792));
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-typed-burn-{Guid.NewGuid():N}.pdf");
         try
         {
-            doc.Save(path);
+            File.WriteAllBytes(path, new PdfDocumentBuilder().AddBlankPage(612, 792).Build());
             var annotations = new Dictionary<int, List<PageAnnotation>>
             {
                 [0] =

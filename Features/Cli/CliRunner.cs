@@ -15,9 +15,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Docnet.Core;
 using Docnet.Core.Models;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 // The scrubs, bitmap helpers, import helpers and PDFium interop all live in Services
 // (BitmapHelpers.cs, PdfImport.cs, PdfiumInterop.cs; KillerUI refactor,

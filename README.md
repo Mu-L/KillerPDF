@@ -90,7 +90,7 @@ Output lands in `bin/Release/net10.0-windows/publish/`. Normal publishing produc
 
 The current 1.8 development branch requires the .NET 10 SDK. Both the reusable engine and the Windows application now target .NET 10, with the application using `net10.0-windows`.
 
-The existing desktop write pipeline still uses the vendored PdfSharpCore build under `third_party/PdfSharpCore/` while The KillerPDF.Engine integration proceeds. Each application surface will move to the new engine behind regression and corpus gates before the legacy dependency is removed.
+The desktop document pipeline now uses The KillerPDF.Engine for document parsing, writing, editing, repair, forms, annotations, signatures, and preservation-sensitive page operations. PDFium remains the rendering backend, while PdfPig handles text extraction.
 
 ## Translations
 
