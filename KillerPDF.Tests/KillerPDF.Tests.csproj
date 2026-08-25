@@ -37,6 +37,7 @@
     <Compile Include="..\Services\CmapCoverage.cs" Link="Services\CmapCoverage.cs" />
     <Compile Include="..\Services\PdfFonts.cs" Link="Services\PdfFonts.cs" />
     <Compile Include="..\Services\PdfEngineIntegration.cs" Link="Services\PdfEngineIntegration.cs" />
+    <Compile Include="..\Services\RuntimeEncodingBootstrap.cs" Link="Services\RuntimeEncodingBootstrap.cs" />
     <Compile Include="..\Models\StampModels.cs" Link="Models\StampModels.cs" />
     <Compile Include="..\Controls\FlyoutPlacement.cs" Link="Controls\FlyoutPlacement.cs" />
     <!-- Data only, by design: OcrLanguages.cs itself reaches App and OcrNativeBootstrap, which a
