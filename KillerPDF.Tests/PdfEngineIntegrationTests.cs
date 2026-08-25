@@ -1093,6 +1093,23 @@ public sealed class PdfEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public void ClearInvalidatedSignatures_LeavesUnsignedFileByteIdentical()
+    {
+        string path = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-signature-cleanup-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder().AddBlankPage().Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.ClearInvalidatedSignatures(path);
+
+            Assert.Equal(source, File.ReadAllBytes(path));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
     private static long PageRotation(PdfDocument document, int pageIndex)
     {
         return Assert.IsType<PdfInteger>(Page(document, pageIndex)[new PdfName("Rotate"u8)]).Value;

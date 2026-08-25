@@ -967,7 +967,6 @@ namespace KillerPDF
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
             PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             string saveTarget = _originalFile!;
             // Drop the immutable engine view before replacing the working file. It reopens lazily
             // on the next link or form render and therefore cannot expose stale document state.
@@ -985,6 +984,7 @@ namespace KillerPDF
                     _doc.Save(tempClean);
                     PdfEngineIntegration.StripLinkAppearances(tempClean);
                     System.IO.File.Copy(tempClean, saveTarget, true);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(saveTarget);
                     PdfEngineBurn.Burn(saveTarget, _annotations, _renderDims,
                         _docStampSpec, null, _pageRotations);
                     PdfEngineIntegration.StripLinkAppearances(saveTarget);
@@ -1009,6 +1009,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(saveTarget);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(saveTarget);
                     PdfEngineIntegration.StripLinkAppearances(saveTarget);
                     WriteFormValuesToDocument(saveTarget);
                     PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
@@ -1084,7 +1085,6 @@ namespace KillerPDF
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
             PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
@@ -1095,6 +1095,7 @@ namespace KillerPDF
                     _doc.Save(tempClean);
                     PdfEngineIntegration.StripLinkAppearances(tempClean);
                     System.IO.File.Copy(tempClean, dlg.FileName, true);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(dlg.FileName);
                     PdfEngineBurn.Burn(dlg.FileName, _annotations, _renderDims,
                         _docStampSpec, null, _pageRotations);
                     PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
@@ -1130,6 +1131,7 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(dlg.FileName);
                     PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
                     WriteFormValuesToDocument(dlg.FileName);
                     PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
@@ -1173,7 +1175,6 @@ namespace KillerPDF
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
             PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
             PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)

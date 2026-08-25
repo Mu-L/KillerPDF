@@ -154,39 +154,6 @@ namespace KillerPDF.Services
             return false;
         }
 
-        // A KillerPDF save fully REWRITES the file, which mathematically invalidates any existing
-        // digital signature: its /ByteRange and digest describe the old bytes (ISO 19005-2, 6.4.3
-        // requires the digest to cover the entire file). Carrying the dead signature forward
-        // misleads viewers and fails PDF/A validation, so strip signature VALUES (/V) from
-        // signature fields and the catalog's /Perms certification (DocMDP / usage rights) that
-        // references them. The empty fields stay and can be re-signed via Sign Document.
-        // Called before every save of the working document.
-        internal static void ScrubDeadSignatures(PdfDocument doc)
-        {
-            try
-            {
-                var cat = doc.Internals.Catalog;
-                cat.Elements.Remove("/Perms");
-                if (DerefItemStatic(cat.Elements["/AcroForm"]) is not PdfDictionary acro) return;
-                if (DerefItemStatic(acro.Elements["/Fields"]) is PdfArray fields)
-                    ScrubSigFieldValues(fields, 0);
-            }
-            catch { /* malformed catalog - leave the save as-is */ }
-        }
-
-        private static void ScrubSigFieldValues(PdfArray fields, int depth)
-        {
-            if (depth > 8) return;   // defensive: malformed circular /Kids
-            foreach (var item in fields.Elements)
-            {
-                if (DerefItemStatic(item) is not PdfDictionary field) continue;
-                if (field.Elements.GetName("/FT") == "/Sig" && field.Elements["/V"] != null)
-                    field.Elements.Remove("/V");
-                if (DerefItemStatic(field.Elements["/Kids"]) is PdfArray kids)
-                    ScrubSigFieldValues(kids, depth + 1);
-            }
-        }
-
         /// <summary>
         /// Strips visual styling (border, color, appearance stream) from all Link annotations
         /// in the document so they render as invisible clickable areas rather than colored

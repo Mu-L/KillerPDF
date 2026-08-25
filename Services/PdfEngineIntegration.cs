@@ -7,6 +7,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Fonts;
+using KillerPdf.Engine.Signing;
 using KillerPdf.Engine.Writing;
 using DrawingBitmap = System.Drawing.Bitmap;
 using DrawingGraphics = System.Drawing.Graphics;
@@ -178,6 +179,17 @@ internal static class PdfEngineIntegration
         var editor = new PdfIncrementalAnnotationEditor(source).StripLinkAppearances();
         if (!editor.HasChanges) return;
         ReplaceWithBuiltResult(path, editor.Build());
+    }
+
+    /// <summary>Clears signature state invalidated by the application's rewritten output.</summary>
+    internal static void ClearInvalidatedSignatures(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        byte[] original = File.ReadAllBytes(path);
+        PdfDocument source = PdfDocument.Open(original);
+        byte[] result = PdfSignatureInvalidationWriter.ClearSignatureValues(source);
+        if (result.AsSpan().SequenceEqual(original)) return;
+        ReplaceWithBuiltResult(path, result);
     }
 
     /// <summary>Merges PDF documents and image frames through one engine page tree.</summary>
