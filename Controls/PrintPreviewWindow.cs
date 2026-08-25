@@ -78,6 +78,8 @@ namespace KillerPDF
         private readonly Grid _previewHost = new();
         private readonly TextBlock _pageLabel = new();
         private readonly TextBlock _renderLabel = new();   // "Rendering X / Y" line shown above the page nav
+        private Button _previousPage = null!;
+        private Button _nextPage = null!;
         private ComboBox _printerCombo = null!;
         // #186: manual paper pick. Index 0 = "Match document" (the automatic MediaSizeForDocument
         // behavior); the rest are the driver's supported sizes, repopulated on printer change.
@@ -785,60 +787,62 @@ namespace KillerPDF
             };
 
             var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            Grid.SetRow(_previewHost, 0);
             grid.Children.Add(_previewHost);
 
-            var nav = new StackPanel
-            {
-                Orientation         = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            var prev = MakeButton("◀", false);   // left triangle
-            prev.Click += (_, _) => { if (_previewIndex > 0) { _previewIndex--; UpdatePreview(); } };
-            var next = MakeButton("▶", false);   // right triangle
-            next.Click += (_, _) => { if (_previewIndex < SheetCount() - 1) { _previewIndex++; UpdatePreview(); } };
-            _pageLabel.Foreground = R("TextBrush");
-            _pageLabel.VerticalAlignment = VerticalAlignment.Center;
-            _pageLabel.Margin = new Thickness(12, 0, 12, 0);
-            _pageLabel.FontSize = 12;
-            nav.Children.Add(prev);
-            nav.Children.Add(_pageLabel);
-            nav.Children.Add(next);
+            var navigation = new Grid { Height = 42, Margin = new Thickness(8, 0, 8, 8) };
+            navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            navigation.ColumnDefinitions.Add(new ColumnDefinition());
+            navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _previousPage = MakeButton("‹", false);
+            _previousPage.Width = 44;
+            _previousPage.ToolTip = S("Str_Kb_PrevPage");
+            _previousPage.Click += (_, _) => { if (_previewIndex > 0) { _previewIndex--; UpdatePreview(); } };
+            Grid.SetColumn(_previousPage, 0);
+            navigation.Children.Add(_previousPage);
+            _nextPage = MakeButton("›", false);
+            _nextPage.Width = 44;
+            _nextPage.ToolTip = S("Str_Kb_NextPage");
+            _nextPage.Click += (_, _) => { if (_previewIndex < SheetCount() - 1) { _previewIndex++; UpdatePreview(); } };
+            Grid.SetColumn(_nextPage, 2);
+            navigation.Children.Add(_nextPage);
 
-            // "Rendering X / Y" gets its own line above the page nav while pages stream in.
+            _pageLabel.Foreground = R("TextBrush");
+            _pageLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _pageLabel.FontSize = 12;
+
+            // Rendering progress stays with the counter, but the compact strip now lives below the
+            // framed content pane instead of consuming document-preview height.
             _renderLabel.Foreground = R("MutedTextBrush");
             _renderLabel.HorizontalAlignment = HorizontalAlignment.Center;
             _renderLabel.FontSize = 11;
-            _renderLabel.Margin = new Thickness(0, 0, 0, 2);
             _renderLabel.Visibility = Visibility.Collapsed;
-
-            var navColumn = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 8) };
-            navColumn.Children.Add(_renderLabel);
-            navColumn.Children.Add(nav);
-            Grid.SetRow(navColumn, 1);
-            grid.Children.Add(navColumn);
+            var navCenter = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            navCenter.Children.Add(_renderLabel);
+            navCenter.Children.Add(_pageLabel);
+            Grid.SetColumn(navCenter, 1);
+            navigation.Children.Add(navCenter);
 
             // Film grain over the preview canvas, behind the page so it textures the margins
             // around the sheet rather than the document itself.
             var previewGrain = MakeGrainLayer();
             if (previewGrain != null)
             {
-                Grid.SetRow(previewGrain, 0);
-                Grid.SetRowSpan(previewGrain, 2);   // also texture the page-counter row so it isn't a flat gray bar
                 Panel.SetZIndex(previewGrain, 0);
                 Panel.SetZIndex(_previewHost, 1);
-                Panel.SetZIndex(navColumn, 1);       // keep the counter and arrows above the grain
                 grid.Children.Add(previewGrain);
             }
 
             wrap.Child = grid;
-            // Family shadow under the content pane, like the main window (flat on 98SE).
-            var host = UiKit.PaneWithShadow(wrap);
-            Grid.SetColumn(host, 1);
-            return host;
+            var previewColumn = new DockPanel();
+            DockPanel.SetDock(navigation, Dock.Bottom);
+            previewColumn.Children.Add(navigation);
+            previewColumn.Children.Add(UiKit.PaneWithShadow(wrap));
+            Grid.SetColumn(previewColumn, 1);
+            return previewColumn;
         }
 
         private static TextBlock Label(string text) => new()
@@ -1051,7 +1055,14 @@ namespace KillerPDF
         private void UpdatePreview()
         {
             _previewHost.Children.Clear();
-            if (_pages.Length == 0) { _pageLabel.Text = S("Str_Print_NoPages"); _renderLabel.Visibility = Visibility.Collapsed; return; }
+            if (_pages.Length == 0)
+            {
+                _pageLabel.Text = S("Str_Print_NoPages");
+                _renderLabel.Visibility = Visibility.Collapsed;
+                if (_previousPage is not null) _previousPage.IsEnabled = false;
+                if (_nextPage is not null) _nextPage.IsEnabled = false;
+                return;
+            }
 
             var selected = SelectedIndices();
             if (selected.Count == 0)
@@ -1073,12 +1084,16 @@ namespace KillerPDF
                     VerticalAlignment   = VerticalAlignment.Center,
                 });
                 if (_printBtn != null) _printBtn.IsEnabled = false;
+                if (_previousPage is not null) _previousPage.IsEnabled = false;
+                if (_nextPage is not null) _nextPage.IsEnabled = false;
                 return;
             }
             if (_printBtn != null) _printBtn.IsEnabled = !_isLoading && !_printing;
             int sheets = Math.Max(1, (selected.Count + _nUp - 1) / _nUp);
             int sheet = Math.Max(0, Math.Min(_previewIndex, sheets - 1));
             _previewIndex = sheet;
+            if (_previousPage is not null) _previousPage.IsEnabled = sheet > 0;
+            if (_nextPage is not null) _nextPage.IsEnabled = sheet + 1 < sheets;
 
             // Source pages on this sheet, taken from the SELECTED set (one for 1-up, up to _nUp for N-up).
             var idxs = new System.Collections.Generic.List<int>();

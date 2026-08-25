@@ -8,9 +8,7 @@ Full how-tos live on the [help page](https://killerpdf.net/help.html); internals
 
 ## The KillerPDF.Engine
 
-KillerPDF 1.8 introduces The KillerPDF.Engine, an independent and reusable .NET library for PDF 2.0, PDF/A, and PDF/UA document processing. It is a first-class area of this monorepo with its own public API, tests, corpus tooling, architecture documentation, README, and release history.
-
-Developers building PDF capabilities into other applications can start with [The KillerPDF.Engine README](engine/README.md) and follow detailed changes in [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
+KillerPDF 1.8 introduces The KillerPDF.Engine, an independent and reusable .NET library for PDF 2.0, PDF/A, and PDF/UA document processing. It is a first-class area of this monorepo with its own public API, tests, corpus tooling, architecture documentation, [README](engine/README.md), and release history.
 
 ## Features
 
