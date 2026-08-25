@@ -699,6 +699,24 @@ internal static class PdfEngineIntegration
                 rotations[index++] = ((rotation % 360) + 360) % 360;
     }
 
+    /// <summary>Turns selected application-managed pages without mutating the live PDF model.</summary>
+    internal static void RemapRotationsAfterPageTurns(
+        Dictionary<int, int> rotations, IReadOnlyList<int> pageIndices, int delta)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        ArgumentNullException.ThrowIfNull(pageIndices);
+        if (delta % 90 != 0)
+            throw new ArgumentOutOfRangeException(nameof(delta),
+                "Page rotation changes must be multiples of 90 degrees.");
+        foreach (int pageIndex in pageIndices.Distinct())
+        {
+            if (!rotations.TryGetValue(pageIndex, out int current))
+                throw new ArgumentOutOfRangeException(nameof(pageIndices),
+                    $"Page index {pageIndex} has no rotation state.");
+            rotations[pageIndex] = ((current + delta) % 360 + 360) % 360;
+        }
+    }
+
     private static void ReplaceWithBuiltResult(string path, byte[] result)
     {
         string directory = Path.GetDirectoryName(Path.GetFullPath(path))!;

@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Rotate Left and Rotate Right now update KillerPDF's authoritative per-page rotation state during reload instead of mutating live PdfSharpCore page dictionaries; final saved rotations continue to be written through The KillerPDF.Engine.
 - Removing a native PDF link from the viewer now deletes the selected annotation through The KillerPDF.Engine as an incremental revision instead of mutating the live PdfSharpCore annotation array.
 - Headless `--batch-resave` corpus validation now uses The KillerPDF.Engine's deterministic full-document writer, skips encrypted and signed inputs rather than silently stripping protection or invalidating signatures, and retains its existing directory, CSV, and exit-code contract.
 - Import-based repair and temp-reload recovery now rebuild complete document graphs through The KillerPDF.Engine, including the rotation-stripping variant, instead of constructing replacement documents with PdfSharpCore.

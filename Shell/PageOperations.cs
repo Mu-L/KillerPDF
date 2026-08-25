@@ -41,10 +41,12 @@ namespace KillerPDF
                 foreach (var idx in indices)
                     if (_annotations.TryGetValue(idx, out var anns) && _renderDims.TryGetValue(idx, out var dims))
                         Services.AnnotationRotate.Remap(anns, delta, dims.w, dims.h);
-                foreach (var idx in indices)
-                    _doc.Pages[idx].Rotate = ((_doc.Pages[idx].Rotate + delta) % 360 + 360) % 360;
                 int restoreIdx = PageList.SelectedIndex;
-                SaveTempAndReload(keepAnnotations: true);
+                SaveTempAndReload(
+                    keepAnnotations: true,
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageTurns(
+                            rotations, indices, delta));
                 PageList.SelectedIndex = Math.Min(restoreIdx, PageList.Items.Count - 1);
                 // After a rotation the page aspect ratio changes; always fit-to-page so the
                 // full rotated page is visible regardless of the previous zoom level.

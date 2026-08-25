@@ -122,6 +122,27 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void RemapRotationsAfterPageTurns_UpdatesOnlyDistinctSelectedPages()
+    {
+        var rotations = new Dictionary<int, int>
+        {
+            [0] = 0,
+            [1] = 90,
+            [2] = 270,
+        };
+
+        PdfEngineIntegration.RemapRotationsAfterPageTurns(
+            rotations, [0, 2, 2], 90);
+
+        Assert.Equal(90, rotations[0]);
+        Assert.Equal(90, rotations[1]);
+        Assert.Equal(0, rotations[2]);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PdfEngineIntegration.RemapRotationsAfterPageTurns(
+                rotations, [3], 90));
+    }
+
+    [Fact]
     public void AddSearchableTextLayers_WritesExtractableMultiscriptUnicode()
     {
         string input = Path.Combine(Path.GetTempPath(),
