@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\KillerPdf.Engine\KillerPdf.Engine.csproj" />
+    <ProjectReference Include="..\KillerPdf.Engine\KillerPdf.Engine.csproj" />
   </ItemGroup>
 
 </Project>

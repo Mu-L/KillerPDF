@@ -49,34 +49,40 @@
     </AssemblyAttribute>
   </ItemGroup>
 
-  <!-- The vendored PdfSharpCore builds as its own ProjectReference; keep the app's implicit
-       source globs OUT of third_party or every vendored file compiles twice. -->
+  <!-- The engine and vendored PdfSharpCore projects build independently; keep the app's implicit
+       source globs out of those trees or their files compile as part of the WPF application. -->
   <ItemGroup>
+    <Compile Remove="engine\**" />
     <Compile Remove="third_party\**" />
     <Compile Remove="Packaging\**" />
     <Compile Remove="src\**" />
     <Compile Remove="tests\**" />
     <Compile Remove="tools\**" />
+    <EmbeddedResource Remove="engine\**" />
     <EmbeddedResource Remove="third_party\**" />
     <EmbeddedResource Remove="Packaging\**" />
     <EmbeddedResource Remove="src\**" />
     <EmbeddedResource Remove="tests\**" />
     <EmbeddedResource Remove="tools\**" />
+    <None Remove="engine\**" />
     <None Remove="third_party\**" />
     <None Remove="Packaging\**" />
     <None Remove="src\**" />
     <None Remove="tests\**" />
     <None Remove="tools\**" />
+    <Content Remove="engine\**" />
     <Content Remove="third_party\**" />
     <Content Remove="Packaging\**" />
     <Content Remove="src\**" />
     <Content Remove="tests\**" />
     <Content Remove="tools\**" />
+    <Page Remove="engine\**" />
     <Page Remove="third_party\**" />
     <Page Remove="Packaging\**" />
     <Page Remove="src\**" />
     <Page Remove="tests\**" />
     <Page Remove="tools\**" />
+    <Resource Remove="engine\**" />
     <Resource Remove="third_party\**" />
     <Resource Remove="Packaging\**" />
     <Resource Remove="src\**" />

@@ -7,15 +7,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KillerPDF", "KillerPDF.cspr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PdfSharpCore", "third_party\PdfSharpCore\PdfSharpCore.csproj", "{4C8A9D31-52E6-4B7A-9F0D-2A6E8B1C7D45}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KillerPdf.Engine", "src\KillerPdf.Engine\KillerPdf.Engine.csproj", "{B15A2A5F-3DF7-4BE9-9C7F-57B6F1492901}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KillerPdf.Engine", "engine\KillerPdf.Engine\KillerPdf.Engine.csproj", "{B15A2A5F-3DF7-4BE9-9C7F-57B6F1492901}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KillerPdf.Engine.Tests", "tests\KillerPdf.Engine.Tests\KillerPdf.Engine.Tests.csproj", "{D84D71A2-A2B2-4B6F-95BA-03B03A3D2350}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KillerPdf.Engine.Tests", "engine\KillerPdf.Engine.Tests\KillerPdf.Engine.Tests.csproj", "{D84D71A2-A2B2-4B6F-95BA-03B03A3D2350}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "engine", "engine", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KillerPdf.Engine.Corpus", "tools\KillerPdf.Engine.Corpus\KillerPdf.Engine.Corpus.csproj", "{D6003DED-F54D-402F-B089-2060AD781CE3}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KillerPdf.Engine.Corpus", "engine\KillerPdf.Engine.Corpus\KillerPdf.Engine.Corpus.csproj", "{D6003DED-F54D-402F-B089-2060AD781CE3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KillerPDF.Tests", "KillerPDF.Tests\KillerPDF.Tests.csproj", "{A93FB706-E20D-4610-BD3E-75FA0A545A49}"
 EndProject
@@ -106,6 +104,8 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{B15A2A5F-3DF7-4BE9-9C7F-57B6F1492901} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{D84D71A2-A2B2-4B6F-95BA-03B03A3D2350} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{D6003DED-F54D-402F-B089-2060AD781CE3} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
