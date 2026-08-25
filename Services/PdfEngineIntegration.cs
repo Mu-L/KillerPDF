@@ -164,7 +164,8 @@ internal static class PdfEngineIntegration
     internal static void RemoveAnnotation(string path, int pageIndex, int annotationIndex)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        PdfDocument source = PdfDocument.Open(File.ReadAllBytes(path));
+        byte[] original = File.ReadAllBytes(path);
+        PdfDocument source = PdfDocument.Open(original);
         byte[] result = new PdfIncrementalAnnotationEditor(source)
             .RemoveAnnotationAt(pageIndex, annotationIndex)
             .Build();
@@ -198,6 +199,20 @@ internal static class PdfEngineIntegration
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         byte[] original = File.ReadAllBytes(path);
         byte[] result = PdfSaveSanitizer.RepairHarmlessArtifacts(PdfDocument.Open(original));
+        if (result.AsSpan().SequenceEqual(original)) return;
+        ReplaceWithBuiltResult(path, result);
+    }
+
+    /// <summary>Proportionally normalizes selected pages into a compatible dimension range.</summary>
+    internal static void NormalizePageDimensions(string path,
+        IReadOnlyCollection<int> pageIndexes, double minimum, double maximum)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(pageIndexes);
+        byte[] original = File.ReadAllBytes(path);
+        PdfDocument source = PdfDocument.Open(original);
+        byte[] result = PdfPageDimensionNormalizer.NormalizePages(
+            source, pageIndexes, minimum, maximum);
         if (result.AsSpan().SequenceEqual(original)) return;
         ReplaceWithBuiltResult(path, result);
     }

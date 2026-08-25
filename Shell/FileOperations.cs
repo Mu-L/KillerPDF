@@ -17,6 +17,8 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Writing;
 // CliParsePageRange moved out with the CLI runner but is used here too (Export Images'
 // range box); its encoder sibling is now Services/BitmapHelpers.EncodeJpeg.
 using static KillerPDF.Features.CliRunner;
@@ -876,84 +878,22 @@ namespace KillerPDF
         // file looks normal in KillerPDF and only fails in Adobe.
         // Min/MaxAdobePageDim live in Services/PdfImport.cs (shared with the image importer).
 
-        private static bool PageOutOfAdobeRange(PdfPage p)
-        {
-            double w = p.Width.Point, h = p.Height.Point;
-            return w < PdfImport.MinAdobePageDim || w > PdfImport.MaxAdobePageDim || h < PdfImport.MinAdobePageDim || h > PdfImport.MaxAdobePageDim;
-        }
-
         // Called at the top of every user-facing save. If any page is outside Adobe's supported
         // range, offers a proportional rescale (content, page boxes, and annotations all scale
         // by the same factor, so pages look identical at their new size). Declining saves as-is.
         private void OfferRescaleOutOfRangePages()
         {
             if (_doc is null) return;
-            int bad = 0;
-            for (int i = 0; i < _doc.PageCount; i++)
-                if (PageOutOfAdobeRange(_doc.Pages[i])) bad++;
-            if (bad == 0) return;
-            var res = KillerDialog.Show(this, string.Format(Loc("Str_Dlg_PageOutOfRange"), bad),
+            PdfEngineDocumentSession session = EnsureEngineDocumentSession();
+            IReadOnlyList<int> pages = PdfPageDimensionNormalizer.FindPagesOutsideRange(
+                session.Document, PdfImport.MinAdobePageDim, PdfImport.MaxAdobePageDim);
+            if (pages.Count == 0) return;
+            var res = KillerDialog.Show(this, string.Format(Loc("Str_Dlg_PageOutOfRange"), pages.Count),
                 "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (res != MessageBoxResult.Yes) return;
-            for (int i = 0; i < _doc.PageCount; i++)
-                if (PageOutOfAdobeRange(_doc.Pages[i]))
-                    RescalePageToAdobeRange(_doc.Pages[i]);
-        }
-
-        // Rescales one page into Adobe's supported range: wraps the existing content in a
-        // "q <s> 0 0 <s> 0 0 cm ... Q" transform and scales the page boxes and annotation
-        // rectangles by the same factor.
-        private static void RescalePageToAdobeRange(PdfPage page)
-        {
-            double w = page.Width.Point, h = page.Height.Point;
-            double s = 1.0;
-            if (w > PdfImport.MaxAdobePageDim || h > PdfImport.MaxAdobePageDim)
-                s = Math.Min(PdfImport.MaxAdobePageDim / w, PdfImport.MaxAdobePageDim / h);
-            else if (w < PdfImport.MinAdobePageDim || h < PdfImport.MinAdobePageDim)
-                s = Math.Max(PdfImport.MinAdobePageDim / w, PdfImport.MinAdobePageDim / h);
-            if (s == 1.0) return;
-
-            string inv = s.ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
-            page.Contents.PrependContent().CreateStream(
-                System.Text.Encoding.ASCII.GetBytes($"q {inv} 0 0 {inv} 0 0 cm\n"));
-            page.Contents.AppendContent().CreateStream(
-                System.Text.Encoding.ASCII.GetBytes("\nQ\n"));
-
-            ScaleRectValue(page.Elements, "/MediaBox", s);
-            ScaleRectValue(page.Elements, "/CropBox",  s);
-            ScaleRectValue(page.Elements, "/BleedBox", s);
-            ScaleRectValue(page.Elements, "/TrimBox",  s);
-            ScaleRectValue(page.Elements, "/ArtBox",   s);
-
-            // Annotation rectangles (and link quad points) must follow so they stay on target.
-            var annotsItem = page.Elements["/Annots"];
-            if (annotsItem != null && PdfScrub.DerefItemStatic(annotsItem) is PdfArray annots)
-            {
-                foreach (var item in annots.Elements)
-                {
-                    if (PdfScrub.DerefItemStatic(item) is not PdfDictionary annot) continue;
-                    ScaleRectValue(annot.Elements, "/Rect", s);
-                    if (annot.Elements["/QuadPoints"] is PdfArray quads)
-                        for (int i = 0; i < quads.Elements.Count; i++)
-                            quads.Elements[i] = new PdfReal(PdfScrub.RectNum(quads.Elements[i]) * s);
-                }
-            }
-        }
-
-        // Multiplies a rectangle-valued dictionary entry by s in place; no-op when absent.
-        // PdfSharpCore holds these as PdfRectangle (parsed) or PdfArray, so handle both.
-        private static void ScaleRectValue(PdfDictionary.DictionaryElements elements, string key, double s)
-        {
-            var item = elements[key];
-            if (item == null) return;
-            item = PdfScrub.DerefItemStatic(item);
-            if (item is PdfRectangle rect)
-                elements.SetRectangle(key, new PdfRectangle(
-                    new XPoint(rect.X1 * s, rect.Y1 * s),
-                    new XPoint(rect.X2 * s, rect.Y2 * s)));
-            else if (item is PdfArray arr && arr.Elements.Count == 4)
-                for (int i = 0; i < 4; i++)
-                    arr.Elements[i] = new PdfReal(PdfScrub.RectNum(arr.Elements[i]) * s);
+            SaveTempAndReload(keepAnnotations: true, preserveZoom: true,
+                finalizeSavedFile: path => PdfEngineIntegration.NormalizePageDimensions(
+                    path, pages, PdfImport.MinAdobePageDim, PdfImport.MaxAdobePageDim));
         }
 
         private void SaveInPlace()
@@ -1156,10 +1096,8 @@ namespace KillerPDF
 
         private Dictionary<int, int> SnapshotPageRotations()
         {
-            var rotations = new Dictionary<int, int>();
-            if (_doc is null) return rotations;
-            for (int index = 0; index < _doc.PageCount; index++)
-                rotations[index] = ((_doc.Pages[index].Rotate % 360) + 360) % 360;
+            var rotations = new Dictionary<int, int>(_pageRotations);
+            if (_doc is not null) EnsureEngineDocumentSession().CaptureRotations(rotations);
             return rotations;
         }
 
@@ -1212,14 +1150,15 @@ namespace KillerPDF
                 sourcePath = temp;
             }
 
-            int pageCount = _doc.PageCount;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int pageCount = engineSession.PageCount;
 
             // Snapshot per-page dimensions (CropBox-aware) before going off-thread
             var pageDims = new (double widthPt, double heightPt)[pageCount];
             for (int i = 0; i < pageCount; i++)
             {
-                var p = _doc.Pages[i];
-                pageDims[i] = (p.Width.Point, p.Height.Point);
+                PdfPageInformation p = engineSession.Pages[i];
+                pageDims[i] = (p.Width, p.Height);
             }
 
             // Show a progress overlay so the user knows we're working
@@ -1467,7 +1406,8 @@ namespace KillerPDF
             }
 
             if (_doc is null) return;   // re-check after the await (the doc was untouched, this satisfies flow analysis)
-            int pageCount = _doc.PageCount;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int pageCount = engineSession.PageCount;
 
             // Each page's true physical size in DIPs (96/inch) so the dialog can offer an exact
             // "actual size" / custom scale. Computed on the UI thread (PdfSharp isn't thread-safe).
@@ -1475,10 +1415,7 @@ namespace KillerPDF
             var pageDipH = new double[pageCount];
             for (int i = 0; i < pageCount; i++)
             {
-                double pw = _doc.Pages[i].Width.Point;
-                double ph = _doc.Pages[i].Height.Point;
-                if (_pageRotations.TryGetValue(i, out int rot) && (rot == 90 || rot == 270))
-                    (pw, ph) = (ph, pw);
+                var (pw, ph) = engineSession.VisualPageSize(i, _pageRotations);
                 pageDipW[i] = pw * 96.0 / 72.0;
                 pageDipH[i] = ph * 96.0 / 72.0;
             }
