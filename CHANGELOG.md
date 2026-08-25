@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- CLI image export, flattening, printing, and OCR now prepare rotation-safe PDFium input through a byte-preserving engine revision instead of a PdfSharpCore resave.
 - CLI merge, extract, and split now use The KillerPDF.Engine for all-PDF workflows, preserving complete imported document structures instead of rebuilding pages through PdfSharpCore.
 - Release payloads are now self-contained .NET 10 Windows builds, so users still need no separate runtime installation.
 - Document Information now reads metadata, PDF version, and page count through The KillerPDF.Engine while retaining the existing live-document save path during staged integration.

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Editing;
 using KillerPdf.Engine.Objects;
 using KillerPDF.Services;
 using Xunit;
@@ -11,6 +12,37 @@ namespace KillerPDF.Tests;
 
 public sealed class PdfEngineIntegrationTests
 {
+    [Fact]
+    public void CreateZeroRotationCopy_PreservesSourcePrefixAndClearsEveryRotation()
+    {
+        string sourcePath = Path.Combine(Path.GetTempPath(), $"killerpdf-rotated-{Guid.NewGuid():N}.pdf");
+        string destinationPath = Path.Combine(Path.GetTempPath(), $"killerpdf-render-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] unrotated = new PdfDocumentBuilder()
+                .AddBlankPage()
+                .AddBlankPage()
+                .Build();
+            byte[] source = new PdfIncrementalPageEditor(PdfDocument.Open(unrotated))
+                .SetRotation(0, 90)
+                .SetRotation(1, 270)
+                .Build();
+            File.WriteAllBytes(sourcePath, source);
+
+            PdfEngineIntegration.CreateZeroRotationCopy(sourcePath, destinationPath);
+
+            byte[] result = File.ReadAllBytes(destinationPath);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            Assert.Contains("/Rotate 0", System.Text.Encoding.ASCII.GetString(result));
+            Assert.Equal(2, PdfDocumentInformation.Read(PdfDocument.Open(result)).PageCount);
+        }
+        finally
+        {
+            if (File.Exists(sourcePath)) File.Delete(sourcePath);
+            if (File.Exists(destinationPath)) File.Delete(destinationPath);
+        }
+    }
+
     [Fact]
     public void MergeDocuments_PreservesFirstPrefixAndImportsCompleteDocuments()
     {

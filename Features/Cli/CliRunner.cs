@@ -445,9 +445,7 @@ namespace KillerPDF.Features
                 if (!anyRot) return (workPath, rotations, dims);
 
                 var renderTemp = App.MakeTempFile("clirender");
-                PdfScrub.ScrubEmptyOutlines(doc);
-                PdfScrub.ScrubDegenerateCropBoxes(doc);
-                doc.Save(renderTemp);
+                PdfEngineIntegration.CreateZeroRotationCopy(workPath, renderTemp);
                 return (renderTemp, rotations, dims);
             }
             catch (Exception ex)

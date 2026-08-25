@@ -92,6 +92,18 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, editor.Build());
     }
 
+    /// <summary>Creates a rendering copy with every native page rotation set to zero.</summary>
+    internal static void CreateZeroRotationCopy(string sourcePath, string destinationPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(sourcePath));
+        var editor = new PdfIncrementalPageEditor(document);
+        for (int pageIndex = 0; pageIndex < editor.PageCount; pageIndex++)
+            editor.SetRotation(pageIndex, 0);
+        ReplaceWithBuiltResult(destinationPath, editor.Build());
+    }
+
     /// <summary>Writes complete descriptive document metadata incrementally.</summary>
     internal static void ApplyDocumentMetadata(string path, PdfDocumentMetadata metadata)
     {
