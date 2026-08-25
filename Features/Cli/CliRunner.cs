@@ -392,16 +392,16 @@ namespace KillerPDF.Features
 
             try
             {
-                using var doc = PdfReader.Open(workPath, PdfDocumentOpenMode.Modify);
-                var rotations = new int[doc.PageCount];
-                var dims = new (double WPt, double HPt)[doc.PageCount];
+                IReadOnlyList<KillerPdf.Engine.Documents.PdfPageInformation> pages =
+                    PdfEngineIntegration.ReadPageInformation(workPath);
+                var rotations = new int[pages.Count];
+                var dims = new (double WPt, double HPt)[pages.Count];
                 bool anyRot = false;
-                for (int i = 0; i < doc.PageCount; i++)
+                for (int i = 0; i < pages.Count; i++)
                 {
-                    var p = doc.Pages[i];
-                    rotations[i] = ((p.Rotate % 360) + 360) % 360;
-                    dims[i] = (p.Width.Point, p.Height.Point);
-                    if (rotations[i] != 0) { anyRot = true; p.Rotate = 0; }
+                    rotations[i] = pages[i].Rotation;
+                    dims[i] = (pages[i].Width, pages[i].Height);
+                    if (rotations[i] != 0) anyRot = true;
                 }
                 if (!anyRot) return (workPath, rotations, dims);
 

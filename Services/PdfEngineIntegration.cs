@@ -196,6 +196,13 @@ internal static class PdfEngineIntegration
         return builder.Build();
     }
 
+    /// <summary>Reads crop-aware page dimensions and native rotations.</summary>
+    internal static IReadOnlyList<PdfPageInformation> ReadPageInformation(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return PdfPageInformation.Read(PdfDocument.Open(File.ReadAllBytes(path)));
+    }
+
     /// <summary>Extracts selected pages into a new PDF in the supplied order.</summary>
     internal static byte[] ExtractPages(byte[] source, IReadOnlyList<int> pageIndices)
     {
