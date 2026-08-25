@@ -89,7 +89,6 @@ namespace KillerPDF
         private void CloseLinkPdfiumDoc() => ActiveViewer.CloseLinkPdfiumDocExt();
         private void AddLinkMenuItems(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => ActiveViewer.AddLinkMenuItemsExt(menu, target, annotIndex, pageIndex);
-        private int? ResolveDest(PdfItem? destItem) => ActiveViewer.ResolveDestExt(destItem);
         private const double LinkHitPad = Controls.PdfViewer.LinkHitPadShared;
         internal const string ConfirmLinksSetting = Controls.PdfViewer.ConfirmLinksSetting;
 

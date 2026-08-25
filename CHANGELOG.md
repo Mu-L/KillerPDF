@@ -17,6 +17,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Native link overlays and hit testing now read annotation geometry, URI actions, page targets, and modern or legacy named destinations through The KillerPDF.Engine. This removes the viewer's PdfSharpCore link parser, its PDFium object-stream fallback and persistent native link handle, and the obsolete PdfSharpCore outline helper layer.
 - The bookmark sidebar now reads hierarchy, Unicode titles, stable identities, styles, colors, open state, explicit destinations, and named destinations through The KillerPDF.Engine. Adding, renaming, deleting, reordering, retargeting, and clearing bookmarks now replace the complete hierarchy through one engine revision, and the sidebar no longer retains or edits live PdfSharpCore outline objects.
 - Save and Save As now normalize native links to invisible clickable regions through The KillerPDF.Engine, removing appearance streams and colors and writing zero-width modern and legacy borders without changing link targets.
 - Rotate Left and Rotate Right now update KillerPDF's authoritative per-page rotation state during reload instead of mutating live PdfSharpCore page dictionaries; final saved rotations continue to be written through The KillerPDF.Engine.

@@ -86,7 +86,6 @@ namespace KillerPDF.Controls
         internal void CloseLinkPdfiumDocExt() => CloseLinkPdfiumDoc();
         internal void AddLinkMenuItemsExt(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => AddLinkMenuItems(menu, target, annotIndex, pageIndex);
-        internal int? ResolveDestExt(PdfItem? destItem) => ResolveDest(destItem);
         internal bool IsPanning => _isPanning;
         internal EditTool CurrentToolRef { get => _currentTool; set => _currentTool = value; }
         internal PdfDocument? DocumentRef { get => _doc; set => _doc = value; }

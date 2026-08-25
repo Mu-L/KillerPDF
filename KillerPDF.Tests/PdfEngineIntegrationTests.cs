@@ -78,6 +78,33 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ReadPageLinks_ResolvesViewerTargetsAndAnnotationIndices()
+    {
+        string path = Path.Combine(Path.GetTempPath(),
+            $"killerpdf-links-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder()
+                .AddBlankPage(300, 400).AddBlankPage(300, 400)
+                .AddUriLink(0, 10, 20, 80, 15, "https://example.com")
+                .AddPageLink(0, 100, 40, 50, 20, 1)
+                .Build());
+
+            IReadOnlyList<PdfLinkInfo> links = PdfEngineIntegration.ReadPageLinks(path, 0);
+
+            Assert.Equal(2, links.Count);
+            Assert.Equal("https://example.com/", links[0].Uri);
+            Assert.Equal(0, links[0].AnnotationIndex);
+            Assert.Equal(1, links[1].DestinationPageIndex);
+            Assert.Equal(1, links[1].AnnotationIndex);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void CreateBlankDocument_AuthorsOneA4Page()
     {
         byte[] result = PdfEngineIntegration.CreateBlankDocument();

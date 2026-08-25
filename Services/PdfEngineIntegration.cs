@@ -31,6 +31,20 @@ internal static class PdfEngineIntegration
         return PdfBookmarkReader.Read(PdfDocument.Open(source));
     }
 
+    /// <summary>Reads native links from one page for viewer hit testing.</summary>
+    internal static IReadOnlyList<PdfLinkInfo> ReadPageLinks(string path, int pageIndex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return PdfLinkReader.ReadPage(PdfDocument.Open(File.ReadAllBytes(path)), pageIndex);
+    }
+
+    /// <summary>Reads native links from an already parsed engine document.</summary>
+    internal static IReadOnlyList<PdfLinkInfo> ReadPageLinks(PdfDocument document, int pageIndex)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return PdfLinkReader.ReadPage(document, pageIndex);
+    }
+
     /// <summary>Replaces the document bookmark hierarchy as one engine revision.</summary>
     internal static void ReplaceBookmarks(string path, IReadOnlyList<PdfBookmarkInfo> bookmarks)
     {
