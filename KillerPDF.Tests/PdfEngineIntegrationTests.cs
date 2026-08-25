@@ -764,6 +764,39 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void InsertDocuments_AddsSourcesAtRequestedPositionAndShiftsRotations()
+    {
+        string targetPath = Path.Combine(Path.GetTempPath(), $"killerpdf-insert-doc-target-{Guid.NewGuid():N}.pdf");
+        string sourcePath = Path.Combine(Path.GetTempPath(), $"killerpdf-insert-doc-source-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(targetPath, new PdfDocumentBuilder()
+                .AddBlankPage(100, 200).AddBlankPage(400, 500).Build());
+            File.WriteAllBytes(sourcePath, new PdfDocumentBuilder()
+                .AddBlankPage(200, 300).AddBlankPage(300, 400).Build());
+            var imports = new[]
+            {
+                new PdfEngineIntegration.ImportedDocument(sourcePath, [90, 270])
+            };
+
+            PdfEngineIntegration.InsertDocuments(targetPath, imports, 1);
+
+            PdfDocument reopened = PdfDocument.Open(File.ReadAllBytes(targetPath));
+            Assert.Equal([100d, 200d, 300d, 400d], Enumerable.Range(0, 4)
+                .Select(index => PageMediaBox(reopened, index)[2]));
+            var rotations = new Dictionary<int, int> { [0] = 0, [1] = 180 };
+            PdfEngineIntegration.RemapRotationsAfterDocumentInsertion(rotations, imports, 1);
+            Assert.Equal([0, 90, 270, 180], Enumerable.Range(0, 4)
+                .Select(index => rotations[index]));
+        }
+        finally
+        {
+            if (File.Exists(targetPath)) File.Delete(targetPath);
+            if (File.Exists(sourcePath)) File.Delete(sourcePath);
+        }
+    }
+
+    [Fact]
     public void InsertBlankPage_AddsA4PageAtRequestedPosition()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-insert-{Guid.NewGuid():N}.pdf");
@@ -864,6 +897,43 @@ public sealed class PdfEngineIntegrationTests
             [2] = 90,
             [3] = 0
         }, rotations);
+    }
+
+    [Fact]
+    public void MovePages_ReordersDiscontiguousSelectionAsOrderedBlock()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-move-pages-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder()
+                .AddBlankPage(100, 200).AddBlankPage(200, 300).AddBlankPage(300, 400)
+                .AddBlankPage(400, 500).AddBlankPage(500, 600).Build());
+
+            IReadOnlyList<int> selected = PdfEngineIntegration.MovePages(path, [1, 3], 5);
+
+            Assert.Equal([3, 4], selected);
+            PdfDocument reopened = PdfDocument.Open(File.ReadAllBytes(path));
+            Assert.Equal(100, PageMediaBox(reopened, 0)[2]);
+            Assert.Equal(300, PageMediaBox(reopened, 1)[2]);
+            Assert.Equal(500, PageMediaBox(reopened, 2)[2]);
+            Assert.Equal(200, PageMediaBox(reopened, 3)[2]);
+            Assert.Equal(400, PageMediaBox(reopened, 4)[2]);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void RemapRotationsAfterPageMoves_FollowsBatchOrder()
+    {
+        var rotations = new Dictionary<int, int>
+        {
+            [0] = 0, [1] = 90, [2] = 180, [3] = 270, [4] = 0
+        };
+
+        PdfEngineIntegration.RemapRotationsAfterPageMoves(rotations, [1, 3], 5);
+
+        Assert.Equal([0, 180, 0, 90, 270],
+            Enumerable.Range(0, rotations.Count).Select(index => rotations[index]));
     }
 
     [Fact]

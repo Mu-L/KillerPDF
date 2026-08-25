@@ -795,6 +795,9 @@ namespace KillerPDF
         }
 
         private async void Merge_Click(object sender, RoutedEventArgs e)
+            => await MergeAtIndex(null);
+
+        private async Task MergeAtIndex(int? insertionIndex)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
@@ -823,12 +826,14 @@ namespace KillerPDF
                     imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
                         pages.Select(page => page.Rotation).ToArray()));
                 }
+                int insertAt = insertionIndex ?? _doc.PageCount;
                 SaveTempAndReload(
                     finalizeSavedFile: path =>
-                        PdfEngineIntegration.AppendDocuments(path, imports),
+                        PdfEngineIntegration.InsertDocuments(path, imports, insertAt),
                     remapRotations: rotations =>
-                        PdfEngineIntegration.RemapRotationsAfterDocumentAppend(
-                            rotations, imports));
+                        PdfEngineIntegration.RemapRotationsAfterDocumentInsertion(
+                            rotations, imports, insertAt),
+                    selectedPageAfterReload: insertionIndex);
                 SetStatus(string.Format(Loc("Str_St_Merged"), dlg.FileNames.Length, _doc?.PageCount));
             }
             catch (Exception ex)

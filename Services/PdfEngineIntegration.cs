@@ -654,6 +654,57 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, result);
     }
 
+    /// <summary>Moves selected pages as one ordered block into an original-order insertion slot.</summary>
+    internal static IReadOnlyList<int> MovePages(
+        string path, IReadOnlyList<int> sourceIndices, int insertionIndex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(sourceIndices);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        var editor = new PdfIncrementalPageEditor(document);
+        IReadOnlyList<int> target = PageOrderAfterMove(editor.PageCount, sourceIndices, insertionIndex);
+        var current = Enumerable.Range(0, editor.PageCount).ToList();
+        for (int destination = 0; destination < target.Count; destination++)
+        {
+            int source = current.IndexOf(target[destination]);
+            if (source == destination) continue;
+            editor.MovePage(source, destination);
+            int page = current[source];
+            current.RemoveAt(source);
+            current.Insert(destination, page);
+        }
+        ReplaceWithBuiltResult(path, editor.Build());
+        var selected = sourceIndices.Distinct().ToHashSet();
+        return target.Select((original, index) => (original, index))
+            .Where(item => selected.Contains(item.original)).Select(item => item.index).ToArray();
+    }
+
+    internal static IReadOnlyList<int> PageOrderAfterMove(
+        int pageCount, IReadOnlyList<int> sourceIndices, int insertionIndex)
+    {
+        ArgumentNullException.ThrowIfNull(sourceIndices);
+        if (insertionIndex < 0 || insertionIndex > pageCount)
+            throw new ArgumentOutOfRangeException(nameof(insertionIndex));
+        int[] selected = sourceIndices.Distinct().OrderBy(index => index).ToArray();
+        if (selected.Length == 0 || selected.Any(index => index < 0 || index >= pageCount))
+            throw new ArgumentOutOfRangeException(nameof(sourceIndices));
+        var selectedSet = selected.ToHashSet();
+        var remaining = Enumerable.Range(0, pageCount).Where(index => !selectedSet.Contains(index)).ToList();
+        int adjustedSlot = insertionIndex - selected.Count(index => index < insertionIndex);
+        remaining.InsertRange(adjustedSlot, selected);
+        return remaining;
+    }
+
+    internal static void RemapRotationsAfterPageMoves(
+        Dictionary<int, int> rotations, IReadOnlyList<int> sourceIndices, int insertionIndex)
+    {
+        ArgumentNullException.ThrowIfNull(rotations);
+        IReadOnlyList<int> order = PageOrderAfterMove(rotations.Count, sourceIndices, insertionIndex);
+        int[] values = Enumerable.Range(0, rotations.Count).Select(index => rotations[index]).ToArray();
+        rotations.Clear();
+        for (int index = 0; index < order.Count; index++) rotations[index] = values[order[index]];
+    }
+
     /// <summary>Moves rotation state with a reordered page.</summary>
     internal static void RemapRotationsAfterPageMove(
         Dictionary<int, int> rotations, int sourceIndex, int destinationIndex)
@@ -781,6 +832,11 @@ internal static class PdfEngineIntegration
     /// <summary>Appends complete PDF documents and normalizes their rotations for the viewer.</summary>
     internal static void AppendDocuments(
         string path, IReadOnlyList<ImportedDocument> sources)
+        => InsertDocuments(path, sources, int.MaxValue);
+
+    /// <summary>Inserts complete PDF documents at a zero-based page position.</summary>
+    internal static void InsertDocuments(
+        string path, IReadOnlyList<ImportedDocument> sources, int insertionIndex)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(sources);
@@ -788,17 +844,20 @@ internal static class PdfEngineIntegration
 
         PdfDocument target = PdfDocument.Open(File.ReadAllBytes(path));
         var editor = new PdfIncrementalPageEditor(target);
+        int offset = insertionIndex == int.MaxValue ? editor.PageCount : insertionIndex;
+        if (offset < 0 || offset > editor.PageCount)
+            throw new ArgumentOutOfRangeException(nameof(insertionIndex));
         foreach (ImportedDocument import in sources)
         {
             PdfDocument source = PdfDocument.Open(File.ReadAllBytes(import.Path));
-            int offset = editor.PageCount;
             int count = new PdfIncrementalPageEditor(source).PageCount;
             if (import.PageRotations.Count != count)
                 throw new ArgumentException(
                     "The imported rotation count must match the source page count.", nameof(sources));
-            editor.AddImportedDocument(source);
+            editor.InsertImportedPages(offset, source, Enumerable.Range(0, count).ToArray());
             for (int index = 0; index < count; index++)
                 editor.SetRotation(offset + index, 0);
+            offset += count;
         }
         ReplaceWithBuiltResult(path, editor.Build());
     }
@@ -806,13 +865,23 @@ internal static class PdfEngineIntegration
     /// <summary>Appends imported page rotations to the application rotation map.</summary>
     internal static void RemapRotationsAfterDocumentAppend(
         Dictionary<int, int> rotations, IReadOnlyList<ImportedDocument> sources)
+        => RemapRotationsAfterDocumentInsertion(rotations, sources, rotations.Count);
+
+    internal static void RemapRotationsAfterDocumentInsertion(
+        Dictionary<int, int> rotations, IReadOnlyList<ImportedDocument> sources, int insertionIndex)
     {
         ArgumentNullException.ThrowIfNull(rotations);
         ArgumentNullException.ThrowIfNull(sources);
-        int index = rotations.Count;
+        if (insertionIndex < 0 || insertionIndex > rotations.Count)
+            throw new ArgumentOutOfRangeException(nameof(insertionIndex));
+        var ordered = Enumerable.Range(0, rotations.Count).Select(index => rotations[index]).ToList();
+        var inserted = new List<int>();
         foreach (ImportedDocument source in sources)
             foreach (int rotation in source.PageRotations)
-                rotations[index++] = ((rotation % 360) + 360) % 360;
+                inserted.Add(((rotation % 360) + 360) % 360);
+        ordered.InsertRange(insertionIndex, inserted);
+        rotations.Clear();
+        for (int index = 0; index < ordered.Count; index++) rotations[index] = ordered[index];
     }
 
     /// <summary>Turns selected application-managed pages without mutating the live PDF model.</summary>
