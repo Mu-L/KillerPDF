@@ -81,6 +81,29 @@ namespace KillerPDF.Controls
             PagePreviewPanel.ScrollToVerticalOffset(target);
         }
 
+        // Sidebar/page-jump navigation must temporarily outrank viewport-driven page tracking.
+        // WPF can raise ScrollChanged while the requested offset is still clamped to the old layout;
+        // without this target, that interim event immediately writes Page 1 back into the sidebar.
+        private int _continuousNavigationTarget = -1;
+
+        private void NavigateContinuousToPage(int pageIndex)
+        {
+            if (_doc is null || pageIndex < 0 || pageIndex >= _doc.PageCount) return;
+            _continuousNavigationTarget = pageIndex;
+            ScrollContinuousToPage(pageIndex);
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
+            {
+                if (_continuousNavigationTarget != pageIndex) return;
+                ScrollContinuousToPage(pageIndex);
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, (Action)(() =>
+                {
+                    if (_continuousNavigationTarget != pageIndex) return;
+                    _continuousNavigationTarget = -1;
+                    SyncCurrentPageTo(pageIndex);
+                }));
+            }));
+        }
+
         // ── Current-page badge (#197, thanks Ryokoxx) ─────────────────────────────────────────
         // One viewport-corner badge showing "page / total", replacing the per-tile tooltips that
         // trailed the cursor. Slides up on scroll or page change, slides back down after idle.
@@ -162,7 +185,7 @@ namespace KillerPDF.Controls
                 // Rebuilding Continuous temporarily returns the ScrollViewer to the top while its
                 // slots are replaced. That layout scroll is not navigation: keep the requested page
                 // selected until the target slot has its final geometry and the deferred scroll lands.
-                if (_continuousScrollTarget < 0)
+                if (_continuousScrollTarget < 0 && _continuousNavigationTarget < 0)
                     SyncCurrentPageTo(nearest);
 
                 // Once the scroll settles, sharpen the pages now in view (and release the ones that left).

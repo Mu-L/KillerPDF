@@ -94,7 +94,7 @@ namespace KillerPDF.Controls
                 if (_viewMode == ViewMode.Continuous)
                 {
                     if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
-                    ScrollContinuousToPage(_currentPage);
+                    NavigateContinuousToPage(_currentPage);
                     return;
                 }
                 if (_viewMode == ViewMode.Grid)
