@@ -53,6 +53,7 @@
     <Compile Include="..\Services\EditableTextShortcutPolicy.cs" Link="Services\EditableTextShortcutPolicy.cs" />
     <Compile Include="..\Services\PayloadIntegrityVerifier.cs" Link="Services\PayloadIntegrityVerifier.cs" />
     <Compile Include="..\Services\PrintColorConverter.cs" Link="Services\PrintColorConverter.cs" />
+    <Compile Include="..\Services\CombFieldLayout.cs" Link="Services\CombFieldLayout.cs" />
   </ItemGroup>
 
   <ItemGroup>

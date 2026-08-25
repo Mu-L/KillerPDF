@@ -12934,6 +12934,10 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Contains("(8) Tj", operators);
         Assert.Contains("(7) Tj", operators);
         Assert.Contains("(6) Tj", operators);
+        Assert.Contains("11.7 4 Td", operators);
+        Assert.Contains("41.7 4 Td", operators);
+        Assert.Contains("71.7 4 Td", operators);
+        Assert.Contains("101.7 4 Td", operators);
     }
 
     [Fact]

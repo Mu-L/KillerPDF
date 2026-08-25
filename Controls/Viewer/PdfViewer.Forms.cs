@@ -37,6 +37,67 @@ namespace KillerPDF.Controls
 
         private const double FormResizeGripSize = 14;
 
+        private sealed class CombTextBox : Grid
+        {
+            private readonly Canvas _characters = new() { IsHitTestVisible = false };
+            private readonly int _cellCount;
+            private readonly double _fontSize;
+
+            internal TextBox Editor { get; }
+
+            internal CombTextBox(TextBox editor, int cellCount, double fontSize)
+            {
+                Editor = editor;
+                _cellCount = cellCount;
+                _fontSize = fontSize;
+                Width = editor.Width;
+                Height = editor.Height;
+                Background = Brushes.Transparent;
+                Editor.Width = double.NaN;
+                Editor.Height = double.NaN;
+                Editor.Foreground = Brushes.Transparent;
+                Children.Add(Editor);
+                Children.Add(_characters);
+                Editor.TextChanged += (_, _) => RefreshCharacters();
+                Editor.PreviewMouseLeftButtonDown += (_, e) =>
+                {
+                    int cell = CombFieldLayout.CellIndexAt(
+                        e.GetPosition(Editor).X, Math.Max(1, ActualWidth), _cellCount);
+                    Editor.Focus();
+                    Editor.CaretIndex = Math.Min(cell, Editor.Text.Length);
+                    e.Handled = true;
+                };
+                SizeChanged += (_, _) => RefreshCharacters();
+                RefreshCharacters();
+            }
+
+            private void RefreshCharacters()
+            {
+                _characters.Children.Clear();
+                if (ActualWidth <= 0 || ActualHeight <= 0) return;
+                double cellWidth = ActualWidth / _cellCount;
+                int count = Math.Min(Editor.Text.Length, _cellCount);
+                for (int index = 0; index < count; index++)
+                {
+                    var character = new TextBlock
+                    {
+                        Text = Editor.Text[index].ToString(),
+                        Width = cellWidth,
+                        Height = ActualHeight,
+                        FontFamily = new FontFamily("Consolas"),
+                        FontSize = _fontSize,
+                        Foreground = Brushes.Black,
+                        TextAlignment = TextAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Canvas.SetLeft(character,
+                        CombFieldLayout.CellLeft(ActualWidth, _cellCount, index));
+                    Canvas.SetTop(character, Math.Max(0, (ActualHeight - _fontSize * 1.25) / 2));
+                    _characters.Children.Add(character);
+                }
+            }
+        }
+
         internal void RefreshFormDesignMode()
         {
             var pages = new HashSet<int>(_pages.Keys);
@@ -51,7 +112,7 @@ namespace KillerPDF.Controls
             if (control is not FrameworkElement element) return;
             if (_currentTool == EditTool.FormField && field.ObjNum > 0)
             {
-                element.Cursor = element is TextBox ? Cursors.IBeam : Cursors.SizeAll;
+                element.Cursor = element is TextBox or CombTextBox ? Cursors.IBeam : Cursors.SizeAll;
                 element.ForceCursor = true;
                 if (element is ComboBox comboBox) comboBox.IsEnabled = false;
             }
@@ -62,7 +123,7 @@ namespace KillerPDF.Controls
                 Point local = e.GetPosition(element);
                 bool resize = local.X >= element.ActualWidth - FormResizeGripSize
                     && local.Y >= element.ActualHeight - FormResizeGripSize;
-                if (element is TextBox && !resize
+                if (element is TextBox or CombTextBox && !resize
                     && !IsFormMoveBorder(local, element.ActualWidth, element.ActualHeight))
                     return;
                 _formDragControl = element;
@@ -91,7 +152,7 @@ namespace KillerPDF.Controls
                         bool resize = local.X >= element.ActualWidth - FormResizeGripSize
                             && local.Y >= element.ActualHeight - FormResizeGripSize;
                         element.Cursor = resize ? Cursors.SizeNWSE
-                            : element is TextBox
+                            : element is TextBox or CombTextBox
                                 && !IsFormMoveBorder(local, element.ActualWidth, element.ActualHeight)
                                 ? Cursors.IBeam : Cursors.SizeAll;
                     }
@@ -295,7 +356,7 @@ namespace KillerPDF.Controls
                     tb.GotFocus  += (_, _) => { tb.SetResourceReference(Control.BorderBrushProperty, "HeaderLineBrush"); ShowFormSizeBar(tb, capturedKey, capturedScale); };
                     tb.LostFocus += (_, _) => { tb.BorderBrush = Brushes.Transparent; HideFormSizeBar(); };
                     tb.TextChanged += (_, _) => { _formTextValues[capturedKey] = tb.Text; MarkDirty(true); };
-                    ctrl = tb;
+                    ctrl = f.IsComb ? new CombTextBox(tb, f.MaxLen, fontSize) : tb;
                 }
 
                 // Dropdown / choice
