@@ -1,7 +1,7 @@
 namespace KillerPdf.Engine.Authoring;
 
-[Flags]
 /// <summary>Visual emphasis applied to a bookmark title.</summary>
+[Flags]
 public enum PdfBookmarkStyle
 {
     /// <summary>Regular text without emphasis.</summary>

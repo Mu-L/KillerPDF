@@ -2,16 +2,23 @@ using KillerPdf.Engine.Syntax;
 
 namespace KillerPdf.Engine.Writing;
 
+/// <summary>Controls which descriptive metadata a full rewrite preserves.</summary>
 public enum PdfMetadataPolicy
 {
+    /// <summary>Preserves document information and XMP metadata.</summary>
     Preserve,
+    /// <summary>Removes the trailer document-information dictionary.</summary>
     RemoveDocumentInformation,
+    /// <summary>Removes both document information and catalog XMP metadata.</summary>
     RemoveDocumentInformationAndXmp
 }
 
+/// <summary>The cross-reference representation emitted by a full rewrite.</summary>
 public enum PdfCrossReferenceFormat
 {
+    /// <summary>A classic cross-reference table.</summary>
     Table,
+    /// <summary>A PDF 1.5 or later cross-reference stream.</summary>
     Stream
 }
 
@@ -27,6 +34,7 @@ public sealed class PdfDocumentWriteOptions
     /// <summary>Null preserves the source header version. Rewrites may upgrade but not downgrade.</summary>
     public PdfVersion? TargetVersion { get; init; }
 
+    /// <summary>Gets the policy for descriptive document information and XMP metadata.</summary>
     public PdfMetadataPolicy MetadataPolicy { get; init; } = PdfMetadataPolicy.Preserve;
 
     /// <summary>Preserves the trailer /ID pair independently from descriptive document information.</summary>

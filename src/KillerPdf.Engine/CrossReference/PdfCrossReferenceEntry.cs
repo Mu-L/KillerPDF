@@ -1,9 +1,13 @@
 namespace KillerPdf.Engine.CrossReference;
 
+/// <summary>The storage state represented by a cross-reference entry.</summary>
 public enum PdfCrossReferenceEntryType
 {
+    /// <summary>A free object-number entry.</summary>
     Free,
+    /// <summary>An uncompressed indirect object at a byte offset.</summary>
     InUse,
+    /// <summary>An object stored as a member of an object stream.</summary>
     Compressed,
     /// <summary>An unknown future xref-stream type, which PDF requires readers to treat as null.</summary>
     Null
