@@ -5,6 +5,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using PdfSharpCore.Pdf;
 
+using KillerPDF.Services;
+
 namespace KillerPDF
 {
     /// <summary>
@@ -87,6 +89,8 @@ namespace KillerPDF
 
         // ── Links ────────────────────────────────────────────────────────────────────────────
         private void CloseEngineDocumentSession() => ActiveViewer.CloseEngineDocumentSessionExt();
+        private PdfEngineDocumentSession EnsureEngineDocumentSession() =>
+            ActiveViewer.EnsureEngineDocumentSessionExt();
         private void AddLinkMenuItems(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => ActiveViewer.AddLinkMenuItemsExt(menu, target, annotIndex, pageIndex);
         private const double LinkHitPad = Controls.PdfViewer.LinkHitPadShared;

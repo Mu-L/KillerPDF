@@ -165,6 +165,10 @@ namespace KillerPDF
             _annotations.Clear();
             _continuousLinks.Clear();   // drop the previous document's cached link rects
             CloseEngineDocumentSession();
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int pageCount = engineSession.Pages.Count;
+            if (pageCount == 0)
+                throw new InvalidOperationException("The PDF contains no pages.");
             _undoStack.Clear();
             _redoStack.Clear();
             // The map belongs to the previous document. Native rotations in a newly opened PDF
@@ -192,7 +196,7 @@ namespace KillerPDF
                 _viewMode  = sview;
                 _fitMode   = preferredFit ?? sfit;
                 _zoomLevel = szoom;
-                int pg = Math.Max(0, Math.Min(spage, _doc!.PageCount - 1));
+                int pg = Math.Max(0, Math.Min(spage, pageCount - 1));
                 BootstrapDocumentView(pg, autoFit: false, restoreFitMode: true);
             }
             else
@@ -204,7 +208,7 @@ namespace KillerPDF
                 }
                 else BootstrapDocumentView(0, autoFit: true);
             }
-            SetStatus(string.Format(Loc("Str_Opened"), System.IO.Path.GetFileName(displayPath), _doc!.PageCount));
+            SetStatus(string.Format(Loc("Str_Opened"), System.IO.Path.GetFileName(displayPath), pageCount));
             SyncSidebarToDocState(hasDoc: true, startup: false);   // a document is up: open the rail, show page controls
         }
 

@@ -87,7 +87,7 @@ All desktop burn paths now append isolated typed engine content. This includes S
 
 ## Exact next slice
 
-Continue the live desktop document open and temp-reload migration in `Shell/FileOperations.cs` and `Shell/TempReload.cs`. The first step is complete: links and forms now share one immutable engine session containing owned source bytes, the parsed document, and crop-aware page information, and every reload, save, close, and tab switch invalidates it through one lifecycle boundary. Next, move document-open validation and page-state initialization onto that session while keeping PDFium as the renderer, then remove remaining live mutable PdfSharpCore operations one vertical group at a time.
+Continue the live desktop document open and temp-reload migration in `Shell/FileOperations.cs` and `Shell/TempReload.cs`. Open finalization, page-list initialization, links, and forms now share one immutable engine session containing owned source bytes, the parsed document, and crop-aware page information. Every reload, save, close, and tab switch invalidates it through one lifecycle boundary. Next, migrate native rotation capture and the base temp serialization onto engine state while keeping PDFium as the renderer, then remove remaining live mutable PdfSharpCore operations one vertical group at a time.
 
 ## Remaining major legacy pockets after forms
 

@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using PdfSharpCore.Pdf;
+using KillerPDF.Services;
 
 namespace KillerPDF.Controls
 {
@@ -84,6 +85,7 @@ namespace KillerPDF.Controls
 
         // ── Links ────────────────────────────────────────────────────────────────────────────
         internal void CloseEngineDocumentSessionExt() => CloseEngineDocumentSession();
+        internal PdfEngineDocumentSession EnsureEngineDocumentSessionExt() => EnsureEngineDocumentSession();
         internal void AddLinkMenuItemsExt(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => AddLinkMenuItems(menu, target, annotIndex, pageIndex);
         internal bool IsPanning => _isPanning;

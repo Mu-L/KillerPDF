@@ -228,7 +228,7 @@ namespace KillerPDF
                 return;
             }
 
-            int    pageCount = _doc.PageCount;
+            int    pageCount = EnsureEngineDocumentSession().Pages.Count;
             string filePath  = _currentFile;
             int preservedPage = ActiveViewer.CurrentPageIndex;
 
