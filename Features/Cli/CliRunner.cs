@@ -765,12 +765,11 @@ namespace KillerPDF.Features
             // layer share page space, so they stay aligned.
             if (rotations != null && rotations.Any(r => r != 0))
             {
-                using var outDoc = PdfReader.Open(outPath, PdfDocumentOpenMode.Modify);
-                for (int i = 0; i < outDoc.PageCount && i < rotations.Length; i++)
-                    if (rotations[i] != 0) outDoc.Pages[i].Rotate = rotations[i];
-                PdfScrub.ScrubEmptyOutlines(outDoc);
-                PdfScrub.ScrubDegenerateCropBoxes(outDoc);
-                outDoc.Save(outPath);
+                var restoredRotations = rotations
+                    .Select((rotation, pageIndex) => (pageIndex, rotation))
+                    .Where(item => item.rotation != 0)
+                    .ToDictionary(item => item.pageIndex, item => item.rotation);
+                PdfEngineIntegration.ApplyPageRotations(outPath, restoredRotations);
             }
 
             con.WriteLine($"OCR complete: {pages} pages, {words} words -> {outPath}");

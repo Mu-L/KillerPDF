@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-alpha.1] - Unreleased
 
+- Reused the application rotation gate to restore rotated CLI OCR output without a second full-document resave.
 - Integrated authenticated encryption removal into the desktop open pipeline, including engine-first handling for empty-password protected files before tolerant fallbacks.
 - Added an explicit full-rewrite policy for removing password encryption from an authenticated document, including omission of the encryption dictionary from the output object graph.
 - Added a shared application rendering gate that creates a byte-preserving zero-rotation copy for CLI image export, flattening, printing, and OCR.
