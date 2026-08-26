@@ -282,10 +282,10 @@ internal sealed class PdfStandardSecurityHandler
         PdfName[] filters = filterValue switch
         {
             PdfName name => [name],
-            PdfArray array => array.Select(item =>
+            PdfArray array => [.. array.Select(item =>
                 ResolveStreamValue(item, resolve, "stream /Filter array entry") as PdfName
                 ?? throw new InvalidOperationException(
-                    "Every stream /Filter array entry must be a name.")).ToArray(),
+                    "Every stream /Filter array entry must be a name."))],
             _ => throw new InvalidOperationException(
                 "A stream /Filter value must be a name or an array of names.")
         };
@@ -810,7 +810,7 @@ internal sealed class PdfStandardSecurityHandler
         PdfDictionary encryption, string? requiredMethod)
     {
         if (!encryption.TryGetValue(Name("CF"), out PdfObject? filtersValue))
-            return new Dictionary<string, CryptMethod>();
+            return [];
         PdfDictionary filters = filtersValue as PdfDictionary
             ?? throw new InvalidOperationException("The encryption /CF value is not a dictionary.");
         return filters.ToDictionary(entry => entry.Key.ValueAsLatin1(), entry =>

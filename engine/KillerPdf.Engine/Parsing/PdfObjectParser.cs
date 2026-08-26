@@ -17,7 +17,7 @@ public sealed class PdfObjectParser(
     private static readonly PdfName LengthName = new("Length"u8);
 
     private readonly ReadOnlyMemory<byte> _source = source;
-    private readonly PdfTokenizer _tokenizer = new PdfTokenizer(source, startOffset);
+    private readonly PdfTokenizer _tokenizer = new(source, startOffset);
     private readonly Func<PdfIndirectReference, long>? _streamLengthResolver = streamLengthResolver;
     private readonly List<PdfToken> _lookahead = [];
 

@@ -27,7 +27,7 @@ namespace KillerPDF.Controls
     {
         // ── Annotations: selection, hit-testing, geometry ────────────────────────────────────
         internal void AddAnnotationExt(PageAnnotation a) => AddAnnotation(a);
-        internal Rect AnnotBoundsExt(PageAnnotation a) => AnnotBounds(a);
+        internal static Rect AnnotBoundsExt(PageAnnotation a) => AnnotBounds(a);
         internal static Point AnnotGetPosExt(PageAnnotation a) => AnnotGetPos(a);
         internal static void AnnotSetPosExt(PageAnnotation a, Point pos) => AnnotSetPos(a, pos);
         internal Point ClampAnnotPosExt(PageAnnotation a) => ClampAnnotPos(a);

@@ -820,7 +820,7 @@ public sealed class PdfIncrementalAnnotationEditor
         if (_removals.Count > 0)
             RemoveTaggedAnnotationStructure(update, _removals);
         IReadOnlyDictionary<int, long> structureParentKeys = allocated.Length == 0
-            ? new Dictionary<int, long>()
+            ? []
             : PrepareTaggedAnnotationStructure(update, allocated);
         Dictionary<TrueTypeFont, EditorFontBinding> fonts = AllocateFonts(update);
         PdfIndirectReference? baselineRedactionFont = _annotations
@@ -1006,7 +1006,7 @@ public sealed class PdfIncrementalAnnotationEditor
         PdfIncrementalUpdateBuilder update, IReadOnlyList<AllocatedAnnotation> annotations)
     {
         if (!_tree.Catalog.TryGetValue(StructTreeRootName, out PdfObject? rootValue))
-            return new Dictionary<int, long>();
+            return [];
         ResolvedValue resolvedRoot = ResolveWithIdentity(rootValue,
             "The document structure-tree root");
         PdfDictionary root = resolvedRoot.Value as PdfDictionary
@@ -1421,7 +1421,7 @@ public sealed class PdfIncrementalAnnotationEditor
     {
         PdfObject resolved = ResolveValue(value,
             "A structure-element /K value");
-        return resolved is PdfArray array ? array.ToArray() : [value];
+        return resolved is PdfArray array ? [.. array] : [value];
     }
 
     private PdfIndirectReference? FindStructureNamespace(PdfDictionary root)

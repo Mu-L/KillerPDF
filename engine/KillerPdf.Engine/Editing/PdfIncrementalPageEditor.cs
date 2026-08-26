@@ -2319,7 +2319,7 @@ public sealed class PdfIncrementalPageEditor
         PdfObject resolved = ResolveCatalogValue(document, value, description);
         if (resolved is PdfNull)
             throw new InvalidOperationException($"{description} resolves to null.");
-        return resolved is PdfArray array ? array.ToArray() : [value];
+        return resolved is PdfArray array ? [.. array] : [value];
     }
 
     private static PdfIndirectReference? FindTaggedStructureElementParentReference(
@@ -2577,7 +2577,7 @@ public sealed class PdfIncrementalPageEditor
                 $"The AcroForm field '{fieldName}' has no field type.");
         PdfDictionary changed;
         if (pending.Kind == FieldDefaultKind.Remove)
-            changed = ReplaceMany(field, new Dictionary<PdfName, PdfObject>(), [DefaultValueName]);
+            changed = ReplaceMany(field, [], [DefaultValueName]);
         else
         {
             PdfObject value;
@@ -4606,7 +4606,7 @@ public sealed class PdfIncrementalPageEditor
                 PdfDictionary rewritten = field;
                 if (hadKids)
                     rewritten = keptKids.Count == 0
-                        ? ReplaceMany(field, new Dictionary<PdfName, PdfObject>(), [KidsName])
+                        ? ReplaceMany(field, [], [KidsName])
                         : ReplaceMany(field, new Dictionary<PdfName, PdfObject>
                         {
                             [KidsName] = new PdfArray(keptKids)

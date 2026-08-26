@@ -35,11 +35,11 @@ namespace KillerPDF
         private void ClearTextSelection() => ActiveViewer.ClearTextSelection();
         private SolidColorBrush AccentBrush(byte alpha = 255) => ActiveViewer.AccentBrush(alpha);
         private void AddAnnotation(PageAnnotation a) => ActiveViewer.AddAnnotationExt(a);
-        private Rect AnnotBounds(PageAnnotation a) => ActiveViewer.AnnotBoundsExt(a);
+        private static Rect AnnotBounds(PageAnnotation a) => Controls.PdfViewer.AnnotBoundsExt(a);
         private static Point AnnotGetPos(PageAnnotation a) => Controls.PdfViewer.AnnotGetPosExt(a);
         private static void AnnotSetPos(PageAnnotation a, Point pos) => Controls.PdfViewer.AnnotSetPosExt(a, pos);
         private Point ClampAnnotPos(PageAnnotation a) => ActiveViewer.ClampAnnotPosExt(a);
-        private bool HitTestAnnotation(PageAnnotation a, Point pos, out Rect bounds)
+        private static bool HitTestAnnotation(PageAnnotation a, Point pos, out Rect bounds)
             => Controls.PdfViewer.HitTestAnnotationExt(a, pos, out bounds);
         private static bool IsDraggable(PageAnnotation a) => Controls.PdfViewer.IsDraggableExt(a);
         private void SelectAnnotation(PageAnnotation a, Rect bounds) => ActiveViewer.SelectAnnotationExt(a, bounds);
