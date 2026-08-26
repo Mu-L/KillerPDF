@@ -442,7 +442,7 @@ public sealed class PdfIncrementalAnnotationEditor
         if (strokes.Count == 0 || strokes.Any(stroke => stroke is null || stroke.Count < 2))
             throw new ArgumentException("Ink requires at least one stroke containing two points.", nameof(strokes));
         _annotations.Add(new PendingInk(
-            pageIndex, strokes.Select(stroke => stroke.ToArray()).ToArray(),
+            pageIndex, [.. strokes.Select(stroke => stroke.ToArray())],
             color ?? new PdfRgbColor(0, 0, 0), lineWidth, opacity, contents,
             annotationMetadata, dash));
         return this;
@@ -522,9 +522,9 @@ public sealed class PdfIncrementalAnnotationEditor
             throw new ArgumentOutOfRangeException(nameof(overlayAlignment));
         if (!double.IsFinite(overlayFontSize) || overlayFontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(overlayFontSize));
-        var bounds = PdfLinkAnnotationFactory.Bounds(values);
-        _annotations.Add(new PendingRedaction(pageIndex, bounds.X, bounds.Y,
-            bounds.Width, bounds.Height, values, contents,
+        var (X, Y, Width, Height) = PdfLinkAnnotationFactory.Bounds(values);
+        _annotations.Add(new PendingRedaction(pageIndex, X, Y,
+            Width, Height, values, contents,
             fillColor ?? new PdfRgbColor(0, 0, 0),
             markColor ?? new PdfRgbColor(0.85, 0.1, 0.1), opacity,
             annotationMetadata, overlayText, repeatOverlayText,
@@ -625,9 +625,9 @@ public sealed class PdfIncrementalAnnotationEditor
     {
         ValidatePage(pageIndex);
         PdfTextQuad[] values = PdfLinkAnnotationFactory.ValidateQuads(quads);
-        var bounds = PdfLinkAnnotationFactory.Bounds(values);
+        var (X, Y, Width, Height) = PdfLinkAnnotationFactory.Bounds(values);
         _annotations.Add(new PendingLink(
-            pageIndex, bounds.X, bounds.Y, bounds.Width, bounds.Height,
+            pageIndex, X, Y, Width, Height,
             appearance ?? new PdfLinkAppearance(),
             PendingLinkTarget.Uri, PdfLinkAnnotationFactory.ValidateUri(uri),
             null, values, annotationMetadata, contents));
@@ -662,9 +662,9 @@ public sealed class PdfIncrementalAnnotationEditor
         ValidatePage(pageIndex);
         ValidatePage(destinationPageIndex);
         PdfTextQuad[] values = PdfLinkAnnotationFactory.ValidateQuads(quads);
-        var bounds = PdfLinkAnnotationFactory.Bounds(values);
+        var (X, Y, Width, Height) = PdfLinkAnnotationFactory.Bounds(values);
         _annotations.Add(new PendingLink(
-            pageIndex, bounds.X, bounds.Y, bounds.Width, bounds.Height,
+            pageIndex, X, Y, Width, Height,
             appearance ?? new PdfLinkAppearance(), PendingLinkTarget.Page,
             null, (destinationPageIndex, destination ?? PdfDestination.FitPage()),
             values, annotationMetadata, contents));
@@ -702,9 +702,9 @@ public sealed class PdfIncrementalAnnotationEditor
             || !HasNamedDestination(destinationName))
             throw new ArgumentException(
                 "The named destination has not been defined.", nameof(destinationName));
-        var bounds = PdfLinkAnnotationFactory.Bounds(values);
+        var (X, Y, Width, Height) = PdfLinkAnnotationFactory.Bounds(values);
         _annotations.Add(new PendingLink(
-            pageIndex, bounds.X, bounds.Y, bounds.Width, bounds.Height,
+            pageIndex, X, Y, Width, Height,
             appearance ?? new PdfLinkAppearance(), PendingLinkTarget.Named,
             destinationName, null, values, annotationMetadata, contents));
         return this;
@@ -752,7 +752,7 @@ public sealed class PdfIncrementalAnnotationEditor
             throw new ArgumentException(
                 $"{(closed ? "A polygon" : "A polyline")} requires at least {minimum} vertices.",
                 nameof(vertices));
-        PdfPoint[] values = vertices.ToArray();
+        PdfPoint[] values = [.. vertices];
         if (values.Zip(values.Skip(1)).All(pair => pair.First == pair.Second))
             throw new ArgumentException(
                 "Vertex annotations require distinct points.", nameof(vertices));
@@ -786,9 +786,9 @@ public sealed class PdfIncrementalAnnotationEditor
         PdfTextQuad[] values = PdfLinkAnnotationFactory.ValidateQuads(quads);
         if (!double.IsFinite(opacity) || opacity is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(opacity));
-        var bounds = PdfLinkAnnotationFactory.Bounds(values);
+        var (X, Y, Width, Height) = PdfLinkAnnotationFactory.Bounds(values);
         _annotations.Add(new PendingTextMarkup(
-            type, pageIndex, bounds.X, bounds.Y, bounds.Width, bounds.Height,
+            type, pageIndex, X, Y, Width, Height,
             values, contents, color, opacity, metadata));
         return this;
     }
@@ -965,10 +965,10 @@ public sealed class PdfIncrementalAnnotationEditor
         foreach (int pageIndex in allocated.Select(item => item.Definition.PageIndex)
                      .Concat(_removals.Select(item => item.PageIndex)).Distinct())
         {
-            AllocatedAnnotation[] pageAdditions = allocated.Where(
-                item => item.Definition.PageIndex == pageIndex).ToArray();
-            PendingRemoval[] pageRemovals = _removals.Where(
-                item => item.PageIndex == pageIndex).ToArray();
+            AllocatedAnnotation[] pageAdditions = [.. allocated.Where(
+                item => item.Definition.PageIndex == pageIndex)];
+            PendingRemoval[] pageRemovals = [.. _removals.Where(
+                item => item.PageIndex == pageIndex)];
             AppendPageAnnotations(update, _pages[pageIndex], pageAdditions.SelectMany(item =>
                 item.PopupReference is null
                     ? [(item.AnnotationReference, AllocatedAnnotationName(item))]
@@ -1076,8 +1076,8 @@ public sealed class PdfIncrementalAnnotationEditor
                     (reference.ObjectNumber, reference.Generation));
             removalKeys.Add(entry.Key);
         }
-        IReadOnlyList<PdfNumberTreeEntry> existingEntries = allExistingEntries
-            .Where(entry => !removalKeys.Contains(entry.Key)).ToArray();
+        IReadOnlyList<PdfNumberTreeEntry> existingEntries =
+            [.. allExistingEntries.Where(entry => !removalKeys.Contains(entry.Key))];
         if (existingEntries.Any(entry => entry.Key < 0))
             throw new InvalidOperationException(
                 "The structure-tree ParentTree contains a negative key.");
@@ -1133,7 +1133,7 @@ public sealed class PdfIncrementalAnnotationEditor
             };
             if (namespaceReference is not null)
                 entries.Add(("NS", namespaceReference));
-            update.SetObject(structureReference, Dictionary(entries.ToArray()));
+            update.SetObject(structureReference, Dictionary([.. entries]));
             parentNumbers.Add(new PdfInteger(key));
             parentNumbers.Add(structureReference);
         }
@@ -1310,7 +1310,7 @@ public sealed class PdfIncrementalAnnotationEditor
             throw new InvalidOperationException("The structure-tree root has no children.");
         PdfObject resolvedKids = ResolveValue(
             kidsValue, "The structure-tree root /K value");
-        PdfObject[] kids = resolvedKids is PdfArray array ? array.ToArray() : [resolvedKids];
+        PdfObject[] kids = resolvedKids is PdfArray array ? [.. array] : [resolvedKids];
         PdfIndirectReference? fallback = null;
         for (int index = 0; index < kids.Length; index++)
         {
@@ -1924,8 +1924,8 @@ public sealed class PdfIncrementalAnnotationEditor
             }
             else
             {
-                PdfNumberTreeEntry[] hiddenMappings = parentEntries.Where(entry =>
-                    ParentMappingReferences(entry.Value, removal.Reference)).ToArray();
+                PdfNumberTreeEntry[] hiddenMappings = [.. parentEntries.Where(entry =>
+                    ParentMappingReferences(entry.Value, removal.Reference))];
                 if (hiddenMappings.Length == 0) continue;
                 if (hiddenMappings.Length > 1)
                     throw new InvalidOperationException(
@@ -1984,9 +1984,9 @@ public sealed class PdfIncrementalAnnotationEditor
         update.ReplaceObject(rootReference.ObjectNumber,
             new PdfDictionary(rootEntries));
 
-        foreach (var group in parentChildren.Values)
+        foreach (var (Parent, Children) in parentChildren.Values)
         {
-            PdfDictionary parent = (PdfDictionary)ResolveValue(group.Parent,
+            PdfDictionary parent = (PdfDictionary)ResolveValue(Parent,
                 "An annotation structure parent");
             var entries = parent.ToDictionary(entry => entry.Key, entry => entry.Value);
             if (!entries.TryGetValue(StructureKidsName, out PdfObject? kidsValue))
@@ -1996,20 +1996,20 @@ public sealed class PdfIncrementalAnnotationEditor
                 "An annotation structure parent /K value");
             IEnumerable<PdfObject> kids = resolvedKids is PdfArray array
                 ? array : [kidsValue];
-            PdfObject[] retained = kids.Where(kid =>
+            PdfObject[] retained = [.. kids.Where(kid =>
             {
                 ResolvedValue resolvedKid = ResolveWithIdentity(kid,
                     "An annotation structure parent child");
                 return resolvedKid.FinalReference is not PdfIndirectReference reference
-                    || !group.Children.Contains((reference.ObjectNumber,
+                    || !Children.Contains((reference.ObjectNumber,
                         reference.Generation));
-            }).ToArray();
+            })];
             if (retained.Length == 0)
                 entries.Remove(StructureKidsName);
             else
                 entries[StructureKidsName] = retained.Length == 1
                     ? retained[0] : new PdfArray(retained);
-            update.ReplaceObject(group.Parent.ObjectNumber,
+            update.ReplaceObject(Parent.ObjectNumber,
                 new PdfDictionary(entries));
         }
 
@@ -2552,7 +2552,7 @@ public sealed class PdfIncrementalAnnotationEditor
         }
         if (popup is not null) entries.Add(("Popup", popup));
         PdfLinkAnnotationFactory.AddMetadata(entries, note.Metadata);
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary PopupDictionary(
@@ -2612,7 +2612,7 @@ public sealed class PdfIncrementalAnnotationEditor
         if (!string.IsNullOrEmpty(markup.Contents))
             entries.Add(("Contents", UnicodeString(markup.Contents)));
         PdfLinkAnnotationFactory.AddMetadata(entries, markup.Metadata);
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream TextMarkupAppearance(PendingTextMarkup markup)
@@ -2741,7 +2741,7 @@ public sealed class PdfIncrementalAnnotationEditor
         }
         entries.Add(("BS", BorderStyle(value.BorderWidth, value.DashPattern)));
         if (value.FillColor.HasValue) entries.Add(("IC", ColorArray(value.FillColor.Value)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream FreeTextAppearance(
@@ -2782,9 +2782,9 @@ public sealed class PdfIncrementalAnnotationEditor
     private static void WriteFreeTextCallout(
         Stream output, PendingFreeText value, Bounds bounds)
     {
-        PdfPoint[] points = value.CalloutLine!
+        PdfPoint[] points = [.. value.CalloutLine!
             .Select(point => new PdfPoint(
-                point.X - bounds.X, point.Y - bounds.Y)).ToArray();
+                point.X - bounds.X, point.Y - bounds.Y))];
         WriteAscii(output,
             $"{ColorOperands(value.BorderColor)} RG\n" +
             $"{Format(value.BorderWidth)} w\n" +
@@ -2817,7 +2817,7 @@ public sealed class PdfIncrementalAnnotationEditor
             entries.Add(("IC", ColorArray(line.InteriorColor.Value)));
         if (line.Intent.HasValue)
             entries.Add(("IT", Name(PdfAnnotationIntentNames.Name(line.Intent.Value))));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream LineAppearance(PendingLine line)
@@ -2853,7 +2853,7 @@ public sealed class PdfIncrementalAnnotationEditor
             shape.Contents, shape.Metadata);
         entries.Add(("BS", BorderStyle(shape.LineWidth, shape.DashPattern)));
         if (shape.FillColor.HasValue) entries.Add(("IC", ColorArray(shape.FillColor.Value)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream ShapeAppearance(PendingShape shape)
@@ -2895,7 +2895,7 @@ public sealed class PdfIncrementalAnnotationEditor
             if (vertex.InteriorColor.HasValue)
                 entries.Add(("IC", ColorArray(vertex.InteriorColor.Value)));
         }
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream VertexAppearance(PendingVertex vertex)
@@ -2953,7 +2953,7 @@ public sealed class PdfIncrementalAnnotationEditor
             (PdfObject)new PdfArray(stroke.SelectMany(point => new PdfObject[]
                 { Number(point.X), Number(point.Y) }))))));
         entries.Add(("BS", BorderStyle(ink.LineWidth, ink.DashPattern)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream InkAppearance(PendingInk ink)
@@ -2992,7 +2992,7 @@ public sealed class PdfIncrementalAnnotationEditor
         if (!string.IsNullOrEmpty(stamp.Contents))
             entries.Add(("Contents", UnicodeString(stamp.Contents)));
         PdfLinkAnnotationFactory.AddMetadata(entries, stamp.Metadata);
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary CaretDictionary(
@@ -3004,7 +3004,7 @@ public sealed class PdfIncrementalAnnotationEditor
             caret.Color, caret.Opacity, caret.Contents, caret.Metadata);
         if (caret.Symbol == PdfCaretSymbol.Paragraph)
             entries.Add(("Sy", Name("P")));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream CaretAppearance(PendingCaret caret)
@@ -3046,7 +3046,7 @@ public sealed class PdfIncrementalAnnotationEditor
             entries.Add(("DA", Latin1String(
                 $"{NameToken(fontResource!)} {Format(value.OverlayFontSize)} Tf 1 1 1 rg")));
         }
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream RedactionAppearance(
@@ -3154,7 +3154,7 @@ public sealed class PdfIncrementalAnnotationEditor
         if (!string.IsNullOrEmpty(value.Contents))
             entries.Add(("Contents", UnicodeString(value.Contents)));
         PdfLinkAnnotationFactory.AddMetadata(entries, value.Metadata);
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfStream FileAttachmentAppearance(
@@ -3332,7 +3332,7 @@ public sealed class PdfIncrementalAnnotationEditor
         if (font.HasValue)
             entries.Add(("Font", new PdfDictionary([
                 new KeyValuePair<PdfName, PdfObject>(font.Value.Name, font.Value.Reference)])));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static void WriteBox(
@@ -3441,7 +3441,7 @@ public sealed class PdfIncrementalAnnotationEditor
 
     private static Bounds PointBounds(IEnumerable<PdfPoint> points, double padding)
     {
-        PdfPoint[] values = points.ToArray();
+        PdfPoint[] values = [.. points];
         double minX = values.Min(point => point.X) - padding;
         double minY = values.Min(point => point.Y) - padding;
         double maxX = values.Max(point => point.X) + padding;
@@ -3612,7 +3612,7 @@ public sealed class PdfIncrementalAnnotationEditor
         if (pattern.All(value => value == 0))
             throw new ArgumentException(
                 "A dash pattern cannot contain only zeros.", nameof(pattern));
-        return pattern.ToArray();
+        return [.. pattern];
     }
 
     private static void ValidateDrawableText(TrueTypeFont font, string value, string parameterName)

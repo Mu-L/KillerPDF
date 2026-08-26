@@ -146,7 +146,7 @@ public sealed partial class PdfDocumentBuilder
         if (strokes.Count == 0 || strokes.Any(stroke => stroke is null || stroke.Count < 2))
             throw new ArgumentException("Ink requires at least one stroke containing two points.", nameof(strokes));
         _visualAnnotations.Add(new InkAnnotationDefinition(
-            pageIndex, strokes.Select(stroke => stroke.ToArray()).ToArray(),
+            pageIndex, [.. strokes.Select(stroke => stroke.ToArray())],
             color ?? new PdfRgbColor(0, 0, 0), lineWidth, opacity, contents, dash,
             annotationMetadata));
         return this;
@@ -210,7 +210,7 @@ public sealed partial class PdfDocumentBuilder
         if (vertices.Zip(vertices.Skip(1)).All(pair => pair.First == pair.Second))
             throw new ArgumentException("Vertex annotations require distinct points.", nameof(vertices));
         _visualAnnotations.Add(new VertexAnnotationDefinition(
-            pageIndex, vertices.ToArray(), closed,
+            pageIndex, [.. vertices], closed,
             strokeColor ?? new PdfRgbColor(0, 0, 0), fillColor,
             lineWidth, opacity, contents, startEnding, endEnding, dash, interiorColor,
             annotationMetadata, intent));
@@ -230,7 +230,7 @@ public sealed partial class PdfDocumentBuilder
             throw new ArgumentOutOfRangeException(nameof(pattern));
         if (pattern.All(value => value == 0))
             throw new ArgumentException("A dash pattern cannot contain only zeros.", nameof(pattern));
-        return pattern.ToArray();
+        return [.. pattern];
     }
 
     private static void ValidateStroke(double lineWidth, double opacity)
@@ -276,7 +276,7 @@ public sealed partial class PdfDocumentBuilder
         }
         entries.Add(("BS", BorderStyle(value.BorderWidth, value.DashPattern)));
         if (value.FillColor.HasValue) entries.Add(("IC", ColorArray(value.FillColor.Value)));
-        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         PdfDictionary resources = AnnotationResources(value.Opacity,
             (fontResource, new PdfIndirectReference(fontNumber, 0)));
@@ -309,8 +309,11 @@ public sealed partial class PdfDocumentBuilder
 
     private static void WriteFreeTextCallout(Stream output, FreeTextDefinition value, Bounds bounds)
     {
-        PdfPoint[] points = value.CalloutLine!
-            .Select(point => new PdfPoint(point.X - bounds.X, point.Y - bounds.Y)).ToArray();
+        PdfPoint[] points =
+        [
+            .. value.CalloutLine!.Select(point =>
+                new PdfPoint(point.X - bounds.X, point.Y - bounds.Y))
+        ];
         WriteAscii(output,
             $"{ColorOperands(value.BorderColor)} RG\n{FormatNumber(value.BorderWidth)} w\n" +
             $"{FormatNumber(points[0].X)} {FormatNumber(points[0].Y)} m\n");
@@ -367,7 +370,7 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Contents", UnicodeString(stamp.Contents)));
         AddAnnotationMetadata(entries, stamp.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         PdfDictionary resources = Dictionary(("XObject", new PdfDictionary([
             new KeyValuePair<PdfName, PdfObject>(Name("Im1"),
@@ -398,7 +401,7 @@ public sealed partial class PdfDocumentBuilder
         entries.Add(("BS", BorderStyle(line.LineWidth, line.DashPattern)));
         if (line.InteriorColor.HasValue)
             entries.Add(("IC", ColorArray(line.InteriorColor.Value)));
-        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance,
@@ -430,7 +433,7 @@ public sealed partial class PdfDocumentBuilder
             shape.Contents, allocated.AppearanceNumber, shape.Metadata);
         entries.Add(("BS", BorderStyle(shape.LineWidth, shape.DashPattern)));
         if (shape.FillColor.HasValue) entries.Add(("IC", ColorArray(shape.FillColor.Value)));
-        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance, "q\n/GS1 gs\n");
@@ -446,7 +449,7 @@ public sealed partial class PdfDocumentBuilder
         ICollection<PdfIndirectObject> objects, AllocatedVisualAnnotation allocated,
         InkAnnotationDefinition ink, IReadOnlyList<AllocatedPage> pages, int sequence)
     {
-        PdfPoint[] allPoints = ink.Strokes.SelectMany(stroke => stroke).ToArray();
+        PdfPoint[] allPoints = [.. ink.Strokes.SelectMany(stroke => stroke)];
         Bounds bounds = PointBounds(allPoints, ink.LineWidth / 2);
         var entries = CommonAnnotationEntries("Ink", ink.PageIndex,
             bounds.X, bounds.Y, bounds.Width, bounds.Height, pages,
@@ -456,7 +459,7 @@ public sealed partial class PdfDocumentBuilder
             (PdfObject)new PdfArray(stroke.SelectMany(point => new PdfObject[]
                 { Number(point.X), Number(point.Y) }))))));
         entries.Add(("BS", BorderStyle(ink.LineWidth, ink.DashPattern)));
-        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+        objects.Add(new PdfIndirectObject(allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance,
@@ -504,7 +507,7 @@ public sealed partial class PdfDocumentBuilder
                 entries.Add(("IC", ColorArray(vertex.InteriorColor.Value)));
         }
         objects.Add(new PdfIndirectObject(
-            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance, $"q\n/GS1 gs\n");
@@ -601,7 +604,7 @@ public sealed partial class PdfDocumentBuilder
         if (font.HasValue)
             entries.Add(("Font", new PdfDictionary([
                 new KeyValuePair<PdfName, PdfObject>(font.Value.Name, font.Value.Reference)])));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static double LineEndingPadding(
@@ -802,7 +805,7 @@ public sealed partial class PdfDocumentBuilder
 
     private static Bounds PointBounds(IEnumerable<PdfPoint> points, double padding)
     {
-        PdfPoint[] values = points.ToArray();
+        PdfPoint[] values = [.. points];
         double minX = values.Min(point => point.X) - padding;
         double minY = values.Min(point => point.Y) - padding;
         double maxX = values.Max(point => point.X) + padding;

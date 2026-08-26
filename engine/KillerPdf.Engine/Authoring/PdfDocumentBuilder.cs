@@ -189,7 +189,7 @@ public sealed partial class PdfDocumentBuilder
             height,
             content.Build(),
             content.FontResources.ToDictionary(entry => entry.Key, entry => entry.Value),
-            content.EmbeddedFontResources.ToArray(),
+            [.. content.EmbeddedFontResources],
             content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.OptionalContentResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.GraphicsStateResources.ToDictionary(entry => entry.Key, entry => entry.Value),
@@ -201,7 +201,7 @@ public sealed partial class PdfDocumentBuilder
             content.LabColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.IndexedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value),
             content.CalibratedColorSpaceResources.ToDictionary(entry => entry.Key, entry => entry.Value), [],
-            content.MarkedContentIds.Order().ToArray(), content.HasUntaggedContent,
+            [.. content.MarkedContentIds.Order()], content.HasUntaggedContent,
             0, 1, new Dictionary<PdfPageBox, PageBoxDefinition>(), null, null, null, null));
         return this;
     }
@@ -757,7 +757,7 @@ public sealed partial class PdfDocumentBuilder
     {
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
-        PdfRadioButtonOption[] values = options.ToArray();
+        PdfRadioButtonOption[] values = [.. options];
         if (values.Length < 2)
             throw new ArgumentException("A radio group requires at least two options.", nameof(options));
         radioOptions ??= new PdfRadioGroupOptions();
@@ -813,7 +813,7 @@ public sealed partial class PdfDocumentBuilder
         ValidateRectangle(x, y, width, height);
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
-        PdfChoiceOption[] values = options.Select(value => new PdfChoiceOption(value, value)).ToArray();
+        PdfChoiceOption[] values = [.. options.Select(value => new PdfChoiceOption(value, value))];
         if (values.Length == 0 || values.Any(value => string.IsNullOrEmpty(value.ExportValue)))
             throw new ArgumentException("Combo-box options cannot be empty.", nameof(options));
         if (embeddedFont is null && values.Any(value => value.DisplayValue.Any(character => character > 0xFF)))
@@ -868,7 +868,7 @@ public sealed partial class PdfDocumentBuilder
         ValidateRectangle(x, y, width, height);
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
-        PdfChoiceOption[] values = options.Select(value => new PdfChoiceOption(value, value)).ToArray();
+        PdfChoiceOption[] values = [.. options.Select(value => new PdfChoiceOption(value, value))];
         if (values.Length == 0 || values.Any(value => string.IsNullOrEmpty(value.ExportValue)))
             throw new ArgumentException("List-box options cannot be empty.", nameof(options));
         if (values.Select(value => value.ExportValue).Distinct(StringComparer.Ordinal).Count() != values.Length)
@@ -963,7 +963,7 @@ public sealed partial class PdfDocumentBuilder
         ValidateRectangle(x, y, width, height);
         ValidateUniqueFieldName(name);
         ArgumentNullException.ThrowIfNull(options);
-        PdfChoiceOption[] values = options.Select(value => new PdfChoiceOption(value, value)).ToArray();
+        PdfChoiceOption[] values = [.. options.Select(value => new PdfChoiceOption(value, value))];
         if (values.Length == 0 || values.Any(value => string.IsNullOrEmpty(value.ExportValue)))
             throw new ArgumentException("List-box options cannot be empty.", nameof(options));
         if (values.Select(value => value.ExportValue).Distinct(StringComparer.Ordinal).Count() != values.Length)
@@ -978,8 +978,11 @@ public sealed partial class PdfDocumentBuilder
         if (choiceOptions.SortOptions)
             Array.Sort(values, (left, right) => StringComparer.Ordinal.Compare(left.DisplayValue, right.DisplayValue));
         var selectedSet = requestedSelections.ToHashSet(StringComparer.Ordinal);
-        string[] selections = values.Where(value => selectedSet.Contains(value.ExportValue))
-            .Select(value => value.ExportValue).ToArray();
+        string[] selections =
+        [
+            .. values.Where(value => selectedSet.Contains(value.ExportValue))
+                .Select(value => value.ExportValue)
+        ];
         if (embeddedFont is null && values.Any(value => value.DisplayValue.Any(character => character > 0xFF)))
             throw new ArgumentException("List-box options require an embedded font for Unicode text.", nameof(options));
         if (embeddedFont is not null)
@@ -1060,8 +1063,11 @@ public sealed partial class PdfDocumentBuilder
             Array.Sort(values, (left, right) =>
                 StringComparer.Ordinal.Compare(left.DisplayValue, right.DisplayValue));
         var selectedSet = requested.ToHashSet(StringComparer.Ordinal);
-        string[] selections = values.Where(value => selectedSet.Contains(value.ExportValue))
-            .Select(value => value.ExportValue).ToArray();
+        string[] selections =
+        [
+            .. values.Where(value => selectedSet.Contains(value.ExportValue))
+                .Select(value => value.ExportValue)
+        ];
         _choiceFields.Add(new ChoiceFieldDefinition(
             pageIndex, name, x, y, width, height, values, selections,
             ResolveChoiceDefaultValues(values, selections, true, false, embeddedFont, choiceOptions),
@@ -1757,7 +1763,7 @@ public sealed partial class PdfDocumentBuilder
         int? metadataNumber = Metadata is null ? null : nextObjectNumber++;
         int? infoNumber = Metadata is null || pdfA4 ? null : nextObjectNumber++;
         int? outlinesNumber = _bookmarks.Count == 0 ? null : nextObjectNumber++;
-        int[] bookmarkNumbers = _bookmarks.Select(_ => nextObjectNumber++).ToArray();
+        int[] bookmarkNumbers = [.. _bookmarks.Select(_ => nextObjectNumber++)];
         int? structureRootNumber = _structureElements.Count == 0 ? null : nextObjectNumber++;
         int? parentTreeNumber = _structureElements.Count == 0 ? null : nextObjectNumber++;
         int? structureNamespaceNumber = _pdfUa2Conformance ? nextObjectNumber++ : null;
@@ -1765,31 +1771,29 @@ public sealed partial class PdfDocumentBuilder
             && _structureElements.Any(element =>
                 PdfStructureTypeNames.UsesPdf17Namespace(element.Type, _pdfUa2Conformance))
             ? nextObjectNumber++ : null;
-        int[] structureElementNumbers = _structureElements.Select(_ => nextObjectNumber++).ToArray();
+        int[] structureElementNumbers = [.. _structureElements.Select(_ => nextObjectNumber++)];
         int[] accessibleLinkStructureNumbers = _pdfUa2Conformance
-            ? _pages.SelectMany(page => page.Links).Select(_ => nextObjectNumber++).ToArray()
+            ? [.. _pages.SelectMany(page => page.Links).Select(_ => nextObjectNumber++)]
             : [];
         int accessibleWidgetCount = _textFields.Count + _checkBoxes.Count
             + _radioGroups.Sum(group => group.Options.Count) + _choiceFields.Count
             + _pushButtons.Count + _signatureFields.Count;
         int[] accessibleWidgetStructureNumbers = _pdfUa2Conformance
-            ? Enumerable.Range(0, accessibleWidgetCount)
-                .Select(_ => nextObjectNumber++).ToArray()
+            ? [.. Enumerable.Range(0, accessibleWidgetCount).Select(_ => nextObjectNumber++)]
             : [];
         int[] accessibleTextNoteStructureNumbers = _pdfUa2Conformance
-            ? _textNotes.Select(_ => nextObjectNumber++).ToArray()
+            ? [.. _textNotes.Select(_ => nextObjectNumber++)]
             : [];
         int[] accessibleTextMarkupStructureNumbers = _pdfUa2Conformance
-            ? _textMarkups.Select(_ => nextObjectNumber++).ToArray()
+            ? [.. _textMarkups.Select(_ => nextObjectNumber++)]
             : [];
         int accessibleEditorialCount = _freeTexts.Count + _visualAnnotations.Count
             + _imageStamps.Count + _caretAnnotations.Count + _redactionAnnotations.Count;
         int[] accessibleEditorialStructureNumbers = _pdfUa2Conformance
-            ? Enumerable.Range(0, accessibleEditorialCount)
-                .Select(_ => nextObjectNumber++).ToArray()
+            ? [.. Enumerable.Range(0, accessibleEditorialCount).Select(_ => nextObjectNumber++)]
             : [];
         int[] accessibleFileAttachmentStructureNumbers = _pdfUa2Conformance
-            ? _fileAttachmentAnnotations.Select(_ => nextObjectNumber++).ToArray()
+            ? [.. _fileAttachmentAnnotations.Select(_ => nextObjectNumber++)]
             : [];
         var allocatedAttachments = _attachments.Select(attachment =>
             new AllocatedAttachment(attachment, nextObjectNumber++, nextObjectNumber++)).ToArray();
@@ -1857,26 +1861,24 @@ public sealed partial class PdfDocumentBuilder
             new AllocatedVisualAnnotation(annotation, nextObjectNumber++, nextObjectNumber++)).ToArray();
         var allocatedImageStamps = _imageStamps.Select(stamp =>
             new AllocatedImageStamp(stamp, nextObjectNumber++, nextObjectNumber++)).ToArray();
-        PdfIccProfile[] authoredIccProfiles = _pages.SelectMany(page => page.IccColorSpaces.Keys)
+        PdfIccProfile[] authoredIccProfiles = [.. _pages.SelectMany(page => page.IccColorSpaces.Keys)
             .Concat(forms.SelectMany(form => form.IccColorSpaces.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.IccColorSpaces.Keys))
-            .Distinct().ToArray();
-        PdfIccProfile[] allIccProfiles = (_outputIntent is null
+            .Distinct()];
+        PdfIccProfile[] allIccProfiles = [.. (_outputIntent is null
                 ? authoredIccProfiles
-                : authoredIccProfiles.Append(_outputIntent.Profile).Distinct())
-            .ToArray();
+                : authoredIccProfiles.Append(_outputIntent.Profile).Distinct())];
         var iccProfileNumbers = allIccProfiles
             .ToDictionary(profile => profile, _ => nextObjectNumber++);
         int? iccProfileNumber = _outputIntent is null
             ? null : iccProfileNumbers[_outputIntent.Profile];
         int? outputIntentNumber = _outputIntent is null ? null : nextObjectNumber++;
-        PdfOptionalContentGroup[] optionalContentGroups = _pages
+        PdfOptionalContentGroup[] optionalContentGroups = [.. _pages
             .SelectMany(page => page.OptionalContentGroups.Keys)
             .Concat(forms.SelectMany(form => form.OptionalContentGroups.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.OptionalContentGroups.Keys))
             .Distinct()
-            .OrderBy(group => group.Name, StringComparer.Ordinal)
-            .ToArray();
+            .OrderBy(group => group.Name, StringComparer.Ordinal)];
         string? duplicateLayerName = optionalContentGroups
             .GroupBy(group => group.Name, StringComparer.Ordinal)
             .FirstOrDefault(group => group.Count() > 1)?.Key;
@@ -1885,31 +1887,30 @@ public sealed partial class PdfDocumentBuilder
                 $"Optional-content group name '{duplicateLayerName}' is used by more than one group.");
         var optionalContentNumbers = optionalContentGroups
             .ToDictionary(group => group, _ => nextObjectNumber++);
-        PdfGraphicsState[] graphicsStates = _pages
+        PdfGraphicsState[] graphicsStates = [.. _pages
             .SelectMany(page => page.GraphicsStates.Keys)
             .Concat(forms.SelectMany(form => form.GraphicsStates.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.GraphicsStates.Keys))
             .Distinct()
             .OrderBy(state => state.FillOpacity)
             .ThenBy(state => state.StrokeOpacity)
-            .ThenBy(state => state.BlendMode)
-            .ToArray();
+            .ThenBy(state => state.BlendMode)];
         var graphicsStateNumbers = graphicsStates
             .ToDictionary(state => state, _ => nextObjectNumber++);
-        PdfShading[] shadings = _pages.SelectMany(page => page.Shadings.Keys)
+        PdfShading[] shadings = [.. _pages.SelectMany(page => page.Shadings.Keys)
             .Concat(forms.SelectMany(form => form.Shadings.Keys))
             .Concat(patterns.SelectMany(pattern => pattern.Shadings.Keys))
-            .Distinct().ToArray();
+            .Distinct()];
         var shadingNumbers = shadings.ToDictionary(shading => shading, _ => nextObjectNumber++);
         var formNumbers = forms.ToDictionary(form => form, _ => nextObjectNumber++);
         var patternNumbers = patterns.ToDictionary(pattern => pattern, _ => nextObjectNumber++);
-        TrueTypeFont[] formEmbeddedFonts = _textFields.Select(field => field.EmbeddedFont)
+        TrueTypeFont[] formEmbeddedFonts = [.. _textFields.Select(field => field.EmbeddedFont)
             .Concat(_choiceFields.Select(field => field.EmbeddedFont))
             .Concat(_pushButtons.Select(field => field.EmbeddedFont))
             .Concat(_signatureFields.Select(field => field.EmbeddedFont))
             .Concat(_freeTexts.Select(freeText => (TrueTypeFont?)freeText.Font))
             .Concat(_redactionAnnotations.Select(redaction => redaction.OverlayFont))
-            .Where(font => font is not null).Cast<TrueTypeFont>().Distinct().ToArray();
+            .Where(font => font is not null).Cast<TrueTypeFont>().Distinct()];
         var formFontResources = formEmbeddedFonts.Select((font, index) => (font, index))
             .ToDictionary(item => item.font,
                 item => new PdfName(Encoding.ASCII.GetBytes($"FormF{item.index + 1}")));
@@ -2268,7 +2269,7 @@ public sealed partial class PdfDocumentBuilder
             catalogNameEntries.Add(("Dests", Dictionary(("Names", new PdfArray(names)))));
         }
         if (catalogNameEntries.Count > 0)
-            catalogEntries.Add(("Names", Dictionary(catalogNameEntries.ToArray())));
+            catalogEntries.Add(("Names", Dictionary([.. catalogNameEntries])));
         if (_pageLabels.Count > 0)
         {
             if (_pageLabels.Count > PdfNumberTree.MaximumEntryCount)
@@ -2285,7 +2286,7 @@ public sealed partial class PdfDocumentBuilder
                 if (label.Style != PdfPageLabelStyle.None && label.StartNumber != 1)
                     entries.Add(("St", new PdfInteger(label.StartNumber)));
                 numbers.Add(new PdfInteger(label.PageIndex));
-                numbers.Add(Dictionary(entries.ToArray()));
+                numbers.Add(Dictionary([.. entries]));
             }
             catalogEntries.Add(("PageLabels", Dictionary(("Nums", new PdfArray(numbers)))));
         }
@@ -2317,20 +2318,19 @@ public sealed partial class PdfDocumentBuilder
                 formEntries.Add(("DA", Latin1String($"{NameToken(defaultFormFont)} 12 Tf 0 g")));
                 formEntries.Add(("DR", Dictionary(("Font", formFonts))));
             }
-            catalogEntries.Add(("AcroForm", Dictionary(formEntries.ToArray())));
+            catalogEntries.Add(("AcroForm", Dictionary([.. formEntries])));
         }
         if (outputIntentNumber.HasValue)
             catalogEntries.Add(("OutputIntents", new PdfArray([
                 new PdfIndirectReference(outputIntentNumber.Value, 0)])));
         if (optionalContentGroups.Length > 0)
         {
-            PdfObject[] groupReferences = optionalContentGroups.Select(group =>
-                (PdfObject)new PdfIndirectReference(optionalContentNumbers[group], 0)).ToArray();
-            PdfObject[] initiallyHidden = optionalContentGroups
+            PdfObject[] groupReferences = [.. optionalContentGroups.Select(group =>
+                (PdfObject)new PdfIndirectReference(optionalContentNumbers[group], 0))];
+            PdfObject[] initiallyHidden = [.. optionalContentGroups
                 .Where(group => !group.InitiallyVisible)
                 .Select(group => (PdfObject)new PdfIndirectReference(
-                    optionalContentNumbers[group], 0))
-                .ToArray();
+                    optionalContentNumbers[group], 0))];
             var defaultConfiguration = new List<(string Name, PdfObject Value)>
             {
                 ("Name", UnicodeString("KillerPDF Layers")),
@@ -2341,9 +2341,9 @@ public sealed partial class PdfDocumentBuilder
                 defaultConfiguration.Add(("OFF", new PdfArray(initiallyHidden)));
             catalogEntries.Add(("OCProperties", Dictionary(
                 ("OCGs", new PdfArray(groupReferences)),
-                ("D", Dictionary(defaultConfiguration.ToArray())))));
+                ("D", Dictionary([.. defaultConfiguration])))));
         }
-        var catalog = Dictionary(catalogEntries.ToArray());
+        var catalog = Dictionary([.. catalogEntries]);
         var pages = Dictionary(
             ("Type", Name("Pages")),
             ("Count", new PdfInteger(allocated.Count)),
@@ -2432,7 +2432,7 @@ public sealed partial class PdfDocumentBuilder
                         bookmark.Options.IsOpen ? visibleDescendants : -visibleDescendants)));
                 }
                 objects.Add(new PdfIndirectObject(
-                    bookmarkNumbers[index], 0, Dictionary(entries.ToArray()), 0));
+                    bookmarkNumbers[index], 0, Dictionary([.. entries]), 0));
             }
 
             int VisibleDescendantCount(int index) => children[index]
@@ -2475,11 +2475,11 @@ public sealed partial class PdfDocumentBuilder
             var parentTreeNumbers = new List<PdfObject>();
             foreach ((int pageIndex, int key) in structureParentKeys.OrderBy(item => item.Value))
             {
-                StructureElementDefinition[] pageElements = _structureElements
-                    .Where(element => element.PageIndex == pageIndex).ToArray();
+            StructureElementDefinition[] pageElements =
+                [.. _structureElements.Where(element => element.PageIndex == pageIndex)];
                 int maximumMcid = pageElements.Max(element => element.MarkedContentId!.Value);
-                PdfObject[] mappings = Enumerable.Repeat<PdfObject>(
-                    PdfNull.Instance, maximumMcid + 1).ToArray();
+                PdfObject[] mappings = [.. Enumerable.Repeat<PdfObject>(
+                    PdfNull.Instance, maximumMcid + 1)];
                 foreach (StructureElementDefinition element in pageElements)
                 {
                     int elementIndex = _structureElements.IndexOf(element);
@@ -2517,7 +2517,7 @@ public sealed partial class PdfDocumentBuilder
                 rootEntries.Add(("Namespaces", new PdfArray(namespaces)));
             }
             objects.Add(new PdfIndirectObject(structureRootNumber.Value, 0,
-                Dictionary(rootEntries.ToArray()), 0));
+                Dictionary([.. rootEntries]), 0));
             if (structureNamespaceNumber.HasValue)
                 objects.Add(new PdfIndirectObject(structureNamespaceNumber.Value, 0,
                     Dictionary(
@@ -2572,7 +2572,7 @@ public sealed partial class PdfDocumentBuilder
                         ("ListNumbering", Name(PdfListNumberingNames.Name(
                             definition.ListNumbering.Value))))));
                 objects.Add(new PdfIndirectObject(
-                    structureElementNumbers[index], 0, Dictionary(entries.ToArray()), 0));
+                    structureElementNumbers[index], 0, Dictionary([.. entries]), 0));
             }
             foreach (AccessibleAnnotationStructure link in accessibleAnnotations)
             {
@@ -2607,7 +2607,7 @@ public sealed partial class PdfDocumentBuilder
                 entries.Add(("Parent", new PdfIndirectReference(
                     hierarchyField.ParentNumber.Value, 0)));
             objects.Add(new PdfIndirectObject(
-                hierarchyField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+                hierarchyField.FieldNumber, 0, Dictionary([.. entries]), 0));
         }
         for (int index = 0; index < allocatedFileAttachmentAnnotations.Length; index++)
             AddFileAttachmentAnnotationObjects(objects, allocatedFileAttachmentAnnotations[index],
@@ -2691,12 +2691,12 @@ public sealed partial class PdfDocumentBuilder
                 if (state.SoftMask.Backdrop.HasValue)
                     softMaskEntries.Add(("BC", new PdfArray(
                         state.SoftMask.Backdrop.Value.Components.Select(Number))));
-                entries.Add(("SMask", Dictionary(softMaskEntries.ToArray())));
+                entries.Add(("SMask", Dictionary([.. softMaskEntries])));
             }
             else
                 entries.Add(("SMask", Name("None")));
             objects.Add(new PdfIndirectObject(graphicsStateNumbers[state], 0,
-                Dictionary(entries.ToArray()), 0));
+                Dictionary([.. entries]), 0));
         }
         foreach (PdfShading shading in shadings)
             objects.Add(new PdfIndirectObject(
@@ -2778,7 +2778,7 @@ public sealed partial class PdfDocumentBuilder
                     ("I", new PdfBoolean(form.IsolatedTransparencyGroup)),
                     ("K", new PdfBoolean(form.KnockoutTransparencyGroup)))));
             objects.Add(new PdfIndirectObject(formNumbers[form], 0,
-                new PdfStream(Dictionary(entries.ToArray()), form.Content), 0));
+                new PdfStream(Dictionary([.. entries]), form.Content), 0));
         }
         foreach (PdfTilingPattern pattern in patterns)
         {
@@ -2857,7 +2857,7 @@ public sealed partial class PdfDocumentBuilder
             if (structureParentKeys.TryGetValue(pageIndex, out int structureParentKey))
                 entries.Add(("StructParents", new PdfInteger(structureParentKey)));
             objects.Add(new PdfIndirectObject(
-                allocatedPage.PageNumber, 0, Dictionary(entries.ToArray()), 0));
+                allocatedPage.PageNumber, 0, Dictionary([.. entries]), 0));
 
             if (allocatedPage.ContentNumber.HasValue)
             {
@@ -2895,7 +2895,7 @@ public sealed partial class PdfDocumentBuilder
                     if (link.Appearance.BorderStyle == PdfLinkBorderStyle.Dashed)
                         borderStyleEntries.Add(("D", new PdfArray(
                             link.Appearance.DashPattern.Select(Number))));
-                    annotationEntries.Add(("BS", Dictionary(borderStyleEntries.ToArray())));
+                    annotationEntries.Add(("BS", Dictionary([.. borderStyleEntries])));
                 }
                 if (link.Appearance.Color.HasValue)
                     annotationEntries.Add(("C", ColorArray(link.Appearance.Color.Value)));
@@ -2937,7 +2937,7 @@ public sealed partial class PdfDocumentBuilder
                 }
                 objects.Add(new PdfIndirectObject(
                     allocatedPage.AnnotationNumbers[index], 0,
-                    Dictionary(annotationEntries.ToArray()), 0));
+                    Dictionary([.. annotationEntries]), 0));
             }
         }
 
@@ -3030,7 +3030,7 @@ public sealed partial class PdfDocumentBuilder
         };
         if (font is not PdfStandardFont.Symbol and not PdfStandardFont.ZapfDingbats)
             entries.Add(("Encoding", Name("WinAnsiEncoding")));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static void AddAttachmentObjects(
@@ -3074,7 +3074,7 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Contents", UnicodeString(value.Contents)));
         AddAnnotationMetadata(entries, value.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         double inset = value.Size * 0.15;
         double fold = value.Size * 0.28;
@@ -3135,7 +3135,7 @@ public sealed partial class PdfDocumentBuilder
             fieldEntries.Add(("RV", UnicodeString(field.RichTextValue)));
         AddFieldMetadata(fieldEntries, field.Metadata);
         objects.Add(new PdfIndirectObject(allocatedField.FieldNumber, 0,
-            Dictionary(fieldEntries.ToArray()), 0));
+            Dictionary([.. fieldEntries]), 0));
 
         byte[] appearance = BuildTextFieldAppearance(field, fontResource, fontUsage);
         objects.Add(new PdfIndirectObject(allocatedField.AppearanceNumber, 0,
@@ -3204,7 +3204,7 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Ff", new PdfInteger(flags)));
         AddFieldMetadata(entries, field.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocatedField.FieldNumber, 0, Dictionary([.. entries]), 0));
 
         objects.Add(new PdfIndirectObject(allocatedField.OffAppearanceNumber, 0,
             CheckBoxAppearance(field, isChecked: false), 0));
@@ -3254,7 +3254,7 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("BG", RgbArray(field.AppearanceStyle.BackgroundColor.Value)));
         if (field.AppearanceStyle.BorderColor.HasValue)
             entries.Add(("BC", RgbArray(field.AppearanceStyle.BorderColor.Value)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static void WriteCheckBoxMark(Stream output, CheckBoxDefinition field, double inset)
@@ -3342,7 +3342,7 @@ public sealed partial class PdfDocumentBuilder
         };
         AddFieldMetadata(groupEntries, group.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocatedGroup.ParentNumber, 0, Dictionary(groupEntries.ToArray()), 0));
+            allocatedGroup.ParentNumber, 0, Dictionary([.. groupEntries]), 0));
 
         foreach (AllocatedRadioWidget allocatedWidget in allocatedGroup.Widgets)
         {
@@ -3514,7 +3514,7 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Q", new PdfInteger((int)field.ChoiceOptions.Alignment)));
         AddFieldMetadata(entries, field.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocatedField.FieldNumber, 0, Dictionary([.. entries]), 0));
 
         byte[] appearance = field.IsComboBox
             ? BuildChoiceTextAppearance(field, fontResource, fontUsage)
@@ -3823,7 +3823,7 @@ public sealed partial class PdfDocumentBuilder
         };
         AddFieldMetadata(entries, field.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocatedField.FieldNumber, 0, Dictionary([.. entries]), 0));
 
         byte[] appearance = BuildPushButtonAppearance(
             field, field.Label, fontResource, iconNumber, fontUsage);
@@ -3861,7 +3861,7 @@ public sealed partial class PdfDocumentBuilder
         if (field.DownAppearanceNumber.HasValue)
             entries.Add(("D", Dictionary(("Normal",
                 new PdfIndirectReference(field.DownAppearanceNumber.Value, 0)))));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary PushButtonAppearanceResources(
@@ -3876,7 +3876,7 @@ public sealed partial class PdfDocumentBuilder
         if (iconNumber.HasValue)
             entries.Add(("XObject", Dictionary(
                 ("BtnIcon", new PdfIndirectReference(iconNumber.Value, 0)))));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static byte[] BuildPushButtonAppearance(
@@ -4026,7 +4026,7 @@ public sealed partial class PdfDocumentBuilder
                 fields.Select(field => (PdfObject)UnicodeString(field)))));
         if (excludeFields)
             entries.Add(("Flags", new PdfInteger(1)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static string PushButtonHighlightName(PdfPushButtonHighlightMode mode) => mode switch
@@ -4052,7 +4052,7 @@ public sealed partial class PdfDocumentBuilder
         if (fields is not null)
             entries.Add(("Fields", new PdfArray(
                 fields.Select(field => (PdfObject)UnicodeString(field)))));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary SignatureFieldLockDictionary(PdfSignatureFieldLock fieldLock)
@@ -4067,7 +4067,7 @@ public sealed partial class PdfDocumentBuilder
                 fieldLock.Fields.Select(field => (PdfObject)UnicodeString(field)))));
         if (fieldLock.Permission.HasValue)
             entries.Add(("P", new PdfInteger((int)fieldLock.Permission.Value)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary SignatureSeedValueDictionary(PdfSignatureSeedValue seedValue)
@@ -4144,8 +4144,8 @@ public sealed partial class PdfDocumentBuilder
             if (seedValue.Certificate.SubjectDistinguishedNames is not null)
                 certificateEntries.Add(("SubjectDN", new PdfArray(
                     seedValue.Certificate.SubjectDistinguishedNames.Select(distinguishedName =>
-                        (PdfObject)Dictionary(distinguishedName.Attributes.Select(attribute =>
-                            (attribute.Key, (PdfObject)UnicodeString(attribute.Value))).ToArray())))));
+                        (PdfObject)Dictionary([.. distinguishedName.Attributes.Select(attribute =>
+                            (attribute.Key, (PdfObject)UnicodeString(attribute.Value)))])))));
             if (seedValue.Certificate.KeyUsages is not null)
                 certificateEntries.Add(("KeyUsage", new PdfArray(
                     seedValue.Certificate.KeyUsages.Select(usage =>
@@ -4164,7 +4164,7 @@ public sealed partial class PdfDocumentBuilder
             if (seedValue.Certificate.RequireEnrollmentUrl) certificateFlags |= 1 << 6;
             if (certificateFlags != 0)
                 certificateEntries.Add(("Ff", new PdfInteger(certificateFlags)));
-            entries.Add(("Cert", Dictionary(certificateEntries.ToArray())));
+            entries.Add(("Cert", Dictionary([.. certificateEntries])));
         }
         if (seedValue.DocumentLockIntent.HasValue)
         {
@@ -4184,7 +4184,7 @@ public sealed partial class PdfDocumentBuilder
         }
         if (flags != 0)
             entries.Add(("Ff", new PdfInteger(flags)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static string SignatureHandlerName(PdfSignatureHandler handler) => handler switch
@@ -4269,7 +4269,7 @@ public sealed partial class PdfDocumentBuilder
         entries.Add(("MK", FormFieldAppearanceCharacteristics(field.AppearanceStyle)));
         entries.Add(("BS", FormFieldBorderDictionary(field.AppearanceStyle)));
         objects.Add(new PdfIndirectObject(
-            allocatedField.FieldNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocatedField.FieldNumber, 0, Dictionary([.. entries]), 0));
 
         byte[] appearance;
         PdfDictionary resources;
@@ -4436,7 +4436,7 @@ public sealed partial class PdfDocumentBuilder
             annotationEntries.Add(("Popup", new PdfIndirectReference(allocated.PopupNumber.Value, 0)));
         AddAnnotationMetadata(annotationEntries, note.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocated.AnnotationNumber, 0, Dictionary(annotationEntries.ToArray()), 0));
+            allocated.AnnotationNumber, 0, Dictionary([.. annotationEntries]), 0));
 
         using var appearance = new MemoryStream();
         WriteAscii(appearance,
@@ -4505,7 +4505,7 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("Contents", UnicodeString(highlight.Contents)));
         AddAnnotationMetadata(entries, highlight.Metadata);
         objects.Add(new PdfIndirectObject(
-            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         var graphicsState = Dictionary(
             ("Type", Name("ExtGState")),
@@ -4966,7 +4966,7 @@ public sealed partial class PdfDocumentBuilder
         IEnumerable<PdfChoiceOption> options, TrueTypeFont? embeddedFont, string parameterName)
     {
         ArgumentNullException.ThrowIfNull(options);
-        PdfChoiceOption[] values = options.ToArray();
+        PdfChoiceOption[] values = [.. options];
         if (values.Length == 0 || values.Any(value => value is null
             || string.IsNullOrEmpty(value.ExportValue)
             || string.IsNullOrEmpty(value.DisplayValue)))
@@ -5031,7 +5031,7 @@ public sealed partial class PdfDocumentBuilder
         };
         if (style.BorderStyle == PdfFormFieldBorderStyle.Dashed)
             entries.Add(("D", new PdfArray(style.DashPattern!.Select(Number))));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static string FormFieldBorderStyleName(PdfFormFieldBorderStyle style) => style switch
@@ -5087,7 +5087,7 @@ public sealed partial class PdfDocumentBuilder
             entries.Add(("BG", RgbArray(style.BackgroundColor.Value)));
         if (style.BorderColor.HasValue)
             entries.Add(("BC", RgbArray(style.BorderColor.Value)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary PushButtonAppearanceCharacteristics(
@@ -5124,7 +5124,7 @@ public sealed partial class PdfDocumentBuilder
                     Number(options.IconVerticalAlignment)])),
                 ("FB", new PdfBoolean(options.FitIconToBounds)))));
         }
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static string PushButtonIconScaleName(PdfPushButtonIconScaleMode mode) => mode switch
@@ -5256,7 +5256,7 @@ public sealed partial class PdfDocumentBuilder
         PdfChoiceFieldOptions choiceOptions)
     {
         string[] defaults = choiceOptions.DefaultSelectedExportValues?.ToArray()
-            ?? selectedValues.ToArray();
+            ?? [.. selectedValues];
         if (!isMultiSelect && defaults.Length != 1)
             throw new ArgumentException(
                 "A single-select choice field requires exactly one default value.",
@@ -5282,8 +5282,11 @@ public sealed partial class PdfDocumentBuilder
         if (!isMultiSelect)
             return defaults;
         var defaultSet = defaults.ToHashSet(StringComparer.Ordinal);
-        return options.Where(option => defaultSet.Contains(option.ExportValue))
-            .Select(option => option.ExportValue).ToArray();
+        return
+        [
+            .. options.Where(option => defaultSet.Contains(option.ExportValue))
+                .Select(option => option.ExportValue)
+        ];
     }
 
     private PdfSignatureFieldLock? ValidateSignatureFieldLock(PdfSignatureFieldLock? fieldLock)
@@ -5648,7 +5651,7 @@ public sealed partial class PdfDocumentBuilder
         AddDate("ModDate", metadata.ModificationDate);
         if (metadata.Trapped.HasValue)
             entries.Add(("Trapped", Name(metadata.Trapped.Value.ToString())));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
 
         void Add(string name, string? value)
         {
@@ -5897,7 +5900,7 @@ public sealed partial class PdfDocumentBuilder
                     CalibratedColorSpace(entry.Key))));
             entries.Add(("ColorSpace", new PdfDictionary(colorSpaces)));
         }
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary ShadingDictionary(PdfShading shading)
@@ -5936,7 +5939,7 @@ public sealed partial class PdfDocumentBuilder
         if (shading.Background is not null)
             entries.Add(("Background", new PdfArray(
                 shading.Background.Components.Select(Number))));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfArray SpotColorSpace(PdfSpotColor color) => new([
@@ -6001,7 +6004,7 @@ public sealed partial class PdfDocumentBuilder
                 throw new NotSupportedException(
                     $"Calibrated color space {colorSpace.GetType().FullName} cannot be authored.");
         }
-        return new PdfArray([Name(name), Dictionary(entries.ToArray())]);
+        return new PdfArray([Name(name), Dictionary([.. entries])]);
     }
 
     private static PdfDictionary GradientFunction(IReadOnlyList<PdfGradientStop> stops)
