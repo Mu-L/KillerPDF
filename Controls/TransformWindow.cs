@@ -791,7 +791,7 @@ namespace KillerPDF
             FontSize = 10, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 4)
         };
 
-        private void WrapSection(StackPanel host, int start, string title, bool expanded)
+        private static void WrapSection(StackPanel host, int start, string title, bool expanded)
         {
             var children = host.Children.Cast<UIElement>().Skip(start).ToList();
             while (host.Children.Count > start) host.Children.RemoveAt(start);

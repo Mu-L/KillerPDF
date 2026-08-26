@@ -31,7 +31,7 @@ namespace KillerPDF.Controls
         internal static Point AnnotGetPosExt(PageAnnotation a) => AnnotGetPos(a);
         internal static void AnnotSetPosExt(PageAnnotation a, Point pos) => AnnotSetPos(a, pos);
         internal Point ClampAnnotPosExt(PageAnnotation a) => ClampAnnotPos(a);
-        internal bool HitTestAnnotationExt(PageAnnotation a, Point pos, out Rect bounds)
+        internal static bool HitTestAnnotationExt(PageAnnotation a, Point pos, out Rect bounds)
             => HitTestAnnotation(a, pos, out bounds);
         internal static bool IsDraggableExt(PageAnnotation a) => IsDraggable(a);
         internal void SelectAnnotationExt(PageAnnotation a, Rect bounds) => SelectAnnotation(a, bounds);

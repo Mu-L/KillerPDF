@@ -769,7 +769,7 @@ namespace KillerPDF.Controls
         // Fixed light color: the InlineFlyout pill is dark regardless of the app theme.
         // Shim for the original glyph-string call sites: E710 is the MDL2 Add glyph, anything
         // else is the minus. The glyphs themselves are no longer rendered (see above).
-        private Border MakeFormSizeStep(string glyph, Action onClick) => MakeFormSizeStep(glyph == "", onClick);
+        private static Border MakeFormSizeStep(string glyph, Action onClick) => MakeFormSizeStep(glyph == "", onClick);
 
         private static Border MakeFormSizeStep(bool plus, Action onClick)
         {

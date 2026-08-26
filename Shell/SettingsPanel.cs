@@ -493,7 +493,7 @@ namespace KillerPDF
         }
 
         // Localized display name for each theme, shown on the picker row.
-        private string ThemeDisplayName(Theme t) => t switch
+        private static string ThemeDisplayName(Theme t) => t switch
         {
             Theme.Light        => Loc("Str_Theme_Light"),
             Theme.Black        => Loc("Str_Theme_Black"),

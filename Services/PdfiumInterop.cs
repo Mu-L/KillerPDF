@@ -34,10 +34,12 @@ namespace KillerPDF.Services
 
         // ---- Document / page lifecycle -------------------------------------------------------
 
+#pragma warning disable CA2101 // PDFium requires UTF-8 narrow strings, explicitly declared below.
         [DllImport("pdfium.dll", EntryPoint = "FPDF_LoadDocument", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr FPDF_LoadDocumentRaw(
             [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string? password);
+#pragma warning restore CA2101
         internal static IntPtr FPDF_LoadDocument(string filePath, string? password)
         { lock (PdfiumLock) return FPDF_LoadDocumentRaw(filePath, password); }
 

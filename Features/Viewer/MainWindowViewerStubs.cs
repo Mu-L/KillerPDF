@@ -40,7 +40,7 @@ namespace KillerPDF
         private static void AnnotSetPos(PageAnnotation a, Point pos) => Controls.PdfViewer.AnnotSetPosExt(a, pos);
         private Point ClampAnnotPos(PageAnnotation a) => ActiveViewer.ClampAnnotPosExt(a);
         private bool HitTestAnnotation(PageAnnotation a, Point pos, out Rect bounds)
-            => ActiveViewer.HitTestAnnotationExt(a, pos, out bounds);
+            => Controls.PdfViewer.HitTestAnnotationExt(a, pos, out bounds);
         private static bool IsDraggable(PageAnnotation a) => Controls.PdfViewer.IsDraggableExt(a);
         private void SelectAnnotation(PageAnnotation a, Rect bounds) => ActiveViewer.SelectAnnotationExt(a, bounds);
         private void ToggleMultiSelect(PageAnnotation a, Rect bounds, Canvas canvas)

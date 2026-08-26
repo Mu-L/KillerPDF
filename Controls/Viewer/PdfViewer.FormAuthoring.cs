@@ -8,7 +8,7 @@ namespace KillerPDF.Controls
 {
     public partial class PdfViewer
     {
-        private void BeginFormFieldDrag(int pageIndex, Point position)
+        private void BeginFormFieldDrag(int _pageIndex, Point position)
         {
             ClearSelection();
             _isDrawing = true;

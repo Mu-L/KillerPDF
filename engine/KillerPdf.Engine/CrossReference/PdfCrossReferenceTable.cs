@@ -404,7 +404,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     }
 
     private static void ValidatePermanentIdentifiers(
-        IReadOnlyList<Revision> revisions, long offset)
+        IReadOnlyList<Revision> revisions, long _offset)
     {
         for (int index = revisions.Count - 1; index >= 0; index--)
         {

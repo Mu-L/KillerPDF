@@ -391,7 +391,7 @@ namespace KillerPDF
         // Shared overflow chevron + popup for the annotate bars: an E712 "More" button whose popup
         // (anchored to the button - flyouts anchor to their own button, always) stacks whatever
         // groups WireBarOverflow sheds.
-        private Border MakeBarOverflow(out Popup popup, out StackPanel stack)
+        private static Border MakeBarOverflow(out Popup popup, out StackPanel stack)
         {
             var s = new StackPanel { Margin = new Thickness(10, 6, 10, 6) };
             // Family flyout rule: the film grain is the LAST child, OVER the items, non-hit-testable.

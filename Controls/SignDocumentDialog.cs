@@ -331,7 +331,7 @@ namespace KillerPDF
 
         private void Warn(string msg) => KillerDialog.Show(this, msg, L("Str_Sign_Name"), MessageBoxButton.OK, MessageBoxImage.Warning);
 
-        private FrameworkElement DimensionField(string label, string value, out TextBox box)
+        private static FrameworkElement DimensionField(string label, string value, out TextBox box)
         {
             var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 0) };
             panel.Children.Add(new TextBlock { Text = label, Foreground = R("MutedTextBrush"), VerticalAlignment = VerticalAlignment.Center });

@@ -275,13 +275,12 @@ namespace KillerPDF
         // ============================================================
 
         /// <summary>Ties a row to engine-owned bookmark data and stable PDF object identity.</summary>
-        private sealed class OutlineNodeRef
+        private sealed class OutlineNodeRef(KillerPdf.Engine.Documents.PdfBookmarkInfo bookmark)
         {
-            public readonly KillerPdf.Engine.Documents.PdfBookmarkInfo Bookmark;
+            public readonly KillerPdf.Engine.Documents.PdfBookmarkInfo Bookmark = bookmark;
             public (int ObjectNumber, int Generation) Identity =>
                 (Bookmark.ObjectNumber, Bookmark.Generation);
             public int PageIndex => Bookmark.DestinationPageIndex ?? -1;
-            public OutlineNodeRef(KillerPdf.Engine.Documents.PdfBookmarkInfo bookmark) => Bookmark = bookmark;
         }
 
         private void ApplyEngineBookmarkEdit(

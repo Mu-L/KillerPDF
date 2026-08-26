@@ -60,7 +60,7 @@ namespace KillerPDF
             App.SetSetting("OcrLanguages", string.Join("+", langs));
 
         // The language string handed to Tesseract, e.g. "eng" or "eng+spa".
-        private string CurrentOcrLanguageString() => string.Join("+", GetSelectedOcrLanguages());
+        private static string CurrentOcrLanguageString() => string.Join("+", GetSelectedOcrLanguages());
 
         // High-quality (tessdata_best) vs standard model preference, persisted. When on, downloads pull the
         // larger, more accurate "best" models and new languages keep using them.

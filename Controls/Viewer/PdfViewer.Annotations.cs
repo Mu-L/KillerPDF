@@ -763,7 +763,7 @@ namespace KillerPDF.Controls
                     break;
             }
         }
-        private Rect AnnotBounds(PageAnnotation a)
+        private static Rect AnnotBounds(PageAnnotation a)
         {
             // Ink isn't a simple rect in HitTestAnnotation (it's a proximity test), so derive its bounds
             // from the stroke points; everything else reuses HitTestAnnotation's out-bounds via a far probe.

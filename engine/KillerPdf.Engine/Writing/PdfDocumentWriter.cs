@@ -464,7 +464,7 @@ public static class PdfDocumentWriter
     }
 
     private static void RemoveDocumentInformationObject(
-        PdfDocument document, PdfObject root, List<WritableObject> objects,
+        PdfDocument document, PdfObject _root, List<WritableObject> objects,
         PdfMetadataPolicy policy)
     {
         if (policy == PdfMetadataPolicy.Preserve

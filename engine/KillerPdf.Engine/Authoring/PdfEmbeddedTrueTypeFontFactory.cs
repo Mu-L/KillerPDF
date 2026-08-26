@@ -9,7 +9,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
 {
     internal static EmbeddedTrueTypeFontObjects Create(
         TrueTypeFont font, IReadOnlyDictionary<ushort, EmbeddedCharacterMapping> mappings,
-        PdfIndirectReference type0Reference, PdfIndirectReference cidFontReference,
+        PdfIndirectReference _type0Reference, PdfIndirectReference cidFontReference,
         PdfIndirectReference descriptorReference, PdfIndirectReference fontFileReference,
         PdfIndirectReference toUnicodeReference, PdfIndirectReference encodingReference)
     {

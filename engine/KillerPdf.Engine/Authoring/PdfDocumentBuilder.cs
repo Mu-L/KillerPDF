@@ -3933,8 +3933,10 @@ public sealed partial class PdfDocumentBuilder
             case PdfPushButtonCaptionPosition.CaptionOverIcon:
                 break;
             default:
+#pragma warning disable CA2208 // The overload supplies parameter name, actual enum value, and message.
                 throw new ArgumentOutOfRangeException(
                     nameof(position), position, "The push-button caption position is not supported.");
+#pragma warning restore CA2208
         }
         if (iconNumber.HasValue && iconWidth > 0 && iconHeight > 0)
             WritePushButtonIcon(output, field.AppearanceOptions, iconX, iconY, iconWidth, iconHeight);

@@ -43,7 +43,7 @@ namespace KillerPDF
             // the reload and stay selectable/movable; they are re-rendered after the doc reopens.
             if (!keepAnnotations) _annotations.Clear();
             _renderDims.Clear();
-            ActiveViewer.InvalidateRenderCacheExt(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
+            Controls.PdfViewer.InvalidateRenderCacheExt(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
             _renderedPrimaryPage = -1;        // force a re-render after reload even if the same page stays selected (e.g. rotate)
             ClearSelection();
             MarkDirty();
@@ -111,7 +111,7 @@ namespace KillerPDF
             // Clear once more after the old workers have observed cancellation. This closes the race
             // where a worker was already inside PDFium when the first clear happened and published its
             // stale result while the edited document was being saved and reopened.
-            ActiveViewer.InvalidateRenderCacheExt(_active);
+            Controls.PdfViewer.InvalidateRenderCacheExt(_active);
 
             RefreshPageList();
             if (selectedIdx >= 0 && selectedIdx < PageList.Items.Count)

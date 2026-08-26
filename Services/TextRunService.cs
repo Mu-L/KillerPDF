@@ -5,16 +5,13 @@ namespace KillerPDF.Services
 {
     /// <summary>One selectable character on a page, in reading order. Coordinates are PDF space
     /// (points, bottom-left origin), matching SearchService and ExtractTextFromRegion.</summary>
-    internal readonly struct RunChar
+    internal readonly struct RunChar(string value, double left, double right, int word, int line)
     {
-        public readonly string Value;   // PdfPig letters can be multi-char (ligatures)
-        public readonly double Left;
-        public readonly double Right;
-        public readonly int Word;       // ordinal of the word this char belongs to (for word counts / spacing)
-        public readonly int Line;       // ordinal of the line this char belongs to
-
-        public RunChar(string value, double left, double right, int word, int line)
-        { Value = value; Left = left; Right = right; Word = word; Line = line; }
+        public readonly string Value = value;   // PdfPig letters can be multi-char (ligatures)
+        public readonly double Left = left;
+        public readonly double Right = right;
+        public readonly int Word = word;       // ordinal of the word this char belongs to (for word counts / spacing)
+        public readonly int Line = line;       // ordinal of the line this char belongs to
     }
 
     /// <summary>A visual line of text: a contiguous slice of the page's flattened char list plus its
