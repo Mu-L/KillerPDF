@@ -4322,14 +4322,14 @@ public sealed partial class PdfDocumentBuilder
             if (field.SelectedValues.Contains(option.ExportValue, StringComparer.Ordinal))
             {
                 WriteAscii(output,
-                    $"0.75 g\n1 {FormatNumber(Math.Max(1, rowBottom))} " +
+                    $"0.75 g\n1 {FormatNumber(rowBottom)} " +
                     $"{FormatNumber(Math.Max(0, field.Width - 2))} {FormatNumber(rowHeight)} re\nf\n");
             }
             double textX = ChoiceTextX(field, option.DisplayValue);
             WriteAscii(output,
                 $"BT\n{NameToken(fontResource)} {FormatNumber(field.FontSize)} Tf\n" +
                 $"{ColorOperands(style.TextColor)} rg\n" +
-                $"{FormatNumber(textX)} {FormatNumber(Math.Max(1, rowBottom + (rowHeight - field.FontSize) / 2))} Td\n");
+                $"{FormatNumber(textX)} {FormatNumber(rowBottom + (rowHeight - field.FontSize) / 2)} Td\n");
             WriteShownText(output, option.DisplayValue, field.EmbeddedFont, fontUsage);
             output.Write("ET\n"u8);
             rowTop = rowBottom;
