@@ -14,28 +14,67 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
+using KillerPDF.Controls;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
 namespace KillerPDF
 {
+    /// <summary>
+    /// In-process page transfer captured before a drag can move focus to another pane.
+    /// The source working file and overlay annotations are snapshots of what the user dragged.
+    /// </summary>
+    internal sealed record PageDragPayload(
+        KillerPDF.Controls.PdfViewer SourceViewer,
+        string SourcePath,
+        int[] PageIndices,
+        Dictionary<int, int> PageRotations,
+        Dictionary<int, List<PageAnnotation>> Annotations);
+
     public partial class MainWindow
     {
         // ============================================================
         // Drag/drop: file open
         // ============================================================
 
-        internal void DropZone_DragOver(object sender, DragEventArgs e)
+        internal void DropZone_DragOver(PdfViewer viewer, object sender, DragEventArgs e)
         {
-            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+            if (e.Data.GetDataPresent(typeof(PageDragPayload))
+                && e.Data.GetData(typeof(PageDragPayload)) is PageDragPayload pages
+                && !ReferenceEquals(pages.SourceViewer, viewer)
+                && viewer.ShowPageImportDropIndicator(e, out _))
+            {
+                e.Effects = DragDropEffects.Copy;
+            }
+            else
+            {
+                viewer.HidePageImportDropIndicator();
+                e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+                    ? DragDropEffects.Copy : DragDropEffects.None;
+            }
             e.Handled = true;
         }
 
+        internal void DropZone_DragOver(object sender, DragEventArgs e)
+            => DropZone_DragOver(ActiveViewer, sender, e);
+
         // internal: PdfViewer's XAML binds these three and forwards to them.
-        internal void DropZone_Drop(object sender, DragEventArgs e)
+        internal void DropZone_Drop(PdfViewer viewer, object sender, DragEventArgs e)
         {
+            if (e.Data.GetDataPresent(typeof(PageDragPayload))
+                && e.Data.GetData(typeof(PageDragPayload)) is PageDragPayload pages
+                && !ReferenceEquals(pages.SourceViewer, viewer)
+                && viewer.ShowPageImportDropIndicator(e, out int insertAt))
+            {
+                viewer.HidePageImportDropIndicator();
+                ImportDraggedPages(viewer, pages, insertAt);
+                e.Handled = true;
+                return;
+            }
+            viewer.HidePageImportDropIndicator();
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
+                FocusPane(viewer);
                 OnPathsDropped((string[])e.Data.GetData(DataFormats.FileDrop)!);
                 e.Handled = true;   // don't let the same drop bubble to the window-level handler
             }
@@ -74,11 +113,113 @@ namespace KillerPDF
                 {
                     int[] selected = [.. PageList.SelectedItems.Cast<PageThumbnailVm>()
                         .Select(page => page.PageIndex).OrderBy(index => index)];
-                    try { DragDrop.DoDragDrop(PageList, selected, DragDropEffects.Move); }
-                    finally { HidePageDropIndicator(); }
+                    CommitActiveTextBox();
+                    ActiveViewer.CaptureActiveIfAny();
+                    var session = ActiveViewer.ActiveSessionRef;
+                    if (session?.CurrentFile is not null)
+                    {
+                        var annotations = new Dictionary<int, List<PageAnnotation>>();
+                        foreach (int page in selected)
+                            if (session.Annotations.TryGetValue(page, out var source))
+                                annotations[page] = [.. source.Select(CloneAnnotation)
+                                    .Where(annotation => annotation is not null)
+                                    .Cast<PageAnnotation>()];
+                        var payload = new PageDragPayload(
+                            ActiveViewer,
+                            session.CurrentFile,
+                            selected,
+                            session.PageRotations.ToDictionary(pair => pair.Key, pair => pair.Value),
+                            annotations);
+                        var data = new DataObject();
+                        data.SetData(typeof(int[]), selected);
+                        data.SetData(typeof(PageDragPayload), payload);
+                        try { DragDrop.DoDragDrop(PageList, data, DragDropEffects.Copy | DragDropEffects.Move); }
+                        finally
+                        {
+                            Viewer.HidePageImportDropIndicator();
+                            ViewerB.HidePageImportDropIndicator();
+                        }
+                    }
+                    HidePageDropIndicator();
                 }
             }
         }
+
+        internal void DropZone_Drop(object sender, DragEventArgs e)
+            => DropZone_Drop(ActiveViewer, sender, e);
+
+        private void ImportDraggedPages(PdfViewer target, PageDragPayload payload, int insertionIndex)
+        {
+            if (payload.PageIndices.Length == 0 || !File.Exists(payload.SourcePath)) return;
+            FocusPane(target);
+            if (_doc is null || _currentFile is null) return;
+            CommitActiveTextBox();
+
+            int insertAt = Math.Clamp(insertionIndex, 0, _doc.PageCount);
+            string extracted = App.MakeTempFile("pagedrag");
+            try
+            {
+                PdfEngineIntegration.ExtractPages(
+                    payload.SourcePath, extracted, payload.PageIndices, payload.PageRotations);
+                int[] importedRotations = [.. payload.PageIndices.Select(page =>
+                    payload.PageRotations.TryGetValue(page, out int rotation) ? rotation : 0)];
+                var imports = new[]
+                {
+                    new PdfEngineIntegration.ImportedDocument(extracted, importedRotations)
+                };
+
+                var annotationBackup = _annotations.ToDictionary(
+                    pair => pair.Key, pair => pair.Value);
+                try
+                {
+                    PageAnnotationInsertion.Shift(_annotations, insertAt, payload.PageIndices.Length);
+                    for (int outputPage = 0; outputPage < payload.PageIndices.Length; outputPage++)
+                    {
+                        int sourcePage = payload.PageIndices[outputPage];
+                        if (!payload.Annotations.TryGetValue(sourcePage, out var source)) continue;
+                        int destinationPage = insertAt + outputPage;
+                        var copies = source.Select(CloneAnnotation)
+                            .Where(annotation => annotation is not null)
+                            .Cast<PageAnnotation>()
+                            .ToList();
+                        foreach (PageAnnotation annotation in copies)
+                            annotation.PageIndex = destinationPage;
+                        if (copies.Count > 0) _annotations[destinationPage] = copies;
+                    }
+
+                    SaveTempAndReload(
+                        keepAnnotations: true,
+                        preserveZoom: true,
+                        finalizeSavedFile: path =>
+                            PdfEngineIntegration.InsertDocuments(path, imports, insertAt),
+                        remapRotations: rotations =>
+                            PdfEngineIntegration.RemapRotationsAfterDocumentInsertion(
+                                rotations, imports, insertAt),
+                        selectedPageAfterReload: insertAt);
+                }
+                catch
+                {
+                    _annotations.Clear();
+                    foreach (var pair in annotationBackup)
+                    {
+                        foreach (PageAnnotation annotation in pair.Value)
+                            annotation.PageIndex = pair.Key;
+                        _annotations[pair.Key] = pair.Value;
+                    }
+                    throw;
+                }
+
+                SetStatus(payload.PageIndices.Length == 1
+                    ? "Copied 1 page to this document."
+                    : $"Copied {payload.PageIndices.Length} pages to this document.");
+            }
+            catch (Exception ex)
+            {
+                KillerDialog.Show(this, $"Page copy failed:\n{ex.Message}",
+                    Loc("Str_Dlg_AppTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
 
         private void PageList_DragOver(object sender, DragEventArgs e)
         {

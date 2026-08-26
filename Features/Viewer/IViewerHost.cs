@@ -145,7 +145,7 @@ namespace KillerPDF.Features
         // Window-owned chrome and start-screen actions raised by one viewer instance.
         void ViewerSizeChanged(PdfViewer viewer, object sender, SizeChangedEventArgs e);
         void ViewerDrop(PdfViewer viewer, object sender, DragEventArgs e);
-        void ViewerDragOver(object sender, DragEventArgs e);
+        void ViewerDragOver(PdfViewer viewer, object sender, DragEventArgs e);
         void ViewerDropZoneClick(object sender, MouseButtonEventArgs e);
         void ClearRecentFiles(object sender, MouseButtonEventArgs e);
         void ViewerBackgroundRightClick(object sender, MouseButtonEventArgs e);

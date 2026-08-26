@@ -180,12 +180,11 @@ namespace KillerPDF
 
         void IViewerHost.ViewerDrop(PdfViewer viewer, object sender, DragEventArgs e)
         {
-            FocusPane(viewer);
-            DropZone_Drop(sender, e);
+            DropZone_Drop(viewer, sender, e);
         }
 
-        void IViewerHost.ViewerDragOver(object sender, DragEventArgs e)
-            => DropZone_DragOver(sender, e);
+        void IViewerHost.ViewerDragOver(PdfViewer viewer, object sender, DragEventArgs e)
+            => DropZone_DragOver(viewer, sender, e);
 
         void IViewerHost.ViewerDropZoneClick(object sender, MouseButtonEventArgs e)
             => DropZone_Click(sender, e);

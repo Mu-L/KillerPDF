@@ -409,7 +409,7 @@
 
                 <!-- Drop zone -->
                 <Border x:Name="DropZone" Background="Transparent"
-                        AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver"
+                        AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver" DragLeave="DropZone_DragLeave"
                         MouseLeftButtonDown="DropZone_Click">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -486,7 +486,7 @@
                               PreviewMouseMove="PagePreviewPanel_PreviewMouseMove"
                               PreviewMouseUp="PagePreviewPanel_PreviewMouseUp"
                               MouseRightButtonUp="DocPaneBackground_RightClick"
-                              AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver">
+                              AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver" DragLeave="DropZone_DragLeave">
                     <!-- Custom template: the VERTICAL scrollbar spans the full height (RowSpan=2),
                          covering the bottom-right corner cell, and the horizontal bar butts up
                          against it. The default template puts a white system-colored corner

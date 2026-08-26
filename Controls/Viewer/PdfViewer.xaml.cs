@@ -146,7 +146,8 @@ namespace KillerPDF.Controls
         // drag-drop raises no PreviewMouseDown (the focus trigger), so a drop on the unfocused
         // pane opened the file in the OTHER pane. FocusPane is cheap and idempotent.
         private void DropZone_Drop(object s, DragEventArgs e) => Host?.ViewerDrop(this, s, e);
-        private void DropZone_DragOver(object s, DragEventArgs e) => Host?.ViewerDragOver(s, e);
+        private void DropZone_DragOver(object s, DragEventArgs e) => Host?.ViewerDragOver(this, s, e);
+        private void DropZone_DragLeave(object s, DragEventArgs e) => HidePageImportDropIndicator();
         private void DropZone_Click(object s, MouseButtonEventArgs e) => Host?.ViewerDropZoneClick(s, e);
 
         private void RecentClearAll_Click(object s, MouseButtonEventArgs e) => Host?.ClearRecentFiles(s, e);
