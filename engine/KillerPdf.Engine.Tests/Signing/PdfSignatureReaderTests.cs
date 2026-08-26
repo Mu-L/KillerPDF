@@ -11,8 +11,16 @@ using Xunit;
 
 namespace KillerPdf.Engine.Tests.Signing;
 
-public sealed partial class PdfSignatureReaderTests
+public sealed class PdfSignatureReaderTests
 {
+#pragma warning disable SYSLIB1045 // Cached test patterns avoid a Visual Studio design-time generator failure.
+    private static readonly Regex RootReferenceRegex =
+        new(@"/Root \d+ \d+ R", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex ByteRangeRegex =
+        new(@"/ByteRange \[(\d{10}) (\d{10}) (\d{10}) (\d{10})\]",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+#pragma warning restore SYSLIB1045
+
     [Fact]
     public void Read_DecodesPdf20Utf8SignatureFieldNames()
     {
@@ -145,7 +153,7 @@ public sealed partial class PdfSignatureReaderTests
         var update = new PdfIncrementalUpdateBuilder(source);
         update.AddObject(new PdfInteger(1));
         string revision = Encoding.Latin1.GetString(update.Build());
-        Match root = RootReferenceRegex().Matches(revision).Last();
+        Match root = RootReferenceRegex.Matches(revision).Last();
         revision = revision.Remove(root.Index, root.Length)
             .Insert(root.Index, new string(' ', root.Length));
 
@@ -613,7 +621,7 @@ public sealed partial class PdfSignatureReaderTests
                 ReservedSignatureSize = 8
             });
         string text = Encoding.ASCII.GetString(signed);
-        Match match = ByteRangeRegex().Match(text);
+        Match match = ByteRangeRegex.Match(text);
         Assert.True(match.Success);
         int secondStart = int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
         int secondLength = int.Parse(match.Groups[4].Value, CultureInfo.InvariantCulture);
@@ -786,12 +794,6 @@ public sealed partial class PdfSignatureReaderTests
 
         Assert.Contains("/1.2", error.Message, StringComparison.Ordinal);
     }
-
-    [GeneratedRegex(@"/Root \d+ \d+ R")]
-    private static partial Regex RootReferenceRegex();
-
-    [GeneratedRegex(@"/ByteRange \[(\d{10}) (\d{10}) (\d{10}) (\d{10})\]")]
-    private static partial Regex ByteRangeRegex();
 
     private static PdfName Name(string value) => new(Encoding.ASCII.GetBytes(value));
 }
