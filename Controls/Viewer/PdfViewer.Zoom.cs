@@ -134,10 +134,28 @@ namespace KillerPDF.Controls
                  node = node is Visual or System.Windows.Media.Media3D.Visual3D
                      ? VisualTreeHelper.GetParent(node) : null)
             {
-                if (node is not ScrollViewer inner || inner.ScrollableHeight <= 0) continue;
+                if (node is not ScrollViewer inner
+                    || inner.ScrollableHeight <= 0
+                    || !BelongsToFormFieldList(inner)) continue;
                 return delta > 0
                     ? inner.VerticalOffset > 0
                     : inner.VerticalOffset < inner.ScrollableHeight;
+            }
+            return false;
+        }
+
+        // A TextBox, ComboBox, or another templated control can also contain an internal
+        // ScrollViewer. Only the one owned by our multi-select form ListBox should intercept
+        // the document wheel. The original broad check treated every nested ScrollViewer as
+        // a field list and could leave an otherwise scrollable page unable to take the wheel.
+        private bool BelongsToFormFieldList(DependencyObject scrollViewer)
+        {
+            for (DependencyObject? node = VisualTreeHelper.GetParent(scrollViewer);
+                 node is not null && !ReferenceEquals(node, PagePreviewPanel);
+                 node = node is Visual or System.Windows.Media.Media3D.Visual3D
+                     ? VisualTreeHelper.GetParent(node) : null)
+            {
+                if (node is ListBox list && Equals(list.Tag, FormOverlayTag)) return true;
             }
             return false;
         }
