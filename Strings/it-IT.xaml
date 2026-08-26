@@ -545,9 +545,9 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Tf_LevelsBlack">Punto di nero</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punto di bianco</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Mezzitoni</sys:String>
-    <sys:String x:Key="Str_Tf_Quality">QUALITA' PAGINA</sys:String>
-    <sys:String x:Key="Str_Tf_ColorMode">MModo colore</sys:String>
-    <sys:String x:Key="Str_Tf_Grayscale">Scale di grigio</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">QUALITÀ PAGINA</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Modo colore</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Scala di grigi</sys:String>
     <sys:String x:Key="Str_Tf_BlackWhite">Bianco e nero</sys:String>
     <sys:String x:Key="Str_Tf_Threshold">Soglia bianco e nero</sys:String>
     <sys:String x:Key="Str_Tf_SetDpi">Impostazione risoluzione output (DPI)</sys:String>
@@ -783,7 +783,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Dlg_InsertImage">Inserisci immagine</sys:String>
     <sys:String x:Key="Str_Dlg_InstallShortcut">Crea collegamento programma sul desktop</sys:String>
     <sys:String x:Key="Str_Stamp_DefaultText">BOZZA</sys:String>
-    <sys:String x:Key="Str_Sign_NeedCertFile">Prima seelziona un file certificato (.pfx / .p12).</sys:String>
+    <sys:String x:Key="Str_Sign_NeedCertFile">Prima seleziona un file certificato (.pfx / .p12).</sys:String>
     <sys:String x:Key="Str_Sign_NoStoreCert">Nessun certificato firma disponibile nell'archivio di Windows.</sys:String>
     <sys:String x:Key="Str_Sign_NeedOutput">Seleziona dove salvare la copia firmata.</sys:String>
     <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Impossibile aprire il certificato.&#10;&#10;La password potrebbe non essere corretta oppure il file non è un certificato .pfx / .p12 valido.</sys:String>
@@ -950,6 +950,6 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Search_CloseTT">Chiudi (Esc)</sys:String>
     <sys:String x:Key="Str_Busy_FlattenPage">Semplificazione pagina {0} / {1}...</sys:String>
     <sys:String x:Key="Str_Busy_ExportPage">Esportazione pagina {0} / {1}...</sys:String>
-    <sys:String x:Key="Str_Busy_CancelHint">('Esc' per annullare)</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc per annullare)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">Download {0} - {1} / {2} -</sys:String>
 </ResourceDictionary>
