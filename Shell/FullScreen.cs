@@ -129,7 +129,7 @@ namespace KillerPDF
                 // Restored to BgDark on exit.
                 Background = Brushes.Black;
 
-                var b = CurrentMonitorBoundsDip();
+                var b = CurrentMonitorBoundsPixels();
                 Topmost = true;
                 // #215: Topmost exists only to cover the always-on-top taskbar while KillerPDF is
                 // the ACTIVE window. Held unconditionally, it sat over every other program the user
@@ -137,9 +137,16 @@ namespace KillerPDF
                 Deactivated += FsYieldTopmost;
                 Activated   += FsReassertTopmost;
                 ResizeMode = ResizeMode.NoResize;
-                Left = b.Left; Top = b.Top; Width = b.Width; Height = b.Height;
                 if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal;
-                Left = b.Left; Top = b.Top; Width = b.Width; Height = b.Height;
+                ApplyFullScreenMonitorBounds(b);
+                // Custom chrome and WPF both perform one more layout pass after the state change.
+                // Reassert the native monitor rectangle after that pass so neither can leave the
+                // border outside the physical display at fractional DPI scales.
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
+                    new Action(() =>
+                    {
+                        if (_fullScreen) ApplyFullScreenMonitorBounds(b);
+                    }));
             }
             else
             {
@@ -171,18 +178,25 @@ namespace KillerPDF
         private void FsYieldTopmost(object? sender, EventArgs e)    => Topmost = false;
         private void FsReassertTopmost(object? sender, EventArgs e) => Topmost = true;
 
-        // Full bounds (taskbar included) of the monitor the window is currently on, in WPF device-independent
-        // units. MonitorFromWindow/GetMonitorInfo/MONITORINFO/RECT are declared in WindowChrome.cs (same class).
-        private Rect CurrentMonitorBoundsDip()
+        // Full native-pixel bounds of the monitor the window is currently on. Keeping this rectangle in
+        // native coordinates avoids rounding errors between WPF units and per-monitor DPI scaling.
+        private RECT CurrentMonitorBoundsPixels()
         {
             var hwnd = new WindowInteropHelper(this).Handle;
             IntPtr mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
             var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            GetMonitorInfo(mon, ref info);
-            var r = info.rcMonitor;
-            var dpi = VisualTreeHelper.GetDpi(this);
-            return new Rect(r.left / dpi.DpiScaleX, r.top / dpi.DpiScaleY,
-                            (r.right - r.left) / dpi.DpiScaleX, (r.bottom - r.top) / dpi.DpiScaleY);
+            if (!GetMonitorInfo(mon, ref info))
+                throw new InvalidOperationException("Windows could not determine the current monitor bounds.");
+            return info.rcMonitor;
+        }
+
+        private void ApplyFullScreenMonitorBounds(RECT bounds)
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            SetWindowPos(hwnd, IntPtr.Zero,
+                         bounds.left, bounds.top,
+                         bounds.right - bounds.left, bounds.bottom - bounds.top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
         }
 
         // Chrome-style toast: fades in near the top, holds, then fades out and removes itself.

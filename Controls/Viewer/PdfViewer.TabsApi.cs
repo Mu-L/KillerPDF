@@ -126,16 +126,37 @@ namespace KillerPDF.Controls
             }
         }
 
-        /// <summary>This pane's sidebar thumbnails, kept so focusing it again does not re-decode the
-        /// document. Read by RestorePageListForActivePane (PageOperations.cs).</summary>
-        internal PageThumbnailVm[]? ThumbCache { get; set; }
-        internal string? ThumbCacheFile { get; set; }
+        /// <summary>The active tab's sidebar thumbnails, kept so switching away and back does not
+        /// re-decode the document. Read by RestorePageListForActivePane (PageOperations.cs).</summary>
+        internal PageThumbnailVm[]? ThumbCache
+        {
+            get => _active?.ThumbCache;
+            set { if (_active != null) _active.ThumbCache = value; }
+        }
+        internal string? ThumbCacheFile
+        {
+            get => _active?.ThumbCacheFile;
+            set { if (_active != null) _active.ThumbCacheFile = value; }
+        }
 
-        /// <summary>This pane's thumbnail loader cancellation. PER PANE, not per window: one shared
-        /// token meant focusing either pane canceled whatever the other was still decoding, and
-        /// since the half-filled cache still matched the page count it counted as usable - so the
-        /// list re-seated with the labels and no pictures, permanently.</summary>
-        internal System.Threading.CancellationTokenSource? ThumbCts { get; set; }
+        /// <summary>The active tab's thumbnail loader cancellation. Keeping it per tab prevents a
+        /// second document in the same pane from stealing the first document's loader and cache.</summary>
+        internal System.Threading.CancellationTokenSource? ThumbCts
+        {
+            get => _active?.ThumbCts;
+            set { if (_active != null) _active.ThumbCts = value; }
+        }
+        internal bool ThumbCacheComplete
+        {
+            get => _active?.ThumbCacheComplete == true;
+            set { if (_active != null) _active.ThumbCacheComplete = value; }
+        }
+
+        internal void MarkThumbnailCacheComplete(PageThumbnailVm[] cache)
+        {
+            var owner = _sessions.FirstOrDefault(s => ReferenceEquals(s.ThumbCache, cache));
+            if (owner != null) owner.ThumbCacheComplete = true;
+        }
 
         /// <summary>Highlight this pane's current page after the list is re-seated: assigning
         /// ItemsSource clears the selection.</summary>

@@ -192,10 +192,10 @@ namespace KillerPDF
             }
         }
 
-        [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
+        [LibraryImport("user32.dll", EntryPoint = "MonitorFromWindow")]
         private static partial IntPtr MonitorFromWindow(IntPtr handle, uint flags);
 
-        [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+        [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static partial bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 

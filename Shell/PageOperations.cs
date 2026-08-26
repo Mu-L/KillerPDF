@@ -198,6 +198,7 @@ namespace KillerPDF
             bool usable = cached != null
                        && _doc != null
                        && _currentFile != null
+                       && ActiveViewer.ThumbCacheComplete
                        && cached.Length == _doc.PageCount
                        && string.Equals(ActiveViewer.ThumbCacheFile, _currentFile,
                                         System.StringComparison.OrdinalIgnoreCase);
@@ -214,6 +215,7 @@ namespace KillerPDF
 
         internal void RefreshPageList()
         {
+            var thumbnailOwner = ActiveViewer;
             // Cancel any in-flight thumbnail load for the previous file.
             _thumbCts?.Cancel();
             _thumbCts = new System.Threading.CancellationTokenSource();
@@ -256,6 +258,7 @@ namespace KillerPDF
             // rather than decode the document again. RestorePageListForActivePane is the only reader.
             ActiveViewer.ThumbCache     = items;
             ActiveViewer.ThumbCacheFile = filePath;
+            ActiveViewer.ThumbCacheComplete = false;
 
             // Load thumbnails sequentially on a background thread via a single doc reader.
             _ = System.Threading.Tasks.Task.Run(() =>
@@ -284,6 +287,9 @@ namespace KillerPDF
                         }
                         catch { /* skip failed thumbnail; item shows label-only */ }
                     }
+                    if (!ct.IsCancellationRequested)
+                        thumbnailOwner.Dispatcher.Invoke(() =>
+                            thumbnailOwner.MarkThumbnailCacheComplete(items));
                 }
                 catch { /* docReader open failed; all items remain label-only */ }
             }, ct);

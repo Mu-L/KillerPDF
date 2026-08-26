@@ -79,6 +79,14 @@ namespace KillerPDF.Controls
             public Dictionary<int, List<(double left, double bottom, double right, double top)>> AllSearchRects = [];
             public List<int> SearchResultPages = [];
 
+            // Sidebar decoding belongs to the document tab, not merely the pane. A pane can host
+            // several documents, and sharing one cache/token let a newly opened tab replace or
+            // cancel the thumbnails that an existing tab still owned.
+            public PageThumbnailVm[]? ThumbCache;
+            public string? ThumbCacheFile;
+            public System.Threading.CancellationTokenSource? ThumbCts;
+            public volatile bool ThumbCacheComplete;
+
             public string Title =>
                 string.IsNullOrEmpty(OriginalFile)
                     ? "Untitled"
