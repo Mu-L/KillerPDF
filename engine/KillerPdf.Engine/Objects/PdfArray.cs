@@ -11,7 +11,7 @@ public sealed class PdfArray : PdfObject, IReadOnlyList<PdfObject>
     public PdfArray(IEnumerable<PdfObject> items)
     {
         ArgumentNullException.ThrowIfNull(items);
-        _items = items.ToArray();
+        _items = [.. items];
         if (_items.Any(item => item is null))
             throw new ArgumentException(
                 "A PDF array cannot contain a null object reference; use PdfNull.Instance.",

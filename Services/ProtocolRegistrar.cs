@@ -52,9 +52,9 @@ namespace KillerPDF.Services
             {
                 int equals = pair.IndexOf('=');
                 if (equals < 0) continue;
-                string name = Uri.UnescapeDataString(pair.Substring(0, equals).Replace("+", " "));
+                string name = Uri.UnescapeDataString(pair[..equals].Replace("+", " "));
                 if (!name.Equals("url", StringComparison.OrdinalIgnoreCase)) continue;
-                string value = Uri.UnescapeDataString(pair.Substring(equals + 1).Replace("+", " "));
+                string value = Uri.UnescapeDataString(pair[(equals + 1)..].Replace("+", " "));
                 if (!Uri.TryCreate(value, UriKind.Absolute, out var parsed)) return false;
                 if (!parsed.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)) return false;
                 target = parsed;

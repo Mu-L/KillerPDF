@@ -149,7 +149,7 @@ public static class PdfBookmarkReader
                 ? found : null;
         PdfName kind = Resolve(document, array[1], "A destination view type") as PdfName
             ?? throw new InvalidOperationException("A destination view type is not a name.");
-        double?[] values = array.Skip(2).Select(value => OptionalNumber(document, value)).ToArray();
+        double?[] values = [.. array.Skip(2).Select(value => OptionalNumber(document, value))];
         PdfDestination destination = kind.ValueAsLatin1() switch
         {
             "XYZ" when values.Length == 3 => PdfDestination.At(values[0], values[1], values[2]),

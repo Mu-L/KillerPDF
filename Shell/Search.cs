@@ -40,7 +40,7 @@ namespace KillerPDF
 
         void ISearchHost.SetResultText(string text)
         {
-            if (_searchStatus is not null) _searchStatus.Text = text;
+            _searchStatus?.Text = text;
         }
 
         void ISearchHost.SetResultCount(string text, string? tooltip)
@@ -244,7 +244,7 @@ namespace KillerPDF
 
             _searchBar.Visibility = Visibility.Visible;
             _searchBox!.Text = "";
-            if (_searchStatus != null) _searchStatus.Text = "";
+            _searchStatus?.Text = "";
             FitSearchBox();
             _searchBox.Focus();
             Keyboard.Focus(_searchBox);
@@ -306,7 +306,7 @@ namespace KillerPDF
                 _searchDebounce?.Stop();
                 ClearSearchHighlights();
                 Search.ClearMatches();
-                if (_searchStatus is not null) _searchStatus.Text = "";
+                _searchStatus?.Text = "";
                 return;
             }
             // Debounce: wait for a brief pause in typing before searching, so the first keystrokes

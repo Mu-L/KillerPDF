@@ -71,7 +71,7 @@ namespace KillerPDF
             {
                 var indices = new List<int>();
                 foreach (PageThumbnailVm vm in selected) indices.Add(vm.PageIndex);
-                int[] ordered = indices.OrderBy(index => index).ToArray();
+                int[] ordered = [.. indices.OrderBy(index => index)];
                 PdfEngineIntegration.ExtractPages(
                     currentFile, dlg.FileName, ordered, _pageRotations);
                 SetStatus(string.Format(Loc("Str_Extracted"), indices.Count, System.IO.Path.GetFileName(dlg.FileName)));

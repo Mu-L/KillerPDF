@@ -1938,10 +1938,9 @@ if (args.Length is 2 or 4 && args[0] == "--selected-page-import-corpus")
         if (args[2] != "--max" || !int.TryParse(args[3], out importMaximum) || importMaximum <= 0)
             throw new ArgumentException("Use --max followed by a positive integer.");
     }
-    string[] importFiles = Directory.EnumerateFiles(directory, "*.pdf", SearchOption.AllDirectories)
+    string[] importFiles = [.. Directory.EnumerateFiles(directory, "*.pdf", SearchOption.AllDirectories)
         .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-        .Take(importMaximum)
-        .ToArray();
+        .Take(importMaximum)];
     byte[] emptyTarget = new PdfDocumentBuilder().Build();
     int imported = 0;
     int unsupported = 0;
@@ -2112,10 +2111,9 @@ for (int index = 1; index < args.Length; index++)
     }
 }
 
-string[] files = Directory.EnumerateFiles(root, "*.pdf", SearchOption.AllDirectories)
+string[] files = [.. Directory.EnumerateFiles(root, "*.pdf", SearchOption.AllDirectories)
     .Order(StringComparer.OrdinalIgnoreCase)
-    .Take(maximum)
-    .ToArray();
+    .Take(maximum)];
 int passed = 0;
 int failed = 0;
 var started = DateTimeOffset.UtcNow;

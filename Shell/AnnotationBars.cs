@@ -932,7 +932,7 @@ namespace KillerPDF
                 WireBarWrapAdaptation(panel, drawGrip, colorGroup, previewArea);
                 var drawGroups = sizeGroupRef is null
                     ? new StackPanel[] { colorGroup, dOpacityUnit }
-                    : new StackPanel[] { colorGroup, sizeGroupRef, dOpacityUnit };
+                    : [colorGroup, sizeGroupRef, dOpacityUnit];
                 int[] drawShed = sizeGroupRef is null ? [1] : [2, 1];   // opacity unit first, then size; color anchored
                 WireBarOverflow(panel, drawOverflowBtn, drawOverflowPopup, drawOverflowStack, drawGroups, drawShed, previewArea);
                 PlaceAnnotationBar(_drawSettingsBar, drawGrip, fadeIn: appearing);

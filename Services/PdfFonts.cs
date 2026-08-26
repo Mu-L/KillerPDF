@@ -109,7 +109,7 @@ namespace KillerPDF.Services
             if (!Faces.ContainsKey(faceKey)) Faces[faceKey] = new FaceFile(path, faceIndex);
 
             if (!Families.TryGetValue(family, out var byStyle))
-                Families[family] = byStyle = new Dictionary<FaceStyle, string>();
+                Families[family] = byStyle = [];
             if (!byStyle.ContainsKey(style)) byStyle[style] = faceKey;   // first wins = pattern order
         }
 
@@ -220,14 +220,14 @@ namespace KillerPDF.Services
                 int write = headerSize;
                 for (int i = 0; i < numTables; i++)
                 {
-                    var t = tabs[i];
+                    var (tag, checksum, srcOff, len) = tabs[i];
                     int e = 12 + i * 16;
-                    WriteU32(outBytes, e, t.tag);
-                    WriteU32(outBytes, e + 4, t.checksum);   // table data is copied verbatim, so it stands
+                    WriteU32(outBytes, e, tag);
+                    WriteU32(outBytes, e + 4, checksum);   // table data is copied verbatim, so it stands
                     WriteU32(outBytes, e + 8, (uint)write);
-                    WriteU32(outBytes, e + 12, (uint)t.len);
-                    Buffer.BlockCopy(ttc, t.srcOff, outBytes, write, t.len);
-                    write += (t.len + 3) & ~3;              // the pad bytes stay zero
+                    WriteU32(outBytes, e + 12, (uint)len);
+                    Buffer.BlockCopy(ttc, srcOff, outBytes, write, len);
+                    write += (len + 3) & ~3;              // the pad bytes stay zero
                 }
                 return outBytes;
             }

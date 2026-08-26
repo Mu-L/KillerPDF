@@ -1067,8 +1067,8 @@ namespace KillerPDF
             {
                 _pageLabel.Text = S("Str_Print_NoPages");
                 _renderLabel.Visibility = Visibility.Collapsed;
-                if (_previousPage is not null) _previousPage.IsEnabled = false;
-                if (_nextPage is not null) _nextPage.IsEnabled = false;
+                _previousPage?.IsEnabled = false;
+                _nextPage?.IsEnabled = false;
                 return;
             }
 
@@ -1091,17 +1091,17 @@ namespace KillerPDF
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment   = VerticalAlignment.Center,
                 });
-                if (_printBtn != null) _printBtn.IsEnabled = false;
-                if (_previousPage is not null) _previousPage.IsEnabled = false;
-                if (_nextPage is not null) _nextPage.IsEnabled = false;
+                _printBtn?.IsEnabled = false;
+                _previousPage?.IsEnabled = false;
+                _nextPage?.IsEnabled = false;
                 return;
             }
-            if (_printBtn != null) _printBtn.IsEnabled = !_isLoading && !_printing;
+            _printBtn?.IsEnabled = !_isLoading && !_printing;
             int sheets = Math.Max(1, (selected.Count + _nUp - 1) / _nUp);
             int sheet = Math.Max(0, Math.Min(_previewIndex, sheets - 1));
             _previewIndex = sheet;
-            if (_previousPage is not null) _previousPage.IsEnabled = sheet > 0;
-            if (_nextPage is not null) _nextPage.IsEnabled = sheet + 1 < sheets;
+            _previousPage?.IsEnabled = sheet > 0;
+            _nextPage?.IsEnabled = sheet + 1 < sheets;
 
             // Source pages on this sheet, taken from the SELECTED set (one for 1-up, up to _nUp for N-up).
             var idxs = new System.Collections.Generic.List<int>();
@@ -1165,7 +1165,7 @@ namespace KillerPDF
         public void FinishLoading()
         {
             _isLoading = false;
-            if (_printBtn != null) _printBtn.IsEnabled = true;
+            _printBtn?.IsEnabled = true;
             UpdatePreview();
         }
 

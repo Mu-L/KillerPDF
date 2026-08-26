@@ -120,8 +120,7 @@ public sealed class PdfDocument
             dictionaryObjectNumber = current.ObjectNumber;
             value = Resolve(current);
         }
-        _encryptionBootstrapObjectNumbers = visited
-            .Select(identity => identity.ObjectNumber).ToHashSet();
+        _encryptionBootstrapObjectNumbers = [.. visited.Select(identity => identity.ObjectNumber)];
         return value is PdfDictionary dictionary
             ? (dictionary, dictionaryObjectNumber)
             : throw new InvalidOperationException(

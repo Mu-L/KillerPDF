@@ -23,7 +23,7 @@ namespace KillerPDF.Controls
     // members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
-        private readonly ConditionalWeakTable<Canvas, SafeCanvas> _textEditorLayers = new();
+        private readonly ConditionalWeakTable<Canvas, SafeCanvas> _textEditorLayers = [];
 
         private SafeCanvas TextEditorLayerFor(Canvas pageCanvas)
         {
@@ -580,7 +580,7 @@ namespace KillerPDF.Controls
 
         private void RemoveTextEditHandles()
         {
-            if (_tehBox is not null) _tehBox.SizeChanged -= TextEditBox_SizeChanged;
+            _tehBox?.SizeChanged -= TextEditBox_SizeChanged;
             foreach (var hd in _textEditHandles) RemoveFromParent(hd);
             _textEditHandles.Clear();
             _tehBox = null;

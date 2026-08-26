@@ -72,7 +72,7 @@ namespace KillerPDF
         {
             int colon = id.IndexOf(':');
             if (colon < 0) return new KsCap(KbLayer.Base, id, labelKey);
-            string layer = id.Substring(0, colon);
+            string layer = id[..colon];
             return new KsCap(
                 layer switch
                 {
@@ -82,7 +82,7 @@ namespace KillerPDF
                     "Alt" => KbLayer.Alt,
                     _ => KbLayer.Base,
                 },
-                id.Substring(colon + 1), labelKey);
+                id[(colon + 1)..], labelKey);
         }
 
         private static KsBinding B(string keys, string labelKey, string cat, params KsCap[] caps)
@@ -213,7 +213,7 @@ namespace KillerPDF
         {
             var map = new Dictionary<KbLayer, Dictionary<string, (string, string)>>();
             foreach (KbLayer layer in Enum.GetValues<KbLayer>())
-                map[layer] = new Dictionary<string, (string, string)>();
+                map[layer] = [];
 
             foreach (var binding in KsAll)
                 foreach (var cap in binding.Caps)

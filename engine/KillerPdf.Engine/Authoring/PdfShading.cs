@@ -10,7 +10,7 @@ public abstract class PdfShading
         PdfShadingBounds? bounds, bool antiAlias, PdfGradientBackground? background)
     {
         ArgumentNullException.ThrowIfNull(stops);
-        _stops = stops.ToArray();
+        _stops = [.. stops];
         if (_stops.Length < 2)
             throw new ArgumentException("A gradient requires at least two color stops.", nameof(stops));
         foreach (PdfGradientStop stop in _stops)

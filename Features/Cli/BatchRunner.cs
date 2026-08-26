@@ -122,7 +122,7 @@ namespace KillerPDF.Features
                 // under the input tree cannot feed the enumeration.
                 foreach (var f in Directory.GetFiles(inRoot, "*.pdf", SearchOption.AllDirectories))
                 {
-                    string rel = f.Substring(inRoot.Length).TrimStart('\\', '/');
+                    string rel = f[inRoot.Length..].TrimStart('\\', '/');
                     work.Add((rel, f, Path.Combine(outRoot, rel)));
                 }
             }
@@ -135,14 +135,14 @@ namespace KillerPDF.Features
             var log = new List<string> { "File,Status,Detail" };
             int ok = 0, skip = 0, fail = 0;
 
-            foreach (var item in work)
+            foreach (var (Rel, Src, Dst) in work)
             {
                 string status, detail;
                 try
                 {
-                    var dstDir = Path.GetDirectoryName(item.Dst);
+                    var dstDir = Path.GetDirectoryName(Dst);
                     if (!string.IsNullOrEmpty(dstDir)) Directory.CreateDirectory(dstDir);
-                    status = BatchResaveOne(item.Src, item.Dst, out detail);
+                    status = BatchResaveOne(Src, Dst, out detail);
                 }
                 catch (Exception ex)
                 {
@@ -155,8 +155,8 @@ namespace KillerPDF.Features
                 else fail++;
 
                 if (!quiet)
-                    con.WriteLine(detail.Length > 0 ? $"{status} {item.Rel} ({detail})" : $"{status} {item.Rel}");
-                log.Add($"{BatchCsvField(item.Rel)},{status},{BatchCsvField(detail)}");
+                    con.WriteLine(detail.Length > 0 ? $"{status} {Rel} ({detail})" : $"{status} {Rel}");
+                log.Add($"{BatchCsvField(Rel)},{status},{BatchCsvField(detail)}");
             }
 
             con.WriteLine($"Done. {work.Count} files: {ok} OK, {skip} skipped, {fail} failed.");

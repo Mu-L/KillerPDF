@@ -36,15 +36,13 @@ namespace KillerPDF
         /// <summary>The list's view of the table: sections in KsGroups order, rows in declaration
         /// order. Caps are ignored here; they only matter to the keyboard map.</summary>
         private static KsSection[] KsColumn(bool right) =>
-            ShortcutTable.KsGroups.Where(g => g.Right == right)
+            [.. ShortcutTable.KsGroups.Where(g => g.Right == right)
                 .Select(g => new KsSection
                 {
                     TitleKey = g.TitleKey,
                     Cat = g.Cat,
-                    Rows = ShortcutTable.KsAll.Where(b => b.Cat == g.Cat)
-                                              .Select(b => new KsRow(b.Keys, b.LabelKey)).ToArray(),
-                })
-                .ToArray();
+                    Rows = [.. ShortcutTable.KsAll.Where(b => b.Cat == g.Cat).Select(b => new KsRow(b.Keys, b.LabelKey))],
+                })];
 
         private static readonly KsSection[] KsLeftColumn  = KsColumn(right: false);
         private static readonly KsSection[] KsRightColumn = KsColumn(right: true);
@@ -93,13 +91,13 @@ namespace KillerPDF
                     .FirstOrDefault();
                 if (resourceKey == null) { pos = start + 1; continue; }   // unknown, leave as text
 
-                if (start > pos) target.Inlines.Add(new System.Windows.Documents.Run(text.Substring(pos, start - pos)));
+                if (start > pos) target.Inlines.Add(new System.Windows.Documents.Run(text[pos..start]));
                 var run = new System.Windows.Documents.Run();
                 run.SetResourceReference(System.Windows.Documents.Run.TextProperty, resourceKey);
                 target.Inlines.Add(run);
                 pos = end + 1;
             }
-            if (pos < text.Length) target.Inlines.Add(new System.Windows.Documents.Run(text.Substring(pos)));
+            if (pos < text.Length) target.Inlines.Add(new System.Windows.Documents.Run(text[pos..]));
         }
 
         // Fill the two overlay columns from the tables above. Called once from the constructor; the

@@ -33,8 +33,8 @@ namespace KillerPDF
             // directly after typing used to preview (and apply) the page without the new text.
             CommitActiveTextBox();
             int pageIdx = PageList.SelectedIndex;
-            int[] pageIndices = PageList.SelectedItems.Cast<PageThumbnailVm>()
-                .Select(page => page.PageIndex).Distinct().OrderBy(index => index).ToArray();
+            int[] pageIndices = [.. PageList.SelectedItems.Cast<PageThumbnailVm>()
+                .Select(page => page.PageIndex).Distinct().OrderBy(index => index)];
             if (pageIndices.Length == 0) pageIndices = [pageIdx];
             // Build a modest preview for every selected page. Transform settings remain shared, while
             // the window can flip through the actual targets before applying the batch.
@@ -81,7 +81,7 @@ namespace KillerPDF
         {
             if (_doc is null || _currentFile is null) return;
             PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
-            int[] pages = pageIndices.Distinct().OrderBy(index => index).ToArray();
+            int[] pages = [.. pageIndices.Distinct().OrderBy(index => index)];
             if (pages.Length == 0 || pages.Any(index => index < 0 || index >= engineSession.PageCount)) return;
 
             try

@@ -1335,24 +1335,24 @@ public sealed class PdfEngineIntegrationTests
             _ => throw new ArgumentOutOfRangeException(nameof(name))
         };
         PdfArray box = Assert.IsType<PdfArray>(Page(document, pageIndex)[key]);
-        return box.Select(item => item switch
+        return [.. box.Select(item => item switch
         {
             PdfInteger integer => (double)integer.Value,
             PdfReal real => real.Value,
             _ => throw new Xunit.Sdk.XunitException("Page box contains a nonnumeric value.")
-        }).ToArray();
+        })];
     }
 
     private static double[] PageMediaBox(PdfDocument document, int pageIndex)
     {
         PdfArray box = Assert.IsType<PdfArray>(
             Page(document, pageIndex)[new PdfName("MediaBox"u8)]);
-        return box.Select(item => item switch
+        return [.. box.Select(item => item switch
         {
             PdfInteger integer => (double)integer.Value,
             PdfReal real => real.Value,
             _ => throw new Xunit.Sdk.XunitException("Media box contains a nonnumeric value.")
-        }).ToArray();
+        })];
     }
 
     private static int PageCount(PdfDocument document)

@@ -17,7 +17,7 @@ internal static class PdfSaslPrepTables
 
     internal static void Validate(string value)
     {
-        int[] scalars = value.EnumerateRunes().Select(rune => rune.Value).ToArray();
+        int[] scalars = [.. value.EnumerateRunes().Select(rune => rune.Value)];
         if (scalars.Length == 0 || !scalars.Any(scalar => Contains(RandAlRanges, scalar))) return;
         if (scalars.Any(scalar => Contains(LeftToRightRanges, scalar)))
             throw new ArgumentException("A PDF revision 6 password cannot mix RandALCat and LCat characters.", nameof(value));

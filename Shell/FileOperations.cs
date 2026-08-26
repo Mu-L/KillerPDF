@@ -58,8 +58,8 @@ namespace KillerPDF
 
             try
             {
-                if (_doc is not null) { _doc.Close(); _doc = null; }
-                _doc = PdfWorkingDocument.Open(srcPath);
+                _doc?.Close();
+                _doc = null; _doc = PdfWorkingDocument.Open(srcPath);
                 // PdfSharp cannot save modified encrypted PDFs - it copies unmodified encrypted
                 // stream bytes verbatim but fails when it has to re-serialize a dirty object.
                 // Strip encryption silently at open time via Import so all edits work correctly.
@@ -93,8 +93,8 @@ namespace KillerPDF
                 if (pw is null) return;
                 try
                 {
-                    if (_doc is not null) { _doc.Close(); _doc = null; }
-                    var tempDec = App.MakeTempFile("dec");
+                    _doc?.Close();
+                    _doc = null; var tempDec = App.MakeTempFile("dec");
                     PdfEngineIntegration.RemoveEncryption(srcPath, tempDec, pw);
                     _doc = PdfWorkingDocument.Open(tempDec);
                     _currentFile = tempDec;
@@ -112,8 +112,8 @@ namespace KillerPDF
                 // open in Modify mode. Fall back to ReadOnly; if that also fails, offer repair.
                 try
                 {
-                    if (_doc is not null) { _doc.Close(); _doc = null; }
-                    _doc = PdfWorkingDocument.Open(srcPath, isReadOnly: true);
+                    _doc?.Close();
+                    _doc = null; _doc = PdfWorkingDocument.Open(srcPath, isReadOnly: true);
                     _currentFile = srcPath;
                     FinishOpenFile(path, srcPath);
                     SetStatus(string.Format(Loc("Str_OpenedReadOnlyXRef"), System.IO.Path.GetFileName(path), _doc.PageCount));
@@ -229,8 +229,8 @@ namespace KillerPDF
             try
             {
                 // Release any open document before the worker reads the source file.
-                if (_doc is not null) { _doc.Close(); _doc = null; }
-
+                _doc?.Close();
+                _doc = null;
                 string? repairedPath = null;
                 bool raster = false;
 
@@ -309,8 +309,8 @@ namespace KillerPDF
             var busy = ShowBusyOverlay(busyMessage ?? Loc("Str_Busy_Opening"));
             try
             {
-                if (_doc is not null) { _doc.Close(); _doc = null; }
-                var repairedPath = App.MakeTempFile("repaired");
+                _doc?.Close();
+                _doc = null; var repairedPath = App.MakeTempFile("repaired");
                 bool ok = await System.Threading.Tasks.Task.Run(() =>
                 {
                     try
@@ -411,7 +411,7 @@ namespace KillerPDF
             HideTextSettings();
             HideSignaturePopup();
             SetTool(EditTool.Select);
-            if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = false;
+            _closeFileBtnRef?.IsEnabled = false;
             _pageJumpBox.IsEnabled = false;
             _continuousRenderCts?.Cancel();
             _continuousPanel.Children.Clear();

@@ -58,7 +58,7 @@ public sealed class PdfInspectionReport
         StartXrefOffset = startXrefOffset;
         CrossReferenceEntryCount = crossReferenceEntryCount;
         InspectedObjectCount = inspectedObjectCount;
-        _diagnostics = diagnostics.ToArray();
+        _diagnostics = [.. diagnostics];
     }
 
     /// <summary>Gets the parsed header version when available.</summary>

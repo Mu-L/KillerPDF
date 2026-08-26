@@ -358,8 +358,7 @@ namespace KillerPDF
 
         private void SyncSidebarToDocState(bool hasDoc, bool startup)
         {
-            if (PageControlsRow != null)
-                PageControlsRow.Visibility = (hasDoc && !_sidebarShowingOutlines)
+            PageControlsRow?.Visibility = (hasDoc && !_sidebarShowingOutlines)
                     ? Visibility.Visible : Visibility.Collapsed;
 
             _sidebarAutoToggling = true;

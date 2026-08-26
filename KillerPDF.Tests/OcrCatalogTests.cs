@@ -30,10 +30,9 @@ public sealed class OcrCatalogTests
     }
 
     private static string[] ShippedLocales() =>
-        Directory.GetFiles(StringsDir(), "*.xaml")
+        [.. Directory.GetFiles(StringsDir(), "*.xaml")
                  .Select(f => Path.GetFileNameWithoutExtension(f)!)
-                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                 .ToArray();
+                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
 
     [Fact]
     public void TheStringsFolderIsActuallyFound()

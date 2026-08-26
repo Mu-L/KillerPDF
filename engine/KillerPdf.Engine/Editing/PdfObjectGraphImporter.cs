@@ -29,8 +29,8 @@ internal sealed class PdfObjectGraphImporter
     {
         _source = source ?? throw new ArgumentNullException(nameof(source));
         _update = update ?? throw new ArgumentNullException(nameof(update));
-        _sourcePages = sourcePages.Select(reference =>
-            new SourceReference(reference.ObjectNumber, reference.Generation)).ToHashSet();
+        _sourcePages = [.. sourcePages.Select(reference =>
+            new SourceReference(reference.ObjectNumber, reference.Generation))];
         if (source.IsEncrypted && !source.IsDecrypted)
             throw new InvalidOperationException(
                 "An encrypted source PDF must be opened with a password before its pages can be imported.");

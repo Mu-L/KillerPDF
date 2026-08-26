@@ -483,11 +483,11 @@ namespace KillerPDF
 
         private void UpdateEnabledStates()
         {
-            if (_wmTextPanel != null) _wmTextPanel.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
-            if (_wmImagePanel != null) _wmImagePanel.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            _wmTextPanel?.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
+            _wmImagePanel?.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             // Nothing to apply unless at least one section is enabled - EXCEPT when the document
             // already has stamps: applying with both sections off is how they are removed (#145).
-            if (_applyBtn != null) _applyBtn.IsEnabled = _hadExisting
+            _applyBtn?.IsEnabled = _hadExisting
                 || _numEnable?.IsChecked == true || _wmEnable?.IsChecked == true;
         }
 

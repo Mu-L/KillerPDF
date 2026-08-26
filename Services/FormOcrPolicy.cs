@@ -44,8 +44,8 @@ internal static class FormOcrPolicy
             string? whitelist = LooksNumeric(widget.FieldName) ? NumericWhitelist : null;
             int maximumLength = widget.FieldKind == PdfFormFieldKind.Text
                 ? widget.MaximumLength : 0;
-            string[] choices = widget.Options.Select(option => option.DisplayValue)
-                .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct().ToArray();
+            string[] choices = [.. widget.Options.Select(option => option.DisplayValue)
+                .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct()];
             regions.Add(new Region(x1, y1, x2, y2, whitelist, maximumLength, choices,
                 maximumLength > 0 && x2 - x1 >= maximumLength && (widget.Flags & CombFlag) != 0));
         }

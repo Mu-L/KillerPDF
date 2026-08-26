@@ -222,7 +222,7 @@ namespace KillerPDF
         // LoadOutlines rebuilds the tree from scratch on every tab switch and temp-reload, which
         // used to re-expand everything the user had folded - the tree read as force-expanded.
         // Keyed by _originalFile (not _currentFile, which temp-reload repoints at a temp path).
-        private readonly Dictionary<string, HashSet<string>> _outlineExpandState = new();
+        private readonly Dictionary<string, HashSet<string>> _outlineExpandState = [];
         private string? _outlineStateFile;
 
         /// <summary>Records which outline nodes are expanded in the tree currently on screen,
@@ -368,7 +368,7 @@ namespace KillerPDF
         // Multi-select (#133 phase 2). WPF's TreeView is hard single-select, so its built-in
         // selection stays the "primary" item and Ctrl/Shift clicks maintain this extra set on top.
         // Keyed by stable engine bookmark identity so no parser objects survive a tree rebuild.
-        private readonly HashSet<(int ObjectNumber, int Generation)> _bmExtraSel = new();
+        private readonly HashSet<(int ObjectNumber, int Generation)> _bmExtraSel = [];
         private bool _suppressOutlineNav;
 
         /// <summary>All bookmark rows in visual order (optionally only rows currently visible,
@@ -547,9 +547,9 @@ namespace KillerPDF
                     item => item with { Children = [.. item.Children, added] }));
             var rows = new List<(TreeViewItem Item, OutlineNodeRef Ref)>();
             FlattenBookmarkItems(OutlineTree.Items, visibleOnly: false, rows);
-            var match = rows.LastOrDefault(row => row.Ref.Bookmark.Title == title
+            var (Item, Ref) = rows.LastOrDefault(row => row.Ref.Bookmark.Title == title
                 && row.Ref.PageIndex == page);
-            if (match.Item is { } tvi && tvi.Tag is OutlineNodeRef nref)
+            if (Item is { } tvi && tvi.Tag is OutlineNodeRef nref)
             {
                 tvi.BringIntoView();
                 BeginInlineRename(tvi, nref);

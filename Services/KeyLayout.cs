@@ -66,7 +66,7 @@ namespace KillerPDF.Services
                                     new byte[256], flush, flush.Capacity, 0, hkl);
                     return '\0';
                 }
-                return rc > 0 ? sb[sb.Length - 1] : '\0';
+                return rc > 0 ? sb[^1] : '\0';
             }
             catch { return '\0'; }   // never let a shortcut check throw
         }

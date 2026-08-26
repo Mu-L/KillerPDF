@@ -123,7 +123,7 @@ public sealed class TrueTypeFont
     internal IReadOnlyList<FontGlyphMapping> MapText(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        Rune[] runes = text.EnumerateRunes().ToArray();
+        Rune[] runes = [.. text.EnumerateRunes()];
         var result = new List<FontGlyphMapping>(runes.Length);
         for (int index = 0; index < runes.Length; index++)
         {

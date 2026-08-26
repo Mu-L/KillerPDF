@@ -136,8 +136,8 @@ namespace KillerPDF
                 { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } };
                 anim.Completed += (_, _) =>
                 {
-                    if (_annotBarContent is not null) _annotBarContent.Visibility = Visibility.Collapsed;
-                    if (_annotBarDots is not null) _annotBarDots.Visibility = Visibility.Visible;
+                    _annotBarContent?.Visibility = Visibility.Collapsed;
+                    _annotBarDots?.Visibility = Visibility.Visible;
                     bar.ClipToBounds = false;   // content is hidden now, nothing to clip
                 };
                 bar.BeginAnimation(FrameworkElement.HeightProperty, anim);
@@ -147,8 +147,8 @@ namespace KillerPDF
                 // Show the full content again before growing back, and let the width track content again.
                 bar.Width = double.NaN;
                 bar.Effect = AnnotBarShadow();   // restore the drop shadow on the expanded bar
-                if (_annotBarContent is not null) _annotBarContent.Visibility = Visibility.Visible;
-                if (_annotBarDots is not null) _annotBarDots.Visibility = Visibility.Collapsed;
+                _annotBarContent?.Visibility = Visibility.Visible;
+                _annotBarDots?.Visibility = Visibility.Collapsed;
                 double full = _annotBarFullHeight > 0 ? _annotBarFullHeight : bar.ActualHeight;
                 var anim = new DoubleAnimation(peek, full, new Duration(TimeSpan.FromMilliseconds(120)))
                 { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } };
@@ -877,10 +877,10 @@ namespace KillerPDF
                 (SaveAsBtn,   SaveMenuBtn,   "ToolbarSplitMainAccent", "ToolbarButtonAccent"),
                 (OcrBtn,      OcrMenuBtn,    "ToolbarSplitMain",       "ToolbarButton"),
             };
-            foreach (var s in splits)
+            foreach (var (Main, Chevron, Split, Plain) in splits)
             {
-                if (s.Chevron is not null) s.Chevron.Margin = chevMargin;
-                if (s.Main is not null) s.Main.Style = (Style)FindResource(textMode ? s.Plain : s.Split);
+                Chevron?.Margin = chevMargin;
+                Main?.Style = (Style)FindResource(textMode ? Plain : Split);
             }
         }
 

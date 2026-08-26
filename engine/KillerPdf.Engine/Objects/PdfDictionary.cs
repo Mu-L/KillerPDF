@@ -11,7 +11,7 @@ public sealed class PdfDictionary : PdfObject, IReadOnlyDictionary<PdfName, PdfO
     public PdfDictionary(IEnumerable<KeyValuePair<PdfName, PdfObject>> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
-        _entries = new Dictionary<PdfName, PdfObject>();
+        _entries = [];
         foreach ((PdfName key, PdfObject value) in entries)
         {
             if (key is null)

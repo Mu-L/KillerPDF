@@ -97,9 +97,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(0, null, 612, 792, 1224, 1584, new Rect(100, 200, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         Assert.False(HasQuarterTurnCm(pdf));
     }
 
@@ -116,9 +116,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(rotate, null, BoxW, BoxH, 2382, 1684, new Rect(200, 400, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         Assert.True(HasQuarterTurnCm(pdf), "rotated burn emitted no quarter-turn cm - content will land turned 90 degrees");
     }
 
@@ -131,9 +131,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(0, rotations, BoxW, BoxH, 2382, 1684, new Rect(200, 400, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         Assert.True(HasQuarterTurnCm(pdf));
     }
 
@@ -144,9 +144,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(180, null, BoxW, BoxH, 1684, 2382, new Rect(200, 400, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         // A half turn is (-1 0 0 -1) pre-flip; composed with the base flip it is axis-aligned,
         // so assert on the rect numbers plus the annotation surviving - not on the cm shape.
     }

@@ -146,7 +146,7 @@ namespace KillerPDF.Controls
             if (preservedPage.HasValue) State.CurrentPage = preservedPage.Value;
             if (State.CurrentPage < 0) return;
             Host?.ViewerPageChanged(this, State.CurrentPage);
-            if (Host != null) Host.PageJumpText = (State.CurrentPage + 1).ToString();
+            Host?.PageJumpText = (State.CurrentPage + 1).ToString();
             Host?.EnsureSidebarPageVisible(this, State.CurrentPage);
         }
         internal void SaveDocStateExt(string? path, FitMode fit, double zoom, ViewMode view, int page)

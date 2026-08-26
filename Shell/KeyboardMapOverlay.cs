@@ -25,8 +25,8 @@ namespace KillerPDF
         private TextBlock? _kbDetail;
         private TextBlock? _kbHoverAct;   // caption of the key under the mouse (marquee restart on layer switch)
         private string? _kbHoverId;
-        private readonly Dictionary<string, (Border Cap, TextBlock Act, Rectangle Bar)> _kbKeys = new();
-        private readonly Dictionary<KbLayer, Button> _kbLayerBtns = new();
+        private readonly Dictionary<string, (Border Cap, TextBlock Act, Rectangle Bar)> _kbKeys = [];
+        private readonly Dictionary<KbLayer, Button> _kbLayerBtns = [];
 
         private const string KsViewSetting = "ShortcutView";   // "list" (default) | "keyboard"
 
@@ -224,7 +224,7 @@ namespace KillerPDF
                     key.MouseLeave += (_, _2) =>
                     {
                         _kbHoverAct = null; _kbHoverId = null;
-                        if (_kbDetail is not null) _kbDetail.Text = " ";
+                        _kbDetail?.Text = " ";
                         lift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(130)));
                         KbMarqueeStop(act);
                     };
@@ -321,24 +321,24 @@ namespace KillerPDF
             var map = KbMap[layer];
             foreach (var kv in _kbKeys)
             {
-                var vis = kv.Value;
+                var (Cap, Act, Bar) = kv.Value;
                 if (map.TryGetValue(kv.Key, out var b))
                 {
-                    vis.Cap.SetResourceReference(Border.BorderBrushProperty, "KsCat" + b.Cat);
-                    vis.Bar.SetResourceReference(Shape.FillProperty, "KsCat" + b.Cat);
-                    vis.Bar.Visibility = Visibility.Visible;
-                    vis.Act.SetResourceReference(TextBlock.TextProperty, b.Label);
+                    Cap.SetResourceReference(Border.BorderBrushProperty, "KsCat" + b.Cat);
+                    Bar.SetResourceReference(Shape.FillProperty, "KsCat" + b.Cat);
+                    Bar.Visibility = Visibility.Visible;
+                    Act.SetResourceReference(TextBlock.TextProperty, b.Label);
                     // The border and category bar carry the category color. Keep the action text on
                     // the theme's guaranteed readable foreground, since several neon families have
                     // one category color that is too dark against their keyboard face (#230).
-                    vis.Act.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
-                    vis.Act.Visibility = Visibility.Visible;
+                    Act.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
+                    Act.Visibility = Visibility.Visible;
                 }
                 else
                 {
-                    vis.Cap.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
-                    vis.Bar.Visibility = Visibility.Collapsed;
-                    vis.Act.Visibility = Visibility.Collapsed;
+                    Cap.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
+                    Bar.Visibility = Visibility.Collapsed;
+                    Act.Visibility = Visibility.Collapsed;
                 }
             }
             // Modifier caps that define the layer glow accent; the layer captions follow suit.

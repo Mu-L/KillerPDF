@@ -639,8 +639,8 @@ namespace KillerPDF.Controls
                         fieldType, isCheckBox, isRadio, (flags & (1 << 21)) != 0,
                         isMultiLine, widget.FieldName, widget.Value, widget.Values, widget.OnValue,
                         (flags & 1) != 0, cx, cy, cw, ch,
-                        widget.Options.Select(option => new FormChoiceItem(
-                            option.ExportValue, option.DisplayValue)).ToList(),
+                        [.. widget.Options.Select(option => new FormChoiceItem(
+                            option.ExportValue, option.DisplayValue))],
                         fontSize, scale, isComb, widget.MaximumLength));
                 }
             }

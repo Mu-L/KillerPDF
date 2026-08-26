@@ -20,9 +20,9 @@ namespace KillerPDF
 {
     public partial class MainWindow : Window
     {
-        private PdfWorkingDocument? _doc { get => ActiveViewer?.DocumentRef; set { if (ActiveViewer != null) ActiveViewer.DocumentRef = value; } }
-        private string? _currentFile { get => ActiveViewer?.CurrentFileRef; set { if (ActiveViewer != null) ActiveViewer.CurrentFileRef = value; } }
-        private string? _originalFile { get => ActiveViewer?.OriginalFileRef; set { if (ActiveViewer != null) ActiveViewer.OriginalFileRef = value; } }
+        private PdfWorkingDocument? _doc { get => ActiveViewer?.DocumentRef; set { ActiveViewer?.DocumentRef = value; } }
+        private string? _currentFile { get => ActiveViewer?.CurrentFileRef; set { ActiveViewer?.CurrentFileRef = value; } }
+        private string? _originalFile { get => ActiveViewer?.OriginalFileRef; set { ActiveViewer?.OriginalFileRef = value; } }
         private Point _dragStartPoint;
 
         // Zoom
@@ -63,7 +63,7 @@ namespace KillerPDF
         private EditTool _currentTool
         {
             get => ActiveViewer?.CurrentToolRef ?? EditTool.Select;
-            set { if (ActiveViewer != null) ActiveViewer.CurrentToolRef = value; }
+            set { ActiveViewer?.CurrentToolRef = value; }
         }
         // Per-document state. Not readonly: tab switching swaps these by reference so each
         // open document keeps its own annotations, undo history, form values, and search hits.
@@ -568,12 +568,11 @@ namespace KillerPDF
                     // `OpenTabsB` / `ActiveTabB`, and the split itself gets `SplitOpen` and the
                     // divider position. Without this a split window reopened with everything
                     // stacked in pane A.
-                    static List<string> FilesOf(Controls.PdfViewer pane) => pane.SessionsRef
+                    static List<string> FilesOf(Controls.PdfViewer pane) => [.. pane.SessionsRef
                         .Select(ss => ss.OriginalFile)
                         .Where(f => !string.IsNullOrEmpty(f) && System.IO.File.Exists(f))
                         .Distinct()
-                        .Select(f => f!)
-                        .ToList();
+                        .Select(f => f!)];
 
                     static void SavePane(string tabsKey, string activeKey,
                                          List<string> files, Controls.PdfViewer pane)

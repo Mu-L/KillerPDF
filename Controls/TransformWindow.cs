@@ -178,7 +178,7 @@ namespace KillerPDF
 
             _rotSlider = new Slider { Minimum = -45, Maximum = 45, Value = 0, TickFrequency = 1, SmallChange = 0.1, LargeChange = 1, Margin = new Thickness(0, 2, 0, 2) };
             if (darkSlider != null) _rotSlider.Style = darkSlider;
-            _rotSlider.ValueChanged += (_, ev) => { _fine = Math.Round(ev.NewValue, 1); if (_rotReadout != null) _rotReadout.Text = $"{Total:0.0}°"; SchedulePreview(); };
+            _rotSlider.ValueChanged += (_, ev) => { _fine = Math.Round(ev.NewValue, 1); _rotReadout?.Text = $"{Total:0.0}°"; SchedulePreview(); };
             stack.Children.Add(_rotSlider);
             stack.Children.Add(ValueRow(S("Str_Tf_Angle"), "0.0°", out _rotReadout, out var rotReset));
             rotReset.Click += (_, _2) => { _quarter = 0; _rotSlider.Value = 0; UpdatePreview(); };
@@ -558,7 +558,7 @@ namespace KillerPDF
             FixedPage = _fixedPage;
             FlipH = _flipH;
             FlipV = _flipV;
-            PerspectiveCorners = PerspectiveCorners.ToArray();
+            PerspectiveCorners = [.. PerspectiveCorners];
             Close();
         }
 
@@ -747,7 +747,7 @@ namespace KillerPDF
         private void UpdatePreview()
         {
             double total = Total;
-            if (_rotReadout != null) _rotReadout.Text = $"{total:0.0}°";
+            _rotReadout?.Text = $"{total:0.0}°";
             _preview.Source = (total == 0 && _scale == 1.0 && !_flipH && !_flipV)
                 ? _src
                 : MainWindow.ComposeTransform(_src, total, _scale, _fixedPage, _flipH, _flipV);

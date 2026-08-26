@@ -247,7 +247,7 @@ namespace KillerPDF.Features
                 [
                     .. Enumerable.Range(0, pages).Select(_ =>
                         (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
-                        Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
+                        [])
                 ];
             var layers = new List<PdfEngineIntegration.SearchablePage>(pages);
             for (int i = 0; i < pages; i++)
@@ -354,7 +354,7 @@ namespace KillerPDF.Features
                 [
                     .. Enumerable.Range(0, pageCount).Select(_ =>
                         (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
-                        Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
+                        [])
                 ];
 
             for (int i = 0; i < pageCount; i++)
@@ -403,7 +403,7 @@ namespace KillerPDF.Features
                 [
                     .. Enumerable.Range(0, pageCount).Select(_ =>
                         (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
-                        Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
+                        [])
                 ];
             }
         }

@@ -46,7 +46,7 @@ namespace KillerPDF.Controls
             else
             {
                 // Restore current page number if input was invalid
-                if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
+                Host?.PageJumpText = (_currentPage + 1).ToString();
             }
             Keyboard.ClearFocus();
         }
@@ -91,7 +91,7 @@ namespace KillerPDF.Controls
                 Host?.EnsureSidebarPageVisible(this, _currentPage);
                 if (_viewMode == ViewMode.Continuous)
                 {
-                    if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
+                    Host?.PageJumpText = (_currentPage + 1).ToString();
                     NavigateContinuousToPage(_currentPage);
                     return;
                 }
@@ -100,7 +100,7 @@ namespace KillerPDF.Controls
                     // Grid is a stable overview: selecting a page highlights it but must NOT
                     // re-anchor the grid. It still needs an initial render (open / first display)
                     // when no tiles exist yet; later selections only update the highlight.
-                    if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
+                    Host?.PageJumpText = (_currentPage + 1).ToString();
                     // Keep the statusbar counter honest even when the clicked tile is already in
                     // view (BringIntoView then scrolls nothing, so the scroll-sync never fires).
                     SetStatus(string.Format(Loc("Str_PageOf"), _currentPage + 1, _doc!.PageCount) + $" - {DisplayZoomPct():F0}%");
@@ -132,7 +132,7 @@ namespace KillerPDF.Controls
                 if (_viewMode == ViewMode.TwoPage) targetPrimary = SpreadStart(targetPrimary);
                 if (targetPrimary == _renderedPrimaryPage && Math.Abs(_zoomLevel - _lastRenderZoom) < 0.0001)
                 {
-                    if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
+                    Host?.PageJumpText = (_currentPage + 1).ToString();
                     return;
                 }
                 PagePreviewPanel.ScrollToTop();
@@ -140,7 +140,7 @@ namespace KillerPDF.Controls
                 RenderPage(_currentPage);
                 ApplyZoom();
                 // Update page jump box
-                if (Host != null) Host.PageJumpText = (_currentPage + 1).ToString();
+                Host?.PageJumpText = (_currentPage + 1).ToString();
                 // Re-highlight search results on this page if a search is active
                 if (_searchBar is not null && _searchBar.Visibility == Visibility.Visible
                     && Search.HasResults)

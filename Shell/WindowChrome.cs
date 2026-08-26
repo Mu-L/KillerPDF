@@ -506,8 +506,7 @@ namespace KillerPDF
 
             // This is the permanent resize hit target. Its child canvases choose dots or the
             // Win98 hatch; collapsing the parent also hid the hatch.
-            if (ResizeGripDots != null)
-                ResizeGripDots.Visibility = Visibility.Visible;
+            ResizeGripDots?.Visibility = Visibility.Visible;
             UpdateRootClip(squared);
         }
 

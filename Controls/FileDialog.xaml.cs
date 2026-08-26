@@ -360,7 +360,7 @@ namespace KillerPDF.Controls
             if (i < 0 || i >= _filterPatterns.Count) return null;
             string p = _filterPatterns[i][0];
             if (p.Length > 2 && p.StartsWith("*.") && p.IndexOfAny(['*', '?'], 2) < 0)
-                return p.Substring(1);
+                return p[1..];
             return null;
         }
 
@@ -370,7 +370,7 @@ namespace KillerPDF.Controls
             foreach (var pats in _filterPatterns)
                 foreach (var p in pats)
                     if (p.Length > 2 && p.StartsWith("*.") && p.IndexOfAny(['*', '?'], 2) < 0)
-                        yield return p.Substring(1);
+                        yield return p[1..];
         }
 
         /// <summary>True when the name passes the active filter. Folders are never filtered out.</summary>
@@ -894,7 +894,7 @@ namespace KillerPDF.Controls
 
         private static IEnumerable<string> RelativeSegments(string rootPath, string fullPath)
         {
-            string rest = fullPath.Substring(rootPath.Length);
+            string rest = fullPath[rootPath.Length..];
             return rest.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                               StringSplitOptions.RemoveEmptyEntries);
         }

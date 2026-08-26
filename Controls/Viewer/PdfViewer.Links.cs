@@ -76,7 +76,7 @@ namespace KillerPDF.Controls
             if (dontAsk)
             {
                 App.SetSetting(ConfirmLinksSetting, "0");
-                if (LinkConfirmCheck != null) LinkConfirmCheck.IsChecked = false;
+                LinkConfirmCheck?.IsChecked = false;
             }
             return true;
         }

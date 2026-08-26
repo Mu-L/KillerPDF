@@ -28,7 +28,7 @@ namespace KillerPDF.Controls
         /// <summary>Bind the strip to this pane's sessions. Called once, from InitSplitPanes.</summary>
         private void InitTabStrip()
         {
-            if (TabStrip != null) TabStrip.ItemsSource = _sessions;
+            TabStrip?.ItemsSource = _sessions;
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace KillerPDF.Controls
             if (strip.Count > 0)
             {
                 strip[0].IsFirst              = true;
-                strip[strip.Count - 1].IsLast = !chevron;
+                strip[^1].IsLast = !chevron;
 
                 int activeIndex = strip.IndexOf(_active!);
                 if (retroTabs && activeIndex >= 0)
@@ -329,7 +329,7 @@ namespace KillerPDF.Controls
 
             var cr = new CornerRadius(firstActive ? 0 : r, lastActive ? 0 : r, r, r);
             PaneBorder.CornerRadius = cr;
-            if (PaneShadow != null) PaneShadow.CornerRadius = cr;
+            PaneShadow?.CornerRadius = cr;
             // Keep the ring's top radii in step with the card's, so its curved sides land exactly on
             // the card's own left/right border rather than beside them.
             if (TabBarRing != null)
@@ -398,11 +398,9 @@ namespace KillerPDF.Controls
                 t.PaneDimmed  = split && !paneActive && t.IsActive;
             }
 
-            if (PaneBorder != null)
-                PaneBorder.SetResourceReference(Border.BackgroundProperty,
+            PaneBorder?.SetResourceReference(Border.BackgroundProperty,
                     retro ? (paneActive ? "FocusedPaneBrush" : "TabInactiveBrush") : "BgCanvas");
-            if (PaneShadow != null)
-                PaneShadow.SetResourceReference(Border.BackgroundProperty,
+            PaneShadow?.SetResourceReference(Border.BackgroundProperty,
                     retro ? (paneActive ? "FocusedPaneBrush" : "TabInactiveBrush") : "BgCanvas");
 
             // Same ownership rule the card's corner rounding uses, read off the tab rather than

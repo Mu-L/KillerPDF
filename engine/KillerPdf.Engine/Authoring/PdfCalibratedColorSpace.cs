@@ -79,8 +79,8 @@ public sealed class PdfCalRgbColorSpace : PdfCalibratedColorSpace
             + matrix[2] * (matrix[3] * matrix[7] - matrix[4] * matrix[6]);
         if (determinant == 0)
             throw new ArgumentException("A CalRGB matrix must be invertible.", nameof(matrix));
-        _gamma = gamma.ToArray();
-        _matrix = matrix.ToArray();
+        _gamma = [.. gamma];
+        _matrix = [.. matrix];
     }
 
     /// <summary>Gets the three positive component gamma values.</summary>

@@ -550,8 +550,7 @@ namespace KillerPDF.Controls
             }
             foreach (var hd in _resizeHandles)
                 hd.Fill = AccentBrush();
-            if (_cropPreviewRect is not null)
-                _cropPreviewRect.Fill = AccentBrush(55);
+            _cropPreviewRect?.Fill = AccentBrush(55);
         }
 
         // Positions the four corner handles around an annotation's bounds (top-left x,y and size w,h).

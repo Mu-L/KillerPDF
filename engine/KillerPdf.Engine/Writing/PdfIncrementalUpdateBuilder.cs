@@ -652,7 +652,7 @@ public sealed class PdfIncrementalUpdateBuilder
                     ResolveCurrentValue(value,
                         "A document-information value"));
             ValidateInformationGraph(informationDictionary, 0,
-                new HashSet<(int ObjectNumber, int Generation)>());
+                []);
         }
 
         bool hasIdentifiers = _document.CrossReferences.TryGetTrailerValue(

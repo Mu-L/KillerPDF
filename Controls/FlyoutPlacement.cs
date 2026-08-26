@@ -83,7 +83,7 @@ namespace KillerPDF
             // toolbar; pin it to the pane's top instead and let it use the height it has.
             if (y < 0) y = 0;
 
-            return new[] { new CustomPopupPlacement(new Point(x, y), PopupPrimaryAxis.None) };
+            return [new CustomPopupPlacement(new Point(x, y), PopupPrimaryAxis.None)];
         }
     }
 }

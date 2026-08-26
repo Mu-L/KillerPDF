@@ -247,11 +247,11 @@ namespace KillerPDF.Controls
             if (_currentPage == nearest)
             {
                 Host?.ViewerPageChanged(this, nearest);
-                if (Host != null) Host.PageJumpText = (nearest + 1).ToString();
+                Host?.PageJumpText = (nearest + 1).ToString();
                 Host?.EnsureSidebarPageVisible(this, nearest);
                 return;
             }
-            if (Host != null) Host.PageJumpText = (nearest + 1).ToString();
+            Host?.PageJumpText = (nearest + 1).ToString();
             // Reentrancy FLAG, not a detach/attach pair. The PageList's real subscription is the
             // WINDOW's XAML-bound stub, so `-=` of this pane's own delegate removed NOTHING and
             // the `+=` stacked this pane's handler onto the shared list as an EXTRA direct
@@ -932,7 +932,7 @@ namespace KillerPDF.Controls
                     else
                     {
                         ClearSecondaryPages();
-                        if (_pageContentPanel is not null) _pageContentPanel.Width = double.NaN;
+                        _pageContentPanel?.Width = double.NaN;
                     }
                     RenderPageLinks(pageIndex, dipW, dipH);
                 });
@@ -1430,8 +1430,7 @@ namespace KillerPDF.Controls
             else
             {
                 ClearSecondaryPages();
-                if (_pageContentPanel is not null)
-                    _pageContentPanel.Width = double.NaN;
+                _pageContentPanel?.Width = double.NaN;
             }
             if (_renderDims.TryGetValue(pageIndex, out var dims))
                 RenderPageLinks(pageIndex, dims.w, dims.h);

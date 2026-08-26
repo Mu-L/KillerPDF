@@ -37,7 +37,7 @@ namespace KillerPDF.Services
                 if (r - l <= 0 || bo - t <= 0) continue;   // degenerate or fully off-page
                 list.Add(new BitmapHelpers.FracRect(l, t, r, bo));
             }
-            return list.ToArray();
+            return [.. list];
         }
 
         private static double Clamp01(double v) => v < 0 ? 0 : (v > 1 ? 1 : v);

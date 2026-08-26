@@ -26,7 +26,7 @@ internal static class PdfImageXObjectFactory
             entries.Add(("Decode", new PdfArray(Enumerable.Range(0, 4)
                 .SelectMany(_ => new PdfObject[] { new PdfInteger(1), new PdfInteger(0) }))));
         if (softMaskReference is not null) entries.Add(("SMask", softMaskReference));
-        return new PdfStream(Dictionary(entries.ToArray()), image.Data.Span);
+        return new PdfStream(Dictionary([.. entries]), image.Data.Span);
     }
 
     private static PdfDictionary Dictionary(params (string Name, PdfObject Value)[] entries) =>

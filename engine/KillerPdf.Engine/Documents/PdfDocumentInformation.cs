@@ -82,7 +82,7 @@ public sealed record PdfDocumentInformation
         {
             if (!value.StartsWith("D:", StringComparison.Ordinal) || value.Length < 6)
                 throw new FormatException();
-            string digits = new(value.Skip(2).TakeWhile(char.IsAsciiDigit).ToArray());
+            string digits = new([.. value.Skip(2).TakeWhile(char.IsAsciiDigit)]);
             if (digits.Length is not (4 or 6 or 8 or 10 or 12 or 14)) throw new FormatException();
             int Part(int offset, int length, int fallback) => digits.Length >= offset + length
                 ? int.Parse(digits.AsSpan(offset, length), CultureInfo.InvariantCulture) : fallback;

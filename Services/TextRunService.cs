@@ -109,24 +109,24 @@ namespace KillerPDF.Services
                 var byLeft = Enumerable.Range(0, pending.Count).OrderBy(i => pending[i].L).ToList();
                 foreach (int i in byLeft)
                 {
-                    var seg = pending[i];
+                    var (Words, Top, Bottom, L, R) = pending[i];
                     int hit = -1;
                     for (int c = 0; c < cols.Count && hit < 0; c++)
                     {
-                        double ov = Math.Min(cols[c].R, seg.R) - Math.Max(cols[c].L, seg.L);
-                        double minW = Math.Min(cols[c].R - cols[c].L, seg.R - seg.L);
+                        double ov = Math.Min(cols[c].R, R) - Math.Max(cols[c].L, L);
+                        double minW = Math.Min(cols[c].R - cols[c].L, R - L);
                         if (minW > 0 && ov >= minW * 0.5) hit = c;
                     }
-                    if (hit < 0) cols.Add((seg.L, seg.R, [i]));
+                    if (hit < 0) cols.Add((L, R, [i]));
                     else
                     {
                         var c0 = cols[hit];
                         c0.Idx.Add(i);
-                        cols[hit] = (Math.Min(c0.L, seg.L), Math.Max(c0.R, seg.R), c0.Idx);
+                        cols[hit] = (Math.Min(c0.L, L), Math.Max(c0.R, R), c0.Idx);
                     }
                 }
-                foreach (var col in cols.OrderBy(c => c.L))
-                    foreach (int i in col.Idx.OrderByDescending(i => pending[i].Top))
+                foreach (var (L, R, Idx) in cols.OrderBy(c => c.L))
+                    foreach (int i in Idx.OrderByDescending(i => pending[i].Top))
                         reordered.Add((pending[i].Words, pending[i].Top, pending[i].Bottom));
                 pending.Clear();
             }
@@ -189,9 +189,9 @@ namespace KillerPDF.Services
                     lineWords.Add((new List<UglyToad.PdfPig.Content.Word> { w }, wTop, wBottom));
                 else
                 {
-                    var entry = lineWords[found];
-                    entry.Words.Add(w);
-                    lineWords[found] = (entry.Words, Math.Max(entry.Top, wTop), Math.Min(entry.Bottom, wBottom));
+                    var (Words, Top, Bottom) = lineWords[found];
+                    Words.Add(w);
+                    lineWords[found] = (Words, Math.Max(Top, wTop), Math.Min(Bottom, wBottom));
                 }
             }
 
@@ -293,7 +293,7 @@ namespace KillerPDF.Services
             }
             // Above the first line entirely -> caret 0; below the last -> caret N.
             var first = runs.Lines[0];
-            var last = runs.Lines[runs.Lines.Count - 1];
+            var last = runs.Lines[^1];
             if (y > first.Top && target == first && x < first.Left) return 0;
             if (y < last.Bottom && target == last && x > last.Right) return runs.Chars.Count;
             if (target is null) return 0;

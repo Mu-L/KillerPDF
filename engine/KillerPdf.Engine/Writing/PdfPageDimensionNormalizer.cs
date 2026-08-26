@@ -44,7 +44,7 @@ public static class PdfPageDimensionNormalizer
         if (pageIndexes.Count == 0) return document.Source.ToArray();
 
         PdfPageTree tree = PdfPageTree.Read(document);
-        int[] selected = pageIndexes.Distinct().Order().ToArray();
+        int[] selected = [.. pageIndexes.Distinct().Order()];
         if (selected.Any(index => index < 0 || index >= tree.Pages.Count))
             throw new ArgumentOutOfRangeException(nameof(pageIndexes));
 
@@ -52,8 +52,8 @@ public static class PdfPageDimensionNormalizer
         bool changed = false;
         foreach (int pageIndex in selected)
         {
-            var dimensions = MediaDimensions(document, tree.Pages[pageIndex]);
-            double scale = ScaleFor(dimensions.Width, dimensions.Height, minimum, maximum);
+            var (Width, Height) = MediaDimensions(document, tree.Pages[pageIndex]);
+            double scale = ScaleFor(Width, Height, minimum, maximum);
             if (Math.Abs(scale - 1) < 1e-12) continue;
             PdfPageTreeEntry page = tree.Pages[pageIndex];
             var entries = page.Dictionary.ToDictionary(item => item.Key, item => item.Value);
