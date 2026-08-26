@@ -1113,6 +1113,41 @@
             </Setter>
         </Style>
 
+        <!-- Form field rows carry the PDF's own colours, not the app chrome. The implicit
+             ListBoxItem style above paints TextBrush on every item in this window, which is
+             near-white in the dark themes and vanishes against a form field's pale fill.
+             A ListBox can only pass its own Foreground down by inheritance, and a style
+             setter outranks that, so the overlay opts out with an explicit container style
+             the same way the file dialog's lists do. Neither trigger touches Foreground, so
+             the text stays readable in every state. -->
+        <Style x:Key="FormFieldListBoxItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#333399FF"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#663399FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         </ResourceDictionary>
     </Window.Resources>
 
