@@ -375,6 +375,7 @@ namespace KillerPDF.Controls
                         ItemsSource = f.Options,
                         DisplayMemberPath = nameof(FormChoiceItem.DisplayValue),
                         SelectionMode = SelectionMode.Multiple,
+                        ItemContainerStyle = (Style)FindResource("FormFieldListBoxItem"),
                         Foreground = Brushes.Black,
                         Background = fieldBg,
                         FontSize = f.DaFontPt > 0.5 && f.Scale > 0
