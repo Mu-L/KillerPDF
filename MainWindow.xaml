@@ -2460,7 +2460,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" Background="{DynamicResource PrimaryBrush}" Padding="11,6"
+                        <Border Grid.Column="0" Background="{DynamicResource PrimaryBrush}" Padding="9,4"
                                 CornerRadius="{DynamicResource ControlCornerRadius}">
                             <StackPanel Orientation="Horizontal">
                                 <Grid Width="15" Height="13" Margin="0,1,7,0" VerticalAlignment="Center">
@@ -2477,7 +2477,7 @@
                                            Foreground="{DynamicResource SelectionFg}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="1" Padding="8,3,5,3">
+                        <Border Grid.Column="1" Padding="6,2,4,2">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock x:Name="ComparisonFilesText" Foreground="{DynamicResource TextBrush}"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="390"/>

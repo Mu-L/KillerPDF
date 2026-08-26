@@ -159,7 +159,15 @@ namespace KillerPDF
             // elevated installer already registered the handler in HKLM for all users, and an
             // HKCU copy would shadow it for just this user.
             if (!IsRegisteredCopy(Registry.LocalMachine, Process.GetCurrentProcess().MainModule?.FileName))
-                Services.ProtocolRegistrar.Register();
+            {
+                // A portable session runs from an extracted directory that is deleted when the
+                // window closes. Register its durable launcher instead, which already forwards
+                // every argument to the extracted application. This preserves browser handoff
+                // support without leaving HKCU aimed at a temporary executable (#246).
+                Services.ProtocolRegistrar.Register(
+                    Registry.CurrentUser,
+                    GetPortableLauncherPath());
+            }
             StartupTrace.Mark("Protocol registration refresh complete");
 
             // Single instance: a second launch (e.g. double-clicking another PDF in Explorer)
