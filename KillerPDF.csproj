@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -14,6 +14,7 @@
     <ApplicationIcon>Resources\kp-icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>1.8.0-beta.4</Version>
+
     <AssemblyVersion>1.8.0.0</AssemblyVersion>
     <FileVersion>1.8.0.0</FileVersion>
     <!-- Shown in the About card beside the version so a user can tell how old their build.
@@ -35,8 +36,7 @@
   <!-- Fody's copy-local update targets still execute when weaving is disabled. Remove caches from a
        preceding woven build so those targets cannot reuse a list that deliberately removed every
        dependency from the output. -->
-  <Target Name="ClearWovenCopyLocalCacheForPayload" BeforeTargets="ResolveReferences"
-          Condition="'$(KillerPayloadBuild)' == 'true'">
+  <Target Name="ClearWovenCopyLocalCacheForPayload" BeforeTargets="ResolveReferences" Condition="'$(KillerPayloadBuild)' == 'true'">
     <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectFile).Fody.CopyLocal.cache;$(IntermediateOutputPath)$(MSBuildProjectFile).Fody.RuntimeCopyLocal.cache" />
   </Target>
 
