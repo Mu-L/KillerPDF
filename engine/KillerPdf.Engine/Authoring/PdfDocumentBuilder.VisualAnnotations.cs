@@ -614,7 +614,7 @@ public sealed partial class PdfDocumentBuilder
 
     private static void WriteLineEnding(
         Stream output, double x, double y, double neighborX, double neighborY,
-        PdfLineEndingStyle style, double lineWidth, PdfRgbColor _color,
+        PdfLineEndingStyle style, double lineWidth, PdfRgbColor _,
         PdfRgbColor? interiorColor)
     {
         if (style == PdfLineEndingStyle.None) return;

@@ -1985,7 +1985,7 @@ public sealed class PdfIncrementalPageEditor
         }
 
         var replacements = catalogReplacements
-            ?? new Dictionary<PdfName, PdfObject>();
+            ?? [];
         AddImportedAcroForm(groups, importers, replacements);
         PreserveIndirectCatalogDictionary(
             update, AcroFormName, replacements, "The destination /AcroForm");

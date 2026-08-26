@@ -536,7 +536,7 @@ namespace KillerPDF
         // Under WindowChrome the OS rounds the HWND itself, so content fills a square client rect and
         // needs no internal rounded clip. (A rounded clip here would expose dark corner triangles
         // against the now-square frame.) Kept as a no-op hook so existing call sites stay valid.
-        private void UpdateRootClip(bool _squared)
+        private void UpdateRootClip(bool _)
         {
             if (RootClipGrid is null) return;
             RootClipGrid.Clip = null;
