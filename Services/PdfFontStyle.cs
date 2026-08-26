@@ -6,7 +6,7 @@ namespace KillerPDF.Services
 {
     internal readonly record struct DetectedPdfFontStyle(string Family, bool Bold, bool Italic);
 
-    internal static class PdfFontStyle
+    internal static partial class PdfFontStyle
     {
         // #187: PDF font resources carry POSTSCRIPT names, which are not Windows family names.
         // "ArialMT", "TimesNewRomanPSMT" and "Helvetica" resolve to no installed family, so WPF
@@ -41,14 +41,12 @@ namespace KillerPDF.Services
             int subset = name.IndexOf('+');
             if (subset >= 0 && subset + 1 < name.Length) name = name[(subset + 1)..];
 
-            bool bold = Regex.IsMatch(name, @"(?i)(bold|semibold|demibold|black|heavy|[-_,]bd(?:mt)?$)");
-            bool italic = Regex.IsMatch(name, @"(?i)(italic|oblique|[-_,](?:it|obl)(?:mt)?$)");
+            bool bold = BoldStyleRegex().IsMatch(name);
+            bool italic = ItalicStyleRegex().IsMatch(name);
 
             // Remove only trailing face tokens. A style word that is genuinely part of a family
             // name elsewhere in the string is left alone.
-            string family = Regex.Replace(name,
-                @"(?i)(?:[-_, ]?(?:bolditalic|boldoblique|semibolditalic|demibolditalic|bold|semibold|demibold|black|heavy|italic|oblique|regular|roman|bd|it|obl)(?:mt)?)$",
-                string.Empty).Trim(' ', '-', '_', ',');
+            string family = TrailingStyleRegex().Replace(name, string.Empty).Trim(' ', '-', '_', ',');
 
             family = NormalizePsFamily(family);
 
@@ -63,23 +61,41 @@ namespace KillerPDF.Services
         {
             if (string.IsNullOrWhiteSpace(family)) return family;
 
-            string key = Regex.Replace(family, @"[-_, ]", "").ToLowerInvariant();
+            string key = FamilySeparatorRegex().Replace(family, "").ToLowerInvariant();
             if (PsNameMap.TryGetValue(key, out var mapped)) return mapped;
 
             // Trailing foundry tags: TimesNewRomanPSMT-style names that are not in the map.
-            string trimmed = Regex.Replace(family, @"(?:PSMT|PS|MT)$", string.Empty);
+            string trimmed = FoundrySuffixRegex().Replace(family, string.Empty);
             if (trimmed.Length > 0 && trimmed != family)
             {
-                key = Regex.Replace(trimmed, @"[-_, ]", "").ToLowerInvariant();
+                key = FamilySeparatorRegex().Replace(trimmed, "").ToLowerInvariant();
                 if (PsNameMap.TryGetValue(key, out mapped)) return mapped;
                 family = trimmed;
             }
 
             // CamelCase -> spaced words, only when the name has no separators already.
             if (!family.Contains(' ') && !family.Contains('-') && !family.Contains('_'))
-                family = Regex.Replace(family, @"(?<=[a-z])(?=[A-Z])|(?<=[A-Za-z])(?=\d)", " ");
+                family = FamilyWordBoundaryRegex().Replace(family, " ");
 
             return family;
         }
+
+        [GeneratedRegex(@"(bold|semibold|demibold|black|heavy|[-_,]bd(?:mt)?$)", RegexOptions.IgnoreCase)]
+        private static partial Regex BoldStyleRegex();
+
+        [GeneratedRegex(@"(italic|oblique|[-_,](?:it|obl)(?:mt)?$)", RegexOptions.IgnoreCase)]
+        private static partial Regex ItalicStyleRegex();
+
+        [GeneratedRegex(@"(?:[-_, ]?(?:bolditalic|boldoblique|semibolditalic|demibolditalic|bold|semibold|demibold|black|heavy|italic|oblique|regular|roman|bd|it|obl)(?:mt)?)$", RegexOptions.IgnoreCase)]
+        private static partial Regex TrailingStyleRegex();
+
+        [GeneratedRegex(@"[-_, ]")]
+        private static partial Regex FamilySeparatorRegex();
+
+        [GeneratedRegex(@"(?:PSMT|PS|MT)$")]
+        private static partial Regex FoundrySuffixRegex();
+
+        [GeneratedRegex(@"(?<=[a-z])(?=[A-Z])|(?<=[A-Za-z])(?=\d)")]
+        private static partial Regex FamilyWordBoundaryRegex();
     }
 }

@@ -22,7 +22,7 @@ namespace KillerPDF
     /// pages ourselves, expose printer / orientation / copies / page-range settings,
     /// and drive the spooler via a non-UI PrintDialog when the user clicks Print.
     /// </summary>
-    internal sealed class PrintPreviewWindow : Window
+    internal sealed partial class PrintPreviewWindow : Window
     {
         private readonly BitmapSource?[] _pages;   // filled lazily as pages render in the background
         private readonly int[] _rasterW;
@@ -974,8 +974,7 @@ namespace KillerPDF
                     {
                         if (bin == InputBin.Unknown) continue;
                         _sourceBins.Add(bin);
-                        _sourceCombo.Items.Add(System.Text.RegularExpressions.Regex.Replace(
-                            bin.ToString(), "(?<=[a-z])(?=[A-Z])", " "));
+                        _sourceCombo.Items.Add(CamelCaseBoundaryRegex().Replace(bin.ToString(), " "));
                     }
             }
             catch { /* driver quirk - default entry only */ }
@@ -991,8 +990,7 @@ namespace KillerPDF
             string name = raw;
             if (name.StartsWith("ISO", StringComparison.Ordinal)) name = "ISO " + name[3..];
             else if (name.StartsWith("JIS", StringComparison.Ordinal)) name = "JIS " + name[3..];
-            name = System.Text.RegularExpressions.Regex.Replace(
-                name, @"(?<=[a-z])(?=[A-Z])|(?<=\d)(?=[A-Z])", " ");
+            name = PaperNameBoundaryRegex().Replace(name, " ");
             string dims;
             if (raw.StartsWith("NorthAmerica", StringComparison.Ordinal))
             {
@@ -1346,6 +1344,12 @@ namespace KillerPDF
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        [System.Text.RegularExpressions.GeneratedRegex("(?<=[a-z])(?=[A-Z])")]
+        private static partial System.Text.RegularExpressions.Regex CamelCaseBoundaryRegex();
+
+        [System.Text.RegularExpressions.GeneratedRegex(@"(?<=[a-z])(?=[A-Z])|(?<=\d)(?=[A-Z])")]
+        private static partial System.Text.RegularExpressions.Regex PaperNameBoundaryRegex();
 
         /// <summary>
         /// Composes the sheet sequence and spools it from a dedicated STA thread that owns its own

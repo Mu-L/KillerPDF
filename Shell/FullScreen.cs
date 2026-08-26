@@ -177,7 +177,7 @@ namespace KillerPDF
         {
             var hwnd = new WindowInteropHelper(this).Handle;
             IntPtr mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-            var info = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             GetMonitorInfo(mon, ref info);
             var r = info.rcMonitor;
             var dpi = VisualTreeHelper.GetDpi(this);

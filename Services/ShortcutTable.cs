@@ -212,7 +212,7 @@ namespace KillerPDF
         internal static Dictionary<KbLayer, Dictionary<string, (string Cat, string Label)>> BuildMap()
         {
             var map = new Dictionary<KbLayer, Dictionary<string, (string, string)>>();
-            foreach (KbLayer layer in System.Enum.GetValues(typeof(KbLayer)))
+            foreach (KbLayer layer in Enum.GetValues<KbLayer>())
                 map[layer] = new Dictionary<string, (string, string)>();
 
             foreach (var binding in KsAll)

@@ -3933,7 +3933,8 @@ public sealed partial class PdfDocumentBuilder
             case PdfPushButtonCaptionPosition.CaptionOverIcon:
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(position));
+                throw new ArgumentOutOfRangeException(
+                    nameof(position), position, "The push-button caption position is not supported.");
         }
         if (iconNumber.HasValue && iconWidth > 0 && iconHeight > 0)
             WritePushButtonIcon(output, field.AppearanceOptions, iconX, iconY, iconWidth, iconHeight);

@@ -1246,7 +1246,7 @@ namespace KillerPDF.Controls
                 {
                     string? ext = ActiveFilterExt();
                     if (ext == null && !string.IsNullOrEmpty(DefaultExt))
-                        ext = DefaultExt.StartsWith(".") ? DefaultExt : "." + DefaultExt;
+                        ext = DefaultExt.StartsWith('.') ? DefaultExt : "." + DefaultExt;
                     if (ext != null) full += ext;
                 }
 

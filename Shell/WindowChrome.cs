@@ -165,7 +165,7 @@ namespace KillerPDF
             IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
             if (monitor != IntPtr.Zero)
             {
-                var info = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
+                var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
                 GetMonitorInfo(monitor, ref info);
                 RECT work = info.rcWork;
                 RECT mon = info.rcMonitor;
@@ -553,7 +553,7 @@ namespace KillerPDF
             if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out RECT w)) return false;
             IntPtr mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
             if (mon == IntPtr.Zero) return false;
-            var info = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             if (!GetMonitorInfo(mon, ref info)) return false;
             RECT a = info.rcWork;
 
