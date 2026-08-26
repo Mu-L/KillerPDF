@@ -70,8 +70,16 @@ namespace KillerPDF
         private void FitToWidth(bool lite = false) => ActiveViewer.FitToWidth(lite);
         private void FitToPage(bool lite = false) => ActiveViewer.FitToPage(lite);
 
-        private void SetViewMode(ViewMode mode) => ActiveViewer.SetViewMode(mode);
-        private void SelectViewMode(ViewMode mode) => ActiveViewer.SelectViewMode(mode);
+        private void SetViewMode(ViewMode mode)
+        {
+            if (_comparisonActive)
+            {
+                SetStatus(Loc("Str_Compare_ViewLocked"));
+                return;
+            }
+            ActiveViewer.SetViewMode(mode);
+        }
+        private void SelectViewMode(ViewMode mode) => SetViewMode(mode);
         private void ApplyViewMode(ViewMode mode) => ActiveViewer.ApplyViewMode(mode);
         private ViewMode? _pendingViewMode { get => ActiveViewer.PendingViewMode; set => ActiveViewer.PendingViewMode = value; }
 

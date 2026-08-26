@@ -934,4 +934,30 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Busy_ExportPage">Sayfa {0} / {1} dışa aktarılıyor...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc iptal eder)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">{0} indiriliyor - {1} / {2} -</sys:String>
+    <!-- PDF comparison (#160) -->
+    <sys:String x:Key="Str_TT_ComparePDFs">PDF'leri karşılaştır</sys:String>
+    <sys:String x:Key="Str_TT_ExitComparison">Karşılaştırmadan çık</sys:String>
+    <sys:String x:Key="Str_Compare_OpenOriginal">Karşılaştırmayı başlatmadan önce özgün PDF'yi açın.</sys:String>
+    <sys:String x:Key="Str_Compare_SelectTitle">Karşılaştırılacak PDF'yi seçin</sys:String>
+    <sys:String x:Key="Str_Compare_ChooseDifferent">Karşılaştırmak için farklı bir PDF seçin.</sys:String>
+    <sys:String x:Key="Str_Compare_Ended">PDF karşılaştırması sona erdi</sys:String>
+    <sys:String x:Key="Str_Compare_MissingRight">Karşılaştırma PDF'sinde karşılık gelen sayfa yok</sys:String>
+    <sys:String x:Key="Str_Compare_MissingLeft">Özgün PDF'de karşılık gelen sayfa yok</sys:String>
+    <sys:String x:Key="Str_Compare_PageOnlyOne">Sayfa {0} yalnızca {1} PDF'de bulunuyor</sys:String>
+    <sys:String x:Key="Str_Compare_Original">özgün</sys:String>
+    <sys:String x:Key="Str_Compare_Comparison">karşılaştırma</sys:String>
+    <sys:String x:Key="Str_Compare_Changed">Sayfa {0}: {1} değişti</sys:String>
+    <sys:String x:Key="Str_Compare_NoDifferences">Sayfa {0}: görsel fark yok</sys:String>
+    <sys:String x:Key="Str_Compare_DimensionsDiffer">Sayfa {0}: sayfa boyutları farklı</sys:String>
+    <sys:String x:Key="Str_Compare_Failed">Karşılaştırma başarısız: {0}</sys:String>
+    <sys:String x:Key="Str_Compare_OpenTabs">Açık bir sekmeyle karşılaştır</sys:String>
+    <sys:String x:Key="Str_Compare_NoOpenTabs">Başka açık PDF sekmesi yok</sys:String>
+    <sys:String x:Key="Str_Compare_Browse">Başka bir PDF seç...</sys:String>
+    <sys:String x:Key="Str_Compare_Bar">KARŞILAŞTIRMA</sys:String>
+    <sys:String x:Key="Str_Compare_Comparing">Karşılaştırılıyor...</sys:String>
+    <sys:String x:Key="Str_Compare_ChangedAndDimensions">Sayfa {0}: boyutlar farklı; {1} değişti</sys:String>
+    <sys:String x:Key="Str_Compare_ViewLocked">Karşılaştırma kilitli tek sayfa görünümünü kullanır</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
 </ResourceDictionary>

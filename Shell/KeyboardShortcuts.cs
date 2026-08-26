@@ -31,6 +31,13 @@ namespace KillerPDF
             // Keyboard view of the shortcuts overlay: holding Ctrl / Shift / Alt previews that layer.
             KbSyncLayerFromModifiers();
 
+            if (_comparisonActive && e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                EndComparison(closeSplit: true);
+                e.Handled = true;
+                return;
+            }
+
             // Bold / italic / underline while a text annotation is being edited. This has to come
             // BEFORE the early return below, which hands every other key to the edit box: that
             // return is exactly why Ctrl+B never reached the text tool and collapsed the sidebar

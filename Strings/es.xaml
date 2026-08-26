@@ -934,4 +934,30 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Busy_ExportPage">Exportando página {0} de {1}...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc para cancelar)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">Descargando {0} - {1} de {2} -</sys:String>
+    <!-- PDF comparison (#160) -->
+    <sys:String x:Key="Str_TT_ComparePDFs">Comparar PDF</sys:String>
+    <sys:String x:Key="Str_TT_ExitComparison">Salir de la comparación</sys:String>
+    <sys:String x:Key="Str_Compare_OpenOriginal">Abra el PDF original antes de iniciar la comparación.</sys:String>
+    <sys:String x:Key="Str_Compare_SelectTitle">Seleccionar PDF para comparar</sys:String>
+    <sys:String x:Key="Str_Compare_ChooseDifferent">Elija un PDF diferente para comparar.</sys:String>
+    <sys:String x:Key="Str_Compare_Ended">Comparación de PDF finalizada</sys:String>
+    <sys:String x:Key="Str_Compare_MissingRight">No hay una página correspondiente en el PDF de comparación</sys:String>
+    <sys:String x:Key="Str_Compare_MissingLeft">No hay una página correspondiente en el PDF original</sys:String>
+    <sys:String x:Key="Str_Compare_PageOnlyOne">La página {0} solo existe en el PDF {1}</sys:String>
+    <sys:String x:Key="Str_Compare_Original">original</sys:String>
+    <sys:String x:Key="Str_Compare_Comparison">de comparación</sys:String>
+    <sys:String x:Key="Str_Compare_Changed">Página {0}: {1} cambiado</sys:String>
+    <sys:String x:Key="Str_Compare_NoDifferences">Página {0}: sin diferencias visuales</sys:String>
+    <sys:String x:Key="Str_Compare_DimensionsDiffer">Página {0}: las dimensiones son diferentes</sys:String>
+    <sys:String x:Key="Str_Compare_Failed">Error de comparación: {0}</sys:String>
+    <sys:String x:Key="Str_Compare_OpenTabs">Comparar con una pestaña abierta</sys:String>
+    <sys:String x:Key="Str_Compare_NoOpenTabs">No hay otras pestañas PDF abiertas</sys:String>
+    <sys:String x:Key="Str_Compare_Browse">Elegir otro PDF...</sys:String>
+    <sys:String x:Key="Str_Compare_Bar">COMPARACIÓN</sys:String>
+    <sys:String x:Key="Str_Compare_Comparing">Comparando...</sys:String>
+    <sys:String x:Key="Str_Compare_ChangedAndDimensions">Página {0}: las dimensiones son diferentes; {1} cambiado</sys:String>
+    <sys:String x:Key="Str_Compare_ViewLocked">La comparación utiliza una vista de página única bloqueada</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
 </ResourceDictionary>

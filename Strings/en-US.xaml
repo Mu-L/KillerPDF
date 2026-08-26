@@ -954,4 +954,30 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Busy_ExportPage">Exporting page {0} of {1}...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc to cancel)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">Downloading {0} - {1} of {2} -</sys:String>
+    <!-- PDF comparison (#160) -->
+    <sys:String x:Key="Str_TT_ComparePDFs">Compare PDFs</sys:String>
+    <sys:String x:Key="Str_TT_ExitComparison">Exit comparison</sys:String>
+    <sys:String x:Key="Str_Compare_OpenOriginal">Open the original PDF before starting comparison.</sys:String>
+    <sys:String x:Key="Str_Compare_SelectTitle">Select PDF to compare</sys:String>
+    <sys:String x:Key="Str_Compare_ChooseDifferent">Choose a different PDF to compare.</sys:String>
+    <sys:String x:Key="Str_Compare_Ended">PDF comparison ended</sys:String>
+    <sys:String x:Key="Str_Compare_MissingRight">No corresponding page in comparison PDF</sys:String>
+    <sys:String x:Key="Str_Compare_MissingLeft">No corresponding page in original PDF</sys:String>
+    <sys:String x:Key="Str_Compare_PageOnlyOne">Page {0} exists only in the {1} PDF</sys:String>
+    <sys:String x:Key="Str_Compare_Original">original</sys:String>
+    <sys:String x:Key="Str_Compare_Comparison">comparison</sys:String>
+    <sys:String x:Key="Str_Compare_Changed">Page {0}: {1} changed</sys:String>
+    <sys:String x:Key="Str_Compare_NoDifferences">Page {0}: no visual differences</sys:String>
+    <sys:String x:Key="Str_Compare_DimensionsDiffer">Page {0}: page dimensions differ</sys:String>
+    <sys:String x:Key="Str_Compare_Failed">Comparison failed: {0}</sys:String>
+    <sys:String x:Key="Str_Compare_OpenTabs">Compare with an open tab</sys:String>
+    <sys:String x:Key="Str_Compare_NoOpenTabs">No other PDF tabs are open</sys:String>
+    <sys:String x:Key="Str_Compare_Browse">Choose another PDF...</sys:String>
+    <sys:String x:Key="Str_Compare_Bar">COMPARISON</sys:String>
+    <sys:String x:Key="Str_Compare_Comparing">Comparing...</sys:String>
+    <sys:String x:Key="Str_Compare_ChangedAndDimensions">Page {0}: dimensions differ; {1} changed</sys:String>
+    <sys:String x:Key="Str_Compare_ViewLocked">Comparison uses a locked single-page view</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
 </ResourceDictionary>

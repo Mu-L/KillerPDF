@@ -1074,6 +1074,7 @@ namespace KillerPDF
                 // they only shed their captions later (see LabelStripRank). Edit this list to retune.
                 var order = new (UIElement bar, UIElement[] items)[]
                 {
+                    (GrpCompare,        new UIElement[] { MiCompare }),
                     (GrpPageEdit,       new UIElement[] { MiDelete, MiMoveUp, MiMoveDown }),
                     (GrpPageOps,        new UIElement[] { MiMerge, MiExtract }),
                     // Stamp goes before signature, image and the markup tools: it is the most

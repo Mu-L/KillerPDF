@@ -56,6 +56,48 @@ namespace KillerPDF.Controls
         internal Canvas CanvasForPageExt(int page) => CanvasForPage(page);
         internal Canvas? VisibleCanvasForPageExt(int page) => VisibleCanvasForPage(page);
         internal IEnumerable<Canvas> AllPageCanvasesExt() => AllPageCanvases();
+        internal void ShowDifferenceRegionsExt(int page, int sourceWidth, int sourceHeight,
+            IReadOnlyList<DifferenceRegion> regions, int selectedRegion = -1)
+            => ShowDifferenceRegions(page, sourceWidth, sourceHeight, regions, selectedRegion);
+        internal void ClearDifferenceRegionsExt() => ClearDifferenceRegions();
+        internal void ShowMissingComparisonPageExt(int page, string text)
+            => ShowMissingComparisonPage(page, text);
+        internal string? CurrentFilePathExt => _currentFile;
+        internal int PageCountExt => _doc?.PageCount ?? 0;
+        internal double ZoomLevelExt => _zoomLevel;
+        internal void SetZoomExt(double level) => SetZoom(level);
+        internal double TrueZoomLevelExt => DisplayZoomPct() / 100.0;
+        internal void SetTrueZoomExt(double level) => SetTrueZoom(level);
+        internal ComparisonViewState CaptureComparisonViewStateExt()
+            => new(_viewMode, _fitMode, _zoomLevel, State.CurrentPage,
+                PagePreviewPanel.HorizontalOffset, PagePreviewPanel.VerticalOffset);
+        internal void EnterComparisonViewExt(int pageIndex)
+        {
+            ApplyViewMode(ViewMode.Single, force: true);
+            NavigateToPageExt(Math.Clamp(pageIndex, 0, Math.Max(0, PageCountExt - 1)));
+            FitToPage();
+        }
+        internal void RestoreComparisonViewStateExt(ComparisonViewState state)
+        {
+            ApplyViewMode(state.View, force: true);
+            NavigateToPageExt(Math.Clamp(state.Page, 0, Math.Max(0, PageCountExt - 1)));
+            _fitMode = state.Fit;
+            if (state.Fit == FitMode.Width) FitToWidth();
+            else if (state.Fit == FitMode.Page) FitToPage();
+            else SetZoom(state.Zoom);
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, (Action)(() =>
+            {
+                PagePreviewPanel.ScrollToHorizontalOffset(state.HorizontalOffset);
+                PagePreviewPanel.ScrollToVerticalOffset(state.VerticalOffset);
+            }));
+        }
+        internal void ScrollToRatioExt(double horizontalRatio, double verticalRatio)
+        {
+            PagePreviewPanel.ScrollToHorizontalOffset(
+                Math.Clamp(horizontalRatio, 0, 1) * PagePreviewPanel.ScrollableWidth);
+            PagePreviewPanel.ScrollToVerticalOffset(
+                Math.Clamp(verticalRatio, 0, 1) * PagePreviewPanel.ScrollableHeight);
+        }
 
         // ── Undo / commands bound from MainWindow.xaml and the context menu ──────────────────
         internal void PushDocUndoExt() => PushDocUndo();
@@ -213,4 +255,8 @@ namespace KillerPDF.Controls
         internal void HyperlinkRequestNavigateExt(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
             => Hyperlink_RequestNavigate(sender, e);
     }
+
+    internal readonly record struct ComparisonViewState(
+        ViewMode View, FitMode Fit, double Zoom, int Page,
+        double HorizontalOffset, double VerticalOffset);
 }

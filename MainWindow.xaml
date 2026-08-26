@@ -673,7 +673,7 @@
                                 <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="Gesture" Grid.Column="2" Text="{TemplateBinding InputGestureText}"
                                            Foreground="{DynamicResource MutedTextBrush}" FontSize="11"
-                                           VerticalAlignment="Center" Margin="24,0,0,0"/>
+                                           VerticalAlignment="Center" Margin="14,0,0,0"/>
                                 <!-- submenu arrow for items that have children -->
                                 <TextBlock x:Name="SubArrow" Grid.Column="3" Text="&#xE76C;"
                                            FontFamily="Segoe MDL2 Assets" FontSize="8"
@@ -694,19 +694,19 @@
                                         </Border>
                                         <Border Background="{DynamicResource MenuBackgroundBrush}"
                                                 BorderBrush="{DynamicResource MenuBorderBrush}"
-                                                BorderThickness="1" CornerRadius="{DynamicResource FlyoutCornerRadius}" Padding="4">
+                                                BorderThickness="1" CornerRadius="{DynamicResource FlyoutCornerRadius}">
                                             <Grid>
-                                                <Border Panel.ZIndex="10" IsHitTestVisible="False" Margin="-4" BorderBrush="{DynamicResource MenuBevelLightBrush}" BorderThickness="{DynamicResource MenuBevelLightThickness}"/>
-                                                <Border Panel.ZIndex="10" IsHitTestVisible="False" Margin="-4" BorderBrush="{DynamicResource MenuBevelDarkBrush}" BorderThickness="{DynamicResource MenuBevelDarkThickness}"/>
-                                                <Border Panel.ZIndex="10" IsHitTestVisible="False" Margin="{DynamicResource MenuBevelInnerMargin}" BorderBrush="{DynamicResource MenuBevel2LightBrush}" BorderThickness="{DynamicResource MenuBevel2LightThickness}"/>
-                                                <Border Panel.ZIndex="10" IsHitTestVisible="False" Margin="{DynamicResource MenuBevelInnerMargin}" BorderBrush="{DynamicResource MenuBevel2DarkBrush}" BorderThickness="{DynamicResource MenuBevel2DarkThickness}"/>
                                                 <Border IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}"
-                                                        CornerRadius="{DynamicResource FlyoutCornerRadius}" Margin="-4" Background="{DynamicResource GrainBrushShared}"/>
+                                                        CornerRadius="{DynamicResource FlyoutCornerRadius}" Background="{DynamicResource GrainBrushShared}"/>
                                                 <!-- Own scope, so a submenu's columns align among its own
                                                      siblings rather than the unrelated parent popup's rows. -->
-                                                <ItemsPresenter Grid.IsSharedSizeScope="True"/>
+                                                <ItemsPresenter Margin="4" Grid.IsSharedSizeScope="True"/>
                                             </Grid>
                                         </Border>
+                                        <Border IsHitTestVisible="False" Margin="{DynamicResource MenuBevelInnerMargin}" BorderBrush="{DynamicResource MenuBevelLightBrush}" BorderThickness="{DynamicResource MenuBevelLightThickness}"/>
+                                        <Border IsHitTestVisible="False" Margin="{DynamicResource MenuBevelInnerMargin}" BorderBrush="{DynamicResource MenuBevelDarkBrush}" BorderThickness="{DynamicResource MenuBevelDarkThickness}"/>
+                                        <Border IsHitTestVisible="False" BorderBrush="{DynamicResource MenuBevel2LightBrush}" BorderThickness="{DynamicResource MenuBevel2LightThickness}"/>
+                                        <Border IsHitTestVisible="False" BorderBrush="{DynamicResource MenuBevel2DarkBrush}" BorderThickness="{DynamicResource MenuBevel2DarkThickness}"/>
                                     </Grid>
                                 </Popup>
                             </Grid>
@@ -1292,6 +1292,18 @@
                     <Button x:Name="OcrMenuBtn" Content="&#xE70D;" FontSize="10" Width="13" Padding="0" Margin="-6,0,0,0" Style="{StaticResource ToolbarButton}" Click="OcrMenu_Click" ToolTip="{DynamicResource Str_TT_OcrOptions}"/>
                     <Button Content="&#xE8B9;" Style="{StaticResource ToolbarButton}" Click="SaveFlattened_Click" ToolTip="{DynamicResource Str_TT_SaveFlattened}"/>
                     <Button Content="&#xE749;" Style="{StaticResource ToolbarButton}" Click="Print_Click" ToolTip="{DynamicResource Str_TT_Print}"/>
+                    <StackPanel x:Name="GrpCompare" Orientation="Horizontal">
+                        <Button x:Name="ComparePdfBtn" Style="{StaticResource ToolbarButton}" Click="ComparePdf_Click" ToolTip="{DynamicResource Str_TT_ComparePDFs}">
+                            <Grid Width="18" Height="16">
+                                <Border Width="7" Height="13" HorizontalAlignment="Left" VerticalAlignment="Center" BorderBrush="{DynamicResource TextBrush}" BorderThickness="1" CornerRadius="1">
+                                    <Rectangle Height="1" Margin="1" VerticalAlignment="Center" Fill="{DynamicResource TextBrush}"/>
+                                </Border>
+                                <Border Width="7" Height="13" HorizontalAlignment="Right" VerticalAlignment="Center" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="1" CornerRadius="1">
+                                    <Rectangle Height="1" Margin="1" VerticalAlignment="Center" Fill="{DynamicResource PrimaryBrush}"/>
+                                </Border>
+                            </Grid>
+                        </Button>
+                    </StackPanel>
                     <StackPanel x:Name="GrpPageOps" Orientation="Horizontal">
                         <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
                         <Button Content="&#xE710;" Style="{StaticResource ToolbarButton}" Click="Merge_Click" ToolTip="{DynamicResource Str_TT_MergePDFs}"/>
@@ -1388,6 +1400,15 @@
                             <Grid>
                             <Border CornerRadius="{DynamicResource FlyoutCornerRadius}" IsHitTestVisible="False" Opacity="{DynamicResource GrainOpacity}" Background="{StaticResource GrainBrushShared}"/>
                             <StackPanel x:Name="OverflowMenuPanel" ButtonBase.Click="OverflowItem_Click" MinWidth="180">
+                                <Button x:Name="MiCompare" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ComparePdf_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Grid Width="24" Height="18">
+                                            <Border Width="7" Height="13" Margin="3,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" BorderBrush="{DynamicResource TextBrush}" BorderThickness="1" CornerRadius="1"/>
+                                            <Border Width="7" Height="13" Margin="0,0,3,0" HorizontalAlignment="Right" VerticalAlignment="Center" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="1" CornerRadius="1"/>
+                                        </Grid>
+                                        <TextBlock Text="{DynamicResource Str_TT_ComparePDFs}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                                 <Button x:Name="MiMerge" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="Merge_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Merge}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
@@ -2425,6 +2446,100 @@
                         LostMouseCapture="SplitHandle_LostMouseCapture"/>
 
                 <ctrl:PdfViewer x:Name="ViewerB" Grid.Column="2" Visibility="Collapsed"/>
+
+                <Border x:Name="ComparisonBar" Grid.ColumnSpan="3" Panel.ZIndex="100"
+                        Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Top"
+                        Margin="16,44,16,0" Padding="0"
+                        Background="{DynamicResource MenuBackgroundBrush}" BorderBrush="{DynamicResource PrimaryBrush}"
+                        BorderThickness="1" CornerRadius="{DynamicResource ControlCornerRadius}">
+                    <Border.Effect>
+                        <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="3" Direction="270" Opacity="0.35"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource PrimaryBrush}" Padding="11,6"
+                                CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Width="15" Height="13" Margin="0,1,7,0" VerticalAlignment="Center">
+                                    <Border Width="6" Height="11" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            BorderBrush="{DynamicResource SelectionFg}" BorderThickness="1" CornerRadius="1">
+                                        <Rectangle Height="1" Margin="1" VerticalAlignment="Center" Fill="{DynamicResource SelectionFg}"/>
+                                    </Border>
+                                    <Border Width="6" Height="11" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            BorderBrush="{DynamicResource SelectionFg}" BorderThickness="1" CornerRadius="1">
+                                        <Rectangle Height="1" Margin="1" VerticalAlignment="Center" Fill="{DynamicResource SelectionFg}"/>
+                                    </Border>
+                                </Grid>
+                                <TextBlock Text="{DynamicResource Str_Compare_Bar}" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SelectionFg}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Padding="8,3,5,3">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="ComparisonFilesText" Foreground="{DynamicResource TextBrush}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="390"/>
+                                <Rectangle Width="1" Margin="10,2" Fill="{DynamicResource CardBorderBrush}"/>
+                                <Button x:Name="ComparisonResultButton" Width="300" Height="24" Margin="0" Padding="5,1"
+                                        Style="{StaticResource ToolbarButton}" Click="ComparisonDetails_Click"
+                                        ToolTip="{DynamicResource Str_Compare_ViewDetails}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="ComparisonResultText" FontFamily="{DynamicResource MenuFontFamily}"
+                                                   FontSize="{DynamicResource MenuFontSize}" Foreground="{DynamicResource MutedTextBrush}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="280"/>
+                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                                   Foreground="{DynamicResource MutedTextBrush}" Margin="8,0,1,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <StackPanel x:Name="ComparisonRegionNavigation" Orientation="Horizontal" Margin="5,0,0,0" Visibility="Collapsed">
+                                    <Button Width="24" Height="24" Padding="0" Style="{StaticResource ToolbarButton}"
+                                            Click="ComparisonPreviousDifference_Click" ToolTip="Previous changed region">
+                                        <TextBlock Text="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                                    </Button>
+                                    <TextBlock x:Name="ComparisonRegionText" MinWidth="38" TextAlignment="Center"
+                                               FontFamily="{DynamicResource MenuFontFamily}" FontSize="{DynamicResource MenuFontSize}"
+                                               Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
+                                    <Button Width="24" Height="24" Padding="0" Style="{StaticResource ToolbarButton}"
+                                            Click="ComparisonNextDifference_Click" ToolTip="Next changed region">
+                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                                    </Button>
+                                </StackPanel>
+                                <Button Width="25" Height="24" Padding="0" Margin="5,0,0,0"
+                                        Style="{StaticResource ToolbarButtonDanger}" Click="ComparisonClose_Click" ToolTip="{DynamicResource Str_TT_ExitComparison}">
+                                    <Grid Width="11" Height="11">
+                                        <Path Stroke="{DynamicResource DangerRed}" StrokeThickness="1.5" StrokeStartLineCap="Square" StrokeEndLineCap="Square" Data="M 1,1 L 10,10"/>
+                                        <Path Stroke="{DynamicResource DangerRed}" StrokeThickness="1.5" StrokeStartLineCap="Square" StrokeEndLineCap="Square" Data="M 10,1 L 1,10"/>
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.ColumnSpan="2" CornerRadius="{DynamicResource ControlCornerRadius}"
+                                IsHitTestVisible="False" Background="{StaticResource GrainBrushShared}"
+                                Opacity="{DynamicResource GrainOpacity}"/>
+                    </Grid>
+                </Border>
+                <Popup x:Name="ComparisonDetailsPopup" PlacementTarget="{Binding ElementName=ComparisonResultButton}"
+                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                    <Border Width="430" MaxHeight="360" Margin="8" Padding="12"
+                            Background="{DynamicResource MenuBackgroundBrush}" BorderBrush="{DynamicResource PrimaryBrush}"
+                            BorderThickness="1" CornerRadius="{DynamicResource FlyoutCornerRadius}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" BlurRadius="16" ShadowDepth="3" Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
+                        </Border.Effect>
+                        <Grid>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <TextBlock x:Name="ComparisonDetailsText" FontFamily="{DynamicResource MenuFontFamily}"
+                                           FontSize="{DynamicResource MenuFontSize}" Foreground="{DynamicResource TextBrush}"
+                                           TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                            <Border Margin="-12" CornerRadius="{DynamicResource FlyoutCornerRadius}"
+                                    IsHitTestVisible="False" Background="{StaticResource GrainBrushShared}"
+                                    Opacity="{DynamicResource GrainOpacity}"/>
+                        </Grid>
+                    </Border>
+                </Popup>
             </Grid>
 
             <!-- DocTopAccent / DocBottomAccent were here: 1px rules at ZIndex 60 spanning the

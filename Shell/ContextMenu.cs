@@ -231,6 +231,7 @@ namespace KillerPDF
             if (hasTextSel)
                 _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_CopyText"), (s, e) => CopySelectedText(), "Ctrl+C", ""));
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Print"), (s, e) => Print_Click(s!, e), "Ctrl+P", ""));
+            _ctxMenu.Items.Add(BuildComparisonContextItem());
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_OcrPage"), (s, e) => OcrPageToClipboard(pageIdx), "Ctrl+Shift+O", ""));
             _ctxMenu.Items.Add(new Separator());
 
@@ -669,6 +670,7 @@ namespace KillerPDF
             menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_AddBlankPage"), (s, e) => AddBlankPageAtEnd(), glyph: ""));
             menu.Items.Add(new Separator());
             menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Print"), (s, e) => Print_Click(s!, e), "Ctrl+P", ""));
+            menu.Items.Add(BuildComparisonContextItem());
             menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomIn"), (s, e) => ZoomIn_Click(s!, e), "Ctrl+=", ""));
             menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomOut"), (s, e) => ZoomOut_Click(s!, e), "Ctrl+-", ""));
             menu.Items.Add(new Separator());

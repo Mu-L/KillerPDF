@@ -410,6 +410,7 @@ namespace KillerPDF
         private void CloseSplit()
         {
             if (!_isSplit) return;
+            if (_comparisonActive) EndComparison(closeSplit: false);
             _isSplit = false;
 
             // Focus returns to A before B is hidden: leaving ActiveViewer pointing at a collapsed

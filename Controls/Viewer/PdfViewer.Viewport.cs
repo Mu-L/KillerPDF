@@ -158,6 +158,11 @@ namespace KillerPDF.Controls
             // viewport is page navigation or a reason to rebuild document chrome.
             if (!ReferenceEquals(e.OriginalSource, PagePreviewPanel)) return;
 
+            if (e.HorizontalChange != 0 || e.VerticalChange != 0)
+                Host?.ViewerScrolled(this,
+                    PagePreviewPanel.ScrollableWidth <= 0 ? 0 : PagePreviewPanel.HorizontalOffset / PagePreviewPanel.ScrollableWidth,
+                    PagePreviewPanel.ScrollableHeight <= 0 ? 0 : PagePreviewPanel.VerticalOffset / PagePreviewPanel.ScrollableHeight);
+
             // The vertical scrollbar can appear/disappear without a window resize (zoom, page count
             // changes). When it does, re-anchor the annotate bars so a right-docked bar tracks the
             // scrollbar's edge instead of getting covered (or stranded once it's gone).
@@ -1681,6 +1686,7 @@ namespace KillerPDF.Controls
                                : null;
                 string target = $"{DisplayZoomPct():F0}%";
                 Host?.SyncZoomDisplay(fitTag, target);
+                Host?.ViewerZoomChanged(this, _zoomLevel);
             }
             finally { _syncingZoomBox = false; }
         }

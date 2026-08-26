@@ -112,6 +112,7 @@ namespace KillerPDF
 
         void IViewerHost.ViewerPageChanged(PdfViewer viewer, int pageIndex)
         {
+            ComparisonPageChanged(viewer, pageIndex);
             if (!ReferenceEquals(ActiveViewer, viewer)) return;
             // Direct assignment, because that is what the 84 existing call sites do - there is no
             // SyncPageListSelection helper today. The guard avoids re-entering the selection
@@ -167,7 +168,11 @@ namespace KillerPDF
         // SyncZoomBox reads the current zoom itself rather than taking one, so the parameter is
         // unused today. It stays in the signature because with two panes the window has to know
         // WHICH viewer's zoom changed before deciding whether the toolbar box should follow.
-        void IViewerHost.ViewerZoomChanged(double zoomLevel) => SyncZoomBox();
+        void IViewerHost.ViewerZoomChanged(PdfViewer viewer, double zoomLevel)
+            => ComparisonZoomChanged(viewer, zoomLevel);
+
+        void IViewerHost.ViewerScrolled(PdfViewer viewer, double horizontalRatio, double verticalRatio)
+            => ComparisonScrolled(viewer, horizontalRatio, verticalRatio);
 
         void IViewerHost.ViewerFocused()
         {

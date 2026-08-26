@@ -936,4 +936,30 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Busy_ExportPage">正在匯出第 {0} 頁，共 {1} 頁...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc 取消)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">正在下載 {0} - {1} / {2} -</sys:String>
+    <!-- PDF comparison (#160) -->
+    <sys:String x:Key="Str_TT_ComparePDFs">比較 PDF</sys:String>
+    <sys:String x:Key="Str_TT_ExitComparison">結束比較</sys:String>
+    <sys:String x:Key="Str_Compare_OpenOriginal">開始比較前請先開啟原始 PDF。</sys:String>
+    <sys:String x:Key="Str_Compare_SelectTitle">選擇要比較的 PDF</sys:String>
+    <sys:String x:Key="Str_Compare_ChooseDifferent">請選擇另一個 PDF 進行比較。</sys:String>
+    <sys:String x:Key="Str_Compare_Ended">PDF 比較已結束</sys:String>
+    <sys:String x:Key="Str_Compare_MissingRight">比較 PDF 中沒有對應頁面</sys:String>
+    <sys:String x:Key="Str_Compare_MissingLeft">原始 PDF 中沒有對應頁面</sys:String>
+    <sys:String x:Key="Str_Compare_PageOnlyOne">第 {0} 頁僅存在於{1} PDF 中</sys:String>
+    <sys:String x:Key="Str_Compare_Original">原始</sys:String>
+    <sys:String x:Key="Str_Compare_Comparison">比較</sys:String>
+    <sys:String x:Key="Str_Compare_Changed">第 {0} 頁：{1} 已變更</sys:String>
+    <sys:String x:Key="Str_Compare_NoDifferences">第 {0} 頁：沒有視覺差異</sys:String>
+    <sys:String x:Key="Str_Compare_DimensionsDiffer">第 {0} 頁：頁面尺寸不同</sys:String>
+    <sys:String x:Key="Str_Compare_Failed">比較失敗：{0}</sys:String>
+    <sys:String x:Key="Str_Compare_OpenTabs">與開啟的分頁比較</sys:String>
+    <sys:String x:Key="Str_Compare_NoOpenTabs">沒有其他開啟的 PDF 分頁</sys:String>
+    <sys:String x:Key="Str_Compare_Browse">選擇另一個 PDF...</sys:String>
+    <sys:String x:Key="Str_Compare_Bar">比較</sys:String>
+    <sys:String x:Key="Str_Compare_Comparing">正在比較...</sys:String>
+    <sys:String x:Key="Str_Compare_ChangedAndDimensions">第 {0} 頁：尺寸不同；{1} 已變更</sys:String>
+    <sys:String x:Key="Str_Compare_ViewLocked">比較期間將鎖定為單頁檢視</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
 </ResourceDictionary>

@@ -14,6 +14,17 @@ namespace KillerPDF.Controls
     {
         // ── Opening and closing ──────────────────────────────────────────────────────────────
         internal void OpenInNewTabExt(string path) => OpenInNewTab(path);
+        internal DocumentSession? ActiveSessionExt => _active;
+        internal IReadOnlyList<(string Path, string Title)> OpenPdfTabsExt()
+        {
+            if (_active != null) CaptureSessionState(_active);
+            return _sessions
+                .Select(session => session.CurrentFile ?? session.OriginalFile ?? session.DeferredPath)
+                .Where(path => !string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
+                .Select(path => (Path: path!, Title: System.IO.Path.GetFileName(path!)))
+                .DistinctBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
         internal void CloseTabExt(DocumentSession? s) => CloseTab(s);
         internal void CloseAllTabsExt() => CloseAllTabs();
         internal void CloseOtherTabsExt(DocumentSession? keep = null)
@@ -161,6 +172,18 @@ namespace KillerPDF.Controls
         /// <summary>Highlight this pane's current page after the list is re-seated: assigning
         /// ItemsSource clears the selection.</summary>
         internal int CurrentPageIndex => State.CurrentPage;
+
+        internal void NavigateToPageExt(int pageIndex)
+        {
+            if (_doc is null || pageIndex < 0 || pageIndex >= _doc.PageCount) return;
+            if (_viewMode == ViewMode.Continuous)
+                NavigateContinuousToPage(pageIndex);
+            else
+            {
+                _currentPage = pageIndex;
+                RenderPage(_viewMode == ViewMode.Grid ? 0 : pageIndex);
+            }
+        }
 
         internal void SyncPageListSelection(int? preservedPage = null)
         {

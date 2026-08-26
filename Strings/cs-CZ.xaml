@@ -939,4 +939,30 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Busy_ExportPage">Export stránky {0} z {1}...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc zruší)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">Stahování {0} - {1} z {2} -</sys:String>
+    <!-- PDF comparison (#160) -->
+    <sys:String x:Key="Str_TT_ComparePDFs">Porovnat PDF</sys:String>
+    <sys:String x:Key="Str_TT_ExitComparison">Ukončit porovnání</sys:String>
+    <sys:String x:Key="Str_Compare_OpenOriginal">Před zahájením porovnání otevřete původní PDF.</sys:String>
+    <sys:String x:Key="Str_Compare_SelectTitle">Vyberte PDF k porovnání</sys:String>
+    <sys:String x:Key="Str_Compare_ChooseDifferent">Vyberte k porovnání jiné PDF.</sys:String>
+    <sys:String x:Key="Str_Compare_Ended">Porovnání PDF ukončeno</sys:String>
+    <sys:String x:Key="Str_Compare_MissingRight">V porovnávaném PDF není odpovídající stránka</sys:String>
+    <sys:String x:Key="Str_Compare_MissingLeft">V původním PDF není odpovídající stránka</sys:String>
+    <sys:String x:Key="Str_Compare_PageOnlyOne">Stránka {0} existuje pouze v {1} PDF</sys:String>
+    <sys:String x:Key="Str_Compare_Original">původním</sys:String>
+    <sys:String x:Key="Str_Compare_Comparison">porovnávaném</sys:String>
+    <sys:String x:Key="Str_Compare_Changed">Stránka {0}: změněno {1}</sys:String>
+    <sys:String x:Key="Str_Compare_NoDifferences">Stránka {0}: žádné vizuální rozdíly</sys:String>
+    <sys:String x:Key="Str_Compare_DimensionsDiffer">Stránka {0}: rozměry stránek se liší</sys:String>
+    <sys:String x:Key="Str_Compare_Failed">Porovnání se nezdařilo: {0}</sys:String>
+    <sys:String x:Key="Str_Compare_OpenTabs">Porovnat s otevřenou kartou</sys:String>
+    <sys:String x:Key="Str_Compare_NoOpenTabs">Nejsou otevřeny žádné další karty PDF</sys:String>
+    <sys:String x:Key="Str_Compare_Browse">Vybrat jiné PDF...</sys:String>
+    <sys:String x:Key="Str_Compare_Bar">POROVNÁNÍ</sys:String>
+    <sys:String x:Key="Str_Compare_Comparing">Porovnávání...</sys:String>
+    <sys:String x:Key="Str_Compare_ChangedAndDimensions">Stránka {0}: rozměry se liší; změněno {1}</sys:String>
+    <sys:String x:Key="Str_Compare_ViewLocked">Porovnání používá uzamčené zobrazení jedné stránky</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
 </ResourceDictionary>

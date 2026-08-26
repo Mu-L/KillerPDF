@@ -941,4 +941,30 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Busy_ExportPage">{0}. / {1} oldal exportálása...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc megszakítja)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">{0} letöltése - {1} / {2} -</sys:String>
+    <!-- PDF comparison (#160) -->
+    <sys:String x:Key="Str_TT_ComparePDFs">PDF-ek összehasonlítása</sys:String>
+    <sys:String x:Key="Str_TT_ExitComparison">Összehasonlítás befejezése</sys:String>
+    <sys:String x:Key="Str_Compare_OpenOriginal">Az összehasonlítás előtt nyissa meg az eredeti PDF-et.</sys:String>
+    <sys:String x:Key="Str_Compare_SelectTitle">Összehasonlítandó PDF kiválasztása</sys:String>
+    <sys:String x:Key="Str_Compare_ChooseDifferent">Válasszon másik PDF-et az összehasonlításhoz.</sys:String>
+    <sys:String x:Key="Str_Compare_Ended">PDF-összehasonlítás befejezve</sys:String>
+    <sys:String x:Key="Str_Compare_MissingRight">Nincs megfelelő oldal az összehasonlított PDF-ben</sys:String>
+    <sys:String x:Key="Str_Compare_MissingLeft">Nincs megfelelő oldal az eredeti PDF-ben</sys:String>
+    <sys:String x:Key="Str_Compare_PageOnlyOne">A(z) {0}. oldal csak a(z) {1} PDF-ben található</sys:String>
+    <sys:String x:Key="Str_Compare_Original">eredeti</sys:String>
+    <sys:String x:Key="Str_Compare_Comparison">összehasonlított</sys:String>
+    <sys:String x:Key="Str_Compare_Changed">{0}. oldal: {1} megváltozott</sys:String>
+    <sys:String x:Key="Str_Compare_NoDifferences">{0}. oldal: nincs vizuális eltérés</sys:String>
+    <sys:String x:Key="Str_Compare_DimensionsDiffer">{0}. oldal: az oldalméretek eltérnek</sys:String>
+    <sys:String x:Key="Str_Compare_Failed">Az összehasonlítás sikertelen: {0}</sys:String>
+    <sys:String x:Key="Str_Compare_OpenTabs">Összehasonlítás megnyitott lappal</sys:String>
+    <sys:String x:Key="Str_Compare_NoOpenTabs">Nincs másik megnyitott PDF-lap</sys:String>
+    <sys:String x:Key="Str_Compare_Browse">Másik PDF kiválasztása...</sys:String>
+    <sys:String x:Key="Str_Compare_Bar">ÖSSZEHASONLÍTÁS</sys:String>
+    <sys:String x:Key="Str_Compare_Comparing">Összehasonlítás...</sys:String>
+    <sys:String x:Key="Str_Compare_ChangedAndDimensions">{0}. oldal: eltérő méretek; {1} megváltozott</sys:String>
+    <sys:String x:Key="Str_Compare_ViewLocked">Az összehasonlítás zárolt egyoldalas nézetet használ</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
 </ResourceDictionary>

@@ -136,7 +136,10 @@ namespace KillerPDF.Features
 
         /// <summary>This viewer's zoom or fit mode changed (updates the zoom box). 16 uses of
         /// ZoomBox today.</summary>
-        void ViewerZoomChanged(double zoomLevel);
+        void ViewerZoomChanged(PdfViewer viewer, double zoomLevel);
+
+        /// <summary>The document viewport moved. Used by comparison mode to keep both panes aligned.</summary>
+        void ViewerScrolled(PdfViewer viewer, double horizontalRatio, double verticalRatio);
 
         /// <summary>This viewer took focus - the window repoints the sidebar, page list and
         /// status line at it, and moves the accent halo.</summary>

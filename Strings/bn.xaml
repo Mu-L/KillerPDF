@@ -934,4 +934,30 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Busy_ExportPage">পাতা {0} / {1} রপ্তানি হচ্ছে...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc বাতিল করে)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">{0} ডাউনলোড হচ্ছে - {1} / {2} -</sys:String>
+    <!-- PDF comparison (#160) -->
+    <sys:String x:Key="Str_TT_ComparePDFs">PDF তুলনা করুন</sys:String>
+    <sys:String x:Key="Str_TT_ExitComparison">তুলনা বন্ধ করুন</sys:String>
+    <sys:String x:Key="Str_Compare_OpenOriginal">তুলনা শুরু করার আগে মূল PDF খুলুন।</sys:String>
+    <sys:String x:Key="Str_Compare_SelectTitle">তুলনার জন্য PDF নির্বাচন করুন</sys:String>
+    <sys:String x:Key="Str_Compare_ChooseDifferent">তুলনার জন্য অন্য একটি PDF বেছে নিন।</sys:String>
+    <sys:String x:Key="Str_Compare_Ended">PDF তুলনা শেষ হয়েছে</sys:String>
+    <sys:String x:Key="Str_Compare_MissingRight">তুলনামূলক PDF-এ সংশ্লিষ্ট পৃষ্ঠা নেই</sys:String>
+    <sys:String x:Key="Str_Compare_MissingLeft">মূল PDF-এ সংশ্লিষ্ট পৃষ্ঠা নেই</sys:String>
+    <sys:String x:Key="Str_Compare_PageOnlyOne">পৃষ্ঠা {0} শুধু {1} PDF-এ আছে</sys:String>
+    <sys:String x:Key="Str_Compare_Original">মূল</sys:String>
+    <sys:String x:Key="Str_Compare_Comparison">তুলনামূলক</sys:String>
+    <sys:String x:Key="Str_Compare_Changed">পৃষ্ঠা {0}: {1} পরিবর্তিত</sys:String>
+    <sys:String x:Key="Str_Compare_NoDifferences">পৃষ্ঠা {0}: কোনো দৃশ্যমান পার্থক্য নেই</sys:String>
+    <sys:String x:Key="Str_Compare_DimensionsDiffer">পৃষ্ঠা {0}: পৃষ্ঠার মাপ ভিন্ন</sys:String>
+    <sys:String x:Key="Str_Compare_Failed">তুলনা ব্যর্থ: {0}</sys:String>
+    <sys:String x:Key="Str_Compare_OpenTabs">খোলা ট্যাবের সঙ্গে তুলনা করুন</sys:String>
+    <sys:String x:Key="Str_Compare_NoOpenTabs">অন্য কোনো PDF ট্যাব খোলা নেই</sys:String>
+    <sys:String x:Key="Str_Compare_Browse">অন্য PDF বেছে নিন...</sys:String>
+    <sys:String x:Key="Str_Compare_Bar">তুলনা</sys:String>
+    <sys:String x:Key="Str_Compare_Comparing">তুলনা করা হচ্ছে...</sys:String>
+    <sys:String x:Key="Str_Compare_ChangedAndDimensions">পৃষ্ঠা {0}: মাপ ভিন্ন; {1} পরিবর্তিত</sys:String>
+    <sys:String x:Key="Str_Compare_ViewLocked">তুলনা লক করা একক-পৃষ্ঠা দৃশ্য ব্যবহার করে</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
 </ResourceDictionary>
