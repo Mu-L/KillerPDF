@@ -369,7 +369,7 @@ namespace KillerPDF
             }
         }
 
-        private void AddSearchHighlight(Canvas canvas, double left, double bottom, double right, double top,
+        private static void AddSearchHighlight(Canvas canvas, double left, double bottom, double right, double top,
             double sx, double sy, double renderH, bool isCurrent)
         {
             double cw = (right - left) * sx;

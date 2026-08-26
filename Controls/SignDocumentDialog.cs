@@ -418,7 +418,7 @@ namespace KillerPDF
             combo.Background = R("BgCanvas");
         }
 
-        private TextBox Field(string text)
+        private static TextBox Field(string text)
         {
             var tb = new TextBox
             {

@@ -751,7 +751,7 @@ namespace KillerPDF
         // ============================================================
 
         /// <summary>Look up a localized string. Falls back to the key name if missing.</summary>
-        private string Loc(string key)
+        private static string Loc(string key)
             => Application.Current.TryFindResource(key) as string ?? key;
 
         // A "held" status message briefly wins over routine updates: scrolling the logo to

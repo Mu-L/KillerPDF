@@ -232,7 +232,7 @@ namespace KillerPDF
             }
         }
 
-        private void DeliverExternalOpen(string? path)
+        private static void DeliverExternalOpen(string? path)
         {
             if (Current?.MainWindow is MainWindow mw)
             {

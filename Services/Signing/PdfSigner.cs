@@ -16,7 +16,10 @@ namespace KillerPDF.Services.Signing
             int PageIndex, double Left, double Bottom, double Width, double Height,
             double FontSize, string Text);
 
+        // Keep signing behind the injected service instance used by the application and tests.
+#pragma warning disable CA1822
         public void Sign(string inputPath, string outputPath, X509Certificate2 cert, SignInfo info)
+#pragma warning restore CA1822
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(inputPath);
             ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);

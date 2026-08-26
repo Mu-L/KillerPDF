@@ -771,7 +771,7 @@ namespace KillerPDF.Controls
         // else is the minus. The glyphs themselves are no longer rendered (see above).
         private Border MakeFormSizeStep(string glyph, Action onClick) => MakeFormSizeStep(glyph == "", onClick);
 
-        private Border MakeFormSizeStep(bool plus, Action onClick)
+        private static Border MakeFormSizeStep(bool plus, Action onClick)
         {
             var fill = new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xEE));
             var shape = new Grid

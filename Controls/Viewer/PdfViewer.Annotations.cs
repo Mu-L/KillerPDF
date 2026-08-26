@@ -476,7 +476,7 @@ namespace KillerPDF.Controls
                 ? "Str_St_DeletedAnnotationOne" : "Str_St_DeletedAnnotationMany"), toDelete.Count));
         }
 
-        private bool HitTestAnnotation(PageAnnotation annot, Point pos, out Rect bounds)
+        private static bool HitTestAnnotation(PageAnnotation annot, Point pos, out Rect bounds)
         {
             switch (annot)
             {

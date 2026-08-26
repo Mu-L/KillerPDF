@@ -15,7 +15,7 @@ namespace KillerPDF.Services
         /// Scans every page of <paramref name="filePath"/> for <paramref name="query"/> (case-insensitive).
         /// Returns an empty result when query is blank or the file cannot be opened.
         /// </summary>
-        public SearchResult Search(string filePath, string query)
+        public static SearchResult Search(string filePath, string query)
         {
             var result = new SearchResult();
             if (string.IsNullOrWhiteSpace(query) || string.IsNullOrWhiteSpace(filePath))

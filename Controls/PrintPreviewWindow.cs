@@ -930,7 +930,7 @@ namespace KillerPDF
 
         // Collapsible section, the TransformWindow.WrapSection pattern: lifts the children added
         // since <paramref name="start"/> into a togglable body under a chevron header.
-        private void WrapSection(StackPanel host, int start, string title, bool expanded)
+        private static void WrapSection(StackPanel host, int start, string title, bool expanded)
         {
             var children = host.Children.Cast<UIElement>().Skip(start).ToList();
             while (host.Children.Count > start) host.Children.RemoveAt(start);

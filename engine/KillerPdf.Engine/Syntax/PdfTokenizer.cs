@@ -349,7 +349,7 @@ public sealed class PdfTokenizer
         }
     }
 
-    private PdfToken Token(PdfTokenKind kind, int offset, int length, ReadOnlyMemory<byte> value = default) =>
+    private static PdfToken Token(PdfTokenKind kind, int offset, int length, ReadOnlyMemory<byte> value = default) =>
         new(kind, offset, length, value);
 
     private static PdfSyntaxException Error(string message, int offset) => new(message, offset);

@@ -290,7 +290,7 @@ namespace KillerPDF
             capture.ShowDialog();
         }
         // ── Saved swatches ──────────────────────────────────────────────────────
-        private List<Color> LoadSaved()
+        private static List<Color> LoadSaved()
         {
             var raw = App.GetSetting(SavedKey);
             if (string.IsNullOrWhiteSpace(raw)) return [.. DefaultSwatches];   // first run = defaults
@@ -299,7 +299,7 @@ namespace KillerPDF
                 if (TryParseHex(part.Trim(), out Color c)) list.Add(c);
             return list.Count > 0 ? list : [.. DefaultSwatches];
         }
-        private void StoreSaved(List<Color> list) =>
+        private static void StoreSaved(List<Color> list) =>
             App.SetSetting(SavedKey, string.Join(",", list.Take(SwatchMax).Select(c => $"#{c.R:X2}{c.G:X2}{c.B:X2}")));
         private void UpdateReplaceChip()
         {
@@ -333,7 +333,7 @@ namespace KillerPDF
             }
         }
         // ── Small themed control builders ───────────────────────────────────────
-        private StackPanel FieldGroup(string label, TextBox box)
+        private static StackPanel FieldGroup(string label, TextBox box)
         {
             var sp = new StackPanel { Margin = new Thickness(0, 0, 6, 0) };
             sp.Children.Add(new TextBlock { Text = label, Foreground = R("MutedTextBrush"), FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center });
@@ -349,7 +349,7 @@ namespace KillerPDF
             b.KeyDown += (_, e) => { if (e.Key == Key.Enter) CommitRgb(); };
             return b;
         }
-        private TextBox MakeTextBox(double width)
+        private static TextBox MakeTextBox(double width)
         {
             // Use the one shared field implementation. In particular, TextFieldBrush is white on
             // 98SE while the document canvas is gray; a local BgCanvas field was visibly wrong.
@@ -360,7 +360,7 @@ namespace KillerPDF
             return box;
         }
         // A crosshair/target glyph drawn in vectors, to match the KillerPDF look.
-        private UIElement CrosshairIcon()
+        private static UIElement CrosshairIcon()
         {
             var g = new Grid { Width = 14, Height = 14 };
             var fg = R("TextBrush");
@@ -383,7 +383,7 @@ namespace KillerPDF
             b.MouseLeave += (_, _) => { b.Background = (b == _replaceBtn && _replaceArmed) ? R("RowSelectedBrush") : R("PaneBrush"); };
             return b;
         }
-        private Button MakeButton(string text, bool primary)
+        private static Button MakeButton(string text, bool primary)
         {
             // 98SE: the shared kit button already carries the beveled ChipFace treatment, so the
             // dialog's OK / Cancel match the classic toolbar instead of the modern accent pair.

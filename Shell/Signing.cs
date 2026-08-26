@@ -193,7 +193,7 @@ namespace KillerPDF
         /// top-right inset when nothing is stored. Always clamped inside <paramref name="bounds"/>.
         /// Must run after layout so the panel's ActualWidth/Height are known.
         /// </summary>
-        private void ApplySavedPanelPosition(FrameworkElement panel, FrameworkElement bounds, string keyPrefix,
+        private static void ApplySavedPanelPosition(FrameworkElement panel, FrameworkElement bounds, string keyPrefix,
                                              double fallbackRightInset, double fallbackTop)
         {
             double w = panel.ActualWidth > 0 ? panel.ActualWidth : (double.IsNaN(panel.Width) ? 0 : panel.Width);
@@ -216,7 +216,7 @@ namespace KillerPDF
         /// Makes <paramref name="handle"/> drag <paramref name="panel"/> within <paramref name="bounds"/>,
         /// clamped to stay inside, and persists the resulting position under <paramref name="keyPrefix"/>.
         /// </summary>
-        private void EnablePanelDrag(FrameworkElement handle, FrameworkElement panel, FrameworkElement bounds,
+        private static void EnablePanelDrag(FrameworkElement handle, FrameworkElement panel, FrameworkElement bounds,
                                      string keyPrefix)
         {
             handle.Cursor = DragCursors.Open;
@@ -257,7 +257,7 @@ namespace KillerPDF
             };
         }
 
-        private void RenderSignaturePreview(Canvas canvas, SavedSignature sig, double targetW, double targetH)
+        private static void RenderSignaturePreview(Canvas canvas, SavedSignature sig, double targetW, double targetH)
         {
             double scaleX = targetW / sig.CanvasWidth;
             double scaleY = targetH / sig.CanvasHeight;

@@ -127,7 +127,7 @@ public sealed class PdfObjectParser
         return new PdfIndirectReference((int)value, (int)generation);
     }
 
-    private PdfReal ParseReal(PdfToken token)
+    private static PdfReal ParseReal(PdfToken token)
     {
         if (!double.TryParse(token.Value.Span, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
                              CultureInfo.InvariantCulture, out double value)

@@ -10664,7 +10664,7 @@ public sealed class PdfIncrementalPageEditor
             document, item, "An imported color-space component-count value");
     }
 
-    private void BuildImportedPage(
+    private static void BuildImportedPage(
         PdfIncrementalUpdateBuilder update,
         PageState state,
         PdfIndirectReference destinationReference,

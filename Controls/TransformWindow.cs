@@ -738,7 +738,7 @@ namespace KillerPDF
             SchedulePreview();
         }
 
-        private TextBlock SliderLabel(string text) => new()
+        private static TextBlock SliderLabel(string text) => new()
         {
             Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
             FontSize = 10, Margin = new Thickness(0, 6, 0, 0),
@@ -785,7 +785,7 @@ namespace KillerPDF
             Dispatcher.BeginInvoke(new Action(UpdatePerspectiveOverlay), DispatcherPriority.Loaded);
         }
 
-        private TextBlock SectionHeader(string text) => new()
+        private static TextBlock SectionHeader(string text) => new()
         {
             Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
             FontSize = 10, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 4)
@@ -822,14 +822,14 @@ namespace KillerPDF
             host.Children.Add(body);
         }
 
-        private Border Divider()
+        private static Border Divider()
         {
             var b = new Border { Height = 1, Margin = new Thickness(0, 14, 0, 12) };
             b.SetResourceReference(Border.BackgroundProperty, "CardBorderBrush");
             return b;
         }
 
-        private DockPanel ValueRow(string label, string value, out TextBlock valueBlock, out Button reset)
+        private static DockPanel ValueRow(string label, string value, out TextBlock valueBlock, out Button reset)
         {
             var row = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
             reset = UiKit.Make(S("Str_Tf_Reset"), false);
@@ -853,7 +853,7 @@ namespace KillerPDF
             return row;
         }
 
-        private RadioButton MakeRadio(string text, bool isChecked, Style? style)
+        private static RadioButton MakeRadio(string text, bool isChecked, Style? style)
         {
             var rb = new RadioButton
             {
@@ -865,7 +865,7 @@ namespace KillerPDF
             return rb;
         }
 
-        private CheckBox MakeCheck(string text)
+        private static CheckBox MakeCheck(string text)
         {
             var cb = UiKit.CheckBox(text);
             cb.Margin = new Thickness(0, 3, 0, 0);

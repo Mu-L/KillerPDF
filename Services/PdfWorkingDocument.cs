@@ -37,6 +37,9 @@ internal sealed class PdfWorkingDocument : IDisposable
         destination.Write(_source);
     }
 
+    // Preserve the instance lifecycle contract even though disposal currently owns no resources.
+#pragma warning disable CA1822
     internal void Close() { }
+#pragma warning restore CA1822
     public void Dispose() { }
 }

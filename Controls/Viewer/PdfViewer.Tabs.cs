@@ -234,7 +234,7 @@ namespace KillerPDF.Controls
         // recent first, capped. '|' and newline are both illegal in Windows paths, so they're safe delimiters.
         private const int DocStatesMax = 40;
 
-        private void SaveDocState(string? path, FitMode fit, double zoom, ViewMode view, int page)
+        private static void SaveDocState(string? path, FitMode fit, double zoom, ViewMode view, int page)
         {
             if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return;   // skip Untitled/imported
             string entry = string.Join("|", path,
@@ -257,7 +257,7 @@ namespace KillerPDF.Controls
             App.SetSetting("DocStates", string.Join("\n", lines));
         }
 
-        private bool TryGetDocState(string? path, out FitMode fit, out double zoom, out ViewMode view, out int page)
+        private static bool TryGetDocState(string? path, out FitMode fit, out double zoom, out ViewMode view, out int page)
         {
             fit = FitMode.None; zoom = 1.0; view = ViewMode.Continuous; page = 0;
             if (string.IsNullOrEmpty(path)) return false;
@@ -419,7 +419,7 @@ namespace KillerPDF.Controls
         }
 
         // Drop a tab's cached bitmaps after an edit that changes page pixels or page order.
-        private void InvalidateRenderCache(DocumentSession? s)
+        private static void InvalidateRenderCache(DocumentSession? s)
         {
             s?.RenderCache.Clear();
             s?.RenderCacheSize.Clear();

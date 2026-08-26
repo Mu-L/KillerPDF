@@ -363,7 +363,7 @@ namespace KillerPDF
         }
 
         // ---------- shared builders ----------
-        private CheckBox SectionToggle(string text, bool on)
+        private static CheckBox SectionToggle(string text, bool on)
         {
             var cb = UiKit.CheckBox(text);
             cb.IsChecked = on;
@@ -375,7 +375,7 @@ namespace KillerPDF
 
         // Collapsible section header. The enable checkbox itself expands (checked) or collapses (unchecked)
         // the body; the chevron is just a non-clickable indicator of that state.
-        private FrameworkElement SectionHeaderRow(CheckBox enable, StackPanel body)
+        private static FrameworkElement SectionHeaderRow(CheckBox enable, StackPanel body)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
             var chevron = new TextBlock
@@ -434,7 +434,7 @@ namespace KillerPDF
             return combo;
         }
 
-        private RadioButton MakeRadio(string text, bool isChecked)
+        private static RadioButton MakeRadio(string text, bool isChecked)
         {
             var rb = UiKit.Radio(text);
             rb.IsChecked = isChecked;
@@ -479,7 +479,7 @@ namespace KillerPDF
             return row;
         }
 
-        private FrameworkElement Divider() => new Border { Height = 1, Background = R("CardBorderBrush"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
+        private static FrameworkElement Divider() => new Border { Height = 1, Background = R("CardBorderBrush"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
 
         private void UpdateEnabledStates()
         {
@@ -554,7 +554,7 @@ namespace KillerPDF
         }
 
         // Same chrome as the print preview stepper (UiKit.Make), so the two windows share one button style.
-        private Button MakeNavArrow(string glyph, Action onClick)
+        private static Button MakeNavArrow(string glyph, Action onClick)
         {
             var b = UiKit.Make(glyph, false);
             b.FontFamily = UiKit.IconFont;

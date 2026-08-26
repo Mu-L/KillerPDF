@@ -79,7 +79,7 @@ namespace KillerPDF.Features
 
             try
             {
-                var sr = _searchService.Search(_host.CurrentFile, query);
+                var sr = SearchService.Search(_host.CurrentFile, query);
 
                 foreach (var kvp in sr.PageRects)
                     AllSearchRects[kvp.Key] = kvp.Value;

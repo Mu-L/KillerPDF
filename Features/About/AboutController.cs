@@ -78,7 +78,7 @@ namespace KillerPDF.Features
         }
 
         /// <summary>Opens the GitHub release for the running version.</summary>
-        internal void OpenReleaseNotes() => OpenUrl($"{Repo}/releases/tag/v{Version}");
+        internal static void OpenReleaseNotes() => OpenUrl($"{Repo}/releases/tag/v{Version}");
 
         internal static void OpenUrl(string url)
         {

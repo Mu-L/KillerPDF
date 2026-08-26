@@ -58,7 +58,7 @@ namespace KillerPDF
         // Wraps a floating annotation bar's content with the app's film-grain layer so these bars
         // carry the same texture as the Settings / signature / dialog surfaces. The grain extends
         // under the host border's 4px padding (negative margin) and matches its bottom corners.
-        private Grid GrainWrap(UIElement content)
+        private static Grid GrainWrap(UIElement content)
         {
             var g = new Grid();
             // SetResourceReference, not a FindResource snapshot: these hosts are built once and
