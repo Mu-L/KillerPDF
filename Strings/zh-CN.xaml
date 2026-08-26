@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">签名 - 创建并放置签名 (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">图片工具 - 点击以插入图片至页面 (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">裁切工具 - 拖曳设置裁切区域，然后套用至页面 (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">测量距离并查看页面大小</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">清除所有注释</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">复原上一步 (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">多页网格视图 (F8)</sys:String>
@@ -232,6 +233,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Lbl_Shape">形状</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">填充</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">裁切</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">测量</sys:String>
     <sys:String x:Key="Str_Lbl_Image">加入图片</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">签名</sys:String>
     <sys:String x:Key="Str_Lbl_Undo">复原</sys:String>

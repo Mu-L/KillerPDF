@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">Podpis - vytvoření a umístění podpisů (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Nástroj obrázku - kliknutím vložíte obrázek na stránku (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Ořez - tažením nastavte oblast ořezu a poté použijte na stránky (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">Měřit vzdálenost a zobrazit velikost stránky</sys:String>
     <sys:String x:Key="Str_TT_RotateTool">Transformace stránky - otočení / narovnání (změna měřítka již brzy) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Odstranit všechny anotace</sys:String>
     <sys:String x:Key="Str_TT_Search">Hledat (Ctrl+F)</sys:String>
@@ -285,6 +286,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Lbl_Shape">Tvary</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Výplň</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Ořez</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">Měření</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Transformace</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Razítko</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Přidat obrázek</sys:String>

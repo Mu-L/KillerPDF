@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">Aláírás - aláírások létrehozása és elhelyezése (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Kép eszköz - kattintson kép beszúrásához az oldalra (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Vágóeszköz - húzással állítsa be a vágási területet, majd alkalmazza az oldal(ak)ra (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">Távolság mérése és oldalméret megtekintése</sys:String>
     <sys:String x:Key="Str_TT_RotateTool">Oldal átalakítása - forgatás / kiegyenesítés (méretezés hamarosan) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Összes jegyzet törlése</sys:String>
     <sys:String x:Key="Str_TT_Search">Keresés (Ctrl+F)</sys:String>
@@ -285,6 +286,7 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Lbl_Draw">Rajz</sys:String>
     <sys:String x:Key="Str_Lbl_Shape">Alakzatok</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Vágás</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">Mérés</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Átalakítás</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Bélyegző</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Kép hozzáadása</sys:String>

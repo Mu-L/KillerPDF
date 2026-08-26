@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">Podpisy - tworzyć i umieszczać podpisy (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Narzędzie Obrazu - kliknij, aby wstawić obraz na stronę (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Narzędzie Przycinania - przeciągnij, aby ustawić obszar przycięcia, a następnie zastosuj do strony (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">Zmierz odległość i wyświetl rozmiar strony</sys:String>
     <sys:String x:Key="Str_TT_RotateTool">Przekształć stronę - obrót / korekcja zniekształceń (skala już wkrótce) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Wyczyść wszystkie adnotacje</sys:String>
     <sys:String x:Key="Str_TT_Search">Szukaj (Ctrl+F)</sys:String>
@@ -277,6 +278,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Lbl_Draw">Rysuj</sys:String>
     <sys:String x:Key="Str_Lbl_Shape">Kształt</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Kadruj</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">Pomiar</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Przekształć</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Stempel</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Dodaj obraz</sys:String>

@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">署名 - 署名を作成して配置 (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">画像ツール - クリックしてページに画像を挿入 (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">トリミングツール - ドラッグしてトリミング範囲を設定し、ページに適用 (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">距離を測定し、ページサイズを表示</sys:String>
     <sys:String x:Key="Str_TT_RotateTool">ページ変換 - 回転 / 傾き補正 (拡大縮小は近日対応) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">すべての注釈をクリア</sys:String>
     <sys:String x:Key="Str_TT_Search">検索 (Ctrl+F)</sys:String>
@@ -284,6 +285,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">描画</sys:String>
     <sys:String x:Key="Str_Lbl_Shape">図形</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">トリミング</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">測定</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">変換</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">スタンプ</sys:String>
     <sys:String x:Key="Str_Lbl_Image">画像を追加</sys:String>

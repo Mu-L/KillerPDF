@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">Signatur - Signaturen erstellen und platzieren (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Bildwerkzeug - klicken, um ein Bild einzufügen (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Zuschneidewerkzeug - Bereich wählen und auf Seiten anwenden (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">Abstand messen und Seitengröße anzeigen</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Alle Anmerkungen entfernen</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Letzte Aktion rückgängig machen (Strg+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Mehrseitige Rasteransicht (F8)</sys:String>
@@ -232,6 +233,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Lbl_Shape">Formen</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Füllung</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Zuschneiden</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">Messen</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Bild hinzufügen</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">Signatur</sys:String>
     <sys:String x:Key="Str_Lbl_Undo">Rückgängig</sys:String>

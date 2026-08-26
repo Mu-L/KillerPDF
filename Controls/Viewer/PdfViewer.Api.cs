@@ -48,6 +48,7 @@ namespace KillerPDF.Controls
         internal void DeleteSelectedExt() => DeleteSelected();
         internal bool SelectAllAnnotationsExt() => SelectAllAnnotations();
         internal void HideBrushPreviewExt() => HideBrushPreview();
+        internal void ClearMeasurementExt() => ClearMeasurement();
         internal void FinishStuckGestureExt() => FinishStuckGesture();
         internal void RefreshSelectionAccentExt() => RefreshSelectionAccent();
 

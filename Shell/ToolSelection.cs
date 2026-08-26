@@ -40,6 +40,7 @@ namespace KillerPDF
             EditTool.Image => Cursors.Hand,
             EditTool.Crop => Cursors.Cross,
             EditTool.Rotate => Cursors.Cross,
+            EditTool.Measure => Cursors.Cross,
             _ => Cursors.Arrow
         };
 
@@ -60,6 +61,7 @@ namespace KillerPDF
             ClearTextSelection();
             CancelShapePolygon();   // abandon an in-progress polygon when switching tools
             if (tool != EditTool.Draw) HideBrushPreview();   // drop the brush cursor when leaving Draw
+            if (tool != EditTool.Measure) ActiveViewer.ClearMeasurementExt();
             _currentTool = tool;
             ActiveViewer.RefreshFormDesignMode();
 
@@ -75,7 +77,8 @@ namespace KillerPDF
                 (_toolSignatureBtn, EditTool.Signature),
                 (_toolImageBtn, EditTool.Image),
                 (_toolCropBtn, EditTool.Crop),
-                (_toolRotateBtn, EditTool.Rotate)
+                (_toolRotateBtn, EditTool.Rotate),
+                (_toolMeasureBtn, EditTool.Measure)
             };
             foreach (var (btn, t) in map)
             {
@@ -145,7 +148,7 @@ namespace KillerPDF
                 (MiText, EditTool.Text), (MiFormField, EditTool.FormField),
                 (MiUnderline, EditTool.Line), (MiHighlight, EditTool.Highlight),
                 (MiDraw, EditTool.Draw), (MiImage, EditTool.Image), (MiCrop, EditTool.Crop),
-                (MiSignature, EditTool.Signature),
+                (MiSignature, EditTool.Signature), (MiMeasure, EditTool.Measure),
             };
             foreach (var (mi, t) in map)
             {

@@ -1083,6 +1083,7 @@ namespace KillerPDF
                     (GrpSignature,      new UIElement[] { MiSignature }),
                     (ToolImageBtn,      new UIElement[] { MiImage }),
                     (ToolCropBtn,       new UIElement[] { MiCrop }),
+                    (ToolMeasureBtn,    new UIElement[] { MiMeasure }),
                     (GrpUndo,           new UIElement[] { MiUndo, MiClear }),
                     (ToolShapeBtn,      new UIElement[] { MiShape }),
                     (ToolDrawBtn,       new UIElement[] { MiDraw }),

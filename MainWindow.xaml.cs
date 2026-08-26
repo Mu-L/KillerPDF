@@ -194,6 +194,7 @@ namespace KillerPDF
         private Border? _cropConfirmBar { get => ActiveViewer.CropConfirmBarRef; set => ActiveViewer.CropConfirmBarRef = value; }
         private readonly Button _toolCropBtn = null!;
         private readonly Button _toolRotateBtn = null!;
+        private readonly Button _toolMeasureBtn = null!;
         private List<Rectangle> _cropHandles => ActiveViewer.CropHandlesRef;
         private string? _activeCropHandleTag { get => ActiveViewer.ActiveCropHandleTagRef; set => ActiveViewer.ActiveCropHandleTagRef = value; }
         private Point _cropHandleDragStart { get => ActiveViewer.CropHandleDragStartRef; set => ActiveViewer.CropHandleDragStartRef = value; }
@@ -337,6 +338,7 @@ namespace KillerPDF
             _toolImageBtn = (Button)FindName("ToolImageBtn")!;
             _toolCropBtn = (Button)FindName("ToolCropBtn")!;
             _toolRotateBtn = (Button)FindName("ToolRotateBtn")!;
+            _toolMeasureBtn = (Button)FindName("ToolMeasureBtn")!;
             _sidebarToggleBtn = (Button)FindName("SidebarToggleBtn")!;
             _sidebarBorder = (Border)FindName("SidebarBorder")!;
             _sidebarCol = (ColumnDefinition)FindName("SidebarCol")!;

@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">Signature - create and place signatures (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Image Tool - click to insert an image onto the page (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Crop Tool - drag to set crop area, then apply to page(s) (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">Measure distance and inspect page size</sys:String>
     <sys:String x:Key="Str_TT_RotateTool">Transform page - rotate / deskew (scale coming soon) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Clear All Annotations</sys:String>
     <sys:String x:Key="Str_TT_Search">Search (Ctrl+F)</sys:String>
@@ -285,6 +286,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Lbl_Draw">Draw</sys:String>
     <sys:String x:Key="Str_Lbl_Shape">Shapes</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Crop</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">Measure</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Transform</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Stamp</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Add Image</sys:String>

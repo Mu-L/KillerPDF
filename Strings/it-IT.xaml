@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">Firma: crea e posiziona firme (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Strumento immagine: clic per inserire un'immagine nella pagina (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Strumento ritaglio: trascina per impostare l'area di ritaglio, quindi applica alle pagine (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">Misura la distanza e visualizza le dimensioni della pagina</sys:String>
     <sys:String x:Key="Str_TT_RotateTool">Trasforma pagina: ruota/raddrizza (scala disponibile a breve) (R)</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Cancella tutte le annotazioni</sys:String>
     <sys:String x:Key="Str_TT_Search">Cerca (Ctrl+F)</sys:String>
@@ -285,6 +286,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Lbl_Draw">Disegna</sys:String>
     <sys:String x:Key="Str_Lbl_Shape">Forme</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Ritaglia</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">Misura</sys:String>
     <sys:String x:Key="Str_Lbl_Rotate">Trasforma</sys:String>
     <sys:String x:Key="Str_Lbl_Stamp">Stampa</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Aggiungi immagine</sys:String>

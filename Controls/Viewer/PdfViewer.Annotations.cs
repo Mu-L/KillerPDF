@@ -1182,6 +1182,11 @@ namespace KillerPDF.Controls
                     e.Handled = true;
                     break;
 
+                case EditTool.Measure:
+                    BeginMeasurement(pageIdx, pos);
+                    e.Handled = true;
+                    break;
+
                 case EditTool.Highlight:
                 case EditTool.Strikethrough:
                 case EditTool.Underline:
@@ -1680,6 +1685,10 @@ namespace KillerPDF.Controls
 
             switch (_currentTool)
             {
+                case EditTool.Measure:
+                    UpdateMeasurement(pos);
+                    break;
+
                 case EditTool.Shape when _activePreview is Rectangle:
                 case EditTool.Highlight when _activePreview is Rectangle:
                 case EditTool.Strikethrough when _activePreview is Rectangle:
@@ -1969,11 +1978,19 @@ namespace KillerPDF.Controls
             }
 
             if (!_isDrawing) return;
+            if (_activeCanvas is not Canvas releaseCanvas) return;
+            Point releasePos = e.GetPosition(releaseCanvas);
+            releasePos.X = Math.Max(0, Math.Min(releaseCanvas.ActualWidth, releasePos.X));
+            releasePos.Y = Math.Max(0, Math.Min(releaseCanvas.ActualHeight, releasePos.Y));
             _isDrawing = false;
             _activeCanvas?.ReleaseMouseCapture();
 
             switch (_currentTool)
             {
+                case EditTool.Measure:
+                    FinishMeasurement(releasePos);
+                    return;
+
                 case EditTool.FormField when _activePreview is Rectangle fieldRect:
                     CommitFormFieldDrag(pageIdx, fieldRect);
                     break;

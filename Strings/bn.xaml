@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">স্বাক্ষর - স্বাক্ষর তৈরি ও স্থাপন করুন (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">ছবি টুল - পৃষ্ঠায় ছবি সন্নিবেশ করতে ক্লিক করুন (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">ক্রপ টুল - ক্রপ এলাকা নির্ধারণে টেনে আনুন, তারপর পৃষ্ঠায় প্রয়োগ করুন (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">দূরত্ব মাপুন এবং পৃষ্ঠার আকার দেখুন</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">সব অ্যানোটেশন মুছুন</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">শেষ কাজ পূর্বাবস্থায় ফেরান (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">বহু-পৃষ্ঠা গ্রিড ভিউ (F8)</sys:String>
@@ -232,6 +233,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Lbl_Shape">আকার</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">ভরাট</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">ক্রপ</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">পরিমাপ</sys:String>
     <sys:String x:Key="Str_Lbl_Image">ছবি যোগ করুন</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">স্বাক্ষর</sys:String>
     <sys:String x:Key="Str_Lbl_Undo">পূর্বাবস্থায় ফেরান</sys:String>

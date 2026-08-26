@@ -13,6 +13,7 @@ KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with an indepen
 KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history is maintained in [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
 
 ### Added
+- A measurement tool now draws a temporary ruler directly on any rendered page and reports distance in inches, millimetres, and PDF points alongside the rotated page size. Measurements remain accurate across zoom levels, render resolutions, and quarter-turn page rotations (#162).
 - KillerPDF now builds separate standard and portable packages. The standard package uses a compact Dark-theme installer with the product identity rail, raised grain-textured content card, runtime detection, account scope, shortcut selection, verified installation, elevation, rollback, and launch completion.
 - The Windows application now directly references The KillerPDF.Engine after moving to .NET 10, establishing the integration boundary while PdfSharpCore is retired through tested feature slices.
 - Text boxes now support adjustable letter spacing with live preview, spacing-aware wrapping, and matching PDF output for aligning characters with preprinted form boxes (#232).

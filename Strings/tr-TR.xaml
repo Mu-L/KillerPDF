@@ -34,6 +34,7 @@
     <sys:String x:Key="Str_TT_SignatureTool">İmza - imza oluştur ve yerleştir (G)</sys:String>
     <sys:String x:Key="Str_TT_ImageTool">Görsel Aracı - sayfaya görsel eklemek için tıkla (I)</sys:String>
     <sys:String x:Key="Str_TT_CropTool">Kırpma Aracı - kırpma alanını belirlemek için sürükle, ardından sayfa(lar)a uygula (C)</sys:String>
+    <sys:String x:Key="Str_TT_MeasureTool">Mesafeyi ölç ve sayfa boyutunu görüntüle</sys:String>
     <sys:String x:Key="Str_TT_ClearAnnotations">Tüm Açıklamaları Temizle</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Son İşlemi Geri Al (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Çok sayfalı ızgara görünümü (F8)</sys:String>
@@ -232,6 +233,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Lbl_Shape">Şekiller</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Dolgu</sys:String>
     <sys:String x:Key="Str_Lbl_Crop">Kırp</sys:String>
+    <sys:String x:Key="Str_Lbl_Measure">Ölç</sys:String>
     <sys:String x:Key="Str_Lbl_Image">Resim Ekle</sys:String>
     <sys:String x:Key="Str_Lbl_Signature">İmza</sys:String>
     <sys:String x:Key="Str_Lbl_Undo">Geri Al</sys:String>
