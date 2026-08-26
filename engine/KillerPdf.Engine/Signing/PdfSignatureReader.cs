@@ -161,11 +161,10 @@ public static class PdfSignatureReader
         {
             PdfArray rangeArray = ResolveArray(document, rangeValue,
                 $"The signature field '{fieldName}' /ByteRange value");
-            PdfObject[] rangeValues = rangeArray
-                .Select(item => Resolve(document, item)).ToArray();
+            PdfObject[] rangeValues = [.. rangeArray.Select(item => Resolve(document, item))];
             if (rangeValues.Length == 4 && rangeValues.All(item => item is PdfInteger))
             {
-                range = rangeValues.Cast<PdfInteger>().Select(item => item.Value).ToArray();
+                range = [.. rangeValues.Cast<PdfInteger>().Select(item => item.Value)];
                 long length = document.Source.Length;
                 valid = range.All(item => item >= 0)
                     && range[0] == 0
@@ -297,8 +296,7 @@ public static class PdfSignatureReader
                 {
                     PdfArray fields = ResolveArray(
                         document, fieldsValue, "The FieldMDP /Fields value");
-                    PdfObject[] fieldValues = fields
-                        .Select(item => Resolve(document, item)).ToArray();
+                    PdfObject[] fieldValues = [.. fields.Select(item => Resolve(document, item))];
                     if (fieldValues.Any(item => item is not PdfString))
                         throw new InvalidOperationException(
                             "The FieldMDP /Fields array contains a non-string value.");

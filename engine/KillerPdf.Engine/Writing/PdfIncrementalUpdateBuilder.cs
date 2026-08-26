@@ -172,7 +172,7 @@ public sealed class PdfIncrementalUpdateBuilder
             && effectiveVersion.CompareTo(new PdfVersion(1, 5)) < 0)
             throw new InvalidOperationException(
                 "Cross-reference streams require PDF 1.5 or later.");
-        int[] unassigned = _reserved.Where(number => !_objects.ContainsKey(number)).Order().ToArray();
+        int[] unassigned = [.. _reserved.Where(number => !_objects.ContainsKey(number)).Order()];
         if (unassigned.Length > 0)
             throw new InvalidOperationException(
                 $"Reserved object {unassigned[0]} has not been assigned a value.");
@@ -194,13 +194,15 @@ public sealed class PdfIncrementalUpdateBuilder
             output.WriteByte((byte)'\n');
 
         List<PendingObject> packed = options.UseObjectStreams
-            ? _objects.Values.Where(item => item.Generation == 0 && item.Value is not PdfStream
+            ? [.. _objects.Values.Where(item => item.Generation == 0 && item.Value is not PdfStream
                 && !encryptionBootstrapObjectNumbers.Contains(item.ObjectNumber)
-                && !_directObjectNumbers.Contains(item.ObjectNumber)).ToList()
+                && !_directObjectNumbers.Contains(item.ObjectNumber))]
             : [];
         var packedNumbers = packed.Select(item => item.ObjectNumber).ToHashSet();
-        List<PendingObject[]> chunks = packed.Chunk(MaximumObjectsPerObjectStream)
-            .Select(chunk => chunk.ToArray()).ToList();
+        List<PendingObject[]> chunks =
+        [
+            .. packed.Chunk(MaximumObjectsPerObjectStream).Select(chunk => chunk.ToArray())
+        ];
         long crossReferenceEntryCount = options.CrossReferenceFormat
             == PdfCrossReferenceFormat.Stream
                 ? (long)_objects.Count + chunks.Count + _freed.Count + 2
@@ -283,11 +285,11 @@ public sealed class PdfIncrementalUpdateBuilder
         byte[] revisionIdentifier, bool compress)
     {
         int size = checked(objectNumber + 1);
-        int[] numbers = written.Select(item => item.ObjectNumber)
+        int[] numbers = [.. written.Select(item => item.ObjectNumber)
             .Concat(compressed.Select(item => item.ObjectNumber))
             .Concat(_freed.Keys)
             .Append(0)
-            .Append(objectNumber).Order().ToArray();
+            .Append(objectNumber).Order()];
         var byNumber = written.ToDictionary(item => item.ObjectNumber);
         var compressedByNumber = compressed.ToDictionary(item => item.ObjectNumber);
         var rows = new byte[checked(numbers.Length * 9)];
@@ -340,7 +342,7 @@ public sealed class PdfIncrementalUpdateBuilder
     {
         int previousHead = _document.CrossReferences.TryGetValue(0, out PdfCrossReferenceEntry zero)
             && zero.Type == PdfCrossReferenceEntryType.Free ? checked((int)zero.Field1) : 0;
-        int[] numbers = _freed.Keys.ToArray();
+        int[] numbers = [.. _freed.Keys];
         var result = new Dictionary<int, int> { [0] = numbers.FirstOrDefault() };
         for (int index = 0; index < numbers.Length; index++)
             result[numbers[index]] = index + 1 < numbers.Length

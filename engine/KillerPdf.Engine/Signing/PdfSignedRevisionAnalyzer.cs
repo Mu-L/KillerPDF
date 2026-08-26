@@ -40,19 +40,19 @@ public static class PdfSignedRevisionAnalyzer
         var laterSections = document.CrossReferences.Sections
             .Where(section => section.Offset >= signedLength)
             .ToArray();
-        int[] changedObjects = document.CrossReferences.AllSections
+        int[] changedObjects = [.. document.CrossReferences.AllSections
             .Where(section => section.Offset >= signedLength)
             .SelectMany(section => section.Keys)
-            .Where(number => number > 0).Distinct().Order().ToArray();
-        int[] freedObjects = changedObjects.Where(number =>
+            .Where(number => number > 0).Distinct().Order()];
+        int[] freedObjects = [.. changedObjects.Where(number =>
             document.CrossReferences.TryGetValue(number, out PdfCrossReferenceEntry entry)
-            && entry.Type == PdfCrossReferenceEntryType.Free).ToArray();
-        int[] updatedObjects = signedDocument is null ? [] : changedObjects.Where(number =>
+            && entry.Type == PdfCrossReferenceEntryType.Free)];
+        int[] updatedObjects = signedDocument is null ? [] : [.. changedObjects.Where(number =>
             !freedObjects.Contains(number)
             && signedDocument.CrossReferences.TryGetValue(number, out PdfCrossReferenceEntry entry)
             && entry.Type is PdfCrossReferenceEntryType.InUse
-                or PdfCrossReferenceEntryType.Compressed).ToArray();
-        int[] addedObjects = changedObjects.Except(freedObjects).Except(updatedObjects).ToArray();
+                or PdfCrossReferenceEntryType.Compressed)];
+        int[] addedObjects = [.. changedObjects.Except(freedObjects).Except(updatedObjects)];
         bool hasLaterChanges = document.Source.Length > signedLength;
         PdfSignedRevisionPermissionAssessment permissionAssessment =
             signature.CertificationPermission switch

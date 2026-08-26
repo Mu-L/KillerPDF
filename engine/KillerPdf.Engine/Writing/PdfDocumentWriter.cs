@@ -139,8 +139,8 @@ public static class PdfDocumentWriter
         if (options.RemoveEncryption
             && document.CrossReferences.TryGetTrailerValue(EncryptName, out PdfObject encryptionValue))
         {
-            HashSet<(int ObjectNumber, int Generation)> encryptionObjects = ResolveChain(
-                document, encryptionValue, "The trailer /Encrypt value").Identities.ToHashSet();
+            HashSet<(int ObjectNumber, int Generation)> encryptionObjects = [.. ResolveChain(
+                document, encryptionValue, "The trailer /Encrypt value").Identities];
             objects.RemoveAll(item => encryptionObjects.Contains((item.ObjectNumber, item.Generation)));
         }
         root = RemoveCatalogMetadata(document, root, objects, options.MetadataPolicy);
@@ -166,8 +166,8 @@ public static class PdfDocumentWriter
             ? document.EncryptionBootstrapObjectNumbers
             : new HashSet<int>();
         List<WritableObject> packed = options.UseObjectStreams
-            ? objects.Where(item => item.Generation == 0 && item.Value is not PdfStream
-                && !encryptionBootstrapObjectNumbers.Contains(item.ObjectNumber)).ToList()
+            ? [.. objects.Where(item => item.Generation == 0 && item.Value is not PdfStream
+                && !encryptionBootstrapObjectNumbers.Contains(item.ObjectNumber))]
             : [];
         var packedNumbers = packed.Select(item => item.ObjectNumber).ToHashSet();
         int objectStreamCount = packed.Count == 0
@@ -175,10 +175,9 @@ public static class PdfDocumentWriter
         if (maximumObjectNumber > int.MaxValue - objectStreamCount - 1)
             throw new NotSupportedException(
                 "The PDF object-number range has no room for structural streams.");
-        List<ObjectStreamChunk> objectStreams = packed.Chunk(MaximumObjectsPerObjectStream)
+        List<ObjectStreamChunk> objectStreams = [.. packed.Chunk(MaximumObjectsPerObjectStream)
             .Select((items, index) => new ObjectStreamChunk(
-                checked(maximumObjectNumber + index + 1), items))
-            .ToList();
+                checked(maximumObjectNumber + index + 1), items))];
         int xrefObjectNumber = checked(maximumObjectNumber + objectStreams.Count + 1);
 
         var offsets = new List<WrittenOffset>(objects.Count);
@@ -239,16 +238,16 @@ public static class PdfDocumentWriter
             .Where(entry => entry.Type == PdfCrossReferenceEntryType.Free)
             .Select(entry => entry.ObjectNumber);
         int[] numbers = size <= PdfCrossReferenceReader.MaximumEntriesPerSection
-            ? Enumerable.Range(0, size).ToArray()
-            : occupied.Keys.Concat(inheritedFree).Append(0)
+            ? [.. Enumerable.Range(0, size)]
+            : [.. occupied.Keys.Concat(inheritedFree).Append(0)
                 .Concat(highWater > 0 && !occupied.ContainsKey(highWater)
                     ? [highWater] : [])
-                .Distinct().Order().ToArray();
+                .Distinct().Order()];
         if (numbers.Length > PdfCrossReferenceReader.MaximumEntriesPerSection)
             throw new NotSupportedException(
                 "The rewritten cross-reference section contains too many entries.");
-        int[] free = numbers.Where(number => number != 0
-            && !occupied.ContainsKey(number)).ToArray();
+        int[] free = [.. numbers.Where(number => number != 0
+            && !occupied.ContainsKey(number))];
         var nextFree = free.Select((number, index) => new
             {
                 Number = number,
@@ -293,17 +292,17 @@ public static class PdfDocumentWriter
             .Where(entry => entry.Type == PdfCrossReferenceEntryType.Free)
             .Select(entry => entry.ObjectNumber);
         int[] numbers = size <= PdfCrossReferenceReader.MaximumEntriesPerSection
-            ? Enumerable.Range(0, size).ToArray()
-            : occupied.Concat(inheritedFree).Append(0)
+            ? [.. Enumerable.Range(0, size)]
+            : [.. occupied.Concat(inheritedFree).Append(0)
                 .Concat(highWater > 0 && !occupied.Contains(highWater)
                     ? [highWater] : [])
-                .Distinct().Order().ToArray();
+                .Distinct().Order()];
         if (numbers.Length > PdfCrossReferenceReader.MaximumEntriesPerSection)
             throw new NotSupportedException(
                 "The rewritten cross-reference stream contains too many entries.");
         var rows = new byte[checked(numbers.Length * 9)];
-        int[] free = numbers.Where(number => number != 0
-            && !occupied.Contains(number)).ToArray();
+        int[] free = [.. numbers.Where(number => number != 0
+            && !occupied.Contains(number))];
         var offsetsByNumber = offsets.ToDictionary(item => item.ObjectNumber);
         var compressedByNumber = objectStreams.SelectMany(chunk =>
             chunk.Objects.Select((item, index) => new

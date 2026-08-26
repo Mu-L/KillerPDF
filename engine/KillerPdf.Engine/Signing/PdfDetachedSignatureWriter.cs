@@ -160,7 +160,7 @@ public static class PdfDetachedSignatureWriter
             if (association.StructureParentKey.HasValue)
                 fieldEntries.Add(("StructParent",
                     new PdfInteger(association.StructureParentKey.Value)));
-            update.SetObject(fieldReference, Dictionary(fieldEntries.ToArray()));
+            update.SetObject(fieldReference, Dictionary([.. fieldEntries]));
 
             PdfArray annotations = page.Dictionary.TryGetValue(
                     AnnotsName, out PdfObject? annotationsValue)
@@ -249,7 +249,7 @@ public static class PdfDetachedSignatureWriter
                 ("TransformParams", fieldMdpParameters)));
         if (references.Count > 0)
             entries.Add(("Reference", new PdfArray(references)));
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static PdfDictionary? AddSignatureField(
@@ -475,7 +475,7 @@ public static class PdfDetachedSignatureWriter
                     "A signature field lock /P value is not an integer from 1 through 3.");
             entries.Add(("P", permission));
         }
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     private static SeedEvidenceRequirements EnforceSeedValue(
@@ -682,8 +682,7 @@ public static class PdfDetachedSignatureWriter
         if (!seed.TryGetValue(Name(key), out PdfObject? value)) return false;
         PdfArray certificates = ResolveArray(document, value,
             $"The certificate seed-value /{key} value");
-        PdfObject[] certificateValues = certificates
-            .Select(item => Resolve(document, item)).ToArray();
+        PdfObject[] certificateValues = [.. certificates.Select(item => Resolve(document, item))];
         if (certificateValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 $"The certificate seed-value /{key} array contains a non-string value.");
@@ -700,8 +699,7 @@ public static class PdfDetachedSignatureWriter
         if (!seed.TryGetValue(Name("Issuer"), out PdfObject? value)) return false;
         PdfArray acceptable = ResolveArray(document, value,
             "The certificate seed-value /Issuer value");
-        PdfObject[] acceptableValues = acceptable
-            .Select(item => Resolve(document, item)).ToArray();
+        PdfObject[] acceptableValues = [.. acceptable.Select(item => Resolve(document, item))];
         if (acceptableValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 "The certificate seed-value /Issuer array contains a non-string value.");
@@ -731,8 +729,7 @@ public static class PdfDetachedSignatureWriter
     {
         if (!seed.TryGetValue(Name("OID"), out PdfObject? value)) return false;
         PdfArray required = ResolveArray(document, value, "The certificate seed-value /OID value");
-        PdfObject[] requiredValues = required
-            .Select(item => Resolve(document, item)).ToArray();
+        PdfObject[] requiredValues = [.. required.Select(item => Resolve(document, item))];
         if (requiredValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 "The certificate seed-value /OID array contains a non-string value.");
@@ -834,8 +831,7 @@ public static class PdfDetachedSignatureWriter
         if (!seed.TryGetValue(Name("KeyUsage"), out PdfObject? value)) return false;
         PdfArray patterns = ResolveArray(document, value,
             "The certificate seed-value /KeyUsage value");
-        PdfObject[] patternValues = patterns
-            .Select(item => Resolve(document, item)).ToArray();
+        PdfObject[] patternValues = [.. patterns.Select(item => Resolve(document, item))];
         if (patternValues.Any(item => item is not PdfString))
             throw new InvalidOperationException(
                 "The certificate seed-value /KeyUsage array contains a non-string value.");
@@ -883,7 +879,7 @@ public static class PdfDetachedSignatureWriter
         if (!dictionary.TryGetValue(Name(key), out PdfObject? value))
             throw new InvalidOperationException(message);
         PdfArray values = ResolveArray(document, value, $"The signature seed-value /{key} value");
-        PdfObject[] resolved = values.Select(item => Resolve(document, item)).ToArray();
+        PdfObject[] resolved = [.. values.Select(item => Resolve(document, item))];
         if (!resolved.OfType<PdfName>().Any(name => name.ValueAsLatin1() == expected)
             || resolved.Any(item => item is not PdfName))
             throw new InvalidOperationException(message);
@@ -896,7 +892,7 @@ public static class PdfDetachedSignatureWriter
         if (expected is null || !dictionary.TryGetValue(Name(key), out PdfObject? value))
             throw new InvalidOperationException(message);
         PdfArray values = ResolveArray(document, value, $"The signature seed-value /{key} value");
-        PdfObject[] resolved = values.Select(item => Resolve(document, item)).ToArray();
+        PdfObject[] resolved = [.. values.Select(item => Resolve(document, item))];
         if (!resolved.OfType<PdfString>().Any(item => DecodeString(item) == expected)
             || resolved.Any(item => item is not PdfString))
             throw new InvalidOperationException(message);
