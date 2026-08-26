@@ -128,7 +128,7 @@ The project treats compiler warnings as errors and generates XML API documentati
 
 The release gate includes:
 
-- 1,406 engine tests
+- 1,427 engine tests
 - A strict Release build with zero warnings
 - A 2,907-file incremental structural corpus gate
 - A 2,907-file selected-page import corpus gate with zero unexpected failures
