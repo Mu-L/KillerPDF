@@ -259,6 +259,13 @@ namespace KillerPDF.Controls
         // actually on a page (left to that page's own surface). Shared by off-page crop and marquee starts.
         private Canvas? ResolveMarginOverlay(MouseButtonEventArgs e)
         {
+            // A press inside a form field is the field's own interaction, never a margin gesture.
+            // This includes a choice field's dropdown items: the popup floats outside every page
+            // overlay's visual tree, so without this check the press reads as a margin click, the
+            // marquee (or crop) starts, and taking the mouse capture closes the dropdown and
+            // discards the click.
+            if (e.OriginalSource is DependencyObject fieldSrc && IsFormFieldElement(fieldSrc))
+                return null;
             if (_viewMode == ViewMode.Continuous)
             {
                 if (e.OriginalSource is DependencyObject osc && IsWithinPageOverlay(osc)) return null;
