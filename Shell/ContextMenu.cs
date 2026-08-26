@@ -319,7 +319,7 @@ namespace KillerPDF
         // z-order list from a's index. Returns its list index, or -1 if nothing overlaps in that direction.
         // "Layer" order is judged by what actually sits on top of / under a at its location, so Raise/Lower
         // step past only the things stacked with it - not unrelated annotations elsewhere on the page.
-        private int OverlapNeighbor(List<PageAnnotation> list, int i, PageAnnotation a, int dir)
+        private static int OverlapNeighbor(List<PageAnnotation> list, int i, PageAnnotation a, int dir)
         {
             var ab = AnnotBounds(a);
             if (dir > 0)

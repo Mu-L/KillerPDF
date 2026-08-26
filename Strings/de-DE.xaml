@@ -417,9 +417,9 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Sign_Reason">Grund (optional)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Ort (optional)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Kontakt (optional)</sys:String>
-    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Sichtbare Signatur anzeigen</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Signaturtext</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Digital signiert von {name}&#10;Datum: {date}&#10;Grund: {reason}&#10;Ort: {location}</sys:String>
     <sys:String x:Key="Str_Sign_Page">Page</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
@@ -429,8 +429,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Sign_Width">Width</sys:String>
     <sys:String x:Key="Str_Sign_Height">Height</sys:String>
     <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
-    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
-    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Zertifikatsinhaber</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Prüfen Sie Seite, Abmessungen und Textgröße der Signatur.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Signierte Kopie speichern unter</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Signieren</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Abbrechen</sys:String>

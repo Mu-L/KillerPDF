@@ -419,9 +419,9 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Sign_Reason">原因（選填）</sys:String>
     <sys:String x:Key="Str_Sign_Location">位置（選填）</sys:String>
     <sys:String x:Key="Str_Sign_Contact">聯絡方式（選填）</sys:String>
-    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">顯示可見簽名</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">簽名文字</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">數位簽署者：{name}&#10;日期：{date}&#10;原因：{reason}&#10;位置：{location}</sys:String>
     <sys:String x:Key="Str_Sign_Page">Page</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
@@ -431,8 +431,8 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Sign_Width">Width</sys:String>
     <sys:String x:Key="Str_Sign_Height">Height</sys:String>
     <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
-    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
-    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">憑證持有者</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">請檢查簽名的頁面、尺寸和文字大小。</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">簽署副本另存為</sys:String>
     <sys:String x:Key="Str_Sign_Sign">簽署</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">取消</sys:String>
@@ -600,7 +600,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_KS_ViewKeyboard">鍵盤</sys:String>
     <sys:String x:Key="Str_KS_HoldHint">按住 Ctrl、Shift 或 Alt 預覽該層 - 懸停在亮起的按鍵上查看操作</sys:String>
     <sys:String x:Key="Str_Zoom_ActualSize">實際大小</sys:String>
-    <sys:String x:Key="Str_KS_PrevTab">上一個標籤頁</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">上一個分頁</sys:String>
 
     <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
 

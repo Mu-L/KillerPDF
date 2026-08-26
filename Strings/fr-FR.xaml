@@ -433,9 +433,9 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Sign_Reason">Motif (facultatif)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Lieu (facultatif)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Contact (facultatif)</sys:String>
-    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Afficher une signature visible</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Texte de la signature</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Signé numériquement par {name}&#10;Date : {date}&#10;Motif : {reason}&#10;Lieu : {location}</sys:String>
     <sys:String x:Key="Str_Sign_Page">Page</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
@@ -445,8 +445,8 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Sign_Width">Width</sys:String>
     <sys:String x:Key="Str_Sign_Height">Height</sys:String>
     <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
-    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
-    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Titulaire du certificat</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Vérifiez la page, les dimensions et la taille du texte de la signature.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Enregistrer la copie signée sous</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Signer</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Annuler</sys:String>

@@ -93,8 +93,8 @@
     <sys:String x:Key="Str_KS_Navigation">NAWIGACJA</sys:String>
     <sys:String x:Key="Str_KS_PrevNext">Poprzednia / następna strona</sys:String>
     <sys:String x:Key="Str_KS_ScrollView">Przewiń (przewraca stronę w krawędziach)</sys:String>
-    <sys:String x:Key="Str_KS_ZoomCursor">Powiększ / poza (kursor-zakotwiczony)</sys:String>
-    <sys:String x:Key="Str_KS_ZoomInOut">Powiększ / poza</sys:String>
+    <sys:String x:Key="Str_KS_ZoomCursor">Powiększ / pomniejsz (zakotwiczone na kursorze)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomInOut">Powiększ / pomniejsz</sys:String>
     <sys:String x:Key="Str_KS_ResetZoom">Zresetuj powiększenie do 100%</sys:String>
     <sys:String x:Key="Str_KS_PanView">Widok panoramiczny</sys:String>
     <sys:String x:Key="Str_KS_Editing">EDYTOWANIE</sys:String>
@@ -135,8 +135,8 @@
 
     <!-- ── Status messages (format strings - use string.Format) ─────── -->
     <sys:String x:Key="Str_Opened">Otwarto {0} - {1} stronę(y)</sys:String>
-    <sys:String x:Key="Str_OpenedReadOnly">Otwarto {0} (tylko do odczytu - ograniczenia właściciela) - {1} stronę(y))</sys:String>
-    <sys:String x:Key="Str_OpenedReadOnlyXRef">Otwarto {0} (tylko do odczytu) - niestandardowa tabela XRef) - {1} stronę(y)</sys:String>
+    <sys:String x:Key="Str_OpenedReadOnly">Otwarto {0} (tylko do odczytu - ograniczenia właściciela) - {1} stronę(y)</sys:String>
+    <sys:String x:Key="Str_OpenedReadOnlyXRef">Otwarto {0} (tylko do odczytu - niestandardowa tabela XRef) - {1} stronę(y)</sys:String>
     <sys:String x:Key="Str_OpenedRepaired">Otwarto {0} (naprawioną kopię - zapisano do zachowania zmian) - {1} stronę(y)</sys:String>
     <sys:String x:Key="Str_OpenedRasterRepair">Otwarto {0} (naprawioną rasteryzowaną - zapisano do zachowania zmian) - {1} stronę(y)</sys:String>
     <sys:String x:Key="Str_PageOf">Strona {0} z {1}</sys:String>
@@ -248,7 +248,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Zoom_FitWidth">Dopasuj szerokość</sys:String>
     <sys:String x:Key="Str_Zoom_FitPage">Dopasuj stronę</sys:String>
     <sys:String x:Key="Str_FitWidth">Strona {0} z {1} - Dopasuj szerokość ({2}%)</sys:String>
-    <sys:String x:Key="Str_FitPage">Strona {0} z {1} - Dopasuj stronę ({2}%))</sys:String>
+    <sys:String x:Key="Str_FitPage">Strona {0} z {1} - Dopasuj stronę ({2}%)</sys:String>
 
     <!-- ── KS overlay font size (sys:Double) ──────────────────────────── -->
     <sys:Double x:Key="Str_KS_FontSize">11</sys:Double>
@@ -297,7 +297,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <!-- ── Right-click menu labels ────────────────────────────────────── -->
     <sys:String x:Key="Str_Ctx_CopyText">Kopiuj tekst</sys:String>
     <sys:String x:Key="Str_Ctx_Print">Drukuj</sys:String>
-    <sys:String x:Key="Str_Ctx_OcrPage">OCR strona (kopiuj tekst))</sys:String>
+    <sys:String x:Key="Str_Ctx_OcrPage">OCR strona (kopiuj tekst)</sys:String>
     <sys:String x:Key="Str_Lbl_Ocr">OCR</sys:String>
     <sys:String x:Key="Str_TT_Ocr">OCR strona (kopiuj tekst) (Ctrl+Shift+O)</sys:String>
     <sys:String x:Key="Str_Ocr_Region">OCR Region...</sys:String>
@@ -476,9 +476,9 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Sign_Reason">Argument (opcjonalnie)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Lokalizacja (opcjonalnie)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Kontakt (opcjonalnie)</sys:String>
-    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Pokaż widoczny podpis</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Tekst podpisu</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Podpisano cyfrowo przez {name}&#10;Data: {date}&#10;Powód: {reason}&#10;Lokalizacja: {location}</sys:String>
     <sys:String x:Key="Str_Sign_Page">Page</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
@@ -488,8 +488,8 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Sign_Width">Width</sys:String>
     <sys:String x:Key="Str_Sign_Height">Height</sys:String>
     <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
-    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
-    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Właściciel certyfikatu</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Sprawdź stronę podpisu, wymiary i rozmiar tekstu.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Zapisz podpisaną kopię jako</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Podpis</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Anuluj</sys:String>
@@ -503,7 +503,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_KS_SidebarSide">Przesuń pasek boczny w lewo/w prawo</sys:String>
     <sys:String x:Key="Str_KS_CycleView">Tryby widoku cyklu</sys:String>
     <sys:String x:Key="Str_TT_ViewMode">Tryb widoku</sys:String>
-    <sys:String x:Key="Str_KS_NextTab">Następna karta (Shift: (poprzednia)</sys:String>
+    <sys:String x:Key="Str_KS_NextTab">Następna karta (Shift: poprzednia)</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePage">Usuń stronę</sys:String>
     <sys:String x:Key="Str_Ctx_DuplicatePage">Duplikat strony</sys:String>
     <sys:String x:Key="Str_Ctx_AddBlankPage">Dodaj pustą stronę</sys:String>
@@ -639,14 +639,14 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_St_NothingToRedo">Nic do ponowienia</sys:String>
     <sys:String x:Key="Str_KS_FirstLast">Pierwsza / ostatnia strona</sys:String>
     <sys:String x:Key="Str_KS_BackForward">Wstecz / dalej (historia skoków)</sys:String>
-    <sys:String x:Key="Str_KS_ZoomPresets">Rzeczywisty rozmiar/szerokość dopasowania/strona dopasowania</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Rzeczywisty rozmiar / dopasuj szerokość / dopasuj stronę</sys:String>
     <sys:String x:Key="Str_KS_ContextMenu">Menu kontekstowe po wybraniu</sys:String>
 
     <sys:String x:Key="Str_KS_ViewList">LISTA</sys:String>
     <sys:String x:Key="Str_KS_ViewKeyboard">KLAWIATURA</sys:String>
     <sys:String x:Key="Str_KS_HoldHint">Przytrzymaj Ctrl, Shift lub Alt, aby wyświetlić podgląd tej warstwy - najedź kursorem na podświetlony klawisz, aby sprawdzić jego działanie</sys:String>
     <sys:String x:Key="Str_Zoom_ActualSize">Rzeczywisty rozmiar</sys:String>
-    <sys:String x:Key="Str_KS_PrevTab">Poprzednia strona</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">Poprzednia karta</sys:String>
 
     <sys:String x:Key="Str_Kb_PrevPage">Poprzednia strona</sys:String>
     <sys:String x:Key="Str_Kb_NextPage">Następna strona</sys:String>

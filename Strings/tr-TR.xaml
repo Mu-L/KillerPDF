@@ -417,9 +417,9 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Sign_Reason">Neden (isteğe bağlı)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Konum (isteğe bağlı)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">İletişim (isteğe bağlı)</sys:String>
-    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Görünür imza göster</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">İmza metni</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Dijital olarak imzalayan: {name}&#10;Tarih: {date}&#10;Neden: {reason}&#10;Konum: {location}</sys:String>
     <sys:String x:Key="Str_Sign_Page">Page</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
@@ -429,8 +429,8 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Sign_Width">Width</sys:String>
     <sys:String x:Key="Str_Sign_Height">Height</sys:String>
     <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
-    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
-    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Sertifika sahibi</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">İmza sayfasını, boyutlarını ve metin boyutunu kontrol edin.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">İmzalı kopyayı farklı kaydet</sys:String>
     <sys:String x:Key="Str_Sign_Sign">İmzala</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">İptal</sys:String>

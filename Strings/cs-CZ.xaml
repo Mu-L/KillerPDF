@@ -483,9 +483,9 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Sign_Reason">Důvod (nepovinné)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Místo (nepovinné)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Kontakt (nepovinné)</sys:String>
-    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Zobrazit viditelný podpis</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Text podpisu</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitálně podepsal {name}&#10;Datum: {date}&#10;Důvod: {reason}&#10;Místo: {location}</sys:String>
     <sys:String x:Key="Str_Sign_Page">Page</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
@@ -495,8 +495,8 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Sign_Width">Width</sys:String>
     <sys:String x:Key="Str_Sign_Height">Height</sys:String>
     <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
-    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
-    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Držitel certifikátu</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Zkontrolujte stránku podpisu, rozměry a velikost textu.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Uložit podepsanou kopii jako</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Podepsat</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Zrušit</sys:String>

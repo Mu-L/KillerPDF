@@ -58,7 +58,7 @@
 
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">PAGINE</sys:String>
-    <sys:String x:Key="Str_TabOutlines">BORDI</sys:String>
+    <sys:String x:Key="Str_TabOutlines">STRUTTURA</sys:String>
     <sys:String x:Key="Str_PageLabel">Pagina {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(senza titolo)</sys:String>
 
@@ -255,7 +255,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Zoom_FitWidth">Adatta larghezza</sys:String>
     <sys:String x:Key="Str_Zoom_FitPage">Adatta pagina</sys:String>
     <sys:String x:Key="Str_FitWidth">Pagina {0} / {1} - Adatta larghezza ({2}%)</sys:String>
-    <sys:String x:Key="Str_FitPage">Pagina{0} / {1} - Adatta pagina ({2}%)</sys:String>
+    <sys:String x:Key="Str_FitPage">Pagina {0} di {1} - Adatta pagina ({2}%)</sys:String>
 
     <!-- ── KS overlay font size (sys:Double) ──────────────────────────── -->
     <sys:Double x:Key="Str_KS_FontSize">11</sys:Double>
@@ -491,9 +491,9 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Sign_Reason">Motivo (opzionale)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Luogo (opzionale)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Contatto (opzionale)</sys:String>
-    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
-    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Mostra una firma visibile</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Testo della firma</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Firmato digitalmente da {name}&#10;Data: {date}&#10;Motivo: {reason}&#10;Luogo: {location}</sys:String>
     <sys:String x:Key="Str_Sign_Page">Page</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
@@ -503,8 +503,8 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Sign_Width">Width</sys:String>
     <sys:String x:Key="Str_Sign_Height">Height</sys:String>
     <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
-    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
-    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Titolare del certificato</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Controlla la pagina della firma, le dimensioni e la dimensione del testo.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Salva copia firmata con nome</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Firma</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Annulla</sys:String>
@@ -664,15 +664,15 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_St_Redone">Redone</sys:String>
     <sys:String x:Key="Str_St_NothingToRedo">Nothing to redo</sys:String>
     <sys:String x:Key="Str_KS_FirstLast">First / last page</sys:String>
-    <sys:String x:Key="Str_KS_BackForward">Back / forward (jump history)</sys:String>
-    <sys:String x:Key="Str_KS_ZoomPresets">Actual size / fit width / fit page</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">Indietro / avanti (cronologia dei salti)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Dimensione reale / adatta larghezza / adatta pagina</sys:String>
     <sys:String x:Key="Str_KS_ContextMenu">Context menu at selection</sys:String>
 
     <sys:String x:Key="Str_KS_ViewList">ELENCO</sys:String>
     <sys:String x:Key="Str_KS_ViewKeyboard">TASTIERA</sys:String>
     <sys:String x:Key="Str_KS_HoldHint">Tieni premuto Ctrl, Maiusc o Alt per l'anteprima del layer - passa il mouse su un tasto illuminato per la sua azione</sys:String>
-    <sys:String x:Key="Str_Zoom_ActualSize">Actual size</sys:String>
-    <sys:String x:Key="Str_KS_PrevTab">Previous tab</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">Dimensione reale</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">Scheda precedente</sys:String>
 
     <sys:String x:Key="Str_Kb_PrevPage">Pagina precedente</sys:String>
     <sys:String x:Key="Str_Kb_NextPage">Pagina successiva</sys:String>
@@ -764,9 +764,9 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Color_SwatchSetTT">Click to set this swatch to the current color</sys:String>
     <sys:String x:Key="Str_Color_SwatchUseTT">Click to use this color</sys:String>
     <sys:String x:Key="Str_Search_DragTT">Drag to move</sys:String>
-    <sys:String x:Key="Str_Sign_Name">Digital Signature</sys:String>
-    <sys:String x:Key="Str_Sign_ChooseCert">Choose a signing certificate</sys:String>
-    <sys:String x:Key="Str_Sign_ImportImage">Import Signature Image</sys:String>
+    <sys:String x:Key="Str_Sign_Name">Firma digitale</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Scegli un certificato di firma</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Importa immagine della firma</sys:String>
     <sys:String x:Key="Str_Filter_Pdf">File PDF</sys:String>
     <sys:String x:Key="Str_Filter_Cert">Certificate files</sys:String>
     <sys:String x:Key="Str_Filter_Text">Text file</sys:String>
@@ -783,12 +783,12 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Dlg_InsertImage">Insert Image</sys:String>
     <sys:String x:Key="Str_Dlg_InstallShortcut">Create desktop shortcut</sys:String>
     <sys:String x:Key="Str_Stamp_DefaultText">DRAFT</sys:String>
-    <sys:String x:Key="Str_Sign_NeedCertFile">Choose a certificate file (.pfx / .p12) first.</sys:String>
-    <sys:String x:Key="Str_Sign_NoStoreCert">No signing certificate is available in the Windows store.</sys:String>
-    <sys:String x:Key="Str_Sign_NeedOutput">Choose where to save the signed copy.</sys:String>
-    <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Could not open the certificate.&#10;&#10;The password may be incorrect, or the file is not a valid .pfx / .p12 certificate.</sys:String>
-    <sys:String x:Key="Str_Sign_CertLoadFailed">Could not load the certificate:</sys:String>
-    <sys:String x:Key="Str_Sign_Failed">Signing failed:</sys:String>
+    <sys:String x:Key="Str_Sign_NeedCertFile">Scegli prima un file di certificato (.pfx / .p12).</sys:String>
+    <sys:String x:Key="Str_Sign_NoStoreCert">Nessun certificato di firma disponibile nell'archivio certificati di Windows.</sys:String>
+    <sys:String x:Key="Str_Sign_NeedOutput">Scegli dove salvare la copia firmata.</sys:String>
+    <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Impossibile aprire il certificato.&#10;&#10;La password potrebbe non essere corretta oppure il file non è un certificato .pfx / .p12 valido.</sys:String>
+    <sys:String x:Key="Str_Sign_CertLoadFailed">Impossibile caricare il certificato:</sys:String>
+    <sys:String x:Key="Str_Sign_Failed">Firma non riuscita:</sys:String>
     <sys:String x:Key="Str_St_ShapeHint">Click to add points - click the first point or double-click to close, Esc cancels, Backspace removes the last point</sys:String>
     <sys:String x:Key="Str_St_ShapeCanceled">Shape canceled</sys:String>
 
