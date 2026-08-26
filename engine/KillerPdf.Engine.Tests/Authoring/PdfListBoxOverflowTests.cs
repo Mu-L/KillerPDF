@@ -10,6 +10,13 @@ namespace KillerPdf.Engine.Tests.Authoring;
 
 public sealed class PdfListBoxOverflowTests
 {
+#pragma warning disable SYSLIB1045 // VS IntelliSense does not materialize GeneratedRegex implementations in this project.
+    private static readonly Regex SelectionHighlightPattern =
+        new(@"0\.75 g\s+1 (-?[\d.]+) ", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex TextOriginPattern =
+        new(@"(-?[\d.]+) (-?[\d.]+) Td", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+#pragma warning restore SYSLIB1045
+
     // Four 12pt options need roughly 58 points of rows. In a 48 point box the last
     // rows fall below the field, and the appearance stream's clip path is what keeps
     // them out of the drawn result. Rows must stay evenly spaced: clamping an
@@ -37,7 +44,7 @@ public sealed class PdfListBoxOverflowTests
     public void SelectionHighlightTracksItsOwnRow()
     {
         string content = ListBoxAppearance(height: 48, selected: "Four");
-        Match highlight = Regex.Match(content, @"0\.75 g\s+1 (-?[\d.]+) ");
+        Match highlight = SelectionHighlightPattern.Match(content);
 
         Assert.True(highlight.Success, "No selection highlight was written.");
         Assert.True(Number(highlight.Groups[1].Value) < 1,
@@ -72,9 +79,8 @@ public sealed class PdfListBoxOverflowTests
     }
 
     private static double[] TextOrigins(string content) =>
-        Regex.Matches(content, @"(-?[\d.]+) (-?[\d.]+) Td")
-            .Select(match => Number(match.Groups[2].Value))
-            .ToArray();
+        [.. TextOriginPattern.Matches(content)
+            .Select(match => Number(match.Groups[2].Value))];
 
     private static double Number(string value) =>
         double.Parse(value, CultureInfo.InvariantCulture);

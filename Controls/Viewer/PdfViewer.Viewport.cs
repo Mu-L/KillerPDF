@@ -1124,7 +1124,13 @@ namespace KillerPDF.Controls
             try
             {
                 var session = _active;
-                int tileBucket = (int)Math.Round(primaryDipW);   // tiles are sized to the primary width; key the cache by it
+                // Cache by the actual raster budget, not the tile's fixed logical width. Two-page
+                // rendering follows zoom, while primaryDipW remains constant; using that width as
+                // the key let a lower-resolution bitmap from an earlier zoom replace the sharp
+                // partner page when the delayed re-render settled. Keep tile keys negative so a
+                // tile bitmap whose baked logical geometry follows the primary page cannot collide
+                // with a primary bitmap rendered at the same pixel budget.
+                int tileBucket = -secondaryMax;
                 await System.Threading.Tasks.Task.Run(() =>
                 {
                     Docnet.Core.Readers.IDocReader? docReader = null;
