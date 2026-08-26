@@ -36,6 +36,12 @@ namespace KillerPDF.Controls
         // internal: PdfViewer's XAML binds this and forwards to it.
         internal void PagePreview_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // A form field list keeps the wheel while it still has rows to reach. Its overlay
+            // sits inside PagePreviewPanel, so this tunnelling handler would otherwise scroll
+            // the page out from under a list the user is reading, and a field taller than its
+            // box could never be scrolled at all.
+            if (FieldListWantsWheel(e.OriginalSource as DependencyObject, e.Delta)) return;
+
             // #209: match the standard Windows/browser gesture and reuse the same path as a
             // physical tilt wheel. Wheel-down moves right; wheel-up moves left.
             if (Keyboard.Modifiers == ModifierKeys.Shift)
@@ -116,6 +122,24 @@ namespace KillerPDF.Controls
             }
             _wheelPageFlipGate.NoteContentScroll(DateTime.UtcNow);
             ScrollWheel(e);
+        }
+
+        // True when the wheel sits over a scrollable control inside the page overlay that still
+        // has somewhere to go in this direction. The walk stops at PagePreviewPanel, which is
+        // itself a ScrollViewer and owns the wheel from that point up.
+        private bool FieldListWantsWheel(DependencyObject? source, int delta)
+        {
+            for (DependencyObject? node = source;
+                 node is not null && !ReferenceEquals(node, PagePreviewPanel);
+                 node = node is Visual or System.Windows.Media.Media3D.Visual3D
+                     ? VisualTreeHelper.GetParent(node) : null)
+            {
+                if (node is not ScrollViewer inner || inner.ScrollableHeight <= 0) continue;
+                return delta > 0
+                    ? inner.VerticalOffset > 0
+                    : inner.VerticalOffset < inner.ScrollableHeight;
+            }
+            return false;
         }
 
         // Zoom ratio per full wheel notch (e.Delta = 120) for Ctrl+scroll. 1.1 lands close to the
