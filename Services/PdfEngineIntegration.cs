@@ -68,9 +68,11 @@ internal static class PdfEngineIntegration
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
         int pageCount = PdfDocumentInformation.Read(document).PageCount;
-        return Enumerable.Range(0, pageCount)
-            .Select(index => (IReadOnlyList<PdfFormWidgetInfo>)PdfFormWidgetReader.ReadPage(document, index))
-            .ToArray();
+        return
+        [
+            .. Enumerable.Range(0, pageCount).Select(index =>
+                (IReadOnlyList<PdfFormWidgetInfo>)PdfFormWidgetReader.ReadPage(document, index))
+        ];
     }
 
     /// <summary>Adds one editable AcroForm text field to an existing page.</summary>
@@ -167,10 +169,12 @@ internal static class PdfEngineIntegration
         PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
         var editor = new PdfIncrementalPageEditor(document);
         var fonts = new Dictionary<string, TrueTypeFont>(StringComparer.OrdinalIgnoreCase);
-        IReadOnlyList<PdfFormWidgetInfo> widgets = Enumerable.Range(
+        IReadOnlyList<PdfFormWidgetInfo> widgets =
+        [
+            .. Enumerable.Range(
                 0, PdfDocumentInformation.Read(document).PageCount)
-            .SelectMany(pageIndex => PdfFormWidgetReader.ReadPage(document, pageIndex))
-            .ToArray();
+                .SelectMany(pageIndex => PdfFormWidgetReader.ReadPage(document, pageIndex))
+        ];
         foreach ((string name, string value) in edits.TextValues.OrderBy(item => item.Key))
             editor.SetTextFieldValue(name, value, EmbeddedFormFont(value, fonts), fontSize:
                 edits.TextFontSizes.TryGetValue(name, out double size) ? size : null);
@@ -736,7 +740,7 @@ internal static class PdfEngineIntegration
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(pageIndices);
-        int[] removed = pageIndices.Distinct().OrderByDescending(index => index).ToArray();
+        int[] removed = [.. pageIndices.Distinct().OrderByDescending(index => index)];
         if (removed.Length == 0) return;
 
         byte[] source = File.ReadAllBytes(path);
@@ -752,7 +756,7 @@ internal static class PdfEngineIntegration
     {
         ArgumentNullException.ThrowIfNull(rotations);
         ArgumentNullException.ThrowIfNull(pageIndices);
-        int[] removed = pageIndices.Distinct().OrderBy(index => index).ToArray();
+        int[] removed = [.. pageIndices.Distinct().OrderBy(index => index)];
         if (removed.Length == 0) return;
 
         var remapped = new Dictionary<int, int>();
@@ -800,8 +804,8 @@ internal static class PdfEngineIntegration
         }
         ReplaceWithBuiltResult(path, editor.Build());
         var selected = sourceIndices.Distinct().ToHashSet();
-        return target.Select((original, index) => (original, index))
-            .Where(item => selected.Contains(item.original)).Select(item => item.index).ToArray();
+        return [.. target.Select((original, index) => (original, index))
+            .Where(item => selected.Contains(item.original)).Select(item => item.index)];
     }
 
     internal static IReadOnlyList<int> PageOrderAfterMove(
@@ -810,7 +814,7 @@ internal static class PdfEngineIntegration
         ArgumentNullException.ThrowIfNull(sourceIndices);
         if (insertionIndex < 0 || insertionIndex > pageCount)
             throw new ArgumentOutOfRangeException(nameof(insertionIndex));
-        int[] selected = sourceIndices.Distinct().OrderBy(index => index).ToArray();
+        int[] selected = [.. sourceIndices.Distinct().OrderBy(index => index)];
         if (selected.Length == 0 || selected.Any(index => index < 0 || index >= pageCount))
             throw new ArgumentOutOfRangeException(nameof(sourceIndices));
         var selectedSet = selected.ToHashSet();
@@ -825,7 +829,7 @@ internal static class PdfEngineIntegration
     {
         ArgumentNullException.ThrowIfNull(rotations);
         IReadOnlyList<int> order = PageOrderAfterMove(rotations.Count, sourceIndices, insertionIndex);
-        int[] values = Enumerable.Range(0, rotations.Count).Select(index => rotations[index]).ToArray();
+        int[] values = [.. Enumerable.Range(0, rotations.Count).Select(index => rotations[index])];
         rotations.Clear();
         for (int index = 0; index < order.Count; index++) rotations[index] = values[order[index]];
     }
@@ -994,7 +998,7 @@ internal static class PdfEngineIntegration
             if (import.PageRotations.Count != count)
                 throw new ArgumentException(
                     "The imported rotation count must match the source page count.", nameof(sources));
-            editor.InsertImportedPages(offset, source, Enumerable.Range(0, count).ToArray());
+            editor.InsertImportedPages(offset, source, [.. Enumerable.Range(0, count)]);
             for (int index = 0; index < count; index++)
                 editor.SetRotation(offset + index, 0);
             offset += count;
