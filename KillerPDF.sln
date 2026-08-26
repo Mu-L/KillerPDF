@@ -15,6 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "The KillerPDF.Engine", "The
 		engine\CHANGELOG.md = engine\CHANGELOG.md
 		engine\docs\architecture\ADR-001-pdf-engine-boundary.md = engine\docs\architecture\ADR-001-pdf-engine-boundary.md
 		engine\docs\architecture\ADR-002-integrate-engine-through-modern-windows-shell.md = engine\docs\architecture\ADR-002-integrate-engine-through-modern-windows-shell.md
+		engine\docs\architecture\ADR-003-split-installed-and-portable-packages.md = engine\docs\architecture\ADR-003-split-installed-and-portable-packages.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KillerPdf.Engine.Corpus", "engine\KillerPdf.Engine.Corpus\KillerPdf.Engine.Corpus.csproj", "{D6003DED-F54D-402F-B089-2060AD781CE3}"
