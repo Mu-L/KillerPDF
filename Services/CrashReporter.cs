@@ -60,17 +60,32 @@ namespace KillerPDF
             sb.AppendLine($"Context : {context}");
             sb.AppendLine();
 
-            var inner = ex;
-            var depth = 0;
-            while (inner != null && depth < 5)
+            IReadOnlyList<Exception> failures = ex is AggregateException aggregate
+                ? aggregate.Flatten().InnerExceptions
+                : [ex];
+            for (int failureIndex = 0; failureIndex < failures.Count; failureIndex++)
             {
-                if (depth > 0) { sb.AppendLine(); sb.AppendLine("=== Inner Exception ==="); }
-                sb.AppendLine($"Type    : {inner.GetType().FullName}");
-                sb.AppendLine($"Message : {inner.Message}");
-                sb.AppendLine("Stack trace:");
-                sb.AppendLine(inner.StackTrace ?? "(no stack trace)");
-                inner = inner.InnerException;
-                depth++;
+                if (failureIndex > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"=== Aggregate Failure {failureIndex + 1} ===");
+                }
+                Exception? inner = failures[failureIndex];
+                int depth = 0;
+                while (inner is not null && depth < 5)
+                {
+                    if (depth > 0)
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine("=== Inner Exception ===");
+                    }
+                    sb.AppendLine($"Type    : {inner.GetType().FullName}");
+                    sb.AppendLine($"Message : {inner.Message}");
+                    sb.AppendLine("Stack trace:");
+                    sb.AppendLine(inner.StackTrace ?? "(no stack trace)");
+                    inner = inner.InnerException;
+                    depth++;
+                }
             }
 
             sb.AppendLine();

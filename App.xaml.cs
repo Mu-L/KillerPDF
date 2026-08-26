@@ -339,10 +339,14 @@ namespace KillerPDF
 
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
-            e.SetObserved(); // prevent process teardown
-            var logPath = CrashReporter.Capture(e.Exception, "TaskScheduler");
-
-            QueueRecoverableCrashDialog(e.Exception, logPath);
+            // An unobserved task is reported later by the finalizer, after the task and its caller
+            // are already gone. It is not an active UI crash and there is no operation left for a
+            // Retry/Continue dialog to recover. 1.7.5 surfaced the wrapper AggregateException as a
+            // crash with no useful stack, which is both alarming and diagnostically empty. Keep the
+            // complete flattened failure in the log, mark it observed, and leave the running app
+            // alone. Live dispatcher and AppDomain failures still use the normal crash dialog.
+            e.SetObserved();
+            CrashReporter.Capture(e.Exception.Flatten(), "TaskScheduler (observed background fault)");
         }
 
         private void QueueRecoverableCrashDialog(Exception exception, string logPath)
