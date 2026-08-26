@@ -77,7 +77,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 
 ### Fixed
 - Shipped builds no longer run a dead Costura-only pdfium startup check. The new `--verify` and `/verify` commands validate every installed payload file against `payload.manifest` on demand, covering the complete installation without adding launch latency.
-- Application shortcuts such as Save, Save As, Find, Print, Open, and tab commands now remain available while a fillable form field or typewriter box has focus, while ordinary typing and standard text-editing shortcuts stay inside the field.
+- Application shortcuts such as Save, Save As, Find, Print, Open, tab commands, and F1 through F12 now remain available while a fillable form field or typewriter box has focus, while ordinary typing and standard text-editing shortcuts stay inside the field (#237).
 - Duplicating a page now keeps the new copy selected in both the sidebar and active viewer after the rebuilt page tree and deferred layout finish loading.
 - Merge now validates each input with The KillerPDF.Engine and routes unreadable PDFs through the same lossless repair, import repair, and raster recovery sequence used by Open and drag-drop.
 - Selected rows in the file dialog no longer apply a dark text-stroke effect inside the yellow selection background, keeping filenames crisp and undoubled.

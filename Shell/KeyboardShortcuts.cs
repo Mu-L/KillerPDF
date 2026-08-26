@@ -67,7 +67,8 @@ namespace KillerPDF
                 return;
             }
             if (editableTextFocused
-                && EditableTextShortcutPolicy.KeepInTextBox(e.Key, Keyboard.Modifiers))
+                && EditableTextShortcutPolicy.KeepInTextBox(
+                    e.Key, Keyboard.Modifiers, e.SystemKey))
                 return;
 
             if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
