@@ -240,7 +240,7 @@ public static class PdfObjectWriter
         if (expanded.Contains('.'))
         {
             expanded = expanded.TrimEnd('0');
-            if (expanded.EndsWith(".", StringComparison.Ordinal))
+            if (expanded.EndsWith('.'))
                 expanded += "0";
             return expanded;
         }
@@ -251,7 +251,7 @@ public static class PdfObjectWriter
     {
         int exponent = int.Parse(value.AsSpan(exponentMarker + 1), CultureInfo.InvariantCulture);
         string mantissa = value[..exponentMarker];
-        bool negative = mantissa.StartsWith("-", StringComparison.Ordinal);
+        bool negative = mantissa.StartsWith('-');
         if (negative)
             mantissa = mantissa[1..];
 

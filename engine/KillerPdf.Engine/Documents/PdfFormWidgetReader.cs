@@ -84,7 +84,7 @@ public static class PdfFormWidgetReader
                 if (values.Count == 0 && node.TryGetValue(ValueName, out PdfObject? currentValue))
                 {
                     values = FieldValues(document, currentValue);
-                    value = values.FirstOrDefault() ?? string.Empty;
+                    value = values.Count > 0 ? values[0] : string.Empty;
                 }
                 if (defaultAppearance.Length == 0
                     && node.TryGetValue(DefaultAppearanceName, out PdfObject? appearanceValue))

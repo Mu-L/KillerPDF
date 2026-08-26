@@ -163,7 +163,7 @@ namespace KillerPDF
             catch { isPrimary = true; }
             if (!isPrimary)
             {
-                var fwd = e.Args.FirstOrDefault(a => !a.StartsWith("/", StringComparison.Ordinal));
+                var fwd = e.Args.FirstOrDefault(a => !a.StartsWith('/'));
                 ForwardToPrimary(fwd);
                 Shutdown(0);
                 return;
@@ -660,7 +660,8 @@ namespace KillerPDF
         {
             try
             {
-                string currentExe = Process.GetCurrentProcess().MainModule!.FileName;
+                string currentExe = Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable.");
                 return !IsRegisteredCopy(Registry.CurrentUser, currentExe)
                     && !IsRegisteredCopy(Registry.LocalMachine, currentExe);
             }
@@ -847,7 +848,8 @@ namespace KillerPDF
         {
             try
             {
-                string installer = launcher ?? Process.GetCurrentProcess().MainModule!.FileName;
+                string installer = launcher ?? Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable.");
                 var psi = new ProcessStartInfo(installer, "/silent")
                 {
                     UseShellExecute = true,
@@ -905,7 +907,8 @@ namespace KillerPDF
         {
             try
             {
-                string src = Process.GetCurrentProcess().MainModule!.FileName;
+                string src = Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable.");
 
                 // Same trust gate as the interactive path - an unsigned or wrong-publisher exe must
                 // not be able to write itself into Program Files, least of all while elevated.
@@ -1411,7 +1414,8 @@ namespace KillerPDF
         {
             try
             {
-                return VerifyAuthenticode(Process.GetCurrentProcess().MainModule!.FileName);
+                return VerifyAuthenticode(Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable."));
             }
             catch
             {
@@ -1424,10 +1428,10 @@ namespace KillerPDF
         {
             try
             {
-                var path = Process.GetCurrentProcess().MainModule!.FileName;
-                using var sha = SHA256.Create();
+                var path = Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable.");
                 using var fs  = File.OpenRead(path);
-                return BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "");
+                return Convert.ToHexString(SHA256.HashData(fs));
             }
             catch { return "(unavailable)"; }
         }
@@ -1614,7 +1618,8 @@ namespace KillerPDF
 
         private static void DoInstall(bool wantDesktop)
         {
-            string src = Process.GetCurrentProcess().MainModule!.FileName;
+            string src = Environment.ProcessPath
+                ?? throw new InvalidOperationException("The current executable path is unavailable.");
 
             // ── Trust gate: refuse to install an unsigned or wrong-publisher EXE ──
             var (valid, _, _) = VerifyAuthenticode(src);
@@ -1723,7 +1728,7 @@ namespace KillerPDF
             // Associate .pdf extension - adds KillerPDF to the "Open with" list
             using (var k = root.CreateSubKey(
                 @"Software\Classes\.pdf\OpenWithProgids"))
-                k.SetValue("KillerPDF.pdf", new byte[0], RegistryValueKind.None);
+                k.SetValue("KillerPDF.pdf", Array.Empty<byte>(), RegistryValueKind.None);
 
             // RegisteredApplications capability (used by Default Programs UI)
             using (var k = root.CreateSubKey(
@@ -1798,7 +1803,8 @@ namespace KillerPDF
                     return false;
 
                 Process.Start(new ProcessStartInfo(
-                    Process.GetCurrentProcess().MainModule!.FileName,
+                    Environment.ProcessPath
+                        ?? throw new InvalidOperationException("The current executable path is unavailable."),
                     silent ? "/uninstall-silent" : "/uninstall")
                 {
                     UseShellExecute = true,

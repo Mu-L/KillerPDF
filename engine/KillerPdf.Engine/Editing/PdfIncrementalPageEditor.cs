@@ -16351,7 +16351,9 @@ public sealed class PdfIncrementalPageEditor
                             $"{description} /{key} number format /O /{order} is not defined.");
                 }
                 if (index != formats.Count - 1
-                    && new[] { "F", "D", "FD" }.Any(entry => format.ContainsKey(Name(entry))))
+                    && (format.ContainsKey(Name("F"))
+                        || format.ContainsKey(Name("D"))
+                        || format.ContainsKey(Name("FD"))))
                     throw new InvalidOperationException(
                         $"{description} /{key} number format uses fractional display entries before the last array element.");
             }

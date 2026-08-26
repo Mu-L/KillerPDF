@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -41,6 +42,8 @@ namespace KillerPDF.Features
     // All static, never touches the window - extracted from MainWindow 2026-07-31.
     internal static class BatchRunner
     {
+        private static readonly SearchValues<char> BatchCsvSpecialCharacters =
+            SearchValues.Create([',', '"', '\r', '\n']);
         [DllImport("kernel32.dll", EntryPoint = "AttachConsole", SetLastError = true)]
         private static extern bool BatchAttachConsole(int dwProcessId);
         private const int BatchAttachParentProcess = -1;
@@ -244,7 +247,7 @@ namespace KillerPDF.Features
 
         private static string BatchCsvField(string s)
         {
-            if (s.IndexOfAny(new[] { ',', '"', '\r', '\n' }) < 0) return s;
+            if (!s.AsSpan().ContainsAny(BatchCsvSpecialCharacters)) return s;
             return "\"" + s.Replace("\"", "\"\"") + "\"";
         }
     }

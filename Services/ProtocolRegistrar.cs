@@ -19,7 +19,8 @@ namespace KillerPDF.Services
         {
             try
             {
-                appPath ??= Process.GetCurrentProcess().MainModule!.FileName;
+                appPath ??= Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable.");
                 using var protocol = root.CreateSubKey(RegistryPath);
                 if (protocol == null) return;
                 protocol.SetValue("", "URL:KillerPDF Protocol");

@@ -608,7 +608,7 @@ namespace KillerPDF.Controls
                     if (!_showHidden)
                     {
                         if ((info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                        if (info.Name.StartsWith(".", StringComparison.Ordinal)) continue;
+                        if (info.Name.StartsWith('.')) continue;
                     }
                     _raw.Add(new PickerEntry(info.Name, sub, true, 0, SafeTime(() => info.LastWriteTime)));
                 }
@@ -619,7 +619,7 @@ namespace KillerPDF.Controls
                     if (!_showHidden)
                     {
                         if ((fi.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                        if (fi.Name.StartsWith(".", StringComparison.Ordinal)) continue;
+                        if (fi.Name.StartsWith('.')) continue;
                     }
                     _raw.Add(new PickerEntry(fi.Name, file, false, SafeLen(fi), SafeTime(() => fi.LastWriteTime)));
                 }

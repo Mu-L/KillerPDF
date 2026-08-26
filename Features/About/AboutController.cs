@@ -209,9 +209,8 @@ namespace KillerPDF.Features
                 }
                 if (string.IsNullOrEmpty(expected)) return null;
 
-                string actual;
-                using (var sha = System.Security.Cryptography.SHA256.Create())
-                    actual = BitConverter.ToString(sha.ComputeHash(exeBytes)).Replace("-", "");
+                string actual = Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(exeBytes));
                 if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase)) return null;
 
                 var path = Path.Combine(Path.GetTempPath(), $"KillerPDF_update_{Guid.NewGuid():N}.exe");
@@ -227,9 +226,10 @@ namespace KillerPDF.Features
         {
             try
             {
-                var curExe = Process.GetCurrentProcess().MainModule!.FileName;
+                var curExe = Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable.");
                 var reopen = _host.FileToReopen;
-                var pid    = Process.GetCurrentProcess().Id;
+                var pid    = Environment.ProcessId;
                 var relArg = string.IsNullOrEmpty(reopen) ? "" : $" \"{reopen}\"";
                 var bat    = Path.Combine(Path.GetTempPath(), $"killerpdf_update_{Guid.NewGuid():N}.bat");
                 bool portable = App.IsPortable();

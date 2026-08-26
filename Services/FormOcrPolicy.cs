@@ -4,6 +4,10 @@ namespace KillerPDF.Services;
 
 internal static class FormOcrPolicy
 {
+    private static readonly string[] NumericNameMarkers =
+        ["amount", "total", "number", "numeric", "price", "quantity",
+         "qty", "zip", "postal", "phone", "date", "currency", "tax"];
+
     private const long CombFlag = 1L << 24;
     internal const string NumericWhitelist = "0123456789.,-+/$%(): ";
 
@@ -79,9 +83,7 @@ internal static class FormOcrPolicy
     private static bool LooksNumeric(string name)
     {
         string normalized = name.ToLowerInvariant();
-        return new[] { "amount", "total", "number", "numeric", "price", "quantity",
-            "qty", "zip", "postal", "phone", "date", "currency", "tax" }
-            .Any(normalized.Contains);
+        return NumericNameMarkers.Any(normalized.Contains);
     }
 
     private static int Distance(string left, string right)
