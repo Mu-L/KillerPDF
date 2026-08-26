@@ -507,7 +507,7 @@ namespace KillerPDF
             // This is the permanent resize hit target. Its child canvases choose dots or the
             // Win98 hatch; collapsing the parent also hid the hatch.
             ResizeGripDots?.Visibility = Visibility.Visible;
-            UpdateRootClip(squared);
+            UpdateRootClip();
         }
 
         // Windows 11 native rounded-corner toggle (DWMWA_WINDOW_CORNER_PREFERENCE = 33).
@@ -536,7 +536,7 @@ namespace KillerPDF
         // Under WindowChrome the OS rounds the HWND itself, so content fills a square client rect and
         // needs no internal rounded clip. (A rounded clip here would expose dark corner triangles
         // against the now-square frame.) Kept as a no-op hook so existing call sites stay valid.
-        private void UpdateRootClip(bool _)
+        private void UpdateRootClip()
         {
             if (RootClipGrid is null) return;
             RootClipGrid.Clip = null;

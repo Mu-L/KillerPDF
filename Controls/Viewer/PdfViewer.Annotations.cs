@@ -1178,7 +1178,7 @@ namespace KillerPDF.Controls
                     break;
 
                 case EditTool.FormField:
-                    BeginFormFieldDrag(pageIdx, pos);
+                    BeginFormFieldDrag(pos);
                     e.Handled = true;
                     break;
 
