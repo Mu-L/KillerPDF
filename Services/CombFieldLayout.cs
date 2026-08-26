@@ -6,8 +6,7 @@ internal static class CombFieldLayout
     {
         if (!double.IsFinite(width) || width <= 0)
             throw new ArgumentOutOfRangeException(nameof(width));
-        if (cellCount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(cellCount));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cellCount);
         if ((uint)index >= (uint)cellCount)
             throw new ArgumentOutOfRangeException(nameof(index));
         return width / cellCount * index;
@@ -17,8 +16,7 @@ internal static class CombFieldLayout
     {
         if (!double.IsFinite(width) || width <= 0)
             throw new ArgumentOutOfRangeException(nameof(width));
-        if (cellCount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(cellCount));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cellCount);
         if (!double.IsFinite(x))
             throw new ArgumentOutOfRangeException(nameof(x));
         return Math.Clamp((int)Math.Floor(x / (width / cellCount)), 0, cellCount - 1);

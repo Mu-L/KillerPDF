@@ -308,10 +308,8 @@ public sealed class PdfIncrementalPageEditor
         int objectNumber, int generation,
         double left, double bottom, double right, double top)
     {
-        if (objectNumber <= 0)
-            throw new ArgumentOutOfRangeException(nameof(objectNumber));
-        if (generation < 0)
-            throw new ArgumentOutOfRangeException(nameof(generation));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(objectNumber);
+        ArgumentOutOfRangeException.ThrowIfNegative(generation);
         if (!double.IsFinite(left) || !double.IsFinite(bottom)
             || !double.IsFinite(right) || !double.IsFinite(top)
             || right <= left || top <= bottom)
@@ -1013,8 +1011,7 @@ public sealed class PdfIncrementalPageEditor
         ValidateIndex(pageIndex, nameof(pageIndex));
         if (!Enum.IsDefined(style))
             throw new ArgumentOutOfRangeException(nameof(style));
-        if (startNumber < 1)
-            throw new ArgumentOutOfRangeException(nameof(startNumber));
+        ArgumentOutOfRangeException.ThrowIfLessThan(startNumber, 1);
         if (style == PdfPageLabelStyle.None && string.IsNullOrEmpty(prefix))
             throw new ArgumentException(
                 "A page-label range without numbering requires a prefix.",
@@ -1159,8 +1156,7 @@ public sealed class PdfIncrementalPageEditor
 
     private void ValidateBookmarkLevel(int level)
     {
-        if (level < 0)
-            throw new ArgumentOutOfRangeException(nameof(level));
+        ArgumentOutOfRangeException.ThrowIfNegative(level);
         if (_bookmarks.Count == 0 && level != 0)
             throw new ArgumentException(
                 "The first bookmark must be at level zero.", nameof(level));

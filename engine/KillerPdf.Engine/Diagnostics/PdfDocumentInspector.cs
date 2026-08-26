@@ -39,8 +39,7 @@ public static class PdfDocumentInspector
         string? password,
         int maximumInspectedObjects)
     {
-        if (maximumInspectedObjects < 1)
-            throw new ArgumentOutOfRangeException(nameof(maximumInspectedObjects));
+        ArgumentOutOfRangeException.ThrowIfLessThan(maximumInspectedObjects, 1);
 
         var diagnostics = new List<PdfDiagnostic>();
         PdfVersion? version = ReadHeader(source, diagnostics);

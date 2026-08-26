@@ -36,8 +36,7 @@ public static class PdfStreamDecoder
         int maximumDecodedBytes)
     {
         ArgumentNullException.ThrowIfNull(stream);
-        if (maximumDecodedBytes < 0)
-            throw new ArgumentOutOfRangeException(nameof(maximumDecodedBytes));
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumDecodedBytes);
 
         IReadOnlyList<PdfName> filters = ReadFilters(stream.Dictionary, resolve);
         IReadOnlyList<PdfDictionary?> parameters = ReadParameters(

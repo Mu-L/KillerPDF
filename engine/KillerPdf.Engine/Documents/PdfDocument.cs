@@ -134,8 +134,7 @@ public sealed class PdfDocument
     /// </summary>
     public PdfObject Resolve(int objectNumber)
     {
-        if (objectNumber < 0)
-            throw new ArgumentOutOfRangeException(nameof(objectNumber));
+        ArgumentOutOfRangeException.ThrowIfNegative(objectNumber);
         if (!CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry))
             return PdfNull.Instance;
         return ResolveEntry(entry);

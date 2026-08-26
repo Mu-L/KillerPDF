@@ -617,7 +617,7 @@ namespace KillerPDF.Features
                 queue = queues.FirstOrDefault(q =>
                             string.Equals(q.FullName, printerName, StringComparison.OrdinalIgnoreCase))
                      ?? queues.FirstOrDefault(q =>
-                            q.FullName.IndexOf(printerName, StringComparison.OrdinalIgnoreCase) >= 0);
+                            q.FullName.Contains(printerName, StringComparison.OrdinalIgnoreCase));
                 if (queue is null)
                 {
                     con.WriteLine($"Printer not found: {printerName}. Available:");

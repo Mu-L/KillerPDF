@@ -65,7 +65,7 @@ namespace KillerPDF.Features
 
             // Signed, verified, AND signed by Steve - all three, not merely "is signed".
             bool signedByMe = sigValid
-                           && sigSubject.IndexOf(SignerName, StringComparison.OrdinalIgnoreCase) >= 0;
+                           && sigSubject.Contains(SignerName, StringComparison.OrdinalIgnoreCase);
             // 0x201C / 0x201D are the curly quotes, built from codepoints so this file stays ASCII
             // on disk - the same encoding trap that made release.ps1 PS7-only.
             _host.SetAlias(signedByMe ? (char)0x201C + AkaName + (char)0x201D : null);

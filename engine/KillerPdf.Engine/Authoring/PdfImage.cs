@@ -303,8 +303,8 @@ public sealed class PdfImage
 
     private static void ValidateDimensions(int width, int height)
     {
-        if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
-        if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
     }
 
     private static int RequiredBytes(int width, int height, int components)

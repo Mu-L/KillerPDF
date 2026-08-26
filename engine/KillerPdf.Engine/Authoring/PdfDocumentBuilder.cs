@@ -470,8 +470,7 @@ public sealed partial class PdfDocumentBuilder
         ValidatePageIndex(pageIndex, nameof(pageIndex));
         if (!Enum.IsDefined(style))
             throw new ArgumentOutOfRangeException(nameof(style));
-        if (startNumber < 1)
-            throw new ArgumentOutOfRangeException(nameof(startNumber));
+        ArgumentOutOfRangeException.ThrowIfLessThan(startNumber, 1);
         if (style == PdfPageLabelStyle.None && string.IsNullOrEmpty(prefix))
             throw new ArgumentException("A page-label range without numbering requires a prefix.", nameof(prefix));
         if (_pageLabels.Any(label => label.PageIndex == pageIndex))
@@ -487,8 +486,7 @@ public sealed partial class PdfDocumentBuilder
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("A bookmark title cannot be empty.", nameof(title));
         ValidatePageIndex(pageIndex, nameof(pageIndex));
-        if (level < 0)
-            throw new ArgumentOutOfRangeException(nameof(level));
+        ArgumentOutOfRangeException.ThrowIfNegative(level);
         if (_bookmarks.Count == 0 && level != 0)
             throw new ArgumentException("The first bookmark must be at level zero.", nameof(level));
         if (_bookmarks.Count > 0 && level > _bookmarks[^1].Level + 1)
@@ -519,7 +517,7 @@ public sealed partial class PdfDocumentBuilder
 
     private void ValidateBookmarkLevel(int level)
     {
-        if (level < 0) throw new ArgumentOutOfRangeException(nameof(level));
+        ArgumentOutOfRangeException.ThrowIfNegative(level);
         if (_bookmarks.Count == 0 && level != 0)
             throw new ArgumentException("The first bookmark must be at level zero.", nameof(level));
         if (_bookmarks.Count > 0 && level > _bookmarks[^1].Level + 1)
@@ -545,8 +543,7 @@ public sealed partial class PdfDocumentBuilder
         string? actualText = null)
     {
         ValidatePageIndex(pageIndex, nameof(pageIndex));
-        if (markedContentId < 0)
-            throw new ArgumentOutOfRangeException(nameof(markedContentId));
+        ArgumentOutOfRangeException.ThrowIfNegative(markedContentId);
         if (!_pages[pageIndex].MarkedContentIds.Contains(markedContentId))
             throw new ArgumentException(
                 "The page content does not define this marked-content identifier.",
@@ -571,8 +568,7 @@ public sealed partial class PdfDocumentBuilder
     {
         if (!Enum.IsDefined(type))
             throw new ArgumentOutOfRangeException(nameof(type));
-        if (level < 0)
-            throw new ArgumentOutOfRangeException(nameof(level));
+        ArgumentOutOfRangeException.ThrowIfNegative(level);
         if (_structureElements.Count == 0 && level != 0)
             throw new ArgumentException("The first structure element must be at level zero.", nameof(level));
         if (_structureElements.Count > 0 && level > _structureElements[^1].Level + 1)

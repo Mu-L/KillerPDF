@@ -1691,7 +1691,7 @@ namespace KillerPDF
             {
                 var asm = Assembly.GetExecutingAssembly();
                 var rn  = Array.Find(asm.GetManifestResourceNames(),
-                    n => n.IndexOf("pdf-file", StringComparison.OrdinalIgnoreCase) >= 0
+                    n => n.Contains("pdf-file", StringComparison.OrdinalIgnoreCase)
                          && n.EndsWith(".ico", StringComparison.OrdinalIgnoreCase));
                 if (rn == null) return; // dev build running from bin/ without the embedded icon
 

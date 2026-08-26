@@ -58,8 +58,7 @@ public sealed class PdfContentStreamBuilder
     {
         if (!Enum.IsDefined(type))
             throw new ArgumentOutOfRangeException(nameof(type));
-        if (markedContentId < 0)
-            throw new ArgumentOutOfRangeException(nameof(markedContentId));
+        ArgumentOutOfRangeException.ThrowIfNegative(markedContentId);
         if (!_markedContentIds.Add(markedContentId))
             throw new ArgumentException(
                 "Marked-content identifiers must be unique within a page.", nameof(markedContentId));

@@ -97,7 +97,7 @@ public sealed class PdfIncrementalUpdateBuilder
     public PdfIncrementalUpdateBuilder ReplaceObject(int objectNumber, PdfObject value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (objectNumber <= 0) throw new ArgumentOutOfRangeException(nameof(objectNumber));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(objectNumber);
         if (!_document.CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry)
             || entry.Type is not (PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed))
             throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));
@@ -116,8 +116,7 @@ public sealed class PdfIncrementalUpdateBuilder
     /// <summary>Marks an existing indirect object free in the appended revision.</summary>
     public PdfIncrementalUpdateBuilder FreeObject(int objectNumber)
     {
-        if (objectNumber <= 0)
-            throw new ArgumentOutOfRangeException(nameof(objectNumber));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(objectNumber);
         if (!_document.CrossReferences.TryGetValue(objectNumber, out PdfCrossReferenceEntry entry)
             || entry.Type is not (PdfCrossReferenceEntryType.InUse or PdfCrossReferenceEntryType.Compressed))
             throw new ArgumentException($"Object {objectNumber} is not currently in use.", nameof(objectNumber));

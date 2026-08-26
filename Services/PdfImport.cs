@@ -73,11 +73,11 @@ namespace KillerPDF.Services
             {
                 string msg  = e.Message ?? string.Empty;
                 string type = e.GetType().FullName ?? string.Empty;
-                if (msg.IndexOf("EOF", StringComparison.OrdinalIgnoreCase) >= 0
-                    || msg.IndexOf("end of file", StringComparison.OrdinalIgnoreCase) >= 0
-                    || msg.IndexOf("Inflater", StringComparison.OrdinalIgnoreCase) >= 0
-                    || msg.IndexOf("FlateDecode", StringComparison.OrdinalIgnoreCase) >= 0
-                    || type.IndexOf("SharpZip", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (msg.Contains("EOF", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("end of file", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("Inflater", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("FlateDecode", StringComparison.OrdinalIgnoreCase)
+                    || type.Contains("SharpZip", StringComparison.OrdinalIgnoreCase))
                     return true;
             }
             return false;
@@ -87,15 +87,15 @@ namespace KillerPDF.Services
         // (import-rebuild / PDFium round-trip) can usually fix. Named for the original xref case,
         // but now also covers other parser-level errors surfaced when reopening a saved temp.
         internal static bool IsXRefException(Exception ex) =>
-            ex.Message.IndexOf("XRef", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("cross-reference", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("trailer", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("Invalid PDF file", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("startxref", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("Unexpected token", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            ex.Message.Contains("XRef", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("cross-reference", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("trailer", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("Invalid PDF file", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("startxref", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("Unexpected token", StringComparison.OrdinalIgnoreCase) ||
             // #106: "Cannot retrieve stream length." - a stream whose /Length is indirect or broken.
-            ex.Message.IndexOf("stream length", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("File streams are not yet implemented", StringComparison.OrdinalIgnoreCase) >= 0;
+            ex.Message.Contains("stream length", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("File streams are not yet implemented", StringComparison.OrdinalIgnoreCase);
 
         // True for UNC paths (\\server\share, \\wsl$\..., \\wsl.localhost\...) and mapped
         // network drives. Such files are copied locally before opening to avoid 9P short reads.
@@ -114,13 +114,13 @@ namespace KillerPDF.Services
         }
 
         internal static bool IsOwnerPasswordException(Exception ex) =>
-            ex.Message.IndexOf("owner", StringComparison.OrdinalIgnoreCase) >= 0 &&
-            ex.Message.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0;
+            ex.Message.Contains("owner", StringComparison.OrdinalIgnoreCase) &&
+            ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase);
 
         internal static bool IsPasswordException(Exception ex) =>
-            ex.Message.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("protected", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            ex.Message.IndexOf("encrypted", StringComparison.OrdinalIgnoreCase) >= 0;
+            ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("protected", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("encrypted", StringComparison.OrdinalIgnoreCase);
 
         // ---- Background-safe repair strategies -----------------------------------------------
 

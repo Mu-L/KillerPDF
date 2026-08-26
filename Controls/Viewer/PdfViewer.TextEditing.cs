@@ -121,7 +121,7 @@ namespace KillerPDF.Controls
                 if (char.IsWhiteSpace(c)) continue;
                 total++;
                 if (char.IsLetterOrDigit(c)) { letters++; continue; }
-                if (ok.IndexOf(c) >= 0) continue;          // ordinary punctuation is fine
+                if (ok.Contains(c)) continue;              // ordinary punctuation is fine
                 weird++;                                   // replacement / PUA / stray symbol = mapping break
             }
             if (total == 0) return false;

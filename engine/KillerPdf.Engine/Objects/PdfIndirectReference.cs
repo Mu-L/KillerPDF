@@ -6,8 +6,7 @@ public sealed class PdfIndirectReference : PdfObject
     /// <summary>Creates a validated indirect reference.</summary>
     public PdfIndirectReference(int objectNumber, int generation)
     {
-        if (objectNumber < 0)
-            throw new ArgumentOutOfRangeException(nameof(objectNumber));
+        ArgumentOutOfRangeException.ThrowIfNegative(objectNumber);
         if (generation is < 0 or > 65_535)
             throw new ArgumentOutOfRangeException(nameof(generation));
 
@@ -27,12 +26,10 @@ public sealed class PdfIndirectObject
     /// <summary>Creates a parsed indirect object and records its declaration offset.</summary>
     public PdfIndirectObject(int objectNumber, int generation, PdfObject value, int offset)
     {
-        if (objectNumber < 0)
-            throw new ArgumentOutOfRangeException(nameof(objectNumber));
+        ArgumentOutOfRangeException.ThrowIfNegative(objectNumber);
         if (generation is < 0 or > 65_535)
             throw new ArgumentOutOfRangeException(nameof(generation));
-        if (offset < 0)
-            throw new ArgumentOutOfRangeException(nameof(offset));
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
 
         ObjectNumber = objectNumber;
         Generation = generation;
