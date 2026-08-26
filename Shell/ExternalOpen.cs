@@ -67,11 +67,11 @@ namespace KillerPDF
                     var buffer = new byte[81920];
                     long total = 0;
                     int read;
-                    while ((read = await input.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    while ((read = await input.ReadAsync(buffer)) > 0)
                     {
                         total += read;
                         if (total > MaxBytes) throw new InvalidDataException("The PDF is larger than the 256 MB browser handoff limit.");
-                        await output.WriteAsync(buffer, 0, read);
+                        await output.WriteAsync(buffer.AsMemory(0, read));
                     }
                 }
 

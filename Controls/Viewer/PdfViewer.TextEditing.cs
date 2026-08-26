@@ -130,7 +130,8 @@ namespace KillerPDF.Controls
 
         private void EditTextAtPosition(Point canvasPos, int pageIdx)
         {
-            if (_currentFile is null || !_renderDims.ContainsKey(pageIdx)) return;
+            if (_currentFile is null
+                || !_renderDims.TryGetValue(pageIdx, out var renderDimensions)) return;
 
             // Commit any existing edit first
             if (_activeTextBox is not null)
@@ -213,7 +214,7 @@ namespace KillerPDF.Controls
 
             try
             {
-                var (renderW, renderH) = _renderDims[pageIdx];
+                var (renderW, renderH) = renderDimensions;
 
                 using var pigDoc = PdfPigDoc.Open(_currentFile);
                 if (pageIdx >= pigDoc.NumberOfPages) return;

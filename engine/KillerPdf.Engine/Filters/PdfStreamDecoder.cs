@@ -228,7 +228,7 @@ public static class PdfStreamDecoder
         int width = 9;
         int nextCode = 258;
         byte[]? previous = null;
-        Reset();
+        for (int value = 0; value < 256; value++) dictionary[value] = [(byte)value];
         while (TryReadCode(encoded, ref bitOffset, width, out int code))
         {
             if (code == 256) { Reset(); previous = null; continue; }

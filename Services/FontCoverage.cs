@@ -112,7 +112,7 @@ namespace KillerPDF.Services
         // ── Coverage ──────────────────────────────────────────────────────────────────────────
 
         private static readonly Dictionary<string, CmapCoverage?> Cache = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly object Gate = new();
+        private static readonly Lock Gate = new();
 
         private static bool Covers(string family, string text)
         {

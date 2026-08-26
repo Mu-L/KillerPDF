@@ -435,11 +435,11 @@ namespace KillerPDF.Controls
         private void ExtractTextFromRegion(int pageIdx, Rect canvasBounds)
         {
             if (_currentFile is null || pageIdx < 0) return;
-            if (!_renderDims.ContainsKey(pageIdx)) return;
+            if (!_renderDims.TryGetValue(pageIdx, out var renderDimensions)) return;
 
             try
             {
-                var (renderW, renderH) = _renderDims[pageIdx];
+                var (renderW, renderH) = renderDimensions;
 
                 using var pigDoc = PdfPigDoc.Open(_currentFile);
                 if (pageIdx >= pigDoc.NumberOfPages) return;

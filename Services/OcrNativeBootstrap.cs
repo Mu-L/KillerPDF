@@ -15,7 +15,7 @@ namespace KillerPDF.Services
         private const string NativePrefix = "KillerPDF.OcrNative.";
         private const string TessDataPrefix = "KillerPDF.OcrTessData.";
 
-        private static readonly object _gate = new();
+        private static readonly Lock _gate = new();
         private static bool _langReady;
         private static bool _nativeReady;
 

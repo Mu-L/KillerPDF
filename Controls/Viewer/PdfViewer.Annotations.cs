@@ -1917,18 +1917,18 @@ namespace KillerPDF.Controls
                     // Tiny drag = single click -> try annotation selection
                     ClearTextSelection();
                     bool shiftSel = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
-                    if (pageIdx >= 0 && _annotations.ContainsKey(pageIdx))
+                    if (pageIdx >= 0 && _annotations.TryGetValue(pageIdx, out var pageAnnotations))
                     {
-                        for (int i = _annotations[pageIdx].Count - 1; i >= 0; i--)
+                        for (int i = pageAnnotations.Count - 1; i >= 0; i--)
                         {
-                            if (HitTestAnnotation(_annotations[pageIdx][i], _selectStart, out Rect bounds))
+                            if (HitTestAnnotation(pageAnnotations[i], _selectStart, out Rect bounds))
                             {
                                 if (shiftSel)
                                     // Add/remove this annotation from the multi-selection.
-                                    ToggleMultiSelect(_annotations[pageIdx][i], bounds,
+                                    ToggleMultiSelect(pageAnnotations[i], bounds,
                                                       _gestureCanvas ?? CanvasForPage(pageIdx));
                                 else
-                                    SelectAnnotation(_annotations[pageIdx][i], bounds);
+                                    SelectAnnotation(pageAnnotations[i], bounds);
                                 break;
                             }
                         }

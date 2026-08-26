@@ -1635,7 +1635,7 @@ public sealed class PdfIncrementalAnnotationEditor
         {
             ResolvedValue resolved = ResolveWithIdentity(item,
                 $"Page {pageIndex + 1} annotation");
-            if (resolved.FinalReference is not PdfIndirectReference reference
+            if (resolved.FinalReference is not PdfIndirectReference
                 || resolved.Value is not PdfDictionary annotation
                 || !annotation.TryGetValue(Name("NM"), out PdfObject? nameValue)
                 || ResolveValue(nameValue,

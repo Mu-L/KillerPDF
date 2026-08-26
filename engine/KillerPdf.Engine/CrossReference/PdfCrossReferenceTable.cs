@@ -406,7 +406,6 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     private static void ValidatePermanentIdentifiers(
         IReadOnlyList<Revision> revisions, long offset)
     {
-        ReadOnlyMemory<byte>? permanentIdentifier = null;
         for (int index = revisions.Count - 1; index >= 0; index--)
         {
             Revision revision = revisions[index];
@@ -418,12 +417,11 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
             if (value is null)
                 continue;
             if (value is not PdfArray { Count: 2 } identifiers
-                || identifiers[0] is not PdfString first
+                || identifiers[0] is not PdfString
                 || identifiers[1] is not PdfString)
                 throw new PdfSyntaxException(
                     "Trailer /ID must be an array of two strings",
                     ClampOffset(revision.Primary.Offset));
-            permanentIdentifier = first.Bytes;
         }
     }
 

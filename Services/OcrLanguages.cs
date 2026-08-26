@@ -79,9 +79,9 @@ namespace KillerPDF.Services
                 var buffer = new byte[81920];
                 long read = 0;
                 int n;
-                while ((n = await netStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+                while ((n = await netStream.ReadAsync(buffer, ct)) > 0)
                 {
-                    await fileStream.WriteAsync(buffer, 0, n, ct);
+                    await fileStream.WriteAsync(buffer.AsMemory(0, n), ct);
                     read += n;
                     double mb = read / 1048576.0;
                     progress(total.HasValue

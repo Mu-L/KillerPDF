@@ -4,6 +4,11 @@ namespace KillerPDF.Services
 {
     internal sealed class SignatureStore
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            WriteIndented = true
+        };
+
         private readonly string _dir;
         private readonly string _file;
 
@@ -42,7 +47,7 @@ namespace KillerPDF.Services
             try
             {
                 System.IO.Directory.CreateDirectory(_dir);
-                var json = JsonSerializer.Serialize(_items, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(_items, JsonOptions);
                 System.IO.File.WriteAllText(_file, json);
             }
             catch { /* best effort */ }

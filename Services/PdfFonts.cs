@@ -32,7 +32,7 @@ namespace KillerPDF.Services
         private static readonly Dictionary<string, FaceFile> Faces = new(StringComparer.OrdinalIgnoreCase);
         // family (lower) -> style -> faceKey
         private static readonly Dictionary<string, Dictionary<FaceStyle, string>> Families = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly object Gate = new();
+        private static readonly Lock Gate = new();
         private static bool _indexed;
 
         private readonly record struct FaceFile(string Path, int FaceIndex);
