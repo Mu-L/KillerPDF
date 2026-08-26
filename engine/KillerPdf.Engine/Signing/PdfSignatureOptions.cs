@@ -33,6 +33,8 @@ public sealed record PdfSignatureOptions
     public PdfSignatureDocumentLockIntent? DocumentLockIntent { get; init; }
     /// <summary>Gets the selected named signature appearance.</summary>
     public string? AppearanceName { get; init; }
+    /// <summary>Gets the optional visible appearance for a newly created signature field.</summary>
+    public PdfSignatureAppearance? VisibleAppearance { get; init; }
     /// <summary>DER-encoded end-entity certificate used by the detached CMS callback.</summary>
     public ReadOnlyMemory<byte> SignerCertificate { get; init; }
     /// <summary>DER-encoded issuer certificates supplied with the signer certificate.</summary>
@@ -48,4 +50,21 @@ public sealed record PdfSignatureOptions
     /// direct and patchable even when other eligible revision objects are packed.
     /// </summary>
     public PdfIncrementalUpdateWriteOptions? IncrementalWriteOptions { get; init; }
+}
+
+/// <summary>Describes a visible text appearance for a new signature widget.</summary>
+public sealed record PdfSignatureAppearance
+{
+    /// <summary>Gets the left edge in unrotated PDF page coordinates.</summary>
+    public double Left { get; init; } = 36;
+    /// <summary>Gets the bottom edge in unrotated PDF page coordinates.</summary>
+    public double Bottom { get; init; } = 36;
+    /// <summary>Gets the appearance width in PDF points.</summary>
+    public double Width { get; init; } = 220;
+    /// <summary>Gets the appearance height in PDF points.</summary>
+    public double Height { get; init; } = 72;
+    /// <summary>Gets the text rendered inside the appearance.</summary>
+    public string Text { get; init; } = "Digitally signed";
+    /// <summary>Gets the text size in PDF points.</summary>
+    public double FontSize { get; init; } = 10;
 }

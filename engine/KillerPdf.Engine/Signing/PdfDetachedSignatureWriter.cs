@@ -13,8 +13,8 @@ using KillerPdf.Engine.Writing;
 namespace KillerPdf.Engine.Signing;
 
 /// <summary>
-/// Adds an invisible approval-signature field in an incremental revision and fills its
-/// PDF 2.0 byte range with detached CMS bytes supplied by the caller.
+/// Adds an approval-signature field in an incremental revision, optionally gives it a visible
+/// appearance, and fills its PDF 2.0 byte range with detached CMS bytes supplied by the caller.
 /// </summary>
 public static class PdfDetachedSignatureWriter
 {
@@ -48,6 +48,9 @@ public static class PdfDetachedSignatureWriter
         ExistingFormField? existingField = FindField(document, tree, options.FieldName);
         if (existingField is not null)
         {
+            if (options.VisibleAppearance is not null)
+                throw new InvalidOperationException(
+                    "A custom visible appearance can only be applied to a new signature field.");
             if (!existingField.FieldType.Equals(Name("Sig")))
                 throw new InvalidOperationException(
                     $"The AcroForm field '{options.FieldName}' is not a signature field.");
@@ -89,6 +92,8 @@ public static class PdfDetachedSignatureWriter
             ? null : ReadFieldMdpParameters(document, existingField);
 
         var update = new PdfIncrementalUpdateBuilder(document);
+        PdfIndirectReference? appearanceReference = options.VisibleAppearance is null
+            ? null : update.AddObject(BuildVisibleAppearance(options.VisibleAppearance));
         PdfIndirectReference signatureReference = update.ReserveObject();
         update.KeepObjectDirect(signatureReference);
         update.SetObject(signatureReference,
@@ -146,6 +151,12 @@ public static class PdfDetachedSignatureWriter
                 ("F", new PdfInteger(4)),
                 ("P", page.Reference)
             };
+            if (options.VisibleAppearance is { } appearance && appearanceReference is not null)
+            {
+                fieldEntries[5] = ("Rect", Rectangle(appearance.Left, appearance.Bottom,
+                    appearance.Left + appearance.Width, appearance.Bottom + appearance.Height));
+                fieldEntries.Add(("AP", Dictionary(("N", appearanceReference))));
+            }
             if (association.StructureParentKey.HasValue)
                 fieldEntries.Add(("StructParent",
                     new PdfInteger(association.StructureParentKey.Value)));
@@ -1577,7 +1588,72 @@ public static class PdfDetachedSignatureWriter
                 or PdfSignatureCertificationPermission.FormFillingSignaturesAndAnnotations))
             throw new ArgumentOutOfRangeException(nameof(options),
                 "A certification permission must be one of the three DocMDP permission levels.");
+        if (options.VisibleAppearance is { } appearance)
+        {
+            if (!double.IsFinite(appearance.Left) || !double.IsFinite(appearance.Bottom)
+                || !double.IsFinite(appearance.Width) || !double.IsFinite(appearance.Height)
+                || appearance.Width <= 0 || appearance.Height <= 0)
+                throw new ArgumentOutOfRangeException(nameof(options),
+                    "A visible signature appearance must have finite coordinates and positive dimensions.");
+            if (!double.IsFinite(appearance.FontSize) || appearance.FontSize is < 6 or > 72)
+                throw new ArgumentOutOfRangeException(nameof(options),
+                    "A visible signature font size must be between 6 and 72 points.");
+            ArgumentNullException.ThrowIfNull(appearance.Text);
+        }
     }
+
+    private static PdfStream BuildVisibleAppearance(PdfSignatureAppearance appearance)
+    {
+        string text = ToWinAnsi(appearance.Text);
+        string[] lines = text.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n').Split('\n');
+        double lineHeight = appearance.FontSize * 1.25;
+        double y = appearance.Height - appearance.FontSize - 8;
+        var content = new StringBuilder();
+        content.Append("q 1 1 1 rg 0 0 ")
+            .Append(Number(appearance.Width)).Append(' ')
+            .Append(Number(appearance.Height)).Append(" re f ")
+            .Append("0.16 0.68 0.38 RG 1.5 w 0.75 0.75 ")
+            .Append(Number(Math.Max(0, appearance.Width - 1.5))).Append(' ')
+            .Append(Number(Math.Max(0, appearance.Height - 1.5))).Append(" re S ")
+            .Append("0.1 0.1 0.1 rg BT /F1 ")
+            .Append(Number(appearance.FontSize)).Append(" Tf ");
+        foreach (string line in lines)
+        {
+            if (y < 4) break;
+            content.Append("1 0 0 1 8 ").Append(Number(y)).Append(" Tm (")
+                .Append(EscapeLiteral(line)).Append(") Tj ");
+            y -= lineHeight;
+        }
+        content.Append("ET Q\n");
+
+        PdfDictionary font = Dictionary(
+            ("Type", Name("Font")),
+            ("Subtype", Name("Type1")),
+            ("BaseFont", Name("Helvetica")),
+            ("Encoding", Name("WinAnsiEncoding")));
+        return new PdfStream(Dictionary(
+            ("Type", Name("XObject")),
+            ("Subtype", Name("Form")),
+            ("FormType", new PdfInteger(1)),
+            ("BBox", Rectangle(0, 0, appearance.Width, appearance.Height)),
+            ("Resources", Dictionary(("Font", Dictionary(("F1", font)))))),
+            Encoding.Latin1.GetBytes(content.ToString()));
+    }
+
+    private static PdfArray Rectangle(double left, double bottom, double right, double top) =>
+        new([new PdfReal(left), new PdfReal(bottom), new PdfReal(right), new PdfReal(top)]);
+
+    private static string Number(double value) =>
+        value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static string ToWinAnsi(string value) =>
+        Encoding.Latin1.GetString(Encoding.Latin1.GetBytes(value));
+
+    private static string EscapeLiteral(string value) => value
+        .Replace("\\", "\\\\", StringComparison.Ordinal)
+        .Replace("(", "\\(", StringComparison.Ordinal)
+        .Replace(")", "\\)", StringComparison.Ordinal);
 
     private static PdfDictionary ResolveDictionary(
         PdfDocument document, PdfObject value, string description)

@@ -17,6 +17,46 @@ namespace KillerPdf.Engine.Tests.Signing;
 public sealed class PdfDetachedSignatureWriterTests
 {
     [Fact]
+    public void Sign_WritesEditableVisibleAppearanceForNewField()
+    {
+        byte[] source = new PdfDocumentBuilder().AddBlankPage(400, 500).Build();
+        PdfDocument signed = PdfDocument.Open(PdfDetachedSignatureWriter.Sign(
+            PdfDocument.Open(source), _ => [1], new PdfSignatureOptions
+            {
+                ReservedSignatureSize = 16,
+                VisibleAppearance = new PdfSignatureAppearance
+                {
+                    Left = 40,
+                    Bottom = 50,
+                    Width = 220,
+                    Height = 80,
+                    FontSize = 11,
+                    Text = "Digitally signed by Steve\nReason: Approved"
+                }
+            }));
+
+        PdfDictionary catalog = ResolveDictionary(signed, signed.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfDictionary field = ResolveDictionary(signed,
+            Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
+        PdfArray rectangle = Assert.IsType<PdfArray>(field[Name("Rect")]);
+        Assert.Equal([40d, 50d, 260d, 130d], rectangle.Select(Number).ToArray());
+        PdfDictionary appearances = Assert.IsType<PdfDictionary>(field[Name("AP")]);
+        PdfStream normal = Assert.IsType<PdfStream>(signed.Resolve(
+            Assert.IsType<PdfIndirectReference>(appearances[Name("N")])));
+        string commands = Encoding.Latin1.GetString(normal.EncodedData.Span);
+        Assert.Contains("Digitally signed by Steve", commands, StringComparison.Ordinal);
+        Assert.Contains("Reason: Approved", commands, StringComparison.Ordinal);
+
+        static double Number(PdfObject value) => value switch
+        {
+            PdfInteger integer => integer.Value,
+            PdfReal real => real.Value,
+            _ => throw new Xunit.Sdk.XunitException("Expected a numeric rectangle coordinate.")
+        };
+    }
+
+    [Fact]
     public void Sign_EnforcesUserPasswordFormPermissionsWhileOwnerBypasses()
     {
         byte[] existingAllowed = EncryptedSignatureDocument(

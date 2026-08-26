@@ -6,10 +6,15 @@ using KillerPdf.Engine.Signing;
 
 namespace KillerPDF.Services.Signing
 {
-    /// <summary>Creates invisible detached-CMS approval signatures through The KillerPDF.Engine.</summary>
+    /// <summary>Creates detached-CMS approval signatures through The KillerPDF.Engine.</summary>
     internal sealed class PdfSigner
     {
-        public sealed record SignInfo(string Reason, string Location, string Contact);
+        public sealed record SignInfo(string Reason, string Location, string Contact,
+            VisibleSignatureInfo? VisibleAppearance = null);
+
+        public sealed record VisibleSignatureInfo(
+            int PageIndex, double Left, double Bottom, double Width, double Height,
+            double FontSize, string Text);
 
         public void Sign(string inputPath, string outputPath, X509Certificate2 cert, SignInfo info)
         {
@@ -31,6 +36,18 @@ namespace KillerPDF.Services.Signing
                 Location = NullIfWhiteSpace(info.Location),
                 ContactInformation = NullIfWhiteSpace(info.Contact),
                 SignerCertificate = cert.RawDataMemory,
+                PageIndex = info.VisibleAppearance?.PageIndex ?? 0,
+                VisibleAppearance = info.VisibleAppearance is { } appearance
+                    ? new PdfSignatureAppearance
+                    {
+                        Left = appearance.Left,
+                        Bottom = appearance.Bottom,
+                        Width = appearance.Width,
+                        Height = appearance.Height,
+                        FontSize = appearance.FontSize,
+                        Text = appearance.Text
+                    }
+                    : null,
             };
 
             byte[] signed = PdfDetachedSignatureWriter.Sign(
