@@ -440,6 +440,36 @@ public sealed class PdfEngineIntegrationTests
         }
     }
 
+    [Theory]
+    [InlineData("don’t")]
+    [InlineData("a—b")]
+    [InlineData("€50")]
+    [InlineData("日本")]
+    public void ApplyFormValues_EmbedsFontForUnicodeTextValues(string value)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-unicode-form-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder()
+                .AddBlankPage()
+                .AddTextField(0, "customer.name", 20, 20, 180, 28, "Original")
+                .Build());
+
+            PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
+                new Dictionary<string, string> { ["customer.name"] = value },
+                new Dictionary<string, string>(), new Dictionary<string, bool>(),
+                new Dictionary<string, string>(), new Dictionary<string, double>()));
+
+            PdfFormWidgetInfo field = Assert.Single(PdfFormWidgetReader.ReadPage(
+                PdfDocument.Open(File.ReadAllBytes(path)), 0));
+            Assert.Equal(value, field.Value);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
     [Fact]
     public void RemoveEncryption_WritesPasswordFreeDocumentWithPreservedMetadata()
     {

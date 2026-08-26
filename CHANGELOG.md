@@ -26,6 +26,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Saving edited fillable fields now embeds a compatible font when values contain smart punctuation, currency symbols, CJK, or other Unicode text instead of rejecting the save.
 - Single-page and two-page views now accept one deliberate geared-wheel notch at a page edge while still suppressing momentum from the preceding content scroll; precision-wheel deltas continue to accumulate smoothly (#205).
 - The shortcut help list is wider with more column spacing, and the visual keyboard localizes named keycaps while using guaranteed-readable action and heading text across dark themes (#230).
 - The remaining reported signature, text-editing, install, publisher-verification, and text-cover unpair messages now use the active language resources instead of hardcoded English (#227).

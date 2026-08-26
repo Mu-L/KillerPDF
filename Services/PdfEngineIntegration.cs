@@ -165,16 +165,49 @@ internal static class PdfEngineIntegration
             return;
         PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
         var editor = new PdfIncrementalPageEditor(document);
+        var fonts = new Dictionary<string, TrueTypeFont>(StringComparer.OrdinalIgnoreCase);
+        IReadOnlyList<PdfFormWidgetInfo> widgets = Enumerable.Range(
+                0, PdfDocumentInformation.Read(document).PageCount)
+            .SelectMany(pageIndex => PdfFormWidgetReader.ReadPage(document, pageIndex))
+            .ToArray();
         foreach ((string name, string value) in edits.TextValues.OrderBy(item => item.Key))
-            editor.SetTextFieldValue(name, value, fontSize:
+            editor.SetTextFieldValue(name, value, EmbeddedFormFont(value, fonts), fontSize:
                 edits.TextFontSizes.TryGetValue(name, out double size) ? size : null);
         foreach ((string name, string value) in edits.ChoiceValues.OrderBy(item => item.Key))
-            editor.SetChoiceFieldValue(name, value);
+        {
+            string appearanceText = widgets.FirstOrDefault(widget =>
+                    widget.FieldKind == PdfFormFieldKind.Choice
+                    && string.Equals(widget.FieldName, name, StringComparison.Ordinal))?
+                .Options.FirstOrDefault(option =>
+                    string.Equals(option.ExportValue, value, StringComparison.Ordinal))?
+                .DisplayValue ?? value;
+            editor.SetChoiceFieldValue(name, value, EmbeddedFormFont(appearanceText, fonts));
+        }
         foreach ((string name, bool value) in edits.CheckBoxValues.OrderBy(item => item.Key))
             editor.SetCheckBoxValue(name, value);
         foreach ((string name, string value) in edits.RadioValues.OrderBy(item => item.Key))
             editor.SetRadioButtonValue(name, value.TrimStart('/'));
         ReplaceWithBuiltResult(path, editor.Build());
+    }
+
+    private static TrueTypeFont? EmbeddedFormFont(
+        string value, IDictionary<string, TrueTypeFont> cache)
+    {
+        if (!value.Any(character => character > byte.MaxValue)) return null;
+        string family = FontCoverage.PickFamily("Segoe UI", value);
+        if (cache.TryGetValue(family, out TrueTypeFont? font)) return font;
+        byte[]? bytes = InstalledFontCatalog.RegularFaceBytes(family);
+        if (bytes is null)
+            throw new InvalidOperationException(
+                $"No installed font can preserve the Unicode form value using {family}.");
+        try { font = TrueTypeFont.Load(bytes); }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"The installed font {family} could not be embedded for a Unicode form value.", ex);
+        }
+        cache.Add(family, font);
+        return font;
     }
 
     /// <summary>Authenticates and fully rewrites a PDF without password encryption.</summary>
