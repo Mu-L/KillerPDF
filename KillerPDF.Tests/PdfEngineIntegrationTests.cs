@@ -441,6 +441,43 @@ public sealed class PdfEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public void ApplyFormValues_WritesABatchOfOnlyMultiSelectValues()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-multi-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] source = new PdfDocumentBuilder()
+                .AddBlankPage()
+                .AddMultiSelectListBox(0, "customer.colours", 20, 20, 140, 96,
+                    ["Red", "Green", "Blue", "Amber"], ["Green", "Blue"])
+                .Build();
+            File.WriteAllBytes(path, source);
+
+            PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, IReadOnlyList<string>>
+                {
+                    ["customer.colours"] = new[] { "Red", "Amber" }
+                },
+                new Dictionary<string, bool>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, double>()));
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.AsSpan(0, source.Length).SequenceEqual(source));
+            PdfFormWidgetInfo widget = Assert.Single(
+                PdfEngineIntegration.ReadPageFormWidgets(PdfDocument.Open(result), 0),
+                candidate => candidate.FieldName == "customer.colours");
+            Assert.Equal(new[] { "Red", "Amber" }, widget.Values);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData("don’t")]
     [InlineData("a—b")]
