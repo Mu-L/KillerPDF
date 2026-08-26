@@ -27,6 +27,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 
 ### Changed
 - Saving edited fillable fields now embeds a compatible font when values contain smart punctuation, currency symbols, CJK, or other Unicode text instead of rejecting the save.
+- Fillable choice fields now bind their displayed option and saved export value explicitly, so selecting another dropdown option updates the live field and persists the new value.
 - Single-page and two-page views now accept one deliberate geared-wheel notch at a page edge while still suppressing momentum from the preceding content scroll; precision-wheel deltas continue to accumulate smoothly (#205).
 - The shortcut help list is wider with more column spacing, and the visual keyboard localizes named keycaps while using guaranteed-readable action and heading text across dark themes (#230).
 - The remaining reported signature, text-editing, install, publisher-verification, and text-cover unpair messages now use the active language resources instead of hardcoded English (#227).

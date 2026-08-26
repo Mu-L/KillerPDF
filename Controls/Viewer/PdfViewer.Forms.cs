@@ -369,21 +369,23 @@ namespace KillerPDF.Controls
                         Width     = f.Cw,
                         Height    = f.Ch,
                         IsEnabled = !f.IsReadOnly,
+                        ItemsSource = f.Options,
+                        DisplayMemberPath = nameof(FormChoiceItem.DisplayValue),
+                        SelectedValuePath = nameof(FormChoiceItem.ExportValue),
+                        SelectedValue = cur,
+                        IsTextSearchEnabled = true,
                         Foreground = Brushes.Black,
                         FontSize  = f.DaFontPt > 0.5 && f.Scale > 0
                             ? f.DaFontPt * f.Scale
                             : Math.Min(Math.Max(10, f.Ch * 0.55), 16),
                         ToolTip   = string.IsNullOrEmpty(f.FieldName) ? null : f.FieldName,
                     };
-                    foreach (var opt in f.Options) combo.Items.Add(opt);
-                    combo.SelectedItem = f.Options.FirstOrDefault(option =>
-                        string.Equals(option.ExportValue, cur, StringComparison.Ordinal));
                     string capturedKey = f.FieldName;
                     combo.SelectionChanged += (_, _) =>
                     {
-                        if (combo.SelectedItem is FormChoiceItem selected)
+                        if (combo.SelectedValue is string selectedExport)
                         {
-                            _formChoiceValues[capturedKey] = selected.ExportValue;
+                            _formChoiceValues[capturedKey] = selectedExport;
                             MarkDirty(true);
                         }
                     };
