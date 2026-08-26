@@ -258,9 +258,25 @@ namespace KillerPDF.Services
                                         transparentBackground ? 0x00000000 : 0xFFFFFFFF);
                                     FPDF_RenderPageBitmapRaw(bitmap, page, 0, 0, width, height, 0,
                                         FpdfAnnot | FpdfLcdText);
-                                    if (includeFormFields && form != IntPtr.Zero)
+                                    // Push buttons have no live overlay, and the static pass above
+                                    // does not paint them: it is byte-identical in both modes, yet
+                                    // they only ever appear on the output path, so FFLDraw is what
+                                    // draws them. The viewer therefore needs FFLDraw too.
+                                    //
+                                    // Output mode restores every widget first so FFLDraw paints them
+                                    // all. Viewer mode leaves the hidden flags on, so FFLDraw paints
+                                    // only what HideWidgetAnnotations deliberately skipped - the push
+                                    // buttons. Text, choice and check fields stay hidden, so the
+                                    // ghosted-value regression from 1.7.2 cannot return.
+                                    //
+                                    // If hiding was unavailable (an older bundled PDFium returns null
+                                    // from HideWidgetAnnotations), the viewer skips FFLDraw rather
+                                    // than painting every field over its own overlay.
+                                    if (form != IntPtr.Zero
+                                        && (includeFormFields || savedWidgetFlags is not null))
                                     {
-                                        RestoreWidgetAnnotationFlags(page, savedWidgetFlags);
+                                        if (includeFormFields)
+                                            RestoreWidgetAnnotationFlags(page, savedWidgetFlags);
                                         FPDF_FFLDrawRaw(form, bitmap, page, 0, 0, width, height, 0,
                                             FpdfAnnot | FpdfLcdText);
                                     }
