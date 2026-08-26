@@ -306,20 +306,25 @@ namespace KillerPDF
             Func<KillerPdf.Engine.Documents.PdfBookmarkInfo,
                 KillerPdf.Engine.Documents.PdfBookmarkInfo> transform)
         {
-            return items.Select(item => item.ObjectNumber == identity.ObjectNumber
+            return [.. items.Select(item => item.ObjectNumber == identity.ObjectNumber
                     && item.Generation == identity.Generation
                 ? transform(item)
-                : item with { Children = TransformBookmarks(item.Children, identity, transform) })
-                .ToArray();
+                : item with { Children = TransformBookmarks(item.Children, identity, transform) })];
         }
 
         private static IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> RemoveBookmarks(
             IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> items,
             IReadOnlySet<(int ObjectNumber, int Generation)> identities)
         {
-            return items.Where(item => !identities.Contains((item.ObjectNumber, item.Generation)))
-                .Select(item => item with { Children = RemoveBookmarks(item.Children, identities) })
-                .ToArray();
+            return
+            [
+                .. items.Where(item =>
+                        !identities.Contains((item.ObjectNumber, item.Generation)))
+                    .Select(item => item with
+                    {
+                        Children = RemoveBookmarks(item.Children, identities)
+                    })
+            ];
         }
 
         private static IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> MoveBookmarkModel(
@@ -336,10 +341,10 @@ namespace KillerPDF
                     (result[index], result[target]) = (result[target], result[index]);
                 return result;
             }
-            return result.Select(item => item with
+            return [.. result.Select(item => item with
             {
                 Children = MoveBookmarkModel(item.Children, identity, delta)
-            }).ToArray();
+            })];
         }
 
         private static (int Index, int Count) FindBookmarkSiblingPosition(
@@ -537,9 +542,9 @@ namespace KillerPDF
                 Children = []
             };
             ApplyEngineBookmarkEdit(items => parent is null
-                ? items.Append(added).ToArray()
+                ? [.. items, added]
                 : TransformBookmarks(items, parent.Identity,
-                    item => item with { Children = item.Children.Append(added).ToArray() }));
+                    item => item with { Children = [.. item.Children, added] }));
             var rows = new List<(TreeViewItem Item, OutlineNodeRef Ref)>();
             FlattenBookmarkItems(OutlineTree.Items, visibleOnly: false, rows);
             var match = rows.LastOrDefault(row => row.Ref.Bookmark.Title == title
@@ -649,7 +654,7 @@ namespace KillerPDF
                 }
                 return FindAncestor(ReadEngineBookmarks(), []);
             }
-            targets = targets.Where(t => !Covered(t)).ToList();
+            targets = [.. targets.Where(t => !Covered(t))];
 
             int Count(KillerPdf.Engine.Documents.PdfBookmarkInfo item) =>
                 1 + item.Children.Sum(Count);

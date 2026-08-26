@@ -244,9 +244,11 @@ namespace KillerPDF.Features
             int pages = PdfEngineIntegration.ReadPageInformation(src).Count;
             IReadOnlyList<IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>> formPages =
                 formAware ? ReadAllFormHints(src, pages) :
-                Enumerable.Range(0, pages)
-                    .Select(_ => (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
-                    .ToArray();
+                [
+                    .. Enumerable.Range(0, pages).Select(_ =>
+                        (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
+                        Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
+                ];
             var layers = new List<PdfEngineIntegration.SearchablePage>(pages);
             for (int i = 0; i < pages; i++)
             {
@@ -270,8 +272,8 @@ namespace KillerPDF.Features
                     ? FormAwareOcr.Recognize(ocr, bgra, w, h, formPages[i])
                     : ocr.RecognizeBgra(bgra, w, h);
                 layers.Add(new PdfEngineIntegration.SearchablePage(w, h,
-                    result.Words.Select(word => new PdfEngineIntegration.SearchableWord(
-                        word.Text, word.Left, word.Top, word.Right, word.Bottom)).ToArray()));
+                    [.. result.Words.Select(word => new PdfEngineIntegration.SearchableWord(
+                        word.Text, word.Left, word.Top, word.Right, word.Bottom))]));
             }
             if (ct.IsCancellationRequested) return (pages, 0);
             int totalWords = PdfEngineIntegration.AddSearchableTextLayers(
@@ -349,9 +351,11 @@ namespace KillerPDF.Features
             using var ocr = new OcrService(language: language);
             IReadOnlyList<IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>> formPages =
                 formAware ? ReadAllFormHints(src, pageCount) :
-                Enumerable.Range(0, pageCount)
-                    .Select(_ => (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
-                    .ToArray();
+                [
+                    .. Enumerable.Range(0, pageCount).Select(_ =>
+                        (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
+                        Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
+                ];
 
             for (int i = 0; i < pageCount; i++)
             {
@@ -395,9 +399,12 @@ namespace KillerPDF.Features
             try { return PdfEngineIntegration.ReadAllPageFormWidgets(path); }
             catch
             {
-                return Enumerable.Range(0, pageCount)
-                    .Select(_ => (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
-                    .ToArray();
+                return
+                [
+                    .. Enumerable.Range(0, pageCount).Select(_ =>
+                        (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
+                        Array.Empty<KillerPdf.Engine.Documents.PdfFormWidgetInfo>())
+                ];
             }
         }
     }

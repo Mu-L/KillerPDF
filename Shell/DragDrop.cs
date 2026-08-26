@@ -72,8 +72,8 @@ namespace KillerPDF
             {
                 if (PageList.SelectedIndex >= 0)
                 {
-                    int[] selected = PageList.SelectedItems.Cast<PageThumbnailVm>()
-                        .Select(page => page.PageIndex).OrderBy(index => index).ToArray();
+                    int[] selected = [.. PageList.SelectedItems.Cast<PageThumbnailVm>()
+                        .Select(page => page.PageIndex).OrderBy(index => index)];
                     try { DragDrop.DoDragDrop(PageList, selected, DragDropEffects.Move); }
                     finally { HidePageDropIndicator(); }
                 }
@@ -143,7 +143,7 @@ namespace KillerPDF
 
         private static string[] DroppedOpenablePaths(DragEventArgs e)
             => e.Data.GetDataPresent(DataFormats.FileDrop)
-                ? ((string[])e.Data.GetData(DataFormats.FileDrop)!).Where(IsOpenablePath).ToArray()
+                ? [.. ((string[])e.Data.GetData(DataFormats.FileDrop)!).Where(IsOpenablePath)]
                 : [];
 
         // #172/#233: import dropped files into the open document. The page insertion marker supplies
@@ -176,7 +176,7 @@ namespace KillerPDF
                 {
                     var pages = PdfEngineIntegration.ReadPageInformation(importPath);
                     imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
-                        pages.Select(page => page.Rotation).ToArray()));
+                        [.. pages.Select(page => page.Rotation)]));
                 }
                 catch { /* skip anything still unreadable after repair */ }
             }
