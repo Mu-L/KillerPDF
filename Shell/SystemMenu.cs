@@ -173,7 +173,8 @@ namespace KillerPDF
             PostMessage(hwnd, WM_SYSCOMMAND, new IntPtr(cmd), IntPtr.Zero);
         }
 
-        [DllImport("user32.dll")]
-        private static extern bool PostMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool PostMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
     }
 }

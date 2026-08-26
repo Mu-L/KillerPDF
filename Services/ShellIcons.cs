@@ -16,7 +16,7 @@ namespace KillerPDF.Services
     // icon resolves from the extension alone - works even when the
     // file is missing, and never touches the file on disk.
     // ============================================================
-    internal static class ShellIcons
+    internal static partial class ShellIcons
     {
         private static readonly Dictionary<string, ImageSource?> _shellIconCache = new(System.StringComparer.OrdinalIgnoreCase);
 
@@ -30,11 +30,15 @@ namespace KillerPDF.Services
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]  public string szTypeName;
         }
 
+        // LibraryImport cannot generate SHFILEINFO's fixed ByValTStr display-name buffers.
+#pragma warning disable SYSLIB1054
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbSizeFileInfo, uint uFlags);
+#pragma warning restore SYSLIB1054
 
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool DestroyIcon(IntPtr hIcon);
+        [LibraryImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool DestroyIcon(IntPtr hIcon);
 
         internal static ImageSource? GetShellIcon(string path)
         {

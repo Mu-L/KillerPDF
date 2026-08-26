@@ -192,22 +192,25 @@ namespace KillerPDF
             }
         }
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr MonitorFromWindow(IntPtr handle, uint flags);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr MonitorFromWindow(IntPtr handle, uint flags);
 
-        [DllImport("user32.dll")]
-        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
 
-        [DllImport("user32.dll")]
-        private static extern bool SetWindowPos(
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool SetWindowPos(
             IntPtr hWnd, IntPtr hWndInsertAfter,
             int X, int Y, int cx, int cy, uint uFlags);
 
-        [DllImport("user32.dll")]
-        private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetWindowRect(IntPtr hwnd, out RECT rect);
 
         private const int WM_NCLBUTTONDOWN = 0x00A1;
         private const int WM_NCHITTEST     = 0x0084;
@@ -525,8 +528,8 @@ namespace KillerPDF
         private const int DWMWCP_DONOTROUND = 1;
         private const int DWMWCP_ROUND      = 2;
 
-        [DllImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+        [LibraryImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute")]
+        private static partial int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
         private const double ShadowMargin = 10;
         private bool _chromeSquared;   // true when maximized/snapped

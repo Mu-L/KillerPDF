@@ -10,7 +10,7 @@ namespace KillerPDF.Services
     /// uses for the managed assemblies. Native libs go in a per-version cache (they must match the app);
     /// language data goes in a STABLE folder so user-downloaded packs survive app updates. Thread-safe.
     /// </summary>
-    internal static class OcrNativeBootstrap
+    internal static partial class OcrNativeBootstrap
     {
         private const string NativePrefix = "KillerPDF.OcrNative.";
         private const string TessDataPrefix = "KillerPDF.OcrTessData.";
@@ -19,11 +19,14 @@ namespace KillerPDF.Services
         private static bool _langReady;
         private static bool _nativeReady;
 
-        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern bool SetDllDirectory(string lpPathName);
+        [LibraryImport("kernel32", EntryPoint = "SetDllDirectoryW", SetLastError = true,
+            StringMarshalling = StringMarshalling.Utf16)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool SetDllDirectory(string lpPathName);
 
-        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern IntPtr LoadLibrary(string lpFileName);
+        [LibraryImport("kernel32", EntryPoint = "LoadLibraryW", SetLastError = true,
+            StringMarshalling = StringMarshalling.Utf16)]
+        private static partial IntPtr LoadLibrary(string lpFileName);
 
         /// <summary>
         /// Version-independent tessdata folder. The bundled English is extracted here on first use, and

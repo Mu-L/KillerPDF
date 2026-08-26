@@ -1374,7 +1374,7 @@ namespace KillerPDF.Controls
                         WM_NCLBUTTONDOWN, new IntPtr(ht), IntPtr.Zero);
         }
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+        private static partial IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
     }
 }

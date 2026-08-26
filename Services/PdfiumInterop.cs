@@ -4,6 +4,10 @@ using Docnet.Core;
 
 namespace KillerPDF.Services
 {
+    // PDFium uses cdecl callbacks, mutable byte buffers, and native structs across one audited
+    // runtime-marshalling boundary. LibraryImport does not cover every signature in this bridge,
+    // so keep one consistent DllImport surface rather than mixing incompatible stub strategies.
+#pragma warning disable SYSLIB1054
     // ============================================================
     // Direct PDFium P/Invoke - the ONE home for every direct
     // pdfium.dll call in the app (KillerUI refactor; formerly split
@@ -486,4 +490,5 @@ namespace KillerPDF.Services
             }
         }
     }
+#pragma warning restore SYSLIB1054
 }

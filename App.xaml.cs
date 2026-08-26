@@ -59,8 +59,8 @@ namespace KillerPDF
         // Shell interop
         // ============================================================
 
-        [DllImport("shell32.dll")]
-        private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+        [LibraryImport("shell32.dll")]
+        private static partial void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
         private const uint SHCNE_ASSOCCHANGED = 0x08000000;
         private const uint SHCNF_IDLIST       = 0x0000;
 
@@ -1344,9 +1344,8 @@ namespace KillerPDF
         private static readonly Guid WTD_VERIFY_GENERIC =
             new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
 
-        [DllImport("wintrust.dll", ExactSpelling = true, SetLastError = false,
-                   CharSet = CharSet.Unicode)]
-        private static extern uint WinVerifyTrust(
+        [LibraryImport("wintrust.dll")]
+        private static partial uint WinVerifyTrust(
             IntPtr hwnd, ref Guid pgActionID, IntPtr pWVTData);
 
         // ── Public helpers ───────────────────────────────────────────────────

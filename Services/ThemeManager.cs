@@ -19,12 +19,12 @@ namespace KillerPDF.Services
     // others apply a small overlay dictionary that recolors only the accent-family keys.
     internal enum DarkAccent { Green, Red, Blue, Purple, Orange, Teal }
 
-    internal static class ThemeManager
+    internal static partial class ThemeManager
     {
         // ── P/Invoke ──────────────────────────────────────────────────────
 
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(
+        [LibraryImport("dwmapi.dll")]
+        private static partial int DwmSetWindowAttribute(
             IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;

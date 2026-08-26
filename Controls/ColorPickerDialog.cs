@@ -17,7 +17,7 @@ namespace KillerPDF
     /// palette (shared "UserSwatches" setting). Replace overwrites one slot with the current color;
     /// Reset restores defaults. Opacity is left to the annotate bar's slider, so this is opaque-RGB only.
     /// </summary>
-    internal sealed class ColorPickerDialog : Window
+    internal sealed partial class ColorPickerDialog : Window
     {
         public Color SelectedColor { get; private set; }
 
@@ -478,9 +478,14 @@ namespace KillerPDF
             return Color.FromRgb((byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255));
         }
         [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X; public int Y; }
-        [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT p);
-        [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hwnd);
-        [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr hdc);
-        [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr hdc, int x, int y);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetCursorPos(out POINT p);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr GetDC(IntPtr hwnd);
+        [LibraryImport("user32.dll")]
+        private static partial int ReleaseDC(IntPtr hwnd, IntPtr hdc);
+        [LibraryImport("gdi32.dll")]
+        private static partial uint GetPixel(IntPtr hdc, int x, int y);
     }
 }

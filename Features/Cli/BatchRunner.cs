@@ -40,12 +40,13 @@ namespace KillerPDF.Features
     // the authoritative record is the --log CSV and the exit code.
     //
     // All static, never touches the window - extracted from MainWindow 2026-07-31.
-    internal static class BatchRunner
+    internal static partial class BatchRunner
     {
         private static readonly SearchValues<char> BatchCsvSpecialCharacters =
             SearchValues.Create([',', '"', '\r', '\n']);
-        [DllImport("kernel32.dll", EntryPoint = "AttachConsole", SetLastError = true)]
-        private static extern bool BatchAttachConsole(int dwProcessId);
+        [LibraryImport("kernel32.dll", EntryPoint = "AttachConsole", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool BatchAttachConsole(int dwProcessId);
         private const int BatchAttachParentProcess = -1;
 
         /// <summary>
