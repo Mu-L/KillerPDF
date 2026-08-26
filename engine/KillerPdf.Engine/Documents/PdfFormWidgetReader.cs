@@ -43,8 +43,7 @@ public static class PdfFormWidgetReader
         for (int annotationIndex = 0; annotationIndex < annotations.Count; annotationIndex++)
         {
             PdfObject rawWidget = annotations[annotationIndex];
-            PdfDictionary? widget = Resolve(document, rawWidget, "A page annotation") as PdfDictionary;
-            if (widget is null
+            if (Resolve(document, rawWidget, "A page annotation") is not PdfDictionary widget
                 || !widget.TryGetValue(SubtypeName, out PdfObject? subtypeValue)
                 || Resolve(document, subtypeValue, "An annotation subtype") is not PdfName subtype
                 || !subtype.Equals(WidgetName)) continue;
@@ -188,8 +187,7 @@ public static class PdfFormWidgetReader
     {
         PdfObject resolved = Resolve(document, value, "An AcroForm /V value");
         if (resolved is PdfArray array)
-            return array.Select(item => ScalarFieldValue(document, item))
-                .Where(item => item.Length > 0).ToArray();
+            return [.. array.Select(item => ScalarFieldValue(document, item)).Where(item => item.Length > 0)];
         string scalar = ScalarFieldValue(document, resolved);
         return scalar.Length == 0 ? [] : [scalar];
     }

@@ -81,7 +81,7 @@ public sealed class PdfStructureTests
     [Fact]
     public void Build_AssignsIndependentParentTreeKeysAcrossPages()
     {
-        PdfContentStreamBuilder FirstPage() => new PdfContentStreamBuilder()
+        static PdfContentStreamBuilder FirstPage() => new PdfContentStreamBuilder()
             .BeginMarkedContent(PdfStructureType.Paragraph, 0)
             .Rectangle(0, 0, 10, 10).Fill().EndMarkedContent();
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
@@ -102,7 +102,7 @@ public sealed class PdfStructureTests
             Assert.IsType<PdfInteger>(page[Name("StructParents")]).Value));
         Assert.Equal([0L, 1L], new[] { numbers[0], numbers[2] }
             .Select(value => Assert.IsType<PdfInteger>(value).Value));
-        Assert.All(new[] { numbers[1], numbers[3] }, value =>
+        Assert.All([numbers[1], numbers[3]], value =>
             Assert.Single(Assert.IsType<PdfArray>(value)));
     }
 
@@ -380,7 +380,7 @@ public sealed class PdfStructureTests
     [Fact]
     public void Build_PdfUaRejectsIrregularTableRowsButTaggedPdfAllowsThem()
     {
-        PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
+        static PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
             .AddPage(100, 100, new PdfContentStreamBuilder())
             .AddStructureContainer(PdfStructureType.Document)
             .AddStructureContainer(PdfStructureType.Table, 1)
@@ -429,7 +429,7 @@ public sealed class PdfStructureTests
     [Fact]
     public void Build_PdfUaAllowsOneSectionUnderNumberedHeadingButRejectsTwo()
     {
-        PdfDocumentBuilder CreateBuilder(bool secondSection) => new PdfDocumentBuilder()
+        static PdfDocumentBuilder CreateBuilder(bool secondSection) => new PdfDocumentBuilder()
             .SetMetadata(new PdfDocumentMetadata
             {
                 Title = "Heading section",
@@ -450,7 +450,7 @@ public sealed class PdfStructureTests
     [Fact]
     public void Build_PdfUaRejectsNestedDocumentButTaggedPdfAllowsIt()
     {
-        PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
+        static PdfDocumentBuilder CreateBuilder() => new PdfDocumentBuilder()
             .AddPage(100, 100, new PdfContentStreamBuilder())
             .AddStructureContainer(PdfStructureType.Document)
             .AddStructureContainer(PdfStructureType.Section, 1)

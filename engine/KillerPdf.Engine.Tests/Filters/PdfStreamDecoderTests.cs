@@ -125,7 +125,7 @@ public sealed class PdfStreamDecoderTests
         PdfStream stream = Stream("61 62 6>"u8.ToArray(),
             Pair("Filter", Name("ASCIIHexDecode")));
 
-        Assert.Equal(new byte[] { 0x61, 0x62, 0x60 }, PdfStreamDecoder.Decode(stream));
+        Assert.Equal("ab`"u8.ToArray(), PdfStreamDecoder.Decode(stream));
     }
 
     [Fact]

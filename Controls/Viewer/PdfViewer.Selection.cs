@@ -183,8 +183,7 @@ namespace KillerPDF.Controls
             }
             _txtSelHasRange = true;
 
-            int words;
-            _selectedText = BuildSelectedText(out words);
+            _selectedText = BuildSelectedText(out int words);
             if (string.IsNullOrWhiteSpace(_selectedText))
             {
                 SetStatus(Loc("Str_St_NoTextInSelection"));

@@ -181,7 +181,7 @@ public sealed class PdfShadingTests
                 bounds: default(PdfShadingBounds)));
         Assert.Throws<ArgumentException>(() =>
             new PdfAxialGradient(0, 0, 10, 10,
-                [default(PdfGradientStop), new PdfGradientStop(1, 1)]));
+                [default, new PdfGradientStop(1, 1)]));
         Assert.Throws<ArgumentException>(() =>
             new PdfAxialGradient(0, 0, 10, 10, [
                 new PdfGradientStop(0, 0.1),
@@ -207,7 +207,7 @@ public sealed class PdfShadingTests
         var gradient = new PdfAxialGradient(0, 0, 100, 0, [
             new PdfGradientStop(0, new PdfRgbColor(0, 0, 0)),
             new PdfGradientStop(1, new PdfRgbColor(1, 1, 1))]);
-        PdfDocumentBuilder Ready(PdfContentStreamBuilder content) => new PdfDocumentBuilder()
+        static PdfDocumentBuilder Ready(PdfContentStreamBuilder content) => new PdfDocumentBuilder()
             .SetMetadata(new PdfDocumentMetadata { Title = "Gradient", Language = "en-US" })
             .EnablePdfUa2Conformance()
             .AddPage(100, 100, content)

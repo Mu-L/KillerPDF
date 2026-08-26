@@ -209,7 +209,7 @@ namespace KillerPDF.Tests
         public void EveryKeyTokenIsResolvable()
         {
             var known = ShortcutTable.KeyTokens.Select(t => t.Token)
-                                     .Concat(new[] { "%zin%", "%zout%" })
+                                     .Concat(["%zin%", "%zout%"])
                                      .ToHashSet();
 
             var unknown = ShortcutTable.KsAll

@@ -24,11 +24,10 @@ public static class PdfPageDimensionNormalizer
     {
         ValidateRange(document, minimum, maximum);
         PdfPageTree tree = PdfPageTree.Read(document);
-        return tree.Pages.Select((page, index) => (dimensions: MediaDimensions(document, page), index))
+        return [.. tree.Pages.Select((page, index) => (dimensions: MediaDimensions(document, page), index))
             .Where(item => item.dimensions.Width < minimum || item.dimensions.Width > maximum
                 || item.dimensions.Height < minimum || item.dimensions.Height > maximum)
-            .Select(item => item.index)
-            .ToArray();
+            .Select(item => item.index)];
     }
 
     /// <summary>

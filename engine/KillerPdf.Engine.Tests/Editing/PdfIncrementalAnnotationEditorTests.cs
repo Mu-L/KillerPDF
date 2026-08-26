@@ -336,7 +336,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         Assert.Equal(4, numbers.Count);
         Assert.Equal(0, Assert.IsType<PdfInteger>(numbers[0]).Value);
         Assert.Equal(1, Assert.IsType<PdfInteger>(numbers[2]).Value);
-        Assert.All(new[] { numbers[1], numbers[3] }, value => Assert.Equal("Annot",
+        Assert.All([numbers[1], numbers[3]], value => Assert.Equal("Annot",
             Assert.IsType<PdfName>(ResolveDictionary(document, value)[Name("S")]).ValueAsLatin1()));
         PdfDictionary appendedElement = ResolveDictionary(document, numbers[3]);
         PdfDictionary selectedNamespace = ResolveDictionary(document, appendedElement[Name("NS")]);
@@ -717,8 +717,8 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 .Build());
             (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
             var setup = new PdfIncrementalUpdateBuilder(source);
-            PdfIndirectReference existing = setup.AddObject(new PdfDictionary(new[]
-            {
+            PdfIndirectReference existing = setup.AddObject(new PdfDictionary(
+            [
                 new KeyValuePair<PdfName, PdfObject>(Name("Type"), Name("Annot")),
                 new KeyValuePair<PdfName, PdfObject>(Name("Subtype"), Name("Text")),
                 new KeyValuePair<PdfName, PdfObject>(Name("Rect"), new PdfArray([
@@ -727,7 +727,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 ])),
                 new KeyValuePair<PdfName, PdfObject>(Name("P"), Reference),
                 malformedEntry
-            }));
+            ]));
             PdfDocument malformed = PdfDocument.Open(setup
                 .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                     new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
@@ -2511,11 +2511,11 @@ public sealed class PdfIncrementalAnnotationEditorTests
     {
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
-        return Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value =>
+        return [.. Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value =>
         {
             var reference = Assert.IsType<PdfIndirectReference>(value);
             return (reference, ResolveDictionary(document, reference));
-        }).ToArray();
+        })];
     }
 
     private static PdfTextQuad Quad(

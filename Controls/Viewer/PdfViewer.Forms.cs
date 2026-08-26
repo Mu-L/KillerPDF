@@ -387,8 +387,8 @@ namespace KillerPDF.Controls
                     string capturedKey = f.FieldName;
                     list.SelectionChanged += (_, _) =>
                     {
-                        _formMultiChoiceValues[capturedKey] = list.SelectedItems
-                            .Cast<FormChoiceItem>().Select(item => item.ExportValue).ToArray();
+                        _formMultiChoiceValues[capturedKey] = [.. list.SelectedItems
+                            .Cast<FormChoiceItem>().Select(item => item.ExportValue)];
                         MarkDirty(true);
                     };
                     ctrl = list;

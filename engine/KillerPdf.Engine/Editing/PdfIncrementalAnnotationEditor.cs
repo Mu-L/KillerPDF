@@ -1413,8 +1413,7 @@ public sealed class PdfIncrementalAnnotationEditor
             return resolved is PdfDictionary child
                 && child.TryGetValue(Name("P"), out PdfObject? parent)
                 && ResolveWithIdentity(parent,
-                    "A direct structure-element child /P value").FinalReference
-                    is PdfIndirectReference;
+                    "A direct structure-element child /P value").FinalReference is not null;
         });
     }
 
@@ -1635,7 +1634,7 @@ public sealed class PdfIncrementalAnnotationEditor
         {
             ResolvedValue resolved = ResolveWithIdentity(item,
                 $"Page {pageIndex + 1} annotation");
-            if (resolved.FinalReference is not PdfIndirectReference
+            if (resolved.FinalReference is null
                 || resolved.Value is not PdfDictionary annotation
                 || !annotation.TryGetValue(Name("NM"), out PdfObject? nameValue)
                 || ResolveValue(nameValue,

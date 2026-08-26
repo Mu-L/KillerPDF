@@ -300,7 +300,7 @@ public static class PdfSignatureReader
                     if (fieldValues.Any(item => item is not PdfString))
                         throw new InvalidOperationException(
                             "The FieldMDP /Fields array contains a non-string value.");
-                    lockedFields = fieldValues.Cast<PdfString>().Select(DecodeString).ToArray();
+                    lockedFields = [.. fieldValues.Cast<PdfString>().Select(DecodeString)];
                 }
                 if (lockAction is PdfSignatureLockAction.Include or PdfSignatureLockAction.Exclude
                     && lockedFields is null)

@@ -59,7 +59,7 @@ public sealed class PdfLinkAppearance
 
         BorderWidth = borderWidth;
         BorderStyle = borderStyle;
-        DashPattern = dashPattern.ToArray();
+        DashPattern = [.. dashPattern];
         Color = color;
         HighlightMode = highlightMode;
         HorizontalCornerRadius = horizontalCornerRadius;

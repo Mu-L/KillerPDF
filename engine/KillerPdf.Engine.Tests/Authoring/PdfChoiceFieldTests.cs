@@ -127,7 +127,7 @@ public sealed class PdfChoiceFieldTests
         Assert.Equal(expectedFlags, Assert.IsType<PdfInteger>(field[Name("Ff")]).Value);
         Assert.Equal("Mourning", DecodeUnicode(Assert.IsType<PdfString>(field[Name("V")])));
         Assert.Equal("Mourning", DecodeUnicode(Assert.IsType<PdfString>(field[Name("DV")])));
-        Assert.Equal(new[] { "Dark", "Mourning", "98SE" },
+        Assert.Equal(["Dark", "Mourning", "98SE"],
             options.Select(value => DecodeUnicode(Assert.IsType<PdfString>(value))));
         Assert.Contains("(Mourning) Tj", Encoding.ASCII.GetString(appearance.EncodedData.Span));
     }

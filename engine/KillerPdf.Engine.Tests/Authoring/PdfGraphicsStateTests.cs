@@ -36,7 +36,7 @@ public sealed class PdfGraphicsStateTests
     [Fact]
     public void Build_DeduplicatesEquivalentStatesWithinAndAcrossPages()
     {
-        PdfContentStreamBuilder Content() => new PdfContentStreamBuilder()
+        static PdfContentStreamBuilder Content() => new PdfContentStreamBuilder()
             .SetGraphicsState(new PdfGraphicsState(0.5, 0.5, PdfBlendMode.Screen))
             .Rectangle(0, 0, 10, 10).Fill()
             .SetGraphicsState(new PdfGraphicsState(0.5, 0.5, PdfBlendMode.Screen))

@@ -6009,7 +6009,7 @@ public sealed partial class PdfDocumentBuilder
 
     private static PdfDictionary GradientFunction(IReadOnlyList<PdfGradientStop> stops)
     {
-        PdfDictionary Segment(PdfGradientStop start, PdfGradientStop end) => Dictionary(
+        static PdfDictionary Segment(PdfGradientStop start, PdfGradientStop end) => Dictionary(
             ("FunctionType", new PdfInteger(2)),
             ("Domain", new PdfArray([new PdfInteger(0), new PdfInteger(1)])),
             ("C0", new PdfArray(start.Components.Select(Number))),

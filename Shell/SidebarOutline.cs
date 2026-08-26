@@ -461,8 +461,7 @@ namespace KillerPDF
                 _bmExtraSel.Clear();
                 var flat = new List<(TreeViewItem Item, OutlineNodeRef Ref)>();
                 FlattenBookmarkItems(OutlineTree.Items, visibleOnly: true, flat);
-                var primary = (OutlineTree.SelectedItem as TreeViewItem)?.Tag as OutlineNodeRef;
-                int ia = primary is null ? -1 : flat.FindIndex(t => ReferenceEquals(t.Ref, primary));
+                int ia = (OutlineTree.SelectedItem as TreeViewItem)?.Tag is not OutlineNodeRef primary ? -1 : flat.FindIndex(t => ReferenceEquals(t.Ref, primary));
                 int ib = flat.FindIndex(t => ReferenceEquals(t.Item, tvi));
                 if (ib < 0) return;
                 if (ia < 0) ia = ib;

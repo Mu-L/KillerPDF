@@ -824,7 +824,7 @@ namespace KillerPDF
                     IReadOnlyList<KillerPdf.Engine.Documents.PdfPageInformation> pages =
                         PdfEngineIntegration.ReadPageInformation(importPath);
                     imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
-                        pages.Select(page => page.Rotation).ToArray()));
+                        [.. pages.Select(page => page.Rotation)]));
                 }
                 int insertAt = insertionIndex ?? _doc.PageCount;
                 SaveTempAndReload(

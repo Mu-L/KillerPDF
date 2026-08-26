@@ -27,8 +27,8 @@ namespace KillerPDF.Services
                 protocol.SetValue("URL Protocol", "");
                 using (var icon = protocol.CreateSubKey("DefaultIcon"))
                     icon?.SetValue("", $"\"{appPath}\",0");
-                using (var command = protocol.CreateSubKey(@"shell\open\command"))
-                    command?.SetValue("", $"\"{appPath}\" \"%1\"");
+                using var command = protocol.CreateSubKey(@"shell\open\command");
+                command?.SetValue("", $"\"{appPath}\" \"%1\"");
             }
             catch (Exception ex) { Debug.WriteLine($"Failed to register KillerPDF protocol: {ex.Message}"); }
         }

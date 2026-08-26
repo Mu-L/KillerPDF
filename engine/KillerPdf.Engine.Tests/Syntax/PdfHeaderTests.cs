@@ -72,6 +72,6 @@ public sealed class PdfHeaderTests
     public void Create_RejectsDefaultVersion()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            PdfHeader.Create(default(PdfVersion)));
+            PdfHeader.Create(default));
     }
 }

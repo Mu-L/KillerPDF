@@ -65,7 +65,7 @@ public sealed class PdfObjectWriterTests
     public void Containers_RejectNullObjectReferences()
     {
         Assert.Throws<ArgumentException>(() =>
-            new PdfArray(new PdfObject[] { PdfNull.Instance, null! }));
+            new PdfArray([PdfNull.Instance, null!]));
         Assert.Throws<ArgumentException>(() =>
             new PdfDictionary([
                 new KeyValuePair<PdfName, PdfObject>(Name("Value"), null!)

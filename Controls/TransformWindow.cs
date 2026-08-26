@@ -68,10 +68,10 @@ namespace KillerPDF
         private readonly TextBlock _scaleReadout = null!;
         private readonly Slider _rotSlider = null!;
         private readonly Slider _scaleSlider = null!;
-        private Slider _lvlBlack = null!, _lvlWhite = null!, _lvlGamma = null!;   // #174
-        private ComboBox _colorMode = null!;
-        private Slider _bwThreshold = null!, _dpiSlider = null!, _jpegSlider = null!;
-        private CheckBox _setDpi = null!, _useJpeg = null!;
+        private readonly Slider _lvlBlack = null!, _lvlWhite = null!, _lvlGamma = null!;   // #174
+        private readonly ComboBox _colorMode = null!;
+        private readonly Slider _bwThreshold = null!, _dpiSlider = null!, _jpegSlider = null!;
+        private readonly CheckBox _setDpi = null!, _useJpeg = null!;
         private readonly RadioButton _resizeRadio = null!;
         private bool _flipH;
         private bool _flipV;

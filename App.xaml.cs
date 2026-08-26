@@ -1694,9 +1694,9 @@ namespace KillerPDF
                          && n.EndsWith(".ico", StringComparison.OrdinalIgnoreCase));
                 if (rn == null) return; // dev build running from bin/ without the embedded icon
 
-                using (var rs = asm.GetManifestResourceStream(rn)!)
-                using (var fs = File.Create(iconPath))
-                    rs.CopyTo(fs);
+                using var rs = asm.GetManifestResourceStream(rn)!;
+                using var fs = File.Create(iconPath);
+                rs.CopyTo(fs);
             }
             catch { }
         }

@@ -72,7 +72,7 @@ public sealed class PdfEditorialAnnotationAuthoringTests
             builder.AddCaretAnnotation(0, 0, 0, 10, 10, symbol: (PdfCaretSymbol)99));
         Assert.Throws<ArgumentException>(() => builder.AddRedactionMark(0, []));
         Assert.Throws<ArgumentException>(() =>
-            builder.AddRedactionMark(0, [default(PdfTextQuad)]));
+            builder.AddRedactionMark(0, [default]));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             builder.AddRedactionMark(0,
                 [new PdfTextQuad(new PdfPoint(0, 10), new PdfPoint(10, 10),

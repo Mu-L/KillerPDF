@@ -137,15 +137,12 @@ namespace KillerPDF
         public Rect DrawRect()
         {
             double t = Math.Max(2.0, Bounds.Height * 0.10);
-            switch (Style)
+            return Style switch
             {
-                case HighlightStyle.Strikethrough:
-                    return new Rect(Bounds.X, Bounds.Y + Bounds.Height / 2 - t / 2, Bounds.Width, t);
-                case HighlightStyle.Underline:
-                    return new Rect(Bounds.X, Bounds.Y + Bounds.Height - t, Bounds.Width, t);
-                default:
-                    return Bounds;
-            }
+                HighlightStyle.Strikethrough => new Rect(Bounds.X, Bounds.Y + Bounds.Height / 2 - t / 2, Bounds.Width, t),
+                HighlightStyle.Underline => new Rect(Bounds.X, Bounds.Y + Bounds.Height - t, Bounds.Width, t),
+                _ => Bounds,
+            };
         }
     }
 

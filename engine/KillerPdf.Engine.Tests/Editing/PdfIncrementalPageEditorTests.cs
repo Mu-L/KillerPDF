@@ -892,7 +892,7 @@ public sealed class PdfIncrementalPageEditorTests
     [Fact]
     public void Build_ClearsSubordinateBoxesOnExistingAndImportedPages()
     {
-        PdfDocumentBuilder WithBoxes() => new PdfDocumentBuilder()
+        static PdfDocumentBuilder WithBoxes() => new PdfDocumentBuilder()
             .AddBlankPage(200, 300)
             .SetPageBox(0, PdfPageBox.Crop, 5, 5, 190, 290)
             .SetPageBox(0, PdfPageBox.Bleed, 6, 6, 188, 288)
@@ -5726,7 +5726,7 @@ public sealed class PdfIncrementalPageEditorTests
                 new PdfDocumentBuilder().Build()))
             .AddImportedPage(versionedTrapNetwork, 0).Build();
 
-        PdfDocument WithAnnotation(
+        static PdfDocument WithAnnotation(
             string annotationSubtype,
             IEnumerable<KeyValuePair<PdfName, PdfObject>> extraEntries,
             IEnumerable<KeyValuePair<PdfName, PdfObject>>? appearanceExtraEntries = null,
@@ -8676,12 +8676,12 @@ public sealed class PdfIncrementalPageEditorTests
         PdfIndirectReference markedContentTypeAlias = aliasUpdate.AddObject(Name("MCR"));
         PdfIndirectReference markedContentTypeOuterAlias =
             aliasUpdate.AddObject(markedContentTypeAlias);
-        var markedContent = new PdfDictionary(new[]
-        {
+        var markedContent = new PdfDictionary(
+        [
             new KeyValuePair<PdfName, PdfObject>(Name("Type"), markedContentTypeOuterAlias),
             new KeyValuePair<PdfName, PdfObject>(Name("Pg"), firstPageReference),
             new KeyValuePair<PdfName, PdfObject>(Name("MCID"), markedContentId)
-        });
+        ]);
         aliasUpdate.ReplaceObject(firstFigureReference.ObjectNumber,
             new PdfDictionary(firstFigure.Select(entry =>
                 entry.Key.Equals(Name("K"))
@@ -11622,7 +11622,7 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Equal(4, Assert.IsType<PdfInteger>(root[Name("Count")]).Value);
         Assert.Equal(["Target", "First source", "Second source"], items.Select(item =>
             DecodeUnicode(Assert.IsType<PdfString>(item.Dictionary[Name("Title")]))));
-        Assert.Equal(new[] { pages[0].ObjectNumber, pages[1].ObjectNumber, pages[3].ObjectNumber },
+        Assert.Equal([pages[0].ObjectNumber, pages[1].ObjectNumber, pages[3].ObjectNumber],
             items.Select(item =>
             Assert.IsType<PdfIndirectReference>(
                 Assert.IsType<PdfArray>(item.Dictionary[Name("Dest")])[0]).ObjectNumber));

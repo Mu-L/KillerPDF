@@ -2303,7 +2303,7 @@ public sealed class PdfIncrementalPageEditor
                 || type.ValueAsLatin1() != "OBJR"
                 || !dictionary.TryGetValue(Name("Obj"), out PdfObject? objectValue))
                 continue;
-            var (Value, FinalReference) = ResolveCatalogWithIdentity(
+            var (_, FinalReference) = ResolveCatalogWithIdentity(
                 document, objectValue, "A tagged form OBJR object");
             if (FinalReference is PdfIndirectReference reference
                 && removedWidgets.Contains(
@@ -7340,8 +7340,7 @@ public sealed class PdfIncrementalPageEditor
                 if (resolved is PdfDictionary child
                     && child.TryGetValue(StructureElementParentName, out PdfObject? parent)
                     && ResolveCatalogWithIdentity(document, parent,
-                            "A direct structure-element child /P value").FinalReference
-                        is PdfIndirectReference)
+                            "A direct structure-element child /P value").FinalReference is not null)
                     return true;
             }
             return false;
@@ -8248,10 +8247,7 @@ public sealed class PdfIncrementalPageEditor
         var rewrittenObjects =
             new Dictionary<(int ObjectNumber, int Generation), PdfDictionary>();
         IReadOnlyList<PdfNumberTreeEntry> retainedParentEntries = [];
-        PdfObject? rewrittenRootValue = Rewrite(rootValue, inheritedPage: null, isRoot: true);
-        if (rewrittenRootValue is null)
-            throw new InvalidOperationException("Removing pages cannot remove the structure-tree root.");
-
+        PdfObject? rewrittenRootValue = Rewrite(rootValue, inheritedPage: null, isRoot: true) ?? throw new InvalidOperationException("Removing pages cannot remove the structure-tree root.");
         PdfDictionary root = ResolveDictionary(document, rootValue, "The /StructTreeRoot");
         if (root.TryGetValue(ParentTreeName, out PdfObject? parentTreeValue))
         {

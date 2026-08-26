@@ -36,7 +36,7 @@ public sealed class PdfLinkAnnotationTests
         Assert.Equal("URI", Assert.IsType<PdfName>(action[Name("S")]).ValueAsLatin1());
         Assert.Equal("https://killerpdf.net/docs?q=2",
             Encoding.UTF8.GetString(Assert.IsType<PdfString>(action[Name("URI")]).Bytes.Span));
-        Assert.Equal(new long[] { 10, 20, 110, 50 },
+        Assert.Equal([10, 20, 110, 50],
             rectangle.Select(value => Assert.IsType<PdfInteger>(value).Value));
         Assert.All(border, value => Assert.Equal(0, Assert.IsType<PdfInteger>(value).Value));
     }
@@ -105,7 +105,7 @@ public sealed class PdfLinkAnnotationTests
             .AddBlankPage().AddUriLink(0, [], "https://killerpdf.net"));
         Assert.Throws<ArgumentException>(() => new PdfDocumentBuilder()
             .AddBlankPage().AddUriLink(
-                0, [default(PdfTextQuad)], "https://killerpdf.net"));
+                0, [default], "https://killerpdf.net"));
     }
 
     [Theory]

@@ -46,7 +46,7 @@ public sealed class PdfTilingPattern
         Matrix = effectiveMatrix;
         Content = content.Build();
         Fonts = content.FontResources.ToDictionary(entry => entry.Key, entry => entry.Value);
-        EmbeddedFonts = content.EmbeddedFontResources.ToArray();
+        EmbeddedFonts = [.. content.EmbeddedFontResources];
         Images = content.ImageResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         OptionalContentGroups = content.OptionalContentResources.ToDictionary(entry => entry.Key, entry => entry.Value);
         GraphicsStates = content.GraphicsStateResources.ToDictionary(entry => entry.Key, entry => entry.Value);

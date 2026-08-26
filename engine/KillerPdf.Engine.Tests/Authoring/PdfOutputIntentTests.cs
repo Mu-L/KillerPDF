@@ -175,7 +175,7 @@ public sealed class PdfOutputIntentTests
     [Fact]
     public void PdfA4Mode_RejectsKnownNonConformingAuthoringFeatures()
     {
-        PdfDocumentBuilder Ready() => new PdfDocumentBuilder()
+        static PdfDocumentBuilder Ready() => new PdfDocumentBuilder()
             .SetMetadata(new PdfDocumentMetadata())
             .SetOutputIntent(PdfIccProfile.Load(BuildProfile("RGB ")), "Test RGB")
             .EnablePdfA4Conformance()

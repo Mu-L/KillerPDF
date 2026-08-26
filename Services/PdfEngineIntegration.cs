@@ -212,9 +212,7 @@ internal static class PdfEngineIntegration
         if (!value.Any(character => character > byte.MaxValue)) return null;
         string family = FontCoverage.PickFamily("Segoe UI", value);
         if (cache.TryGetValue(family, out TrueTypeFont? font)) return font;
-        byte[]? bytes = InstalledFontCatalog.RegularFaceBytes(family);
-        if (bytes is null)
-            throw new InvalidOperationException(
+        byte[]? bytes = InstalledFontCatalog.RegularFaceBytes(family) ?? throw new InvalidOperationException(
                 $"No installed font can preserve the Unicode form value using {family}.");
         try { font = TrueTypeFont.Load(bytes); }
         catch (Exception ex)

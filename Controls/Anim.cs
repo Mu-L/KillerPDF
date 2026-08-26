@@ -94,8 +94,7 @@ namespace KillerPDF.Controls
 
             var clock = System.Diagnostics.Stopwatch.StartNew();
             double from = window.Opacity;
-            EventHandler? tick = null;
-            tick = (_, _) =>
+            void tick(object? _1, EventArgs _2)
             {
                 double t = clock.Elapsed.TotalMilliseconds / FadeMs;
                 if (t >= 1)
@@ -125,7 +124,8 @@ namespace KillerPDF.Controls
                     return;
                 }
                 window.Opacity = from * (1 - t * t);   // quadratic ease-in, mirrors FadeIn
-            };
+            }
+
             CompositionTarget.Rendering += tick;
             return true;
         }

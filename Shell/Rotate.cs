@@ -102,9 +102,7 @@ namespace KillerPDF
                     int renderBudget = outputDpi > 0
                         ? Math.Max(1, (int)Math.Ceiling(Math.Max(epw, eph) * outputDpi / 72.0))
                         : 2200;
-                    var src = RenderPageBitmap(pageIdx, renderBudget, burned);
-                    if (src is null) throw new InvalidOperationException(Loc("Str_Tf_NoRender"));
-
+                    var src = RenderPageBitmap(pageIdx, renderBudget, burned) ?? throw new InvalidOperationException(Loc("Str_Tf_NoRender"));
                     var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
                         ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
                     var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);

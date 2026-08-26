@@ -68,7 +68,7 @@ public sealed class PdfFormXObjectTests
     {
         var form = new PdfFormXObject(10, 10,
             new PdfContentStreamBuilder().Rectangle(0, 0, 10, 10).Fill());
-        PdfDocumentBuilder Ready(PdfContentStreamBuilder content) => new PdfDocumentBuilder()
+        static PdfDocumentBuilder Ready(PdfContentStreamBuilder content) => new PdfDocumentBuilder()
             .SetMetadata(new PdfDocumentMetadata { Title = "Form", Language = "en-US" })
             .EnablePdfUa2Conformance()
             .AddPage(100, 100, content)

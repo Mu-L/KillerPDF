@@ -30,8 +30,12 @@ namespace KillerPDF.Services
                 var b = img.BoundingBox;   // Bounds is obsolete in current PdfPig
                 double l = b.Left / pw, r = b.Right / pw;
                 double t = (ph - b.Top) / ph, bo = (ph - b.Bottom) / ph;
-                if (r < l) { var tmp = l; l = r; r = tmp; }
-                if (bo < t) { var tmp = t; t = bo; bo = tmp; }
+                if (r < l) {
+                    (r, l) = (l, r);
+                }
+                if (bo < t) {
+                    (bo, t) = (t, bo);
+                }
                 l = Clamp01(l); r = Clamp01(r);
                 t = Clamp01(t); bo = Clamp01(bo);
                 if (r - l <= 0 || bo - t <= 0) continue;   // degenerate or fully off-page

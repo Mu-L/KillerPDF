@@ -151,7 +151,7 @@ public sealed class PdfAnnotationAuthoringTests
         var builder = new PdfDocumentBuilder().AddBlankPage();
         Assert.Throws<ArgumentException>(() => builder.AddHighlight(0, []));
         Assert.Throws<ArgumentException>(() =>
-            builder.AddHighlight(0, [default(PdfTextQuad)]));
+            builder.AddHighlight(0, [default]));
         Assert.Throws<ArgumentException>(() => new PdfTextQuad(
             new PdfPoint(0, 0), new PdfPoint(10, 0),
             new PdfPoint(20, 0), new PdfPoint(30, 0)));
