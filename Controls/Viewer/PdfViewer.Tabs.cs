@@ -70,6 +70,7 @@ namespace KillerPDF.Controls
             public Dictionary<int, int> PageRotations = [];
             public Dictionary<string, string> FormTextValues = [];
             public Dictionary<string, string> FormChoiceValues = [];
+            public Dictionary<string, IReadOnlyList<string>> FormMultiChoiceValues = [];
             public Dictionary<string, bool> FormCheckValues = [];
             public Dictionary<string, string> FormRadioValues = [];
             public Dictionary<string, double> FormFontSizes = [];
@@ -207,6 +208,7 @@ namespace KillerPDF.Controls
             s.PageRotations    = _pageRotations;
             s.FormTextValues   = _formTextValues;
             s.FormChoiceValues = _formChoiceValues;
+            s.FormMultiChoiceValues = _formMultiChoiceValues;
             s.FormCheckValues  = _formCheckValues;
             s.FormRadioValues  = _formRadioValues;
             s.FormFontSizes    = _formFontSizes;
@@ -300,6 +302,7 @@ namespace KillerPDF.Controls
             _pageRotations    = s.PageRotations;
             _formTextValues   = s.FormTextValues;
             _formChoiceValues = s.FormChoiceValues;
+            _formMultiChoiceValues = s.FormMultiChoiceValues;
             _formCheckValues  = s.FormCheckValues;
             _formRadioValues  = s.FormRadioValues;
             _formFontSizes    = s.FormFontSizes;

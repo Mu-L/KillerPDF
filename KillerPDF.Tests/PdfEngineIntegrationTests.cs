@@ -423,6 +423,7 @@ public sealed class PdfEngineIntegrationTests
             PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
                 new Dictionary<string, string> { ["customer.name"] = "Updated" },
                 new Dictionary<string, string> { ["customer.country"] = "CA" },
+                new Dictionary<string, IReadOnlyList<string>>(),
                 new Dictionary<string, bool> { ["customer.approved"] = true },
                 new Dictionary<string, string> { ["customer.plan"] = "/Pro" },
                 new Dictionary<string, double> { ["customer.name"] = 7.5 }));
@@ -457,12 +458,41 @@ public sealed class PdfEngineIntegrationTests
 
             PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
                 new Dictionary<string, string> { ["customer.name"] = value },
-                new Dictionary<string, string>(), new Dictionary<string, bool>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, IReadOnlyList<string>>(), new Dictionary<string, bool>(),
                 new Dictionary<string, string>(), new Dictionary<string, double>()));
 
             PdfFormWidgetInfo field = Assert.Single(PdfFormWidgetReader.ReadPage(
                 PdfDocument.Open(File.ReadAllBytes(path)), 0));
             Assert.Equal(value, field.Value);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void ApplyFormValues_EmbedsFontForUnicodeChoiceValues()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-unicode-choice-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder()
+                .AddBlankPage()
+                .AddComboBox(0, "customer.currency", 20, 20, 180, 28,
+                    ["Dollar", "Other"], "Dollar", editable: true)
+                .Build());
+
+            PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["customer.currency"] = "€50" },
+                new Dictionary<string, IReadOnlyList<string>>(), new Dictionary<string, bool>(),
+                new Dictionary<string, string>(), new Dictionary<string, double>()));
+
+            PdfFormWidgetInfo field = Assert.Single(PdfFormWidgetReader.ReadPage(
+                PdfDocument.Open(File.ReadAllBytes(path)), 0));
+            Assert.Equal("€50", field.Value);
         }
         finally
         {

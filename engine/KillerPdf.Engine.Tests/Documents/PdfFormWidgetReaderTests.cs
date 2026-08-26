@@ -30,6 +30,8 @@ public sealed class PdfFormWidgetReaderTests
                 new PdfChoiceOption("us", "United States"),
                 new PdfChoiceOption("ca", "Canada")
             ], "ca")
+            .AddMultiSelectListBox(0, "formats", 20, 100, 140, 48,
+                ["PDF", "PDF/A", "PDF/UA"], ["PDF/A", "PDF/UA"])
             .Build();
         byte[] source = new PdfIncrementalPageEditor(PdfDocument.Open(authored))
             .SetCropBox(0, 10, 15, 280, 370)
@@ -39,7 +41,7 @@ public sealed class PdfFormWidgetReaderTests
 
         IReadOnlyList<PdfFormWidgetInfo> widgets = PdfFormWidgetReader.ReadPage(document, 0);
 
-        Assert.Equal(4, widgets.Count);
+        Assert.Equal(5, widgets.Count);
         PdfFormWidgetInfo text = widgets.Single(widget => widget.FieldName == "customer.name");
         Assert.Equal(PdfFormFieldKind.Text, text.FieldKind);
         Assert.Equal("Steve", text.Value);
@@ -67,7 +69,10 @@ public sealed class PdfFormWidgetReaderTests
         Assert.Equal("ca", choice.Value);
         Assert.Equal([("us", "United States"), ("ca", "Canada")],
             choice.Options.Select(option => (option.ExportValue, option.DisplayValue)));
-        Assert.Equal([0, 1, 2, 3], widgets.Select(widget => widget.AnnotationIndex));
+        PdfFormWidgetInfo multiple = widgets.Single(widget => widget.FieldName == "formats");
+        Assert.Equal("PDF/A", multiple.Value);
+        Assert.Equal(["PDF/A", "PDF/UA"], multiple.Values);
+        Assert.Equal([0, 1, 2, 3, 4], widgets.Select(widget => widget.AnnotationIndex));
     }
 
     [Fact]

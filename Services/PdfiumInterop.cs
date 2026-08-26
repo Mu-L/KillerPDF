@@ -115,6 +115,9 @@ namespace KillerPDF.Services
         [DllImport("pdfium.dll", EntryPoint = "FPDFAnnot_SetFlags", CallingConvention = CallingConvention.Cdecl)]
         private static extern int FPDFAnnot_SetFlagsRaw(IntPtr annot, int flags);
 
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAnnot_GetFormFieldFlags", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDFAnnot_GetFormFieldFlagsRaw(IntPtr formHandle, IntPtr annot);
+
         private const int FPDFBitmapBgra = 4;
         private const int FpdfAnnot = 0x01;
         private const int FpdfLcdText = 0x02;
@@ -127,7 +130,8 @@ namespace KillerPDF.Services
         // In-memory only: this renderer's document is a one-shot load that is closed right after,
         // never saved. EntryPointNotFound (an older bundled PDFium without the annot API) returns
         // null and degrades to leaving the fields baked in.
-        private static System.Collections.Generic.Dictionary<int, int>? HideWidgetAnnotations(IntPtr page)
+        private static System.Collections.Generic.Dictionary<int, int>? HideWidgetAnnotations(
+            IntPtr page, IntPtr formHandle)
         {
             try
             {
@@ -141,6 +145,10 @@ namespace KillerPDF.Services
                     {
                         if (FPDFAnnot_GetSubtypeRaw(annot) == FpdfAnnotSubtypeWidget)
                         {
+                            // Push buttons have no live WPF editor overlay. Leave their authored
+                            // appearance in the page bitmap so interactive viewing cannot erase them.
+                            int formFlags = FormFieldFlags(formHandle, annot);
+                            if ((formFlags & (1 << 16)) != 0) continue;
                             int flags = FPDFAnnot_GetFlagsRaw(annot);
                             saved[i] = flags;
                             FPDFAnnot_SetFlagsRaw(annot, flags | FpdfAnnotFlagHidden);
@@ -151,6 +159,13 @@ namespace KillerPDF.Services
                 return saved;
             }
             catch { return null; /* annot API unavailable: fields stay baked, no crash */ }
+        }
+
+        private static int FormFieldFlags(IntPtr formHandle, IntPtr annotation)
+        {
+            if (formHandle == IntPtr.Zero) return 0;
+            try { return FPDFAnnot_GetFormFieldFlagsRaw(formHandle, annotation); }
+            catch (EntryPointNotFoundException) { return 0; }
         }
 
         // Puts back the widget flags HideWidgetAnnotations saved, so FFLDraw sees the original
@@ -227,7 +242,7 @@ namespace KillerPDF.Services
                                 // with, the widgets stay visible so the static pass still shows them.
                                 var savedWidgetFlags = includeFormFields && form == IntPtr.Zero
                                     ? null
-                                    : HideWidgetAnnotations(page);
+                                    : HideWidgetAnnotations(page, form);
                                 IntPtr bitmap = FPDFBitmap_CreateExRaw(
                                     width, height, FPDFBitmapBgra, pinned.AddrOfPinnedObject(), stride);
                                 if (bitmap == IntPtr.Zero) return null;

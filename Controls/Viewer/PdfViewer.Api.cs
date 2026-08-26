@@ -168,6 +168,7 @@ namespace KillerPDF.Controls
         internal bool UpdatingCropInputsRef { get => _updatingCropInputs; set => _updatingCropInputs = value; }
         internal Dictionary<string, string> FormTextValuesRef { get => _formTextValues; set => _formTextValues = value; }
         internal Dictionary<string, string> FormChoiceValuesRef { get => _formChoiceValues; set => _formChoiceValues = value; }
+        internal Dictionary<string, IReadOnlyList<string>> FormMultiChoiceValuesRef { get => _formMultiChoiceValues; set => _formMultiChoiceValues = value; }
         internal Dictionary<string, bool> FormCheckValuesRef { get => _formCheckValues; set => _formCheckValues = value; }
         internal Dictionary<string, string> FormRadioValuesRef { get => _formRadioValues; set => _formRadioValues = value; }
         internal Dictionary<string, double> FormFontSizesRef { get => _formFontSizes; set => _formFontSizes = value; }

@@ -43,6 +43,8 @@ public sealed record PdfFormWidgetInfo
     public required long Flags { get; init; }
     /// <summary>Gets the effective current value.</summary>
     public required string Value { get; init; }
+    /// <summary>Gets every effective current value for a multi-select choice field.</summary>
+    public IReadOnlyList<string> Values { get; init; } = [];
     /// <summary>Gets the effective default appearance string.</summary>
     public required string DefaultAppearance { get; init; }
     /// <summary>Gets the effective maximum text length, or zero when unspecified.</summary>

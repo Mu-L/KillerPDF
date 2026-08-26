@@ -58,6 +58,7 @@ public static class PdfFormWidgetReader
 
             PdfName? fieldType = null;
             string value = string.Empty;
+            IReadOnlyList<string> values = [];
             string defaultAppearance = string.Empty;
             long flags = 0;
             int maximumLength = 0;
@@ -80,8 +81,11 @@ public static class PdfFormWidgetReader
                         partial.Bytes.Span, "An AcroForm /T value");
                     if (decoded.Length > 0) nameParts.Add(decoded);
                 }
-                if (value.Length == 0 && node.TryGetValue(ValueName, out PdfObject? currentValue))
-                    value = FieldValue(document, currentValue);
+                if (values.Count == 0 && node.TryGetValue(ValueName, out PdfObject? currentValue))
+                {
+                    values = FieldValues(document, currentValue);
+                    value = values.FirstOrDefault() ?? string.Empty;
+                }
                 if (defaultAppearance.Length == 0
                     && node.TryGetValue(DefaultAppearanceName, out PdfObject? appearanceValue))
                 {
@@ -124,6 +128,7 @@ public static class PdfFormWidgetReader
                 FieldKind = FieldKind(fieldType),
                 Flags = flags,
                 Value = value,
+                Values = values,
                 DefaultAppearance = defaultAppearance,
                 MaximumLength = maximumLength,
                 OnValue = ButtonOnValue(document, widget),
@@ -179,7 +184,17 @@ public static class PdfFormWidgetReader
         return state is null ? "/Yes" : "/" + state.ValueAsLatin1();
     }
 
-    private static string FieldValue(PdfDocument document, PdfObject value) =>
+    private static IReadOnlyList<string> FieldValues(PdfDocument document, PdfObject value)
+    {
+        PdfObject resolved = Resolve(document, value, "An AcroForm /V value");
+        if (resolved is PdfArray array)
+            return array.Select(item => ScalarFieldValue(document, item))
+                .Where(item => item.Length > 0).ToArray();
+        string scalar = ScalarFieldValue(document, resolved);
+        return scalar.Length == 0 ? [] : [scalar];
+    }
+
+    private static string ScalarFieldValue(PdfDocument document, PdfObject value) =>
         Resolve(document, value, "An AcroForm /V value") switch
         {
             PdfString text => PdfUnicodeEncoding.DecodeTextString(text.Bytes.Span, "An AcroForm /V value"),

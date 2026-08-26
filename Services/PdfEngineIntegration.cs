@@ -21,6 +21,7 @@ internal static class PdfEngineIntegration
     internal sealed record FormEdits(
         IReadOnlyDictionary<string, string> TextValues,
         IReadOnlyDictionary<string, string> ChoiceValues,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> MultiChoiceValues,
         IReadOnlyDictionary<string, bool> CheckBoxValues,
         IReadOnlyDictionary<string, string> RadioValues,
         IReadOnlyDictionary<string, double> TextFontSizes);
@@ -182,6 +183,17 @@ internal static class PdfEngineIntegration
                     string.Equals(option.ExportValue, value, StringComparison.Ordinal))?
                 .DisplayValue ?? value;
             editor.SetChoiceFieldValue(name, value, EmbeddedFormFont(appearanceText, fonts));
+        }
+        foreach ((string name, IReadOnlyList<string> values) in
+                 edits.MultiChoiceValues.OrderBy(item => item.Key))
+        {
+            string appearanceText = string.Join(' ', values.Select(value => widgets
+                .FirstOrDefault(widget => widget.FieldKind == PdfFormFieldKind.Choice
+                    && string.Equals(widget.FieldName, name, StringComparison.Ordinal))?
+                .Options.FirstOrDefault(option =>
+                    string.Equals(option.ExportValue, value, StringComparison.Ordinal))?
+                .DisplayValue ?? value));
+            editor.SetChoiceFieldValues(name, values, EmbeddedFormFont(appearanceText, fonts));
         }
         foreach ((string name, bool value) in edits.CheckBoxValues.OrderBy(item => item.Key))
             editor.SetCheckBoxValue(name, value);

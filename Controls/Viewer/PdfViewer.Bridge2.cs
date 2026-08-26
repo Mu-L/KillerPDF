@@ -99,6 +99,7 @@ namespace KillerPDF.Controls
         // ── Form filling ─────────────────────────────────────────────────────────────────────
         private Dictionary<string, string> _formTextValues = [];
         private Dictionary<string, string> _formChoiceValues = [];
+        private Dictionary<string, IReadOnlyList<string>> _formMultiChoiceValues = [];
         private Dictionary<string, bool> _formCheckValues = [];
         private Dictionary<string, string> _formRadioValues = [];
         private Dictionary<string, double> _formFontSizes = [];

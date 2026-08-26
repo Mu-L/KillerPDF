@@ -81,6 +81,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Transform now replaces its rasterized result page through The KillerPDF.Engine and resets that page's effective rotation while retaining its position in the document.
 
 ### Fixed
+- Push-button form appearances remain visible in the interactive viewer, bounded list-box appearances stay inside their field rectangles, and multi-select choice values now load, display, edit, and save as complete selections (#245).
 - Shipped builds no longer run a dead Costura-only pdfium startup check. The new `--verify` and `/verify` commands validate every installed payload file against `payload.manifest` on demand, covering the complete installation without adding launch latency.
 - Application shortcuts such as Save, Save As, Find, Print, Open, tab commands, and F1 through F12 now remain available while a fillable form field or typewriter box has focus, while ordinary typing and standard text-editing shortcuts stay inside the field (#237).
 - Duplicating a page now keeps the new copy selected in both the sidebar and active viewer after the rebuilt page tree and deferred layout finish loading.

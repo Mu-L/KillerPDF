@@ -237,9 +237,11 @@ namespace KillerPDF.Controls
             string FieldType,     // /Tx, /Btn, /Ch
             bool   IsCheckBox,
             bool   IsRadio,
+            bool   IsMultiSelectChoice,
             bool   IsMultiLine,   // /Tx with Multiline flag (bit 12)
             string FieldName,
             string CurrentValue,
+            IReadOnlyList<string> CurrentValues,
             string OnValue,       // radio/checkbox on-state value (e.g. "/Yes")
             bool   IsReadOnly,
             double Cx, double Cy, double Cw, double Ch,
@@ -360,6 +362,37 @@ namespace KillerPDF.Controls
                 }
 
                 // Dropdown / choice
+                else if (f.FieldType == "/Ch" && f.Options.Count > 0 && f.IsMultiSelectChoice)
+                {
+                    IReadOnlyList<string> selected = _formMultiChoiceValues.TryGetValue(
+                        f.FieldName, out IReadOnlyList<string>? pending) ? pending : f.CurrentValues;
+                    var list = new ListBox
+                    {
+                        Tag = FormOverlayTag,
+                        Width = f.Cw,
+                        Height = f.Ch,
+                        IsEnabled = !f.IsReadOnly,
+                        ItemsSource = f.Options,
+                        DisplayMemberPath = nameof(FormChoiceItem.DisplayValue),
+                        SelectionMode = SelectionMode.Multiple,
+                        Foreground = Brushes.Black,
+                        Background = fieldBg,
+                        FontSize = f.DaFontPt > 0.5 && f.Scale > 0
+                            ? f.DaFontPt * f.Scale : Math.Min(Math.Max(10, f.Ch * 0.22), 16),
+                        ToolTip = string.IsNullOrEmpty(f.FieldName) ? null : f.FieldName,
+                    };
+                    foreach (FormChoiceItem item in f.Options.Where(item =>
+                                 selected.Contains(item.ExportValue, StringComparer.Ordinal)))
+                        list.SelectedItems.Add(item);
+                    string capturedKey = f.FieldName;
+                    list.SelectionChanged += (_, _) =>
+                    {
+                        _formMultiChoiceValues[capturedKey] = list.SelectedItems
+                            .Cast<FormChoiceItem>().Select(item => item.ExportValue).ToArray();
+                        MarkDirty(true);
+                    };
+                    ctrl = list;
+                }
                 else if (f.FieldType == "/Ch" && f.Options.Count > 0)
                 {
                     string cur = _formChoiceValues.TryGetValue(f.FieldName, out var tv) ? tv : f.CurrentValue;
@@ -603,8 +636,8 @@ namespace KillerPDF.Controls
                     double fontSize = ParseDaFontSize(widget.DefaultAppearance);
                     double scale = rotation is 90 or 270 ? canvasH / pageW : canvasH / pageH;
                     result.Add(new FormFieldInfo(objectNumber, widget.Generation,
-                        fieldType, isCheckBox, isRadio,
-                        isMultiLine, widget.FieldName, widget.Value, widget.OnValue,
+                        fieldType, isCheckBox, isRadio, (flags & (1 << 21)) != 0,
+                        isMultiLine, widget.FieldName, widget.Value, widget.Values, widget.OnValue,
                         (flags & 1) != 0, cx, cy, cw, ch,
                         widget.Options.Select(option => new FormChoiceItem(
                             option.ExportValue, option.DisplayValue)).ToList(),
@@ -636,7 +669,7 @@ namespace KillerPDF.Controls
         private void WriteFormValuesToDocument(string path)
         {
             PdfEngineIntegration.ApplyFormValues(path, new PdfEngineIntegration.FormEdits(
-                _formTextValues, _formChoiceValues, _formCheckValues,
+                _formTextValues, _formChoiceValues, _formMultiChoiceValues, _formCheckValues,
                 _formRadioValues, _formFontSizes));
         }
 
