@@ -833,8 +833,7 @@ namespace KillerPDF.Controls
                 var dpiInfo = VisualTreeHelper.GetDpi(this);
                 double dpiScaleX = dpiInfo.DpiScaleX;
                 double dpiScaleY = dpiInfo.DpiScaleY;
-                int scaledMax = (int)Math.Min(6144,
-                    2048 * Math.Max(dpiScaleX, dpiScaleY) * Math.Max(1.0, _zoomLevel));
+                int scaledMax = ViewerRenderResolution.Primary(dpiScaleX, dpiScaleY, _zoomLevel);
                 _lastRenderZoom = _zoomLevel;
 
                 int pgRot = _pageRotations.TryGetValue(pageIndex, out int pr0) ? pr0 : 0;
@@ -1080,10 +1079,17 @@ namespace KillerPDF.Controls
             _secondaryRenderCts = new System.Threading.CancellationTokenSource();
             var cts = _secondaryRenderCts;
 
-            // Secondary pages: 1536 px base, scaled up for high-DPI displays so grid / two-page text
-            // stays crisp on 150%/200% screens (capped at 3072 to keep memory in check). Stays 1536
-            // at 100% DPI, so standard displays are unaffected.
-            int SecondaryMax = (int)Math.Min(3072, 1536 * Math.Max(1.0, VisualTreeHelper.GetDpi(this).DpiScaleX));
+            // A two-page spread displays both pages at the same size, so both must be rasterized at
+            // the same effective pixel density. The old secondary budget was only 1536 pixels and
+            // did not follow zoom, while the primary used a 2048-pixel zoom-aware budget. WPF then
+            // enlarged the right page from fewer pixels, making it visibly softer than the left.
+            // Grid retains its smaller capped budget because it may keep many pages on screen.
+            var secondaryDpi = VisualTreeHelper.GetDpi(this);
+            int secondaryMax = ViewerRenderResolution.Secondary(
+                _viewMode == ViewMode.TwoPage,
+                secondaryDpi.DpiScaleX,
+                secondaryDpi.DpiScaleY,
+                _zoomLevel);
             // Grid shows the whole document; Two-Page shows one secondary; other modes peek ahead.
             int limit = _viewMode == ViewMode.Grid
                 ? _doc.PageCount
@@ -1154,7 +1160,7 @@ namespace KillerPDF.Controls
                             // tile, which read as "the grid's last column never refreshed".
                             try
                             {
-                                docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(SecondaryMax, SecondaryMax));
+                                docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(secondaryMax, secondaryMax));
                                 using var pageReader = docReader.GetPageReader(i);
                                 int w = pageReader.GetPageWidth();
                                 int h = pageReader.GetPageHeight();
