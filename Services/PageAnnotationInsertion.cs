@@ -9,8 +9,8 @@ internal static class PageAnnotationInsertion
         Dictionary<int, List<PageAnnotation>> annotations, int insertionIndex, int pageCount)
     {
         ArgumentNullException.ThrowIfNull(annotations);
-        if (insertionIndex < 0) throw new ArgumentOutOfRangeException(nameof(insertionIndex));
-        if (pageCount < 0) throw new ArgumentOutOfRangeException(nameof(pageCount));
+        ArgumentOutOfRangeException.ThrowIfNegative(insertionIndex);
+        ArgumentOutOfRangeException.ThrowIfNegative(pageCount);
         if (pageCount == 0) return;
 
         var shifted = new Dictionary<int, List<PageAnnotation>>();

@@ -76,7 +76,7 @@ public partial class MainWindow
     private static Grid BuildComparisonMenuIcon()
     {
         var icon = new Grid { Width = 14, Height = 13 };
-        Border MakeDocument(HorizontalAlignment alignment)
+        static Border MakeDocument(HorizontalAlignment alignment)
         {
             var line = new System.Windows.Shapes.Rectangle
             {

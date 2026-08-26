@@ -53,8 +53,7 @@ namespace KillerPDF.Controls
 
         internal void HidePageImportDropIndicator()
         {
-            if (_pageImportDropIndicator is not null)
-                _pageImportDropIndicator.Visibility = Visibility.Collapsed;
+            _pageImportDropIndicator?.Visibility = Visibility.Collapsed;
         }
 
         private Border BuildPageImportDropIndicator()

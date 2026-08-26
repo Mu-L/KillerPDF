@@ -18,12 +18,11 @@ namespace KillerPDF.Controls
         internal IReadOnlyList<(string Path, string Title)> OpenPdfTabsExt()
         {
             if (_active != null) CaptureSessionState(_active);
-            return _sessions
+            return [.. _sessions
                 .Select(session => session.CurrentFile ?? session.OriginalFile ?? session.DeferredPath)
                 .Where(path => !string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
                 .Select(path => (Path: path!, Title: System.IO.Path.GetFileName(path!)))
-                .DistinctBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+                .DistinctBy(item => item.Path, StringComparer.OrdinalIgnoreCase)];
         }
         internal void CloseTabExt(DocumentSession? s) => CloseTab(s);
         internal void CloseAllTabsExt() => CloseAllTabs();
@@ -142,12 +141,12 @@ namespace KillerPDF.Controls
         internal PageThumbnailVm[]? ThumbCache
         {
             get => _active?.ThumbCache;
-            set { if (_active != null) _active.ThumbCache = value; }
+            set => _active?.ThumbCache = value;
         }
         internal string? ThumbCacheFile
         {
             get => _active?.ThumbCacheFile;
-            set { if (_active != null) _active.ThumbCacheFile = value; }
+            set => _active?.ThumbCacheFile = value;
         }
 
         /// <summary>The active tab's thumbnail loader cancellation. Keeping it per tab prevents a
@@ -155,18 +154,18 @@ namespace KillerPDF.Controls
         internal System.Threading.CancellationTokenSource? ThumbCts
         {
             get => _active?.ThumbCts;
-            set { if (_active != null) _active.ThumbCts = value; }
+            set => _active?.ThumbCts = value;
         }
         internal bool ThumbCacheComplete
         {
             get => _active?.ThumbCacheComplete == true;
-            set { if (_active != null) _active.ThumbCacheComplete = value; }
+            set => _active?.ThumbCacheComplete = value;
         }
 
         internal void MarkThumbnailCacheComplete(PageThumbnailVm[] cache)
         {
             var owner = _sessions.FirstOrDefault(s => ReferenceEquals(s.ThumbCache, cache));
-            if (owner != null) owner.ThumbCacheComplete = true;
+            owner?.ThumbCacheComplete = true;
         }
 
         /// <summary>Highlight this pane's current page after the list is re-seated: assigning

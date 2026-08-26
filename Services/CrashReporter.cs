@@ -60,8 +60,8 @@ namespace KillerPDF
             sb.AppendLine($"Context : {context}");
             sb.AppendLine();
 
-            IReadOnlyList<Exception> failures = ex is AggregateException aggregate
-                ? aggregate.Flatten().InnerExceptions
+            List<Exception> failures = ex is AggregateException aggregate
+                ? [.. aggregate.Flatten().InnerExceptions]
                 : [ex];
             for (int failureIndex = 0; failureIndex < failures.Count; failureIndex++)
             {

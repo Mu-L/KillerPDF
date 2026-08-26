@@ -3135,7 +3135,7 @@ public sealed class PdfIncrementalPageEditor
         }
     }
 
-    private static IReadOnlyList<AppearanceFontResource> AppearanceFonts(
+    private static List<AppearanceFontResource> AppearanceFonts(
         PdfDocument document, PdfObject normalAppearance)
     {
         PdfObject resolvedNormal = normalAppearance is PdfIndirectReference normalReference
