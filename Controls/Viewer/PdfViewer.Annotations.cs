@@ -2417,7 +2417,11 @@ namespace KillerPDF.Controls
             {
                 if (current is FrameworkElement fe && fe.Tag as string == FormOverlayTag)
                     return true;
-                current = VisualTreeHelper.GetParent(current);
+                // A choice field's open dropdown lives in a Popup, whose visual tree dead-ends at
+                // its PopupRoot instead of reaching the tagged ComboBox. The logical tree does
+                // cross that boundary (a generated ComboBoxItem's logical parent is the ComboBox),
+                // so prefer it and fall back to the visual walk inside templates.
+                current = LogicalTreeHelper.GetParent(current) ?? GetAnyParent(current);
             }
             return false;
         }
