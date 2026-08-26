@@ -320,6 +320,7 @@ namespace KillerPDF.Controls
         // fills instantly. The render paths (single / secondary tiles / continuous) check the active tab's
         // cache before rasterizing and store the frozen bitmap after building it.
         private readonly List<DocumentSession> _renderLru = [];
+        private readonly DeferredActionGate _tabViewportRestoreGate = new();
         private const int RenderCacheTabCap = 3;
 
         // Background-thread safe: a cached frozen bitmap for this render, or null (the caller must rasterize).
@@ -458,6 +459,7 @@ namespace KillerPDF.Controls
         // prevents pixels and thumbnails from the departing document reaching the incoming view.
         private void CancelRenderWork()
         {
+            _tabViewportRestoreGate.Cancel();
             _rerenderTimer?.Stop();
 
             CancelAndRelease(_secondaryRenderCts);
@@ -533,17 +535,22 @@ namespace KillerPDF.Controls
         {
             if (_active == null || _active.Doc == null) { ShowEmptyState(); return; }
 
+            DocumentSession session = _active;
+            int viewportRestore = _tabViewportRestoreGate.Begin();
+
             FileNameLabel.Text = System.IO.Path.GetFileName(_active.OriginalFile ?? "");
             _annotationCanvas.Children.Clear();
             MarkDirty(_isDirty);   // sync the Save button color to this tab's dirty state
-            BootstrapDocumentView(_active.PageIndex, autoFit: false);
+            BootstrapDocumentView(session.PageIndex, autoFit: false,
+                restoreVerticalOffset: session.View == ViewMode.Continuous ? session.ScrollV : null);
             SetTool(_active.Tool); // restore this document's active editing tool (and its tool bar)
 
             // Restore the saved scroll position after the Background zoom pass queued inside
             // BootstrapDocumentView has run (ContextIdle is lower priority than Background).
-            double sh = _active.ScrollH, sv = _active.ScrollV;
+            double sh = session.ScrollH, sv = session.ScrollV;
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, (Action)(() =>
             {
+                if (!ReferenceEquals(_active, session) || !_tabViewportRestoreGate.IsCurrent(viewportRestore)) return;
                 try
                 {
                     PagePreviewPanel.ScrollToHorizontalOffset(sh);

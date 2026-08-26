@@ -57,7 +57,11 @@
     <Compile Include="..\Services\PageQualityConverter.cs" Link="Services\PageQualityConverter.cs" />
     <Compile Include="..\Services\FormOcrPolicy.cs" Link="Services\FormOcrPolicy.cs" />
     <Compile Include="..\Services\CombFieldLayout.cs" Link="Services\CombFieldLayout.cs" />
+    <Compile Include="..\Services\SaveFileNamePolicy.cs" Link="Services\SaveFileNamePolicy.cs" />
+    <Compile Include="..\Services\DeferredActionGate.cs" Link="Services\DeferredActionGate.cs" />
     <Compile Include="..\Packaging\KillerLauncher\PortableProcessIdentity.cs" Link="Packaging\PortableProcessIdentity.cs" />
+    <Compile Include="..\Packaging\KillerLauncher\PortableLauncherPolicy.cs" Link="Packaging\PortableLauncherPolicy.cs" />
+    <Compile Include="..\Packaging\KillerLauncher\PortableDirectoryCleanup.cs" Link="Packaging\PortableDirectoryCleanup.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,7 +1,9 @@
 using System.IO;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Interop;
 using KillerPDF.Services;
 
 namespace KillerPDF
@@ -97,10 +99,16 @@ namespace KillerPDF
         {
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
             Activate();
+            IntPtr handle = new WindowInteropHelper(this).Handle;
+            if (handle != IntPtr.Zero) SetForegroundWindow(handle);
             // Briefly toggle Topmost to pull the window in front without keeping it pinned.
             Topmost = true;
             Topmost = false;
             Focus();
         }
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool SetForegroundWindow(IntPtr hWnd);
     }
 }

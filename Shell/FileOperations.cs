@@ -1082,7 +1082,7 @@ namespace KillerPDF
             CommitActiveTextBox();
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
                           { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SaveFlattened"),
-                            CheckFileExists = false, CheckPathExists = true };
+                            CheckFileExists = false, CheckPathExists = true, RequireFilterExtension = true };
             if (dlg.ShowDialog(this) != true) return;
             CloseEngineDocumentSession();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)

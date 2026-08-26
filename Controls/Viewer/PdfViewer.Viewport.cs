@@ -354,7 +354,8 @@ namespace KillerPDF.Controls
             _annotationCanvas = overlay;
         }
 
-        internal void SetupContinuousView(int initialPage, bool fitDefault = true)
+        internal void SetupContinuousView(int initialPage, bool fitDefault = true,
+            double? restoreVerticalOffset = null)
         {
             if (_doc is null) return;
             PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
@@ -362,7 +363,7 @@ namespace KillerPDF.Controls
             // ArgumentOutOfRangeException. Bail out instead of crashing; the view just stays empty.
             if (engineSession.PageCount == 0) return;
             initialPage = Math.Clamp(initialPage, 0, engineSession.PageCount - 1);
-            _continuousScrollTarget = initialPage;
+            _continuousScrollTarget = restoreVerticalOffset.HasValue ? -1 : initialPage;
             SyncPageListSelection(initialPage);
             // Coming from Grid, the shared ScrollViewer still carries the grid's overrides
             // (horizontal bar Disabled, vertical Visible). Continuous never passes through
@@ -466,8 +467,13 @@ namespace KillerPDF.Controls
             else if (fitDefault) FitToPage();
             else SetZoom(_zoomLevel);
 
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                () => ScrollContinuousToPage(initialPage));
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+            {
+                if (restoreVerticalOffset.HasValue)
+                    PagePreviewPanel.ScrollToVerticalOffset(restoreVerticalOffset.Value);
+                else
+                    ScrollContinuousToPage(initialPage);
+            });
 
             _ = RenderContinuousPages(initialPage);
         }
@@ -1310,7 +1316,8 @@ namespace KillerPDF.Controls
             }
         }
 
-        internal void BootstrapDocumentView(int initialPage, bool autoFit, bool restoreFitMode = false)
+        internal void BootstrapDocumentView(int initialPage, bool autoFit, bool restoreFitMode = false,
+            double? restoreVerticalOffset = null)
         {
             // The document is (re)displaying - usually a different one (tab switch/close/open). The
             // skip-render guard in PageList_SelectionChanged compares the target page to the last
@@ -1344,7 +1351,7 @@ namespace KillerPDF.Controls
                 // Continuous's SelectionChanged returns early (no RenderPage call), so build its panel here.
                 if (isContinuous)
                     Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                        () => SetupContinuousView(page, fitDefault: autoFit));
+                        () => SetupContinuousView(page, fitDefault: autoFit, restoreVerticalOffset));
                 // Fit / zoom once the first page has rendered and layout has settled.
                 // DispatcherPriority.Background is lower than Loaded, so this fires after
                 // all pending RenderPage / RefreshPageView callbacks have completed.

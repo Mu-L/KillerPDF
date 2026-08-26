@@ -61,6 +61,9 @@ namespace KillerPDF
 
         [LibraryImport("shell32.dll")]
         private static partial void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool AllowSetForegroundWindow(int dwProcessId);
         private const uint SHCNE_ASSOCCHANGED = 0x08000000;
         private const uint SHCNF_IDLIST       = 0x0000;
 
@@ -168,6 +171,7 @@ namespace KillerPDF
             if (!isPrimary)
             {
                 var fwd = e.Args.FirstOrDefault(a => !a.StartsWith('/'));
+                GrantPrimaryForegroundPermission();
                 ForwardToPrimary(fwd);
                 Shutdown(0);
                 return;
@@ -242,6 +246,8 @@ namespace KillerPDF
             {
                 mw.RestoreAndActivate();
                 if (!string.IsNullOrEmpty(path)) mw.OpenFromExternal(path);
+                mw.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,
+                    new Action(mw.RestoreAndActivate));
             }
         }
 
@@ -267,6 +273,30 @@ namespace KillerPDF
                 w.WriteLine(path ?? "");
             }
             catch { /* primary not accepting yet; nothing more we can do */ }
+        }
+
+        // Explorer launches the secondary process with foreground permission. Pass that permission
+        // to the already-running KillerPDF process before asking it to activate its window.
+        private static void GrantPrimaryForegroundPermission()
+        {
+            try
+            {
+                using Process current = Process.GetCurrentProcess();
+                foreach (Process candidate in Process.GetProcessesByName(current.ProcessName)
+                             .Where(p => p.Id != current.Id)
+                             .OrderBy(p =>
+                             {
+                                 try { return p.StartTime; }
+                                 catch { return DateTime.MaxValue; }
+                             }))
+                {
+                    using (candidate)
+                    {
+                        if (AllowSetForegroundWindow(candidate.Id)) return;
+                    }
+                }
+            }
+            catch { }
         }
 
         // ============================================================

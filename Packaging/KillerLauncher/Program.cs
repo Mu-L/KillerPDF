@@ -46,8 +46,7 @@ namespace KillerLauncher
                 Application.SetCompatibleTextRenderingDefault(false);
                 return InstallerWizard.Run(args);
 #else
-                if (args.Any(a => string.Equals(a, "/install-user", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase)))
+                if (args.Any(PortableLauncherPolicy.IsInstallationArgument))
                     throw new InvalidOperationException(
                         "This is the portable package. Use KillerPDF Setup to install the application.");
 
@@ -87,7 +86,6 @@ namespace KillerLauncher
                 start.EnvironmentVariables["KILLERPDF_LAUNCHER_PATH"] = CurrentExecutablePath();
                 start.EnvironmentVariables["KILLERPDF_LAUNCHER_PID"] =
                     Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture);
-                start.EnvironmentVariables["KILLERPDF_PORTABLE_ROOT"] = directory;
 
                 using (var child = Process.Start(start))
                 {
@@ -99,7 +97,10 @@ namespace KillerLauncher
             }
             finally
             {
-                DeleteDirectoryWithRetries(directory);
+                // A scanner or another late reader can briefly retain a payload file after the
+                // child exits. Leave that directory for the next launcher's abandoned-run sweep
+                // instead of replacing the child's real exit result with a startup error.
+                PortableDirectoryCleanup.TryDelete(directory);
             }
         }
 
@@ -326,7 +327,7 @@ namespace KillerLauncher
                     var lines = File.ReadAllLines(marker);
                     if (lines.Length > 0 && string.Equals(lines[0], ProductName, StringComparison.Ordinal) &&
                         !MarkerHasLiveProcess(directory, lines))
-                        DeleteDirectoryWithRetries(directory);
+                        PortableDirectoryCleanup.TryDelete(directory);
                 }
                 catch { }
             }
@@ -363,21 +364,8 @@ namespace KillerLauncher
 
         private static void DeleteDirectoryWithRetries(string directory)
         {
-            if (!Directory.Exists(directory)) return;
-            for (int attempt = 0; attempt < 5; attempt++)
-            {
-                try
-                {
-                    foreach (string file in Directory.GetFiles(directory, "*", SearchOption.AllDirectories))
-                        try { File.SetAttributes(file, FileAttributes.Normal); } catch { }
-                    Directory.Delete(directory, recursive: true);
-                    return;
-                }
-                catch when (attempt < 4)
-                {
-                    System.Threading.Thread.Sleep(150 * (attempt + 1));
-                }
-            }
+            if (!PortableDirectoryCleanup.TryDelete(directory))
+                throw new IOException("The temporary installation directory could not be removed: " + directory);
         }
 
         private static bool IsTrustedForInstall(string path)

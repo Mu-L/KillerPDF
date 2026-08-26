@@ -10,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using KillerPDF.Services;
 
 namespace KillerPDF.Controls
 {
@@ -50,6 +51,11 @@ namespace KillerPDF.Controls
         public string DefaultExt { get; set; } = "";
 
         public bool AddExtension { get; set; } = true;
+        /// <summary>
+        /// Append the active filter's extension even when the typed name contains another dot.
+        /// Use this for format-locked exports such as flattened PDF output.
+        /// </summary>
+        public bool RequireFilterExtension { get; set; }
 
         /// <summary>Save mode: confirm before replacing an existing file.</summary>
         public bool OverwritePrompt { get; set; } = true;
@@ -1242,12 +1248,12 @@ namespace KillerPDF.Controls
                 // The extension follows the ACTIVE filter, so picking "CSV files" in the type
                 // combo is enough to get a .csv - DefaultExt only decides when the filter names
                 // no single extension (a wildcard or a multi-pattern entry).
-                if (AddExtension && string.IsNullOrEmpty(Path.GetExtension(full)))
+                if (AddExtension)
                 {
                     string? ext = ActiveFilterExt();
                     if (ext == null && !string.IsNullOrEmpty(DefaultExt))
                         ext = DefaultExt.StartsWith('.') ? DefaultExt : "." + DefaultExt;
-                    if (ext != null) full += ext;
+                    full = SaveFileNamePolicy.ApplyExtension(full, ext, AddExtension, RequireFilterExtension);
                 }
 
                 // The directory must exist; we do not silently create trees on the user's behalf.
