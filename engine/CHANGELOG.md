@@ -4,7 +4,7 @@ All notable changes to The KillerPDF.Engine are documented here. Application cha
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0-beta.1] - Unreleased
+## [1.8.0-beta.2] - Unreleased
 
 - Added optional visible appearances for newly created digital-signature widgets, including editable text, page coordinates, dimensions, font size, a standard border, and standards-compliant appearance streams.
 - Expanded tolerant full rewrites across malformed but recoverable headers, cross-reference tables and streams, trailer metadata, stream lengths, and trailing data while retaining bounded parsing and deterministic output. Explicit signature invalidation now removes stale signature values and certification permissions before rewriting, and the corpus gates distinguish intentional skips from regressions.
