@@ -732,7 +732,7 @@ namespace KillerPDF.Features
             CliEnsureParentDir(outPath);
             var (pages, words) = OcrController.BuildSearchablePdf(srcForOcr, outPath,
                 (i, n) => { if (i == 1 || i == n || i % 10 == 0) con.WriteLine($"OCR page {i}/{n}"); },
-                CancellationToken.None, lang);
+                lang, formAware: false, ct: CancellationToken.None);
 
             // The render source had /Rotate stripped; put the angles back on the
             // output so rotated pages still display rotated. Content and text

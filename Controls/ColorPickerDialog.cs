@@ -279,7 +279,7 @@ namespace KillerPDF
                 {
                     IntPtr dc = GetDC(IntPtr.Zero);
                     uint cref = GetPixel(dc, pt.X, pt.Y);
-                    ReleaseDC(IntPtr.Zero, dc);
+                    _ = ReleaseDC(IntPtr.Zero, dc);
                     capture.DialogResult = true; capture.Close();
                     SetFromColor(Color.FromRgb((byte)(cref & 0xFF), (byte)((cref >> 8) & 0xFF), (byte)((cref >> 16) & 0xFF)));
                     return;

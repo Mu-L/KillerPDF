@@ -204,7 +204,7 @@ namespace KillerPDF.Features
             try
             {
                 var (pages, words) = await Task.Run(() => BuildSearchablePdf(
-                    src, outPath, report, ct, lang, formAware));
+                    src, outPath, report, lang, formAware, ct));
                 _host.HideBusy();
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_SearchablePdfCanceled")); return; }
                 _host.SetStatus(string.Format(_host.Loc("Str_St_SearchableSaved"), pages, words));
@@ -236,8 +236,8 @@ namespace KillerPDF.Features
         // invisible text rendering keeps it from showing or printing. Runs entirely off the UI thread. Also the core of the
         // CLI's --ocr command (CliRunner).
         internal static (int pages, int words) BuildSearchablePdf(string src, string outPath,
-            Action<int, int> report, CancellationToken ct, string language,
-            bool formAware = false)
+            Action<int, int> report, string language, bool formAware,
+            CancellationToken ct)
         {
             using var docReader = DocLib.Instance.GetDocReader(src, new PageDimensions(OcrRenderMax, OcrRenderMax));
             using var ocr = new OcrService(language: language);   // one engine reused across the whole document (single-threaded here)
@@ -320,7 +320,7 @@ namespace KillerPDF.Features
             try
             {
                 int pages = await Task.Run(() => ExtractText(
-                    src, pageCount, outPath, markdown, report, ct, lang, formAware));
+                    src, pageCount, outPath, markdown, report, lang, formAware, ct));
                 _host.HideBusy();
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_TextExtractCanceled")); return; }
                 _host.SetStatus(string.Format(_host.Loc("Str_St_TextExtracted"), pages, Path.GetFileName(outPath)));
@@ -340,8 +340,8 @@ namespace KillerPDF.Features
         // OCR each page and concatenate the text into one file. Markdown gets a "## Page N" heading per
         // page; plain text uses a simple divider. Cancellable - nothing is written if canceled.
         private static int ExtractText(string src, int pageCount, string outPath, bool markdown,
-            Action<int, int> report, CancellationToken ct, string language,
-            bool formAware = false)
+            Action<int, int> report, string language, bool formAware,
+            CancellationToken ct)
         {
             string nl = Environment.NewLine;
             var sb = new StringBuilder();

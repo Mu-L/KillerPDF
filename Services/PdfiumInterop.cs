@@ -32,8 +32,8 @@ namespace KillerPDF.Services
 
         [DllImport("pdfium.dll", EntryPoint = "FPDF_LoadDocument", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr FPDF_LoadDocumentRaw(
-            [MarshalAs(UnmanagedType.LPStr)] string filePath,
-            [MarshalAs(UnmanagedType.LPStr)] string? password);
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string? password);
         internal static IntPtr FPDF_LoadDocument(string filePath, string? password)
         { lock (PdfiumLock) return FPDF_LoadDocumentRaw(filePath, password); }
 
@@ -151,7 +151,7 @@ namespace KillerPDF.Services
                             if ((formFlags & (1 << 16)) != 0) continue;
                             int flags = FPDFAnnot_GetFlagsRaw(annot);
                             saved[i] = flags;
-                            FPDFAnnot_SetFlagsRaw(annot, flags | FpdfAnnotFlagHidden);
+                            _ = FPDFAnnot_SetFlagsRaw(annot, flags | FpdfAnnotFlagHidden);
                         }
                     }
                     finally { FPDFPage_CloseAnnotRaw(annot); }
@@ -180,7 +180,7 @@ namespace KillerPDF.Services
                 {
                     IntPtr annot = FPDFPage_GetAnnotRaw(page, kv.Key);
                     if (annot == IntPtr.Zero) continue;
-                    try { FPDFAnnot_SetFlagsRaw(annot, kv.Value); }
+                    try { _ = FPDFAnnot_SetFlagsRaw(annot, kv.Value); }
                     finally { FPDFPage_CloseAnnotRaw(annot); }
                 }
             }

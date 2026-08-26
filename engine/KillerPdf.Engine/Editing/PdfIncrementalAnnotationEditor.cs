@@ -2628,7 +2628,8 @@ public sealed class PdfIncrementalAnnotationEditor
             PdfTextMarkupType.Underline => MarkupLines(markup, strikeOut: false),
             PdfTextMarkupType.StrikeOut => MarkupLines(markup, strikeOut: true),
             PdfTextMarkupType.Squiggly => SquigglyLines(markup),
-            _ => throw new ArgumentOutOfRangeException(nameof(markup.Type))
+            _ => throw new InvalidOperationException(
+                $"Unsupported text-markup type: {markup.Type}.")
         };
         byte[] content = Encoding.ASCII.GetBytes($"q\n/GS1 gs\n{drawing}Q\n");
         return Appearance(markup.Width, markup.Height, resources, content);
@@ -3099,7 +3100,8 @@ public sealed class PdfIncrementalAnnotationEditor
                         (right - left - textWidth) / 2),
                     PdfTextAlignment.Right => Math.Max(left,
                         right - textWidth - 2),
-                    _ => throw new ArgumentOutOfRangeException()
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported overlay alignment: {value.OverlayAlignment}.")
                 };
                 double textY = bottom + Math.Max(1,
                     (top - bottom - value.OverlayFontSize) / 2);
@@ -3379,7 +3381,8 @@ public sealed class PdfIncrementalAnnotationEditor
                     (value.Width - lineWidth) / 2),
                 PdfTextAlignment.Right => Math.Max(padding,
                     value.Width - padding - lineWidth),
-                _ => throw new ArgumentOutOfRangeException()
+                _ => throw new InvalidOperationException(
+                    $"Unsupported free-text alignment: {value.Alignment}.")
             };
             if (index == 0)
                 WriteAscii(output,

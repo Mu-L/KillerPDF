@@ -64,7 +64,7 @@ public sealed class PdfDestination
             PdfDestinationKind.FitB => "FitB",
             PdfDestinationKind.FitBH => "FitBH",
             PdfDestinationKind.FitBV => "FitBV",
-            _ => throw new ArgumentOutOfRangeException(nameof(Kind))
+            _ => throw new InvalidOperationException($"Unsupported destination kind: {Kind}.")
         }) };
         values.AddRange(Values.Select(value => value switch
         {

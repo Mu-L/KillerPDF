@@ -675,7 +675,7 @@ namespace KillerPDF.Services
             try
             {
                 int value = dark ? 1 : 0;
-                DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
+                _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
 
                 // Tint the Win11 1px frame border to the theme's pane border so the
                 // window outline follows the palette instead of staying system gray.
@@ -685,7 +685,7 @@ namespace KillerPDF.Services
                 {
                     // COLORREF is 0x00BBGGRR
                     int colorref = b.Color.R | (b.Color.G << 8) | (b.Color.B << 16);
-                    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref colorref, sizeof(int));
+                    _ = DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref colorref, sizeof(int));
                 }
             }
 

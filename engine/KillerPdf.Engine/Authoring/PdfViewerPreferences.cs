@@ -133,7 +133,8 @@ public sealed record PdfViewerPreferences
                     PdfDuplexMode.Simplex => "Simplex",
                     PdfDuplexMode.DuplexFlipShortEdge => "DuplexFlipShortEdge",
                     PdfDuplexMode.DuplexFlipLongEdge => "DuplexFlipLongEdge",
-                    _ => throw new ArgumentOutOfRangeException(nameof(Duplex))
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported duplex mode: {Duplex}.")
                 })));
         return new PdfDictionary(entries);
     }

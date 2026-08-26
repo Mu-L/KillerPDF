@@ -73,7 +73,7 @@ namespace KillerPDF.Services
                 resp.EnsureSuccessStatusCode();
                 long? total = resp.Content.Headers.ContentLength;
                 // using-var (not a block): these dispose at the end of the resp block, before the File.Move below.
-                using var netStream = await resp.Content.ReadAsStreamAsync();
+                using var netStream = await resp.Content.ReadAsStreamAsync(ct);
                 using var fileStream = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
 
                 var buffer = new byte[81920];

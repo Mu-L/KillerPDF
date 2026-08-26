@@ -152,7 +152,8 @@ public sealed partial class PdfDocumentBuilder
                     PdfTextAlignment.Left => left + 2,
                     PdfTextAlignment.Center => left + Math.Max(0, (right - left - textWidth) / 2),
                     PdfTextAlignment.Right => Math.Max(left, right - textWidth - 2),
-                    _ => throw new ArgumentOutOfRangeException(nameof(value.OverlayAlignment))
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported overlay alignment: {value.OverlayAlignment}.")
                 };
                 double textY = bottom + Math.Max(1, (top - bottom - value.OverlayFontSize) / 2);
                 drawing.Append("BT\n").Append(NameToken(fontResource!)).Append(' ')

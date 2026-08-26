@@ -27,6 +27,8 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Direct PDFium loading now uses explicit UTF-8 marshalling for document paths and passwords, preserving international characters instead of passing them through the Windows ANSI code page.
+- Engine validation failures now retain accurate public exception contracts without reporting nonexistent parameter names, and OCR downloads propagate cancellation through the response stream.
 - Portable builds identify themselves with a `PORTABLE` upgrade badge linked to the installed release instead of offering to install their temporary self-contained payload.
 - Installed-payload verification now rejects files absent from the signed manifest, preventing untrusted assemblies in the application probing path, and its tamper test now exercises a same-length SHA-256 mismatch.
 - Moving from a per-user installation to an all-users installation now removes the stale per-user `killerpdf:` protocol registration so it cannot shadow the Program Files handler.

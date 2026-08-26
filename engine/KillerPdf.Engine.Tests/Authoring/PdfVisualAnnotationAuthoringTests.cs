@@ -131,7 +131,7 @@ public sealed class PdfVisualAnnotationAuthoringTests
         Assert.Equal("ClosedArrow",
             Assert.IsType<PdfName>(annotation[Name("LE")]).ValueAsLatin1());
         Assert.Contains(" l\nS\n", Encoding.ASCII.GetString(appearance.EncodedData.Span));
-        Assert.True(Assert.IsType<PdfArray>(appearance.Dictionary[Name("BBox")]).Count == 4);
+        Assert.Equal(4, Assert.IsType<PdfArray>(appearance.Dictionary[Name("BBox")]).Count);
     }
 
     [Theory]

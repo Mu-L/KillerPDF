@@ -267,11 +267,11 @@ namespace KillerPDF.Controls
             {
                 var p = line.Split('|');
                 if (p.Length < 5 || !string.Equals(p[0], path, StringComparison.OrdinalIgnoreCase)) continue;
-                Enum.TryParse(p[1], out fit);
-                double.TryParse(p[2], System.Globalization.NumberStyles.Float,
+                _ = Enum.TryParse(p[1], out fit);
+                _ = double.TryParse(p[2], System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out zoom);
-                Enum.TryParse(p[3], out view);
-                int.TryParse(p[4], out page);
+                _ = Enum.TryParse(p[3], out view);
+                _ = int.TryParse(p[4], out page);
                 if (zoom <= 0) zoom = 1.0;
                 return true;
             }

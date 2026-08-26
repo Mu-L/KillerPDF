@@ -59,8 +59,8 @@ namespace KillerPDF.Services
                 if (rc < 0)
                 {
                     var flush = new StringBuilder(8);
-                    ToUnicodeEx(VK_SPACE, MapVirtualKeyEx(VK_SPACE, MAPVK_VK_TO_VSC, hkl),
-                                new byte[256], flush, flush.Capacity, 0, hkl);
+                    _ = ToUnicodeEx(VK_SPACE, MapVirtualKeyEx(VK_SPACE, MAPVK_VK_TO_VSC, hkl),
+                                    new byte[256], flush, flush.Capacity, 0, hkl);
                     return '\0';
                 }
                 return rc > 0 ? sb[sb.Length - 1] : '\0';

@@ -16709,8 +16709,7 @@ public sealed class PdfIncrementalPageEditor
         {
             if (!fileNames.Add(attachment.FileName))
                 throw new ArgumentException(
-                    $"Attachment file name '{attachment.FileName}' already exists.",
-                    "fileName");
+                    $"Attachment file name '{attachment.FileName}' already exists.");
             PdfIndirectReference embeddedReference = update.ReserveObject();
             update.SetObject(embeddedReference,
                 PdfAttachmentFactory.EmbeddedFile(

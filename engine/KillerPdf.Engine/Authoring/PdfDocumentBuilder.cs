@@ -3318,7 +3318,7 @@ public sealed partial class PdfDocumentBuilder
                 output.Write("h\nf\n"u8);
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(field.Mark));
+                throw new InvalidOperationException($"Unsupported checkbox mark: {field.Mark}.");
         }
     }
 
@@ -3638,7 +3638,8 @@ public sealed partial class PdfDocumentBuilder
             PdfTextFieldAlignment.Left => 3,
             PdfTextFieldAlignment.Center => Math.Max(1, (field.Width - textWidth) / 2),
             PdfTextFieldAlignment.Right => Math.Max(1, field.Width - textWidth - 3),
-            _ => throw new ArgumentOutOfRangeException(nameof(field.Options.Alignment))
+            _ => throw new InvalidOperationException(
+                $"Unsupported text-field alignment: {field.Options.Alignment}.")
         };
     }
 
@@ -3706,7 +3707,7 @@ public sealed partial class PdfDocumentBuilder
         {
             if (MeasureTextFieldText(field, TextFieldAppearanceValue(field)) > field.Width - 6)
                 throw new ArgumentException(
-                    "The initial value does not fit in a no-scroll text field.", "value");
+                    "The initial value does not fit in a no-scroll text field.");
             return;
         }
         double leading = field.FontSize * 1.2;
@@ -3719,7 +3720,7 @@ public sealed partial class PdfDocumentBuilder
         }
         if (WrapTextFieldLines(field).Count > visibleLines)
             throw new ArgumentException(
-                "The initial value does not fit in a no-scroll multiline text field.", "value");
+                "The initial value does not fit in a no-scroll multiline text field.");
     }
 
     private static byte[] BuildCombTextFieldAppearance(
@@ -3751,7 +3752,8 @@ public sealed partial class PdfDocumentBuilder
             PdfTextFieldAlignment.Left => 0,
             PdfTextFieldAlignment.Center => (cells - glyphCount) / 2,
             PdfTextFieldAlignment.Right => cells - glyphCount,
-            _ => throw new ArgumentOutOfRangeException(nameof(field.Options.Alignment))
+            _ => throw new InvalidOperationException(
+                $"Unsupported text-field alignment: {field.Options.Alignment}.")
         };
         IEnumerable<string> shownValues = field.EmbeddedFont is null
             ? field.Value.EnumerateRunes().Select(rune => rune.ToString())
@@ -3981,7 +3983,8 @@ public sealed partial class PdfDocumentBuilder
                 scaleY = Math.Max(1, scaleY);
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(options.IconScaleMode));
+                throw new ArgumentOutOfRangeException(nameof(options), options.IconScaleMode,
+                    "The push-button icon scale mode is unsupported.");
         }
         double drawnWidth = icon.Width * scaleX;
         double drawnHeight = icon.Height * scaleY;
@@ -4366,7 +4369,8 @@ public sealed partial class PdfDocumentBuilder
             PdfTextFieldAlignment.Left => 3,
             PdfTextFieldAlignment.Center => Math.Max(1, (field.Width - textWidth) / 2),
             PdfTextFieldAlignment.Right => Math.Max(1, field.Width - textWidth - 3),
-            _ => throw new ArgumentOutOfRangeException(nameof(field.ChoiceOptions.Alignment))
+            _ => throw new InvalidOperationException(
+                $"Unsupported choice-field alignment: {field.ChoiceOptions.Alignment}.")
         };
     }
 
@@ -4531,7 +4535,8 @@ public sealed partial class PdfDocumentBuilder
                 PdfTextMarkupType.Underline => MarkupLine(markup.Color, quad, 0.08),
                 PdfTextMarkupType.StrikeOut => MarkupLine(markup.Color, quad, 0.5),
                 PdfTextMarkupType.Squiggly => SquigglyLine(markup.Color, quad),
-                _ => throw new ArgumentOutOfRangeException(nameof(markup.Type))
+                _ => throw new InvalidOperationException(
+                    $"Unsupported text-markup type: {markup.Type}.")
             });
         }
         return Encoding.ASCII.GetBytes($"q\n/GS1 gs\n{drawing}Q\n");
@@ -5174,7 +5179,8 @@ public sealed partial class PdfDocumentBuilder
                     WriteBeveledFieldBorder(output, width, height, style);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(style.BorderStyle));
+                    throw new InvalidOperationException(
+                        $"Unsupported form-field border style: {style.BorderStyle}.");
             }
         }
         if (clip)

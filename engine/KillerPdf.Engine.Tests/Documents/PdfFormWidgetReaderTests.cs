@@ -45,8 +45,8 @@ public sealed class PdfFormWidgetReaderTests
         PdfFormWidgetInfo text = widgets.Single(widget => widget.FieldName == "customer.name");
         Assert.Equal(PdfFormFieldKind.Text, text.FieldKind);
         Assert.Equal("Steve", text.Value);
-        Assert.True((text.Flags & 1) != 0);
-        Assert.True((text.Flags & 4096) != 0);
+        Assert.NotEqual(0, text.Flags & 1);
+        Assert.NotEqual(0, text.Flags & 4096);
         Assert.Equal(80, text.MaximumLength);
         Assert.Contains("11", text.DefaultAppearance);
         Assert.Equal((20d, 300d, 200d, 324d),

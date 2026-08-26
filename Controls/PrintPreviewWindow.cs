@@ -1248,8 +1248,8 @@ namespace KillerPDF
                 return;
             }
 
-            int.TryParse(_copiesBox.Text?.Trim(), out int copies);
-            if (copies < 1) copies = 1;
+            if (!int.TryParse(_copiesBox.Text?.Trim(), out int copies) || copies < 1)
+                copies = 1;
 
             // The 300 DPI re-rasterize below (plus the compose + spool) runs long enough on real
             // documents that the window froze with no feedback - it read as a crash. Cover the card
