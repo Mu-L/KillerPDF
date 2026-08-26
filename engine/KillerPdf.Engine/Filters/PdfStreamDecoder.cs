@@ -132,7 +132,7 @@ public static class PdfStreamDecoder
         }
         if (!ended) throw new PdfFilterException("ASCIIHex data has no end marker.");
         if (high >= 0) AddBounded(output, (byte)(high << 4), maximumDecodedBytes);
-        return output.ToArray();
+        return [.. output];
     }
 
     private static byte[] DecodeAscii85(ReadOnlySpan<byte> encoded, int maximumDecodedBytes)
@@ -172,7 +172,7 @@ public static class PdfStreamDecoder
             tuple[count..].Fill((byte)'u');
             WriteAscii85Tuple(tuple, count - 1, output, maximumDecodedBytes);
         }
-        return output.ToArray();
+        return [.. output];
     }
 
     private static void WriteAscii85Tuple(
@@ -192,7 +192,7 @@ public static class PdfStreamDecoder
         while (offset < encoded.Length)
         {
             int length = encoded[offset++];
-            if (length == 128) return output.ToArray();
+            if (length == 128) return [.. output];
             if (length <= 127)
             {
                 int count = length + 1;
@@ -231,7 +231,7 @@ public static class PdfStreamDecoder
         while (TryReadCode(encoded, ref bitOffset, width, out int code))
         {
             if (code == 256) { Reset(); previous = null; continue; }
-            if (code == 257) return output.ToArray();
+            if (code == 257) return [.. output];
             byte[] current;
             if (code < nextCode && dictionary[code] is not null)
                 current = dictionary[code];

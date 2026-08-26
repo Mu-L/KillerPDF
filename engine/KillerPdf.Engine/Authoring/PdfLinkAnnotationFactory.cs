@@ -29,10 +29,10 @@ internal static class PdfLinkAnnotationFactory
     internal static (double X, double Y, double Width, double Height) Bounds(
         IReadOnlyList<PdfTextQuad> quads)
     {
-        PdfPoint[] points = quads.SelectMany(quad => new[]
+        PdfPoint[] points = [.. quads.SelectMany(quad => new[]
         {
             quad.UpperLeft, quad.UpperRight, quad.LowerLeft, quad.LowerRight
-        }).ToArray();
+        })];
         double minX = points.Min(point => point.X);
         double minY = points.Min(point => point.Y);
         double maxX = points.Max(point => point.X);
@@ -72,7 +72,7 @@ internal static class PdfLinkAnnotationFactory
             if (appearance.BorderStyle == PdfLinkBorderStyle.Dashed)
                 border.Add(("D", new PdfArray(
                     appearance.DashPattern.Select(Number))));
-            entries.Add(("BS", Dictionary(border.ToArray())));
+            entries.Add(("BS", Dictionary([.. border])));
         }
         if (appearance.Color.HasValue)
             entries.Add(("C", new PdfArray([
@@ -91,7 +91,7 @@ internal static class PdfLinkAnnotationFactory
         if (!string.IsNullOrEmpty(contents))
             entries.Add(("Contents", UnicodeString(contents)));
         AddMetadata(entries, metadata);
-        return Dictionary(entries.ToArray());
+        return Dictionary([.. entries]);
     }
 
     internal static PdfDictionary UriAction(string uri) => Dictionary(

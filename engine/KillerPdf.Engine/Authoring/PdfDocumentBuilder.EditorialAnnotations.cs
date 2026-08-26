@@ -70,7 +70,7 @@ public sealed partial class PdfDocumentBuilder
             value.Contents, allocated.AppearanceNumber, value.Metadata);
         if (value.Symbol == PdfCaretSymbol.Paragraph) entries.Add(("Sy", Name("P")));
         objects.Add(new PdfIndirectObject(
-            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         PdfDictionary resources = AnnotationResources(value.Opacity);
         double center = value.Width / 2;
@@ -114,7 +114,7 @@ public sealed partial class PdfDocumentBuilder
                 $"{NameToken(fontResource!)} {FormatNumber(value.OverlayFontSize)} Tf 1 1 1 rg")));
         }
         objects.Add(new PdfIndirectObject(
-            allocated.AnnotationNumber, 0, Dictionary(entries.ToArray()), 0));
+            allocated.AnnotationNumber, 0, Dictionary([.. entries]), 0));
 
         PdfDictionary resources = value.OverlayText is null
             ? AnnotationResources(value.Opacity)
@@ -193,8 +193,8 @@ public sealed partial class PdfDocumentBuilder
     private static (double MinX, double MinY, double MaxX, double MaxY) EditorialQuadBounds(
         IReadOnlyList<PdfTextQuad> quads)
     {
-        PdfPoint[] points = quads.SelectMany(quad => new[]
-            { quad.UpperLeft, quad.UpperRight, quad.LowerLeft, quad.LowerRight }).ToArray();
+        PdfPoint[] points = [.. quads.SelectMany(quad => new[]
+            { quad.UpperLeft, quad.UpperRight, quad.LowerLeft, quad.LowerRight })];
         return (points.Min(point => point.X), points.Min(point => point.Y),
             points.Max(point => point.X), points.Max(point => point.Y));
     }

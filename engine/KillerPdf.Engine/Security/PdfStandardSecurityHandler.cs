@@ -483,7 +483,7 @@ internal sealed class PdfStandardSecurityHandler
         if (revision >= 3)
             for (int round = 0; round < 50; round++) hash = MD5.HashData(hash);
         byte[] key = hash[..keyLength];
-        byte[] result = owner.ToArray();
+        byte[] result = [.. owner];
         if (revision == 2) return Rc4(key, result);
         for (int round = 19; round >= 0; round--)
             result = Rc4(XorKey(key, round), result);
@@ -532,7 +532,7 @@ internal sealed class PdfStandardSecurityHandler
                     nameof(password));
             encoded.Add((byte)value);
         }
-        return encoded.ToArray();
+        return [.. encoded];
     }
 
     private static byte[]? TryOwnerPassword(
@@ -868,7 +868,7 @@ internal sealed class PdfStandardSecurityHandler
     }
 
     private static byte[] XorKey(byte[] key, int value) =>
-        key.Select(item => (byte)(item ^ value)).ToArray();
+        [.. key.Select(item => (byte)(item ^ value))];
 
     private static byte[] Rc4(ReadOnlySpan<byte> key, ReadOnlySpan<byte> input)
     {

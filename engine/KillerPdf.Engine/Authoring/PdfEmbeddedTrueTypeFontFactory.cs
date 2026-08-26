@@ -54,7 +54,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
             ("StemV", new PdfInteger(80)),
             (font.HasCffOutlines ? "FontFile3" : "FontFile2", fontFileReference)
         };
-        PdfDictionary descriptor = Dictionary(descriptorEntries.ToArray());
+        PdfDictionary descriptor = Dictionary([.. descriptorEntries]);
 
         var widths = new List<PdfObject>();
         foreach (ushort glyph in mappings.Values.Select(mapping => mapping.Glyph).Distinct().Order())
@@ -75,7 +75,7 @@ internal static class PdfEmbeddedTrueTypeFontFactory
         };
         if (!font.HasCffOutlines)
             cidEntries.Add(("CIDToGIDMap", Name("Identity")));
-        PdfDictionary cidFont = Dictionary(cidEntries.ToArray());
+        PdfDictionary cidFont = Dictionary([.. cidEntries]);
         var toUnicode = new PdfStream(Dictionary(), BuildToUnicodeMap(mappings));
         var encoding = new PdfStream(Dictionary(), BuildEncodingMap(mappings));
         PdfDictionary type0 = Dictionary(
@@ -133,9 +133,9 @@ internal static class PdfEmbeddedTrueTypeFontFactory
         (int)Math.Round(value * 1000d / unitsPerEm, MidpointRounding.AwayFromZero);
     private static string SanitizeFontName(string value)
     {
-        string cleaned = new(value.Where(character => character is >= '!' and <= '~'
+        string cleaned = new([.. value.Where(character => character is >= '!' and <= '~'
             && character is not '(' and not ')' and not '<' and not '>' and not '[' and not ']'
-            && character is not '{' and not '}' and not '/' and not '%' and not '#').ToArray());
+            && character is not '{' and not '}' and not '/' and not '%' and not '#')]);
         return cleaned.Length == 0 ? "EmbeddedTrueTypeFont" : cleaned;
     }
     private static PdfObject Number(double value) => value == Math.Truncate(value)
