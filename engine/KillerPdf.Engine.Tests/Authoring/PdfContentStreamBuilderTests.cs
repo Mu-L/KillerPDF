@@ -1,6 +1,7 @@
 using System.Text;
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Tests.Fonts;
@@ -352,8 +353,12 @@ public sealed class PdfContentStreamBuilderTests
 
         Assert.Equal("Type0", Assert.IsType<PdfName>(type0[Name("Subtype")]).ValueAsLatin1());
         Assert.Equal("CIDFontType2", Assert.IsType<PdfName>(cidFont[Name("Subtype")]).ValueAsLatin1());
-        Assert.Equal(embedded.FontData.Length, fontFile.EncodedData.Length);
-        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+        Assert.Equal("FlateDecode", Assert.IsType<PdfName>(
+            fontFile.Dictionary[Name("Filter")]).ValueAsLatin1());
+        Assert.True(fontFile.EncodedData.Length < embedded.FontData.Length);
+        Assert.Equal(embedded.FontData.ToArray(), PdfStreamDecoder.Decode(fontFile));
+        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(toUnicode)));
         var contentStream = Assert.IsType<PdfStream>(document.Resolve(
             Assert.IsType<PdfIndirectReference>(page[Name("Contents")])));
         Assert.Contains("<0001> Tj", Encoding.ASCII.GetString(contentStream.EncodedData.Span));
@@ -369,7 +374,8 @@ public sealed class PdfContentStreamBuilderTests
             new PdfDocumentBuilder().AddPage(100, 100, content).Build());
         PdfStream toUnicode = FindToUnicode(document);
 
-        Assert.Contains("<0001> <D83DDE00>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+        Assert.Contains("<0001> <D83DDE00>", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(toUnicode)));
     }
 
     [Fact]
@@ -384,8 +390,10 @@ public sealed class PdfContentStreamBuilderTests
         PdfStream toUnicode = FindToUnicode(document);
 
         Assert.Equal("BT\n/F1 12 Tf\n<00010002> Tj\nET\n", Encoding.ASCII.GetString(content.Build()));
-        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
-        Assert.Contains("<0002> <0041FE0F>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(toUnicode)));
+        Assert.Contains("<0002> <0041FE0F>", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(toUnicode)));
     }
 
     [Fact]
@@ -446,7 +454,7 @@ public sealed class PdfContentStreamBuilderTests
         Assert.False(cidFont.ContainsKey(Name("CIDToGIDMap")));
         Assert.Equal("OpenType", Assert.IsType<PdfName>(
             fontFile.Dictionary[Name("Subtype")]).ValueAsLatin1());
-        Assert.Equal(embedded.FontData.ToArray(), fontFile.EncodedData.ToArray());
+        Assert.Equal(embedded.FontData.ToArray(), PdfStreamDecoder.Decode(fontFile));
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Text;
 using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Objects;
@@ -32,9 +33,10 @@ internal static class PdfEmbeddedTrueTypeFontFactory
             baseName = $"{TrueTypeSubsetter.Prefix(font.FontData.ToArray(), mappings.Values.Select(mapping => mapping.Glyph))}+{baseName}";
         PdfName baseFont = Name(baseName);
         PdfDictionary fontFileDictionary = font.HasCffOutlines
-            ? Dictionary(("Subtype", Name("OpenType")))
-            : Dictionary(("Length1", new PdfInteger(fontProgram.Length)));
-        var fontFile = new PdfStream(fontFileDictionary, fontProgram);
+            ? Dictionary(("Subtype", Name("OpenType")), ("Filter", Name("FlateDecode")))
+            : Dictionary(("Length1", new PdfInteger(fontProgram.Length)),
+                ("Filter", Name("FlateDecode")));
+        var fontFile = new PdfStream(fontFileDictionary, Compress(fontProgram));
 
         int flags = 32;
         if (font.ItalicAngle != 0) flags |= 64;
@@ -76,8 +78,8 @@ internal static class PdfEmbeddedTrueTypeFontFactory
         if (!font.HasCffOutlines)
             cidEntries.Add(("CIDToGIDMap", Name("Identity")));
         PdfDictionary cidFont = Dictionary([.. cidEntries]);
-        var toUnicode = new PdfStream(Dictionary(), BuildToUnicodeMap(mappings));
-        var encoding = new PdfStream(Dictionary(), BuildEncodingMap(mappings));
+        var toUnicode = CompressedStream(BuildToUnicodeMap(mappings));
+        var encoding = CompressedStream(BuildEncodingMap(mappings));
         PdfDictionary type0 = Dictionary(
             ("Type", Name("Font")), ("Subtype", Name("Type0")),
             ("BaseFont", baseFont), ("Encoding", encodingReference),
@@ -130,7 +132,16 @@ internal static class PdfEmbeddedTrueTypeFontFactory
     }
 
     private static int Scale(int value, int unitsPerEm) =>
-        (int)Math.Round(value * 1000d / unitsPerEm, MidpointRounding.AwayFromZero);
+            (int)Math.Round(value * 1000d / unitsPerEm, MidpointRounding.AwayFromZero);
+    private static PdfStream CompressedStream(byte[] data) =>
+        new(Dictionary(("Filter", Name("FlateDecode"))), Compress(data));
+    private static byte[] Compress(byte[] data)
+    {
+        using var output = new MemoryStream();
+        using (var zlib = new ZLibStream(output, CompressionLevel.Optimal, leaveOpen: true))
+            zlib.Write(data);
+        return output.ToArray();
+    }
     private static string SanitizeFontName(string value)
     {
         string cleaned = new([.. value.Where(character => character is >= '!' and <= '~'

@@ -82,6 +82,11 @@ public sealed class PdfIncrementalPageEditor
     private static readonly PdfName AppearanceStateName = Name("AS");
     private static readonly PdfName AppearanceName = Name("AP");
     private static readonly PdfName NormalAppearanceName = Name("N");
+    private static readonly PdfName AppearanceResourcesName = Name("Resources");
+    private static readonly PdfName FontResourcesName = Name("Font");
+    private static readonly PdfName BaseFontName = Name("BaseFont");
+    private static readonly PdfName EncodingName = Name("Encoding");
+    private static readonly PdfName ToUnicodeName = Name("ToUnicode");
     private static readonly PdfName ButtonFieldName = Name("Btn");
     private static readonly PdfName FieldFlagsName = Name("Ff");
     private static readonly PdfName TextFieldName = Name("Tx");
@@ -2865,13 +2870,16 @@ public sealed class PdfIncrementalPageEditor
             PdfDictionary appearance = ResolveDictionary(
                 appearanceDocument, appearanceField[AppearanceName],
                 "The generated field /AP value");
-            var importer = new PdfObjectGraphImporter(appearanceDocument, update, []);
-            PdfObject importedNormal = importer.Import(appearance[NormalAppearanceName]);
             PdfDictionary existingAppearance = widget.TryGetValue(
                     AppearanceName, out PdfObject? existingAppearanceValue)
                 ? ResolveDictionary(_document, existingAppearanceValue,
                     $"The choice field '{fieldName}' /AP value")
                 : new PdfDictionary([]);
+            var importer = new PdfObjectGraphImporter(appearanceDocument, update, []);
+            SeedCompatibleAppearanceFonts(
+                appearanceDocument, appearance[NormalAppearanceName],
+                _document, existingAppearance, importer);
+            PdfObject importedNormal = importer.Import(appearance[NormalAppearanceName]);
             var replacements = new Dictionary<PdfName, PdfObject>
             {
                 [AppearanceName] = ReplaceMany(existingAppearance,
@@ -3035,15 +3043,17 @@ public sealed class PdfIncrementalPageEditor
                 appearanceDocument, appearanceField[AppearanceName],
                 "The generated field /AP value");
             PdfObject normal = appearance[NormalAppearanceName];
-            var importer = new PdfObjectGraphImporter(
-                appearanceDocument, update, []);
-            PdfObject importedNormal = importer.Import(normal);
             PdfDictionary existingAppearance = widget.TryGetValue(
                     AppearanceName, out PdfObject? existingAppearanceValue)
                 ? ResolveDictionary(
                     _document, existingAppearanceValue,
                     $"The text field '{fieldName}' /AP value")
                 : new PdfDictionary([]);
+            var importer = new PdfObjectGraphImporter(
+                appearanceDocument, update, []);
+            SeedCompatibleAppearanceFonts(
+                appearanceDocument, normal, _document, existingAppearance, importer);
+            PdfObject importedNormal = importer.Import(normal);
             PdfDictionary replacementAppearance = ReplaceMany(
                 existingAppearance, new Dictionary<PdfName, PdfObject>
                 {
@@ -3098,6 +3108,99 @@ public sealed class PdfIncrementalPageEditor
             }
         }
     }
+
+    private static void SeedCompatibleAppearanceFonts(
+        PdfDocument sourceDocument, PdfObject sourceNormal,
+        PdfDocument destinationDocument, PdfDictionary destinationAppearance,
+        PdfObjectGraphImporter importer)
+    {
+        if (!destinationAppearance.TryGetValue(
+                NormalAppearanceName, out PdfObject? destinationNormal))
+            return;
+
+        IReadOnlyList<AppearanceFontResource> sourceFonts = AppearanceFonts(
+            sourceDocument, sourceNormal);
+        IReadOnlyList<AppearanceFontResource> destinationFonts = AppearanceFonts(
+            destinationDocument, destinationNormal);
+        var seededDestinations = new HashSet<(int ObjectNumber, int Generation)>();
+        foreach (AppearanceFontResource source in sourceFonts)
+        {
+            AppearanceFontResource? match = destinationFonts.FirstOrDefault(destination =>
+                !seededDestinations.Contains((
+                    destination.Reference.ObjectNumber, destination.Reference.Generation))
+                && CompatibleAppearanceFont(source, destination));
+            if (match is null) continue;
+            importer.SeedReference(source.Reference, match.Reference);
+            seededDestinations.Add((match.Reference.ObjectNumber, match.Reference.Generation));
+        }
+    }
+
+    private static IReadOnlyList<AppearanceFontResource> AppearanceFonts(
+        PdfDocument document, PdfObject normalAppearance)
+    {
+        PdfObject resolvedNormal = normalAppearance is PdfIndirectReference normalReference
+            ? document.Resolve(normalReference)
+            : normalAppearance;
+        if (resolvedNormal is not PdfStream normal
+            || !normal.Dictionary.TryGetValue(
+                AppearanceResourcesName, out PdfObject? resourcesValue))
+            return [];
+        PdfObject resolvedResources = resourcesValue is PdfIndirectReference resourcesReference
+            ? document.Resolve(resourcesReference)
+            : resourcesValue;
+        if (resolvedResources is not PdfDictionary resources
+            || !resources.TryGetValue(FontResourcesName, out PdfObject? fontsValue))
+            return [];
+        PdfObject resolvedFonts = fontsValue is PdfIndirectReference fontsReference
+            ? document.Resolve(fontsReference)
+            : fontsValue;
+        if (resolvedFonts is not PdfDictionary fonts) return [];
+
+        var result = new List<AppearanceFontResource>();
+        foreach (PdfObject value in fonts.Values)
+        {
+            if (value is not PdfIndirectReference reference
+                || document.Resolve(reference) is not PdfDictionary font
+                || !font.TryGetValue(SubtypeName, out PdfObject? subtypeValue)
+                || ResolveValue(document, subtypeValue) is not PdfName subtype
+                || subtype.ValueAsLatin1() != "Type0")
+                continue;
+            result.Add(new AppearanceFontResource(reference, font, document));
+        }
+        return result;
+    }
+
+    private static bool CompatibleAppearanceFont(
+        AppearanceFontResource source, AppearanceFontResource destination)
+    {
+        return SameName(source, destination, BaseFontName)
+            && SameStream(source, destination, EncodingName)
+            && SameStream(source, destination, ToUnicodeName);
+    }
+
+    private static bool SameName(
+        AppearanceFontResource source, AppearanceFontResource destination, PdfName key)
+    {
+        return source.Dictionary.TryGetValue(key, out PdfObject? sourceValue)
+            && destination.Dictionary.TryGetValue(key, out PdfObject? destinationValue)
+            && ResolveValue(source.Document, sourceValue) is PdfName sourceName
+            && ResolveValue(destination.Document, destinationValue) is PdfName destinationName
+            && sourceName.Equals(destinationName);
+    }
+
+    private static bool SameStream(
+        AppearanceFontResource source, AppearanceFontResource destination, PdfName key)
+    {
+        return source.Dictionary.TryGetValue(key, out PdfObject? sourceValue)
+            && destination.Dictionary.TryGetValue(key, out PdfObject? destinationValue)
+            && ResolveValue(source.Document, sourceValue) is PdfStream sourceStream
+            && ResolveValue(destination.Document, destinationValue) is PdfStream destinationStream
+            && PdfStreamDecoder.Decode(sourceStream).AsSpan().SequenceEqual(
+                PdfStreamDecoder.Decode(destinationStream));
+    }
+
+    private static PdfObject ResolveValue(PdfDocument document, PdfObject value) =>
+        value is PdfIndirectReference reference ? document.Resolve(reference) : value;
 
     private PdfString OverrideDefaultAppearance(
         PdfDictionary field, PdfDictionary form, string fieldName, double fontSize)
@@ -17420,6 +17523,8 @@ public sealed class PdfIncrementalPageEditor
     private sealed record PendingChoiceFieldValue(
         IReadOnlyList<string> Values, TrueTypeFont? EmbeddedFont,
         bool AllowEmptySingle);
+    private sealed record AppearanceFontResource(
+        PdfIndirectReference Reference, PdfDictionary Dictionary, PdfDocument Document);
     private sealed record PendingFieldDefaultValue(
         FieldDefaultKind Kind, IReadOnlyList<string> Values,
         bool BooleanValue, TrueTypeFont? EmbeddedFont);

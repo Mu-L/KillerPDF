@@ -12868,6 +12868,46 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void SetTextFieldValue_ReusesCompatibleEmbeddedAppearanceFont()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: true));
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "unicode", 20, 20, 160, 24, "😀", 11,
+                embeddedFont: font)
+            .Build();
+
+        byte[] first = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetTextFieldValue("unicode", "😀", font)
+            .Build();
+        byte[] second = new PdfIncrementalPageEditor(PdfDocument.Open(first))
+            .SetTextFieldValue("unicode", "😀", font)
+            .Build();
+
+        Assert.Equal(1, CountAsciiOccurrences(source, "/FontFile2"));
+        Assert.Equal(1, CountAsciiOccurrences(first, "/FontFile2"));
+        Assert.Equal(1, CountAsciiOccurrences(second, "/FontFile2"));
+        Assert.True(second.Length - first.Length < 20_000);
+    }
+
+    [Fact]
+    public void SetTextFieldValue_EmbedsNewSubsetForNewGlyphCoverage()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: true));
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "unicode", 20, 20, 160, 24, string.Empty, 11,
+                embeddedFont: font)
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetTextFieldValue("unicode", "😀", font)
+            .Build();
+
+        Assert.Equal(2, CountAsciiOccurrences(updated, "/FontFile2"));
+    }
+
+    [Fact]
     public void SetFormWidgetRectangle_MovesIndirectWidgetAndPreservesFieldState()
     {
         byte[] source = new PdfDocumentBuilder().AddBlankPage()
@@ -13001,6 +13041,25 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.Contains("(Canada) Tj", operators);
         Assert.Contains("0.1 0.2 0.3 rg", operators);
         Assert.False(Assert.IsType<PdfBoolean>(form[Name("NeedAppearances")]).Value);
+    }
+
+    [Fact]
+    public void SetChoiceFieldValue_ReusesCompatibleEmbeddedAppearanceFont()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: true));
+        var options = new[] { new PdfChoiceOption("emoji", "😀") };
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddComboBoxOptions(0, "unicode", 20, 20, 160, 24,
+                options, "emoji", fontSize: 11, embeddedFont: font)
+            .Build();
+
+        byte[] updated = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetChoiceFieldValue("unicode", "emoji", font)
+            .Build();
+
+        Assert.Equal(1, CountAsciiOccurrences(source, "/FontFile2"));
+        Assert.Equal(1, CountAsciiOccurrences(updated, "/FontFile2"));
     }
 
     [Fact]
@@ -14551,6 +14610,14 @@ public sealed class PdfIncrementalPageEditorTests
         Assert.IsType<PdfStream>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
     private static string DecodeUnicode(PdfString value) =>
         Encoding.BigEndianUnicode.GetString(value.Bytes.Span[2..]);
+    private static int CountAsciiOccurrences(byte[] bytes, string text)
+    {
+        ReadOnlySpan<byte> needle = Encoding.ASCII.GetBytes(text);
+        int count = 0;
+        for (int offset = 0; offset <= bytes.Length - needle.Length; offset++)
+            if (bytes.AsSpan(offset, needle.Length).SequenceEqual(needle)) count++;
+        return count;
+    }
     private static byte[] CertifiedSource(int permission)
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());

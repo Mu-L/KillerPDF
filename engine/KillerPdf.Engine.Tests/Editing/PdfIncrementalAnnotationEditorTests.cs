@@ -3,6 +3,7 @@ using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.CrossReference;
 using KillerPdf.Engine.Documents;
 using KillerPdf.Engine.Editing;
+using KillerPdf.Engine.Filters;
 using KillerPdf.Engine.Fonts;
 using KillerPdf.Engine.Objects;
 using KillerPdf.Engine.Security;
@@ -1279,8 +1280,10 @@ public sealed class PdfIncrementalAnnotationEditorTests
             Assert.IsType<PdfIndirectReference>(type0[Name("ToUnicode")])));
 
         Assert.Contains("<00010002> Tj", Encoding.ASCII.GetString(appearance.EncodedData.Span));
-        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
-        Assert.Contains("<0002> <0041FE0F>", Encoding.ASCII.GetString(toUnicode.EncodedData.Span));
+        Assert.Contains("<0001> <0041>", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(toUnicode)));
+        Assert.Contains("<0002> <0041FE0F>", Encoding.ASCII.GetString(
+            PdfStreamDecoder.Decode(toUnicode)));
     }
 
     [Fact]
