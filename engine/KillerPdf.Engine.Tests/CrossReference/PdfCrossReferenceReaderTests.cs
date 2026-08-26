@@ -42,7 +42,7 @@ public sealed class PdfCrossReferenceReaderTests
 
         PdfCrossReferenceSection section = PdfCrossReferenceReader.ReadSection(source, 0);
 
-        Assert.Equal(new[] { 0, 5 }, section.Keys.Order().ToArray());
+        Assert.Equal([0, 5], [.. section.Keys.Order()]);
         Assert.Equal(3, section.PreviousOffset);
         Assert.Equal(9, section.HybridStreamOffset);
     }
@@ -85,7 +85,7 @@ public sealed class PdfCrossReferenceReaderTests
 
         PdfCrossReferenceSection section = PdfCrossReferenceReader.ReadSection(source, 0);
 
-        Assert.Equal(new[] { 0, 5 }, section.Keys.Order().ToArray());
+        Assert.Equal([0, 5], [.. section.Keys.Order()]);
         Assert.Equal(PdfCrossReferenceEntryType.InUse, section[5].Type);
     }
 

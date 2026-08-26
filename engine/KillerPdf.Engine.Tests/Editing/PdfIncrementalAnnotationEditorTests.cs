@@ -488,12 +488,12 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
-        PdfDictionary stalePage = new(page.Page.Append(
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
+        PdfDictionary stalePage = new(Page.Append(
             new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                 new PdfArray([new PdfIndirectReference(999, 0)]))));
         PdfDocument malformed = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
-            .ReplaceObject(page.Reference.ObjectNumber, stalePage)
+            .ReplaceObject(Reference.ObjectNumber, stalePage)
             .Build());
 
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
@@ -511,7 +511,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var annotation = new PdfDictionary([
             new(Name("Type"), Name("Annot")),
             new(Name("Subtype"), Name("Text")),
@@ -521,7 +521,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
             ]))
         ]);
         PdfDocument malformed = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([annotation])))))
             .Build());
@@ -541,7 +541,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference annotation = setup.AddObject(new PdfDictionary([
             new(Name("Type"), Name("Annot")),
@@ -550,10 +550,10 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference)
+            new(Name("P"), Reference)
         ]));
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([annotation, annotation])))))
             .Build());
@@ -573,7 +573,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfDictionary Annotation() => new([
             new(Name("Type"), Name("Annot")),
@@ -582,13 +582,13 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("NM"), new PdfString("duplicate"u8, PdfStringForm.Literal))
         ]);
         PdfIndirectReference first = setup.AddObject(Annotation());
         PdfIndirectReference second = setup.AddObject(Annotation());
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([first, second])))))
             .Build());
@@ -608,7 +608,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference existing = setup.ReserveObject();
         string collidingName = $"KillerPDF-Note-{existing.ObjectNumber + 1}";
@@ -619,12 +619,12 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("NM"), new PdfString(
                 Encoding.Latin1.GetBytes(collidingName), PdfStringForm.Literal))
         ]));
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([existing])))))
             .Build());
@@ -644,7 +644,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference existing = setup.AddObject(new PdfDictionary([
             new(Name("Type"), Name("Annot")),
@@ -653,13 +653,13 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("Contents"), new PdfString(
-                new byte[] { 0xEF, 0xBB, 0xBF, 0xC3, 0x28 },
+                [0xEF, 0xBB, 0xBF, 0xC3, 0x28],
                 PdfStringForm.Hexadecimal))
         ]));
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([existing])))))
             .Build());
@@ -715,7 +715,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
             PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
                 .AddBlankPage()
                 .Build());
-            (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+            (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
             var setup = new PdfIncrementalUpdateBuilder(source);
             PdfIndirectReference existing = setup.AddObject(new PdfDictionary(new[]
             {
@@ -725,11 +725,11 @@ public sealed class PdfIncrementalAnnotationEditorTests
                     new PdfInteger(0), new PdfInteger(0),
                     new PdfInteger(10), new PdfInteger(10)
                 ])),
-                new KeyValuePair<PdfName, PdfObject>(Name("P"), page.Reference),
+                new KeyValuePair<PdfName, PdfObject>(Name("P"), Reference),
                 malformedEntry
             }));
             PdfDocument malformed = PdfDocument.Open(setup
-                .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+                .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                     new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                         new PdfArray([existing])))))
                 .Build());
@@ -748,7 +748,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference target = setup.AddObject(new PdfDictionary([
             new(Name("Type"), Name("Annot")),
@@ -761,11 +761,11 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("IRT"), target)
         ]));
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([reply])))))
             .Build());
@@ -785,7 +785,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference other = setup.ReserveObject();
         PdfIndirectReference popup = setup.ReserveObject();
@@ -800,7 +800,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
                     new PdfInteger(0), new PdfInteger(0),
                     new PdfInteger(10), new PdfInteger(10)
                 ])),
-                new(Name("P"), page.Reference)
+                new(Name("P"), Reference)
             };
             if (popupValue is not null)
                 entries.Add(new KeyValuePair<PdfName, PdfObject>(Name("Popup"), popupValue));
@@ -814,12 +814,12 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("Parent"), other)
         ]));
         setup.SetObject(markup, Markup(popup));
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([markup, popup, other])))))
             .Build());
@@ -839,9 +839,9 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
-        PdfIndirectReference pageAlias = setup.AddObject(page.Reference);
+        PdfIndirectReference pageAlias = setup.AddObject(Reference);
         PdfIndirectReference popup = setup.ReserveObject();
         PdfIndirectReference markup = setup.ReserveObject();
         PdfIndirectReference popupAlias = setup.AddObject(popup);
@@ -868,7 +868,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
             new(Name("IRT"), popupAlias)
         ]));
         byte[] aliasedBytes = setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([markupAlias, popupAlias])))))
             .Build();
@@ -889,7 +889,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference appearance = setup.AddObject(new PdfStream(
             new PdfDictionary([
@@ -907,7 +907,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("AS"), Name("Off")),
             new(Name("AP"), new PdfDictionary([
                 new(Name("N"), new PdfDictionary([
@@ -916,7 +916,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
             ]))
         ]));
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([existing])))))
             .Build());
@@ -936,7 +936,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
             .AddBlankPage()
             .Build());
-        (PdfIndirectReference Reference, PdfDictionary Page) page = Pages(source)[0];
+        (PdfIndirectReference Reference, PdfDictionary Page) = Pages(source)[0];
         var setup = new PdfIncrementalUpdateBuilder(source);
         PdfIndirectReference appearance = setup.AddObject(new PdfStream(
             new PdfDictionary([]), []));
@@ -947,11 +947,11 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(0), new PdfInteger(0),
                 new PdfInteger(10), new PdfInteger(10)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("AP"), new PdfDictionary([new(Name("N"), appearance)]))
         ]));
         PdfDocument malformed = PdfDocument.Open(setup
-            .ReplaceObject(page.Reference.ObjectNumber, new PdfDictionary(page.Page.Append(
+            .ReplaceObject(Reference.ObjectNumber, new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(Name("Annots"),
                     new PdfArray([existing])))))
             .Build());
@@ -1241,8 +1241,8 @@ public sealed class PdfIncrementalAnnotationEditorTests
             ])
             .Build());
         PdfArray annotations = Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")]);
-        string[] subtypes = annotations.Select(value => Assert.IsType<PdfName>(
-            ResolveDictionary(reopened, value)[Name("Subtype")]).ValueAsLatin1()).ToArray();
+        string[] subtypes = [.. annotations.Select(value => Assert.IsType<PdfName>(
+            ResolveDictionary(reopened, value)[Name("Subtype")]).ValueAsLatin1())];
         PdfDictionary freeText = ResolveDictionary(reopened, annotations[0]);
         PdfStream freeTextAppearance = Assert.IsType<PdfStream>(reopened.Resolve(
             Assert.IsType<PdfIndirectReference>(
@@ -1418,7 +1418,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         Assert.Throws<ArgumentException>(() => editor.AddUriLink(
             0, 0, 0, 10, 10, "javascript:alert(1)"));
         Assert.Throws<ArgumentException>(() => editor.AddUriLink(
-            0, Array.Empty<PdfTextQuad>(), "https://killerpdf.net"));
+            0, [], "https://killerpdf.net"));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddPageLink(
             0, 0, 0, 10, 10, 1));
         Assert.Throws<ArgumentException>(() => editor.AddNamedDestinationLink(
@@ -1559,9 +1559,9 @@ public sealed class PdfIncrementalAnnotationEditorTests
             Pages(reopened)[0].Page[Name("Annots")]);
         Assert.Equal(4, annotations.Count);
         Assert.Equal(["Highlight", "Underline", "StrikeOut", "Squiggly"],
-            annotations.Select(reference => Assert.IsType<PdfName>(
+            [.. annotations.Select(reference => Assert.IsType<PdfName>(
                 ResolveDictionary(reopened, reference)[Name("Subtype")])
-                .ValueAsLatin1()).ToArray());
+                .ValueAsLatin1())]);
         foreach (PdfObject reference in annotations)
         {
             PdfDictionary annotation = ResolveDictionary(reopened, reference);
@@ -1585,9 +1585,9 @@ public sealed class PdfIncrementalAnnotationEditorTests
         var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
             new PdfDocumentBuilder().AddBlankPage().Build()));
         Assert.Throws<ArgumentException>(() => editor.AddHighlight(
-            0, Array.Empty<PdfTextQuad>()));
+            0, []));
         Assert.Throws<ArgumentException>(() => editor.AddSquiggly(
-            0, Array.Empty<PdfTextQuad>()));
+            0, []));
     }
 
     [Fact]
@@ -1615,8 +1615,8 @@ public sealed class PdfIncrementalAnnotationEditorTests
             Assert.Equal("D", Assert.IsType<PdfName>(
                 border[Name("S")]).ValueAsLatin1());
             PdfArray dictionaryDash = Assert.IsType<PdfArray>(border[Name("D")]);
-            Assert.Equal([3L, 2L], dictionaryDash.Select(value =>
-                Assert.IsType<PdfInteger>(value).Value).ToArray());
+            Assert.Equal([3L, 2L], [.. dictionaryDash.Select(value =>
+                Assert.IsType<PdfInteger>(value).Value)]);
             PdfStream appearance = Assert.IsType<PdfStream>(reopened.Resolve(
                 Assert.IsType<PdfIndirectReference>(
                     Assert.IsType<PdfDictionary>(annotation[Name("AP")])[Name("N")])));
@@ -1675,8 +1675,8 @@ public sealed class PdfIncrementalAnnotationEditorTests
         Assert.Equal(6, Assert.IsType<PdfArray>(
             polygon[Name("Vertices")]).Count);
         Assert.Equal(["Circle", "ClosedArrow"],
-            Assert.IsType<PdfArray>(polyline[Name("LE")]).Select(value =>
-                Assert.IsType<PdfName>(value).ValueAsLatin1()).ToArray());
+            [.. Assert.IsType<PdfArray>(polyline[Name("LE")]).Select(value =>
+                Assert.IsType<PdfName>(value).ValueAsLatin1())]);
         Assert.Equal("PolyLineDimension", Assert.IsType<PdfName>(
             polyline[Name("IT")]).ValueAsLatin1());
         Assert.Equal("PolygonCloud", Assert.IsType<PdfName>(
@@ -1935,7 +1935,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         var editor = new PdfIncrementalAnnotationEditor(PdfDocument.Open(
             new PdfDocumentBuilder().AddBlankPage().Build()));
         Assert.Throws<ArgumentException>(() => editor.AddRedactionMark(
-            0, Array.Empty<PdfTextQuad>()));
+            0, []));
         Assert.Throws<ArgumentException>(() => editor.AddRedactionMark(0,
             [Quad(0, 0, 10, 10)], overlayText: "é"));
         Assert.Throws<ArgumentOutOfRangeException>(() => editor.AddRedactionMark(0,
@@ -1963,8 +1963,8 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDictionary annotation = ResolveDictionary(reopened,
             Assert.IsType<PdfArray>(Pages(reopened)[0].Page[Name("Annots")])[0]);
         Assert.Equal(["Circle", "ClosedArrow"],
-            Assert.IsType<PdfArray>(annotation[Name("LE")]).Select(value =>
-                Assert.IsType<PdfName>(value).ValueAsLatin1()).ToArray());
+            [.. Assert.IsType<PdfArray>(annotation[Name("LE")]).Select(value =>
+                Assert.IsType<PdfName>(value).ValueAsLatin1())]);
         Assert.Equal("LineArrow", Assert.IsType<PdfName>(
             annotation[Name("IT")]).ValueAsLatin1());
         Assert.IsType<PdfArray>(annotation[Name("IC")]);
@@ -2298,9 +2298,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
             catalog[Name("StructTreeRoot")]);
         PdfArray numbers = Assert.IsType<PdfArray>(ResolveDictionary(
             reopened, root[Name("ParentTree")])[Name("Nums")]);
-        long[] keys = Enumerable.Range(0, numbers.Count / 2)
-            .Select(index => Assert.IsType<PdfInteger>(numbers[index * 2]).Value)
-            .ToArray();
+        long[] keys = [.. Enumerable.Range(0, numbers.Count / 2).Select(index => Assert.IsType<PdfInteger>(numbers[index * 2]).Value)];
 
         Assert.NotEqual(oldKey, newKey);
         Assert.DoesNotContain(oldKey, keys);
@@ -2316,7 +2314,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument baseDocument = PdfDocument.Open(
             new PdfDocumentBuilder().AddBlankPage().Build());
         var setup = new PdfIncrementalUpdateBuilder(baseDocument);
-        var page = Pages(baseDocument)[0];
+        var (Reference, Page) = Pages(baseDocument)[0];
         PdfIndirectReference unnamed = setup.AddObject(new PdfDictionary([
             new(Name("Type"), Name("Annot")),
             new(Name("Subtype"), Name("Square")),
@@ -2324,11 +2322,11 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(10), new PdfInteger(10),
                 new PdfInteger(40), new PdfInteger(40)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("F"), new PdfInteger(4))
         ]));
-        setup.ReplaceObject(page.Reference.ObjectNumber,
-            new PdfDictionary(page.Page.Append(
+        setup.ReplaceObject(Reference.ObjectNumber,
+            new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(
                     Name("Annots"), new PdfArray([unnamed])))));
         PdfDocument unnamedSource = PdfDocument.Open(setup.Build());
@@ -2424,7 +2422,7 @@ public sealed class PdfIncrementalAnnotationEditorTests
         PdfDocument baseDocument = PdfDocument.Open(
             new PdfDocumentBuilder().AddBlankPage().Build());
         var setup = new PdfIncrementalUpdateBuilder(baseDocument);
-        var page = Pages(baseDocument)[0];
+        var (Reference, Page) = Pages(baseDocument)[0];
         PdfIndirectReference unnamed = setup.AddObject(new PdfDictionary([
             new(Name("Type"), Name("Annot")),
             new(Name("Subtype"), Name("Square")),
@@ -2432,11 +2430,11 @@ public sealed class PdfIncrementalAnnotationEditorTests
                 new PdfInteger(10), new PdfInteger(10),
                 new PdfInteger(40), new PdfInteger(40)
             ])),
-            new(Name("P"), page.Reference),
+            new(Name("P"), Reference),
             new(Name("F"), new PdfInteger(4))
         ]));
-        setup.ReplaceObject(page.Reference.ObjectNumber,
-            new PdfDictionary(page.Page.Append(
+        setup.ReplaceObject(Reference.ObjectNumber,
+            new PdfDictionary(Page.Append(
                 new KeyValuePair<PdfName, PdfObject>(
                     Name("Annots"), new PdfArray([unnamed])))));
         byte[] sourceBytes = setup.Build();

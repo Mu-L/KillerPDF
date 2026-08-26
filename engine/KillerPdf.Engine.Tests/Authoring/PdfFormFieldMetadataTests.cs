@@ -122,8 +122,8 @@ public sealed class PdfFormFieldMetadataTests
             mappedAnnotations.Add(Assert.IsType<PdfIndirectReference>(
                 objectReference[Name("Obj")]).ObjectNumber);
         }
-        Assert.Equal(annotations.Select(annotation =>
-            Assert.IsType<PdfIndirectReference>(annotation).ObjectNumber).ToHashSet(),
+        Assert.Equal([.. annotations.Select(annotation =>
+            Assert.IsType<PdfIndirectReference>(annotation).ObjectNumber)],
             mappedAnnotations);
         Assert.All(annotations, annotation =>
         {

@@ -249,10 +249,10 @@ public sealed class PdfDocumentWriterTests
     {
         PdfDocument source = PdfDocument.Open(SourcePdf());
         var update = new PdfIncrementalUpdateBuilder(source);
-        PdfIndirectReference[] added = Enumerable.Range(0, 101)
+        PdfIndirectReference[] added = [.. Enumerable.Range(0, 101)
             .Select(index => update.AddObject(new PdfDictionary([
                 new(Name("Value"), new PdfInteger(index))
-            ]))).ToArray();
+            ])))];
         PdfDocument expanded = PdfDocument.Open(update.Build());
 
         byte[] rewritten = PdfDocumentWriter.Write(expanded, new PdfDocumentWriteOptions
@@ -262,9 +262,9 @@ public sealed class PdfDocumentWriterTests
             CompressStructuralStreams = true
         });
         PdfDocument reopened = PdfDocument.Open(rewritten);
-        long[] streamNumbers = added.Select(reference =>
+        long[] streamNumbers = [.. added.Select(reference =>
                 reopened.CrossReferences[reference.ObjectNumber].Field1)
-            .Distinct().ToArray();
+            .Distinct()];
 
         Assert.Equal(2, streamNumbers.Length);
         Assert.All(streamNumbers, number => Assert.Equal("ObjStm", Assert.IsType<PdfName>(

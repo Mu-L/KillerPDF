@@ -205,8 +205,7 @@ public sealed class PdfTilingPatternTests
     {
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
-        return Assert.IsType<PdfArray>(pages[Name("Kids")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        return [.. Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value => ResolveDictionary(document, value))];
     }
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>

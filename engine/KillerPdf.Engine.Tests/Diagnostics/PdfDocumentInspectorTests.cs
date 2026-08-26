@@ -101,7 +101,7 @@ public sealed class PdfDocumentInspectorTests
 
         for (int sample = 0; sample < 500; sample++)
         {
-            byte[] mutated = valid.ToArray();
+            byte[] mutated = [.. valid];
             int changes = random.Next(1, 9);
             for (int change = 0; change < changes; change++)
                 mutated[random.Next(mutated.Length)] = (byte)random.Next(256);

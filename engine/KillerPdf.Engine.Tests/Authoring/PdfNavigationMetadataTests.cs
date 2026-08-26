@@ -42,11 +42,11 @@ public sealed class PdfNavigationMetadataTests
             Assert.IsType<PdfIndirectReference>(alpha[0]).ObjectNumber);
         Assert.Equal("Fit", Assert.IsType<PdfName>(alpha[1]).ValueAsLatin1());
         Assert.Equal("alpha", DecodeUnicode(Assert.IsType<PdfString>(link[Name("Dest")])));
-        Assert.Equal([0L, 2L], new[]
-        {
+        Assert.Equal([0L, 2L],
+        [
             Assert.IsType<PdfInteger>(numbers[0]).Value,
             Assert.IsType<PdfInteger>(numbers[2]).Value
-        });
+        ]);
         Assert.Equal("r", Assert.IsType<PdfName>(roman[Name("S")]).ValueAsLatin1());
         Assert.Equal("D", Assert.IsType<PdfName>(appendix[Name("S")]).ValueAsLatin1());
         Assert.Equal("A-", DecodeUnicode(Assert.IsType<PdfString>(appendix[Name("P")])));

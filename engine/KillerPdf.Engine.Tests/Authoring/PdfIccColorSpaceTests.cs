@@ -43,7 +43,7 @@ public sealed class PdfIccColorSpaceTests
     {
         PdfIccProfile profile = Profile(signature);
         PdfContentStreamBuilder content = new();
-        content.SetFillIccColor(profile, Enumerable.Repeat(0.5, components).ToArray());
+        content.SetFillIccColor(profile, [.. Enumerable.Repeat(0.5, components)]);
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder()
             .AddPage(10, 10, content).Build());
         PdfStream stream = Assert.IsType<PdfStream>(document.Resolve(
@@ -137,7 +137,7 @@ public sealed class PdfIccColorSpaceTests
         PdfDictionary spaces = Assert.IsType<PdfDictionary>(resources[Name("ColorSpace")]);
 
         Assert.Equal(["CS1", "CS2", "CS3", "CS4"],
-            spaces.Keys.Select(name => name.ValueAsLatin1()).Order().ToArray());
+            [.. spaces.Keys.Select(name => name.ValueAsLatin1()).Order()]);
     }
 
     private static PdfIccProfile Profile(string colorSpace)
@@ -161,8 +161,7 @@ public sealed class PdfIccColorSpaceTests
     {
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
-        return Assert.IsType<PdfArray>(pages[Name("Kids")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        return [.. Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value => ResolveDictionary(document, value))];
     }
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));

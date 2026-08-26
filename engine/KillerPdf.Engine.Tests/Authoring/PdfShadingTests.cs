@@ -83,12 +83,12 @@ public sealed class PdfShadingTests
             .AddPage(100, 100, new PdfContentStreamBuilder().PaintShading(gradient))
             .AddPage(100, 100, new PdfContentStreamBuilder().PaintShading(gradient))
             .Build());
-        int[] references = Pages(document).Select(page =>
+        int[] references = [.. Pages(document).Select(page =>
         {
             PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
             PdfDictionary shadings = Assert.IsType<PdfDictionary>(resources[Name("Shading")]);
             return Assert.IsType<PdfIndirectReference>(shadings[Name("Sh1")]).ObjectNumber;
-        }).ToArray();
+        })];
 
         Assert.Equal(references[0], references[1]);
     }
@@ -231,8 +231,7 @@ public sealed class PdfShadingTests
     {
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
-        return Assert.IsType<PdfArray>(pages[Name("Kids")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        return [.. Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value => ResolveDictionary(document, value))];
     }
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));

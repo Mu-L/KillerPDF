@@ -63,8 +63,7 @@ public sealed class PdfPageTransitionTests
     {
         PdfDictionary catalog = Resolve(document, document.Trailer[Name("Root")]);
         PdfDictionary pages = Resolve(document, catalog[Name("Pages")]);
-        return Assert.IsType<PdfArray>(pages[Name("Kids")])
-            .Select(value => Resolve(document, value)).ToArray();
+        return [.. Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value => Resolve(document, value))];
     }
     private static PdfDictionary Resolve(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));

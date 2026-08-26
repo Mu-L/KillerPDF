@@ -242,7 +242,7 @@ public sealed class PdfImageTests
         }
         bytes.AddRange([0, 63, 0, 0]);
         bytes.AddRange([0xFF, 0xD9]);
-        return bytes.ToArray();
+        return [.. bytes];
     }
 
     private static byte[] Decode(PdfImage image)

@@ -787,8 +787,7 @@ public sealed class PdfIncrementalUpdateBuilderTests
     {
         PdfDocument original = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
         var update = new PdfIncrementalUpdateBuilder(original);
-        PdfIndirectReference[] references = Enumerable.Range(0, 205)
-            .Select(value => update.AddObject(new PdfInteger(value))).ToArray();
+        PdfIndirectReference[] references = [.. Enumerable.Range(0, 205).Select(value => update.AddObject(new PdfInteger(value)))];
 
         byte[] bytes = update.Build(new PdfIncrementalUpdateWriteOptions
         {

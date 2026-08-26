@@ -71,12 +71,12 @@ public sealed class PdfPageDimensionNormalizerTests
     }
 
     private static double[] Numbers(PdfDocument document, PdfObject value) =>
-        ResolveArray(document, value).Select(item => Resolve(document, item) switch
+        [.. ResolveArray(document, value).Select(item => Resolve(document, item) switch
         {
             PdfInteger integer => (double)integer.Value,
             PdfReal real => real.Value,
             _ => throw new Xunit.Sdk.XunitException("Expected a numeric PDF value.")
-        }).ToArray();
+        })];
 
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(Resolve(document, value));

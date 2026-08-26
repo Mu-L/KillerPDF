@@ -93,8 +93,7 @@ public sealed class PdfStructureTests
             .Build());
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
-        PdfDictionary[] pageDictionaries = Assert.IsType<PdfArray>(pages[Name("Kids")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        PdfDictionary[] pageDictionaries = [.. Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value => ResolveDictionary(document, value))];
         PdfDictionary root = ResolveDictionary(document, catalog[Name("StructTreeRoot")]);
         PdfDictionary parentTree = ResolveDictionary(document, root[Name("ParentTree")]);
         PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);

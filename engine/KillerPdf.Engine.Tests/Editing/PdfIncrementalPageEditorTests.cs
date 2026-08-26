@@ -4731,7 +4731,7 @@ public sealed class PdfIncrementalPageEditorTests
             ])),
             new(Name("P"), references[0]),
             new(Name("Contents"), new PdfString(
-                new byte[] { 0xFE, 0xFF, 0xD8, 0x00 }, PdfStringForm.Hexadecimal))
+                [0xFE, 0xFF, 0xD8, 0x00], PdfStringForm.Hexadecimal))
         ]));
         PdfDocument malformed = PdfDocument.Open(update
             .ReplaceObject(references[0].ObjectNumber,
@@ -10408,9 +10408,11 @@ public sealed class PdfIncrementalPageEditorTests
         PdfDictionary parentTree = DictionaryValue(source, parentTreeValue);
         PdfArray numbers = Assert.IsType<PdfArray>(parentTree[Name("Nums")]);
         (_, PdfIndirectReference[] pages, _) = FlatPages(source);
-        var malformedNumbers = new List<PdfObject>(numbers);
-        malformedNumbers[1] = new PdfIndirectReference(
-            pages[0].ObjectNumber, pages[0].Generation + 1);
+        var malformedNumbers = new List<PdfObject>(numbers)
+        {
+            [1] = new PdfIndirectReference(
+            pages[0].ObjectNumber, pages[0].Generation + 1)
+        };
         PdfDictionary malformedParentTree = new(parentTree
             .Where(entry => !entry.Key.Equals(Name("Nums")))
             .Append(new KeyValuePair<PdfName, PdfObject>(Name("Nums"),
@@ -13108,8 +13110,7 @@ public sealed class PdfIncrementalPageEditorTests
                 .Build());
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
-        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        PdfDictionary[] fields = [.. Assert.IsType<PdfArray>(form[Name("Fields")]).Select(value => ResolveDictionary(document, value))];
 
         Assert.Equal("Default", DecodeUnicode(
             Assert.IsType<PdfString>(fields[0][Name("V")])));
@@ -13177,8 +13178,7 @@ public sealed class PdfIncrementalPageEditorTests
                 .Build());
         PdfDictionary resetCatalog = ResolveDictionary(reset, reset.Trailer[Name("Root")]);
         PdfDictionary resetForm = DictionaryValue(reset, resetCatalog[Name("AcroForm")]);
-        PdfDictionary[] resetFields = Assert.IsType<PdfArray>(resetForm[Name("Fields")])
-            .Select(value => ResolveDictionary(reset, value)).ToArray();
+        PdfDictionary[] resetFields = [.. Assert.IsType<PdfArray>(resetForm[Name("Fields")]).Select(value => ResolveDictionary(reset, value))];
         Assert.Equal(string.Empty, DecodeUnicode(
             Assert.IsType<PdfString>(resetFields[0][Name("V")])));
         Assert.False(resetFields[1].ContainsKey(Name("V")));
@@ -13307,8 +13307,7 @@ public sealed class PdfIncrementalPageEditorTests
             changed, changed.Trailer[Name("Root")]);
         PdfDictionary changedForm = DictionaryValue(
             changed, changedCatalog[Name("AcroForm")]);
-        PdfDictionary[] fields = Assert.IsType<PdfArray>(changedForm[Name("Fields")])
-            .Select(value => ResolveDictionary(changed, value)).ToArray();
+        PdfDictionary[] fields = [.. Assert.IsType<PdfArray>(changedForm[Name("Fields")]).Select(value => ResolveDictionary(changed, value))];
         Assert.Equal("Current", DecodeUnicode(
             Assert.IsType<PdfString>(fields[0][Name("V")])));
         Assert.Equal("New default", DecodeUnicode(
@@ -13331,8 +13330,7 @@ public sealed class PdfIncrementalPageEditorTests
                 .Build());
         PdfDictionary resetCatalog = ResolveDictionary(reset, reset.Trailer[Name("Root")]);
         PdfDictionary resetForm = DictionaryValue(reset, resetCatalog[Name("AcroForm")]);
-        PdfDictionary[] resetFields = Assert.IsType<PdfArray>(resetForm[Name("Fields")])
-            .Select(value => ResolveDictionary(reset, value)).ToArray();
+        PdfDictionary[] resetFields = [.. Assert.IsType<PdfArray>(resetForm[Name("Fields")]).Select(value => ResolveDictionary(reset, value))];
         Assert.Equal("New default", DecodeUnicode(
             Assert.IsType<PdfString>(resetFields[0][Name("V")])));
         Assert.Equal("Yes", Assert.IsType<PdfName>(resetFields[1][Name("V")]).ValueAsLatin1());
@@ -13883,7 +13881,7 @@ public sealed class PdfIncrementalPageEditorTests
         var terminalFields = new List<PdfDictionary>();
         foreach (PdfObject value in Assert.IsType<PdfArray>(form[Name("Fields")]))
             Collect(value);
-        PdfDictionary[] fields = terminalFields.ToArray();
+        PdfDictionary[] fields = [.. terminalFields];
         Assert.Equal(3, fields.Length);
         Assert.Equal("S", DecodeUnicode(Assert.IsType<PdfString>(fields[0][Name("V")])));
         Assert.Equal("W", DecodeUnicode(Assert.IsType<PdfString>(fields[1][Name("V")])));
@@ -14022,8 +14020,7 @@ public sealed class PdfIncrementalPageEditorTests
         PdfDocument document = PdfDocument.Open(updated);
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
-        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        PdfDictionary[] fields = [.. Assert.IsType<PdfArray>(form[Name("Fields")]).Select(value => ResolveDictionary(document, value))];
         Assert.Equal(["authored", "imported", "retain"], fields.Select(field => DecodeUnicode(
             Assert.IsType<PdfString>(field[Name("T")]))).Order());
         (_, _, PdfDictionary[] pages) = FlatPages(document);
@@ -14046,8 +14043,7 @@ public sealed class PdfIncrementalPageEditorTests
                 .Build());
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
-        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        PdfDictionary[] fields = [.. Assert.IsType<PdfArray>(form[Name("Fields")]).Select(value => ResolveDictionary(document, value))];
         Assert.Equal("South", DecodeUnicode(Assert.IsType<PdfString>(fields[0][Name("V")])));
         Assert.Equal("Beta", DecodeUnicode(Assert.IsType<PdfString>(fields[1][Name("V")])));
         Assert.Equal(1, Assert.IsType<PdfInteger>(fields[1][Name("TI")]).Value);
@@ -14136,8 +14132,7 @@ public sealed class PdfIncrementalPageEditorTests
                 .Build());
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
-        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        PdfDictionary[] fields = [.. Assert.IsType<PdfArray>(form[Name("Fields")]).Select(value => ResolveDictionary(document, value))];
         Assert.Equal(["chapter", "appendix"], fields.Select(field => DecodeUnicode(
             Assert.IsType<PdfString>(DictionaryValue(document, field[Name("A")])[Name("D")]))));
         Assert.Throws<ArgumentException>(() =>
@@ -14161,8 +14156,7 @@ public sealed class PdfIncrementalPageEditorTests
                 .Build());
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary form = DictionaryValue(document, catalog[Name("AcroForm")]);
-        PdfDictionary[] fields = Assert.IsType<PdfArray>(form[Name("Fields")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        PdfDictionary[] fields = [.. Assert.IsType<PdfArray>(form[Name("Fields")]).Select(value => ResolveDictionary(document, value))];
         Assert.Equal(3, fields.Length);
         PdfDictionary reset = DictionaryValue(document, fields[1][Name("A")]);
         Assert.Equal("ResetForm", Assert.IsType<PdfName>(reset[Name("S")]).ValueAsLatin1());
@@ -14247,8 +14241,7 @@ public sealed class PdfIncrementalPageEditorTests
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         var rootReference = Assert.IsType<PdfIndirectReference>(catalog[Name("Pages")]);
         PdfDictionary root = ResolveDictionary(document, rootReference);
-        PdfIndirectReference[] references = Assert.IsType<PdfArray>(root[Name("Kids")])
-            .Select(Assert.IsType<PdfIndirectReference>).ToArray();
+        PdfIndirectReference[] references = [.. Assert.IsType<PdfArray>(root[Name("Kids")]).Select(Assert.IsType<PdfIndirectReference>)];
         return (rootReference, references,
             references.Select(reference => ResolveDictionary(document, reference)).ToArray());
     }
@@ -14287,18 +14280,17 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     private static double[] Box(PdfDictionary page, string name) =>
-        Assert.IsType<PdfArray>(page[Name(name)]).Select(Number).ToArray();
+        [.. Assert.IsType<PdfArray>(page[Name(name)]).Select(Number)];
 
     private static (long PageIndex, PdfDictionary Label)[] PageLabelRanges(PdfDocument document)
     {
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary labels = DictionaryValue(document, catalog[Name("PageLabels")]);
         PdfArray numbers = Assert.IsType<PdfArray>(labels[Name("Nums")]);
-        return Enumerable.Range(0, numbers.Count / 2)
+        return [.. Enumerable.Range(0, numbers.Count / 2)
             .Select(index => (
                 Assert.IsType<PdfInteger>(numbers[index * 2]).Value,
-                DictionaryValue(document, numbers[index * 2 + 1])))
-            .ToArray();
+                DictionaryValue(document, numbers[index * 2 + 1])))];
     }
 
     private static void AssertLabel(

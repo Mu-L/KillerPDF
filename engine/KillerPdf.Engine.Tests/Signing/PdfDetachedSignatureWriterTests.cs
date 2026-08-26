@@ -40,7 +40,7 @@ public sealed class PdfDetachedSignatureWriterTests
         PdfDictionary field = ResolveDictionary(signed,
             Assert.IsType<PdfArray>(form[Name("Fields")])[0]);
         PdfArray rectangle = Assert.IsType<PdfArray>(field[Name("Rect")]);
-        Assert.Equal([40d, 50d, 260d, 130d], rectangle.Select(Number).ToArray());
+        Assert.Equal([40d, 50d, 260d, 130d], [.. rectangle.Select(Number)]);
         PdfDictionary appearances = Assert.IsType<PdfDictionary>(field[Name("AP")]);
         PdfStream normal = Assert.IsType<PdfStream>(signed.Resolve(
             Assert.IsType<PdfIndirectReference>(appearances[Name("N")])));
@@ -176,7 +176,7 @@ public sealed class PdfDetachedSignatureWriterTests
         PdfDictionary field = ResolveDictionary(reopened, fieldReference);
         PdfDictionary signature = ResolveDictionary(reopened, field[Name("V")]);
         PdfArray byteRange = Assert.IsType<PdfArray>(signature[Name("ByteRange")]);
-        long[] ranges = byteRange.Select(value => Assert.IsType<PdfInteger>(value).Value).ToArray();
+        long[] ranges = [.. byteRange.Select(value => Assert.IsType<PdfInteger>(value).Value)];
         PdfString contents = Assert.IsType<PdfString>(signature[Name("Contents")]);
         PdfDictionary pages = ResolveDictionary(reopened, catalog[Name("Pages")]);
         PdfDictionary page = ResolveDictionary(reopened,

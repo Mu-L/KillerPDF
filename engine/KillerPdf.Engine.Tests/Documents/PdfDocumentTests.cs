@@ -249,8 +249,11 @@ public sealed class PdfDocumentTests
     private static byte[] DeepPageTreePdf(int nodeCount)
     {
         var source = new StringBuilder("%PDF-2.0\n");
-        var offsets = new List<int> { 0 };
-        offsets.Add(source.Length);
+        var offsets = new List<int>
+        {
+            0,
+            source.Length
+        };
         source.Append("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
         for (int index = 0; index < nodeCount; index++)
         {
@@ -347,7 +350,7 @@ public sealed class PdfDocumentTests
             rowBytes.AddRange(XrefRow(1, filterAliasOffset, 0));
             rowBytes.AddRange(XrefRow(1, filterOffset, 0));
         }
-        byte[] rows = rowBytes.ToArray();
+        byte[] rows = [.. rowBytes];
         int size = indirectFilterValues ? 10 : indirectStructuralValues ? 8 : 7;
         WriteAscii(output, $"6 0 obj << /Type /XRef /Size {size} /Root 1 0 R /W [1 4 2] /Length {rows.Length} >> stream\n");
         output.Write(rows);

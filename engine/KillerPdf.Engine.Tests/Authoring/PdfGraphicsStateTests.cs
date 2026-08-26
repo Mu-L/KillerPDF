@@ -46,7 +46,7 @@ public sealed class PdfGraphicsStateTests
             .AddPage(100, 100, Content())
             .Build());
         PdfDictionary[] pages = Pages(document);
-        int[] references = pages.Select(page =>
+        int[] references = [.. pages.Select(page =>
         {
             PdfDictionary resources = Assert.IsType<PdfDictionary>(page[Name("Resources")]);
             PdfDictionary states = Assert.IsType<PdfDictionary>(resources[Name("ExtGState")]);
@@ -55,7 +55,7 @@ public sealed class PdfGraphicsStateTests
             Assert.Equal(2, Encoding.ASCII.GetString(stream.EncodedData.Span)
                 .Split("/GS1 gs", StringSplitOptions.None).Length - 1);
             return Assert.IsType<PdfIndirectReference>(states[Name("GS1")]).ObjectNumber;
-        }).ToArray();
+        })];
 
         Assert.Equal(references[0], references[1]);
     }
@@ -192,8 +192,7 @@ public sealed class PdfGraphicsStateTests
     {
         PdfDictionary catalog = ResolveDictionary(document, document.Trailer[Name("Root")]);
         PdfDictionary pages = ResolveDictionary(document, catalog[Name("Pages")]);
-        return Assert.IsType<PdfArray>(pages[Name("Kids")])
-            .Select(value => ResolveDictionary(document, value)).ToArray();
+        return [.. Assert.IsType<PdfArray>(pages[Name("Kids")]).Select(value => ResolveDictionary(document, value))];
     }
     private static PdfDictionary ResolveDictionary(PdfDocument document, PdfObject value) =>
         Assert.IsType<PdfDictionary>(document.Resolve(Assert.IsType<PdfIndirectReference>(value)));
