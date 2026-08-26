@@ -89,8 +89,8 @@ public static class PdfLinkReader
     }
 
     private static (int? PageIndex, string? Named) ResolveDestination(
-        PdfDocument document, PdfObject value, IReadOnlyDictionary<(int, int), int> pages,
-        IReadOnlyDictionary<string, PdfObject> namedDestinations)
+        PdfDocument document, PdfObject value, Dictionary<(int ObjectNumber, int Generation), int> pages,
+        Dictionary<string, PdfObject> namedDestinations)
     {
         PdfObject resolved = Resolve(document, value, "A link destination");
         string? named = resolved switch

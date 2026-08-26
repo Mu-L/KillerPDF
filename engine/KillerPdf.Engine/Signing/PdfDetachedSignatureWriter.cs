@@ -1691,7 +1691,7 @@ public static class PdfDetachedSignatureWriter
     }
 
     private static PdfDictionary ReplaceMany(
-        PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements) =>
+        PdfDictionary source, Dictionary<PdfName, PdfObject> replacements) =>
         new(source.Where(entry => !replacements.ContainsKey(entry.Key)).Concat(replacements));
 
     private static PdfDictionary Dictionary(params (string Name, PdfObject Value)[] entries) =>
@@ -1720,7 +1720,7 @@ public static class PdfDetachedSignatureWriter
         return $"D:{value:yyyyMMddHHmmss}{sign}{offset.Hours:00}'{offset.Minutes:00}'";
     }
     private static void AddOptionalText(
-        ICollection<(string Name, PdfObject Value)> entries, string name, string? value)
+        List<(string Name, PdfObject Value)> entries, string name, string? value)
     {
         if (!string.IsNullOrEmpty(value)) entries.Add((name, UnicodeString(value)));
     }

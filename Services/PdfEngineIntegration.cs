@@ -207,7 +207,7 @@ internal static class PdfEngineIntegration
     }
 
     private static TrueTypeFont? EmbeddedFormFont(
-        string value, IDictionary<string, TrueTypeFont> cache)
+        string value, Dictionary<string, TrueTypeFont> cache)
     {
         if (!value.Any(character => character > byte.MaxValue)) return null;
         string family = FontCoverage.PickFamily("Segoe UI", value);

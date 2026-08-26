@@ -1002,7 +1002,7 @@ public sealed class PdfIncrementalAnnotationEditor
         return $"KillerPDF-{kind}-{item.AnnotationReference.ObjectNumber}";
     }
 
-    private IReadOnlyDictionary<int, long> PrepareTaggedAnnotationStructure(
+    private Dictionary<int, long> PrepareTaggedAnnotationStructure(
         PdfIncrementalUpdateBuilder update, IReadOnlyList<AllocatedAnnotation> annotations)
     {
         if (!_tree.Catalog.TryGetValue(StructTreeRootName, out PdfObject? rootValue))
@@ -1417,7 +1417,7 @@ public sealed class PdfIncrementalAnnotationEditor
         });
     }
 
-    private IReadOnlyList<PdfObject> StructureKids(PdfObject value)
+    private PdfObject[] StructureKids(PdfObject value)
     {
         PdfObject resolved = ResolveValue(value,
             "A structure-element /K value");
@@ -2522,7 +2522,7 @@ public sealed class PdfIncrementalAnnotationEditor
     private static PdfDictionary TextNoteDictionary(
         PendingTextNote note, PdfIndirectReference page, PdfIndirectReference annotation,
         PdfIndirectReference appearance, PdfIndirectReference? popup,
-        IReadOnlyDictionary<string, PdfIndirectReference> annotationNames)
+        Dictionary<string, PdfIndirectReference> annotationNames)
     {
         var entries = new List<(string Name, PdfObject Value)>
         {
@@ -3365,7 +3365,7 @@ public sealed class PdfIncrementalAnnotationEditor
     {
         double padding = Math.Max(3, value.BorderWidth + 2);
         double lineHeight = value.FontSize * 1.2;
-        IReadOnlyList<string> lines = WrapText(value.Contents, value.Font, value.FontSize,
+        List<string> lines = WrapText(value.Contents, value.Font, value.FontSize,
             Math.Max(1, value.Width - padding * 2));
         WriteAscii(output,
             $"BT\n{NameToken(fontResource)} {Format(value.FontSize)} Tf\n{ColorOperands(value.TextColor)} rg\n" +
@@ -3397,7 +3397,7 @@ public sealed class PdfIncrementalAnnotationEditor
         output.Write("ET\n"u8);
     }
 
-    private static IReadOnlyList<string> WrapText(
+    private static List<string> WrapText(
         string text, TrueTypeFont font, double fontSize, double maximumWidth)
     {
         var lines = new List<string>();

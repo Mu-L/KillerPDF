@@ -279,7 +279,7 @@ internal sealed class PdfStandardSecurityHandler
     {
         if (!dictionary.TryGetValue(Name("Filter"), out PdfObject? filterValue)) return null;
         filterValue = ResolveStreamValue(filterValue, resolve, "stream /Filter");
-        IReadOnlyList<PdfName> filters = filterValue switch
+        PdfName[] filters = filterValue switch
         {
             PdfName name => [name],
             PdfArray array => array.Select(item =>
@@ -289,7 +289,7 @@ internal sealed class PdfStandardSecurityHandler
             _ => throw new InvalidOperationException(
                 "A stream /Filter value must be a name or an array of names.")
         };
-        if (filters.Count == 0) return null;
+        if (filters.Length == 0) return null;
         if (filters[0].ValueAsLatin1() != "Crypt")
         {
             if (filters.Any(name => name.ValueAsLatin1() == "Crypt"))
@@ -308,10 +308,10 @@ internal sealed class PdfStandardSecurityHandler
                     "Each stream /DecodeParms entry must be a dictionary or null.");
             parameters = parameterValue switch
             {
-                PdfDictionary single when filters.Count == 1 => single,
+                PdfDictionary single when filters.Length == 1 => single,
                 PdfDictionary => throw new InvalidOperationException(
                     "A single stream /DecodeParms dictionary requires exactly one filter."),
-                PdfArray array when array.Count != filters.Count =>
+                PdfArray array when array.Count != filters.Length =>
                     throw new InvalidOperationException(
                         "A stream /DecodeParms array must have one entry per filter."),
                 PdfArray { Count: > 0 } array => ResolveStreamValue(
@@ -806,7 +806,7 @@ internal sealed class PdfStandardSecurityHandler
         return ReadCryptFilterMethod(selected, filter.ValueAsLatin1(), requiredMethod);
     }
 
-    private static IReadOnlyDictionary<string, CryptMethod> ReadCryptFilters(
+    private static Dictionary<string, CryptMethod> ReadCryptFilters(
         PdfDictionary encryption, string? requiredMethod)
     {
         if (!encryption.TryGetValue(Name("CF"), out PdfObject? filtersValue))

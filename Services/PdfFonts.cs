@@ -62,7 +62,7 @@ namespace KillerPDF.Services
             }
         }
 
-        private static IEnumerable<string> FontDirectories()
+        private static List<string> FontDirectories()
         {
             var dirs = new List<string>();
             void Add(string p) { try { if (Directory.Exists(p)) dirs.Add(p); } catch { } }

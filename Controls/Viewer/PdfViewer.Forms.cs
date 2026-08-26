@@ -857,7 +857,7 @@ namespace KillerPDF.Controls
         }
 
         // A highlighted, clickable overlay sized to the field rectangle. Clicking fills it.
-        private UIElement BuildSignZone(FormFieldInfo f, bool initials, int pageIndex)
+        private Border BuildSignZone(FormFieldInfo f, bool initials, int pageIndex)
         {
             var accent = Color.FromRgb(0x2a, 0x6e, 0xa5);
             var zone = new Border

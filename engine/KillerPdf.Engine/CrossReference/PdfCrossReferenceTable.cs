@@ -25,7 +25,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     private static readonly PdfName LinearizedXrefName = new("T"u8);
 
     private readonly Dictionary<int, PdfCrossReferenceEntry> _entries;
-    private readonly IReadOnlyList<Revision> _revisions;
+    private readonly List<Revision> _revisions;
 
     private PdfCrossReferenceTable(
         PdfHeader header,
@@ -450,7 +450,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
     }
 
     private static void ValidateFreeList(
-        IReadOnlyDictionary<int, PdfCrossReferenceEntry> entries, long offset)
+        Dictionary<int, PdfCrossReferenceEntry> entries, long offset)
     {
         if (!entries.TryGetValue(0, out PdfCrossReferenceEntry zero)
             || zero.Type != PdfCrossReferenceEntryType.Free

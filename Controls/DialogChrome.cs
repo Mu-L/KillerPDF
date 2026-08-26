@@ -178,7 +178,7 @@ namespace KillerPDF
             return ring;
         }
 
-        private static UIElement WindowFrame(Window? owner)
+        private static Grid WindowFrame(Window? owner)
         {
             var frame = new Grid { IsHitTestVisible = false };
             frame.Children.Add(FrameRing(owner, "WindowFrameBrush", "DialogWindowFrameThickness", "WindowFrameMargin"));

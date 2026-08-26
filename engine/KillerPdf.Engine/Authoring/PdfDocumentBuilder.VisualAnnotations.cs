@@ -253,7 +253,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddFreeTextObjects(
-        ICollection<PdfIndirectObject> objects, AllocatedFreeText allocated,
+        List<PdfIndirectObject> objects, AllocatedFreeText allocated,
         IReadOnlyList<AllocatedPage> pages, int sequence, PdfName fontResource, int fontNumber,
         EmbeddedFontUsage? fontUsage)
     {
@@ -350,7 +350,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddImageStampObjects(
-        ICollection<PdfIndirectObject> objects, AllocatedImageStamp allocated,
+        List<PdfIndirectObject> objects, AllocatedImageStamp allocated,
         IReadOnlyList<AllocatedPage> pages, int sequence, int imageNumber)
     {
         ImageStampDefinition stamp = allocated.Definition;
@@ -565,7 +565,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddAnnotationMetadata(
-        ICollection<(string Name, PdfObject Value)> entries,
+        List<(string Name, PdfObject Value)> entries,
         PdfAnnotationMetadata? metadata)
     {
         if (!string.IsNullOrEmpty(metadata?.Author))
@@ -745,7 +745,7 @@ public sealed partial class PdfDocumentBuilder
     {
         double padding = Math.Max(3, value.BorderWidth + 2);
         double lineHeight = value.FontSize * 1.2;
-        IReadOnlyList<string> lines = WrapText(value.Contents, value.Font, value.FontSize,
+        List<string> lines = WrapText(value.Contents, value.Font, value.FontSize,
             Math.Max(1, value.Width - padding * 2));
         WriteAscii(output,
             $"BT\n{NameToken(fontResource)} {FormatNumber(value.FontSize)} Tf\n" +
@@ -770,7 +770,7 @@ public sealed partial class PdfDocumentBuilder
         output.Write("ET\n"u8);
     }
 
-    private static IReadOnlyList<string> WrapText(
+    private static List<string> WrapText(
         string text, TrueTypeFont font, double fontSize, double maximumWidth)
     {
         var lines = new List<string>();

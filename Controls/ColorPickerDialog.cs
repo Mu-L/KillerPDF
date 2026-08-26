@@ -360,7 +360,7 @@ namespace KillerPDF
             return box;
         }
         // A crosshair/target glyph drawn in vectors, to match the KillerPDF look.
-        private static UIElement CrosshairIcon()
+        private static Grid CrosshairIcon()
         {
             var g = new Grid { Width = 14, Height = 14 };
             var fg = R("TextBrush");

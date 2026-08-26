@@ -208,7 +208,7 @@ namespace KillerPDF
 
         // Renders a page to a white-backed bitmap (transparent page backgrounds show white, not the dark
         // canvas), applying any in-app rotation so the preview matches the live view.
-        private BitmapSource? RenderPageBitmap(int pageIdx, int maxPx, string? sourceOverride = null)
+        private RenderTargetBitmap? RenderPageBitmap(int pageIdx, int maxPx, string? sourceOverride = null)
         {
             if (_doc is null || _currentFile is null) return null;
             if (pageIdx < 0 || pageIdx >= _doc.PageCount) return null;
@@ -260,7 +260,7 @@ namespace KillerPDF
 
         // fixedPage=true: keep the canvas size, shrink the content with white margins. false: resize the page
         // (fewer pixels at the same points-per-pixel = a physically smaller page).
-        private static BitmapSource ScaleCompose(BitmapSource src, double scale, bool fixedPage)
+        private static RenderTargetBitmap ScaleCompose(BitmapSource src, double scale, bool fixedPage)
         {
             int w = src.PixelWidth, h = src.PixelHeight;
             int sw = Math.Max(1, (int)Math.Round(w * scale));

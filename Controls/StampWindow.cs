@@ -232,7 +232,7 @@ namespace KillerPDF
         }
 
         // ---------- Page Numbers section ----------
-        private FrameworkElement BuildNumbersSection()
+        private StackPanel BuildNumbersSection()
         {
             var wrap = new StackPanel();
             _numBody = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
@@ -287,7 +287,7 @@ namespace KillerPDF
         }
 
         // ---------- Watermark section ----------
-        private FrameworkElement BuildWatermarkSection()
+        private StackPanel BuildWatermarkSection()
         {
             var wrap = new StackPanel();
             _wmBody = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
@@ -375,7 +375,7 @@ namespace KillerPDF
 
         // Collapsible section header. The enable checkbox itself expands (checked) or collapses (unchecked)
         // the body; the chevron is just a non-clickable indicator of that state.
-        private static FrameworkElement SectionHeaderRow(CheckBox enable, StackPanel body)
+        private static StackPanel SectionHeaderRow(CheckBox enable, StackPanel body)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
             var chevron = new TextBlock
@@ -398,7 +398,7 @@ namespace KillerPDF
         }
 
         // A slider paired with a small numeric input box (two-way synced), e.g. font size.
-        private FrameworkElement SliderBoxRow(string label, double min, double max, double value, out Slider slider, out TextBox box)
+        private StackPanel SliderBoxRow(string label, double min, double max, double value, out Slider slider, out TextBox box)
         {
             var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 8) };
             panel.Children.Add(UiKit.GroupLabel(label));
@@ -441,7 +441,7 @@ namespace KillerPDF
             return rb;
         }
 
-        private FrameworkElement ColorRow(string label, Color initial, out Border swatch, Action<Color> onPick)
+        private StackPanel ColorRow(string label, Color initial, out Border swatch, Action<Color> onPick)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8), VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(new TextBlock { Text = label, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
@@ -479,7 +479,7 @@ namespace KillerPDF
             return row;
         }
 
-        private static FrameworkElement Divider() => new Border { Height = 1, Background = R("CardBorderBrush"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
+        private static Border Divider() => new() { Height = 1, Background = R("CardBorderBrush"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
 
         private void UpdateEnabledStates()
         {
@@ -530,7 +530,7 @@ namespace KillerPDF
 
         // ---------- preview ----------
         // ---------- Preview page stepper ----------
-        private FrameworkElement BuildPageNav()
+        private StackPanel BuildPageNav()
         {
             _prevArrow = MakeNavArrow("", () => GoToPage(_pageIndex - 1));   // ChevronLeft
             _nextArrow = MakeNavArrow("", () => GoToPage(_pageIndex + 1));   // ChevronRight

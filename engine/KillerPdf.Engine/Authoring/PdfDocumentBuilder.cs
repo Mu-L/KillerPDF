@@ -3034,7 +3034,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddAttachmentObjects(
-        ICollection<PdfIndirectObject> objects, AllocatedAttachment allocated)
+        List<PdfIndirectObject> objects, AllocatedAttachment allocated)
     {
         AttachmentDefinition attachment = allocated.Definition;
         objects.Add(new PdfIndirectObject(allocated.EmbeddedFileNumber, 0,
@@ -3048,7 +3048,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddFileAttachmentAnnotationObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedFileAttachmentAnnotation allocated,
         IReadOnlyList<AllocatedPage> pages,
         int sequence,
@@ -3094,7 +3094,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddTextFieldObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedTextField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
@@ -3169,7 +3169,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddCheckBoxObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedCheckBox allocatedField,
         IReadOnlyList<AllocatedPage> pages)
     {
@@ -3319,7 +3319,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddRadioGroupObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedRadioGroup allocatedGroup,
         IReadOnlyList<AllocatedPage> pages)
     {
@@ -3449,7 +3449,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddChoiceFieldObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedChoiceField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
@@ -3646,7 +3646,7 @@ public sealed partial class PdfDocumentBuilder
                 field.EmbeddedFont.GetPdfAdvanceWidth(mapping.Glyph))
                 * field.FontSize / 1000;
 
-    private static IReadOnlyList<string> WrapTextFieldLines(TextFieldDefinition field)
+    private static List<string> WrapTextFieldLines(TextFieldDefinition field)
     {
         double availableWidth = Math.Max(1, field.Width - 6);
         var lines = new List<string>();
@@ -3771,7 +3771,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddPushButtonObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedPushButton allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
@@ -3995,7 +3995,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddAlternatePushButtonAppearance(
-        ICollection<PdfIndirectObject> objects, int? objectNumber, string label,
+        List<PdfIndirectObject> objects, int? objectNumber, string label,
         PushButtonDefinition field, PdfName fontResource, int fontNumber, int? iconNumber,
         EmbeddedFontUsage? fontUsage)
     {
@@ -4229,7 +4229,7 @@ public sealed partial class PdfDocumentBuilder
     };
 
     private static void AddSignatureFieldObject(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedSignatureField allocatedField,
         IReadOnlyList<AllocatedPage> pages,
         PdfName fontResource,
@@ -4384,7 +4384,7 @@ public sealed partial class PdfDocumentBuilder
         ?? exportValue;
 
     private static void AddOutputIntentObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         OutputIntentDefinition definition,
         int profileNumber,
         int outputIntentNumber)
@@ -4398,7 +4398,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddTextNoteObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedTextNote allocated,
         IReadOnlyList<AllocatedPage> pages,
         int sequence,
@@ -4473,7 +4473,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddTextMarkupObjects(
-        ICollection<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         AllocatedTextMarkup allocated,
         IReadOnlyList<AllocatedPage> pages,
         int sequence)
@@ -4672,8 +4672,8 @@ public sealed partial class PdfDocumentBuilder
 
     private static (PdfName Resource, int ObjectNumber, EmbeddedFontUsage? Usage) FormFontBinding(
         TrueTypeFont? embeddedFont,
-        IReadOnlyDictionary<PdfStandardFont, int> standardFonts,
-        IReadOnlyDictionary<TrueTypeFont, PdfName> formFontResources,
+        Dictionary<PdfStandardFont, int> standardFonts,
+        Dictionary<TrueTypeFont, PdfName> formFontResources,
         IReadOnlyList<AllocatedEmbeddedFont> embeddedFonts)
     {
         if (embeddedFont is null)
@@ -4760,7 +4760,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void ApplyFieldHierarchy(
-        IList<PdfIndirectObject> objects, AllocatedFieldHierarchy hierarchy)
+        List<PdfIndirectObject> objects, AllocatedFieldHierarchy hierarchy)
     {
         for (int index = 0; index < objects.Count; index++)
         {
@@ -4784,7 +4784,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void ApplyAccessibleAnnotationParents(
-        IList<PdfIndirectObject> objects,
+        List<PdfIndirectObject> objects,
         IReadOnlyDictionary<int, AccessibleAnnotationStructure> associations)
     {
         for (int index = 0; index < objects.Count; index++)
@@ -5572,7 +5572,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddFieldMetadata(
-        ICollection<(string Name, PdfObject Value)> entries,
+        List<(string Name, PdfObject Value)> entries,
         PdfFormFieldMetadata? metadata)
     {
         if (metadata?.Tooltip is not null)
@@ -5608,7 +5608,7 @@ public sealed partial class PdfDocumentBuilder
         string.Join(" ", value.EnumerateRunes().Select(rune => $"U+{rune.Value:X4}"));
 
     private static void AddEmbeddedFontObjects(
-        ICollection<PdfIndirectObject> objects, AllocatedEmbeddedFont allocated)
+        List<PdfIndirectObject> objects, AllocatedEmbeddedFont allocated)
     {
         var type0 = new PdfIndirectReference(allocated.Type0Number, 0);
         var cidFont = new PdfIndirectReference(allocated.CidFontNumber, 0);
@@ -5834,15 +5834,15 @@ public sealed partial class PdfDocumentBuilder
         IReadOnlyDictionary<PdfLabColorSpace, PdfName> labColorSpaces,
         IReadOnlyDictionary<PdfIndexedColorSpace, PdfName> indexedColorSpaces,
         IReadOnlyDictionary<PdfCalibratedColorSpace, PdfName> calibratedColorSpaces,
-        IReadOnlyDictionary<PdfStandardFont, int> fontNumbers,
+        Dictionary<PdfStandardFont, int> fontNumbers,
         IReadOnlyCollection<AllocatedEmbeddedFont> embeddedFonts,
-        IReadOnlyDictionary<PdfImage, int> imageNumbers,
-        IReadOnlyDictionary<PdfOptionalContentGroup, int> optionalContentNumbers,
-        IReadOnlyDictionary<PdfGraphicsState, int> graphicsStateNumbers,
-        IReadOnlyDictionary<PdfShading, int> shadingNumbers,
-        IReadOnlyDictionary<PdfFormXObject, int> formNumbers,
-        IReadOnlyDictionary<PdfTilingPattern, int> patternNumbers,
-        IReadOnlyDictionary<PdfIccProfile, int> iccProfileNumbers)
+        Dictionary<PdfImage, int> imageNumbers,
+        Dictionary<PdfOptionalContentGroup, int> optionalContentNumbers,
+        Dictionary<PdfGraphicsState, int> graphicsStateNumbers,
+        Dictionary<PdfShading, int> shadingNumbers,
+        Dictionary<PdfFormXObject, int> formNumbers,
+        Dictionary<PdfTilingPattern, int> patternNumbers,
+        Dictionary<PdfIccProfile, int> iccProfileNumbers)
     {
         var entries = new List<(string Name, PdfObject Value)>();
         if (fonts.Count > 0 || embeddedFontUsages.Count > 0)

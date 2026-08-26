@@ -303,7 +303,7 @@ namespace KillerPDF.Controls
 
         // Builds a page's annotation overlay. Size/transform differ by mode (continuous = render-dim + scale;
         // grid/two-page = DIP 1:1); everything else - background, clip, tag, input handler - is identical.
-        private Canvas BuildPageOverlay(int page, double width, double height, System.Windows.Media.Transform? layoutTransform)
+        private SafeCanvas BuildPageOverlay(int page, double width, double height, System.Windows.Media.Transform? layoutTransform)
         {
             var overlay = new SafeCanvas
             {

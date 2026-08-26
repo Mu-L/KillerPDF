@@ -329,7 +329,7 @@ public sealed class TrueTypeFont
         return mappings;
     }
 
-    private ICmap ReadFormat0(int offset, Table parent)
+    private ByteCmap ReadFormat0(int offset, Table parent)
     {
         if (offset + 262 > parent.End || ReadU16(_data, offset) != 0
             || ReadU16(_data, offset + 2) < 262)
@@ -337,7 +337,7 @@ public sealed class TrueTypeFont
         return new ByteCmap(_data, offset + 6, GlyphCount);
     }
 
-    private ICmap ReadFormat2(int offset, Table parent)
+    private Format2Cmap ReadFormat2(int offset, Table parent)
     {
         const int keysLength = 512;
         const int subHeadersOffset = 6 + keysLength;
@@ -371,7 +371,7 @@ public sealed class TrueTypeFont
         return new Format2Cmap(_data, offset, length, GlyphCount);
     }
 
-    private ICmap ReadFormat12(int offset, Table parent)
+    private Format12Cmap ReadFormat12(int offset, Table parent)
     {
         if (offset + 16 > parent.End || ReadU16(_data, offset) != 12)
             throw Error("The cmap format 12 header is truncated");
@@ -397,7 +397,7 @@ public sealed class TrueTypeFont
         return new Format12Cmap(groups);
     }
 
-    private ICmap ReadFormat4(int offset, Table parent)
+    private Format4Cmap ReadFormat4(int offset, Table parent)
     {
         if (offset + 14 > parent.End || ReadU16(_data, offset) != 4)
             throw Error("The cmap format 4 header is truncated");
@@ -409,7 +409,7 @@ public sealed class TrueTypeFont
         return new Format4Cmap(_data, offset, length, segmentCount, GlyphCount);
     }
 
-    private ICmap ReadFormat6(int offset, Table parent)
+    private TrimmedCmap ReadFormat6(int offset, Table parent)
     {
         if (offset + 10 > parent.End || ReadU16(_data, offset) != 6)
             throw Error("The cmap format 6 header is truncated");
@@ -421,7 +421,7 @@ public sealed class TrueTypeFont
         return new TrimmedCmap(_data, offset + 10, first, count, GlyphCount);
     }
 
-    private ICmap ReadFormat8(int offset, Table parent)
+    private Format8Cmap ReadFormat8(int offset, Table parent)
     {
         const int groupsOffset = 8_208;
         if (offset + groupsOffset > parent.End || ReadU16(_data, offset) != 8
@@ -471,7 +471,7 @@ public sealed class TrueTypeFont
     private static bool IsFormat8Start(byte[] data, int offset, int value) =>
         (data[offset + 12 + value / 8] & (1 << (7 - value % 8))) != 0;
 
-    private ICmap ReadFormat10(int offset, Table parent)
+    private TrimmedCmap ReadFormat10(int offset, Table parent)
     {
         if (offset + 20 > parent.End || ReadU16(_data, offset) != 10)
             throw Error("The cmap format 10 header is truncated");
@@ -486,7 +486,7 @@ public sealed class TrueTypeFont
             _data, offset + 20, checked((int)first), checked((int)count), GlyphCount);
     }
 
-    private ICmap ReadFormat13(int offset, Table parent)
+    private Format13Cmap ReadFormat13(int offset, Table parent)
     {
         if (offset + 16 > parent.End || ReadU16(_data, offset) != 13)
             throw Error("The cmap format 13 header is truncated");

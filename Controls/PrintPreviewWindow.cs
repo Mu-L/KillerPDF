@@ -472,7 +472,7 @@ namespace KillerPDF
                 () => { DialogResult = false; Close(); }, _rootGrid);
         }
 
-        private UIElement BuildSettingsColumn()
+        private Grid BuildSettingsColumn()
         {
             // Options live in a scroller (buttons are pinned below), so only a little top/side inset.
             var panel = new StackPanel { Margin = new Thickness(16, 8, 12, 4) };
@@ -784,7 +784,7 @@ namespace KillerPDF
             return column;
         }
 
-        private UIElement BuildPreviewColumn()
+        private DockPanel BuildPreviewColumn()
         {
             var wrap = new Border
             {
@@ -1186,7 +1186,7 @@ namespace KillerPDF
         }
 
         // Spinning ring + progress text shown in the preview area while pages render.
-        private UIElement BuildLoadingIndicator()
+        private StackPanel BuildLoadingIndicator()
         {
             var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             var ring = new System.Windows.Shapes.Ellipse

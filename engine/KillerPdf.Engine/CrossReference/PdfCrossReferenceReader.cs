@@ -214,7 +214,7 @@ public static class PdfCrossReferenceReader
         return widths;
     }
 
-    private static IReadOnlyList<(int First, int Count)> ReadIndex(
+    private static List<(int First, int Count)> ReadIndex(
         PdfDictionary dictionary,
         int size,
         int offset)

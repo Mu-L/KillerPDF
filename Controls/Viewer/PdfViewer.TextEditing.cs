@@ -458,7 +458,7 @@ namespace KillerPDF.Controls
         // Background shown WHILE editing a text box: the chosen fill if one is set, otherwise a faint
         // translucent neutral gray. Gray (not white) so the empty editable box stays visible on both
         // light/white pages and dark pages; it's only shown during editing and never committed.
-        private Brush TextEditBackground()
+        private SolidColorBrush TextEditBackground()
             => _textFillColor.A > 0 ? new SolidColorBrush(_textFillColor)
                                     : new SolidColorBrush(Color.FromArgb(64, 128, 128, 128));
 

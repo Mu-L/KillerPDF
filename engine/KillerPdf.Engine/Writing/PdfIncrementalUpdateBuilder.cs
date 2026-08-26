@@ -179,7 +179,7 @@ public sealed class PdfIncrementalUpdateBuilder
         if (_objects.Count == 0 && _freed.Count == 0)
             throw new InvalidOperationException("An incremental update must contain at least one object.");
         ValidateStandardTrailerState();
-        IReadOnlySet<int> encryptionBootstrapObjectNumbers =
+        HashSet<int> encryptionBootstrapObjectNumbers =
             CurrentEncryptionBootstrapObjectNumbers();
         if (_freed.Keys.Any(number => IsInheritedTrailerReference(RootName, number)
                 || encryptionBootstrapObjectNumbers.Contains(number)))
@@ -373,13 +373,13 @@ public sealed class PdfIncrementalUpdateBuilder
         destination[3] = (byte)value;
     }
 
-    private static PdfArray BuildIndexRanges(IReadOnlyList<int> numbers)
+    private static PdfArray BuildIndexRanges(int[] numbers)
     {
         var ranges = new List<PdfObject>();
-        for (int start = 0; start < numbers.Count;)
+        for (int start = 0; start < numbers.Length;)
         {
             int end = start + 1;
-            while (end < numbers.Count && numbers[end] == numbers[end - 1] + 1) end++;
+            while (end < numbers.Length && numbers[end] == numbers[end - 1] + 1) end++;
             ranges.Add(new PdfInteger(numbers[start]));
             ranges.Add(new PdfInteger(end - start));
             start = end;
@@ -472,7 +472,7 @@ public sealed class PdfIncrementalUpdateBuilder
     }
 
     private void AddUpdatedIdentifier(
-        ICollection<KeyValuePair<PdfName, PdfObject>> entries, byte[] revisionIdentifier)
+        List<KeyValuePair<PdfName, PdfObject>> entries, byte[] revisionIdentifier)
     {
         if (!_document.CrossReferences.TryGetTrailerValue(IdName, out PdfObject value)
             || value is not PdfArray identifiers
@@ -485,7 +485,7 @@ public sealed class PdfIncrementalUpdateBuilder
     }
 
     private void AddInheritedIfMissing(
-        ICollection<KeyValuePair<PdfName, PdfObject>> entries, PdfName name)
+        List<KeyValuePair<PdfName, PdfObject>> entries, PdfName name)
     {
         if (entries.Any(entry => entry.Key.Equals(name)))
             return;
@@ -747,7 +747,7 @@ public sealed class PdfIncrementalUpdateBuilder
         return value;
     }
 
-    private IReadOnlySet<int> CurrentEncryptionBootstrapObjectNumbers()
+    private HashSet<int> CurrentEncryptionBootstrapObjectNumbers()
     {
         var result = new HashSet<int>();
         if (!_document.CrossReferences.TryGetTrailerValue(

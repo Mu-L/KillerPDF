@@ -404,13 +404,13 @@ public static class PdfDocumentWriter
         rows[offset + 8] = (byte)field2;
     }
 
-    private static PdfArray BuildIndexRanges(IReadOnlyList<int> numbers)
+    private static PdfArray BuildIndexRanges(int[] numbers)
     {
         var ranges = new List<PdfObject>();
-        for (int start = 0; start < numbers.Count;)
+        for (int start = 0; start < numbers.Length;)
         {
             int end = start + 1;
-            while (end < numbers.Count && numbers[end] == numbers[end - 1] + 1)
+            while (end < numbers.Length && numbers[end] == numbers[end - 1] + 1)
                 end++;
             ranges.Add(new PdfInteger(numbers[start]));
             ranges.Add(new PdfInteger(end - start));

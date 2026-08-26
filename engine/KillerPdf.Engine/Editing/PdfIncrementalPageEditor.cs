@@ -1947,7 +1947,7 @@ public sealed class PdfIncrementalPageEditor
     private void PreparePendingAuthoredForms(
         PdfIncrementalUpdateBuilder update,
         IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences,
-        IDictionary<PdfName, PdfObject>? catalogReplacements = null,
+        Dictionary<PdfName, PdfObject>? catalogReplacements = null,
         IEnumerable<PageState[]>? existingGroups = null,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter>? existingImporters = null)
     {
@@ -2313,7 +2313,7 @@ public sealed class PdfIncrementalPageEditor
         return false;
     }
 
-    private static IReadOnlyList<PdfObject> TaggedWidgetStructureKids(
+    private static PdfObject[] TaggedWidgetStructureKids(
         PdfDocument document, PdfObject value, string description)
     {
         PdfObject resolved = ResolveCatalogValue(document, value, description);
@@ -3556,8 +3556,8 @@ public sealed class PdfIncrementalPageEditor
     private void ApplyPageContentUpdate(
         PdfIncrementalUpdateBuilder update, PageState state,
         PdfDictionary page,
-        IDictionary<PdfName, PdfObject> replacements,
-        ICollection<PdfName> removals)
+        Dictionary<PdfName, PdfObject> replacements,
+        List<PdfName> removals)
     {
         ApplyTypedOverlays(update, state, page, replacements);
         if (state.ContentUpdate == PageContentUpdate.None) return;
@@ -3587,7 +3587,7 @@ public sealed class PdfIncrementalPageEditor
 
     private void ApplyTypedOverlays(
         PdfIncrementalUpdateBuilder update, PageState state, PdfDictionary page,
-        IDictionary<PdfName, PdfObject> replacements)
+        Dictionary<PdfName, PdfObject> replacements)
     {
         if (state.TypedOverlays.Count == 0) return;
 
@@ -3869,7 +3869,7 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedAcroForm(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         PageState[][] sourceFormGroups = [.. importedGroups.Where(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(AcroFormName))];
@@ -3884,7 +3884,7 @@ public sealed class PdfIncrementalPageEditor
                 continue;
             }
             PdfDocument source = group[0].ImportedDocument!;
-            IReadOnlySet<(int ObjectNumber, int Generation)> selectedWidgets =
+            HashSet<(int ObjectNumber, int Generation)> selectedWidgets =
                 SelectedWidgetReferences(source, group);
             if (selectedWidgets.Count == 0) continue;
             PdfDictionary form = ResolveDictionary(
@@ -4289,7 +4289,7 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedNamedDestinations(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements,
+        Dictionary<PdfName, PdfObject> catalogReplacements,
         IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences)
     {
         var combined = new List<PdfNameTreeEntry>();
@@ -4449,7 +4449,7 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private static PdfDictionary RewriteNamedDestinationReferences(
-        PdfDictionary dictionary, IReadOnlyDictionary<string, PdfString> renames,
+        PdfDictionary dictionary, Dictionary<string, PdfString> renames,
         Func<PdfObject, PdfObject> resolve)
     {
         var replacements = new Dictionary<PdfName, PdfObject>();
@@ -4489,7 +4489,7 @@ public sealed class PdfIncrementalPageEditor
         return ResolveArray(document, value, "An /AcroForm /Fields value");
     }
 
-    private static IReadOnlySet<(int ObjectNumber, int Generation)> SelectedWidgetReferences(
+    private static HashSet<(int ObjectNumber, int Generation)> SelectedWidgetReferences(
         PdfDocument document, IEnumerable<PageState> pages)
     {
         var result = new HashSet<(int ObjectNumber, int Generation)>();
@@ -4525,7 +4525,7 @@ public sealed class PdfIncrementalPageEditor
 
     private static FormPruningPlan BuildFormPruningPlan(
         PdfDocument document, PdfDictionary form,
-        IReadOnlySet<(int ObjectNumber, int Generation)> selectedWidgets)
+        HashSet<(int ObjectNumber, int Generation)> selectedWidgets)
     {
         if (form.ContainsKey(XfaName))
             throw new NotSupportedException(
@@ -4625,9 +4625,9 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private static void AddFieldNames(
-        PdfDocument document, PdfDictionary form, ISet<string> names,
+        PdfDocument document, PdfDictionary form, HashSet<string> names,
         IReadOnlyDictionary<(int ObjectNumber, int Generation), PdfDictionary>? overrides = null,
-        ISet<(int ObjectNumber, int Generation)>? retainedReferences = null)
+        HashSet<(int ObjectNumber, int Generation)>? retainedReferences = null)
     {
         var active = new HashSet<(int ObjectNumber, int Generation)>();
         var visited = new HashSet<(int ObjectNumber, int Generation)>();
@@ -4894,7 +4894,7 @@ public sealed class PdfIncrementalPageEditor
 
     private bool AddPageLabels(
         IEnumerable<PageState[]> importedGroups,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         bool targetHasLabels = !_clearPageLabels
             && _tree.Catalog.ContainsKey(PageLabelsName);
@@ -4991,7 +4991,7 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedLegacyDestinations(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements,
+        Dictionary<PdfName, PdfObject> catalogReplacements,
         IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences)
     {
         var entries = new List<KeyValuePair<PdfName, PdfObject>>();
@@ -5122,7 +5122,7 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private static PdfDictionary RewriteLegacyDestinationReferences(
-        PdfDictionary dictionary, IReadOnlyDictionary<PdfName, PdfName> renames,
+        PdfDictionary dictionary, Dictionary<PdfName, PdfName> renames,
         Func<PdfObject, PdfObject> resolve)
     {
         var replacements = new Dictionary<PdfName, PdfObject>();
@@ -5146,7 +5146,7 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedEmbeddedFiles(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         PageState[][] groups = [.. importedGroups];
         PageState[][] completeGroups = [.. groups.Where(group =>
@@ -5279,7 +5279,7 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedNameTreeCategories(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         PageState[][] groups = [.. importedGroups.Where(group =>
             IsCompleteImport(group, group[0].ImportedTree!))];
@@ -6017,7 +6017,7 @@ public sealed class PdfIncrementalPageEditor
         PdfIncrementalUpdateBuilder update,
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements,
+        Dictionary<PdfName, PdfObject> catalogReplacements,
         IReadOnlyDictionary<PageState, PdfIndirectReference> pageReferences)
     {
         PageState[][] outlineGroups = _clearOutlines ? [] : [.. importedGroups.Where(group =>
@@ -6528,7 +6528,7 @@ public sealed class PdfIncrementalPageEditor
         $"{reference.ObjectNumber}:{reference.Generation}";
 
     private PdfDictionary CurrentNamesDictionary(
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         if (catalogReplacements.TryGetValue(NamesName, out PdfObject? replacement))
             return replacement as PdfDictionary
@@ -6540,7 +6540,7 @@ public sealed class PdfIncrementalPageEditor
 
     private void PreserveIndirectCatalogDictionary(
         PdfIncrementalUpdateBuilder update, PdfName name,
-        IDictionary<PdfName, PdfObject> catalogReplacements,
+        Dictionary<PdfName, PdfObject> catalogReplacements,
         string description)
     {
         if (!catalogReplacements.TryGetValue(name, out PdfObject? replacement)
@@ -6575,7 +6575,7 @@ public sealed class PdfIncrementalPageEditor
         PdfIncrementalUpdateBuilder update,
         IReadOnlyList<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements,
+        Dictionary<PdfName, PdfObject> catalogReplacements,
         StructureRewriteState? rewriteState)
     {
         PageState[][] sourceTaggedGroups = [.. importedGroups.Where(group =>
@@ -7535,10 +7535,10 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private static PdfDictionary RemapStructureDictionary(
-        PdfDictionary dictionary, IReadOnlyDictionary<long, long> keyMap,
-        IReadOnlyDictionary<PdfName, PdfName> roleRenames,
-        IReadOnlyDictionary<PdfName, PdfName> classRenames,
-        IReadOnlyDictionary<string, PdfString> idRenames,
+        PdfDictionary dictionary, Dictionary<long, long> keyMap,
+        Dictionary<PdfName, PdfName> roleRenames,
+        Dictionary<PdfName, PdfName> classRenames,
+        Dictionary<string, PdfString> idRenames,
         Func<PdfObject, PdfObject> resolve,
         Func<PdfObject, PdfObject> resolveSource)
     {
@@ -7588,7 +7588,7 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedTaggedConformanceProperties(
         IReadOnlyList<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         if (_tree.Pages.Count != 0 || importedGroups.Count != 1) return;
         PageState[] group = importedGroups[0];
@@ -7661,7 +7661,7 @@ public sealed class PdfIncrementalPageEditor
     private void AddImportedCatalogExtensions(
         IEnumerable<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         var entries = new List<KeyValuePair<PdfName, PdfObject>>();
         if (_tree.Catalog.TryGetValue(ExtensionsName, out PdfObject? targetValue))
@@ -7744,7 +7744,7 @@ public sealed class PdfIncrementalPageEditor
         PdfIncrementalUpdateBuilder update,
         IReadOnlyList<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         if (importedGroups.Count != 1 || _tree.Pages.Count != 0) return;
         PageState[] group = importedGroups[0];
@@ -8209,7 +8209,7 @@ public sealed class PdfIncrementalPageEditor
 
     private StructureRewriteState? RewriteExistingStructureTree(
         PdfIncrementalUpdateBuilder update,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         if (!_tree.Catalog.TryGetValue(StructTreeRootName, out PdfObject? rootValue)) return null;
         var retainedPages = _pages.Where(page => page.Entry is not null)
@@ -8233,7 +8233,7 @@ public sealed class PdfIncrementalPageEditor
     private static StructurePruningPlan BuildStructurePruningPlan(
         PdfDocument document, PdfObject rootValue,
         IReadOnlyList<PdfPageTreeEntry> pages,
-        IReadOnlySet<(int ObjectNumber, int Generation)> removedPages)
+        HashSet<(int ObjectNumber, int Generation)> removedPages)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(rootValue);
@@ -8429,7 +8429,7 @@ public sealed class PdfIncrementalPageEditor
         PdfIncrementalUpdateBuilder update,
         IReadOnlyList<PageState[]> importedGroups,
         IReadOnlyDictionary<PageState, PdfObjectGraphImporter> importers,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         PageState[][] sourceLayeredGroups = [.. importedGroups.Where(group =>
             group[0].ImportedTree!.Catalog.ContainsKey(OptionalContentPropertiesName))];
@@ -9050,7 +9050,7 @@ public sealed class PdfIncrementalPageEditor
         }
     }
 
-    private static IReadOnlyList<PageLabelSpec> ReadPageLabels(
+    private static List<PageLabelSpec> ReadPageLabels(
         PdfDocument document, PdfPageTree tree)
     {
         IReadOnlyList<PdfNumberTreeEntry> ranges = [.. PdfNumberTree
@@ -13967,8 +13967,8 @@ public sealed class PdfIncrementalPageEditor
 
     private static void ValidateImportedAnnotationActions(
         PdfDocument document, PdfObject value, PdfIndirectReference expectedPage,
-        IReadOnlySet<(int ObjectNumber, int Generation)> pageAnnotationIdentities,
-        ISet<string> pageAnnotationNames,
+        HashSet<(int ObjectNumber, int Generation)> pageAnnotationIdentities,
+        HashSet<string> pageAnnotationNames,
         string description)
     {
         var (Value, FinalReference) = ResolveCatalogWithIdentity(document, value, description);
@@ -16518,7 +16518,7 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private void AddCatalogPresentationChanges(
-        IDictionary<PdfName, PdfObject> replacements,
+        Dictionary<PdfName, PdfObject> replacements,
         IReadOnlyDictionary<PageState, PdfIndirectReference>? pageReferences = null)
     {
         if (_pageLayout.HasValue)
@@ -16552,7 +16552,7 @@ public sealed class PdfIncrementalPageEditor
 
     private void AddMetadata(
         PdfIncrementalUpdateBuilder update,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         if (_metadata is null) return;
         byte[] xmp;
@@ -16588,7 +16588,7 @@ public sealed class PdfIncrementalPageEditor
 
     private void AddOutputIntent(
         PdfIncrementalUpdateBuilder update,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         if (_outputIntent is null) return;
         PdfIndirectReference profile = update.ReserveObject();
@@ -16606,7 +16606,7 @@ public sealed class PdfIncrementalPageEditor
 
     private void AddPendingAttachments(
         PdfIncrementalUpdateBuilder update,
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         if (_attachments.Count == 0 && _removedAttachments.Count == 0) return;
         PdfDictionary currentNames = CurrentNamesDictionary(catalogReplacements);
@@ -16731,7 +16731,7 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private void AddPendingLegacyDestinationReplacements(
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         PendingNamedDestinationReplacement[] replacements =
             [.. _namedDestinationReplacements.Where(value => value.Legacy)];
@@ -16859,7 +16859,7 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private void AddPendingNamedDestinations(
-        IDictionary<PdfName, PdfObject> catalogReplacements)
+        Dictionary<PdfName, PdfObject> catalogReplacements)
     {
         var entries = new List<PdfNameTreeEntry>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -17004,7 +17004,7 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private void ApplyRequiredVersionUpgrade(
-        IDictionary<PdfName, PdfObject> catalogReplacements,
+        Dictionary<PdfName, PdfObject> catalogReplacements,
         IEnumerable<PageState[]> importedGroups)
     {
         PdfVersion original = EffectiveVersion(_document, _tree.Catalog);
@@ -17247,7 +17247,7 @@ public sealed class PdfIncrementalPageEditor
         }
     }
 
-    private static IReadOnlySet<(int ObjectNumber, int Generation)> OptionalContentGroupReferences(
+    private static HashSet<(int ObjectNumber, int Generation)> OptionalContentGroupReferences(
         PdfDocument source, PdfPageTreeEntry page)
     {
         const int maximumObjects = 1_000_000;
@@ -17303,7 +17303,7 @@ public sealed class PdfIncrementalPageEditor
     }
 
     private static PdfDictionary ReplaceMany(
-        PdfDictionary source, IReadOnlyDictionary<PdfName, PdfObject> replacements,
+        PdfDictionary source, Dictionary<PdfName, PdfObject> replacements,
         IReadOnlyCollection<PdfName>? removals = null) =>
         new(source.Where(entry => !replacements.ContainsKey(entry.Key)
                 && (removals is null || !removals.Contains(entry.Key)))

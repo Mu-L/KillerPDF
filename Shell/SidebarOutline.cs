@@ -326,7 +326,7 @@ namespace KillerPDF
             ];
         }
 
-        private static IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> MoveBookmarkModel(
+        private static List<KillerPdf.Engine.Documents.PdfBookmarkInfo> MoveBookmarkModel(
             IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> items,
             (int ObjectNumber, int Generation) identity, int delta)
         {

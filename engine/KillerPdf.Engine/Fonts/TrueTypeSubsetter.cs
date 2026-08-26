@@ -140,7 +140,7 @@ internal static class TrueTypeSubsetter
     }
 
     private static byte[] BuildGlyphTable(
-        byte[] source, Table glyf, uint[] offsets, IReadOnlySet<ushort> retained,
+        byte[] source, Table glyf, uint[] offsets, SortedSet<ushort> retained,
         int glyphCount, out byte[] loca)
     {
         using var output = new MemoryStream();

@@ -892,7 +892,7 @@ namespace KillerPDF.Controls
             _treeSyncing = false;
         }
 
-        private static IEnumerable<string> RelativeSegments(string rootPath, string fullPath)
+        private static string[] RelativeSegments(string rootPath, string fullPath)
         {
             string rest = fullPath[rootPath.Length..];
             return rest.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],

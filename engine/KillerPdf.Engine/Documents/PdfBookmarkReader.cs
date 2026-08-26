@@ -121,8 +121,8 @@ public static class PdfBookmarkReader
 
     private static (int? PageIndex, string? Named, PdfDestination? Destination) ReadDestination(
         PdfDocument document, PdfObject? value,
-        IReadOnlyDictionary<(int, int), int> pages,
-        IReadOnlyDictionary<string, PdfObject> namedDestinations)
+        Dictionary<(int ObjectNumber, int Generation), int> pages,
+        Dictionary<string, PdfObject> namedDestinations)
     {
         if (value is null) return (null, null, null);
         PdfObject resolved = Resolve(document, value, "A bookmark destination");

@@ -205,7 +205,7 @@ public static class PdfSignatureReader
 
     private static bool GapIsExactContentsString(
         ReadOnlyMemory<byte> source,
-        IReadOnlyList<long> range,
+        long[] range,
         PdfString contents)
     {
         int gapStart = checked((int)(range[0] + range[1]));

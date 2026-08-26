@@ -61,7 +61,7 @@ public static class PdfFormWidgetReader
             string defaultAppearance = string.Empty;
             long flags = 0;
             int maximumLength = 0;
-            IReadOnlyList<PdfFormChoiceInfo> options = [];
+            List<PdfFormChoiceInfo> options = [];
             var nameParts = new List<string>();
             PdfDictionary? node = widget;
             var parentReferences = new HashSet<(int, int)>();
@@ -144,7 +144,7 @@ public static class PdfFormWidgetReader
         return result;
     }
 
-    private static IReadOnlyList<PdfFormChoiceInfo> ReadOptions(PdfDocument document, PdfObject value)
+    private static List<PdfFormChoiceInfo> ReadOptions(PdfDocument document, PdfObject value)
     {
         PdfArray array = Resolve(document, value, "An AcroForm /Opt value") as PdfArray
             ?? throw new InvalidOperationException("An AcroForm /Opt value is not an array.");

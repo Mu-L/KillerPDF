@@ -97,7 +97,7 @@ namespace KillerPDF
 
         // Wraps an annotate bar's content with a film-grain layer (always visible, even minimized) and a
         // hidden grip-dots strip (the same dots the sidebar splitter uses) revealed when minimized.
-        private FrameworkElement BuildBarHost(FrameworkElement content)
+        private Grid BuildBarHost(FrameworkElement content)
         {
             var host = new Grid();
 

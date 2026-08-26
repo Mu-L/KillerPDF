@@ -60,7 +60,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddCaretAnnotationObjects(
-        ICollection<PdfIndirectObject> objects, AllocatedCaretAnnotation allocated,
+        List<PdfIndirectObject> objects, AllocatedCaretAnnotation allocated,
         IReadOnlyList<AllocatedPage> pages, int sequence)
     {
         CaretAnnotationDefinition value = allocated.Definition;
@@ -86,7 +86,7 @@ public sealed partial class PdfDocumentBuilder
     }
 
     private static void AddRedactionAnnotationObjects(
-        ICollection<PdfIndirectObject> objects, AllocatedRedactionAnnotation allocated,
+        List<PdfIndirectObject> objects, AllocatedRedactionAnnotation allocated,
         IReadOnlyList<AllocatedPage> pages, int sequence, PdfName? fontResource, int? fontNumber,
         EmbeddedFontUsage? fontUsage)
     {

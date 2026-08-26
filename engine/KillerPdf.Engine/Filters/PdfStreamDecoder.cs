@@ -38,8 +38,8 @@ public static class PdfStreamDecoder
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentOutOfRangeException.ThrowIfNegative(maximumDecodedBytes);
 
-        IReadOnlyList<PdfName> filters = ReadFilters(stream.Dictionary, resolve);
-        IReadOnlyList<PdfDictionary?> parameters = ReadParameters(
+        List<PdfName> filters = ReadFilters(stream.Dictionary, resolve);
+        PdfDictionary?[] parameters = ReadParameters(
             stream.Dictionary, filters.Count, resolve);
         if (filters.Count == 0)
         {
@@ -293,7 +293,7 @@ public static class PdfStreamDecoder
 
     private static bool IsWhiteSpace(byte value) => value is 0 or 9 or 10 or 12 or 13 or 32;
 
-    private static IReadOnlyList<PdfName> ReadFilters(
+    private static List<PdfName> ReadFilters(
         PdfDictionary dictionary, Func<PdfIndirectReference, PdfObject>? resolve)
     {
         if (!dictionary.TryGetValue(FilterName, out PdfObject filterObject))
@@ -315,7 +315,7 @@ public static class PdfStreamDecoder
         return filters;
     }
 
-    private static IReadOnlyList<PdfDictionary?> ReadParameters(
+    private static PdfDictionary?[] ReadParameters(
         PdfDictionary dictionary, int filterCount,
         Func<PdfIndirectReference, PdfObject>? resolve)
     {

@@ -298,7 +298,7 @@ internal static class PdfEngineBurn
         return found;
     }
 
-    private static IReadOnlyList<string> Wrap(string text, TrueTypeFont font, double size, double width,
+    private static List<string> Wrap(string text, TrueTypeFont font, double size, double width,
         double characterSpacing = 0)
     {
         var result = new List<string>();
