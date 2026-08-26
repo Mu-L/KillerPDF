@@ -164,6 +164,7 @@ internal static class PdfEngineIntegration
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(edits);
         if (edits.TextValues.Count == 0 && edits.ChoiceValues.Count == 0
+            && edits.MultiChoiceValues.Count == 0
             && edits.CheckBoxValues.Count == 0 && edits.RadioValues.Count == 0)
             return;
         PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
